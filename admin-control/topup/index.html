@@ -2575,7 +2575,7 @@
     /* =====================================================
        APPROVE
        -----------------------------------------------------
-       Approval diproses oleh:
+       Approval diproses sepenuhnya oleh:
        admin-control/topup/topup-approval.js
     ====================================================== */
 
@@ -2584,30 +2584,22 @@
     ) {
 
         if (
-            window.GENZTopUpApproval &&
-            typeof window.GENZTopUpApproval.approveTopup ===
+            !window.GENZ_TOPUP_APPROVAL ||
+            typeof window.GENZ_TOPUP_APPROVAL.approve !==
                 "function"
         ) {
-            return window.GENZTopUpApproval.approveTopup(
-                id
+
+            showToast(
+                "Modul approval top up belum tersedia.",
+                "error"
             );
+
+            return false;
         }
 
-        if (
-            typeof window.GENZApproveTopup ===
-            "function"
-        ) {
-            return window.GENZApproveTopup(
-                id
-            );
-        }
-
-        showToast(
-            "Modul approval top up belum tersedia.",
-            "error"
+        return window.GENZ_TOPUP_APPROVAL.approve(
+            id
         );
-
-        return false;
     }
 
 
@@ -3586,10 +3578,15 @@
             }
 
 
+            const wasEditing =
+                Boolean(
+                    currentPackageEditId
+                );
+
             closePackageModal();
 
             showToast(
-                currentPackageEditId
+                wasEditing
                     ? "Paket berhasil diperbarui."
                     : "Paket berhasil ditambahkan.",
                 "success"
@@ -3778,9 +3775,48 @@
 
 
     /* =====================================================
-       EXPOSE PAGE API
+       TOP UP CONTEXT API
        -----------------------------------------------------
        Dipakai oleh topup-approval.js.
+       Semua dependency approval diberikan melalui API
+       ini agar modul approval tidak bergantung pada
+       variabel lokal halaman.
+    ====================================================== */
+
+    window.GENZ_TOPUP_CONTEXT = {
+
+        getClient: function () {
+            return supabaseClient;
+        },
+
+        findTopup:
+            findTopup,
+
+        loadTopups:
+            loadTopups,
+
+        showToast:
+            showToast,
+
+        getUserDisplay:
+            getUserDisplay,
+
+        formatNumber:
+            formatNumber,
+
+        formatCurrency:
+            formatCurrency,
+
+        normalizeStatus:
+            normalizeStatus
+    };
+
+
+    /* =====================================================
+       PAGE API
+       -----------------------------------------------------
+       API lama tetap dipertahankan agar tidak merusak
+       modul lain yang mungkin masih menggunakannya.
     ====================================================== */
 
     window.supabaseClient =
@@ -4202,13 +4238,48 @@
 
             /*
              * Pastikan client yang sudah dibuat halaman
-             * tersedia secara global untuk modul approval.
+             * tersedia secara global.
              */
+
             window.supabaseClient =
                 supabaseClient;
 
             window.GENZ_SUPABASE =
                 supabaseClient;
+
+
+            /*
+             * Context approval menggunakan reference
+             * supabaseClient lokal halaman.
+             */
+
+            window.GENZ_TOPUP_CONTEXT = {
+
+                getClient: function () {
+                    return supabaseClient;
+                },
+
+                findTopup:
+                    findTopup,
+
+                loadTopups:
+                    loadTopups,
+
+                showToast:
+                    showToast,
+
+                getUserDisplay:
+                    getUserDisplay,
+
+                formatNumber:
+                    formatNumber,
+
+                formatCurrency:
+                    formatCurrency,
+
+                normalizeStatus:
+                    normalizeStatus
+            };
 
 
             bindEvents();
@@ -4268,11 +4339,17 @@
 
 <!-- =========================================================
      TOP UP APPROVAL MODULE
-     Harus dimuat setelah script halaman di atas.
+     ---------------------------------------------------------
+     Harus dimuat setelah script halaman karena modul ini
+     membutuhkan GENZ_TOPUP_CONTEXT.
 ========================================================== -->
 
 <script src="./topup-approval.js"></script>
 
+
+<!-- =========================================================
+     CENTRAL NAVIGATION
+========================================================== -->
 
 <script src="../../navigation/navigation.js"></script>
 
