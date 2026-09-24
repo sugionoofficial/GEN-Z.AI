@@ -1707,24 +1707,30 @@
                         </h3>
 
 
-                        <select
-                            id="modelSelect"
-                            class="generate-model-select"
-                            disabled
-                            autocomplete="off"
-                        >
+                        <div class="generate-model-select-wrap">
 
-                            <option value="">
-                                Memuat model...
-                            </option>
+    <div
+        id="selectedModelLogo"
+        class="generate-model-logo-preview"
+        hidden
+        aria-hidden="true"
+    ></div>
 
-                        </select>
-                        <div
-    id="selectedModelLogo"
-    class="generate-model-logo-preview"
-    hidden
-    aria-hidden="true"
-></div>
+
+    <select
+        id="modelSelect"
+        class="generate-model-select"
+        disabled
+        autocomplete="off"
+    >
+
+        <option value="">
+            Memuat model...
+        </option>
+
+    </select>
+
+</div>
 
                     </section>
 
