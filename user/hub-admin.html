@@ -19,7 +19,7 @@
 
     <link
         rel="preconnect"
-        href="https://fonts.gstatic.com"
+        href="https://fonts.googleapis.com"
         crossorigin
     >
 
@@ -27,7 +27,6 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
         rel="stylesheet"
     >
-
 
     <style>
 
@@ -706,7 +705,7 @@
 
 
         /* =====================================================
-           ADMIN INFO
+           ADMIN INFORMATION
         ====================================================== */
 
         .admin-info {
@@ -756,13 +755,100 @@
         }
 
 
+        /* =====================================================
+           ADMIN CONTACT ITEMS
+        ====================================================== */
+
+        .admin-contact-list {
+
+            margin-top:
+                12px;
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            gap:
+                10px;
+
+        }
+
+
+        .admin-contact-item {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                14px;
+
+            padding:
+                13px 14px;
+
+            border:
+                1px solid
+                #e5e7eb;
+
+            border-radius:
+                14px;
+
+            background:
+                white;
+
+        }
+
+
+        .admin-contact-item.hidden {
+
+            display:
+                none;
+
+        }
+
+
+        .admin-contact-details {
+
+            min-width:
+                0;
+
+        }
+
+
+        .admin-contact-label {
+
+            font-size:
+                10px;
+
+            color:
+                var(--muted);
+
+            font-weight:
+                800;
+
+            letter-spacing:
+                .8px;
+
+            text-transform:
+                uppercase;
+
+        }
+
+
         .admin-number {
 
             margin-top:
-                7px;
+                4px;
 
             font-size:
-                16px;
+                14px;
 
             font-weight:
                 800;
@@ -772,6 +858,73 @@
 
             word-break:
                 break-word;
+
+        }
+
+
+        .admin-whatsapp-button {
+
+            flex:
+                0 0 auto;
+
+            border:
+                0;
+
+            border-radius:
+                10px;
+
+            background:
+                var(--whatsapp);
+
+            color:
+                white;
+
+            padding:
+                10px 13px;
+
+            min-height:
+                38px;
+
+            cursor:
+                pointer;
+
+            font-size:
+                11px;
+
+            font-weight:
+                800;
+
+            white-space:
+                nowrap;
+
+            transition:
+                transform .2s ease,
+                opacity .2s ease,
+                box-shadow .2s ease;
+
+            box-shadow:
+                0 7px 18px
+                rgba(37,211,102,.18);
+
+        }
+
+
+        .admin-whatsapp-button:hover {
+
+            transform:
+                translateY(-1px);
+
+            box-shadow:
+                0 9px 22px
+                rgba(37,211,102,.24);
+
+        }
+
+
+        .admin-whatsapp-button:active {
+
+            transform:
+                translateY(0);
 
         }
 
@@ -844,7 +997,7 @@
 
 
         /* =====================================================
-           WHATSAPP BUTTON
+           LEGACY / FALLBACK WHATSAPP BUTTON
         ====================================================== */
 
         .whatsapp-button {
@@ -878,7 +1031,7 @@
                 white;
 
             display:
-                flex;
+                none;
 
             align-items:
                 center;
@@ -901,48 +1054,6 @@
             box-shadow:
                 0 12px 30px
                 rgba(37,211,102,.20);
-
-            transition:
-                transform .2s ease,
-                box-shadow .2s ease,
-                opacity .2s ease;
-
-        }
-
-
-        .whatsapp-button:hover {
-
-            transform:
-                translateY(-1px);
-
-            box-shadow:
-                0 15px 34px
-                rgba(37,211,102,.27);
-
-        }
-
-
-        .whatsapp-button:active {
-
-            transform:
-                translateY(0);
-
-        }
-
-
-        .whatsapp-button:disabled {
-
-            cursor:
-                not-allowed;
-
-            opacity:
-                .45;
-
-            transform:
-                none;
-
-            box-shadow:
-                none;
 
         }
 
@@ -1221,6 +1332,25 @@
 
             }
 
+
+            .admin-contact-item {
+
+                align-items:
+                    flex-start;
+
+                flex-direction:
+                    column;
+
+            }
+
+
+            .admin-whatsapp-button {
+
+                width:
+                    100%;
+
+            }
+
         }
 
     </style>
@@ -1430,10 +1560,108 @@
 
 
                 <div
-                    id="adminNumber"
-                    class="admin-number"
+                    id="adminContactList"
+                    class="admin-contact-list"
                 >
-                    -
+
+                    <!-- Admin 1 -->
+                    <div
+                        id="adminContact1"
+                        class="admin-contact-item hidden"
+                    >
+
+                        <div class="admin-contact-details">
+
+                            <div class="admin-contact-label">
+                                Admin 1
+                            </div>
+
+                            <div
+                                id="adminNumber1"
+                                class="admin-number"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <button
+                            type="button"
+                            class="admin-whatsapp-button"
+                            data-admin="1"
+                        >
+                            WhatsApp
+                        </button>
+
+                    </div>
+
+
+                    <!-- Admin 2 -->
+                    <div
+                        id="adminContact2"
+                        class="admin-contact-item hidden"
+                    >
+
+                        <div class="admin-contact-details">
+
+                            <div class="admin-contact-label">
+                                Admin 2
+                            </div>
+
+                            <div
+                                id="adminNumber2"
+                                class="admin-number"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <button
+                            type="button"
+                            class="admin-whatsapp-button"
+                            data-admin="2"
+                        >
+                            WhatsApp
+                        </button>
+
+                    </div>
+
+
+                    <!-- Admin 3 -->
+                    <div
+                        id="adminContact3"
+                        class="admin-contact-item hidden"
+                    >
+
+                        <div class="admin-contact-details">
+
+                            <div class="admin-contact-label">
+                                Admin 3
+                            </div>
+
+                            <div
+                                id="adminNumber3"
+                                class="admin-number"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <button
+                            type="button"
+                            class="admin-whatsapp-button"
+                            data-admin="3"
+                        >
+                            WhatsApp
+                        </button>
+
+                    </div>
+
                 </div>
 
 
@@ -1451,16 +1679,16 @@
             </div>
 
 
-            <!-- =============================================
-                 WHATSAPP
-            ============================================== -->
+            <!-- =================================================
+                 LEGACY BUTTON
+                 Tetap dipertahankan sebagai compatibility element
+            ================================================== -->
 
             <button
                 id="whatsappButton"
                 class="whatsapp-button"
                 type="button"
                 disabled
-                style="display:none;"
             >
 
                 <span
@@ -1520,6 +1748,10 @@
                 "hub_admin_settings";
 
 
+            const DEFAULT_WHATSAPP_MESSAGE =
+                "Halo Admin GEN-Z.AI, saya membutuhkan bantuan.";
+
+
             /* =================================================
                CLIENT
             ================================================== */
@@ -1577,9 +1809,9 @@
                 );
 
 
-            const adminNumber =
+            const adminContactList =
                 document.getElementById(
-                    "adminNumber"
+                    "adminContactList"
                 );
 
 
@@ -1608,14 +1840,63 @@
 
 
             /* =================================================
+               ADMIN CONTACT ELEMENTS
+            ================================================== */
+
+            const adminContact1 =
+                document.getElementById(
+                    "adminContact1"
+                );
+
+
+            const adminContact2 =
+                document.getElementById(
+                    "adminContact2"
+                );
+
+
+            const adminContact3 =
+                document.getElementById(
+                    "adminContact3"
+                );
+
+
+            const adminNumber1 =
+                document.getElementById(
+                    "adminNumber1"
+                );
+
+
+            const adminNumber2 =
+                document.getElementById(
+                    "adminNumber2"
+                );
+
+
+            const adminNumber3 =
+                document.getElementById(
+                    "adminNumber3"
+                );
+
+
+            /* =================================================
                STATE
             ================================================== */
 
-            let whatsappPhone =
-                "";
+            let whatsappPhones = {
+
+                admin1: "",
+
+                admin2: "",
+
+                admin3: ""
+
+            };
+
 
             let whatsappMessage =
                 "";
+
 
             let hubAdminActive =
                 false;
@@ -1919,6 +2200,12 @@
                 }
 
 
+                /*
+                 * +62xxxxxxxx
+                 * setelah karakter non-digit
+                 * dibersihkan menjadi 62xxxxxxxx.
+                 */
+
                 return phone;
 
             }
@@ -1940,12 +2227,27 @@
                     )
 
                     .select(
-                        "whatsapp_number,whatsapp_message,is_active"
+                        [
+                            "whatsapp_number",
+                            "whatsapp_number_admin_1",
+                            "whatsapp_number_admin_2",
+                            "whatsapp_number_admin_3",
+                            "whatsapp_message",
+                            "is_active"
+                        ].join(",")
                     )
 
                     .eq(
                         "is_active",
                         true
+                    )
+
+                    .order(
+                        "updated_at",
+                        {
+                            ascending: false,
+                            nullsFirst: false
+                        }
                     )
 
                     .limit(1);
@@ -1974,11 +2276,18 @@
                     hubAdminActive =
                         false;
 
-                    whatsappPhone =
-                        "";
+
+                    whatsappPhones =
+                        {
+                            admin1: "",
+                            admin2: "",
+                            admin3: ""
+                        };
+
 
                     whatsappMessage =
                         "";
+
 
                     renderInactiveState();
 
@@ -1987,16 +2296,45 @@
                 }
 
 
-                whatsappPhone =
+                /*
+                 * Admin 1:
+                 *
+                 * Prioritas:
+                 * 1. whatsapp_number_admin_1
+                 * 2. whatsapp_number lama
+                 *
+                 * Fallback lama dipertahankan supaya
+                 * data existing tidak hilang.
+                 */
+
+                const admin1Source =
+                    row.whatsapp_number_admin_1 ||
+                    row.whatsapp_number ||
+                    "";
+
+
+                whatsappPhones.admin1 =
                     normalizePhone(
-                        row.whatsapp_number
+                        admin1Source
+                    );
+
+
+                whatsappPhones.admin2 =
+                    normalizePhone(
+                        row.whatsapp_number_admin_2
+                    );
+
+
+                whatsappPhones.admin3 =
+                    normalizePhone(
+                        row.whatsapp_number_admin_3
                     );
 
 
                 whatsappMessage =
                     String(
                         row.whatsapp_message ||
-                        ""
+                        DEFAULT_WHATSAPP_MESSAGE
                     ).trim();
 
 
@@ -2004,7 +2342,55 @@
                     row.is_active === true;
 
 
+                /*
+                 * Jika konfigurasi aktif tetapi
+                 * seluruh nomor kosong, jangan
+                 * menampilkan tombol rusak.
+                 */
+
+                const hasAnyAdmin =
+                    hasAnyValidAdmin();
+
+
+                if (!hasAnyAdmin) {
+
+                    renderInactiveState();
+
+                    return;
+
+                }
+
+
                 renderActiveState();
+
+            }
+
+
+            /* =================================================
+               CHECK ADMIN NUMBERS
+            ================================================== */
+
+            function hasAnyValidAdmin() {
+
+                return (
+
+                    isValidWhatsAppNumber(
+                        whatsappPhones.admin1
+                    )
+
+                    ||
+
+                    isValidWhatsAppNumber(
+                        whatsappPhones.admin2
+                    )
+
+                    ||
+
+                    isValidWhatsAppNumber(
+                        whatsappPhones.admin3
+                    )
+
+                );
 
             }
 
@@ -2031,15 +2417,42 @@
                 }
 
 
-                if (adminNumber) {
+                /*
+                 * Admin 1
+                 */
 
-                    adminNumber.textContent =
-                        formatPhoneForDisplay(
-                            whatsappPhone
-                        );
+                renderAdminContact(
+                    adminContact1,
+                    adminNumber1,
+                    whatsappPhones.admin1
+                );
 
-                }
 
+                /*
+                 * Admin 2
+                 */
+
+                renderAdminContact(
+                    adminContact2,
+                    adminNumber2,
+                    whatsappPhones.admin2
+                );
+
+
+                /*
+                 * Admin 3
+                 */
+
+                renderAdminContact(
+                    adminContact3,
+                    adminNumber3,
+                    whatsappPhones.admin3
+                );
+
+
+                /*
+                 * Status.
+                 */
 
                 if (serviceStatus) {
 
@@ -2056,20 +2469,74 @@
                 }
 
 
+                /*
+                 * Legacy button sengaja
+                 * tidak digunakan lagi karena
+                 * sekarang tersedia 3 tombol.
+                 */
+
                 if (whatsappButton) {
 
                     whatsappButton.style.display =
-                        "flex";
+                        "none";
 
                     whatsappButton.disabled =
-                        !isValidWhatsAppNumber(
-                            whatsappPhone
-                        );
+                        true;
 
                 }
 
 
                 hideMessage();
+
+            }
+
+
+            /* =================================================
+               RENDER SINGLE ADMIN CONTACT
+            ================================================== */
+
+            function renderAdminContact(
+                container,
+                numberElement,
+                phone
+            ) {
+
+                if (
+                    !container ||
+                    !numberElement
+                ) {
+
+                    return;
+
+                }
+
+
+                const valid =
+                    isValidWhatsAppNumber(
+                        phone
+                    );
+
+
+                if (!valid) {
+
+                    container.classList.add(
+                        "hidden"
+                    );
+
+                    return;
+
+                }
+
+
+                container.classList.remove(
+                    "hidden"
+                );
+
+
+                numberElement.textContent =
+                    formatPhoneForDisplay(
+                        phone
+                    );
 
             }
 
@@ -2096,12 +2563,19 @@
                 }
 
 
-                if (adminNumber) {
+                [
+                    adminContact1,
+                    adminContact2,
+                    adminContact3
+                ].forEach(
+                    element => {
 
-                    adminNumber.textContent =
-                        "Kontak admin tidak tersedia";
+                        element?.classList.add(
+                            "hidden"
+                        );
 
-                }
+                    }
+                );
 
 
                 if (serviceStatus) {
@@ -2174,11 +2648,6 @@
                 }
 
 
-                /*
-                 * Tampilan tetap aman,
-                 * hanya untuk display.
-                 */
-
                 if (
                     value.startsWith("62")
                 ) {
@@ -2200,17 +2669,38 @@
                OPEN WHATSAPP
             ================================================== */
 
-            function openWhatsApp() {
+            function openWhatsApp(
+                adminKey
+            ) {
 
                 if (
-                    !hubAdminActive ||
+                    !hubAdminActive
+                ) {
+
+                    showMessage(
+                        "Hub Admin sedang tidak tersedia.",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                const phone =
+                    whatsappPhones[
+                        adminKey
+                    ] || "";
+
+
+                if (
                     !isValidWhatsAppNumber(
-                        whatsappPhone
+                        phone
                     )
                 ) {
 
                     showMessage(
-                        "Kontak WhatsApp admin tidak tersedia.",
+                        "Nomor WhatsApp admin tidak tersedia.",
                         "error"
                     );
 
@@ -2222,13 +2712,13 @@
                 const encodedMessage =
                     encodeURIComponent(
                         whatsappMessage ||
-                        "Halo Admin GEN-Z.AI, saya membutuhkan bantuan."
+                        DEFAULT_WHATSAPP_MESSAGE
                     );
 
 
                 const whatsappUrl =
                     "https://wa.me/" +
-                    whatsappPhone +
+                    phone +
                     "?text=" +
                     encodedMessage;
 
@@ -2244,6 +2734,55 @@
                 );
 
             }
+
+
+            /* =================================================
+               WHATSAPP EVENTS
+            ================================================== */
+
+            document
+                .querySelectorAll(
+                    ".admin-whatsapp-button"
+                )
+                .forEach(
+                    button => {
+
+                        button.addEventListener(
+                            "click",
+                            () => {
+
+                                const adminNumber =
+                                    button.dataset.admin;
+
+
+                                openWhatsApp(
+                                    "admin" +
+                                    adminNumber
+                                );
+
+                            }
+                        );
+
+                    }
+                );
+
+
+            /*
+             * Legacy button tetap diberi handler
+             * supaya tidak ada error jika elemen
+             * lama masih dipakai oleh kode lain.
+             */
+
+            whatsappButton?.addEventListener(
+                "click",
+                () => {
+
+                    openWhatsApp(
+                        "admin1"
+                    );
+
+                }
+            );
 
 
             /* =================================================
@@ -2283,16 +2822,6 @@
                     }
 
                 }
-            );
-
-
-            /* =================================================
-               WHATSAPP EVENT
-            ================================================== */
-
-            whatsappButton?.addEventListener(
-                "click",
-                openWhatsApp
             );
 
 
