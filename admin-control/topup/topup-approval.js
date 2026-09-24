@@ -4,197 +4,151 @@
    ---------------------------------------------------------
    File:
    admin-control/topup/topup-approval.js
-
-   Tanggung jawab:
-   - Approve top up
-   - Memanggil RPC Supabase
-   - Menambahkan credit secara atomic
-   - Menjaga agar top up tidak diproses dua kali
-   - Reload tabel setelah proses
-
-   RPC:
-   public.approve_topup_and_add_credits
    ========================================================= */
 
 (function () {
   "use strict";
 
-  /* =======================================================
-     HELPERS
-     ======================================================= */
-
-  function getContext() {
-    return window.GENZ_TOPUP_CONTEXT || null;
-  }
-
-  function showToast(message, type) {
-    const ctx = getContext();
-
-    if (ctx && typeof ctx.showToast === "function") {
-      ctx.showToast(message, type);
-      return;
-    }
-
-    console[type === "error" ? "error" : "log"](
-      "GENZ Top Up:",
-      message
-    );
-  }
-
-  function formatNumber(value) {
-    const ctx = getContext();
-
-    if (ctx && typeof ctx.formatNumber === "function") {
-      return ctx.formatNumber(value);
-    }
-
-    return Number(value || 0).toLocaleString("id-ID");
-  }
-
-  function formatCurrency(value) {
-    const ctx = getContext();
-
-    if (ctx && typeof ctx.formatCurrency === "function") {
-      return ctx.formatCurrency(value);
-    }
-
-    return (
-      "Rp" +
-      Number(value || 0).toLocaleString("id-ID")
-    );
-  }
-
-  function getSupabaseClient() {
-    const ctx = getContext();
-
-    if (!ctx || typeof ctx.getClient !== "function") {
-      return null;
-    }
-
-    return ctx.getClient();
-  }
-
-  function findTopup(id) {
-    const ctx = getContext();
-
-    if (!ctx || typeof ctx.findTopup !== "function") {
-      return null;
-    }
-
-    return ctx.findTopup(id);
-  }
-
-  function getUserDisplay(item) {
-    const ctx = getContext();
-
-    if (ctx && typeof ctx.getUserDisplay === "function") {
-      return ctx.getUserDisplay(item);
-    }
-
-    return {
-      name: "User",
-      email: "-"
-    };
-  }
-
-  async function reloadTopups() {
-    const ctx = getContext();
-
-    if (ctx && typeof ctx.loadTopups === "function") {
-      await ctx.loadTopups();
-    }
-  }
-
-  /* =======================================================
-     APPROVE TOP UP
-     ======================================================= */
+  console.log(
+    "[GEN-Z.AI] topup-approval.js loaded"
+  );
 
   async function approve(id) {
-    const ctx = getContext();
+
+    console.log(
+      "[GEN-Z.AI] approveTopup module called:",
+      id
+    );
+
+    const ctx = window.GENZ_TOPUP_CONTEXT;
 
     if (!ctx) {
-      showToast(
-        "Modul Top Up belum siap. Silakan refresh halaman.",
-        "error"
+      console.error(
+        "[GEN-Z.AI] GENZ_TOPUP_CONTEXT belum tersedia."
       );
+
       return;
     }
 
-    const supabaseClient = getSupabaseClient();
+    if (typeof ctx.getClient !== "function") {
+      console.error(
+        "[GEN-Z.AI] getClient() tidak tersedia."
+      );
+
+      if (typeof ctx.showToast === "function") {
+        ctx.showToast(
+          "Supabase client belum tersedia.",
+          "error"
+        );
+      }
+
+      return;
+    }
+
+    const supabaseClient = ctx.getClient();
 
     if (!supabaseClient) {
-      showToast(
-        "Supabase belum siap. Silakan refresh halaman.",
-        "error"
-      );
+      if (typeof ctx.showToast === "function") {
+        ctx.showToast(
+          "Supabase belum siap. Silakan refresh halaman.",
+          "error"
+        );
+      }
+
       return;
     }
 
-    /* -----------------------------------------------------
-       Cari data dari tabel yang sedang tampil
-       ----------------------------------------------------- */
+    /* =====================================================
+       AMBIL DATA TOPUP DARI UI
+       ===================================================== */
 
-    const item = findTopup(id);
+    const item =
+      typeof ctx.findTopup === "function"
+        ? ctx.findTopup(id)
+        : null;
 
     if (!item) {
-      showToast(
-        "Data top up tidak ditemukan.",
-        "error"
-      );
+
+      if (typeof ctx.showToast === "function") {
+        ctx.showToast(
+          "Data top up tidak ditemukan.",
+          "error"
+        );
+      }
+
       return;
     }
 
-    /* -----------------------------------------------------
-       Pastikan status masih pending
-       ----------------------------------------------------- */
+    /* =====================================================
+       CEK STATUS
+       ===================================================== */
 
     const status = String(
       item.status || ""
-    ).trim().toLowerCase();
+    )
+      .trim()
+      .toLowerCase();
 
     if (status !== "pending") {
-      showToast(
-        "Top up ini sudah diproses.",
-        "error"
-      );
 
-      await reloadTopups();
+      if (typeof ctx.showToast === "function") {
+        ctx.showToast(
+          "Top up ini sudah diproses.",
+          "error"
+        );
+      }
 
       return;
     }
 
-    /* -----------------------------------------------------
-       Data user
-       ----------------------------------------------------- */
+    /* =====================================================
+       DATA USER
+       ===================================================== */
 
-    const user = getUserDisplay(item);
+    const user =
+      typeof ctx.getUserDisplay === "function"
+        ? ctx.getUserDisplay(item)
+        : {
+            name: "User",
+            email: "-"
+          };
 
-    const creditAmount = Number(item.credits);
+    const credits = Number(
+      item.credits || 0
+    );
 
-    const amount = Number(item.amount);
+    const amount = Number(
+      item.amount || 0
+    );
 
-    /* -----------------------------------------------------
-       Validasi credit
-       ----------------------------------------------------- */
+    const formatNumber =
+      typeof ctx.formatNumber === "function"
+        ? ctx.formatNumber
+        : function (value) {
+            return Number(
+              value || 0
+            ).toLocaleString("id-ID");
+          };
 
-    if (
-      !Number.isInteger(creditAmount) ||
-      creditAmount <= 0
-    ) {
-      showToast(
-        "Jumlah credit top up tidak valid.",
-        "error"
-      );
-      return;
-    }
+    const formatCurrency =
+      typeof ctx.formatCurrency === "function"
+        ? ctx.formatCurrency
+        : function (value) {
+            return (
+              "Rp" +
+              Number(
+                value || 0
+              ).toLocaleString("id-ID")
+            );
+          };
 
-    /* -----------------------------------------------------
-       Konfirmasi admin
-       ----------------------------------------------------- */
+    /* =====================================================
+       KONFIRMASI
+       ===================================================== */
 
     const confirmed = window.confirm(
       "Approve top up " +
-        formatNumber(creditAmount) +
+        formatNumber(credits) +
         " credit untuk " +
         (user.email || user.name || "user") +
         " senilai " +
@@ -206,82 +160,96 @@
       return;
     }
 
-    /* -----------------------------------------------------
-       Tandai proses
-       ----------------------------------------------------- */
-
-    showToast(
-      "Memproses approval top up...",
-      "info"
-    );
+    /* =====================================================
+       RPC
+       ===================================================== */
 
     try {
-      /* ===================================================
-         PANGGIL RPC ATOMIC
-         =================================================== */
 
-      const { data, error } =
-        await supabaseClient.rpc(
-          "approve_topup_and_add_credits",
-          {
-            p_topup_id: id
-          }
+      if (typeof ctx.showToast === "function") {
+        ctx.showToast(
+          "Memproses approval top up...",
+          "info"
         );
+      }
+
+      console.log(
+        "[GEN-Z.AI] Calling RPC approve_topup_and_add_credits:",
+        id
+      );
+
+      const {
+        data,
+        error
+      } = await supabaseClient.rpc(
+        "approve_topup_and_add_credits",
+        {
+          p_topup_id: id
+        }
+      );
 
       if (error) {
+
         console.error(
-          "GENZ Top Up RPC error:",
+          "[GEN-Z.AI] RPC error:",
           error
         );
 
         throw error;
       }
 
-      /* ---------------------------------------------------
-         Validasi hasil RPC
-         --------------------------------------------------- */
+      console.log(
+        "[GEN-Z.AI] RPC result:",
+        data
+      );
 
-      if (!data || data.success !== true) {
+      if (
+        !data ||
+        data.success !== true
+      ) {
         throw new Error(
           "Approval top up gagal diproses."
         );
       }
 
-      /* ---------------------------------------------------
-         Ambil hasil transaksi
-         --------------------------------------------------- */
+      /* ===================================================
+         SUKSES
+         =================================================== */
 
       const addedCredits = Number(
-        data.added_credits || creditAmount
+        data.added_credits || credits
       );
 
       const newCredits = Number(
         data.new_credits || 0
       );
 
-      /* ---------------------------------------------------
-         Toast sukses
-         --------------------------------------------------- */
+      if (typeof ctx.showToast === "function") {
+        ctx.showToast(
+          "Top up berhasil disetujui. " +
+            formatNumber(addedCredits) +
+            " credit berhasil ditambahkan. " +
+            "Saldo sekarang " +
+            formatNumber(newCredits) +
+            " credit.",
+          "success"
+        );
+      }
 
-      showToast(
-        "Top up berhasil disetujui. " +
-          formatNumber(addedCredits) +
-          " credit telah ditambahkan. " +
-          "Saldo sekarang " +
-          formatNumber(newCredits) +
-          " credit.",
-        "success"
-      );
+      /* ===================================================
+         RELOAD
+         =================================================== */
 
-      /* ---------------------------------------------------
-         Refresh tabel
-         --------------------------------------------------- */
-
-      await reloadTopups();
+      if (
+        typeof ctx.loadTopups === "function"
+      ) {
+        await ctx.loadTopups();
+      }
 
     } catch (error) {
+
       console.error(
-        "GENZ Top Up approval error:",
+        "[GEN-Z.AI] Approval error:",
         error
       );
 
@@ -291,63 +259,38 @@
           ? error.message
           : "Gagal approve top up.";
 
-      /* ---------------------------------------------------
-         Normalisasi pesan error PostgreSQL
-         --------------------------------------------------- */
-
       if (
         message
           .toLowerCase()
-          .includes("top up sudah diproses")
+          .includes("sudah diproses")
       ) {
         message =
-          "Top up ini sudah diproses oleh proses lain.";
+          "Top up ini sudah diproses.";
       }
 
       if (
-        message
-          .toLowerCase()
-          .includes("top up tidak ditemukan")
+        typeof ctx.showToast === "function"
       ) {
-        message =
-          "Data top up tidak ditemukan.";
-      }
-
-      if (
-        message
-          .toLowerCase()
-          .includes("profil user tidak ditemukan")
-      ) {
-        message =
-          "Profil user tidak ditemukan. Credit tidak ditambahkan.";
-      }
-
-      showToast(
-        message,
-        "error"
-      );
-
-      /* ---------------------------------------------------
-         Tetap reload agar status UI sinkron
-         --------------------------------------------------- */
-
-      try {
-        await reloadTopups();
-      } catch (reloadError) {
-        console.error(
-          "GENZ Top Up reload error:",
-          reloadError
+        ctx.showToast(
+          message,
+          "error"
         );
       }
+
     }
   }
 
   /* =======================================================
-     PUBLIC API
+     PUBLIC MODULE
      ======================================================= */
 
   window.GENZ_TOPUP_APPROVAL = {
     approve: approve
   };
+
+  console.log(
+    "[GEN-Z.AI] GENZ_TOPUP_APPROVAL registered:",
+    typeof window.GENZ_TOPUP_APPROVAL.approve
+  );
 
 })();
