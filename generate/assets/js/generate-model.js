@@ -4051,6 +4051,10 @@ export async function refreshModels(
         await loadModelConfig(
             selectedModelId
         );
+   
+   updateModelLogo(
+    model
+);
 
 
     return {
