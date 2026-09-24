@@ -3815,7 +3815,7 @@ export async function resolveInitialModel() {
 
     const models =
         await loadAvailableModels();
-
+   
 
     let selectedModelId =
         null;
@@ -3904,6 +3904,10 @@ export async function resolveInitialModel() {
         await loadModelConfig(
             selectedModelId
         );
+
+   updateModelLogo(
+    model
+);
 
 
     const elements =
