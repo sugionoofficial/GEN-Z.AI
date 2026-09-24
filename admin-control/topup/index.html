@@ -75,6 +75,12 @@
             font-family: inherit;
         }
 
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
         .btn {
             min-height: 42px;
             padding: 0 16px;
@@ -178,6 +184,188 @@
 
         .filter {
             width: 180px;
+        }
+
+        .section-card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 14px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid #1f2937;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .section-header p {
+            margin: 5px 0 0;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .section-header-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .packages-wrap {
+            padding: 20px;
+        }
+
+        .packages-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .package-card {
+            position: relative;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 18px;
+            transition: 0.2s ease;
+        }
+
+        .package-card:hover {
+            border-color: #475569;
+            transform: translateY(-1px);
+        }
+
+        .package-card.inactive {
+            opacity: 0.62;
+        }
+
+        .package-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .package-name {
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .package-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            padding: 0 8px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.15);
+            color: #60a5fa;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .package-status {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            padding: 0 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .package-status.active {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+
+        .package-status.inactive {
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+        }
+
+        .package-credits {
+            font-size: 24px;
+            font-weight: 800;
+            color: #60a5fa;
+            margin-bottom: 12px;
+        }
+
+        .package-price {
+            margin-bottom: 10px;
+        }
+
+        .package-original-price {
+            color: #64748b;
+            text-decoration: line-through;
+            font-size: 13px;
+            margin-bottom: 3px;
+        }
+
+        .package-final-price {
+            font-size: 20px;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .package-no-discount {
+            font-size: 20px;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .package-discount {
+            display: inline-flex;
+            margin-top: 7px;
+            padding: 4px 8px;
+            border-radius: 7px;
+            background: rgba(220, 38, 38, 0.15);
+            color: #f87171;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .package-description {
+            min-height: 38px;
+            margin: 12px 0 16px;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .package-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding-top: 12px;
+            border-top: 1px solid #1f2937;
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .package-actions {
+            display: flex;
+            gap: 7px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .package-loading,
+        .package-empty {
+            padding: 45px 20px;
+            text-align: center;
+            color: #64748b;
         }
 
         .table-card {
@@ -289,14 +477,15 @@
             position: fixed;
             right: 24px;
             bottom: 24px;
-            z-index: 9999;
+            z-index: 99999;
             max-width: 420px;
             padding: 14px 18px;
             border-radius: 10px;
             background: #1e293b;
             color: #f8fafc;
             border: 1px solid #334155;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+            box-shadow:
+                0 20px 50px rgba(0, 0, 0, 0.35);
             display: none;
         }
 
@@ -338,7 +527,12 @@
             background: #111827;
             border: 1px solid #334155;
             border-radius: 16px;
-            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+            box-shadow:
+                0 30px 80px rgba(0, 0, 0, 0.55);
+        }
+
+        .modal.large {
+            width: min(640px, 100%);
         }
 
         .modal-header {
@@ -403,6 +597,35 @@
             opacity: 0.75;
         }
 
+        .price-preview {
+            width: 100%;
+            min-height: 54px;
+            padding: 10px 12px;
+            border-radius: 9px;
+            background: #0b1220;
+            border: 1px solid #334155;
+        }
+
+        .price-preview-old {
+            color: #64748b;
+            font-size: 12px;
+            text-decoration: line-through;
+        }
+
+        .price-preview-final {
+            margin-top: 3px;
+            font-size: 18px;
+            font-weight: 800;
+            color: #4ade80;
+        }
+
+        .price-preview-discount {
+            margin-top: 3px;
+            color: #f87171;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
         .modal-footer {
             padding: 16px 20px 20px;
             display: flex;
@@ -414,6 +637,38 @@
             margin-top: 8px;
             color: #f87171;
             font-size: 12px;
+        }
+
+        .helper-text {
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .discount-input-wrap {
+            position: relative;
+        }
+
+        .discount-input-wrap .form-control {
+            padding-right: 45px;
+        }
+
+        .discount-symbol {
+            position: absolute;
+            right: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            pointer-events: none;
+            font-weight: 700;
+        }
+
+        @media (max-width: 1100px) {
+            .packages-grid {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
+            }
         }
 
         @media (max-width: 900px) {
@@ -429,6 +684,12 @@
             .page-header {
                 align-items: flex-start;
                 flex-direction: column;
+            }
+        }
+
+        @media (max-width: 650px) {
+            .packages-grid {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -448,6 +709,19 @@
             .header-actions .btn {
                 flex: 1;
             }
+
+            .section-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .section-header-actions {
+                width: 100%;
+            }
+
+            .section-header-actions .btn {
+                flex: 1;
+            }
         }
     </style>
 </head>
@@ -456,17 +730,29 @@
 
 <div id="navigation"></div>
 
-<main id="adminPage" class="page" style="display:none;">
+<main
+    id="adminPage"
+    class="page"
+    style="display:none;"
+>
 
     <div class="page-header">
+
         <div class="title-wrap">
-            <h1>Top Up Credit</h1>
+
+            <h1>
+                Top Up Credit
+            </h1>
+
             <p>
-                Kelola pengajuan top up credit pengguna GEN-Z.AI.
+                Kelola pengajuan top up credit
+                dan paket credit GEN-Z.AI.
             </p>
+
         </div>
 
         <div class="header-actions">
+
             <button
                 type="button"
                 class="btn btn-secondary"
@@ -474,82 +760,202 @@
             >
                 Refresh
             </button>
+
         </div>
+
     </div>
+
+
+    <!-- =====================================================
+         STATISTIK TOP UP
+    ====================================================== -->
 
     <section class="stats">
 
         <div class="stat-card">
+
             <div class="stat-label">
                 Total Pengajuan
             </div>
+
             <div
                 class="stat-value"
                 id="statTotal"
             >
                 0
             </div>
+
         </div>
 
+
         <div class="stat-card">
+
             <div class="stat-label">
                 Pending
             </div>
+
             <div
                 class="stat-value"
                 id="statPending"
             >
                 0
             </div>
+
         </div>
 
+
         <div class="stat-card">
+
             <div class="stat-label">
                 Approved
             </div>
+
             <div
                 class="stat-value"
                 id="statApproved"
             >
                 0
             </div>
+
         </div>
 
+
         <div class="stat-card">
+
             <div class="stat-label">
                 Total Credit Approved
             </div>
+
             <div
                 class="stat-value"
                 id="statCredits"
             >
                 0
             </div>
+
         </div>
 
     </section>
 
+
+    <!-- =====================================================
+         CREDIT PACKAGE MANAGEMENT
+    ====================================================== -->
+
+    <section class="section-card">
+
+        <div class="section-header">
+
+            <div>
+
+                <h2>
+                    Daftar Paket Credit
+                </h2>
+
+                <p>
+                    Kelola harga, diskon, credit,
+                    badge, dan status paket.
+                </p>
+
+            </div>
+
+            <div class="section-header-actions">
+
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    id="addPackageButton"
+                >
+                    + Tambah Paket
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    id="refreshPackagesButton"
+                >
+                    Refresh Paket
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <div class="packages-wrap">
+
+            <div
+                id="packageLoading"
+                class="package-loading"
+            >
+                Memuat daftar paket...
+            </div>
+
+
+            <div
+                id="packageEmpty"
+                class="package-empty"
+                style="display:none;"
+            >
+                Belum ada paket credit.
+            </div>
+
+
+            <div
+                id="packagesGrid"
+                class="packages-grid"
+                style="display:none;"
+            ></div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         TOP UP REQUEST
+    ====================================================== -->
+
     <div class="toolbar">
 
         <div class="search-box">
+
             <input
                 type="text"
                 id="searchInput"
                 placeholder="Cari nama, email, package..."
                 autocomplete="off"
             >
+
         </div>
 
+
         <div class="filter">
+
             <select id="statusFilter">
-                <option value="">Semua Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
+
+                <option value="">
+                    Semua Status
+                </option>
+
+                <option value="pending">
+                    Pending
+                </option>
+
+                <option value="approved">
+                    Approved
+                </option>
+
+                <option value="rejected">
+                    Rejected
+                </option>
+
             </select>
+
         </div>
 
     </div>
+
 
     <section class="table-card">
 
@@ -560,6 +966,7 @@
             Memuat data top up...
         </div>
 
+
         <div
             id="emptyState"
             class="empty"
@@ -567,6 +974,7 @@
         >
             Belum ada pengajuan top up.
         </div>
+
 
         <div
             id="tableWrap"
@@ -577,18 +985,44 @@
             <table>
 
                 <thead>
+
                     <tr>
-                        <th>User</th>
-                        <th>Package</th>
-                        <th>Credit</th>
-                        <th>Nominal</th>
-                        <th>Status</th>
-                        <th>Dibuat</th>
-                        <th>Aksi</th>
+
+                        <th>
+                            User
+                        </th>
+
+                        <th>
+                            Package
+                        </th>
+
+                        <th>
+                            Credit
+                        </th>
+
+                        <th>
+                            Nominal
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th>
+                            Dibuat
+                        </th>
+
+                        <th>
+                            Aksi
+                        </th>
+
                     </tr>
+
                 </thead>
 
-                <tbody id="topupTableBody"></tbody>
+                <tbody
+                    id="topupTableBody"
+                ></tbody>
 
             </table>
 
@@ -597,6 +1031,11 @@
     </section>
 
 </main>
+
+
+<!-- =========================================================
+     EDIT TOP UP MODAL
+========================================================== -->
 
 <div
     id="editModal"
@@ -607,7 +1046,9 @@
 
         <div class="modal-header">
 
-            <h2>Edit Top Up</h2>
+            <h2>
+                Edit Top Up
+            </h2>
 
             <button
                 type="button"
@@ -619,6 +1060,7 @@
 
         </div>
 
+
         <div class="modal-body">
 
             <input
@@ -626,27 +1068,44 @@
                 id="editId"
             >
 
+
             <div class="form-group">
-                <label>User</label>
+
+                <label>
+                    User
+                </label>
+
                 <input
                     type="text"
                     class="form-control readonly"
                     id="editUser"
                     readonly
                 >
+
             </div>
 
+
             <div class="form-group">
-                <label>Package</label>
+
+                <label>
+                    Package
+                </label>
+
                 <input
                     type="text"
                     class="form-control"
                     id="editPackage"
                 >
+
             </div>
 
+
             <div class="form-group">
-                <label>Credit</label>
+
+                <label>
+                    Credit
+                </label>
+
                 <input
                     type="number"
                     min="1"
@@ -654,10 +1113,16 @@
                     class="form-control"
                     id="editCredits"
                 >
+
             </div>
 
+
             <div class="form-group">
-                <label>Nominal Pembayaran</label>
+
+                <label>
+                    Nominal Pembayaran
+                </label>
+
                 <input
                     type="number"
                     min="1"
@@ -665,35 +1130,61 @@
                     class="form-control"
                     id="editAmount"
                 >
+
             </div>
 
+
             <div class="form-group">
-                <label>Status</label>
+
+                <label>
+                    Status
+                </label>
+
                 <select
                     class="form-control"
                     id="editStatus"
                 >
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
+
+                    <option value="pending">
+                        Pending
+                    </option>
+
+                    <option value="approved">
+                        Approved
+                    </option>
+
+                    <option value="rejected">
+                        Rejected
+                    </option>
+
                 </select>
 
+
                 <div class="danger-note">
-                    Untuk keamanan, perubahan menjadi Approved
-                    melalui tombol Approve pada daftar.
+                    Untuk keamanan, perubahan menjadi
+                    Approved melalui tombol Approve
+                    pada daftar.
                 </div>
+
             </div>
 
+
             <div class="form-group">
-                <label>Catatan Admin</label>
+
+                <label>
+                    Catatan Admin
+                </label>
+
                 <textarea
                     class="form-control"
                     id="editNote"
                     placeholder="Catatan internal admin..."
                 ></textarea>
+
             </div>
 
         </div>
+
 
         <div class="modal-footer">
 
@@ -719,27 +1210,323 @@
 
 </div>
 
+
+<!-- =========================================================
+     ADD / EDIT PACKAGE MODAL
+========================================================== -->
+
+<div
+    id="packageModal"
+    class="modal-overlay"
+>
+
+    <div class="modal large">
+
+        <div class="modal-header">
+
+            <h2 id="packageModalTitle">
+                Tambah Paket
+            </h2>
+
+            <button
+                type="button"
+                class="close-btn"
+                id="closePackageModalButton"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="modal-body">
+
+            <input
+                type="hidden"
+                id="packageId"
+            >
+
+
+            <div class="form-group">
+
+                <label for="packageName">
+                    Nama Paket
+                </label>
+
+                <input
+                    type="text"
+                    id="packageName"
+                    class="form-control"
+                    maxlength="100"
+                    placeholder="Contoh: Creator"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="packageCredits">
+                    Credit
+                </label>
+
+                <input
+                    type="number"
+                    id="packageCredits"
+                    class="form-control"
+                    min="1"
+                    step="1"
+                    placeholder="500"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="packageOriginalPrice">
+                    Harga Normal
+                </label>
+
+                <input
+                    type="number"
+                    id="packageOriginalPrice"
+                    class="form-control"
+                    min="1"
+                    step="1"
+                    placeholder="50000"
+                >
+
+                <div class="helper-text">
+                    Harga sebelum diskon.
+                </div>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="packageDiscount">
+                    Diskon
+                </label>
+
+                <div class="discount-input-wrap">
+
+                    <input
+                        type="number"
+                        id="packageDiscount"
+                        class="form-control"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value="0"
+                        placeholder="10"
+                    >
+
+                    <span class="discount-symbol">
+                        %
+                    </span>
+
+                </div>
+
+                <div class="helper-text">
+                    Masukkan 0 jika tidak ada diskon.
+                    Maksimal 100%.
+                </div>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label>
+                    Harga Setelah Diskon
+                </label>
+
+                <div
+                    id="packagePricePreview"
+                    class="price-preview"
+                >
+
+                    <div
+                        id="packagePreviewOld"
+                        class="price-preview-old"
+                        style="display:none;"
+                    >
+                        Rp0
+                    </div>
+
+                    <div
+                        id="packagePreviewFinal"
+                        class="price-preview-final"
+                    >
+                        Rp0
+                    </div>
+
+                    <div
+                        id="packagePreviewDiscount"
+                        class="price-preview-discount"
+                        style="display:none;"
+                    >
+                        Diskon 0%
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="packageBadge">
+                    Badge
+                </label>
+
+                <input
+                    type="text"
+                    id="packageBadge"
+                    class="form-control"
+                    maxlength="50"
+                    placeholder="POPULER"
+                >
+
+                <div class="helper-text">
+                    Opsional. Contoh: POPULER, BEST VALUE.
+                </div>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="packageDescription">
+                    Deskripsi
+                </label>
+
+                <textarea
+                    id="packageDescription"
+                    class="form-control"
+                    maxlength="500"
+                    placeholder="Deskripsi paket..."
+                ></textarea>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="packageSortOrder">
+                    Urutan
+                </label>
+
+                <input
+                    type="number"
+                    id="packageSortOrder"
+                    class="form-control"
+                    min="0"
+                    step="1"
+                    value="0"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="packageActive">
+                    Status
+                </label>
+
+                <select
+                    id="packageActive"
+                    class="form-control"
+                >
+
+                    <option value="true">
+                        Aktif
+                    </option>
+
+                    <option value="false">
+                        Nonaktif
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+
+        <div class="modal-footer">
+
+            <button
+                type="button"
+                class="btn btn-secondary"
+                id="cancelPackageButton"
+            >
+                Batal
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-primary"
+                id="savePackageButton"
+            >
+                Simpan Paket
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
 <div
     id="toast"
     class="toast"
 ></div>
 
+
 <script>
 (function () {
+
     "use strict";
 
+
+    /* =====================================================
+       STATE
+    ====================================================== */
+
     let supabaseClient = null;
+
     let currentRole = null;
+
     let topups = [];
+
     let filteredTopups = [];
+
     let currentEditId = null;
+
+    let creditPackages = [];
+
+    let currentPackageEditId = null;
+
 
     const DEFAULT_CONFIG_ERROR =
         "Konfigurasi Supabase belum tersedia.";
 
+
+    /* =====================================================
+       CONFIG
+    ====================================================== */
+
     function getConfig() {
+
         return window.GENZ_CONFIG || {};
+
     }
+
 
     function getSupabaseClient() {
 
@@ -751,7 +1538,8 @@
             return window.supabaseClient;
         }
 
-        const config = getConfig();
+        const config =
+            getConfig();
 
         const url =
             config.SUPABASE_URL ||
@@ -764,12 +1552,15 @@
             "";
 
         if (!url || !key) {
-            throw new Error(DEFAULT_CONFIG_ERROR);
+            throw new Error(
+                DEFAULT_CONFIG_ERROR
+            );
         }
 
         if (
             !window.supabase ||
-            typeof window.supabase.createClient !== "function"
+            typeof window.supabase.createClient !==
+                "function"
         ) {
             throw new Error(
                 "Library Supabase belum tersedia."
@@ -777,20 +1568,38 @@
         }
 
         const client =
-            window.supabase.createClient(url, key);
+            window.supabase.createClient(
+                url,
+                key
+            );
 
-        window.GENZ_SUPABASE = client;
-        window.supabaseClient = client;
+        window.GENZ_SUPABASE =
+            client;
+
+        window.supabaseClient =
+            client;
 
         return client;
     }
 
-    function showToast(message, type) {
+
+    /* =====================================================
+       UTILITIES
+    ====================================================== */
+
+    function showToast(
+        message,
+        type
+    ) {
 
         const toast =
-            document.getElementById("toast");
+            document.getElementById(
+                "toast"
+            );
 
-        toast.textContent = message;
+        toast.textContent =
+            message;
+
         toast.className =
             "toast show " +
             (type || "info");
@@ -800,33 +1609,59 @@
         );
 
         showToast.timer =
-            setTimeout(function () {
-                toast.className = "toast";
-            }, 4000);
+            setTimeout(
+                function () {
+
+                    toast.className =
+                        "toast";
+
+                },
+                4000
+            );
     }
 
-    function formatNumber(value) {
 
-        return Number(value || 0)
-            .toLocaleString("id-ID");
+    function formatNumber(
+        value
+    ) {
+
+        return Number(
+            value || 0
+        ).toLocaleString(
+            "id-ID"
+        );
     }
 
-    function formatCurrency(value) {
+
+    function formatCurrency(
+        value
+    ) {
 
         return "Rp" +
-            Number(value || 0)
-                .toLocaleString("id-ID");
+            Number(
+                value || 0
+            ).toLocaleString(
+                "id-ID"
+            );
     }
 
-    function formatDate(value) {
+
+    function formatDate(
+        value
+    ) {
 
         if (!value) {
             return "-";
         }
 
-        const date = new Date(value);
+        const date =
+            new Date(value);
 
-        if (Number.isNaN(date.getTime())) {
+        if (
+            Number.isNaN(
+                date.getTime()
+            )
+        ) {
             return "-";
         }
 
@@ -839,56 +1674,110 @@
         );
     }
 
-    function escapeHtml(value) {
 
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+    function escapeHtml(
+        value
+    ) {
+
+        return String(
+            value ?? ""
+        )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
     }
 
-    function normalizeStatus(status) {
 
-        return String(status || "")
-            .trim()
-            .toLowerCase();
+    function normalizeStatus(
+        status
+    ) {
+
+        return String(
+            status || ""
+        )
+        .trim()
+        .toLowerCase();
     }
 
-    function statusLabel(status) {
+
+    function statusLabel(
+        status
+    ) {
 
         const normalized =
-            normalizeStatus(status);
+            normalizeStatus(
+                status
+            );
 
-        if (normalized === "approved") {
+        if (
+            normalized ===
+            "approved"
+        ) {
             return "Approved";
         }
 
-        if (normalized === "rejected") {
+        if (
+            normalized ===
+            "rejected"
+        ) {
             return "Rejected";
         }
 
         return "Pending";
     }
 
-    function statusClass(status) {
+
+    function statusClass(
+        status
+    ) {
 
         const normalized =
-            normalizeStatus(status);
+            normalizeStatus(
+                status
+            );
 
-        if (normalized === "approved") {
+        if (
+            normalized ===
+            "approved"
+        ) {
             return "status-approved";
         }
 
-        if (normalized === "rejected") {
+        if (
+            normalized ===
+            "rejected"
+        ) {
             return "status-rejected";
         }
 
         return "status-pending";
     }
 
-    function getUserDisplay(row) {
+
+    /* =====================================================
+       TOP UP USER
+    ====================================================== */
+
+    function getUserDisplay(
+        row
+    ) {
 
         const profile =
             row.profiles || {};
@@ -909,28 +1798,47 @@
         };
     }
 
+
+    /* =====================================================
+       LOAD TOP UPS
+    ====================================================== */
+
     async function loadTopups() {
 
         const loading =
-            document.getElementById("loadingState");
+            document.getElementById(
+                "loadingState"
+            );
 
         const empty =
-            document.getElementById("emptyState");
+            document.getElementById(
+                "emptyState"
+            );
 
         const table =
-            document.getElementById("tableWrap");
+            document.getElementById(
+                "tableWrap"
+            );
 
-        loading.style.display = "block";
-        empty.style.display = "none";
-        table.style.display = "none";
+        loading.style.display =
+            "block";
+
+        empty.style.display =
+            "none";
+
+        table.style.display =
+            "none";
 
         try {
 
             const {
                 data,
                 error
-            } = await supabaseClient
-                .from("topup_requests")
+            } =
+                await supabaseClient
+                .from(
+                    "topup_requests"
+                )
                 .select(`
                     id,
                     user_id,
@@ -952,7 +1860,8 @@
                 .order(
                     "created_at",
                     {
-                        ascending: false
+                        ascending:
+                            false
                     }
                 );
 
@@ -966,6 +1875,7 @@
                     : [];
 
             updateStats();
+
             applyFilters();
 
         } catch (error) {
@@ -975,7 +1885,8 @@
                 error
             );
 
-            loading.style.display = "none";
+            loading.style.display =
+                "none";
 
             showToast(
                 error.message ||
@@ -984,9 +1895,9 @@
             );
 
             renderTable([]);
-
         }
     }
+
 
     function updateStats() {
 
@@ -994,29 +1905,51 @@
             topups.length;
 
         const pending =
-            topups.filter(function (item) {
-                return normalizeStatus(
-                    item.status
-                ) === "pending";
-            }).length;
+            topups.filter(
+                function (item) {
+
+                    return (
+                        normalizeStatus(
+                            item.status
+                        ) ===
+                        "pending"
+                    );
+
+                }
+            ).length;
 
         const approved =
-            topups.filter(function (item) {
-                return normalizeStatus(
-                    item.status
-                ) === "approved";
-            });
+            topups.filter(
+                function (item) {
+
+                    return (
+                        normalizeStatus(
+                            item.status
+                        ) ===
+                        "approved"
+                    );
+
+                }
+            );
 
         const approvedCount =
             approved.length;
 
         const approvedCredits =
             approved.reduce(
-                function (sum, item) {
-                    return sum +
+                function (
+                    sum,
+                    item
+                ) {
+
+                    return (
+                        sum +
                         Number(
-                            item.credits || 0
-                        );
+                            item.credits ||
+                            0
+                        )
+                    );
+
                 },
                 0
             );
@@ -1024,23 +1957,32 @@
         document.getElementById(
             "statTotal"
         ).textContent =
-            formatNumber(total);
+            formatNumber(
+                total
+            );
 
         document.getElementById(
             "statPending"
         ).textContent =
-            formatNumber(pending);
+            formatNumber(
+                pending
+            );
 
         document.getElementById(
             "statApproved"
         ).textContent =
-            formatNumber(approvedCount);
+            formatNumber(
+                approvedCount
+            );
 
         document.getElementById(
             "statCredits"
         ).textContent =
-            formatNumber(approvedCredits);
+            formatNumber(
+                approvedCredits
+            );
     }
+
 
     function applyFilters() {
 
@@ -1048,7 +1990,8 @@
             String(
                 document.getElementById(
                     "searchInput"
-                ).value || ""
+                ).value ||
+                ""
             )
             .trim()
             .toLowerCase();
@@ -1059,198 +2002,278 @@
             ).value;
 
         filteredTopups =
-            topups.filter(function (item) {
+            topups.filter(
+                function (item) {
 
-                const user =
-                    getUserDisplay(item);
+                    const user =
+                        getUserDisplay(
+                            item
+                        );
 
-                const searchable = [
-                    user.name,
-                    user.email,
-                    item.package_name,
-                    item.status,
-                    item.credits,
-                    item.amount
-                ]
-                .join(" ")
-                .toLowerCase();
+                    const searchable = [
+                        user.name,
+                        user.email,
+                        item.package_name,
+                        item.status,
+                        item.credits,
+                        item.amount
+                    ]
+                    .join(" ")
+                    .toLowerCase();
 
-                const matchesSearch =
-                    !search ||
-                    searchable.includes(search);
+                    const matchesSearch =
+                        !search ||
+                        searchable.includes(
+                            search
+                        );
 
-                const matchesStatus =
-                    !status ||
-                    normalizeStatus(
-                        item.status
-                    ) === status;
+                    const matchesStatus =
+                        !status ||
+                        normalizeStatus(
+                            item.status
+                        ) === status;
 
-                return (
-                    matchesSearch &&
-                    matchesStatus
-                );
-            });
+                    return (
+                        matchesSearch &&
+                        matchesStatus
+                    );
+                }
+            );
 
-        renderTable(filteredTopups);
+        renderTable(
+            filteredTopups
+        );
     }
 
-    function renderTable(items) {
+
+    function renderTable(
+        items
+    ) {
 
         const loading =
-            document.getElementById("loadingState");
+            document.getElementById(
+                "loadingState"
+            );
 
         const empty =
-            document.getElementById("emptyState");
+            document.getElementById(
+                "emptyState"
+            );
 
         const table =
-            document.getElementById("tableWrap");
+            document.getElementById(
+                "tableWrap"
+            );
 
         const body =
             document.getElementById(
                 "topupTableBody"
             );
 
-        loading.style.display = "none";
+        loading.style.display =
+            "none";
 
-        body.innerHTML = "";
+        body.innerHTML =
+            "";
 
         if (!items.length) {
 
-            table.style.display = "none";
-            empty.style.display = "block";
+            table.style.display =
+                "none";
+
+            empty.style.display =
+                "block";
 
             return;
         }
 
-        empty.style.display = "none";
-        table.style.display = "block";
+        empty.style.display =
+            "none";
 
-        items.forEach(function (item) {
+        table.style.display =
+            "block";
 
-            const user =
-                getUserDisplay(item);
+        items.forEach(
+            function (item) {
 
-            const status =
-                normalizeStatus(
-                    item.status
+                const user =
+                    getUserDisplay(
+                        item
+                    );
+
+                const status =
+                    normalizeStatus(
+                        item.status
+                    );
+
+                const pending =
+                    status ===
+                    "pending";
+
+                const row =
+                    document.createElement(
+                        "tr"
+                    );
+
+                row.innerHTML = `
+                    <td>
+                        <div class="user-name">
+                            ${escapeHtml(user.name)}
+                        </div>
+
+                        <div class="user-email">
+                            ${escapeHtml(user.email)}
+                        </div>
+                    </td>
+
+                    <td>
+                        ${escapeHtml(
+                            item.package_name ||
+                            "-"
+                        )}
+                    </td>
+
+                    <td>
+                        <span class="credits">
+                            ${formatNumber(
+                                item.credits
+                            )}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="amount">
+                            ${formatCurrency(
+                                item.amount
+                            )}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span
+                            class="status ${statusClass(
+                                status
+                            )}"
+                        >
+                            ${statusLabel(
+                                status
+                            )}
+                        </span>
+                    </td>
+
+                    <td>
+                        ${escapeHtml(
+                            formatDate(
+                                item.created_at
+                            )
+                        )}
+                    </td>
+
+                    <td>
+                        <div class="actions">
+
+                            ${
+                                pending
+                                    ? `
+                                    <button
+                                        type="button"
+                                        class="btn btn-small btn-primary"
+                                        data-action="edit"
+                                        data-id="${escapeHtml(
+                                            item.id
+                                        )}"
+                                    >
+                                        Edit
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-small btn-success"
+                                        data-action="approve"
+                                        data-id="${escapeHtml(
+                                            item.id
+                                        )}"
+                                    >
+                                        Approve
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-small btn-danger"
+                                        data-action="reject"
+                                        data-id="${escapeHtml(
+                                            item.id
+                                        )}"
+                                    >
+                                        Reject
+                                    </button>
+                                `
+                                    : `
+                                    <button
+                                        type="button"
+                                        class="btn btn-small btn-secondary"
+                                        data-action="edit"
+                                        data-id="${escapeHtml(
+                                            item.id
+                                        )}"
+                                    >
+                                        Lihat
+                                    </button>
+                                `
+                            }
+
+                        </div>
+                    </td>
+                `;
+
+                body.appendChild(
+                    row
                 );
-
-            const pending =
-                status === "pending";
-
-            const row =
-                document.createElement("tr");
-
-            row.innerHTML = `
-                <td>
-                    <div class="user-name">
-                        ${escapeHtml(user.name)}
-                    </div>
-                    <div class="user-email">
-                        ${escapeHtml(user.email)}
-                    </div>
-                </td>
-
-                <td>
-                    ${escapeHtml(
-                        item.package_name || "-"
-                    )}
-                </td>
-
-                <td>
-                    <span class="credits">
-                        ${formatNumber(item.credits)}
-                    </span>
-                </td>
-
-                <td>
-                    <span class="amount">
-                        ${formatCurrency(item.amount)}
-                    </span>
-                </td>
-
-                <td>
-                    <span class="status ${statusClass(status)}">
-                        ${statusLabel(status)}
-                    </span>
-                </td>
-
-                <td>
-                    ${escapeHtml(
-                        formatDate(item.created_at)
-                    )}
-                </td>
-
-                <td>
-                    <div class="actions">
-
-                        ${
-                            pending
-                            ? `
-                                <button
-                                    type="button"
-                                    class="btn btn-small btn-primary"
-                                    data-action="edit"
-                                    data-id="${escapeHtml(item.id)}"
-                                >
-                                    Edit
-                                </button>
-
-                                <button
-                                    type="button"
-                                    class="btn btn-small btn-success"
-                                    data-action="approve"
-                                    data-id="${escapeHtml(item.id)}"
-                                >
-                                    Approve
-                                </button>
-
-                                <button
-                                    type="button"
-                                    class="btn btn-small btn-danger"
-                                    data-action="reject"
-                                    data-id="${escapeHtml(item.id)}"
-                                >
-                                    Reject
-                                </button>
-                            `
-                            : `
-                                <button
-                                    type="button"
-                                    class="btn btn-small btn-secondary"
-                                    data-action="edit"
-                                    data-id="${escapeHtml(item.id)}"
-                                >
-                                    Lihat
-                                </button>
-                            `
-                        }
-
-                    </div>
-                </td>
-            `;
-
-            body.appendChild(row);
-        });
+            }
+        );
     }
 
-    function findTopup(id) {
 
-        return topups.find(function (item) {
-            return String(item.id) === String(id);
-        }) || null;
+    function findTopup(
+        id
+    ) {
+
+        return (
+            topups.find(
+                function (item) {
+
+                    return (
+                        String(
+                            item.id
+                        ) ===
+                        String(id)
+                    );
+
+                }
+            ) ||
+            null
+        );
     }
 
-    function openEditModal(id) {
+
+    /* =====================================================
+       EDIT TOP UP
+    ====================================================== */
+
+    function openEditModal(
+        id
+    ) {
 
         const item =
             findTopup(id);
 
         if (!item) {
+
             showToast(
                 "Data top up tidak ditemukan.",
                 "error"
             );
+
             return;
         }
 
@@ -1258,11 +2281,14 @@
             item.id;
 
         const user =
-            getUserDisplay(item);
+            getUserDisplay(
+                item
+            );
 
         document.getElementById(
             "editId"
-        ).value = item.id;
+        ).value =
+            item.id;
 
         document.getElementById(
             "editUser"
@@ -1275,68 +2301,90 @@
         document.getElementById(
             "editPackage"
         ).value =
-            item.package_name || "";
+            item.package_name ||
+            "";
 
         document.getElementById(
             "editCredits"
         ).value =
-            Number(item.credits || 0);
+            Number(
+                item.credits ||
+                0
+            );
 
         document.getElementById(
             "editAmount"
         ).value =
-            Number(item.amount || 0);
+            Number(
+                item.amount ||
+                0
+            );
 
         document.getElementById(
             "editStatus"
         ).value =
             normalizeStatus(
                 item.status
-            ) || "pending";
+            ) ||
+            "pending";
 
         document.getElementById(
             "editNote"
         ).value =
-            item.admin_note || "";
+            item.admin_note ||
+            "";
 
         const isPending =
             normalizeStatus(
                 item.status
-            ) === "pending";
+            ) ===
+            "pending";
 
         document.getElementById(
             "editPackage"
-        ).disabled = !isPending;
+        ).disabled =
+            !isPending;
 
         document.getElementById(
             "editCredits"
-        ).disabled = !isPending;
+        ).disabled =
+            !isPending;
 
         document.getElementById(
             "editAmount"
-        ).disabled = !isPending;
+        ).disabled =
+            !isPending;
 
         document.getElementById(
             "editStatus"
-        ).disabled = !isPending;
+        ).disabled =
+            !isPending;
 
         document.getElementById(
             "saveEditButton"
-        ).disabled = !isPending;
+        ).disabled =
+            !isPending;
 
         document.getElementById(
             "editModal"
-        ).classList.add("show");
+        ).classList.add(
+            "show"
+        );
     }
+
 
     function closeEditModal() {
 
-        currentEditId = null;
+        currentEditId =
+            null;
 
         document.getElementById(
             "editModal"
-        ).classList.remove("show");
+        ).classList.remove(
+            "show"
+        );
     }
+
 
     async function saveEdit() {
 
@@ -1345,24 +2393,31 @@
         }
 
         const item =
-            findTopup(currentEditId);
+            findTopup(
+                currentEditId
+            );
 
         if (!item) {
+
             showToast(
                 "Data top up tidak ditemukan.",
                 "error"
             );
+
             return;
         }
 
         if (
-            normalizeStatus(item.status) !==
-            "pending"
+            normalizeStatus(
+                item.status
+            ) !== "pending"
         ) {
+
             showToast(
                 "Top up yang sudah diproses tidak dapat diedit.",
                 "error"
             );
+
             return;
         }
 
@@ -1390,25 +2445,43 @@
                 "editNote"
             ).value.trim();
 
-        if (
-            !Number.isInteger(credits) ||
-            credits <= 0
-        ) {
+        if (!packageName) {
+
             showToast(
-                "Credit harus berupa angka bulat lebih dari 0.",
+                "Nama package wajib diisi.",
                 "error"
             );
+
             return;
         }
 
         if (
-            !Number.isFinite(amount) ||
+            !Number.isInteger(
+                credits
+            ) ||
+            credits <= 0
+        ) {
+
+            showToast(
+                "Credit harus berupa angka bulat lebih dari 0.",
+                "error"
+            );
+
+            return;
+        }
+
+        if (
+            !Number.isFinite(
+                amount
+            ) ||
             amount <= 0
         ) {
+
             showToast(
                 "Nominal pembayaran harus lebih dari 0.",
                 "error"
             );
+
             return;
         }
 
@@ -1417,7 +2490,9 @@
                 "saveEditButton"
             );
 
-        button.disabled = true;
+        button.disabled =
+            true;
+
         button.textContent =
             "Menyimpan...";
 
@@ -1425,19 +2500,31 @@
 
             const {
                 error
-            } = await supabaseClient
-                .from("topup_requests")
+            } =
+                await supabaseClient
+                .from(
+                    "topup_requests"
+                )
                 .update({
+
                     package_name:
                         packageName,
+
                     credits:
                         credits,
+
                     amount:
-                        Math.round(amount),
+                        Math.round(
+                            amount
+                        ),
+
                     admin_note:
                         note,
+
                     updated_at:
-                        new Date().toISOString()
+                        new Date()
+                            .toISOString()
+
                 })
                 .eq(
                     "id",
@@ -1476,13 +2563,22 @@
 
         } finally {
 
-            button.disabled = false;
+            button.disabled =
+                false;
+
             button.textContent =
                 "Simpan Perubahan";
         }
     }
 
-    async function approveTopup(id) {
+
+    /* =====================================================
+       APPROVE
+    ====================================================== */
+
+    async function approveTopup(
+        id
+    ) {
 
         const item =
             findTopup(id);
@@ -1492,27 +2588,37 @@
         }
 
         if (
-            normalizeStatus(item.status) !==
+            normalizeStatus(
+                item.status
+            ) !==
             "pending"
         ) {
+
             showToast(
                 "Top up ini sudah diproses.",
                 "error"
             );
+
             return;
         }
 
         const user =
-            getUserDisplay(item);
+            getUserDisplay(
+                item
+            );
 
         const confirmed =
             window.confirm(
                 "Approve top up " +
-                formatNumber(item.credits) +
+                formatNumber(
+                    item.credits
+                ) +
                 " credit untuk " +
                 user.email +
                 " senilai " +
-                formatCurrency(item.amount) +
+                formatCurrency(
+                    item.amount
+                ) +
                 "?"
             );
 
@@ -1523,25 +2629,35 @@
         try {
 
             /*
-             * Untuk sementara approval dilakukan
-             * melalui update status.
+             * Mekanisme ini dipertahankan
+             * dari sistem sebelumnya.
              *
-             * Jangan gunakan mekanisme ini untuk
-             * production jika credit belum diproses
-             * melalui RPC/database transaction.
+             * Approval melalui RPC dapat
+             * ditambahkan kemudian apabila
+             * proses penambahan credit ingin
+             * dibuat atomic di database.
              */
 
             const {
                 error
-            } = await supabaseClient
-                .from("topup_requests")
+            } =
+                await supabaseClient
+                .from(
+                    "topup_requests"
+                )
                 .update({
+
                     status:
                         "approved",
+
                     processed_at:
-                        new Date().toISOString(),
+                        new Date()
+                            .toISOString(),
+
                     updated_at:
-                        new Date().toISOString()
+                        new Date()
+                            .toISOString()
+
                 })
                 .eq(
                     "id",
@@ -1578,7 +2694,14 @@
         }
     }
 
-    async function rejectTopup(id) {
+
+    /* =====================================================
+       REJECT
+    ====================================================== */
+
+    async function rejectTopup(
+        id
+    ) {
 
         const item =
             findTopup(id);
@@ -1588,13 +2711,17 @@
         }
 
         if (
-            normalizeStatus(item.status) !==
+            normalizeStatus(
+                item.status
+            ) !==
             "pending"
         ) {
+
             showToast(
                 "Top up ini sudah diproses.",
                 "error"
             );
+
             return;
         }
 
@@ -1611,15 +2738,24 @@
 
             const {
                 error
-            } = await supabaseClient
-                .from("topup_requests")
+            } =
+                await supabaseClient
+                .from(
+                    "topup_requests"
+                )
                 .update({
+
                     status:
                         "rejected",
+
                     processed_at:
-                        new Date().toISOString(),
+                        new Date()
+                            .toISOString(),
+
                     updated_at:
-                        new Date().toISOString()
+                        new Date()
+                            .toISOString()
+
                 })
                 .eq(
                     "id",
@@ -1656,6 +2792,1079 @@
         }
     }
 
+
+    /* =====================================================
+       PACKAGE MANAGEMENT
+    ====================================================== */
+
+    function calculateFinalPrice(
+        originalPrice,
+        discountPercent
+    ) {
+
+        const original =
+            Number(
+                originalPrice
+            ) || 0;
+
+        let discount =
+            Number(
+                discountPercent
+            ) || 0;
+
+        discount =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    discount
+                )
+            );
+
+        const finalPrice =
+            Math.round(
+                original -
+                (
+                    original *
+                    discount /
+                    100
+                )
+            );
+
+        return Math.max(
+            0,
+            finalPrice
+        );
+    }
+
+
+    function updatePackagePricePreview() {
+
+        const original =
+            Number(
+                document.getElementById(
+                    "packageOriginalPrice"
+                ).value
+            ) || 0;
+
+        let discount =
+            Number(
+                document.getElementById(
+                    "packageDiscount"
+                ).value
+            ) || 0;
+
+        discount =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    discount
+                )
+            );
+
+        const finalPrice =
+            calculateFinalPrice(
+                original,
+                discount
+            );
+
+        const oldPrice =
+            document.getElementById(
+                "packagePreviewOld"
+            );
+
+        const finalPriceElement =
+            document.getElementById(
+                "packagePreviewFinal"
+            );
+
+        const discountElement =
+            document.getElementById(
+                "packagePreviewDiscount"
+            );
+
+        finalPriceElement.textContent =
+            formatCurrency(
+                finalPrice
+            );
+
+        if (
+            discount > 0 &&
+            original > 0
+        ) {
+
+            oldPrice.style.display =
+                "block";
+
+            oldPrice.textContent =
+                formatCurrency(
+                    original
+                );
+
+            discountElement.style.display =
+                "block";
+
+            discountElement.textContent =
+                "Diskon " +
+                discount +
+                "%";
+
+        } else {
+
+            oldPrice.style.display =
+                "none";
+
+            discountElement.style.display =
+                "none";
+        }
+    }
+
+
+    async function loadCreditPackages() {
+
+        const loading =
+            document.getElementById(
+                "packageLoading"
+            );
+
+        const empty =
+            document.getElementById(
+                "packageEmpty"
+            );
+
+        const grid =
+            document.getElementById(
+                "packagesGrid"
+            );
+
+        loading.style.display =
+            "block";
+
+        empty.style.display =
+            "none";
+
+        grid.style.display =
+            "none";
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabaseClient
+                .from(
+                    "credit_packages"
+                )
+                .select(`
+                    id,
+                    name,
+                    credits,
+                    price,
+                    original_price,
+                    discount_percent,
+                    description,
+                    badge,
+                    is_active,
+                    sort_order,
+                    created_at,
+                    updated_at
+                `)
+                .order(
+                    "sort_order",
+                    {
+                        ascending:
+                            true
+                    }
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending:
+                            true
+                    }
+                );
+
+            if (error) {
+                throw error;
+            }
+
+            creditPackages =
+                Array.isArray(data)
+                    ? data
+                    : [];
+
+            renderCreditPackages();
+
+        } catch (error) {
+
+            console.error(
+                "GENZ Credit Package load error:",
+                error
+            );
+
+            loading.style.display =
+                "none";
+
+            empty.style.display =
+                "block";
+
+            empty.textContent =
+                "Gagal memuat paket: " +
+                (
+                    error.message ||
+                    "Unknown error"
+                );
+
+            showToast(
+                error.message ||
+                "Gagal memuat daftar paket.",
+                "error"
+            );
+        }
+    }
+
+
+    function renderCreditPackages() {
+
+        const loading =
+            document.getElementById(
+                "packageLoading"
+            );
+
+        const empty =
+            document.getElementById(
+                "packageEmpty"
+            );
+
+        const grid =
+            document.getElementById(
+                "packagesGrid"
+            );
+
+        loading.style.display =
+            "none";
+
+        grid.innerHTML =
+            "";
+
+        if (!creditPackages.length) {
+
+            grid.style.display =
+                "none";
+
+            empty.style.display =
+                "block";
+
+            empty.textContent =
+                "Belum ada paket credit.";
+
+            return;
+        }
+
+        empty.style.display =
+            "none";
+
+        grid.style.display =
+            "grid";
+
+        creditPackages.forEach(
+            function (item) {
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+                const isActive =
+                    item.is_active !==
+                    false;
+
+                const originalPrice =
+                    Number(
+                        item.original_price ||
+                        item.price ||
+                        0
+                    );
+
+                const discount =
+                    Number(
+                        item.discount_percent ||
+                        0
+                    );
+
+                const calculatedPrice =
+                    calculateFinalPrice(
+                        originalPrice,
+                        discount
+                    );
+
+                const finalPrice =
+                    Number(
+                        item.price ??
+                        calculatedPrice
+                    );
+
+                const hasDiscount =
+                    discount > 0 &&
+                    originalPrice >
+                    finalPrice;
+
+                card.className =
+                    "package-card" +
+                    (
+                        isActive
+                            ? ""
+                            : " inactive"
+                    );
+
+                card.innerHTML = `
+
+                    <div class="package-top">
+
+                        <div>
+
+                            <div class="package-name">
+                                ${escapeHtml(
+                                    item.name ||
+                                    "Paket"
+                                )}
+                            </div>
+
+                            ${
+                                item.badge
+                                    ? `
+                                    <span class="package-badge">
+                                        ${escapeHtml(
+                                            item.badge
+                                        )}
+                                    </span>
+                                `
+                                    : ""
+                            }
+
+                        </div>
+
+                        <span
+                            class="package-status ${
+                                isActive
+                                    ? "active"
+                                    : "inactive"
+                            }"
+                        >
+                            ${
+                                isActive
+                                    ? "Aktif"
+                                    : "Nonaktif"
+                            }
+                        </span>
+
+                    </div>
+
+
+                    <div class="package-credits">
+                        ${formatNumber(
+                            item.credits
+                        )}
+                        Credit
+                    </div>
+
+
+                    <div class="package-price">
+
+                        ${
+                            hasDiscount
+                                ? `
+                                <div class="package-original-price">
+                                    ${formatCurrency(
+                                        originalPrice
+                                    )}
+                                </div>
+
+                                <div class="package-final-price">
+                                    ${formatCurrency(
+                                        finalPrice
+                                    )}
+                                </div>
+
+                                <div class="package-discount">
+                                    DISKON ${discount}%
+                                </div>
+                            `
+                                : `
+                                <div class="package-no-discount">
+                                    ${formatCurrency(
+                                        finalPrice
+                                    )}
+                                </div>
+                            `
+                        }
+
+                    </div>
+
+
+                    <div class="package-description">
+                        ${escapeHtml(
+                            item.description ||
+                            "Tidak ada deskripsi."
+                        )}
+                    </div>
+
+
+                    <div class="package-meta">
+
+                        <span>
+                            Urutan:
+                            ${formatNumber(
+                                item.sort_order
+                            )}
+                        </span>
+
+                        <span>
+                            ${
+                                isActive
+                                    ? "Tampil ke user"
+                                    : "Tidak tampil"
+                            }
+                        </span>
+
+                    </div>
+
+
+                    <div class="package-actions">
+
+                        <button
+                            type="button"
+                            class="btn btn-small btn-primary"
+                            data-package-action="edit"
+                            data-package-id="${escapeHtml(
+                                item.id
+                            )}"
+                        >
+                            Edit
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="btn btn-small ${
+                                isActive
+                                    ? "btn-warning"
+                                    : "btn-success"
+                            }"
+                            data-package-action="toggle"
+                            data-package-id="${escapeHtml(
+                                item.id
+                            )}"
+                        >
+                            ${
+                                isActive
+                                    ? "Nonaktifkan"
+                                    : "Aktifkan"
+                            }
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="btn btn-small btn-danger"
+                            data-package-action="delete"
+                            data-package-id="${escapeHtml(
+                                item.id
+                            )}"
+                        >
+                            Hapus
+                        </button>
+
+                    </div>
+
+                `;
+
+                grid.appendChild(
+                    card
+                );
+            }
+        );
+    }
+
+
+    function findCreditPackage(
+        id
+    ) {
+
+        return (
+            creditPackages.find(
+                function (item) {
+
+                    return (
+                        String(
+                            item.id
+                        ) ===
+                        String(id)
+                    );
+
+                }
+            ) ||
+            null
+        );
+    }
+
+
+    function openPackageModal(
+        id
+    ) {
+
+        currentPackageEditId =
+            id || null;
+
+        const item =
+            id
+                ? findCreditPackage(id)
+                : null;
+
+        document.getElementById(
+            "packageModalTitle"
+        ).textContent =
+            item
+                ? "Edit Paket"
+                : "Tambah Paket";
+
+        document.getElementById(
+            "packageId"
+        ).value =
+            item
+                ? item.id
+                : "";
+
+        document.getElementById(
+            "packageName"
+        ).value =
+            item
+                ? (
+                    item.name ||
+                    ""
+                )
+                : "";
+
+        document.getElementById(
+            "packageCredits"
+        ).value =
+            item
+                ? Number(
+                    item.credits ||
+                    0
+                )
+                : "";
+
+        document.getElementById(
+            "packageOriginalPrice"
+        ).value =
+            item
+                ? Number(
+                    item.original_price ??
+                    item.price ??
+                    0
+                )
+                : "";
+
+        document.getElementById(
+            "packageDiscount"
+        ).value =
+            item
+                ? Number(
+                    item.discount_percent ||
+                    0
+                )
+                : 0;
+
+        document.getElementById(
+            "packageBadge"
+        ).value =
+            item
+                ? (
+                    item.badge ||
+                    ""
+                )
+                : "";
+
+        document.getElementById(
+            "packageDescription"
+        ).value =
+            item
+                ? (
+                    item.description ||
+                    ""
+                )
+                : "";
+
+        document.getElementById(
+            "packageSortOrder"
+        ).value =
+            item
+                ? Number(
+                    item.sort_order ||
+                    0
+                )
+                : 0;
+
+        document.getElementById(
+            "packageActive"
+        ).value =
+            item
+                ? String(
+                    item.is_active !== false
+                )
+                : "true";
+
+        updatePackagePricePreview();
+
+        document.getElementById(
+            "packageModal"
+        ).classList.add(
+            "show"
+        );
+    }
+
+
+    function closePackageModal() {
+
+        currentPackageEditId =
+            null;
+
+        document.getElementById(
+            "packageModal"
+        ).classList.remove(
+            "show"
+        );
+    }
+
+
+    async function saveCreditPackage() {
+
+        const name =
+            document.getElementById(
+                "packageName"
+            ).value.trim();
+
+        const credits =
+            Number(
+                document.getElementById(
+                    "packageCredits"
+                ).value
+            );
+
+        const originalPrice =
+            Number(
+                document.getElementById(
+                    "packageOriginalPrice"
+                ).value
+            );
+
+        let discountPercent =
+            Number(
+                document.getElementById(
+                    "packageDiscount"
+                ).value
+            ) || 0;
+
+        const badge =
+            document.getElementById(
+                "packageBadge"
+            ).value.trim();
+
+        const description =
+            document.getElementById(
+                "packageDescription"
+            ).value.trim();
+
+        const sortOrder =
+            Number(
+                document.getElementById(
+                    "packageSortOrder"
+                ).value
+            ) || 0;
+
+        const isActive =
+            document.getElementById(
+                "packageActive"
+            ).value ===
+            "true";
+
+
+        if (!name) {
+
+            showToast(
+                "Nama paket wajib diisi.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (
+            !Number.isInteger(
+                credits
+            ) ||
+            credits <= 0
+        ) {
+
+            showToast(
+                "Credit harus berupa angka bulat lebih dari 0.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (
+            !Number.isFinite(
+                originalPrice
+            ) ||
+            originalPrice <= 0
+        ) {
+
+            showToast(
+                "Harga normal harus lebih dari 0.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (
+            !Number.isFinite(
+                discountPercent
+            )
+        ) {
+            discountPercent =
+                0;
+        }
+
+
+        discountPercent =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    discountPercent
+                )
+            );
+
+
+        const finalPrice =
+            calculateFinalPrice(
+                originalPrice,
+                discountPercent
+            );
+
+
+        if (finalPrice <= 0) {
+
+            showToast(
+                "Harga setelah diskon harus lebih dari 0.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const saveButton =
+            document.getElementById(
+                "savePackageButton"
+            );
+
+        saveButton.disabled =
+            true;
+
+        saveButton.textContent =
+            "Menyimpan...";
+
+
+        const payload = {
+
+            name:
+                name,
+
+            credits:
+                Math.round(
+                    credits
+                ),
+
+            original_price:
+                Math.round(
+                    originalPrice
+                ),
+
+            discount_percent:
+                discountPercent,
+
+            price:
+                Math.round(
+                    finalPrice
+                ),
+
+            badge:
+                badge,
+
+            description:
+                description,
+
+            sort_order:
+                Math.round(
+                    sortOrder
+                ),
+
+            is_active:
+                isActive,
+
+            updated_at:
+                new Date()
+                    .toISOString()
+
+        };
+
+
+        try {
+
+            let response;
+
+            if (
+                currentPackageEditId
+            ) {
+
+                response =
+                    await supabaseClient
+                    .from(
+                        "credit_packages"
+                    )
+                    .update(
+                        payload
+                    )
+                    .eq(
+                        "id",
+                        currentPackageEditId
+                    );
+
+            } else {
+
+                response =
+                    await supabaseClient
+                    .from(
+                        "credit_packages"
+                    )
+                    .insert(
+                        payload
+                    );
+            }
+
+
+            if (
+                response.error
+            ) {
+                throw response.error;
+            }
+
+
+            closePackageModal();
+
+            showToast(
+                currentPackageEditId
+                    ? "Paket berhasil diperbarui."
+                    : "Paket berhasil ditambahkan.",
+                "success"
+            );
+
+
+            await loadCreditPackages();
+
+        } catch (error) {
+
+            console.error(
+                "GENZ Credit Package save error:",
+                error
+            );
+
+            showToast(
+                error.message ||
+                "Gagal menyimpan paket.",
+                "error"
+            );
+
+        } finally {
+
+            saveButton.disabled =
+                false;
+
+            saveButton.textContent =
+                "Simpan Paket";
+        }
+    }
+
+
+    async function toggleCreditPackage(
+        id
+    ) {
+
+        const item =
+            findCreditPackage(
+                id
+            );
+
+        if (!item) {
+
+            showToast(
+                "Paket tidak ditemukan.",
+                "error"
+            );
+
+            return;
+        }
+
+        const nextStatus =
+            item.is_active === false;
+
+        try {
+
+            const {
+                error
+            } =
+                await supabaseClient
+                .from(
+                    "credit_packages"
+                )
+                .update({
+
+                    is_active:
+                        nextStatus,
+
+                    updated_at:
+                        new Date()
+                            .toISOString()
+
+                })
+                .eq(
+                    "id",
+                    id
+                );
+
+            if (error) {
+                throw error;
+            }
+
+            showToast(
+                nextStatus
+                    ? "Paket berhasil diaktifkan."
+                    : "Paket berhasil dinonaktifkan.",
+                "success"
+            );
+
+            await loadCreditPackages();
+
+        } catch (error) {
+
+            console.error(
+                "GENZ Credit Package toggle error:",
+                error
+            );
+
+            showToast(
+                error.message ||
+                "Gagal mengubah status paket.",
+                "error"
+            );
+        }
+    }
+
+
+    async function deleteCreditPackage(
+        id
+    ) {
+
+        const item =
+            findCreditPackage(
+                id
+            );
+
+        if (!item) {
+
+            showToast(
+                "Paket tidak ditemukan.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const confirmed =
+            window.confirm(
+                "Hapus paket \"" +
+                (
+                    item.name ||
+                    "Paket"
+                ) +
+                "\"?\n\n" +
+                "Data pengajuan top up lama " +
+                "tidak ikut dihapus."
+            );
+
+
+        if (!confirmed) {
+            return;
+        }
+
+
+        try {
+
+            const {
+                error
+            } =
+                await supabaseClient
+                .from(
+                    "credit_packages"
+                )
+                .delete()
+                .eq(
+                    "id",
+                    id
+                );
+
+            if (error) {
+                throw error;
+            }
+
+            showToast(
+                "Paket berhasil dihapus.",
+                "success"
+            );
+
+            await loadCreditPackages();
+
+        } catch (error) {
+
+            console.error(
+                "GENZ Credit Package delete error:",
+                error
+            );
+
+            showToast(
+                error.message ||
+                "Gagal menghapus paket.",
+                "error"
+            );
+        }
+    }
+
+
+    /* =====================================================
+       EVENT BINDING
+    ====================================================== */
+
     function bindEvents() {
 
         document.getElementById(
@@ -1665,12 +3874,34 @@
             loadTopups
         );
 
+
+        document.getElementById(
+            "refreshPackagesButton"
+        ).addEventListener(
+            "click",
+            loadCreditPackages
+        );
+
+
+        document.getElementById(
+            "addPackageButton"
+        ).addEventListener(
+            "click",
+            function () {
+
+                openPackageModal();
+
+            }
+        );
+
+
         document.getElementById(
             "searchInput"
         ).addEventListener(
             "input",
             applyFilters
         );
+
 
         document.getElementById(
             "statusFilter"
@@ -1679,12 +3910,14 @@
             applyFilters
         );
 
+
         document.getElementById(
             "closeModalButton"
         ).addEventListener(
             "click",
             closeEditModal
         );
+
 
         document.getElementById(
             "cancelEditButton"
@@ -1693,12 +3926,14 @@
             closeEditModal
         );
 
+
         document.getElementById(
             "saveEditButton"
         ).addEventListener(
             "click",
             saveEdit
         );
+
 
         document.getElementById(
             "editModal"
@@ -1710,10 +3945,139 @@
                     event.target ===
                     this
                 ) {
+
                     closeEditModal();
+
                 }
+
             }
         );
+
+
+        document.getElementById(
+            "closePackageModalButton"
+        ).addEventListener(
+            "click",
+            closePackageModal
+        );
+
+
+        document.getElementById(
+            "cancelPackageButton"
+        ).addEventListener(
+            "click",
+            closePackageModal
+        );
+
+
+        document.getElementById(
+            "savePackageButton"
+        ).addEventListener(
+            "click",
+            saveCreditPackage
+        );
+
+
+        document.getElementById(
+            "packageModal"
+        ).addEventListener(
+            "click",
+            function (event) {
+
+                if (
+                    event.target ===
+                    this
+                ) {
+
+                    closePackageModal();
+
+                }
+
+            }
+        );
+
+
+        document.getElementById(
+            "packageOriginalPrice"
+        ).addEventListener(
+            "input",
+            updatePackagePricePreview
+        );
+
+
+        document.getElementById(
+            "packageDiscount"
+        ).addEventListener(
+            "input",
+            updatePackagePricePreview
+        );
+
+
+        document.getElementById(
+            "packagesGrid"
+        ).addEventListener(
+            "click",
+            function (event) {
+
+                const button =
+                    event.target.closest(
+                        "button[data-package-action]"
+                    );
+
+                if (!button) {
+                    return;
+                }
+
+
+                const action =
+                    button.dataset
+                        .packageAction;
+
+                const id =
+                    button.dataset
+                        .packageId;
+
+
+                if (
+                    action ===
+                    "edit"
+                ) {
+
+                    openPackageModal(
+                        id
+                    );
+
+                    return;
+                }
+
+
+                if (
+                    action ===
+                    "toggle"
+                ) {
+
+                    toggleCreditPackage(
+                        id
+                    );
+
+                    return;
+                }
+
+
+                if (
+                    action ===
+                    "delete"
+                ) {
+
+                    deleteCreditPackage(
+                        id
+                    );
+
+                }
+
+            }
+        );
+
 
         document.getElementById(
             "topupTableBody"
@@ -1730,44 +4094,81 @@
                     return;
                 }
 
+
                 const action =
                     button.dataset.action;
 
                 const id =
                     button.dataset.id;
 
-                if (action === "edit") {
-                    openEditModal(id);
+
+                if (
+                    action ===
+                    "edit"
+                ) {
+
+                    openEditModal(
+                        id
+                    );
+
                     return;
                 }
 
-                if (action === "approve") {
-                    approveTopup(id);
+
+                if (
+                    action ===
+                    "approve"
+                ) {
+
+                    approveTopup(
+                        id
+                    );
+
                     return;
                 }
 
-                if (action === "reject") {
-                    rejectTopup(id);
+
+                if (
+                    action ===
+                    "reject"
+                ) {
+
+                    rejectTopup(
+                        id
+                    );
+
                 }
+
             }
         );
     }
+
+
+    /* =====================================================
+       NAVIGATION
+    ====================================================== */
 
     async function waitForNavigation() {
 
         if (
             window.GENZNavigationReady
         ) {
+
             try {
+
                 await window.GENZNavigationReady;
+
                 return;
+
             } catch (error) {
+
                 console.warn(
                     "Navigation ready error:",
                     error
                 );
             }
         }
+
 
         for (
             let i = 0;
@@ -1778,25 +4179,36 @@
             if (
                 window.GENZ_NAVIGATION_ROLE
             ) {
+
                 return;
+
             }
+
 
             await new Promise(
                 function (resolve) {
+
                     setTimeout(
                         resolve,
                         100
                     );
+
                 }
             );
         }
     }
+
+
+    /* =====================================================
+       START
+    ====================================================== */
 
     async function start() {
 
         try {
 
             await waitForNavigation();
+
 
             currentRole =
                 String(
@@ -1806,34 +4218,51 @@
                 .trim()
                 .toLowerCase();
 
+
             const adminPage =
                 document.getElementById(
                     "adminPage"
                 );
 
+
             adminPage.style.display =
                 "block";
 
+
             if (
-                currentRole !== "admin" &&
-                currentRole !== "owner"
+                currentRole !==
+                    "admin" &&
+                currentRole !==
+                    "owner"
             ) {
 
                 adminPage.innerHTML = `
+
                     <div class="empty">
-                        Akses hanya tersedia untuk Admin dan Owner.
+
+                        Akses hanya tersedia
+                        untuk Admin dan Owner.
+
                     </div>
+
                 `;
 
                 return;
             }
 
+
             supabaseClient =
                 getSupabaseClient();
 
+
             bindEvents();
 
-            await loadTopups();
+
+            await Promise.all([
+                loadTopups(),
+                loadCreditPackages()
+            ]);
+
 
         } catch (error) {
 
@@ -1842,9 +4271,12 @@
                 error
             );
 
+
             document.getElementById(
                 "adminPage"
-            ).style.display = "block";
+            ).style.display =
+                "block";
+
 
             showToast(
                 error.message ||
@@ -1853,6 +4285,7 @@
             );
         }
     }
+
 
     if (
         document.readyState ===
@@ -1870,10 +4303,12 @@
     } else {
 
         start();
+
     }
 
 })();
 </script>
+
 
 <script src="../../navigation/navigation.js"></script>
 
