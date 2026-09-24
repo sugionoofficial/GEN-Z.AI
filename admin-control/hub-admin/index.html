@@ -88,18 +88,14 @@
         button,
         input,
         textarea {
-
             font: inherit;
-
         }
 
 
         button,
         a {
-
             -webkit-tap-highlight-color:
                 transparent;
-
         }
 
 
@@ -239,10 +235,8 @@
         @keyframes loadingSpin {
 
             to {
-
                 transform:
                     rotate(360deg);
-
             }
 
         }
@@ -845,7 +839,6 @@
             padding:
                 0
                 14px;
-
         }
 
 
@@ -2094,12 +2087,6 @@
                 }
 
 
-                /*
-                 * +62xxxxxxxxxx
-                 * setelah karakter non-digit
-                 * dihapus menjadi 62xxxxxxxxxx.
-                 */
-
                 return phone;
 
             }
@@ -2184,6 +2171,10 @@
             }
 
 
+            /* =================================================
+               LOAD SETTINGS
+            ================================================== */
+
             async function loadSettings() {
 
                 const client =
@@ -2221,24 +2212,35 @@
                 }
 
 
+                const rows =
+                    Array.isArray(data)
+                        ? data
+                        : [];
+
+
                 const row =
-                    Array.isArray(data) &&
-                    data.length
-                        ? data[0]
+                    rows.length
+                        ? rows[0]
                         : null;
 
 
                 if (!row) {
 
-                    settingsId = null;
+                    settingsId =
+                        null;
 
-                    whatsappNumber.value = "";
+
+                    whatsappNumber.value =
+                        "";
+
 
                     whatsappMessage.value =
                         "Halo Admin GEN-Z.AI, saya membutuhkan bantuan.";
 
+
                     isActive.checked =
                         true;
+
 
                     updatePreview();
 
@@ -2269,6 +2271,14 @@
 
             }
 
+
+            /* =================================================
+               SAVE SETTINGS
+               
+               PENTING:
+               Tidak menggunakan .single().
+               Hasil UPDATE/INSERT diproses sebagai ARRAY.
+            ================================================== */
 
             async function saveSettings() {
 
@@ -2305,6 +2315,10 @@
                     );
 
 
+                /* =============================================
+                   VALIDASI
+                ============================================== */
+
                 if (!number) {
 
                     throw new Error(
@@ -2336,14 +2350,13 @@
                 }
 
 
-                /*
-                 * Tampilkan hasil normalisasi
-                 * sebelum disimpan.
-                 */
-
                 whatsappNumber.value =
                     number;
 
+
+                /* =============================================
+                   PAYLOAD
+                ============================================== */
 
                 const payload = {
 
@@ -2365,7 +2378,15 @@
                 let result;
 
 
-                if (settingsId !== null) {
+                /* =============================================
+                   UPDATE EXISTING ROW
+                ============================================== */
+
+                if (
+                    settingsId !== null &&
+                    settingsId !== undefined &&
+                    settingsId !== ""
+                ) {
 
                     result =
                         await client
@@ -2383,11 +2404,16 @@
 
                             .select(
                                 "id,whatsapp_number,whatsapp_message,is_active"
-                            )
+                            );
 
-                            .single();
+                }
 
-                } else {
+
+                /* =============================================
+                   INSERT NEW ROW
+                ============================================== */
+
+                else {
 
                     result =
                         await client
@@ -2400,35 +2426,94 @@
 
                             .select(
                                 "id,whatsapp_number,whatsapp_message,is_active"
-                            )
-
-                            .single();
+                            );
 
                 }
 
 
-                if (result.error) {
+                /* =============================================
+                   DATABASE ERROR
+                ============================================== */
+
+                if (
+                    result &&
+                    result.error
+                ) {
 
                     throw result.error;
 
                 }
 
 
-                if (result.data) {
+                /* =============================================
+                   NORMALIZE RESPONSE
+                   
+                   Supabase .select() menghasilkan array.
+                   Jangan pakai .single().
+                ============================================== */
+
+                const rows =
+                    result &&
+                    Array.isArray(
+                        result.data
+                    )
+                        ? result.data
+                        : [];
+
+
+                const row =
+                    rows.length
+                        ? rows[0]
+                        : null;
+
+
+                /* =============================================
+                   DATABASE MENGEMBALIKAN ROW
+                ============================================== */
+
+                if (row) {
 
                     settingsId =
-                        result.data.id;
+                        row.id;
+
 
                     whatsappNumber.value =
-                        result.data.whatsapp_number ||
+                        row.whatsapp_number ||
                         "";
+
 
                     whatsappMessage.value =
-                        result.data.whatsapp_message ||
+                        row.whatsapp_message ||
                         "";
 
+
                     isActive.checked =
-                        result.data.is_active === true;
+                        row.is_active === true;
+
+                }
+
+
+                /* =============================================
+                   DATABASE TIDAK MENGEMBALIKAN ROW
+                   
+                   Bisa terjadi jika UPDATE berhasil tetapi
+                   policy RLS tidak mengizinkan RETURNING row.
+                   
+                   Jangan menganggap save gagal.
+                ============================================== */
+
+                else {
+
+                    whatsappNumber.value =
+                        number;
+
+
+                    whatsappMessage.value =
+                        message;
+
+
+                    isActive.checked =
+                        active;
 
                 }
 
@@ -2437,6 +2522,10 @@
 
             }
 
+
+            /* =================================================
+               START
+            ================================================== */
 
             async function start() {
 
@@ -2551,6 +2640,7 @@
                                         error
                                     );
 
+
                                     setStatus(
                                         error?.message ||
                                         "Gagal memuat konfigurasi.",
@@ -2584,6 +2674,10 @@
             }
 
 
+            /* =================================================
+               NORMALIZE BUTTON
+            ================================================== */
+
             normalizeButton?.addEventListener(
                 "click",
                 () => {
@@ -2593,7 +2687,9 @@
                             whatsappNumber.value
                         );
 
+
                     updatePreview();
+
 
                     setStatus(
                         "Nomor dinormalisasi."
@@ -2602,6 +2698,10 @@
                 }
             );
 
+
+            /* =================================================
+               LIVE PREVIEW
+            ================================================== */
 
             whatsappNumber?.addEventListener(
                 "input",
@@ -2620,6 +2720,10 @@
                 updatePreview
             );
 
+
+            /* =================================================
+               SAVE BUTTON
+            ================================================== */
 
             saveButton?.addEventListener(
                 "click",
@@ -2678,6 +2782,10 @@
                 }
             );
 
+
+            /* =================================================
+               DOM READY
+            ================================================== */
 
             if (
                 document.readyState ===
