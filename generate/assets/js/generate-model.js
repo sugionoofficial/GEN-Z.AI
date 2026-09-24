@@ -3792,9 +3792,13 @@ export async function selectModel(
     }
 
 
-    return loadModelConfig(
-        normalizedId
-    );
+    const model = await loadModelConfig(
+    normalizedId
+);
+
+updateModelLogo(model);
+
+return model;
 
 }
 
