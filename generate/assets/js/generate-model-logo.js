@@ -1,182 +1,420 @@
-/**
- * GEN-Z.AI
- * Generate Model Logo
- *
- * Tugas:
- * - Menampilkan logo model di dalam blok MODEL ENGINE.
- * - Tidak mengubah logic pemilihan model.
- * - Tidak mengubah model state.
- * - Tidak mengubah pricing.
- * - Logo menggunakan asset lokal.
- *
- * Struktur asset:
- * generate/assets/models/
- *
- * Contoh:
- * generate/assets/models/grok.svg
- * generate/assets/models/kling.svg
- * generate/assets/models/seedance.svg
- * generate/assets/models/default.svg
- */
+/* =========================================================
+   GEN-Z.AI
+   GENERATE MODEL LOGO
+   ---------------------------------------------------------
+   Tanggung jawab:
+   - Menentukan logo berdasarkan model/provider
+   - Menampilkan logo model aktif
+   - Tidak mengubah value #modelSelect
+   - Tidak mengubah proses Generate
+========================================================= */
 
-const LOGO_BASE_PATH = "./assets/models/";
+"use strict";
 
-const MODEL_LOGOS = {
+
+const MODEL_LOGO_BASE_PATH =
+    "./assets/models/";
+
+
+/* =========================================================
+   LOGO MAP
+========================================================= */
+
+const LOGO_MAP = {
+
+    /* =====================================================
+       xAI / GROK
+    ===================================================== */
+
     grok: "grok.svg",
+
+    "grok-imagine":
+        "grok.svg",
+
+
+    /* =====================================================
+       KLING
+    ===================================================== */
+
     kling: "kling.svg",
-    seedance: "seedance.svg",
-    seed: "seedance.svg",
-    seedream: "seedream.svg"
+
+    "kling-ai":
+        "kling.svg",
+
+    "klingai":
+        "kling.svg",
+
+
+    /* =====================================================
+       BYTEDANCE / SEEDANCE
+    ===================================================== */
+
+    seedance:
+        "seedance.svg",
+
+    bytedance:
+        "seedance.svg",
+
+    seed:
+        "seedance.svg"
+
 };
 
-function normalize(value) {
-    return String(value || "")
+
+/* =========================================================
+   SAFE STRING
+========================================================= */
+
+function safeString(
+    value
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return "";
+
+    }
+
+
+    return String(
+        value
+    )
         .trim()
-        .toLowerCase()
-        .replace(/\\/g, "/");
+        .toLowerCase();
+
 }
 
-function resolveLogoFile(model = {}) {
-    const modelId = normalize(
-        model.model_id ||
-        model.id ||
-        ""
-    );
 
-    const modelName = normalize(
-        model.model_name ||
-        model.name ||
-        ""
-    );
+/* =========================================================
+   NORMALIZE MODEL
+========================================================= */
 
-    const combined = `${modelId} ${modelName}`;
+function normalizeModel(
+    model
+) {
 
     if (
-        combined.includes("grok") ||
-        combined.includes("xai") ||
-        combined.includes("x-ai")
+        !model ||
+        typeof model !== "object"
     ) {
-        return MODEL_LOGOS.grok;
+
+        return {
+
+            modelId: "",
+
+            modelName: "",
+
+            providerId: "",
+
+            providerName: ""
+
+        };
+
     }
 
-    if (
-        combined.includes("kling") ||
-        combined.includes("klingai")
-    ) {
-        return MODEL_LOGOS.kling;
-    }
 
-    if (
-        combined.includes("seedance")
-    ) {
-        return MODEL_LOGOS.seedance;
-    }
+    return {
 
-    if (
-        combined.includes("seedream")
-    ) {
-        return MODEL_LOGOS.seedream;
-    }
+        modelId: safeString(
 
-    return "default.svg";
-}
+            model.model_id ||
 
-function createLogoElement(model = {}) {
-    const wrapper = document.createElement("div");
+            model.modelId ||
 
-    wrapper.className = "generate-model-logo";
+            model.id ||
 
-    wrapper.setAttribute(
-        "aria-hidden",
-        "true"
-    );
+            model.config?.id
 
-    const image = document.createElement("img");
+        ),
 
-    image.className = "generate-model-logo-image";
+        modelName: safeString(
 
-    image.alt = "";
+            model.model_name ||
 
-    image.decoding = "async";
+            model.modelName ||
 
-    image.loading = "eager";
+            model.name ||
 
-    const logoFile = resolveLogoFile(model);
+            model.config?.name
 
-    image.src = `${LOGO_BASE_PATH}${logoFile}`;
+        ),
 
-    image.onerror = () => {
-        if (image.dataset.fallbackApplied === "true") {
-            return;
-        }
+        providerId: safeString(
 
-        image.dataset.fallbackApplied = "true";
+            model.provider_id ||
 
-        image.src =
-            `${LOGO_BASE_PATH}default.svg`;
+            model.providerId ||
+
+            model.provider?.id
+
+        ),
+
+        providerName: safeString(
+
+            model.provider_name ||
+
+            model.providerName ||
+
+            model.provider?.name
+
+        )
+
     };
 
-    wrapper.appendChild(image);
-
-    return wrapper;
 }
 
+
+/* =========================================================
+   RESOLVE LOGO
+========================================================= */
+
+export function getModelLogoFile(
+    model
+) {
+
+    const normalized =
+        normalizeModel(
+            model
+        );
+
+
+    const values = [
+
+        normalized.modelId,
+
+        normalized.providerId,
+
+        normalized.modelName,
+
+        normalized.providerName
+
+    ];
+
+
+    /* =====================================================
+       EXACT / PARTIAL MAP
+    ===================================================== */
+
+    for (
+        const value
+        of values
+    ) {
+
+        if (!value) {
+            continue;
+        }
+
+
+        for (
+            const [
+                key,
+                logo
+            ]
+            of Object.entries(
+                LOGO_MAP
+            )
+        ) {
+
+            if (
+                value === key ||
+                value.includes(key)
+            ) {
+
+                return logo;
+
+            }
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   GET PREVIEW ELEMENT
+========================================================= */
+
 function getPreviewElement() {
+
     return document.getElementById(
         "selectedModelLogo"
     );
+
 }
 
-function clearModelLogo() {
-    const container = getPreviewElement();
+
+/* =========================================================
+   CLEAR
+========================================================= */
+
+export function clearModelLogo() {
+
+    const container =
+        getPreviewElement();
+
 
     if (!container) {
         return;
     }
+
 
     container.innerHTML = "";
+
     container.hidden = true;
+
+    container.removeAttribute(
+        "data-model-id"
+    );
+
 }
 
-export function updateModelLogo(model = null) {
-    const container = getPreviewElement();
+
+/* =========================================================
+   UPDATE LOGO
+========================================================= */
+
+export function updateModelLogo(
+    model
+) {
+
+    const container =
+        getPreviewElement();
+
 
     if (!container) {
         return;
     }
 
-    if (!model) {
+
+    const logoFile =
+        getModelLogoFile(
+            model
+        );
+
+
+    if (!logoFile) {
+
         clearModelLogo();
+
         return;
+
     }
+
+
+    const normalized =
+        normalizeModel(
+            model
+        );
+
 
     container.innerHTML = "";
 
-    const logo = createLogoElement(model);
 
-    container.appendChild(logo);
+    const image =
+        document.createElement(
+            "img"
+        );
 
-    container.hidden = false;
-}
 
-export function getModelLogoFile(model = {}) {
-    return resolveLogoFile(model);
-}
+    image.className =
+        "generate-model-logo-image";
 
-export function initModelLogo() {
-    const container = getPreviewElement();
 
-    if (!container) {
-        return false;
+    image.src =
+        MODEL_LOGO_BASE_PATH +
+        logoFile;
+
+
+    image.alt =
+        normalized.modelName ||
+        normalized.providerName ||
+        "Model logo";
+
+
+    image.loading =
+        "eager";
+
+
+    image.decoding =
+        "async";
+
+
+    image.addEventListener(
+        "error",
+        () => {
+
+            clearModelLogo();
+
+        },
+        {
+            once: true
+        }
+    );
+
+
+    container.appendChild(
+        image
+    );
+
+
+    container.hidden =
+        false;
+
+
+    if (
+        normalized.modelId
+    ) {
+
+        container.dataset.modelId =
+            normalized.modelId;
+
     }
 
-    container.hidden = true;
-
-    return true;
 }
+
+
+/* =========================================================
+   INIT
+========================================================= */
+
+export function initModelLogo(
+    model = null
+) {
+
+    if (model) {
+
+        updateModelLogo(
+            model
+        );
+
+    } else {
+
+        clearModelLogo();
+
+    }
+
+}
+
+
+/* =========================================================
+   GLOBAL API
+========================================================= */
 
 window.GENZModelLogo = {
+
     updateModelLogo,
+
+    clearModelLogo,
+
     getModelLogoFile,
+
     initModelLogo
+
 };
