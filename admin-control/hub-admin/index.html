@@ -1809,49 +1809,899 @@
 
     <script>
 
-        (() => {
+(() => {
 
-            "use strict";
+    "use strict";
 
+
+    /* =========================================================
+       CONFIG
+    ========================================================= */
+
+    const TABLE = "hub_admin_settings";
+
+    const DEFAULT_MESSAGE =
+        "Halo Admin GEN-Z.AI, saya membutuhkan bantuan.";
+
+
+    /* =========================================================
+       ELEMENTS
+    ========================================================= */
+
+    const loading =
+        document.getElementById("loading");
+
+    const adminPage =
+        document.getElementById("adminPage");
+
+    const whatsappNumber =
+        document.getElementById("whatsappNumber");
+
+    const whatsappMessage =
+        document.getElementById("whatsappMessage");
+
+    const isActive =
+        document.getElementById("isActive");
+
+    const saveButton =
+        document.getElementById("saveButton");
+
+    const normalizeButton =
+        document.getElementById("normalizeButton");
+
+    const status =
+        document.getElementById("status");
+
+    const previewNumber =
+        document.getElementById("previewNumber");
+
+    const previewMessage =
+        document.getElementById("previewMessage");
+
+    const previewStatus =
+        document.getElementById("previewStatus");
+
+
+    /* =========================================================
+       STATE
+    ========================================================= */
+
+    let settingsId = null;
+
+
+    /* =========================================================
+       SUPABASE CLIENT
+    ========================================================= */
+
+    function getClient() {
+
+        const client =
+            window.GENZ_SUPABASE ||
+            window.supabaseClient;
+
+
+        if (
+            !client ||
+            typeof client.from !== "function"
+        ) {
+
+            throw new Error(
+                "Supabase client tidak tersedia."
+            );
+
+        }
+
+
+        return client;
+
+    }
+
+
+    /* =========================================================
+       LOADING / PAGE
+    ========================================================= */
+
+    function hideLoading() {
+
+        if (loading) {
+
+            loading.style.display = "none";
+
+        }
+
+    }
+
+
+    function showPage() {
+
+        if (adminPage) {
+
+            adminPage.style.display = "";
+
+        }
+
+        hideLoading();
+
+    }
+
+
+    /* =========================================================
+       STATUS
+    ========================================================= */
+
+    function setStatus(
+        message,
+        type = ""
+    ) {
+
+        if (!status) {
+
+            return;
+
+        }
+
+
+        status.textContent =
+            message || "";
+
+
+        status.className =
+            "status";
+
+
+        if (type) {
+
+            status.classList.add(type);
+
+        }
+
+    }
+
+
+    /* =========================================================
+       PHONE NORMALIZER
+    ========================================================= */
+
+    function normalizePhone(value) {
+
+        let phone =
+            String(value || "")
+                .trim();
+
+
+        /*
+         * Hapus semua karakter
+         * selain angka.
+         */
+
+        phone =
+            phone.replace(/\D/g, "");
+
+
+        /*
+         * 08xxxxxxxxxx
+         * →
+         * 628xxxxxxxxxx
+         */
+
+        if (
+            phone.startsWith("08")
+        ) {
+
+            phone =
+                "62" +
+                phone.slice(1);
+
+        }
+
+
+        /*
+         * +628...
+         * setelah karakter non-digit
+         * dihapus sudah menjadi 628...
+         */
+
+
+        /*
+         * 6208...
+         * bukan format Indonesia yang benar.
+         *
+         * Jika user memasukkan 008...
+         * ubah menjadi 628...
+         */
+
+        if (
+            phone.startsWith("008")
+        ) {
+
+            phone =
+                "62" +
+                phone.slice(3);
+
+        }
+
+
+        return phone;
+
+    }
+
+
+    /* =========================================================
+       PREVIEW
+    ========================================================= */
+
+    function updatePreview() {
+
+        const number =
+            String(
+                whatsappNumber?.value || ""
+            ).trim();
+
+
+        const message =
+            String(
+                whatsappMessage?.value || ""
+            ).trim();
+
+
+        if (previewNumber) {
+
+            previewNumber.textContent =
+                number
+                    ? number
+                    : "Nomor belum diatur";
+
+        }
+
+
+        if (previewMessage) {
+
+            previewMessage.textContent =
+                message
+                    ? message
+                    : "Pesan belum diatur.";
+
+        }
+
+
+        if (previewStatus) {
+
+            const active =
+                Boolean(
+                    isActive?.checked
+                );
+
+
+            previewStatus.textContent =
+                active
+                    ? "AKTIF"
+                    : "NONAKTIF";
+
+
+            previewStatus.classList.toggle(
+                "off",
+                !active
+            );
+
+        }
+
+    }
+
+
+    /* =========================================================
+       ADMIN ACCESS
+    ========================================================= */
+
+    function hasAdminAccess() {
+
+        const role =
+            String(
+                window.GENZ_NAVIGATION_ROLE || ""
+            )
+            .trim()
+            .toLowerCase();
+
+
+        return (
+            role === "admin" ||
+            role === "owner"
+        );
+
+    }
+
+
+    /* =========================================================
+       LOAD SETTINGS
+    ========================================================= */
+
+    async function loadSettings() {
+
+        const client =
+            getClient();
+
+
+        const result =
+            await client
+                .from(TABLE)
+                .select(
+                    "id,whatsapp_number,whatsapp_message,is_active"
+                )
+                .order(
+                    "id",
+                    {
+                        ascending: true
+                    }
+                )
+                .limit(1);
+
+
+        if (result.error) {
+
+            throw result.error;
+
+        }
+
+
+        const rows =
+            Array.isArray(result.data)
+                ? result.data
+                : [];
+
+
+        const row =
+            rows.length
+                ? rows[0]
+                : null;
+
+
+        /*
+         * BELUM ADA KONFIGURASI
+         */
+
+        if (!row) {
+
+            settingsId = null;
+
+
+            whatsappNumber.value = "";
+
+
+            whatsappMessage.value =
+                DEFAULT_MESSAGE;
+
+
+            isActive.checked = true;
+
+
+            updatePreview();
+
+
+            return;
+
+        }
+
+
+        /*
+         * KONFIGURASI SUDAH ADA
+         */
+
+        settingsId =
+            row.id;
+
+
+        whatsappNumber.value =
+            String(
+                row.whatsapp_number || ""
+            ).trim();
+
+
+        whatsappMessage.value =
+            String(
+                row.whatsapp_message ||
+                DEFAULT_MESSAGE
+            );
+
+
+        isActive.checked =
+            row.is_active === true;
+
+
+        updatePreview();
+
+    }
+
+
+    /* =========================================================
+       FIND EXISTING SETTINGS
+       
+       Digunakan jika settingsId belum diketahui.
+    ========================================================= */
+
+    async function findExistingSettings() {
+
+        const client =
+            getClient();
+
+
+        const result =
+            await client
+                .from(TABLE)
+                .select(
+                    "id,whatsapp_number,whatsapp_message,is_active"
+                )
+                .order(
+                    "id",
+                    {
+                        ascending: true
+                    }
+                )
+                .limit(1);
+
+
+        if (result.error) {
+
+            throw result.error;
+
+        }
+
+
+        const rows =
+            Array.isArray(result.data)
+                ? result.data
+                : [];
+
+
+        return rows.length
+            ? rows[0]
+            : null;
+
+    }
+
+
+    /* =========================================================
+       VERIFY SAVED DATA
+       
+       Sangat penting:
+       jangan percaya response UPDATE saja.
+       
+       Kita baca ulang dari database.
+    ========================================================= */
+
+    async function verifySavedData(
+        expectedNumber,
+        expectedMessage,
+        expectedActive
+    ) {
+
+        const client =
+            getClient();
+
+
+        const id =
+            settingsId;
+
+
+        let query =
+            client
+                .from(TABLE)
+                .select(
+                    "id,whatsapp_number,whatsapp_message,is_active"
+                );
+
+
+        if (
+            id !== null &&
+            id !== undefined &&
+            id !== ""
+        ) {
+
+            query =
+                query.eq(
+                    "id",
+                    id
+                );
+
+        } else {
+
+            query =
+                query.order(
+                    "id",
+                    {
+                        ascending: true
+                    }
+                )
+                .limit(1);
+
+        }
+
+
+        const result =
+            await query;
+
+
+        if (result.error) {
+
+            throw result.error;
+
+        }
+
+
+        const rows =
+            Array.isArray(result.data)
+                ? result.data
+                : [];
+
+
+        const row =
+            rows.length
+                ? rows[0]
+                : null;
+
+
+        /*
+         * Tidak ada row yang bisa dibaca.
+         */
+
+        if (!row) {
+
+            throw new Error(
+                "Data tidak ditemukan setelah disimpan. Periksa RLS policy tabel hub_admin_settings."
+            );
+
+        }
+
+
+        settingsId =
+            row.id;
+
+
+        const savedNumber =
+            normalizePhone(
+                row.whatsapp_number
+            );
+
+
+        const savedMessage =
+            String(
+                row.whatsapp_message || ""
+            ).trim();
+
+
+        const savedActive =
+            row.is_active === true;
+
+
+        /*
+         * VERIFIKASI NOMOR
+         */
+
+        if (
+            savedNumber !==
+            expectedNumber
+        ) {
+
+            throw new Error(
+                "Nomor WhatsApp tidak tersimpan ke database. Database masih mengembalikan: " +
+                (row.whatsapp_number || "(kosong)")
+            );
+
+        }
+
+
+        /*
+         * VERIFIKASI PESAN
+         */
+
+        if (
+            savedMessage !==
+            expectedMessage
+        ) {
+
+            throw new Error(
+                "Pesan WhatsApp tidak sesuai dengan data yang disimpan."
+            );
+
+        }
+
+
+        /*
+         * VERIFIKASI STATUS
+         */
+
+        if (
+            savedActive !==
+            expectedActive
+        ) {
+
+            throw new Error(
+                "Status Hub Admin tidak sesuai dengan data yang disimpan."
+            );
+
+        }
+
+
+        /*
+         * Sinkronkan UI dengan database.
+         */
+
+        whatsappNumber.value =
+            savedNumber;
+
+
+        whatsappMessage.value =
+            savedMessage;
+
+
+        isActive.checked =
+            savedActive;
+
+
+        updatePreview();
+
+
+        return row;
+
+    }
+
+
+    /* =========================================================
+       SAVE SETTINGS
+    ========================================================= */
+
+    async function saveSettings() {
+
+        const client =
+            getClient();
+
+
+        /*
+         * Ambil nilai terbaru dari form.
+         */
+
+        const number =
+            normalizePhone(
+                whatsappNumber.value
+            );
+
+
+        const message =
+            String(
+                whatsappMessage.value || ""
+            ).trim();
+
+
+        const active =
+            Boolean(
+                isActive.checked
+            );
+
+
+        /* =====================================================
+           VALIDASI NOMOR
+        ===================================================== */
+
+        if (!number) {
+
+            throw new Error(
+                "Nomor WhatsApp admin wajib diisi."
+            );
+
+        }
+
+
+        if (
+            !/^62\d{8,15}$/.test(number)
+        ) {
+
+            throw new Error(
+                "Nomor WhatsApp tidak valid. Gunakan format 628xxxxxxxxxx."
+            );
+
+        }
+
+
+        /* =====================================================
+           VALIDASI PESAN
+        ===================================================== */
+
+        if (!message) {
+
+            throw new Error(
+                "Pesan WhatsApp wajib diisi."
+            );
+
+        }
+
+
+        /*
+         * Tampilkan nomor hasil normalisasi.
+         */
+
+        whatsappNumber.value =
+            number;
+
+
+        updatePreview();
+
+
+        /* =====================================================
+           PAYLOAD
+        ===================================================== */
+
+        const payload = {
+
+            whatsapp_number:
+                number,
+
+            whatsapp_message:
+                message,
+
+            is_active:
+                active,
+
+            updated_at:
+                new Date().toISOString()
+
+        };
+
+
+        /* =====================================================
+           PASTIKAN ROW TARGET ADA
+        ===================================================== */
+
+        if (
+            settingsId === null ||
+            settingsId === undefined ||
+            settingsId === ""
+        ) {
+
+            const existing =
+                await findExistingSettings();
+
+
+            if (existing) {
+
+                settingsId =
+                    existing.id;
+
+            }
+
+        }
+
+
+        let operationResult;
+
+
+        /* =====================================================
+           UPDATE
+        ===================================================== */
+
+        if (
+            settingsId !== null &&
+            settingsId !== undefined &&
+            settingsId !== ""
+        ) {
+
+            /*
+             * PENTING:
+             *
+             * Tidak menggunakan .select()
+             * setelah UPDATE.
+             *
+             * Setelah UPDATE kita SELECT
+             * ulang untuk verifikasi.
+             */
+
+            operationResult =
+                await client
+                    .from(TABLE)
+                    .update(payload)
+                    .eq(
+                        "id",
+                        settingsId
+                    );
+
+        }
+
+
+        /* =====================================================
+           INSERT
+        ===================================================== */
+
+        else {
+
+            /*
+             * Hanya insert jika tabel benar-benar
+             * belum mempunyai konfigurasi.
+             */
+
+            operationResult =
+                await client
+                    .from(TABLE)
+                    .insert(payload);
+
+        }
+
+
+        /* =====================================================
+           CHECK DATABASE ERROR
+        ===================================================== */
+
+        if (
+            operationResult &&
+            operationResult.error
+        ) {
+
+            const error =
+                operationResult.error;
+
+
+            console.error(
+                "[GEN-Z.AI] Supabase save error:",
+                error
+            );
+
+
+            throw new Error(
+                error.message ||
+                "Supabase gagal menyimpan konfigurasi Hub Admin."
+            );
+
+        }
+
+
+        /* =====================================================
+           VERIFY
+        ===================================================== */
+
+        await verifySavedData(
+            number,
+            message,
+            active
+        );
+
+
+        /*
+         * Sampai titik ini data benar-benar
+         * sudah dibaca kembali dari database
+         * dan cocok dengan input.
+         */
+
+        return true;
+
+    }
+
+
+    /* =========================================================
+       START
+    ========================================================= */
+
+    async function start() {
+
+        /*
+         * navigation.js adalah sumber kebenaran
+         * authentication dan role.
+         */
+
+        if (
+            window.GENZNavigationReady &&
+            typeof
+                window.GENZNavigationReady.then ===
+                "function"
+        ) {
 
             try {
 
-                if (
-                    !window.supabase ||
-                    typeof window.supabase.createClient !==
-                        "function"
-                ) {
-
-                    throw new Error(
-                        "Supabase library tidak tersedia."
-                    );
-
-                }
+                const ready =
+                    await
+                        window.GENZNavigationReady;
 
 
                 if (
-                    !window.GENZ_CONFIG ||
-                    !window.GENZ_CONFIG.SUPABASE_URL ||
-                    !window.GENZ_CONFIG.SUPABASE_KEY
+                    ready !== true
                 ) {
 
-                    throw new Error(
-                        "Konfigurasi Supabase tidak tersedia."
-                    );
-
-                }
-
-
-                if (
-                    window.GENZ_SUPABASE &&
-                    window.GENZ_SUPABASE.auth &&
-                    typeof
-                        window.GENZ_SUPABASE.auth.getSession ===
-                        "function"
-                ) {
-
-                    window.supabaseClient =
-                        window.GENZ_SUPABASE;
+                    hideLoading();
 
                     return;
 
@@ -1859,956 +2709,276 @@
 
 
                 if (
-                    window.supabaseClient &&
-                    window.supabaseClient.auth &&
-                    typeof
-                        window.supabaseClient.auth.getSession ===
-                        "function"
+                    !hasAdminAccess()
                 ) {
 
-                    window.GENZ_SUPABASE =
-                        window.supabaseClient;
+                    hideLoading();
 
                     return;
 
                 }
 
 
-                const client =
-                    window.supabase.createClient(
-                        window.GENZ_CONFIG.SUPABASE_URL,
-                        window.GENZ_CONFIG.SUPABASE_KEY
-                    );
+                showPage();
 
 
-                window.GENZ_SUPABASE =
-                    client;
-
-                window.supabaseClient =
-                    client;
+                await loadSettings();
 
 
             } catch (error) {
 
                 console.error(
-                    "[GEN-Z.AI] Supabase initialization error:",
+                    "[GEN-Z.AI] Hub Admin initialization failed:",
                     error
                 );
 
-            }
 
-        })();
-
-    </script>
-
-
-    <!-- =====================================================
-         SHARED NAVIGATION
-    ====================================================== -->
-
-    <script
-        src="/navigation/navigation.js"
-    ></script>
-
-
-    <!-- =====================================================
-         HUB ADMIN PAGE CONTROLLER
-    ====================================================== -->
-
-    <script>
-
-        (() => {
-
-            "use strict";
-
-
-            const TABLE =
-                "hub_admin_settings";
-
-
-            const loading =
-                document.getElementById(
-                    "loading"
+                setStatus(
+                    error?.message ||
+                    "Gagal memuat konfigurasi.",
+                    "error"
                 );
 
 
-            const adminPage =
-                document.getElementById(
-                    "adminPage"
-                );
-
-
-            const whatsappNumber =
-                document.getElementById(
-                    "whatsappNumber"
-                );
-
-
-            const whatsappMessage =
-                document.getElementById(
-                    "whatsappMessage"
-                );
-
-
-            const isActive =
-                document.getElementById(
-                    "isActive"
-                );
-
-
-            const saveButton =
-                document.getElementById(
-                    "saveButton"
-                );
-
-
-            const normalizeButton =
-                document.getElementById(
-                    "normalizeButton"
-                );
-
-
-            const status =
-                document.getElementById(
-                    "status"
-                );
-
-
-            const previewNumber =
-                document.getElementById(
-                    "previewNumber"
-                );
-
-
-            const previewMessage =
-                document.getElementById(
-                    "previewMessage"
-                );
-
-
-            const previewStatus =
-                document.getElementById(
-                    "previewStatus"
-                );
-
-
-            let settingsId = null;
-
-
-            function hideLoading() {
-
-                if (loading) {
-
-                    loading.style.display =
-                        "none";
-
-                }
+                showPage();
 
             }
 
 
-            function showPage() {
+            return;
 
-                if (adminPage) {
+        }
 
-                    adminPage.style.display =
-                        "";
 
-                }
+        /* =====================================================
+           COMPATIBILITY FALLBACK
+        ===================================================== */
 
-                hideLoading();
+        let attempts = 0;
 
-            }
 
-
-            function setStatus(
-                message,
-                type = ""
-            ) {
-
-                if (!status) {
-                    return;
-                }
-
-                status.textContent =
-                    message || "";
-
-                status.className =
-                    "status";
-
-                if (type) {
-
-                    status.classList.add(
-                        type
-                    );
-
-                }
-
-            }
-
-
-            function normalizePhone(
-                value
-            ) {
-
-                let phone =
-                    String(
-                        value || ""
-                    )
-                    .trim();
-
-
-                /*
-                 * Hapus seluruh karakter
-                 * selain angka.
-                 */
-
-                phone =
-                    phone.replace(
-                        /\D/g,
-                        ""
-                    );
-
-
-                /*
-                 * 08xxxxxxxxxx
-                 * menjadi
-                 * 628xxxxxxxxxx
-                 */
-
-                if (
-                    phone.startsWith("08")
-                ) {
-
-                    phone =
-                        "62" +
-                        phone.slice(1);
-
-                }
-
-
-                return phone;
-
-            }
-
-
-            function updatePreview() {
-
-                const number =
-                    String(
-                        whatsappNumber?.value ||
-                        ""
-                    ).trim();
-
-
-                const message =
-                    String(
-                        whatsappMessage?.value ||
-                        ""
-                    ).trim();
-
-
-                if (previewNumber) {
-
-                    previewNumber.textContent =
-                        number
-                            ? number
-                            : "Nomor belum diatur";
-
-                }
-
-
-                if (previewMessage) {
-
-                    previewMessage.textContent =
-                        message
-                            ? message
-                            : "Pesan belum diatur.";
-
-                }
-
-
-                if (previewStatus) {
-
-                    const active =
-                        Boolean(
-                            isActive?.checked
-                        );
-
-
-                    previewStatus.textContent =
-                        active
-                            ? "AKTIF"
-                            : "NONAKTIF";
-
-
-                    previewStatus.classList.toggle(
-                        "off",
-                        !active
-                    );
-
-                }
-
-            }
-
-
-            function hasAdminAccess() {
-
-                const role =
-                    String(
-                        window.GENZ_NAVIGATION_ROLE ||
-                        ""
-                    )
-                    .trim()
-                    .toLowerCase();
-
-
-                return (
-                    role === "admin" ||
-                    role === "owner"
-                );
-
-            }
-
-
-            /* =================================================
-               LOAD SETTINGS
-            ================================================== */
-
-            async function loadSettings() {
-
-                const client =
-                    window.GENZ_SUPABASE ||
-                    window.supabaseClient;
-
-
-                if (!client) {
-
-                    throw new Error(
-                        "Supabase client tidak tersedia."
-                    );
-
-                }
-
-
-                const {
-                    data,
-                    error
-                } = await client
-
-                    .from(TABLE)
-
-                    .select(
-                        "id,whatsapp_number,whatsapp_message,is_active"
-                    )
-
-                    .limit(1);
-
-
-                if (error) {
-
-                    throw error;
-
-                }
-
-
-                const rows =
-                    Array.isArray(data)
-                        ? data
-                        : [];
-
-
-                const row =
-                    rows.length
-                        ? rows[0]
-                        : null;
-
-
-                if (!row) {
-
-                    settingsId =
-                        null;
-
-
-                    whatsappNumber.value =
-                        "";
-
-
-                    whatsappMessage.value =
-                        "Halo Admin GEN-Z.AI, saya membutuhkan bantuan.";
-
-
-                    isActive.checked =
-                        true;
-
-
-                    updatePreview();
-
-                    return;
-
-                }
-
-
-                settingsId =
-                    row.id;
-
-
-                whatsappNumber.value =
-                    row.whatsapp_number ||
-                    "";
-
-
-                whatsappMessage.value =
-                    row.whatsapp_message ||
-                    "";
-
-
-                isActive.checked =
-                    row.is_active === true;
-
-
-                updatePreview();
-
-            }
-
-
-            /* =================================================
-               SAVE SETTINGS
-               
-               PENTING:
-               Tidak menggunakan .single().
-               Hasil UPDATE/INSERT diproses sebagai ARRAY.
-            ================================================== */
-
-            async function saveSettings() {
-
-                const client =
-                    window.GENZ_SUPABASE ||
-                    window.supabaseClient;
-
-
-                if (!client) {
-
-                    throw new Error(
-                        "Supabase client tidak tersedia."
-                    );
-
-                }
-
-
-                const number =
-                    normalizePhone(
-                        whatsappNumber.value
-                    );
-
-
-                const message =
-                    String(
-                        whatsappMessage.value ||
-                        ""
-                    ).trim();
-
-
-                const active =
-                    Boolean(
-                        isActive.checked
-                    );
-
-
-                /* =============================================
-                   VALIDASI
-                ============================================== */
-
-                if (!number) {
-
-                    throw new Error(
-                        "Nomor WhatsApp admin wajib diisi."
-                    );
-
-                }
-
-
-                if (
-                    !/^62\d{8,15}$/.test(
-                        number
-                    )
-                ) {
-
-                    throw new Error(
-                        "Nomor WhatsApp tidak valid. Gunakan format 628xxxxxxxxxx."
-                    );
-
-                }
-
-
-                if (!message) {
-
-                    throw new Error(
-                        "Pesan WhatsApp wajib diisi."
-                    );
-
-                }
-
-
-                whatsappNumber.value =
-                    number;
-
-
-                /* =============================================
-                   PAYLOAD
-                ============================================== */
-
-                const payload = {
-
-                    whatsapp_number:
-                        number,
-
-                    whatsapp_message:
-                        message,
-
-                    is_active:
-                        active,
-
-                    updated_at:
-                        new Date().toISOString()
-
-                };
-
-
-                let result;
-
-
-                /* =============================================
-                   UPDATE EXISTING ROW
-                ============================================== */
-
-                if (
-                    settingsId !== null &&
-                    settingsId !== undefined &&
-                    settingsId !== ""
-                ) {
-
-                    result =
-                        await client
-
-                            .from(TABLE)
-
-                            .update(
-                                payload
-                            )
-
-                            .eq(
-                                "id",
-                                settingsId
-                            )
-
-                            .select(
-                                "id,whatsapp_number,whatsapp_message,is_active"
-                            );
-
-                }
-
-
-                /* =============================================
-                   INSERT NEW ROW
-                ============================================== */
-
-                else {
-
-                    result =
-                        await client
-
-                            .from(TABLE)
-
-                            .insert(
-                                payload
-                            )
-
-                            .select(
-                                "id,whatsapp_number,whatsapp_message,is_active"
-                            );
-
-                }
-
-
-                /* =============================================
-                   DATABASE ERROR
-                ============================================== */
-
-                if (
-                    result &&
-                    result.error
-                ) {
-
-                    throw result.error;
-
-                }
-
-
-                /* =============================================
-                   NORMALIZE RESPONSE
-                   
-                   Supabase .select() menghasilkan array.
-                   Jangan pakai .single().
-                ============================================== */
-
-                const rows =
-                    result &&
-                    Array.isArray(
-                        result.data
-                    )
-                        ? result.data
-                        : [];
-
-
-                const row =
-                    rows.length
-                        ? rows[0]
-                        : null;
-
-
-                /* =============================================
-                   DATABASE MENGEMBALIKAN ROW
-                ============================================== */
-
-                if (row) {
-
-                    settingsId =
-                        row.id;
-
-
-                    whatsappNumber.value =
-                        row.whatsapp_number ||
-                        "";
-
-
-                    whatsappMessage.value =
-                        row.whatsapp_message ||
-                        "";
-
-
-                    isActive.checked =
-                        row.is_active === true;
-
-                }
-
-
-                /* =============================================
-                   DATABASE TIDAK MENGEMBALIKAN ROW
-                   
-                   Bisa terjadi jika UPDATE berhasil tetapi
-                   policy RLS tidak mengizinkan RETURNING row.
-                   
-                   Jangan menganggap save gagal.
-                ============================================== */
-
-                else {
-
-                    whatsappNumber.value =
-                        number;
-
-
-                    whatsappMessage.value =
-                        message;
-
-
-                    isActive.checked =
-                        active;
-
-                }
-
-
-                updatePreview();
-
-            }
-
-
-            /* =================================================
-               START
-            ================================================== */
-
-            async function start() {
-
-                /*
-                 * navigation.js adalah sumber
-                 * kebenaran authentication,
-                 * profile, dan role.
-                 */
-
-                if (
-                    window.GENZNavigationReady &&
-                    typeof
-                        window.GENZNavigationReady.then ===
-                        "function"
-                ) {
-
-                    try {
-
-                        const ready =
-                            await
-                                window.GENZNavigationReady;
-
-
-                        if (
-                            ready !== true
-                        ) {
-
-                            hideLoading();
-
-                            return;
-
-                        }
-
-
-                        if (
-                            !hasAdminAccess()
-                        ) {
-
-                            hideLoading();
-
-                            return;
-
-                        }
-
-
-                        showPage();
-
-
-                        await loadSettings();
-
-
-                    } catch (error) {
-
-                        console.error(
-                            "[GEN-Z.AI] Hub Admin initialization failed:",
-                            error
-                        );
-
-
-                        setStatus(
-                            error?.message ||
-                            "Gagal memuat konfigurasi.",
-                            "error"
-                        );
-
-
-                        showPage();
-
-                    }
-
-
-                    return;
-
-                }
-
-
-                /*
-                 * Compatibility fallback.
-                 */
-
-                let attempts = 0;
-
-
-                const timer =
-                    setInterval(
-                        async () => {
-
-                            attempts++;
-
-
-                            if (
-                                hasAdminAccess()
-                            ) {
-
-                                clearInterval(
-                                    timer
-                                );
-
-
-                                try {
-
-                                    showPage();
-
-                                    await
-                                        loadSettings();
-
-                                } catch (
-                                    error
-                                ) {
-
-                                    console.error(
-                                        error
-                                    );
-
-
-                                    setStatus(
-                                        error?.message ||
-                                        "Gagal memuat konfigurasi.",
-                                        "error"
-                                    );
-
-                                }
-
-                                return;
-
-                            }
-
-
-                            if (
-                                window.GENZ_NAVIGATION_PROFILE ||
-                                attempts >= 100
-                            ) {
-
-                                clearInterval(
-                                    timer
-                                );
-
-                                hideLoading();
-
-                            }
-
-                        },
-                        100
-                    );
-
-            }
-
-
-            /* =================================================
-               NORMALIZE BUTTON
-            ================================================== */
-
-            normalizeButton?.addEventListener(
-                "click",
-                () => {
-
-                    whatsappNumber.value =
-                        normalizePhone(
-                            whatsappNumber.value
-                        );
-
-
-                    updatePreview();
-
-
-                    setStatus(
-                        "Nomor dinormalisasi."
-                    );
-
-                }
-            );
-
-
-            /* =================================================
-               LIVE PREVIEW
-            ================================================== */
-
-            whatsappNumber?.addEventListener(
-                "input",
-                updatePreview
-            );
-
-
-            whatsappMessage?.addEventListener(
-                "input",
-                updatePreview
-            );
-
-
-            isActive?.addEventListener(
-                "change",
-                updatePreview
-            );
-
-
-            /* =================================================
-               SAVE BUTTON
-            ================================================== */
-
-            saveButton?.addEventListener(
-                "click",
+        const timer =
+            setInterval(
                 async () => {
 
+                    attempts++;
+
+
                     if (
-                        saveButton.disabled
+                        hasAdminAccess()
                     ) {
+
+                        clearInterval(
+                            timer
+                        );
+
+
+                        try {
+
+                            showPage();
+
+
+                            await
+                                loadSettings();
+
+
+                        } catch (
+                            error
+                        ) {
+
+                            console.error(
+                                "[GEN-Z.AI] Hub Admin fallback error:",
+                                error
+                            );
+
+
+                            setStatus(
+                                error?.message ||
+                                "Gagal memuat konfigurasi.",
+                                "error"
+                            );
+
+                        }
+
 
                         return;
 
                     }
 
 
-                    saveButton.disabled =
-                        true;
+                    if (
+                        window.GENZ_NAVIGATION_PROFILE ||
+                        attempts >= 100
+                    ) {
 
-
-                    setStatus(
-                        "Menyimpan..."
-                    );
-
-
-                    try {
-
-                        await saveSettings();
-
-
-                        setStatus(
-                            "Konfigurasi berhasil disimpan.",
-                            "success"
+                        clearInterval(
+                            timer
                         );
 
 
-                    } catch (error) {
-
-                        console.error(
-                            "[GEN-Z.AI] Hub Admin save error:",
-                            error
-                        );
-
-
-                        setStatus(
-                            error?.message ||
-                            "Gagal menyimpan konfigurasi.",
-                            "error"
-                        );
-
-                    } finally {
-
-                        saveButton.disabled =
-                            false;
+                        hideLoading();
 
                     }
 
-                }
+                },
+                100
             );
 
+    }
 
-            /* =================================================
-               DOM READY
-            ================================================== */
 
-            if (
-                document.readyState ===
-                "loading"
-            ) {
+    /* =========================================================
+       NORMALIZE BUTTON
+    ========================================================= */
 
-                document.addEventListener(
-                    "DOMContentLoaded",
-                    start,
-                    {
-                        once: true
-                    }
+    normalizeButton?.addEventListener(
+        "click",
+        () => {
+
+            const normalized =
+                normalizePhone(
+                    whatsappNumber.value
+                );
+
+
+            whatsappNumber.value =
+                normalized;
+
+
+            updatePreview();
+
+
+            if (normalized) {
+
+                setStatus(
+                    "Nomor dinormalisasi."
                 );
 
             } else {
 
-                start();
+                setStatus(
+                    "Nomor masih kosong.",
+                    "error"
+                );
 
             }
 
-        })();
+        }
+    );
 
-    </script>
+
+    /* =========================================================
+       LIVE PREVIEW
+    ========================================================= */
+
+    whatsappNumber?.addEventListener(
+        "input",
+        updatePreview
+    );
+
+
+    whatsappMessage?.addEventListener(
+        "input",
+        updatePreview
+    );
+
+
+    isActive?.addEventListener(
+        "change",
+        updatePreview
+    );
+
+
+    /* =========================================================
+       SAVE BUTTON
+    ========================================================= */
+
+    saveButton?.addEventListener(
+        "click",
+        async () => {
+
+            if (
+                saveButton.disabled
+            ) {
+
+                return;
+
+            }
+
+
+            saveButton.disabled =
+                true;
+
+
+            setStatus(
+                "Menyimpan dan memverifikasi..."
+            );
+
+
+            try {
+
+                await saveSettings();
+
+
+                setStatus(
+                    "Konfigurasi berhasil disimpan dan diverifikasi.",
+                    "success"
+                );
+
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Hub Admin save error:",
+                    error
+                );
+
+
+                setStatus(
+                    error?.message ||
+                    "Gagal menyimpan konfigurasi.",
+                    "error"
+                );
+
+
+            } finally {
+
+                saveButton.disabled =
+                    false;
+
+            }
+
+        }
+    );
+
+
+    /* =========================================================
+       DOM READY
+    ========================================================= */
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            start,
+            {
+                once: true
+            }
+        );
+
+    } else {
+
+        start();
+
+    }
+
+
+})();
+
+</script>
 
 
 </body>
