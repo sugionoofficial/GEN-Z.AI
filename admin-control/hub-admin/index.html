@@ -495,18 +495,13 @@
 <body>
 
 
-    <!-- =========================================================
-         SHARED NAVIGATION
-         ========================================================= -->
-
     <div id="navigation"></div>
 
 
-    <!-- =========================================================
-         PAGE LOADING
-         ========================================================= -->
-
-    <div id="loading" class="loading-overlay">
+    <div
+        id="loading"
+        class="loading-overlay"
+    >
 
         <div class="loading-box">
 
@@ -520,10 +515,6 @@
 
     </div>
 
-
-    <!-- =========================================================
-         ADMIN PAGE
-         ========================================================= -->
 
     <main
         id="adminPage"
@@ -549,10 +540,6 @@
 
             <div class="grid">
 
-
-                <!-- =================================================
-                     SETTINGS
-                     ================================================= -->
 
                 <section class="card">
 
@@ -683,10 +670,6 @@
 
                 </section>
 
-
-                <!-- =================================================
-                     PREVIEW
-                     ================================================= -->
 
                 <section class="card">
 
@@ -912,10 +895,6 @@
 
             function ensureSupabaseClient() {
 
-                /*
-                 * Gunakan shared client terlebih dahulu.
-                 */
-
                 if (
                     window.GENZ_SUPABASE &&
                     window.GENZ_SUPABASE.auth
@@ -1052,7 +1031,7 @@
 
 
             /* =====================================================
-               BOOLEAN NORMALIZATION
+               BOOLEAN
                ===================================================== */
 
             function normalizeBoolean(
@@ -1092,14 +1071,10 @@
 
 
                     if (
-                        normalized ===
-                            "true" ||
-                        normalized ===
-                            "1" ||
-                        normalized ===
-                            "yes" ||
-                        normalized ===
-                            "on"
+                        normalized === "true" ||
+                        normalized === "1" ||
+                        normalized === "yes" ||
+                        normalized === "on"
                     ) {
 
                         return true;
@@ -1108,16 +1083,11 @@
 
 
                     if (
-                        normalized ===
-                            "false" ||
-                        normalized ===
-                            "0" ||
-                        normalized ===
-                            "no" ||
-                        normalized ===
-                            "off" ||
-                        normalized ===
-                            ""
+                        normalized === "false" ||
+                        normalized === "0" ||
+                        normalized === "no" ||
+                        normalized === "off" ||
+                        normalized === ""
                     ) {
 
                         return false;
@@ -1133,7 +1103,7 @@
 
 
             /* =====================================================
-               PHONE NORMALIZATION
+               PHONE
                ===================================================== */
 
             function normalizePhone(
@@ -1147,22 +1117,12 @@
                     .trim();
 
 
-                /*
-                 * Hapus karakter non-digit.
-                 */
-
                 number =
                     number.replace(
                         /\D/g,
                         ""
                     );
 
-
-                /*
-                 * 08xxxxxxxxxx
-                 * menjadi
-                 * 628xxxxxxxxxx
-                 */
 
                 if (
                     number.startsWith("0")
@@ -1174,11 +1134,6 @@
 
                 }
 
-
-                /*
-                 * Lindungi format 620...
-                 * agar menjadi 62...
-                 */
 
                 if (
                     number.startsWith("620")
@@ -1254,7 +1209,7 @@
 
 
             /* =====================================================
-               FIND EXISTING SETTINGS
+               FIND EXISTING
                ===================================================== */
 
             async function findExistingSettings() {
@@ -1305,7 +1260,7 @@
 
 
             /* =====================================================
-               LOAD SETTINGS
+               LOAD
                ===================================================== */
 
             async function loadSettings() {
@@ -1354,15 +1309,6 @@
                     DEFAULT_MESSAGE;
 
 
-                /*
-                 * Jangan gunakan:
-                 *
-                 * existing.is_active !== false
-                 *
-                 * karena string "false" !== false
-                 * sehingga hasilnya salah.
-                 */
-
                 isActive.checked =
                     normalizeBoolean(
                         existing.is_active,
@@ -1376,7 +1322,7 @@
 
 
             /* =====================================================
-               VERIFY SAVED DATA
+               VERIFY
                ===================================================== */
 
             async function verifySavedData(
@@ -1425,7 +1371,16 @@
 
                     throw new Error(
                         result.error.message ||
-                        "Konfigurasi tersimpan tetapi gagal diverifikasi."
+                        "Gagal membaca data Hub Admin setelah penyimpanan."
+                    );
+
+                }
+
+
+                if (!result.data) {
+
+                    throw new Error(
+                        "Row Hub Admin tidak ditemukan setelah penyimpanan. Periksa RLS SELECT."
                     );
 
                 }
@@ -1433,15 +1388,6 @@
 
                 const row =
                     result.data;
-
-
-                if (!row) {
-
-                    throw new Error(
-                        "Konfigurasi berhasil diproses tetapi data tidak ditemukan saat verifikasi."
-                    );
-
-                }
 
 
                 const savedNumber =
@@ -1484,13 +1430,8 @@
                     );
 
 
-                /*
-                 * Debug lengkap agar jika ada perbedaan,
-                 * sumbernya langsung terlihat di Console.
-                 */
-
                 console.log(
-                    "[GEN-Z.AI] Hub Admin verification:",
+                    "[GEN-Z.AI] Hub Admin VERIFY:",
                     {
                         id:
                             row.id,
@@ -1519,11 +1460,17 @@
                                     savedActive
                             },
 
-                        rawDatabaseStatus:
-                            row.is_active,
+                        raw:
+                            {
+                                whatsapp_number:
+                                    row.whatsapp_number,
 
-                        rawDatabaseStatusType:
-                            typeof row.is_active
+                                whatsapp_message:
+                                    row.whatsapp_message,
+
+                                is_active:
+                                    row.is_active
+                            }
                     }
                 );
 
@@ -1577,7 +1524,7 @@
 
 
             /* =====================================================
-               SAVE SETTINGS
+               SAVE
                ===================================================== */
 
             async function saveSettings() {
@@ -1670,7 +1617,7 @@
 
 
                 /* =================================================
-                   PASTIKAN SETTINGS ID ADA
+                   CARI ROW EXISTING
                    ================================================= */
 
                 if (
@@ -1694,7 +1641,7 @@
 
 
                 /* =================================================
-                   UPDATE EXISTING ROW
+                   UPDATE
                    ================================================= */
 
                 if (
@@ -1704,7 +1651,7 @@
                 ) {
 
                     console.log(
-                        "[GEN-Z.AI] Hub Admin UPDATE:",
+                        "[GEN-Z.AI] Hub Admin UPDATE REQUEST:",
                         {
                             id:
                                 settingsId,
@@ -1716,14 +1663,11 @@
 
 
                     /*
-                     * Sengaja TIDAK menggunakan .select()
-                     * di UPDATE.
+                     * UPDATE + SELECT.
                      *
-                     * Ini menghindari masalah:
-                     * Cannot coerce the result to a single JSON object
-                     *
-                     * Verifikasi dilakukan melalui SELECT
-                     * terpisah setelah UPDATE.
+                     * Karena WHERE menggunakan ID,
+                     * hasilnya maksimal satu row jika ID
+                     * adalah primary key/unique.
                      */
 
                     const updateResult =
@@ -1735,7 +1679,11 @@
                             .eq(
                                 "id",
                                 settingsId
-                            );
+                            )
+                            .select(
+                                "id,whatsapp_number,whatsapp_message,is_active"
+                            )
+                            .maybeSingle();
 
 
                     if (
@@ -1743,7 +1691,7 @@
                     ) {
 
                         console.error(
-                            "[GEN-Z.AI] Hub Admin UPDATE error:",
+                            "[GEN-Z.AI] Hub Admin UPDATE ERROR:",
                             updateResult.error
                         );
 
@@ -1755,17 +1703,65 @@
 
                     }
 
+
+                    /*
+                     * Ini sangat penting.
+                     *
+                     * Jika data === null,
+                     * UPDATE tidak mengenai row apa pun.
+                     *
+                     * Biasanya terjadi karena RLS UPDATE
+                     * tidak mengizinkan user tersebut
+                     * mengubah row.
+                     */
+
+                    if (
+                        !updateResult.data
+                    ) {
+
+                        console.error(
+                            "[GEN-Z.AI] Hub Admin UPDATE menghasilkan 0 row:",
+                            {
+                                settingsId:
+                                    settingsId,
+
+                                payload:
+                                    payload
+                            }
+                        );
+
+
+                        throw new Error(
+                            "UPDATE tidak mengubah data. Row tidak terkena UPDATE. Periksa RLS/policy UPDATE pada tabel hub_admin_settings."
+                        );
+
+                    }
+
+
+                    /*
+                     * Simpan kembali ID dari row hasil UPDATE.
+                     */
+
+                    settingsId =
+                        updateResult.data.id;
+
+
+                    console.log(
+                        "[GEN-Z.AI] Hub Admin UPDATE SUCCESS:",
+                        updateResult.data
+                    );
+
                 }
 
 
                 /* =================================================
-                   INSERT NEW ROW
+                   INSERT
                    ================================================= */
 
                 else {
 
                     console.log(
-                        "[GEN-Z.AI] Hub Admin INSERT:",
+                        "[GEN-Z.AI] Hub Admin INSERT REQUEST:",
                         payload
                     );
 
@@ -1775,7 +1771,11 @@
                             .from(TABLE)
                             .insert(
                                 payload
-                            );
+                            )
+                            .select(
+                                "id,whatsapp_number,whatsapp_message,is_active"
+                            )
+                            .maybeSingle();
 
 
                     if (
@@ -1783,7 +1783,7 @@
                     ) {
 
                         console.error(
-                            "[GEN-Z.AI] Hub Admin INSERT error:",
+                            "[GEN-Z.AI] Hub Admin INSERT ERROR:",
                             insertResult.error
                         );
 
@@ -1796,35 +1796,31 @@
                     }
 
 
-                    /*
-                     * Ambil kembali row yang sudah dibuat.
-                     *
-                     * Tidak menggunakan .select()
-                     * pada INSERT agar tidak terkena
-                     * masalah single-object coercion.
-                     */
-
-                    const inserted =
-                        await findExistingSettings();
-
-
-                    if (!inserted) {
+                    if (
+                        !insertResult.data
+                    ) {
 
                         throw new Error(
-                            "Konfigurasi berhasil diproses tetapi row tidak dapat ditemukan kembali."
+                            "INSERT tidak mengembalikan row. Periksa RLS/policy INSERT pada tabel hub_admin_settings."
                         );
 
                     }
 
 
                     settingsId =
-                        inserted.id;
+                        insertResult.data.id;
+
+
+                    console.log(
+                        "[GEN-Z.AI] Hub Admin INSERT SUCCESS:",
+                        insertResult.data
+                    );
 
                 }
 
 
                 /* =================================================
-                   VERIFIKASI DATABASE
+                   VERIFIKASI FINAL
                    ================================================= */
 
                 await verifySavedData(
@@ -1941,17 +1937,12 @@
                             );
 
 
-                            /*
-                             * Reload dari database setelah
-                             * verifikasi berhasil.
-                             */
-
                             await loadSettings();
 
                         } catch (error) {
 
                             console.error(
-                                "[GEN-Z.AI] Hub Admin save error:",
+                                "[GEN-Z.AI] Hub Admin SAVE ERROR:",
                                 error
                             );
 
@@ -1981,12 +1972,6 @@
 
             async function start() {
 
-                /*
-                 * =================================================
-                 * TUNGGU SHARED NAVIGATION
-                 * =================================================
-                 */
-
                 if (
                     window.GENZNavigationReady &&
                     typeof
@@ -2009,12 +1994,6 @@
 
                 }
 
-
-                /*
-                 * =================================================
-                 * TUNGGU ROLE
-                 * =================================================
-                 */
 
                 let attempts =
                     0;
@@ -2060,11 +2039,6 @@
                 }
 
 
-                /*
-                 * =================================================
-                 * BACA ROLE ASLI NAVIGATION
-                 * ================================================= */
-
                 const role =
                     String(
                         window.GENZ_NAVIGATION_ROLE ||
@@ -2099,11 +2073,6 @@
                 );
 
 
-                /*
-                 * =================================================
-                 * TAMPILKAN PAGE
-                 * ================================================= */
-
                 if (adminPage) {
 
                     adminPage.style.display =
@@ -2114,11 +2083,6 @@
 
                 hideLoading();
 
-
-                /*
-                 * =================================================
-                 * VALIDASI ROLE
-                 * ================================================= */
 
                 if (!adminAccess) {
 
@@ -2134,11 +2098,6 @@
 
                 }
 
-
-                /*
-                 * =================================================
-                 * LOAD SUPABASE + SETTINGS
-                 * ================================================= */
 
                 try {
 
