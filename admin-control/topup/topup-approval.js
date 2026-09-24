@@ -9,6 +9,7 @@
    - Approve top up
    - Tambah credit user
    - Update status top up
+   - Mencegah approval ganda
    - Menjaga proses approval tetap terpisah
    - Tidak menangani UI/package/topup request lainnya
    ========================================================= */
@@ -59,7 +60,10 @@
             return window.formatCurrency(value);
         }
 
-        return "Rp " + normalizeNumber(value).toLocaleString("id-ID");
+        return (
+            "Rp " +
+            normalizeNumber(value).toLocaleString("id-ID")
+        );
     }
 
     function showToast(message, type) {
@@ -100,9 +104,37 @@
                     ? window.topups
                     : [];
 
-        return list.find(function (item) {
-            return String(item?.id) === String(id);
-        }) || null;
+        return (
+            list.find(function (item) {
+                return String(item?.id) === String(id);
+            }) || null
+        );
+    }
+
+    async function refreshTopups() {
+        if (typeof window.loadTopups === "function") {
+            try {
+                await window.loadTopups();
+            } catch (error) {
+                console.warn(
+                    "GENZ Top Up refresh warning:",
+                    error
+                );
+            }
+        }
+    }
+
+    async function refreshStats() {
+        if (typeof window.loadStats === "function") {
+            try {
+                await window.loadStats();
+            } catch (error) {
+                console.warn(
+                    "GENZ Top Up stats refresh warning:",
+                    error
+                );
+            }
+        }
     }
 
     async function approveTopup(id) {
@@ -113,8 +145,24 @@
                 "Supabase belum siap. Tidak dapat approve top up.",
                 "error"
             );
+
             return false;
         }
+
+        if (!id) {
+            showToast(
+                "ID top up tidak valid.",
+                "error"
+            );
+
+            return false;
+        }
+
+        /*
+         * =====================================================
+         * CEK DATA LOKAL
+         * =====================================================
+         */
 
         const localItem = findTopup(id);
 
@@ -126,15 +174,17 @@
                 "Top up ini sudah diproses.",
                 "error"
             );
+
             return false;
         }
 
         try {
             /*
-             * Ambil data terbaru langsung dari database.
-             * Jangan hanya mengandalkan data yang sedang tampil
-             * di tabel admin.
+             * =================================================
+             * 1. AMBIL DATA TERBARU
+             * =================================================
              */
+
             const {
                 data: topup,
                 error: topupError
@@ -165,8 +215,11 @@
             }
 
             /*
-             * Pastikan request masih pending.
+             * =================================================
+             * 2. PASTIKAN MASIH PENDING
+             * =================================================
              */
+
             if (
                 normalizeStatus(topup.status) !== "pending"
             ) {
@@ -175,9 +228,7 @@
                     "error"
                 );
 
-                if (typeof window.loadTopups === "function") {
-                    await window.loadTopups();
-                }
+                await refreshTopups();
 
                 return false;
             }
@@ -197,6 +248,12 @@
                 );
             }
 
+            /*
+             * =================================================
+             * 3. KONFIRMASI ADMIN
+             * =================================================
+             */
+
             const user = getUserDisplay(topup);
 
             const confirmed = window.confirm(
@@ -214,56 +271,21 @@
             }
 
             /*
-             * Ambil saldo user terbaru.
-             */
-            const {
-                data: profile,
-                error: profileError
-            } = await supabase
-                .from("profiles")
-                .select("id, credits")
-                .eq("id", topup.user_id)
-                .maybeSingle();
-
-            if (profileError) {
-                throw profileError;
-            }
-
-            if (!profile) {
-                throw new Error(
-                    "Profile user tidak ditemukan."
-                );
-            }
-
-            const currentCredits =
-                normalizeNumber(profile.credits);
-
-            const newCredits =
-                currentCredits + creditsToAdd;
-
-            /*
-             * Tambahkan credit user.
-             */
-            const {
-                error: creditError
-            } = await supabase
-                .from("profiles")
-                .update({
-                    credits: newCredits
-                })
-                .eq("id", topup.user_id);
-
-            if (creditError) {
-                throw creditError;
-            }
-
-            /*
-             * Setelah credit berhasil ditambahkan,
-             * ubah status request menjadi approved.
+             * =================================================
+             * 4. CLAIM TOP UP
+             * =================================================
              *
-             * Tetap menggunakan kondisi status = pending
-             * agar request yang sudah diproses tidak diproses ulang.
+             * Penting:
+             *
+             * Pending -> Approved dilakukan TERLEBIH DAHULU.
+             *
+             * Kondisi .eq("status", "pending") memastikan hanya
+             * satu proses yang dapat mengambil request tersebut.
+             *
+             * Ini lebih aman daripada menambahkan credit terlebih
+             * dahulu lalu baru mengubah status.
              */
+
             const processedAt =
                 new Date().toISOString();
 
@@ -282,64 +304,123 @@
                 .select("id");
 
             if (approveError) {
-                /*
-                 * Jika update status gagal, coba kembalikan
-                 * saldo ke nilai sebelum approval.
-                 *
-                 * Ini fallback agar kegagalan proses tidak
-                 * meninggalkan saldo bertambah sementara
-                 * status masih pending.
-                 */
-                try {
-                    await supabase
-                        .from("profiles")
-                        .update({
-                            credits: currentCredits
-                        })
-                        .eq("id", topup.user_id);
-                } catch (rollbackError) {
-                    console.error(
-                        "GENZ Top Up rollback error:",
-                        rollbackError
-                    );
-                }
-
                 throw approveError;
             }
 
             /*
-             * Jika tidak ada row yang di-update, kemungkinan
-             * request sudah diproses oleh proses lain.
+             * Tidak ada row berarti request sudah diambil /
+             * diproses oleh proses lain.
              */
             if (
                 !Array.isArray(approvedRows) ||
                 approvedRows.length === 0
             ) {
-                try {
-                    await supabase
-                        .from("profiles")
-                        .update({
-                            credits: currentCredits
-                        })
-                        .eq("id", topup.user_id);
-                } catch (rollbackError) {
-                    console.error(
-                        "GENZ Top Up rollback error:",
-                        rollbackError
-                    );
-                }
-
                 showToast(
                     "Top up sudah diproses oleh proses lain.",
                     "error"
                 );
 
-                if (typeof window.loadTopups === "function") {
-                    await window.loadTopups();
-                }
+                await refreshTopups();
 
                 return false;
             }
+
+            /*
+             * =================================================
+             * 5. AMBIL PROFILE TERBARU
+             * =================================================
+             */
+
+            const {
+                data: profile,
+                error: profileError
+            } = await supabase
+                .from("profiles")
+                .select("id, credits")
+                .eq("id", topup.user_id)
+                .maybeSingle();
+
+            if (profileError) {
+                /*
+                 * Credit belum berubah, jadi aman mengembalikan
+                 * status request ke pending.
+                 */
+                await rollbackApproval(
+                    supabase,
+                    id
+                );
+
+                throw profileError;
+            }
+
+            if (!profile) {
+                await rollbackApproval(
+                    supabase,
+                    id
+                );
+
+                throw new Error(
+                    "Profile user tidak ditemukan."
+                );
+            }
+
+            /*
+             * =================================================
+             * 6. HITUNG SALDO BARU
+             * =================================================
+             */
+
+            const currentCredits =
+                normalizeNumber(profile.credits);
+
+            const newCredits =
+                currentCredits + creditsToAdd;
+
+            /*
+             * =================================================
+             * 7. TAMBAHKAN CREDIT
+             * =================================================
+             */
+
+            const {
+                data: updatedProfile,
+                error: creditError
+            } = await supabase
+                .from("profiles")
+                .update({
+                    credits: newCredits
+                })
+                .eq("id", topup.user_id)
+                .select("id, credits");
+
+            if (creditError) {
+                await rollbackApproval(
+                    supabase,
+                    id
+                );
+
+                throw creditError;
+            }
+
+            if (
+                !Array.isArray(updatedProfile) ||
+                updatedProfile.length === 0
+            ) {
+                await rollbackApproval(
+                    supabase,
+                    id
+                );
+
+                throw new Error(
+                    "Saldo user gagal diperbarui."
+                );
+            }
+
+            /*
+             * =================================================
+             * 8. BERHASIL
+             * =================================================
+             */
 
             showToast(
                 "Top up berhasil. " +
@@ -348,26 +429,8 @@
                 "success"
             );
 
-            /*
-             * Refresh tabel admin.
-             */
-            if (typeof window.loadTopups === "function") {
-                await window.loadTopups();
-            }
-
-            /*
-             * Refresh statistik apabila tersedia.
-             */
-            if (typeof window.loadStats === "function") {
-                try {
-                    await window.loadStats();
-                } catch (statsError) {
-                    console.warn(
-                        "GENZ Top Up stats refresh warning:",
-                        statsError
-                    );
-                }
-            }
+            await refreshTopups();
+            await refreshStats();
 
             return true;
 
@@ -383,23 +446,105 @@
                 "error"
             );
 
+            await refreshTopups();
+
             return false;
         }
     }
 
     /*
-     * Public API
+     * =========================================================
+     * ROLLBACK APPROVAL
+     * =========================================================
+     *
+     * Dipanggil hanya ketika status sudah berubah menjadi
+     * approved tetapi proses penambahan credit gagal.
      */
+
+    async function rollbackApproval(
+        supabase,
+        id
+    ) {
+        try {
+            const rollbackTime =
+                new Date().toISOString();
+
+            const {
+                data: rollbackRows,
+                error: rollbackError
+            } = await supabase
+                .from("topup_requests")
+                .update({
+                    status: "pending",
+                    processed_at: null,
+                    updated_at: rollbackTime
+                })
+                .eq("id", id)
+                .eq("status", "approved")
+                .select("id");
+
+            if (rollbackError) {
+                console.error(
+                    "GENZ Top Up rollback error:",
+                    rollbackError
+                );
+
+                showToast(
+                    "Credit gagal ditambahkan dan status top up gagal dikembalikan. Periksa transaksi ini secara manual.",
+                    "error"
+                );
+
+                return false;
+            }
+
+            if (
+                !Array.isArray(rollbackRows) ||
+                rollbackRows.length === 0
+            ) {
+                console.error(
+                    "GENZ Top Up rollback: no rows updated."
+                );
+
+                showToast(
+                    "Status top up tidak dapat dikembalikan. Periksa transaksi ini secara manual.",
+                    "error"
+                );
+
+                return false;
+            }
+
+            return true;
+
+        } catch (error) {
+            console.error(
+                "GENZ Top Up rollback exception:",
+                error
+            );
+
+            showToast(
+                "Rollback approval gagal. Periksa transaksi secara manual.",
+                "error"
+            );
+
+            return false;
+        }
+    }
+
+    /*
+     * =========================================================
+     * PUBLIC API
+     * =========================================================
+     */
+
     window.GENZTopUpApproval = {
         approveTopup: approveTopup
     };
 
     /*
-     * Kompatibilitas dengan tombol/event lama.
-     * index.html cukup memanggil approveTopup(id)
-     * seperti sebelumnya.
+     * Kompatibilitas dengan sistem lama.
      */
-    window.GENZApproveTopup = approveTopup;
+    window.GENZApproveTopup =
+        approveTopup;
 
     console.log(
         MODULE_NAME +
