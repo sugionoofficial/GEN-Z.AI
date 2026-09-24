@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -466,10 +467,6 @@
 
     <main id="paymentPage" class="hidden">
 
-        <!-- =================================================
-             RINGKASAN
-             ================================================= -->
-
         <section class="summary">
 
             <div class="summary-card">
@@ -518,10 +515,6 @@
             </div>
 
         </section>
-
-        <!-- =================================================
-             METODE PEMBAYARAN
-             ================================================= -->
 
         <section class="section">
 
@@ -620,10 +613,6 @@
 
         </section>
 
-        <!-- =================================================
-             DETAIL BCA
-             ================================================= -->
-
         <section
             class="section payment-detail"
             data-detail="bca"
@@ -686,10 +675,6 @@
 
         </section>
 
-        <!-- =================================================
-             DETAIL DANA
-             ================================================= -->
-
         <section
             class="section payment-detail"
             data-detail="dana"
@@ -748,10 +733,6 @@
             </div>
 
         </section>
-
-        <!-- =================================================
-             DETAIL SEABANK
-             ================================================= -->
 
         <section
             class="section payment-detail"
@@ -812,10 +793,6 @@
 
         </section>
 
-        <!-- =================================================
-             DETAIL QRIS
-             ================================================= -->
-
         <section
             class="section payment-detail"
             data-detail="qris"
@@ -845,10 +822,6 @@
 
         </section>
 
-        <!-- =================================================
-             BUKTI PEMBAYARAN
-             ================================================= -->
-
         <section class="section">
 
             <h2 class="section-title">
@@ -868,7 +841,7 @@
                 </div>
 
                 <div class="upload-description">
-                    JPG, JPEG, PNG maksimal 5 MB.
+                    JPG, JPEG, PNG atau WEBP maksimal 5 MB.
                 </div>
 
                 <input
@@ -928,9 +901,22 @@
 (function () {
     "use strict";
 
+    const STORAGE_BUCKET = "topup-proofs";
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+    const ALLOWED_FILE_TYPES = [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+    ];
+
     let supabaseClient = null;
 
     let selectedMethod = null;
+
+    let isSubmitting = false;
+
+    let uploadedProofPath = null;
 
     let selectedPackage = {
         id: null,
@@ -941,6 +927,7 @@
 
     let currentUser = null;
 
+
     /* =====================================================
        UTILITIES
        ===================================================== */
@@ -950,6 +937,7 @@
             .toLocaleString("id-ID");
     }
 
+
     function formatCurrency(value) {
         return (
             "Rp" +
@@ -957,6 +945,7 @@
                 .toLocaleString("id-ID")
         );
     }
+
 
     function showToast(
         message,
@@ -997,6 +986,7 @@
             );
     }
 
+
     function getSupabaseClient() {
 
         if (
@@ -1036,8 +1026,48 @@
         return null;
     }
 
+
+    function createSafeFileName(
+        file
+    ) {
+
+        const originalName =
+            file && file.name
+                ? file.name
+                : "bukti";
+
+        const extensionMatch =
+            originalName.match(
+                /\.([a-zA-Z0-9]+)$/
+            );
+
+        const extension =
+            extensionMatch
+                ? extensionMatch[1]
+                    .toLowerCase()
+                : "jpg";
+
+        const timestamp =
+            Date.now();
+
+        const randomPart =
+            Math.random()
+                .toString(36)
+                .slice(2, 10);
+
+        return (
+            "bukti-" +
+            timestamp +
+            "-" +
+            randomPart +
+            "." +
+            extension
+        );
+    }
+
+
     /* =====================================================
-       AMBIL PARAMETER PAKET
+       URL PACKAGE
        ===================================================== */
 
     function loadPackageFromUrl() {
@@ -1102,8 +1132,9 @@
         }
     }
 
+
     /* =====================================================
-       TAMPILKAN PAKET
+       RENDER PACKAGE
        ===================================================== */
 
     function renderPackage() {
@@ -1128,8 +1159,9 @@
             );
     }
 
+
     /* =====================================================
-       AMBIL PACKAGE DARI DATABASE
+       DATABASE PACKAGE
        ===================================================== */
 
     async function loadPackageFromDatabase() {
@@ -1168,23 +1200,17 @@
         }
 
         if (!data) {
-            showToast(
-                "Paket top up tidak ditemukan.",
-                "error"
+            throw new Error(
+                "Paket top up tidak ditemukan."
             );
-
-            return;
         }
 
         if (
             data.is_active === false
         ) {
-            showToast(
-                "Paket top up sedang tidak aktif.",
-                "error"
+            throw new Error(
+                "Paket top up sedang tidak aktif."
             );
-
-            return;
         }
 
         selectedPackage = {
@@ -1201,8 +1227,9 @@
         renderPackage();
     }
 
+
     /* =====================================================
-       PILIH METODE
+       METHOD
        ===================================================== */
 
     function selectMethod(
@@ -1246,6 +1273,7 @@
                 }
             );
     }
+
 
     /* =====================================================
        COPY
@@ -1294,6 +1322,11 @@
 
         } catch (error) {
 
+            console.error(
+                "Copy error:",
+                error
+            );
+
             showToast(
                 "Gagal menyalin.",
                 "error"
@@ -1301,8 +1334,9 @@
         }
     }
 
+
     /* =====================================================
-       PREVIEW BUKTI
+       PREVIEW
        ===================================================== */
 
     function handleProofPreview(
@@ -1329,7 +1363,7 @@
 
         if (
             file.size >
-            5 * 1024 * 1024
+            MAX_FILE_SIZE
         ) {
 
             event.target.value =
@@ -1347,14 +1381,8 @@
             return;
         }
 
-        const allowedTypes = [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-        ];
-
         if (
-            !allowedTypes.includes(
+            !ALLOWED_FILE_TYPES.includes(
                 file.type
             )
         ) {
@@ -1362,8 +1390,12 @@
             event.target.value =
                 "";
 
+            preview.src = "";
+            preview.style.display =
+                "none";
+
             showToast(
-                "Format file tidak didukung.",
+                "Format file tidak didukung. Gunakan JPG, PNG atau WEBP.",
                 "error"
             );
 
@@ -1387,6 +1419,7 @@
             file
         );
     }
+
 
     /* =====================================================
        USER
@@ -1419,47 +1452,224 @@
         return currentUser;
     }
 
+
     /* =====================================================
-       SUBMIT
-       -----------------------------------------------------
-       Untuk sementara membuat record topup pending.
-       Upload bukti dan payment storage akan disambungkan
-       setelah struktur storage final ditentukan.
+       VALIDASI SUBMIT
+       ===================================================== */
+
+    function validateBeforeSubmit(
+        proofFile
+    ) {
+
+        if (!currentUser) {
+            return "Sesi login tidak ditemukan.";
+        }
+
+        if (!selectedPackage.id) {
+            return "Paket top up belum dipilih.";
+        }
+
+        if (
+            !selectedPackage.credits ||
+            selectedPackage.credits <= 0
+        ) {
+            return "Jumlah credit paket tidak valid.";
+        }
+
+        if (
+            !selectedPackage.price ||
+            selectedPackage.price <= 0
+        ) {
+            return "Harga paket tidak valid.";
+        }
+
+        if (!selectedMethod) {
+            return "Pilih metode pembayaran terlebih dahulu.";
+        }
+
+        if (!proofFile) {
+            return "Silakan upload bukti pembayaran.";
+        }
+
+        if (
+            proofFile.size >
+            MAX_FILE_SIZE
+        ) {
+            return "Ukuran bukti pembayaran maksimal 5 MB.";
+        }
+
+        if (
+            !ALLOWED_FILE_TYPES.includes(
+                proofFile.type
+            )
+        ) {
+            return "Format bukti pembayaran tidak didukung.";
+        }
+
+        return null;
+    }
+
+
+    /* =====================================================
+       UPLOAD BUKTI KE STORAGE
+       ===================================================== */
+
+    async function uploadPaymentProof(
+        proofFile,
+        topupRequestId
+    ) {
+
+        const fileName =
+            createSafeFileName(
+                proofFile
+            );
+
+        const filePath =
+            currentUser.id +
+            "/" +
+            topupRequestId +
+            "/" +
+            fileName;
+
+        const {
+            error
+        } =
+            await supabaseClient
+                .storage
+                .from(
+                    STORAGE_BUCKET
+                )
+                .upload(
+                    filePath,
+                    proofFile,
+                    {
+                        cacheControl:
+                            "3600",
+
+                        contentType:
+                            proofFile.type,
+
+                        upsert:
+                            false
+                    }
+                );
+
+        if (error) {
+            throw error;
+        }
+
+        uploadedProofPath =
+            filePath;
+
+        return filePath;
+    }
+
+
+    /* =====================================================
+       HAPUS BUKTI JIKA PROSES DATABASE GAGAL
+       ===================================================== */
+
+    async function cleanupUploadedProof() {
+
+        if (
+            !uploadedProofPath
+        ) {
+            return;
+        }
+
+        try {
+
+            const {
+                error
+            } =
+                await supabaseClient
+                    .storage
+                    .from(
+                        STORAGE_BUCKET
+                    )
+                    .remove([
+                        uploadedProofPath
+                    ]);
+
+            if (error) {
+                console.warn(
+                    "Cleanup storage gagal:",
+                    error
+                );
+            }
+
+        } catch (error) {
+
+            console.warn(
+                "Cleanup storage error:",
+                error
+            );
+        }
+
+        uploadedProofPath =
+            null;
+    }
+
+
+    /* =====================================================
+       CEK PENGAJUAN PENDING YANG SAMA
+       ===================================================== */
+
+    async function hasPendingTopup() {
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from(
+                    "topup_requests"
+                )
+                .select(
+                    "id"
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                )
+                .eq(
+                    "status",
+                    "pending"
+                )
+                .eq(
+                    "package_name",
+                    selectedPackage.name
+                )
+                .eq(
+                    "credits",
+                    selectedPackage.credits
+                )
+                .eq(
+                    "amount",
+                    selectedPackage.price
+                )
+                .limit(
+                    1
+                );
+
+        if (error) {
+            throw error;
+        }
+
+        return Boolean(
+            data &&
+            data.length
+        );
+    }
+
+
+    /* =====================================================
+       SUBMIT TOP UP
        ===================================================== */
 
     async function submitTopup() {
 
-        if (!currentUser) {
-
-            showToast(
-                "Sesi login tidak ditemukan.",
-                "error"
-            );
-
-            return;
-        }
-
-        if (
-            !selectedPackage.id
-        ) {
-
-            showToast(
-                "Paket top up belum dipilih.",
-                "error"
-            );
-
-            return;
-        }
-
-        if (
-            !selectedMethod
-        ) {
-
-            showToast(
-                "Pilih metode pembayaran terlebih dahulu.",
-                "error"
-            );
-
+        if (isSubmitting) {
             return;
         }
 
@@ -1472,10 +1682,15 @@
             proofInput.files &&
             proofInput.files[0];
 
-        if (!proofFile) {
+        const validationError =
+            validateBeforeSubmit(
+                proofFile
+            );
+
+        if (validationError) {
 
             showToast(
-                "Silakan upload bukti pembayaran.",
+                validationError,
                 "error"
             );
 
@@ -1487,6 +1702,9 @@
                 "submitButton"
             );
 
+        isSubmitting =
+            true;
+
         submitButton.disabled =
             true;
 
@@ -1496,15 +1714,31 @@
         try {
 
             /*
-             * Membuat pengajuan top up.
-             *
-             * Upload bukti pembayaran akan
-             * disambungkan ke Supabase Storage
-             * setelah bucket final ditentukan.
+             * Cegah submit ganda untuk paket
+             * yang sama ketika masih pending.
+             */
+            const alreadyPending =
+                await hasPendingTopup();
+
+            if (alreadyPending) {
+
+                throw new Error(
+                    "Masih ada pengajuan top up untuk paket ini yang sedang menunggu verifikasi admin."
+                );
+            }
+
+
+            /*
+             * =================================================
+             * 1. BUAT TOPUP REQUEST
+             * =================================================
              */
 
             const {
-                error
+                data:
+                    topupRequest,
+                error:
+                    topupError
             } =
                 await supabaseClient
                     .from(
@@ -1525,16 +1759,99 @@
 
                         status:
                             "pending"
-                    });
+                    })
+                    .select(
+                        "id"
+                    )
+                    .single();
 
-            if (error) {
-                throw error;
+            if (topupError) {
+                throw topupError;
             }
 
+            if (
+                !topupRequest ||
+                !topupRequest.id
+            ) {
+                throw new Error(
+                    "ID pengajuan top up tidak berhasil dibuat."
+                );
+            }
+
+
+            /*
+             * =================================================
+             * 2. UPLOAD BUKTI PEMBAYARAN
+             * =================================================
+             */
+
+            const proofPath =
+                await uploadPaymentProof(
+                    proofFile,
+                    topupRequest.id
+                );
+
+
+            /*
+             * =================================================
+             * 3. SIMPAN DATA PAYMENT
+             * =================================================
+             */
+
+            const {
+                error:
+                    paymentError
+            } =
+                await supabaseClient
+                    .from(
+                        "topup_payments"
+                    )
+                    .insert({
+                        topup_request_id:
+                            topupRequest.id,
+
+                        user_id:
+                            currentUser.id,
+
+                        payment_method:
+                            selectedMethod,
+
+                        payment_proof_url:
+                            proofPath
+                    });
+
+            if (paymentError) {
+                throw paymentError;
+            }
+
+
+            /*
+             * =================================================
+             * SELESAI
+             * =================================================
+             */
+
             showToast(
-                "Pengajuan top up berhasil dikirim dan menunggu verifikasi admin.",
+                "Pengajuan top up berhasil dikirim. Menunggu verifikasi admin.",
                 "success"
             );
+
+            proofInput.value =
+                "";
+
+            const preview =
+                document.getElementById(
+                    "proofPreview"
+                );
+
+            preview.src =
+                "";
+
+            preview.style.display =
+                "none";
+
+            uploadedProofPath =
+                null;
 
             setTimeout(
                 function () {
@@ -1543,7 +1860,7 @@
                         "../index.html";
 
                 },
-                1200
+                1400
             );
 
         } catch (error) {
@@ -1553,6 +1870,13 @@
                 error
             );
 
+            /*
+             * Jika file sudah ter-upload
+             * tetapi proses database berikutnya gagal,
+             * hapus kembali file tersebut.
+             */
+            await cleanupUploadedProof();
+
             showToast(
                 error.message ||
                     "Gagal mengirim pengajuan top up.",
@@ -1561,6 +1885,9 @@
 
         } finally {
 
+            isSubmitting =
+                false;
+
             submitButton.disabled =
                 false;
 
@@ -1568,6 +1895,7 @@
                 "Kirim Pengajuan Top Up";
         }
     }
+
 
     /* =====================================================
        EVENT
@@ -1597,6 +1925,7 @@
                 }
             );
 
+
         document
             .querySelectorAll(
                 ".copy-button"
@@ -1619,6 +1948,7 @@
                 }
             );
 
+
         document
             .getElementById(
                 "paymentProof"
@@ -1628,6 +1958,7 @@
                 handleProofPreview
             );
 
+
         document
             .getElementById(
                 "submitButton"
@@ -1636,6 +1967,7 @@
                 "click",
                 submitTopup
             );
+
 
         document
             .getElementById(
@@ -1651,6 +1983,7 @@
                 }
             );
 
+
         document
             .getElementById(
                 "backButton"
@@ -1664,6 +1997,7 @@
                 }
             );
     }
+
 
     /* =====================================================
        INIT
@@ -1691,7 +2025,9 @@
             window.supabaseClient =
                 supabaseClient;
 
+
             await loadUser();
+
 
             if (!currentUser) {
 
@@ -1701,9 +2037,12 @@
                 return;
             }
 
+
             await loadPackageFromDatabase();
 
+
             bindEvents();
+
 
             document
                 .getElementById(
@@ -1712,6 +2051,7 @@
                 .classList.add(
                     "hidden"
                 );
+
 
             document
                 .getElementById(
@@ -1735,9 +2075,9 @@
                 .textContent =
                 error.message ||
                 "Gagal memuat halaman pembayaran.";
-
         }
     }
+
 
     init();
 
