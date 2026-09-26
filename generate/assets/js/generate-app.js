@@ -4785,6 +4785,13 @@ async function handleGenerateSubmit(
 
     const form =
         appState.modules.form;
+   
+   const seedanceModule =
+    appState.modules.seedance;
+
+   const isSeedance =
+    modelId ===
+    "bytedance/seedance-2-5";
 
     if (
         !request
