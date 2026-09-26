@@ -54,6 +54,7 @@
             min-height: 100vh;
 
             color: var(--text);
+
             background:
                 radial-gradient(
                     circle at 10% 0%,
@@ -138,6 +139,7 @@
             height: 7px;
 
             border-radius: 50%;
+
             background: var(--accent);
 
             box-shadow:
@@ -245,6 +247,7 @@
             flex-shrink: 0;
 
             border-radius: 50%;
+
             background: var(--success);
 
             box-shadow:
@@ -292,17 +295,24 @@
 
             padding: 21px;
 
-            border: 1px solid var(--border);
+            border: 1px solid rgba(255, 138, 0, 0.20);
             border-radius: 18px;
 
+            /*
+             * Tetap DARK.
+             * Tidak menggunakan background orange.
+             */
             background:
                 linear-gradient(
                     145deg,
-                    rgba(255, 138, 0, 0.06),
-                    rgba(255, 255, 255, 0.018)
+                    #101010 0%,
+                    #0b0b0b 55%,
+                    #080808 100%
                 );
 
-            box-shadow: var(--shadow);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.015),
+                0 18px 45px rgba(0, 0, 0, 0.45);
 
             transition:
                 border-color 0.2s ease,
@@ -323,17 +333,21 @@
 
             border-radius: 50%;
 
-            background: rgba(255, 138, 0, 0.06);
+            background: rgba(255, 138, 0, 0.025);
 
             filter: blur(4px);
+
+            pointer-events: none;
         }
 
         .stat-card:hover {
             transform: translateY(-2px);
 
-            border-color: var(--border-strong);
+            border-color: rgba(255, 138, 0, 0.45);
 
-            box-shadow: var(--glow);
+            box-shadow:
+                0 0 20px rgba(255, 138, 0, 0.10),
+                0 18px 45px rgba(0, 0, 0, 0.5);
         }
 
         .stat-label {
@@ -431,6 +445,7 @@
 
         .progress-card:hover {
             transform: translateY(-2px);
+
             border-color: var(--border-strong);
         }
 
@@ -527,7 +542,9 @@
 
             padding: 12px 0;
 
-            border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+            border-bottom:
+                1px solid
+                rgba(255, 255, 255, 0.055);
         }
 
         .info-row:last-child {
@@ -588,7 +605,9 @@
         .footer {
             padding-top: 22px;
 
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-top:
+                1px solid
+                rgba(255, 255, 255, 0.05);
 
             color: var(--text-muted);
 
@@ -597,7 +616,7 @@
         }
 
         /* =========================================================
-           MODAL
+           ACTIVITY MODAL
         ========================================================= */
 
         .activity-backdrop {
@@ -623,11 +642,18 @@
 
         .activity-modal {
             width: min(850px, 100%);
-            max-height: min(760px, calc(100vh - 40px));
+            max-height:
+                min(
+                    760px,
+                    calc(100vh - 40px)
+                );
 
             overflow: hidden;
 
-            border: 1px solid var(--border-strong);
+            border:
+                1px solid
+                var(--border-strong);
+
             border-radius: 20px;
 
             background:
@@ -650,7 +676,9 @@
 
             padding: 22px;
 
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom:
+                1px solid
+                rgba(255, 255, 255, 0.06);
         }
 
         .activity-title {
@@ -674,7 +702,10 @@
 
             flex-shrink: 0;
 
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.1);
+
             border-radius: 10px;
 
             background: #111111;
@@ -695,7 +726,8 @@
         .activity-close:hover {
             border-color: var(--border-strong);
 
-            background: rgba(255, 138, 0, 0.08);
+            background:
+                rgba(255, 138, 0, 0.08);
 
             color: var(--accent-light);
         }
@@ -709,16 +741,22 @@
 
             padding: 16px 22px;
 
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom:
+                1px solid
+                rgba(255, 255, 255, 0.06);
         }
 
         .activity-stat {
             padding: 12px;
 
-            border: 1px solid rgba(255, 255, 255, 0.07);
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.07);
+
             border-radius: 12px;
 
-            background: rgba(255, 255, 255, 0.018);
+            background:
+                rgba(255, 255, 255, 0.018);
         }
 
         .activity-stat-label {
@@ -737,15 +775,18 @@
             font-weight: 900;
         }
 
-        .activity-stat.success .activity-stat-value {
+        .activity-stat.success
+        .activity-stat-value {
             color: var(--success);
         }
 
-        .activity-stat.failed .activity-stat-value {
+        .activity-stat.failed
+        .activity-stat-value {
             color: var(--danger);
         }
 
-        .activity-stat.processing .activity-stat-value {
+        .activity-stat.processing
+        .activity-stat-value {
             color: var(--accent);
         }
 
@@ -785,7 +826,9 @@
 
             padding: 15px 0;
 
-            border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+            border-bottom:
+                1px solid
+                rgba(255, 255, 255, 0.055);
         }
 
         .activity-item:last-child {
@@ -803,6 +846,7 @@
 
             font-size: 13px;
             font-weight: 800;
+
             text-overflow: ellipsis;
             white-space: nowrap;
         }
@@ -837,26 +881,35 @@
         }
 
         .activity-status.success {
-            border: 1px solid rgba(32, 212, 123, 0.25);
+            border:
+                1px solid
+                rgba(32, 212, 123, 0.25);
 
-            background: rgba(32, 212, 123, 0.08);
+            background:
+                rgba(32, 212, 123, 0.08);
 
             color: var(--success);
         }
 
         .activity-status.failed,
         .activity-status.cancelled {
-            border: 1px solid rgba(255, 77, 77, 0.25);
+            border:
+                1px solid
+                rgba(255, 77, 77, 0.25);
 
-            background: rgba(255, 77, 77, 0.08);
+            background:
+                rgba(255, 77, 77, 0.08);
 
             color: var(--danger);
         }
 
         .activity-status.processing {
-            border: 1px solid rgba(255, 138, 0, 0.25);
+            border:
+                1px solid
+                rgba(255, 138, 0, 0.25);
 
-            background: rgba(255, 138, 0, 0.08);
+            background:
+                rgba(255, 138, 0, 0.08);
 
             color: var(--accent-light);
         }
@@ -869,10 +922,14 @@
         .cancel-button {
             padding: 8px 11px;
 
-            border: 1px solid rgba(255, 77, 77, 0.35);
+            border:
+                1px solid
+                rgba(255, 77, 77, 0.35);
+
             border-radius: 9px;
 
-            background: rgba(255, 77, 77, 0.06);
+            background:
+                rgba(255, 77, 77, 0.06);
 
             color: #ff7777;
 
@@ -887,9 +944,11 @@
         }
 
         .cancel-button:hover {
-            border-color: rgba(255, 77, 77, 0.65);
+            border-color:
+                rgba(255, 77, 77, 0.65);
 
-            background: rgba(255, 77, 77, 0.12);
+            background:
+                rgba(255, 77, 77, 0.12);
         }
 
         .cancel-button:disabled {
@@ -958,13 +1017,15 @@
             }
 
             .activity-list {
-                max-height: calc(100vh - 330px);
+                max-height:
+                    calc(100vh - 330px);
             }
         }
 
         @media (max-width: 450px) {
             .activity-summary {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns:
+                    1fr 1fr;
             }
 
             .info-row {
@@ -1049,7 +1110,7 @@
         </section>
 
         <!-- =====================================================
-             GLOBAL STATS
+             GLOBAL STATISTICS
         ====================================================== -->
 
         <section class="section">
@@ -1179,7 +1240,6 @@
                 <article class="progress-card">
 
                     <div class="progress-top">
-
                         <div class="progress-name">
                             Authentication
                         </div>
@@ -1187,7 +1247,6 @@
                         <div class="progress-value">
                             100%
                         </div>
-
                     </div>
 
                     <div class="progress-bar">
@@ -1202,7 +1261,6 @@
                 <article class="progress-card">
 
                     <div class="progress-top">
-
                         <div class="progress-name">
                             Generate Video
                         </div>
@@ -1210,7 +1268,6 @@
                         <div class="progress-value">
                             90%
                         </div>
-
                     </div>
 
                     <div class="progress-bar">
@@ -1225,7 +1282,6 @@
                 <article class="progress-card">
 
                     <div class="progress-top">
-
                         <div class="progress-name">
                             Generation History
                         </div>
@@ -1233,7 +1289,6 @@
                         <div class="progress-value">
                             95%
                         </div>
-
                     </div>
 
                     <div class="progress-bar">
@@ -1248,7 +1303,6 @@
                 <article class="progress-card">
 
                     <div class="progress-top">
-
                         <div class="progress-name">
                             Provider System
                         </div>
@@ -1256,7 +1310,6 @@
                         <div class="progress-value">
                             90%
                         </div>
-
                     </div>
 
                     <div class="progress-bar">
@@ -1271,7 +1324,6 @@
                 <article class="progress-card">
 
                     <div class="progress-top">
-
                         <div class="progress-name">
                             Model System
                         </div>
@@ -1279,7 +1331,6 @@
                         <div class="progress-value">
                             85%
                         </div>
-
                     </div>
 
                     <div class="progress-bar">
@@ -1294,7 +1345,6 @@
                 <article class="progress-card">
 
                     <div class="progress-top">
-
                         <div class="progress-name">
                             Credit System
                         </div>
@@ -1302,7 +1352,6 @@
                         <div class="progress-value">
                             95%
                         </div>
-
                     </div>
 
                     <div class="progress-bar">
@@ -1317,7 +1366,6 @@
                 <article class="progress-card">
 
                     <div class="progress-top">
-
                         <div class="progress-name">
                             Top Up System
                         </div>
@@ -1325,7 +1373,6 @@
                         <div class="progress-value">
                             80%
                         </div>
-
                     </div>
 
                     <div class="progress-bar">
@@ -1340,7 +1387,6 @@
                 <article class="progress-card">
 
                     <div class="progress-top">
-
                         <div class="progress-name">
                             Admin Control
                         </div>
@@ -1348,7 +1394,6 @@
                         <div class="progress-value">
                             85%
                         </div>
-
                     </div>
 
                     <div class="progress-bar">
@@ -1363,7 +1408,6 @@
                 <article class="progress-card">
 
                     <div class="progress-top">
-
                         <div class="progress-name">
                             Database
                         </div>
@@ -1371,7 +1415,6 @@
                         <div class="progress-value">
                             95%
                         </div>
-
                     </div>
 
                     <div class="progress-bar">
@@ -1704,10 +1747,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- Shared configuration -->
     <script src="../assets/js/config.js"></script>
 
-    <!-- Shared admin navigation -->
     <script src="../admin-control/admin-nav.js"></script>
 
     <script>
@@ -1715,40 +1756,87 @@
             "use strict";
 
             /* =====================================================
-               SUPABASE CLIENT
+               SUPABASE CLIENT RESOLVER
             ====================================================== */
 
-            const SUPABASE_URL =
-                window.GENZ_SUPABASE?.url ||
-                window.GENZ_SUPABASE?.supabaseUrl ||
-                window.SUPABASE_URL ||
-                "";
+            let supabaseClient = null;
 
-            const SUPABASE_ANON_KEY =
-                window.GENZ_SUPABASE?.anonKey ||
-                window.GENZ_SUPABASE?.supabaseAnonKey ||
-                window.SUPABASE_ANON_KEY ||
-                "";
+            /*
+             * Prioritas:
+             * 1. window.supabaseClient
+             * 2. window.GENZ_SUPABASE jika memang client
+             * 3. window.GENZ_SUPABASE sebagai konfigurasi
+             * 4. variabel konfigurasi global lainnya
+             */
 
-            let supabaseClient =
-                window.supabaseClient ||
-                window.GENZ_SUPABASE?.client ||
-                null;
+            if (
+                window.supabaseClient &&
+                typeof window.supabaseClient.auth?.getSession ===
+                    "function"
+            ) {
+                supabaseClient =
+                    window.supabaseClient;
+            }
 
             if (
                 !supabaseClient &&
-                SUPABASE_URL &&
-                SUPABASE_ANON_KEY &&
-                window.supabase?.createClient
+                window.GENZ_SUPABASE &&
+                typeof window.GENZ_SUPABASE.auth?.getSession ===
+                    "function"
             ) {
-                supabaseClient = window.supabase.createClient(
-                    SUPABASE_URL,
-                    SUPABASE_ANON_KEY
-                );
+                supabaseClient =
+                    window.GENZ_SUPABASE;
+            }
+
+            if (
+                !supabaseClient &&
+                window.supabase &&
+                typeof window.supabase.createClient ===
+                    "function"
+            ) {
+                const config =
+                    window.GENZ_SUPABASE || {};
+
+                const supabaseUrl =
+                    config.url ||
+                    config.supabaseUrl ||
+                    config.SUPABASE_URL ||
+                    window.SUPABASE_URL ||
+                    window.GENZ_SUPABASE_URL ||
+                    window.supabaseUrl ||
+                    "";
+
+                const supabaseAnonKey =
+                    config.anonKey ||
+                    config.supabaseAnonKey ||
+                    config.SUPABASE_ANON_KEY ||
+                    window.SUPABASE_ANON_KEY ||
+                    window.GENZ_SUPABASE_ANON_KEY ||
+                    window.supabaseAnonKey ||
+                    "";
+
+                if (
+                    supabaseUrl &&
+                    supabaseAnonKey
+                ) {
+                    try {
+                        supabaseClient =
+                            window.supabase.createClient(
+                                supabaseUrl,
+                                supabaseAnonKey
+                            );
+                    } catch (error) {
+                        console.error(
+                            "Failed to create Supabase client:",
+                            error
+                        );
+                    }
+                }
             }
 
             if (supabaseClient) {
-                window.supabaseClient = supabaseClient;
+                window.supabaseClient =
+                    supabaseClient;
             }
 
             /* =====================================================
@@ -1768,33 +1856,49 @@
             }
 
             function setText(id, value) {
-                const element = getElement(id);
+                const element =
+                    getElement(id);
 
-                if (element) {
-                    element.textContent =
-                        value === null ||
-                        value === undefined ||
-                        value === ""
-                            ? "—"
-                            : String(value);
+                if (!element) {
+                    return;
                 }
+
+                element.textContent =
+                    value === null ||
+                    value === undefined ||
+                    value === ""
+                        ? "—"
+                        : String(value);
             }
 
             function formatNumber(value) {
-                const number = Number(value);
+                const number =
+                    Number(value);
 
-                if (!Number.isFinite(number)) {
+                if (
+                    !Number.isFinite(
+                        number
+                    )
+                ) {
                     return "0";
                 }
 
-                return number.toLocaleString("id-ID");
+                return number.toLocaleString(
+                    "id-ID"
+                );
             }
 
             function normalizeStatus(status) {
-                const value = String(status || "")
-                    .trim()
-                    .toLowerCase()
-                    .replace(/\s+/g, "_");
+                const value =
+                    String(
+                        status || ""
+                    )
+                        .trim()
+                        .toLowerCase()
+                        .replace(
+                            /\s+/g,
+                            "_"
+                        );
 
                 if (
                     [
@@ -1843,12 +1947,17 @@
                     return "processing";
                 }
 
-                return value || "processing";
+                return (
+                    value ||
+                    "processing"
+                );
             }
 
             function getStatusLabel(status) {
                 const normalized =
-                    normalizeStatus(status);
+                    normalizeStatus(
+                        status
+                    );
 
                 const labels = {
                     success: "Success",
@@ -1859,7 +1968,10 @@
 
                 return (
                     labels[normalized] ||
-                    String(status || "Processing")
+                    String(
+                        status ||
+                        "Processing"
+                    )
                 );
             }
 
@@ -1888,9 +2000,14 @@
                     return "—";
                 }
 
-                const date = new Date(value);
+                const date =
+                    new Date(value);
 
-                if (Number.isNaN(date.getTime())) {
+                if (
+                    Number.isNaN(
+                        date.getTime()
+                    )
+                ) {
                     return String(value);
                 }
 
@@ -1904,17 +2021,36 @@
             }
 
             function escapeHtml(value) {
-                return String(value ?? "")
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#039;");
+                return String(
+                    value ?? ""
+                )
+                    .replace(
+                        /&/g,
+                        "&amp;"
+                    )
+                    .replace(
+                        /</g,
+                        "&lt;"
+                    )
+                    .replace(
+                        />/g,
+                        "&gt;"
+                    )
+                    .replace(
+                        /"/g,
+                        "&quot;"
+                    )
+                    .replace(
+                        /'/g,
+                        "&#039;"
+                    );
             }
 
             function getStatusClass(status) {
                 const normalized =
-                    normalizeStatus(status);
+                    normalizeStatus(
+                        status
+                    );
 
                 if (
                     [
@@ -1922,7 +2058,9 @@
                         "failed",
                         "cancelled",
                         "processing"
-                    ].includes(normalized)
+                    ].includes(
+                        normalized
+                    )
                 ) {
                     return normalized;
                 }
@@ -1936,9 +2074,15 @@
 
             async function loadAccountActivity() {
                 const list =
-                    getElement("activityList");
+                    getElement(
+                        "activityList"
+                    );
 
-                if (!list || !currentUser || !supabaseClient) {
+                if (
+                    !list ||
+                    !currentUser ||
+                    !supabaseClient
+                ) {
                     return;
                 }
 
@@ -1951,14 +2095,24 @@
                 const {
                     data,
                     error
-                } = await supabaseClient
-                    .from("generation_history")
-                    .select("*")
-                    .eq("user_id", currentUser.id)
-                    .order("created_at", {
-                        ascending: false
-                    })
-                    .limit(100);
+                } =
+                    await supabaseClient
+                        .from(
+                            "generation_history"
+                        )
+                        .select("*")
+                        .eq(
+                            "user_id",
+                            currentUser.id
+                        )
+                        .order(
+                            "created_at",
+                            {
+                                ascending:
+                                    false
+                            }
+                        )
+                        .limit(100);
 
                 if (error) {
                     console.error(
@@ -1972,10 +2126,25 @@
                         </div>
                     `;
 
-                    setText("activityTotal", 0);
-                    setText("activitySuccess", 0);
-                    setText("activityFailed", 0);
-                    setText("activityProcessing", 0);
+                    setText(
+                        "activityTotal",
+                        0
+                    );
+
+                    setText(
+                        "activitySuccess",
+                        0
+                    );
+
+                    setText(
+                        "activityFailed",
+                        0
+                    );
+
+                    setText(
+                        "activityProcessing",
+                        0
+                    );
 
                     return;
                 }
@@ -1989,40 +2158,57 @@
                 let failedCount = 0;
                 let processingCount = 0;
 
-                rows.forEach((row) => {
-                    const status =
-                        normalizeStatus(row?.status);
+                rows.forEach(
+                    (row) => {
+                        const status =
+                            normalizeStatus(
+                                row?.status
+                            );
 
-                    if (status === "success") {
-                        successCount++;
-                    } else if (
-                        status === "failed" ||
-                        status === "cancelled"
-                    ) {
-                        failedCount++;
-                    } else {
-                        processingCount++;
+                        if (
+                            status ===
+                            "success"
+                        ) {
+                            successCount++;
+                        } else if (
+                            status ===
+                                "failed" ||
+                            status ===
+                                "cancelled"
+                        ) {
+                            failedCount++;
+                        } else {
+                            processingCount++;
+                        }
                     }
-                });
+                );
 
                 setText(
                     "activityTotal",
-                    formatNumber(rows.length)
+                    formatNumber(
+                        rows.length
+                    )
                 );
 
                 setText(
                     "activitySuccess",
-                    formatNumber(successCount)
+                    formatNumber(
+                        successCount
+                    )
                 );
 
                 setText(
                     "activityFailed",
-                    formatNumber(failedCount)
+                    formatNumber(
+                        failedCount
+                    )
                 );
 
                 setText(
                     "activityProcessing",
-                    formatNumber(processingCount)
+                    formatNumber(
+                        processingCount
+                    )
                 );
 
                 if (!rows.length) {
@@ -2038,103 +2224,116 @@
 
                 list.innerHTML =
                     rows
-                        .map((row) => {
-                            const status =
-                                normalizeStatus(
-                                    row?.status
-                                );
+                        .map(
+                            (row) => {
+                                const status =
+                                    normalizeStatus(
+                                        row?.status
+                                    );
 
-                            const statusClass =
-                                getStatusClass(status);
+                                const statusClass =
+                                    getStatusClass(
+                                        status
+                                    );
 
-                            const statusLabel =
-                                getStatusLabel(status);
+                                const statusLabel =
+                                    getStatusLabel(
+                                        status
+                                    );
 
-                            const modelName =
-                                getModelName(row);
+                                const modelName =
+                                    getModelName(
+                                        row
+                                    );
 
-                            const taskId =
-                                getTaskId(row);
+                                const taskId =
+                                    getTaskId(
+                                        row
+                                    );
 
-                            const createdAt =
-                                formatDate(
-                                    row?.created_at
-                                );
+                                const createdAt =
+                                    formatDate(
+                                        row?.created_at
+                                    );
 
-                            const canCancel =
-                                status === "processing";
+                                const canCancel =
+                                    status ===
+                                    "processing";
 
-                            return `
-                                <article
-                                    class="activity-item"
-                                    data-id="${escapeHtml(
-                                        row?.id ?? ""
-                                    )}"
-                                >
+                                return `
+                                    <article
+                                        class="activity-item"
+                                        data-id="${escapeHtml(
+                                            row?.id ??
+                                                ""
+                                        )}"
+                                    >
 
-                                    <div class="activity-main">
+                                        <div class="activity-main">
 
-                                        <div
-                                            class="activity-model"
-                                            title="${escapeHtml(
-                                                modelName
-                                            )}"
-                                        >
-                                            ${escapeHtml(
-                                                modelName
-                                            )}
-                                        </div>
-
-                                        <div class="activity-meta">
-
-                                            <span>
-                                                Task:
+                                            <div
+                                                class="activity-model"
+                                                title="${escapeHtml(
+                                                    modelName
+                                                )}"
+                                            >
                                                 ${escapeHtml(
-                                                    taskId
+                                                    modelName
                                                 )}
-                                            </span>
+                                            </div>
 
-                                            <span>
+                                            <div class="activity-meta">
+
+                                                <span>
+                                                    Task:
+                                                    ${escapeHtml(
+                                                        taskId
+                                                    )}
+                                                </span>
+
+                                                <span>
+                                                    ${escapeHtml(
+                                                        createdAt
+                                                    )}
+                                                </span>
+
+                                            </div>
+
+                                            <div
+                                                class="activity-status ${statusClass}"
+                                            >
                                                 ${escapeHtml(
-                                                    createdAt
+                                                    statusLabel
                                                 )}
-                                            </span>
+                                            </div>
 
                                         </div>
 
-                                        <div
-                                            class="activity-status ${statusClass}"
-                                        >
-                                            ${escapeHtml(
-                                                statusLabel
-                                            )}
+                                        <div class="activity-actions">
+
+                                            ${
+                                                canCancel
+                                                    ? `
+                                                        <button
+                                                            type="button"
+                                                            class="cancel-button"
+                                                            data-cancel-id="${escapeHtml(
+                                                                row?.id ??
+                                                                    ""
+                                                            )}"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    `
+                                                    : ""
+                                            }
+
                                         </div>
 
-                                    </div>
-
-                                    <div class="activity-actions">
-
-                                        ${
-                                            canCancel
-                                                ? `
-                                                    <button
-                                                        type="button"
-                                                        class="cancel-button"
-                                                        data-cancel-id="${escapeHtml(
-                                                            row?.id ?? ""
-                                                        )}"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                `
-                                                : ""
-                                        }
-
-                                    </div>
-
-                                </article>
-                            `;
-                        })
+                                    </article>
+                                `;
+                            }
+                        )
                         .join("");
             }
 
@@ -2156,22 +2355,30 @@
 
                 if (button) {
                     button.disabled = true;
+
                     button.textContent =
                         "Cancelling...";
                 }
 
                 const {
                     error
-                } = await supabaseClient
-                    .from("generation_history")
-                    .update({
-                        status: "cancelled"
-                    })
-                    .eq("id", id)
-                    .eq(
-                        "user_id",
-                        currentUser.id
-                    );
+                } =
+                    await supabaseClient
+                        .from(
+                            "generation_history"
+                        )
+                        .update({
+                            status:
+                                "cancelled"
+                        })
+                        .eq(
+                            "id",
+                            id
+                        )
+                        .eq(
+                            "user_id",
+                            currentUser.id
+                        );
 
                 if (error) {
                     console.error(
@@ -2180,7 +2387,9 @@
                     );
 
                     if (button) {
-                        button.disabled = false;
+                        button.disabled =
+                            false;
+
                         button.textContent =
                             "Cancel";
                     }
@@ -2207,7 +2416,9 @@
 
                 activityOpen = true;
 
-                backdrop.classList.add("open");
+                backdrop.classList.add(
+                    "open"
+                );
 
                 backdrop.setAttribute(
                     "aria-hidden",
@@ -2217,7 +2428,9 @@
                 loadAccountActivity();
 
                 if (activityTimer) {
-                    clearInterval(activityTimer);
+                    clearInterval(
+                        activityTimer
+                    );
                 }
 
                 activityTimer =
@@ -2242,8 +2455,12 @@
                 activityOpen = false;
 
                 if (activityTimer) {
-                    clearInterval(activityTimer);
-                    activityTimer = null;
+                    clearInterval(
+                        activityTimer
+                    );
+
+                    activityTimer =
+                        null;
                 }
 
                 if (!backdrop) {
@@ -2292,6 +2509,7 @@
                                     " "
                             ) {
                                 event.preventDefault();
+
                                 openActivity();
                             }
                         }
@@ -2373,6 +2591,7 @@
             ====================================================== */
 
             async function loadDashboard() {
+
                 if (!supabaseClient) {
                     console.error(
                         "Supabase client is not available."
@@ -2382,6 +2601,11 @@
                 }
 
                 try {
+
+                    /* ---------------------------------------------
+                       SESSION
+                    ---------------------------------------------- */
+
                     const {
                         data: sessionData,
                         error: sessionError
@@ -2410,7 +2634,9 @@
                         error: profileError
                     } =
                         await supabaseClient
-                            .from("profiles")
+                            .from(
+                                "profiles"
+                            )
                             .select("*")
                             .eq(
                                 "id",
@@ -2433,7 +2659,9 @@
                     const role =
                         String(
                             profile?.role ||
-                            currentUser?.user_metadata?.role ||
+                            currentUser
+                                ?.user_metadata
+                                ?.role ||
                             ""
                         ).toUpperCase();
 
@@ -2455,7 +2683,9 @@
                         "accountName",
                         profile?.name ||
                         profile?.full_name ||
-                        currentUser?.user_metadata?.full_name ||
+                        currentUser
+                            ?.user_metadata
+                            ?.full_name ||
                         currentUser?.email ||
                         "Administrator"
                     );
@@ -2476,21 +2706,30 @@
                         "active"
                     );
 
-                    /* ---------------------------------------------
-                       TOTAL USERS
-                    ---------------------------------------------- */
+                    /* =================================================
+                       GLOBAL STATISTICS
+                    ================================================= */
+
+                    /*
+                     * Total Users
+                     */
 
                     const {
                         count: totalUsers,
-                        error: totalUsersError
+                        error:
+                            totalUsersError
                     } =
                         await supabaseClient
-                            .from("profiles")
+                            .from(
+                                "profiles"
+                            )
                             .select(
                                 "id",
                                 {
-                                    count: "exact",
-                                    head: true
+                                    count:
+                                        "exact",
+                                    head:
+                                        true
                                 }
                             );
 
@@ -2499,30 +2738,36 @@
                             "Failed to load total users:",
                             totalUsersError
                         );
+                    } else {
+                        setText(
+                            "totalUsers",
+                            formatNumber(
+                                totalUsers ??
+                                    0
+                            )
+                        );
                     }
 
-                    setText(
-                        "totalUsers",
-                        formatNumber(
-                            totalUsers || 0
-                        )
-                    );
-
-                    /* ---------------------------------------------
-                       ACTIVE USERS
-                    ---------------------------------------------- */
+                    /*
+                     * Active Users
+                     */
 
                     const {
                         count: activeUsers,
-                        error: activeUsersError
+                        error:
+                            activeUsersError
                     } =
                         await supabaseClient
-                            .from("profiles")
+                            .from(
+                                "profiles"
+                            )
                             .select(
                                 "id",
                                 {
-                                    count: "exact",
-                                    head: true
+                                    count:
+                                        "exact",
+                                    head:
+                                        true
                                 }
                             )
                             .eq(
@@ -2535,22 +2780,25 @@
                             "Failed to load active users:",
                             activeUsersError
                         );
+                    } else {
+                        setText(
+                            "activeUsers",
+                            formatNumber(
+                                activeUsers ??
+                                    0
+                            )
+                        );
                     }
 
-                    setText(
-                        "activeUsers",
-                        formatNumber(
-                            activeUsers || 0
-                        )
-                    );
-
-                    /* ---------------------------------------------
-                       TOTAL GENERATIONS
-                    ---------------------------------------------- */
+                    /*
+                     * Total Generations
+                     */
 
                     const {
-                        count: totalGenerations,
-                        error: generationCountError
+                        count:
+                            totalGenerations,
+                        error:
+                            generationCountError
                     } =
                         await supabaseClient
                             .from(
@@ -2559,35 +2807,46 @@
                             .select(
                                 "id",
                                 {
-                                    count: "exact",
-                                    head: true
+                                    count:
+                                        "exact",
+                                    head:
+                                        true
                                 }
                             );
 
-                    if (generationCountError) {
+                    if (
+                        generationCountError
+                    ) {
                         console.error(
                             "Failed to load generation count:",
                             generationCountError
                         );
+                    } else {
+                        setText(
+                            "totalGenerations",
+                            formatNumber(
+                                totalGenerations ??
+                                    0
+                            )
+                        );
                     }
 
-                    setText(
-                        "totalGenerations",
-                        formatNumber(
-                            totalGenerations || 0
-                        )
-                    );
-
-                    /* ---------------------------------------------
-                       TOTAL CREDITS
-                    ---------------------------------------------- */
+                    /*
+                     * Total Credits
+                     *
+                     * Credit tetap membaca
+                     * profiles.credits.
+                     */
 
                     const {
                         data: creditRows,
-                        error: creditsError
+                        error:
+                            creditsError
                     } =
                         await supabaseClient
-                            .from("profiles")
+                            .from(
+                                "profiles"
+                            )
                             .select(
                                 "credits"
                             );
@@ -2597,53 +2856,57 @@
                             "Failed to load credits:",
                             creditsError
                         );
-                    }
+                    } else {
 
-                    let totalCredits = 0;
+                        let totalCredits = 0;
 
-                    if (
-                        Array.isArray(
-                            creditRows
-                        )
-                    ) {
-                        totalCredits =
-                            creditRows.reduce(
-                                (
-                                    total,
-                                    row
-                                ) => {
-                                    const credits =
-                                        Number(
-                                            row?.credits
-                                        );
+                        if (
+                            Array.isArray(
+                                creditRows
+                            )
+                        ) {
+                            totalCredits =
+                                creditRows.reduce(
+                                    (
+                                        total,
+                                        row
+                                    ) => {
 
-                                    return (
-                                        total +
-                                        (
-                                            Number.isFinite(
-                                                credits
+                                        const credits =
+                                            Number(
+                                                row?.credits
+                                            );
+
+                                        return (
+                                            total +
+                                            (
+                                                Number.isFinite(
+                                                    credits
+                                                )
+                                                    ? credits
+                                                    : 0
                                             )
-                                                ? credits
-                                                : 0
-                                        )
-                                    );
-                                },
-                                0
-                            );
-                    }
+                                        );
+                                    },
+                                    0
+                                );
+                        }
 
-                    setText(
-                        "totalCredits",
-                        formatNumber(
-                            totalCredits
-                        )
-                    );
+                        setText(
+                            "totalCredits",
+                            formatNumber(
+                                totalCredits
+                            )
+                        );
+                    }
 
                 } catch (error) {
+
                     console.error(
                         "Dashboard initialization failed:",
                         error
                     );
+
                 }
             }
 
@@ -2652,7 +2915,9 @@
             ====================================================== */
 
             setupActivityUI();
+
             setupActivityListEvents();
+
             loadDashboard();
 
         })();
