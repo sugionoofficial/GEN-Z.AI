@@ -76,6 +76,9 @@ const REQUEST_MODULE =
 const POLLING_MODULE =
     "./generate-polling.js";
 
+const CANCELLATION_MODULE =
+    "./generate-cancellation.js";
+
 
 /* =========================================================
    APPLICATION STATE
@@ -122,6 +125,9 @@ const appState = {
             null,
 
         polling:
+            null,
+
+       cancellation:
             null
 
     }
