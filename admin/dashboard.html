@@ -1226,34 +1226,6 @@ footer {
         transition-duration: 0.01ms !important;
     }
 }
-
-        /* =========================================================
-   FIX - ACCOUNT ACTIVITY MODAL
-   Modal harus tersembunyi saat halaman pertama dibuka.
-========================================================= */
-
-.activity-modal {
-    display: none !important;
-    visibility: hidden;
-    opacity: 0;
-    pointer-events: none;
-}
-
-/*
-   JavaScript biasanya membuka modal dengan class/state tertentu.
-   Selector berikut menjaga modal tetap tampil ketika memang
-   diberi class "show", "active", atau "open".
-*/
-
-.activity-modal.show,
-.activity-modal.active,
-.activity-modal.open {
-    display: flex !important;
-    visibility: visible;
-    opacity: 1;
-    pointer-events: auto;
-}
-        
 </style>
 </head>
 
