@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -8,20 +10,36 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Dashboard - GEN-Z.AI</title>
+    <meta
+        name="robots"
+        content="noindex,nofollow"
+    >
+
+    <title>
+        Dashboard Admin - GEN-Z.AI
+    </title>
+
 
     <!-- =====================================================
          DASHBOARD CSS
-         Tahap pertama: hanya fondasi.
     ====================================================== -->
 
     <link
         rel="stylesheet"
         href="./css/dashboard-base.css"
     >
+
+    <link
+        rel="stylesheet"
+        href="./css/dashboard-premium.css"
+    >
+
+
 </head>
 
+
 <body>
+
 
     <!-- =====================================================
          ADMIN NAVIGATION
@@ -31,32 +49,53 @@
 
 
     <!-- =====================================================
-         DASHBOARD APP
+         MAIN DASHBOARD
     ====================================================== -->
 
-    <main id="dashboardApp">
+    <main
+        id="dashboardApp"
+        aria-busy="true"
+    >
+
 
         <!-- =================================================
-             HEADER
+             DASHBOARD HEADER
         ================================================== -->
 
         <header id="dashboardHeader">
 
-            <div class="eyebrow">
-                Control Center
-            </div>
+            <div class="dashboard-header-inner">
 
-            <h1>
-                Dashboard
-            </h1>
 
-            <p>
-                Monitor sistem, akun, aktivitas generate,
-                dan penggunaan credit GEN-Z.AI.
-            </p>
+                <div class="dashboard-header-copy">
 
-            <div id="roleBadge">
-                Loading...
+                    <div class="dashboard-eyebrow">
+                        GEN-Z.AI CONTROL CENTER
+                    </div>
+
+
+                    <h1>
+                        Dashboard
+                    </h1>
+
+
+                    <p>
+                        Monitor akun, aktivitas generate,
+                        credit, model, provider, dan status
+                        layanan GEN-Z.AI dalam satu panel.
+                    </p>
+
+                </div>
+
+
+                <div
+                    id="roleBadge"
+                    aria-label="Admin Role"
+                >
+                    ADMIN
+                </div>
+
+
             </div>
 
         </header>
@@ -68,21 +107,32 @@
 
         <section
             id="systemStatusSection"
-            aria-labelledby="systemStatusTitle"
+            class="dashboard-section"
+            aria-label="System Status"
         >
 
-            <div
-                id="systemStatus"
-                class="system-status"
-            >
+            <div id="systemStatus">
 
-                <h2 id="systemStatusTitle">
-                    System Status
-                </h2>
 
-                <p id="systemStatusText">
-                    Memeriksa status sistem...
-                </p>
+                <span
+                    class="system-status-indicator"
+                    aria-hidden="true"
+                ></span>
+
+
+                <div class="system-status-copy">
+
+                    <h2 id="systemStatusTitle">
+                        Checking System Status
+                    </h2>
+
+
+                    <p id="systemStatusText">
+                        Memeriksa layanan GEN-Z.AI...
+                    </p>
+
+                </div>
+
 
             </div>
 
@@ -94,83 +144,140 @@
         ================================================== -->
 
         <section
-            id="globalStatsSection"
-            aria-labelledby="globalStatsTitle"
+            class="dashboard-section"
+            id="globalStatisticsSection"
         >
 
-            <h2 id="globalStatsTitle">
-                Global Statistics
-            </h2>
 
-            <div id="dashboardDiagnostic"></div>
+            <div class="section-heading">
 
-            <div
-                id="statsGrid"
-                class="stats-grid"
-            >
+
+                <div class="section-heading-copy">
+
+                    <h2>
+                        Global Statistics
+                    </h2>
+
+
+                    <p>
+                        Ringkasan kondisi platform saat ini.
+                    </p>
+
+                </div>
+
+
+                <div class="section-heading-meta">
+
+                    <span
+                        id="dashboardDiagnostic"
+                    >
+                        Memuat dashboard...
+                    </span>
+
+                </div>
+
+
+            </div>
+
+
+            <div id="statsGrid">
+
+
+                <!-- TOTAL USERS -->
 
                 <article class="stat-card">
 
-                    <div class="label">
+                    <span class="stat-card-label">
                         Total Users
-                    </div>
+                    </span>
 
-                    <div
+
+                    <strong
                         id="totalUsers"
-                        class="value"
+                        class="stat-card-value"
                     >
-                        —
-                    </div>
+                        0
+                    </strong>
+
+
+                    <p class="stat-card-description">
+                        Total akun yang terdaftar.
+                    </p>
 
                 </article>
 
 
+                <!-- ACTIVE USERS -->
+
                 <article class="stat-card">
 
-                    <div class="label">
+                    <span class="stat-card-label">
                         Active Users
-                    </div>
+                    </span>
 
-                    <div
+
+                    <strong
                         id="activeUsers"
-                        class="value"
+                        class="stat-card-value"
                     >
-                        —
-                    </div>
+                        0
+                    </strong>
+
+
+                    <p class="stat-card-description">
+                        Akun dengan status aktif.
+                    </p>
 
                 </article>
 
 
+                <!-- TOTAL GENERATIONS -->
+
                 <article class="stat-card">
 
-                    <div class="label">
+                    <span class="stat-card-label">
                         Total Generations
-                    </div>
+                    </span>
 
-                    <div
+
+                    <strong
                         id="totalGenerations"
-                        class="value"
+                        class="stat-card-value"
                     >
-                        —
-                    </div>
+                        0
+                    </strong>
+
+
+                    <p class="stat-card-description">
+                        Total riwayat generate.
+                    </p>
 
                 </article>
 
+
+                <!-- TOTAL CREDITS -->
 
                 <article class="stat-card">
 
-                    <div class="label">
+                    <span class="stat-card-label">
                         Total Credits
-                    </div>
+                    </span>
 
-                    <div
+
+                    <strong
                         id="totalCredits"
-                        class="value"
+                        class="stat-card-value"
                     >
-                        —
-                    </div>
+                        0
+                    </strong>
+
+
+                    <p class="stat-card-description">
+                        Total credit seluruh akun.
+                    </p>
 
                 </article>
+
 
             </div>
 
@@ -183,51 +290,65 @@
 
         <section
             id="accountActivitySection"
-            aria-labelledby="accountActivityTitle"
+            class="dashboard-section"
+            aria-label="Account Activity"
         >
+
 
             <div class="section-heading">
 
-                <div>
+
+                <div class="section-heading-copy">
+
                     <h2 id="accountActivityTitle">
                         Account Activity
                     </h2>
 
+
                     <p>
-                        Aktivitas generate setiap akun secara
-                        realtime.
+                        Pantau aktivitas setiap akun
+                        secara realtime.
                     </p>
+
                 </div>
 
-                <div
-                    id="accountActivityLive"
-                    class="live-indicator"
-                >
-                    <span></span>
-                    LIVE
+
+                <div class="section-heading-meta">
+
+                    <span
+                        id="accountActivityLive"
+                        class="live-indicator"
+                    >
+
+                        <span
+                            class="live-indicator-dot"
+                        ></span>
+
+                        MONITORING
+
+                    </span>
+
                 </div>
+
 
             </div>
 
+
+            <!-- LOADING -->
+
+            <div
+                id="accountActivityLoading"
+            >
+                Memuat aktivitas akun...
+            </div>
+
+
+            <!-- ACCOUNT GRID -->
 
             <div
                 id="accountActivityGrid"
-                class="account-activity-grid"
-            >
+            ></div>
 
-                <!--
-                    Account cards dibuat oleh
-                    dashboard-activity.js
-                -->
-
-                <div
-                    id="accountActivityLoading"
-                    class="activity-loading"
-                >
-                    Memuat aktivitas...
-                </div>
-
-            </div>
 
         </section>
 
@@ -238,206 +359,291 @@
 
         <section
             id="systemInformationSection"
-            aria-labelledby="systemInformationTitle"
+            class="dashboard-section"
+            aria-label="System Information"
         >
 
-            <h2 id="systemInformationTitle">
-                System Information
-            </h2>
+
+            <div class="section-heading">
 
 
-            <div class="system-grid">
+                <div class="section-heading-copy">
 
-                <!-- =========================================
-                     SERVICES
-                ========================================== -->
-
-                <article
-                    id="servicesPanel"
-                    class="panel system-panel"
-                >
-
-                    <h3>
-                        Services
-                    </h3>
+                    <h2>
+                        System Information
+                    </h2>
 
 
-                    <div class="status-row">
+                    <p>
+                        Status komponen utama GEN-Z.AI.
+                    </p>
 
-                        <span>
-                            Authentication
-                        </span>
+                </div>
 
-                        <span
-                            id="authenticationStatus"
-                            class="status"
-                        >
-                            —
-                        </span>
-
-                    </div>
-
-
-                    <div class="status-row">
-
-                        <span>
-                            Supabase Database
-                        </span>
-
-                        <span
-                            id="supabaseStatus"
-                            class="status"
-                        >
-                            —
-                        </span>
-
-                    </div>
-
-
-                    <div class="status-row">
-
-                        <span>
-                            Provider Registry
-                        </span>
-
-                        <span
-                            id="providerStatus"
-                            class="status"
-                        >
-                            —
-                        </span>
-
-                    </div>
-
-
-                    <div class="status-row">
-
-                        <span>
-                            Model Registry
-                        </span>
-
-                        <span
-                            id="modelStatus"
-                            class="status"
-                        >
-                            —
-                        </span>
-
-                    </div>
-
-
-                    <div class="status-row">
-
-                        <span>
-                            Credit System
-                        </span>
-
-                        <span
-                            id="creditStatus"
-                            class="status"
-                        >
-                            —
-                        </span>
-
-                    </div>
-
-
-                    <div class="status-row">
-
-                        <span>
-                            History System
-                        </span>
-
-                        <span
-                            id="historyStatus"
-                            class="status"
-                        >
-                            —
-                        </span>
-
-                    </div>
-
-                </article>
-
-
-                <!-- =========================================
-                     ADMIN ACCOUNT
-                ========================================== -->
-
-                <article
-                    id="accountPanel"
-                    class="panel account-panel"
-                >
-
-                    <h3>
-                        Admin Account
-                    </h3>
-
-
-                    <div class="info-row">
-
-                        <span>
-                            Name
-                        </span>
-
-                        <span id="accountName">
-                            —
-                        </span>
-
-                    </div>
-
-
-                    <div class="info-row">
-
-                        <span>
-                            Email
-                        </span>
-
-                        <span id="accountEmail">
-                            —
-                        </span>
-
-                    </div>
-
-
-                    <div class="info-row">
-
-                        <span>
-                            Role
-                        </span>
-
-                        <span id="accountRole">
-                            —
-                        </span>
-
-                    </div>
-
-
-                    <div class="info-row">
-
-                        <span>
-                            Status
-                        </span>
-
-                        <span id="accountStatus">
-                            —
-                        </span>
-
-                    </div>
-
-                </article>
 
             </div>
 
+
+            <div id="servicesPanel">
+
+
+                <!-- AUTHENTICATION -->
+
+                <article class="service-card">
+
+                    <span class="service-card-name">
+                        Authentication
+                    </span>
+
+
+                    <span
+                        id="authenticationStatus"
+                        class="service-card-status checking"
+                    >
+                        Checking
+                    </span>
+
+                </article>
+
+
+                <!-- SUPABASE -->
+
+                <article class="service-card">
+
+                    <span class="service-card-name">
+                        Supabase
+                    </span>
+
+
+                    <span
+                        id="supabaseStatus"
+                        class="service-card-status checking"
+                    >
+                        Checking
+                    </span>
+
+                </article>
+
+
+                <!-- PROVIDER -->
+
+                <article class="service-card">
+
+                    <span class="service-card-name">
+                        Provider
+                    </span>
+
+
+                    <span
+                        id="providerStatus"
+                        class="service-card-status checking"
+                    >
+                        Checking
+                    </span>
+
+                </article>
+
+
+                <!-- MODEL -->
+
+                <article class="service-card">
+
+                    <span class="service-card-name">
+                        Models
+                    </span>
+
+
+                    <span
+                        id="modelStatus"
+                        class="service-card-status checking"
+                    >
+                        Checking
+                    </span>
+
+                </article>
+
+
+                <!-- CREDIT -->
+
+                <article class="service-card">
+
+                    <span class="service-card-name">
+                        Credit System
+                    </span>
+
+
+                    <span
+                        id="creditStatus"
+                        class="service-card-status checking"
+                    >
+                        Checking
+                    </span>
+
+                </article>
+
+
+                <!-- HISTORY -->
+
+                <article class="service-card">
+
+                    <span class="service-card-name">
+                        Generation History
+                    </span>
+
+
+                    <span
+                        id="historyStatus"
+                        class="service-card-status checking"
+                    >
+                        Checking
+                    </span>
+
+                </article>
+
+
+            </div>
+
+
         </section>
+
+
+        <!-- =================================================
+             ACCOUNT INFORMATION
+        ================================================== -->
+
+        <section
+            class="dashboard-section"
+            id="accountInformationSection"
+            aria-label="Account Information"
+        >
+
+
+            <div class="section-heading">
+
+
+                <div class="section-heading-copy">
+
+                    <h2>
+                        Account
+                    </h2>
+
+
+                    <p>
+                        Informasi akun administrator
+                        yang sedang digunakan.
+                    </p>
+
+                </div>
+
+
+            </div>
+
+
+            <div class="account-panel">
+
+
+                <!-- NAME -->
+
+                <article class="account-panel-item">
+
+                    <span class="account-panel-label">
+                        Name
+                    </span>
+
+
+                    <strong
+                        id="accountName"
+                        class="account-panel-value"
+                    >
+                        -
+                    </strong>
+
+                </article>
+
+
+                <!-- EMAIL -->
+
+                <article class="account-panel-item">
+
+                    <span class="account-panel-label">
+                        Email
+                    </span>
+
+
+                    <strong
+                        id="accountEmail"
+                        class="account-panel-value"
+                    >
+                        -
+                    </strong>
+
+                </article>
+
+
+                <!-- ROLE -->
+
+                <article class="account-panel-item">
+
+                    <span class="account-panel-label">
+                        Role
+                    </span>
+
+
+                    <strong
+                        id="accountRole"
+                        class="account-panel-value"
+                    >
+                        -
+                    </strong>
+
+                </article>
+
+
+                <!-- STATUS -->
+
+                <article class="account-panel-item">
+
+                    <span class="account-panel-label">
+                        Status
+                    </span>
+
+
+                    <strong
+                        id="accountStatus"
+                        class="account-panel-value"
+                    >
+                        -
+                    </strong>
+
+                </article>
+
+
+            </div>
+
+
+        </section>
+
+
+        <!-- =================================================
+             FOOTER
+        ================================================== -->
+
+        <footer class="dashboard-footer">
+
+            GEN-Z.AI
+            <span aria-hidden="true">
+                •
+            </span>
+            Admin Control Center
+
+        </footer>
+
 
     </main>
 
 
     <!-- =====================================================
-         ACCOUNT ACTIVITY MODAL
-         Default hidden.
-         JS yang mengontrol kapan dibuka.
+         ACTIVITY MODAL
     ====================================================== -->
 
     <div
@@ -445,84 +651,114 @@
         class="activity-modal"
         hidden
         aria-hidden="true"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="activityModalTitle"
     >
+
+
+        <!-- BACKDROP -->
+
+        <div
+            class="activity-modal-backdrop"
+            aria-hidden="true"
+        ></div>
+
+
+        <!-- PANEL -->
 
         <div
             class="activity-modal-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="activityModalTitle"
         >
 
-            <button
-                id="activityModalClose"
-                class="activity-modal-close"
-                type="button"
-                aria-label="Tutup"
-            >
-                ×
-            </button>
+
+            <!-- HEADER -->
+
+            <header class="activity-modal-header">
 
 
-            <h2 id="activityModalTitle">
-                Account Activity
-            </h2>
+                <div
+                    class="activity-modal-title-wrap"
+                >
+
+                    <h2
+                        id="activityModalTitle"
+                    >
+                        Account Activity
+                    </h2>
 
 
-            <p id="activityModalAccount">
-                —
-            </p>
+                    <p
+                        id="activityModalAccount"
+                    >
+                        -
+                    </p>
 
+                </div>
+
+
+                <button
+                    id="activityModalClose"
+                    type="button"
+                    aria-label="Tutup"
+                >
+                    ×
+                </button>
+
+
+            </header>
+
+
+            <!-- CONTENT -->
 
             <div
                 id="activityModalContent"
-                class="activity-modal-content"
             >
 
-                <div class="activity-loading">
+                <div class="activity-modal-empty">
+
                     Memuat aktivitas...
+
                 </div>
 
             </div>
 
+
         </div>
+
 
     </div>
 
 
     <!-- =====================================================
-         FOOTER
-    ====================================================== -->
-
-    <footer>
-
-        GEN-Z.AI
-        <span>•</span>
-        Admin Control Center
-
-    </footer>
-
-
-    <!-- =====================================================
-         EXTERNAL DEPENDENCIES
+         SUPABASE
     ====================================================== -->
 
     <script
         src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
     ></script>
 
+
+    <!-- =====================================================
+         GEN-Z.AI CONFIG
+    ====================================================== -->
+
     <script
         src="../../assets/js/config.js"
     ></script>
 
+
+    <!-- =====================================================
+         ADMIN NAVIGATION
+    ====================================================== -->
+
     <script
-        src="../admin-nav.js"
+        src="../../admin-control/admin-nav.js"
     ></script>
 
 
     <!-- =====================================================
          DASHBOARD MODULES
-         Logic akan dimasukkan bertahap.
     ====================================================== -->
 
     <script
@@ -530,30 +766,37 @@
         defer
     ></script>
 
+
     <script
         src="./js/dashboard-stats.js"
         defer
     ></script>
+
 
     <script
         src="./js/dashboard-activity.js"
         defer
     ></script>
 
+
     <script
         src="./js/dashboard-modal.js"
         defer
     ></script>
+
 
     <script
         src="./js/dashboard-system.js"
         defer
     ></script>
 
+
     <script
         src="./js/dashboard-app.js"
         defer
     ></script>
 
+
 </body>
+
 </html>
