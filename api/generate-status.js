@@ -42,13 +42,17 @@ import crypto from "crypto";
 import grokImagineImageToVideo
     from "../models/grok-imagine-image-to-video/index.js";
 
+import seedance25
+    from "../models/seedance-2-5/index.js";
 
 /* =========================================================
    CONSTANTS
    ========================================================= */
 
 const MODEL_REGISTRY = [
-    grokImagineImageToVideo
+    grokImagineImageToVideo,
+   
+   seedance25
 ];
 
 
