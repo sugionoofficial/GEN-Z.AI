@@ -1376,6 +1376,32 @@
     return;
 }
 
+        console.log(
+    "GEN-Z.AI DASHBOARD CHECK:",
+    {
+        hasSupabaseLibrary:
+            !!window.supabase,
+
+        hasGENZConfig:
+            !!window.GENZ_CONFIG,
+
+        hasSupabaseUrl:
+            !!window.GENZ_CONFIG?.SUPABASE_URL,
+
+        hasSupabaseKey:
+            !!window.GENZ_CONFIG?.SUPABASE_KEY,
+
+        hasGENZSupabase:
+            !!window.GENZ_SUPABASE,
+
+        hasExistingClient:
+            !!window.supabaseClient,
+
+        hasDashboardClient:
+            !!supabaseClient
+    }
+);
+
         /*
          * =====================================================
          * HELPER
