@@ -782,6 +782,42 @@ function setGenerateStatus(
 
     else if (
         normalized ===
+            "cancelled" ||
+        normalized ===
+            "canceled"
+    ) {
+
+        status.classList.add(
+            "genz-status-cancelled"
+        );
+
+        title =
+            "DIBATALKAN";
+
+        titleClass =
+            "cancelled";
+
+        message =
+            message ||
+            "Generate dibatalkan.";
+
+        messageClass =
+            "cancelled";
+
+        icon =
+            `
+            <span
+                class="genz-status-cancelled-icon"
+                aria-hidden="true"
+            >
+                ×
+            </span>
+            `;
+
+    }
+
+    else if (
+        normalized ===
             "failed" ||
         normalized ===
             "failure" ||
