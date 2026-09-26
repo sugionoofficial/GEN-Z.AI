@@ -1992,3 +1992,322 @@ input[type="checkbox"]:checked {
         font-size: 18px;
     }
 }
+
+/* =========================================================
+   GEN-Z.AI — PREMIUM TOP UP REQUEST TABLE
+   ========================================================= */
+
+.table-card {
+    background:
+        radial-gradient(
+            circle at 100% 0%,
+            rgba(255, 106, 0, 0.055),
+            transparent 30%
+        ),
+        linear-gradient(
+            145deg,
+            rgba(22, 22, 24, 0.98),
+            rgba(7, 7, 8, 0.98)
+        ) !important;
+}
+
+
+/* =========================================================
+   TABLE HEADER
+   ========================================================= */
+
+.table-card .section-header {
+    padding: 22px 24px;
+
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255, 106, 0, 0.035),
+            transparent
+        );
+}
+
+.table-card .section-header h2 {
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+}
+
+.table-card .section-header h2::before {
+    content: "";
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #ff6a00;
+
+    box-shadow:
+        0 0 7px #ff6a00,
+        0 0 14px rgba(255, 106, 0, 0.65);
+}
+
+
+/* =========================================================
+   SEARCH + FILTER
+   ========================================================= */
+
+.toolbar {
+    padding: 18px 22px;
+
+    margin: 0;
+
+    border-bottom:
+        1px solid rgba(255, 106, 0, 0.12);
+
+    background:
+        rgba(255, 255, 255, 0.015);
+}
+
+.search-box {
+    position: relative;
+}
+
+.search-box::before {
+    content: "⌕";
+
+    position: absolute;
+
+    left: 14px;
+    top: 50%;
+
+    z-index: 2;
+
+    transform: translateY(-52%);
+
+    color: #ff8a2a;
+
+    font-size: 19px;
+
+    pointer-events: none;
+}
+
+.search-box input {
+    padding-left: 40px !important;
+}
+
+
+/* Filter */
+.filter select {
+    appearance: none;
+
+    padding-left: 14px;
+
+    border-color:
+        rgba(255, 106, 0, 0.2);
+
+    background:
+        linear-gradient(
+            45deg,
+            transparent 50%,
+            #ff8a2a 50%
+        ) right 15px center / 6px 6px no-repeat,
+        #111113;
+}
+
+
+/* =========================================================
+   TABLE HEADER
+   ========================================================= */
+
+.table-wrap {
+    background:
+        rgba(0, 0, 0, 0.12);
+}
+
+.table-wrap table {
+    border-collapse: separate;
+
+    border-spacing: 0;
+}
+
+.table-wrap thead th {
+    position: sticky;
+
+    top: 0;
+
+    z-index: 5;
+
+    padding:
+        14px 18px;
+
+    color: #85858d;
+
+    background:
+        #101012;
+
+    border-bottom:
+        1px solid rgba(255, 106, 0, 0.2);
+}
+
+
+/* =========================================================
+   TABLE ROW
+   ========================================================= */
+
+.table-wrap tbody tr {
+    position: relative;
+
+    transition:
+        background 0.18s ease;
+}
+
+.table-wrap tbody tr:hover {
+    background:
+        rgba(255, 106, 0, 0.035);
+}
+
+.table-wrap tbody td {
+    padding:
+        15px 18px;
+
+    border-bottom:
+        1px solid rgba(255, 255, 255, 0.045);
+
+    vertical-align: middle;
+}
+
+
+/* =========================================================
+   USER INFORMATION
+   ========================================================= */
+
+.table-wrap td strong {
+    color: #f2f2f4;
+
+    font-weight: 750;
+}
+
+.table-wrap td small {
+    display: block;
+
+    margin-top: 3px;
+
+    color: #65656d;
+
+    font-size: 10px;
+}
+
+
+/* =========================================================
+   CREDIT VALUE
+   ========================================================= */
+
+.table-wrap td .credit,
+.table-wrap td[data-type="credit"] {
+    color: #ff9a4a;
+
+    font-weight: 800;
+
+    text-shadow:
+        0 0 8px rgba(255, 106, 0, 0.12);
+}
+
+
+/* =========================================================
+   PRICE
+   ========================================================= */
+
+.table-wrap td .amount,
+.table-wrap td[data-type="amount"] {
+    color: #fff;
+
+    font-weight: 750;
+}
+
+
+/* =========================================================
+   STATUS BADGES
+   ========================================================= */
+
+.status-badge {
+    position: relative;
+
+    white-space: nowrap;
+
+    min-width: 82px;
+
+    justify-content: center;
+
+    padding:
+        6px
+        11px;
+
+    border-radius: 999px;
+
+    font-size: 10px;
+
+    letter-spacing: 0.4px;
+
+    text-transform: uppercase;
+}
+
+.status-badge::before {
+    width: 5px;
+    height: 5px;
+
+    box-shadow:
+        0 0 6px currentColor;
+}
+
+
+/* Pending */
+.status-pending {
+    color: #ffad55 !important;
+
+    background:
+        rgba(255, 106, 0, 0.08) !important;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.3) !important;
+}
+
+
+/* Approved */
+.status-approved {
+    color: #35e982 !important;
+
+    background:
+        rgba(35, 233, 130, 0.07) !important;
+
+    border:
+        1px solid rgba(35, 233, 130, 0.2) !important;
+}
+
+
+/* Rejected */
+.status-rejected {
+    color: #ff6262 !important;
+
+    background:
+        rgba(255, 48, 48, 0.07) !important;
+
+    border:
+        1px solid rgba(255, 48, 48, 0.2) !important;
+}
+
+
+/* =========================================================
+   ACTION BUTTONS
+   ========================================================= */
+
+.action-buttons {
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    flex-wrap: nowrap;
+}
+
+.action-buttons button {
+   
