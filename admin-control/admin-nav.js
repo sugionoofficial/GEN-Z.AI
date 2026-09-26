@@ -37,7 +37,7 @@
     const NAV_ITEMS = [
         {
             label: "DASHBOARD ADMIN",
-            href: "../admin/dashboard.html",
+            href: "../admin/dashboard/index.html",
             icon: "♻️"
         },
         {
