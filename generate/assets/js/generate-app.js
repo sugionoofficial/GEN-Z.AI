@@ -67,6 +67,9 @@ const MODEL_MODULE =
 const FORM_MODULE =
     "./generate-form.js";
 
+const SEEDANCE_MODULE =
+    "./generate-seedance.js";
+
 const VALIDATION_MODULE =
     "./generate-validation.js";
 
@@ -116,6 +119,9 @@ const appState = {
             null,
 
         form:
+            null,
+       
+        seedance:
             null,
 
         validation:
@@ -1222,6 +1228,12 @@ async function loadCoreModules() {
         FORM_MODULE,
         true
     );
+   
+   await loadModule(
+    "seedance",
+    SEEDANCE_MODULE,
+    true
+   );
 
     await loadModule(
         "validation",
