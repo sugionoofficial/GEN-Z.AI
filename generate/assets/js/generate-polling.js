@@ -59,6 +59,8 @@
    polling terminal
           ↓
    TIDAK dianggap failed
+          ↓
+   TIDAK polling lagi
 
    CATATAN:
    - /api/generate-status membutuhkan task_id + model_id
@@ -381,7 +383,11 @@ function extractErrorMessage(
 
         data.data?.task,
 
-        data.data?.result
+        data.data?.result,
+
+        data.data?.task?.result,
+
+        data.data?.result?.data
 
     ];
 
@@ -468,6 +474,10 @@ function extractErrorCode(
 
         data.result?.code ||
 
+        data.data?.task?.code ||
+
+        data.data?.result?.code ||
+
         null
 
     );
@@ -517,7 +527,6 @@ function extractTaskId(
         data?.data?.task?.jobId ||
 
         ""
-
     );
 }
 
@@ -549,7 +558,6 @@ function extractModelId(
         data?.data?.task?.modelId ||
 
         ""
-
     );
 }
 
@@ -591,6 +599,10 @@ function extractTaskState(
 
         data?.taskStatus ||
 
+        data?.provider_state ||
+
+        data?.providerStatus ||
+
         data?.data?.state ||
 
         data?.data?.status ||
@@ -598,6 +610,10 @@ function extractTaskState(
         data?.data?.task_state ||
 
         data?.data?.taskStatus ||
+
+        data?.data?.provider_state ||
+
+        data?.data?.providerStatus ||
 
         data?.task?.state ||
 
@@ -607,6 +623,10 @@ function extractTaskState(
 
         data?.task?.taskStatus ||
 
+        data?.task?.provider_state ||
+
+        data?.task?.providerStatus ||
+
         data?.data?.task?.state ||
 
         data?.data?.task?.status ||
@@ -615,16 +635,27 @@ function extractTaskState(
 
         data?.data?.task?.taskStatus ||
 
+        data?.data?.task?.provider_state ||
+
+        data?.data?.task?.providerStatus ||
+
         data?.result?.state ||
 
         data?.result?.status ||
+
+        data?.result?.provider_state ||
+
+        data?.result?.providerStatus ||
 
         data?.data?.result?.state ||
 
         data?.data?.result?.status ||
 
-        ""
+        data?.data?.result?.provider_state ||
 
+        data?.data?.result?.providerStatus ||
+
+        ""
     );
 }
 
@@ -901,7 +932,6 @@ function extractResultUrls(
                 );
             }
         }
-
     }
 
 
@@ -930,7 +960,11 @@ function findBooleanFlag(
 
         data?.data?.task,
 
-        data?.data?.result
+        data?.data?.result,
+
+        data?.data?.task?.result,
+
+        data?.data?.result?.data
 
     ];
 
@@ -961,7 +995,6 @@ function findBooleanFlag(
 
                 return true;
             }
-
         }
     }
 
@@ -972,14 +1005,6 @@ function findBooleanFlag(
 
 /* =========================================================
    HISTORY SYNC STATE
-   ---------------------------------------------------------
-   Backend /api/generate-status mengembalikan:
-
-     history_updated
-     history_status
-     history_reason
-
-   Kita harus mempertahankan informasi ini.
 ========================================================= */
 
 function extractHistoryUpdated(
@@ -998,7 +1023,11 @@ function extractHistoryUpdated(
 
         data?.task?.history_updated === true ||
 
-        data?.task?.historyUpdated === true
+        data?.task?.historyUpdated === true ||
+
+        data?.data?.task?.history_updated === true ||
+
+        data?.data?.task?.historyUpdated === true
 
     );
 }
@@ -1022,8 +1051,11 @@ function extractHistoryStatus(
 
         data?.task?.historyStatus ||
 
-        ""
+        data?.data?.task?.history_status ||
 
+        data?.data?.task?.historyStatus ||
+
+        ""
     );
 }
 
@@ -1046,26 +1078,17 @@ function extractHistoryReason(
 
         data?.task?.historyReason ||
 
-        ""
+        data?.data?.task?.history_reason ||
 
+        data?.data?.task?.historyReason ||
+
+        ""
     );
 }
 
 
 /* =========================================================
    CANCELLATION DETECTION
-   ---------------------------------------------------------
-   Cancellation memiliki prioritas lebih tinggi daripada
-   failed/completed.
-
-   Sumber cancellation dapat berasal dari:
-   - state
-   - status
-   - cancellation
-   - cancelled
-   - canceled
-   - history_status
-   - history_reason
 ========================================================= */
 
 function isCancellationState(
@@ -1087,12 +1110,76 @@ function isCancellationState(
 }
 
 
+/* =========================================================
+   GENERIC CANCELLATION HELPER
+   ---------------------------------------------------------
+   Jika generate-cancellation.js sudah dimuat oleh
+   generate/index.html, kita gunakan helper tersebut.
+
+   Module ini tetap memiliki fallback internal sehingga
+   polling tidak bergantung mutlak pada helper global.
+========================================================= */
+
+function isGloballyCancelled(
+    value
+) {
+
+    try {
+
+        if (
+            window
+                ?.GENZGenerateCancellation
+                ?.isGenerateCancelled
+        ) {
+
+            return Boolean(
+                window
+                    .GENZGenerateCancellation
+                    .isGenerateCancelled(
+                        value
+                    )
+            );
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Cancellation helper error:",
+            error
+        );
+    }
+
+
+    return false;
+}
+
+
+/* =========================================================
+   EXTRACT CANCELLATION
+========================================================= */
+
 function extractCancellation(
     data,
     state,
     historyStatus,
     historyReason
 ) {
+
+    /*
+     * Global helper memiliki prioritas.
+     */
+
+    if (
+        isGloballyCancelled(
+            data
+        )
+    ) {
+
+        return true;
+    }
+
 
     const explicitCancellation =
         findBooleanFlag(
@@ -1111,35 +1198,49 @@ function extractCancellation(
         );
 
 
+    const providerStateCancelled =
+        isCancellationState(
+            data?.provider_state
+        ) ||
+        isCancellationState(
+            data?.providerStatus
+        );
+
+
     const historyCancelled =
         isCancellationState(
             historyStatus
         );
 
 
+    const reason =
+        normalizeString(
+            historyReason
+        ).toLowerCase();
+
+
     const reasonCancelled =
         isCancellationState(
             historyReason
         ) ||
-        normalizeString(
-            historyReason
-        )
-            .toLowerCase()
-            .includes(
-                "generation_cancelled"
-            ) ||
-        normalizeString(
-            historyReason
-        )
-            .toLowerCase()
-            .includes(
-                "generation-cancelled"
-            );
+        reason.includes(
+            "generation_cancelled"
+        ) ||
+        reason.includes(
+            "generation-cancelled"
+        ) ||
+        reason.includes(
+            "generate_cancelled"
+        ) ||
+        reason.includes(
+            "generate-cancelled"
+        );
 
 
     return (
         explicitCancellation ||
         stateCancelled ||
+        providerStateCancelled ||
         historyCancelled ||
         reasonCancelled
     );
@@ -1238,7 +1339,6 @@ export function normalizePollingResult(
             "done",
             "finished",
             "finish",
-            "successfully_completed",
             "successfully_completed"
         ]);
 
@@ -1252,13 +1352,6 @@ export function normalizePollingResult(
             "rejected",
             "terminated",
             "aborted"
-        ]);
-
-
-    const cancelledStates =
-        new Set([
-            "cancelled",
-            "canceled"
         ]);
 
 
@@ -1308,7 +1401,7 @@ export function normalizePollingResult(
      * CANCELLATION
      * =====================================================
      *
-     * Harus dihitung SEBELUM failed.
+     * HARUS dihitung sebelum failed dan completed.
      */
 
     const cancelled =
@@ -1332,13 +1425,7 @@ export function normalizePollingResult(
      * COMPLETED
      *     ↓
      * PROCESSING
-     *
-     * Cancellation selalu memiliki prioritas tertinggi.
      */
-
-    const hasResult =
-        resultUrls.length > 0;
-
 
     const processingState =
         explicitProcessing ||
@@ -1375,6 +1462,10 @@ export function normalizePollingResult(
         !completed;
 
 
+    const hasResult =
+        resultUrls.length > 0;
+
+
     let normalizedState =
         state;
 
@@ -1407,6 +1498,90 @@ export function normalizePollingResult(
     }
 
 
+    /*
+     * Cancellation harus selalu memaksa semua
+     * terminal flags menjadi konsisten.
+     */
+
+    if (
+        cancelled
+    ) {
+
+        return {
+
+            ...data,
+
+            task_id:
+                taskId,
+
+            taskId:
+                taskId,
+
+            model_id:
+                modelId,
+
+            modelId:
+                modelId,
+
+            state:
+                "cancelled",
+
+            provider_state:
+                state,
+
+            processing:
+                false,
+
+            completed:
+                false,
+
+            failed:
+                false,
+
+            cancelled:
+                true,
+
+            cancellation:
+                true,
+
+            has_result:
+                hasResult,
+
+            hasResult:
+                hasResult,
+
+            result_urls:
+                resultUrls,
+
+            resultUrls:
+                resultUrls,
+
+            history_updated:
+                historyUpdated,
+
+            historyUpdated:
+                historyUpdated,
+
+            history_status:
+                historyStatus ||
+                "cancelled",
+
+            historyStatus:
+                historyStatus ||
+                "cancelled",
+
+            history_reason:
+                historyReason ||
+                "generation_cancelled",
+
+            historyReason:
+                historyReason ||
+                "generation_cancelled"
+
+        };
+    }
+
+
     return {
 
         ...data,
@@ -1435,10 +1610,11 @@ export function normalizePollingResult(
 
         failed,
 
-        cancelled,
+        cancelled:
+            false,
 
         cancellation:
-            cancelled,
+            false,
 
         has_result:
             hasResult,
@@ -1451,10 +1627,6 @@ export function normalizePollingResult(
 
         resultUrls:
             resultUrls,
-
-        /*
-         * History synchronization state.
-         */
 
         history_updated:
             historyUpdated,
@@ -1610,6 +1782,40 @@ export async function requestTaskStatus(
         );
 
 
+    /*
+     * =====================================================
+     * CANCELLATION FIRST
+     * =====================================================
+     *
+     * Bahkan jika backend suatu saat mengembalikan
+     * HTTP non-2xx untuk cancellation, kita tetap tidak
+     * boleh mengubahnya menjadi failed.
+     */
+
+    if (
+        isGloballyCancelled(
+            data
+        ) ||
+        extractCancellation(
+            data,
+            extractTaskState(data),
+            extractHistoryStatus(data),
+            extractHistoryReason(data)
+        )
+    ) {
+
+        return normalizePollingResult(
+            data
+        );
+    }
+
+
+    /*
+     * =====================================================
+     * HTTP ERROR
+     * =====================================================
+     */
+
     if (
         !response.ok
     ) {
@@ -1640,6 +1846,15 @@ export async function requestTaskStatus(
         );
     }
 
+
+    /*
+     * =====================================================
+     * BACKEND success:false
+     * =====================================================
+     *
+     * Cancellation sudah diperiksa di atas.
+     * Jadi success:false di sini benar-benar error.
+     */
 
     if (
         data &&
@@ -1834,11 +2049,6 @@ function isHistorySynchronized(
         "completed"
     ) {
 
-        /*
-         * Jangan langsung menganggap ini true bila
-         * history_updated tersedia dan bernilai false.
-         */
-
         if (
             result?.history_updated === false
         ) {
@@ -1928,6 +2138,13 @@ export async function pollTask(
 
     while (true) {
 
+        /*
+         * AbortController tetap dihormati.
+         *
+         * Ini berbeda dengan database cancellation.
+         * Abort hanya menghentikan polling browser.
+         */
+
         checkAbort(
             polling.signal
         );
@@ -1995,18 +2212,170 @@ export async function pollTask(
         ) {
 
             /*
-             * Error request status tetap diteruskan.
-             *
-             * Jangan menganggap error sebagai completed.
+             * Jika error membawa informasi cancellation,
+             * jangan meneruskannya sebagai failure.
              */
 
-            throw error;
+            if (
+                isGloballyCancelled(
+                    error
+                ) ||
+                isGloballyCancelled(
+                    error?.details
+                ) ||
+                isGloballyCancelled(
+                    error?.response
+                )
+            ) {
+
+                const cancellationSource =
+                    error?.details ||
+                    error?.response ||
+                    error;
+
+
+                result =
+                    normalizePollingResult(
+                        cancellationSource
+                    );
+
+            } else {
+
+                /*
+                 * Error request status tetap diteruskan.
+                 *
+                 * Jangan menganggap error sebagai completed.
+                 */
+
+                throw error;
+            }
         }
+
+
+        /*
+         * =================================================
+         * NORMALIZE SEKALI LAGI
+         * =================================================
+         *
+         * Memastikan cancellation dari response apa pun
+         * menjadi bentuk terminal yang konsisten.
+         */
+
+        result =
+            normalizePollingResult(
+                result
+            );
 
 
         lastResult =
             result;
 
+
+        /* =================================================
+           CANCELLED
+           -------------------------------------------------
+           Cancellation HARUS diperiksa SEBELUM callback,
+           failed, completed, dan processing.
+        ================================================= */
+
+        if (
+            result.cancelled === true ||
+            result.cancellation === true ||
+            isCancellationState(
+                result.state
+            ) ||
+            isCancellationState(
+                result.provider_state
+            ) ||
+            isCancellationState(
+                result.history_status
+            ) ||
+            isCancellationState(
+                result.history_reason
+            ) ||
+            isGloballyCancelled(
+                result
+            )
+        ) {
+
+            const cancelledResult = {
+
+                ...result,
+
+                state:
+                    "cancelled",
+
+                provider_state:
+                    result.provider_state ||
+                    "cancelled",
+
+                processing:
+                    false,
+
+                completed:
+                    false,
+
+                failed:
+                    false,
+
+                cancelled:
+                    true,
+
+                cancellation:
+                    true,
+
+                history_status:
+                    result.history_status ||
+                    "cancelled",
+
+                history_reason:
+                    result.history_reason ||
+                    "generation_cancelled"
+
+            };
+
+
+            /*
+             * Callback cancellation tetap dikirim SATU KALI.
+             *
+             * Setelah itu langsung return.
+             *
+             * Tidak ada sleep.
+             * Tidak ada continue.
+             * Tidak ada polling berikutnya.
+             */
+
+            if (
+                polling.onUpdate
+            ) {
+
+                try {
+
+                    polling.onUpdate(
+                        cancelledResult
+                    );
+
+                } catch (
+                    callbackError
+                ) {
+
+                    console.warn(
+                        "[GEN-Z.AI] Polling cancellation callback error:",
+                        callbackError
+                    );
+                }
+            }
+
+
+            return cancelledResult;
+        }
+
+
+        /* =================================================
+           CALLBACK UPDATE
+           -------------------------------------------------
+           Hanya status non-cancelled yang sampai ke sini.
+        ================================================= */
 
         if (
             polling.onUpdate
@@ -2036,65 +2405,11 @@ export async function pollTask(
 
 
         /* =================================================
-           CANCELLED
-           -------------------------------------------------
-           Cancellation HARUS diperiksa sebelum failed.
-        ================================================= */
-
-        if (
-            result.cancelled === true ||
-            result.cancellation === true ||
-            isCancellationState(
-                result.state
-            ) ||
-            isCancellationState(
-                result.provider_state
-            ) ||
-            isCancellationState(
-                result.history_status
-            )
-        ) {
-
-            /*
-             * Cancellation adalah terminal state.
-             *
-             * Jangan throw GeneratePollingError karena
-             * generate-app.js dapat menganggap exception
-             * sebagai failure.
-             */
-
-            return {
-
-                ...result,
-
-                state:
-                    "cancelled",
-
-                processing:
-                    false,
-
-                completed:
-                    false,
-
-                failed:
-                    false,
-
-                cancelled:
-                    true,
-
-                cancellation:
-                    true
-
-            };
-        }
-
-
-        /* =================================================
            FAILED
         ================================================= */
 
         if (
-            result.failed
+            result.failed === true
         ) {
 
             throw new GeneratePollingError(
@@ -2122,7 +2437,7 @@ export async function pollTask(
         ================================================= */
 
         if (
-            result.completed
+            result.completed === true
         ) {
 
             const historySynchronized =
