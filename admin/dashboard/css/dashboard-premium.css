@@ -808,48 +808,80 @@ section > h2 {
 
 /* =========================================================
    ACCOUNT LIGHT
+   ---------------------------------------------------------
+   Indikator Generate aktif.
+   Harus selalu berada di atas badge role.
 ========================================================= */
 
 .account-light {
     position: absolute;
 
-    top: 20px;
-    right: 20px;
+    top: 17px;
+    right: 17px;
 
-    width: 7px;
-    height: 7px;
+    width: 9px;
+    height: 9px;
+
+    min-width: 9px;
+    min-height: 9px;
+
+    z-index: 20;
 
     border-radius: 50%;
 
-    background:
-        #464b54;
-}
+    background: #464b54;
 
-.account-light.active {
-    background:
-        var(--gza-green);
+    opacity: 0.65;
 
     box-shadow:
-        0 0 7px var(--gza-green),
-        0 0 15px rgba(40,233,139,0.45);
+        0 0 3px rgba(70,75,84,0.35);
+}
+
+
+.account-light.active {
+    background: #39ff88;
+
+    opacity: 1;
+
+    box-shadow:
+        0 0 5px #39ff88,
+        0 0 12px rgba(57,255,136,0.95),
+        0 0 24px rgba(57,255,136,0.65),
+        0 0 38px rgba(57,255,136,0.30);
 
     animation:
         gzaAccountPulse
-        1.3s
+        1s
+        ease-in-out
         infinite;
 }
 
+
 @keyframes gzaAccountPulse {
+
     0%,
     100% {
         opacity: 1;
+
         transform: scale(1);
+
+        box-shadow:
+            0 0 5px #39ff88,
+            0 0 12px rgba(57,255,136,0.95),
+            0 0 24px rgba(57,255,136,0.65),
+            0 0 38px rgba(57,255,136,0.30);
     }
 
     50% {
-        opacity: 0.35;
-        transform: scale(0.72);
+        opacity: 0.25;
+
+        transform: scale(0.65);
+
+        box-shadow:
+            0 0 2px #39ff88,
+            0 0 5px rgba(57,255,136,0.40);
     }
+
 }
 
 
