@@ -78,6 +78,8 @@
 import grokImagineImageToVideo
     from "../models/grok-imagine-image-to-video/index.js";
 
+import seedance25
+    from "../models/seedance-2-5/index.js";
 
 /* =========================================================
    MODEL REGISTRY
@@ -85,7 +87,9 @@ import grokImagineImageToVideo
 
 const MODEL_REGISTRY = Object.freeze([
 
-    grokImagineImageToVideo
+    grokImagineImageToVideo,
+   
+    seedance25
 
 ]);
 
