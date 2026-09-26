@@ -3040,6 +3040,18 @@ async function renderForm(
     const formModule =
         appState.modules.form;
 
+   const seedanceModule =
+    appState.modules.seedance;
+
+const modelId =
+    getModelId(
+        model
+    );
+
+const isSeedance =
+    modelId ===
+    "bytedance/seedance-2-5";
+
     if (
         !elements.dynamicFields
     ) {
@@ -3120,18 +3132,34 @@ if (
 
 }
 
+if (
+    isSeedance
+) {
+
+    if (
+        !seedanceModule ||
+        typeof seedanceModule.renderSeedanceForm !==
+            "function"
+    ) {
+
+        throw new Error(
+            "generate-seedance.js tidak tersedia."
+        );
+
+    }
+
+    await seedanceModule.renderSeedanceForm(
+        model
+    );
+
+}
+
 else if (
     typeof formModule.renderGenerateForm ===
     "function"
 ) {
 
-    /*
-     * Semua model selain Seedance
-     * tetap memakai form lama.
-     */
-    await formModule.renderGenerateForm(
-        model
-    );
+    await formModule.renderGenerateForm();
 
 }
 
