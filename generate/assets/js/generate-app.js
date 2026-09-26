@@ -5281,6 +5281,31 @@ hideLoading();
             errorMessage
         );
 
+       if (
+    window.GENZGenerateCancellation?.isGenerateCancelled?.(
+        error
+    )
+) {
+
+    const cancelledResult =
+        window.GENZGenerateCancellation
+            .normalizeGenerateCancellation(
+                error
+            );
+
+    setGenerateStatus(
+        "cancelled",
+        cancelledResult.message ||
+            "Generate dibatalkan."
+    );
+
+    appState.generationInProgress =
+        false;
+
+    return cancelledResult;
+
+}
+
        setGenerateStatus(
     "failed",
     errorMessage
