@@ -4101,7 +4101,7 @@ export default async function handler(
                         false,
 
                     failed:
-                        true,
+                        false,
 
                     has_result:
                         Boolean(
