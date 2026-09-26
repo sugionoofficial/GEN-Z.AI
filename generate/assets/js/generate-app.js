@@ -4567,6 +4567,24 @@ function isPollingFailed(
     value
 ) {
 
+    /*
+     * CANCELLED BUKAN FAILED.
+     * Cancellation memiliki status terminal sendiri.
+     */
+
+    if (
+        window
+            .GENZGenerateCancellation
+            ?.isGenerateCancelled?.(
+                value
+            )
+    ) {
+
+        return false;
+
+    }
+
+
     if (
         value?.failed === true
     ) {
@@ -4575,10 +4593,12 @@ function isPollingFailed(
 
     }
 
+
     const state =
         getPollingState(
             value
         );
+
 
     return [
 
@@ -4589,10 +4609,6 @@ function isPollingFailed(
         "failure",
 
         "error",
-
-        "cancelled",
-
-        "canceled",
 
         "rejected",
 
