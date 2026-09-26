@@ -1052,7 +1052,7 @@
 
             {
                 label: "Dashboard",
-                href: "/admin/dashboard.html",
+                href: "/admin/dashboard/index.html",
                 icon: "🥇 "
             },
 
