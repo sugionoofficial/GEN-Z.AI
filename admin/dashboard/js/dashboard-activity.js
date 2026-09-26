@@ -10,6 +10,7 @@
    - Indikator aktif / running
    - Refresh otomatis
    - Menyimpan state aktivitas
+   - Melindungi state dari race condition refresh
 
    Tidak menangani:
    - Auth/session
@@ -47,7 +48,25 @@
 
             refreshInterval: 5000,
 
-            lastLoadedAt: null
+            lastLoadedAt: null,
+
+            /*
+             * Setiap load mendapat nomor request.
+             *
+             * Response lama tidak boleh menimpa
+             * response yang lebih baru.
+             */
+            requestSequence: 0,
+
+            /*
+             * Digunakan ketika ada perubahan lokal
+             * seperti Cancel Generate.
+             *
+             * Request yang sudah dimulai sebelum
+             * perubahan lokal tidak boleh menimpa
+             * state terbaru.
+             */
+            stateRevision: 0
 
         },
 
@@ -80,9 +99,13 @@
             "failed",
             "failure",
             "error",
-            "cancelled",
-            "canceled",
             "rejected"
+        ],
+
+
+        CANCELLED_STATUSES: [
+            "cancelled",
+            "canceled"
         ],
 
 
@@ -106,6 +129,7 @@
 
 
             return auth;
+
         },
 
 
@@ -143,7 +167,9 @@
 
 
             return this.RUNNING_STATUSES
-                .includes(normalized);
+                .includes(
+                    normalized
+                );
 
         },
 
@@ -157,7 +183,25 @@
 
 
             return this.SUCCESS_STATUSES
-                .includes(normalized);
+                .includes(
+                    normalized
+                );
+
+        },
+
+
+        isCancelledStatus(status) {
+
+            const normalized =
+                this.normalizeStatus(
+                    status
+                );
+
+
+            return this.CANCELLED_STATUSES
+                .includes(
+                    normalized
+                );
 
         },
 
@@ -171,7 +215,76 @@
 
 
             return this.FAILED_STATUSES
-                .includes(normalized);
+                .includes(
+                    normalized
+                );
+
+        },
+
+
+        /* =====================================================
+           REQUEST CONTROL
+        ===================================================== */
+
+        createRequestToken() {
+
+            this.state.requestSequence += 1;
+
+
+            return {
+
+                sequence:
+                    this.state.requestSequence,
+
+                revision:
+                    this.state.stateRevision
+
+            };
+
+        },
+
+
+        isRequestCurrent(token) {
+
+            if (!token) {
+                return false;
+            }
+
+
+            return (
+                token.sequence ===
+                this.state.requestSequence
+            ) && (
+                token.revision ===
+                this.state.stateRevision
+            );
+
+        },
+
+
+        invalidatePendingRequests() {
+
+            /*
+             * Naikkan revision agar seluruh request
+             * yang sedang berjalan menjadi stale.
+             */
+
+            this.state.stateRevision += 1;
+
+
+            /*
+             * Naikkan sequence juga supaya request
+             * lama tidak pernah dianggap terbaru.
+             */
+
+            this.state.requestSequence += 1;
+
+        },
+
+
+        markLocalStateChanged() {
+
+            this.state.stateRevision += 1;
 
         },
 
@@ -296,9 +409,10 @@
            LOAD PROFILES
         ===================================================== */
 
-        async loadProfiles() {
+        async loadProfiles(client = null) {
 
-            const client =
+            const supabase =
+                client ||
                 this.getClient();
 
 
@@ -306,7 +420,7 @@
                 data,
                 error
             } =
-                await client
+                await supabase
                     .from("profiles")
                     .select(
                         "id,name,email,role,credits,status"
@@ -324,13 +438,9 @@
             }
 
 
-            this.state.profiles =
-                Array.isArray(data)
-                    ? data
-                    : [];
-
-
-            return this.state.profiles;
+            return Array.isArray(data)
+                ? data
+                : [];
 
         },
 
@@ -339,9 +449,10 @@
            LOAD GENERATION HISTORY
         ===================================================== */
 
-        async loadHistory() {
+        async loadHistory(client = null) {
 
-            const client =
+            const supabase =
+                client ||
                 this.getClient();
 
 
@@ -349,7 +460,7 @@
                 data,
                 error
             } =
-                await client
+                await supabase
                     .from("generation_history")
                     .select("*")
                     .order(
@@ -365,13 +476,9 @@
             }
 
 
-            this.state.history =
-                Array.isArray(data)
-                    ? data
-                    : [];
-
-
-            return this.state.history;
+            return Array.isArray(data)
+                ? data
+                : [];
 
         },
 
@@ -384,6 +491,18 @@
 
             const silent =
                 options.silent === true;
+
+
+            /*
+             * Setiap load mendapatkan token unik.
+             *
+             * Jika ada refresh baru sebelum request
+             * lama selesai, request lama tidak boleh
+             * menulis state.
+             */
+
+            const requestToken =
+                this.createRequestToken();
 
 
             if (
@@ -436,16 +555,71 @@
                 }
 
 
+                const client =
+                    this.getClient();
+
+
                 /*
                  * Profiles dan history tidak
-                 * saling bergantung sehingga
-                 * dibaca bersamaan.
+                 * saling bergantung.
+                 *
+                 * Ambil bersamaan.
                  */
 
-                await Promise.all([
-                    this.loadProfiles(),
-                    this.loadHistory()
-                ]);
+                const [
+                    profiles,
+                    history
+                ] =
+                    await Promise.all([
+                        this.loadProfiles(
+                            client
+                        ),
+                        this.loadHistory(
+                            client
+                        )
+                    ]);
+
+
+                /*
+                 * REQUEST SEQUENCE GUARD
+                 *
+                 * Jika selama request berlangsung
+                 * ada Cancel Generate atau refresh
+                 * baru, response ini dianggap stale.
+                 */
+
+                if (
+                    !this.isRequestCurrent(
+                        requestToken
+                    )
+                ) {
+
+                    return {
+
+                        stale: true,
+
+                        profiles:
+                            this.state.profiles,
+
+                        history:
+                            this.state.history
+
+                    };
+
+                }
+
+
+                /*
+                 * Hanya response terbaru yang
+                 * boleh menulis state.
+                 */
+
+                this.state.profiles =
+                    profiles;
+
+
+                this.state.history =
+                    history;
 
 
                 this.state.lastLoadedAt =
@@ -465,12 +639,40 @@
                         this.state.profiles,
 
                     history:
-                        this.state.history
+                        this.state.history,
+
+                    stale: false
 
                 };
 
 
             } catch (error) {
+
+                /*
+                 * Jangan menampilkan error dari request
+                 * yang sudah tidak relevan.
+                 */
+
+                if (
+                    !this.isRequestCurrent(
+                        requestToken
+                    )
+                ) {
+
+                    return {
+
+                        stale: true,
+
+                        profiles:
+                            this.state.profiles,
+
+                        history:
+                            this.state.history
+
+                    };
+
+                }
+
 
                 console.error(
                     "[GENZ Dashboard Activity]",
@@ -519,6 +721,9 @@
                         /*
                          * Struktur utama biasanya
                          * user_id.
+                         *
+                         * Fallback tetap dipertahankan
+                         * untuk kompatibilitas data lama.
                          */
 
                         const historyUserId =
@@ -546,7 +751,9 @@
         getUserActiveGenerations(userId) {
 
             return this
-                .getUserHistory(userId)
+                .getUserHistory(
+                    userId
+                )
                 .filter(
                     item =>
                         this.isRunningStatus(
@@ -610,6 +817,7 @@
 
             container.innerHTML = `
                 <div class="activity-empty">
+
                     <div class="activity-empty-icon">
                         ◌
                     </div>
@@ -622,6 +830,7 @@
                         Aktivitas generate akan muncul
                         di sini secara otomatis.
                     </div>
+
                 </div>
             `;
 
@@ -892,9 +1101,11 @@
                     container
                 );
 
+
                 this.updateLiveIndicator(
                     false
                 );
+
 
                 return;
 
@@ -1044,8 +1255,8 @@
 
             /*
              * Event delegation.
-             * Tidak memasang listener satu per satu
-             * ke setiap card.
+             *
+             * Listener hanya dipasang satu kali.
              */
 
             if (
@@ -1091,7 +1302,7 @@
 
 
                     /*
-                     * Modal akan ditangani
+                     * Modal ditangani
                      * dashboard-modal.js.
                      */
 
@@ -1269,6 +1480,87 @@
 
 
         /* =====================================================
+           MARK LOCAL CANCEL
+        ===================================================== */
+
+        markGenerationCancelled(
+            generationId,
+            userId
+        ) {
+
+            if (!generationId) {
+                return false;
+            }
+
+
+            /*
+             * Batalkan request lama yang masih
+             * mungkin sedang berjalan.
+             */
+
+            this.invalidatePendingRequests();
+
+
+            const historyItem =
+                this.state.history
+                    .find(
+                        item => {
+
+                            const itemId =
+                                String(
+                                    item?.id ||
+                                    ""
+                                );
+
+
+                            const itemUserId =
+                                item?.user_id ||
+                                item?.profile_id ||
+                                item?.owner_id;
+
+
+                            return (
+                                itemId ===
+                                String(
+                                    generationId
+                                )
+                            ) && (
+                                !userId ||
+                                String(
+                                    itemUserId || ""
+                                ) ===
+                                String(
+                                    userId
+                                )
+                            );
+
+                        }
+                    );
+
+
+            if (!historyItem) {
+
+                return false;
+
+            }
+
+
+            historyItem.status =
+                "cancelled";
+
+
+            this.markLocalStateChanged();
+
+
+            this.render();
+
+
+            return true;
+
+        },
+
+
+        /* =====================================================
            INIT
         ===================================================== */
 
@@ -1318,7 +1610,18 @@
             this.stopAutoRefresh();
 
 
+            this.invalidatePendingRequests();
+
+
             this.state.initialized =
+                false;
+
+
+            this.state.loading =
+                false;
+
+
+            this.state.refreshing =
                 false;
 
 
@@ -1331,6 +1634,10 @@
 
 
             this.state.selectedUserId =
+                null;
+
+
+            this.state.lastLoadedAt =
                 null;
 
         }
