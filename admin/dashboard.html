@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>GEN-Z.AI — Admin Dashboard</title>
 
     <style>
@@ -13,35 +14,35 @@
         }
 
         :root {
-            --bg: #f4f4f4;
-            --bg-soft: #e9e9e9;
+            --bg: #050505;
+            --bg-soft: #0b0b0b;
 
-            --card: rgba(255,255,255,0.96);
-            --card-soft: rgba(250,250,250,0.94);
+            --card: rgba(16,16,16,.96);
+            --card-soft: rgba(20,20,20,.94);
 
-            --border: rgba(255,23,68,0.35);
+            --border: rgba(255,145,0,.38);
 
-            --text: #171717;
-            --text-strong: #0b0b0b;
-            --muted: #666b73;
-            --muted-light: #858990;
+            --text: #eeeeee;
+            --text-strong: #ffffff;
+            --muted: #9b9b9b;
+            --muted-light: #737373;
 
-            --accent: #ff1744;
-            --accent-2: #ff4567;
-            --accent-dark: #d9002f;
+            --accent: #ff8a00;
+            --accent-2: #ffb52e;
+            --accent-dark: #e66f00;
 
-            --success: #0b9f5b;
-            --warning: #d88600;
-            --danger: #e11d48;
+            --success: #19c878;
+            --warning: #ffad1f;
+            --danger: #ff3b30;
 
-            --red-glow:
-                0 0 8px rgba(255,23,68,.45),
-                0 0 18px rgba(255,23,68,.22);
+            --orange-glow:
+                0 0 8px rgba(255,138,0,.50),
+                0 0 18px rgba(255,138,0,.25);
 
-            --red-glow-strong:
-                0 0 8px rgba(255,23,68,.60),
-                0 0 22px rgba(255,23,68,.35),
-                0 0 45px rgba(255,23,68,.14);
+            --orange-glow-strong:
+                0 0 8px rgba(255,138,0,.70),
+                0 0 22px rgba(255,138,0,.40),
+                0 0 45px rgba(255,138,0,.18);
         }
 
         html {
@@ -49,10 +50,9 @@
             background:
                 linear-gradient(
                     135deg,
-                    #ffffff 0%,
-                    #f3f3f3 38%,
-                    #e5e5e5 72%,
-                    #f8f8f8 100%
+                    #050505 0%,
+                    #0a0a0a 45%,
+                    #050505 100%
                 );
         }
 
@@ -62,24 +62,24 @@
             background:
                 radial-gradient(
                     circle at 8% 8%,
-                    rgba(255,23,68,.08),
+                    rgba(255,138,0,.09),
                     transparent 25%
                 ),
                 radial-gradient(
                     circle at 92% 18%,
-                    rgba(255,23,68,.055),
+                    rgba(255,138,0,.065),
                     transparent 24%
                 ),
                 radial-gradient(
                     circle at 50% 100%,
-                    rgba(0,0,0,.045),
+                    rgba(255,138,0,.035),
                     transparent 38%
                 ),
                 linear-gradient(
                     135deg,
-                    #ffffff 0%,
-                    #f1f1f1 45%,
-                    #dedede 100%
+                    #050505 0%,
+                    #101010 45%,
+                    #050505 100%
                 );
 
             color: var(--text);
@@ -87,7 +87,6 @@
             overflow-x: hidden;
         }
 
-        
         /* =========================================================
            MAIN
         ========================================================= */
@@ -114,7 +113,7 @@
             font-weight: 800;
 
             text-shadow:
-                0 0 7px rgba(255,23,68,.35);
+                0 0 7px rgba(255,138,0,.45);
         }
 
         h1 {
@@ -124,7 +123,7 @@
             line-height: 1;
 
             text-shadow:
-                0 1px 0 rgba(255,255,255,.8);
+                0 0 15px rgba(255,138,0,.10);
         }
 
         .subtitle {
@@ -135,21 +134,25 @@
 
         .role-badge {
             border: 1px solid var(--accent);
+
             background:
                 linear-gradient(
                     135deg,
-                    rgba(255,23,68,.10),
-                    rgba(255,255,255,.9)
+                    rgba(255,138,0,.14),
+                    rgba(20,20,20,.92)
                 );
-            color: var(--accent-dark);
+
+            color: var(--accent);
+
             padding: 9px 14px;
             border-radius: 100px;
+
             font-size: 12px;
             font-weight: 800;
 
             box-shadow:
-                0 0 7px rgba(255,23,68,.30),
-                0 0 18px rgba(255,23,68,.12);
+                0 0 7px rgba(255,138,0,.40),
+                0 0 18px rgba(255,138,0,.16);
         }
 
         /* =========================================================
@@ -163,27 +166,30 @@
             background:
                 linear-gradient(
                     135deg,
-                    rgba(255,255,255,.98),
-                    rgba(239,239,239,.96)
+                    rgba(20,20,20,.98),
+                    rgba(9,9,9,.96)
                 );
 
             border: 1px solid var(--accent);
             border-radius: 24px;
+
             padding: 27px;
             margin-bottom: 25px;
 
             box-shadow:
-                0 14px 35px rgba(0,0,0,.10),
-                0 0 8px rgba(255,23,68,.45),
-                0 0 22px rgba(255,23,68,.18),
-                inset 0 1px 0 rgba(255,255,255,1);
+                0 14px 35px rgba(0,0,0,.45),
+                0 0 8px rgba(255,138,0,.48),
+                0 0 22px rgba(255,138,0,.18),
+                inset 0 1px 0 rgba(255,255,255,.04);
         }
 
         .hero::before {
             content: "";
             position: absolute;
+
             left: 0;
             top: 0;
+
             width: 100%;
             height: 2px;
 
@@ -198,23 +204,28 @@
                 );
 
             box-shadow:
-                0 0 10px rgba(255,23,68,.75),
-                0 0 25px rgba(255,23,68,.35);
+                0 0 10px rgba(255,138,0,.75),
+                0 0 25px rgba(255,138,0,.35);
         }
 
         .hero::after {
             content: "";
+
             position: absolute;
+
             width: 280px;
             height: 280px;
+
             border-radius: 50%;
 
             background:
-                rgba(255,23,68,.075);
+                rgba(255,138,0,.075);
 
             filter: blur(70px);
+
             right: -100px;
             top: -130px;
+
             pointer-events: none;
         }
 
@@ -223,6 +234,7 @@
             justify-content: space-between;
             align-items: center;
             gap: 20px;
+
             position: relative;
             z-index: 1;
         }
@@ -230,22 +242,25 @@
         .system-status {
             display: flex;
             align-items: center;
+
             gap: 10px;
+
             font-size: 13px;
-            color: #242424;
+            color: #eeeeee;
             font-weight: 650;
         }
 
         .status-dot {
             width: 9px;
             height: 9px;
+
             border-radius: 50%;
 
             background: var(--success);
 
             box-shadow:
-                0 0 8px rgba(11,159,91,.75),
-                0 0 18px rgba(11,159,91,.35);
+                0 0 8px rgba(25,200,120,.75),
+                0 0 18px rgba(25,200,120,.35);
         }
 
         .version {
@@ -259,14 +274,18 @@
 
         .section-title {
             font-size: 13px;
+
             text-transform: uppercase;
             letter-spacing: 1.4px;
-            color: var(--accent-dark);
+
+            color: var(--accent);
+
             margin: 30px 0 14px;
+
             font-weight: 800;
 
             text-shadow:
-                0 0 6px rgba(255,23,68,.20);
+                0 0 6px rgba(255,138,0,.25);
         }
 
         /* =========================================================
@@ -275,7 +294,10 @@
 
         .stats {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+
+            grid-template-columns:
+                repeat(4, 1fr);
+
             gap: 15px;
         }
 
@@ -286,20 +308,23 @@
             background:
                 linear-gradient(
                     145deg,
-                    rgba(255,255,255,.98),
-                    rgba(239,239,239,.96)
+                    rgba(22,22,22,.98),
+                    rgba(10,10,10,.96)
                 );
 
             border: 1px solid var(--accent);
+
             border-radius: 19px;
+
             padding: 21px;
+
             min-height: 125px;
 
             box-shadow:
-                0 12px 30px rgba(0,0,0,.09),
-                0 0 7px rgba(255,23,68,.42),
-                0 0 18px rgba(255,23,68,.16),
-                inset 0 1px 0 rgba(255,255,255,1);
+                0 12px 30px rgba(0,0,0,.40),
+                0 0 7px rgba(255,138,0,.40),
+                0 0 18px rgba(255,138,0,.15),
+                inset 0 1px 0 rgba(255,255,255,.04);
 
             transition:
                 transform .25s ease,
@@ -309,9 +334,12 @@
 
         .stat-card::before {
             content: "";
+
             position: absolute;
+
             left: 0;
             top: 0;
+
             width: 100%;
             height: 2px;
 
@@ -324,7 +352,7 @@
                 );
 
             box-shadow:
-                0 0 10px rgba(255,23,68,.55);
+                0 0 10px rgba(255,138,0,.55);
         }
 
         .stat-card:hover {
@@ -333,29 +361,35 @@
             border-color: var(--accent);
 
             box-shadow:
-                0 18px 40px rgba(0,0,0,.13),
-                0 0 10px rgba(255,23,68,.60),
-                0 0 28px rgba(255,23,68,.25),
-                inset 0 1px 0 rgba(255,255,255,1);
+                0 18px 40px rgba(0,0,0,.55),
+                0 0 10px rgba(255,138,0,.60),
+                0 0 28px rgba(255,138,0,.25),
+                inset 0 1px 0 rgba(255,255,255,.05);
         }
 
         .stat-label {
             color: var(--muted);
+
             font-size: 12px;
             font-weight: 600;
         }
 
         .stat-value {
             color: var(--text-strong);
+
             font-size: 28px;
             font-weight: 800;
+
             margin-top: 13px;
+
             letter-spacing: -.7px;
         }
 
         .stat-note {
             color: var(--muted-light);
+
             font-size: 11px;
+
             margin-top: 7px;
         }
 
@@ -365,7 +399,10 @@
 
         .progress-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+
+            grid-template-columns:
+                repeat(3, 1fr);
+
             gap: 15px;
         }
 
@@ -376,19 +413,21 @@
             background:
                 linear-gradient(
                     145deg,
-                    rgba(255,255,255,.98),
-                    rgba(238,238,238,.95)
+                    rgba(22,22,22,.98),
+                    rgba(10,10,10,.95)
                 );
 
             border: 1px solid var(--accent);
+
             border-radius: 19px;
+
             padding: 20px;
 
             box-shadow:
-                0 12px 30px rgba(0,0,0,.08),
-                0 0 7px rgba(255,23,68,.40),
-                0 0 18px rgba(255,23,68,.14),
-                inset 0 1px 0 rgba(255,255,255,1);
+                0 12px 30px rgba(0,0,0,.40),
+                0 0 7px rgba(255,138,0,.38),
+                0 0 18px rgba(255,138,0,.14),
+                inset 0 1px 0 rgba(255,255,255,.04);
 
             transition:
                 transform .25s ease,
@@ -397,9 +436,12 @@
 
         .module::before {
             content: "";
+
             position: absolute;
+
             left: 0;
             top: 0;
+
             width: 100%;
             height: 2px;
 
@@ -413,59 +455,78 @@
                 );
 
             box-shadow:
-                0 0 10px rgba(255,23,68,.50);
+                0 0 10px rgba(255,138,0,.50);
         }
 
         .module:hover {
             transform: translateY(-2px);
 
             box-shadow:
-                0 17px 38px rgba(0,0,0,.12),
-                0 0 9px rgba(255,23,68,.58),
-                0 0 25px rgba(255,23,68,.22),
-                inset 0 1px 0 rgba(255,255,255,1);
+                0 17px 38px rgba(0,0,0,.50),
+                0 0 9px rgba(255,138,0,.58),
+                0 0 25px rgba(255,138,0,.22),
+                inset 0 1px 0 rgba(255,255,255,.05);
         }
 
         .module-head {
             display: flex;
             justify-content: space-between;
+
             gap: 10px;
+
             align-items: center;
         }
 
         .module-name {
             color: var(--text-strong);
+
             font-size: 14px;
             font-weight: 700;
         }
 
         .module-status {
             font-size: 10px;
+
             padding: 5px 8px;
+
             border-radius: 100px;
+
             font-weight: 800;
+
             text-transform: uppercase;
         }
 
         .ready {
-            color: #087b47;
-            background: rgba(11,159,91,.10);
-            border: 1px solid rgba(11,159,91,.22);
+            color: #22d98b;
+
+            background:
+                rgba(25,200,120,.09);
+
+            border:
+                1px solid rgba(25,200,120,.25);
         }
 
         .active-status {
-            color: var(--accent-dark);
-            background: rgba(255,23,68,.08);
-            border: 1px solid rgba(255,23,68,.22);
+            color: var(--accent);
+
+            background:
+                rgba(255,138,0,.08);
+
+            border:
+                1px solid rgba(255,138,0,.25);
 
             box-shadow:
-                0 0 8px rgba(255,23,68,.12);
+                0 0 8px rgba(255,138,0,.12);
         }
 
         .pending {
-            color: #9a6200;
-            background: rgba(216,134,0,.10);
-            border: 1px solid rgba(216,134,0,.20);
+            color: var(--warning);
+
+            background:
+                rgba(255,173,31,.10);
+
+            border:
+                1px solid rgba(255,173,31,.20);
         }
 
         .bar {
@@ -474,19 +535,25 @@
             background:
                 linear-gradient(
                     90deg,
-                    #d8d8d8,
-                    #eeeeee
+                    #1c1c1c,
+                    #292929
                 );
 
-            border: 1px solid rgba(255,23,68,.16);
+            border:
+                1px solid rgba(255,138,0,.18);
+
             border-radius: 20px;
+
             overflow: hidden;
+
             margin-top: 18px;
         }
 
         .bar span {
             display: block;
+
             height: 100%;
+
             border-radius: inherit;
 
             background:
@@ -498,15 +565,18 @@
                 );
 
             box-shadow:
-                0 0 8px rgba(255,23,68,.65),
-                0 0 18px rgba(255,23,68,.35);
+                0 0 8px rgba(255,138,0,.65),
+                0 0 18px rgba(255,138,0,.35);
         }
 
         .module-footer {
             display: flex;
             justify-content: space-between;
+
             color: var(--muted);
+
             font-size: 11px;
+
             margin-top: 9px;
         }
 
@@ -516,7 +586,10 @@
 
         .columns {
             display: grid;
-            grid-template-columns: 1.35fr .65fr;
+
+            grid-template-columns:
+                1.35fr .65fr;
+
             gap: 15px;
         }
 
@@ -527,26 +600,31 @@
             background:
                 linear-gradient(
                     145deg,
-                    rgba(255,255,255,.98),
-                    rgba(237,237,237,.96)
+                    rgba(22,22,22,.98),
+                    rgba(10,10,10,.96)
                 );
 
             border: 1px solid var(--accent);
+
             border-radius: 20px;
+
             padding: 22px;
 
             box-shadow:
-                0 12px 30px rgba(0,0,0,.09),
-                0 0 8px rgba(255,23,68,.42),
-                0 0 20px rgba(255,23,68,.15),
-                inset 0 1px 0 rgba(255,255,255,1);
+                0 12px 30px rgba(0,0,0,.42),
+                0 0 8px rgba(255,138,0,.42),
+                0 0 20px rgba(255,138,0,.15),
+                inset 0 1px 0 rgba(255,255,255,.04);
         }
 
         .panel::before {
             content: "";
+
             position: absolute;
+
             left: 0;
             top: 0;
+
             width: 100%;
             height: 2px;
 
@@ -561,25 +639,28 @@
                 );
 
             box-shadow:
-                0 0 10px rgba(255,23,68,.55);
+                0 0 10px rgba(255,138,0,.55);
         }
 
         .panel-title {
             color: var(--text-strong);
+
             font-size: 15px;
             font-weight: 750;
+
             margin-bottom: 20px;
         }
 
         .info-row {
             display: flex;
             justify-content: space-between;
+
             gap: 20px;
 
             padding: 13px 0;
 
             border-bottom:
-                1px solid rgba(255,23,68,.14);
+                1px solid rgba(255,138,0,.13);
 
             font-size: 13px;
         }
@@ -593,15 +674,453 @@
         }
 
         .info-value {
-            color: #262626;
+            color: #eeeeee;
+
             font-weight: 650;
+
             text-align: right;
+
+            word-break: break-word;
         }
 
         .online {
             color: var(--success);
+
             text-shadow:
-                0 0 6px rgba(11,159,91,.18);
+                0 0 6px rgba(25,200,120,.20);
+        }
+
+        /* =========================================================
+           ACCOUNT PANEL CLICKABLE
+        ========================================================= */
+
+        .account-panel {
+            cursor: pointer;
+
+            transition:
+                transform .25s ease,
+                box-shadow .25s ease,
+                border-color .25s ease;
+        }
+
+        .account-panel:hover {
+            transform: translateY(-3px);
+
+            border-color: var(--accent);
+
+            box-shadow:
+                0 18px 42px rgba(0,0,0,.55),
+                0 0 12px rgba(255,138,0,.65),
+                0 0 30px rgba(255,138,0,.24),
+                inset 0 1px 0 rgba(255,255,255,.05);
+        }
+
+        .account-panel-hint {
+            margin-top: 17px;
+
+            padding: 10px 12px;
+
+            border-radius: 10px;
+
+            border:
+                1px solid rgba(255,138,0,.22);
+
+            background:
+                rgba(255,138,0,.05);
+
+            color: var(--accent);
+
+            font-size: 11px;
+
+            text-align: center;
+        }
+
+        /* =========================================================
+           ACTIVITY MODAL
+        ========================================================= */
+
+        .activity-backdrop {
+            position: fixed;
+
+            inset: 0;
+
+            z-index: 9999;
+
+            display: none;
+
+            align-items: center;
+            justify-content: center;
+
+            padding: 20px;
+
+            background:
+                rgba(0,0,0,.78);
+
+            backdrop-filter:
+                blur(10px);
+
+            -webkit-backdrop-filter:
+                blur(10px);
+        }
+
+        .activity-backdrop.open {
+            display: flex;
+        }
+
+        .activity-modal {
+            width: min(1050px, 100%);
+
+            max-height: min(850px, 92vh);
+
+            overflow: hidden;
+
+            display: flex;
+            flex-direction: column;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(21,21,21,.99),
+                    rgba(7,7,7,.99)
+                );
+
+            border:
+                1px solid var(--accent);
+
+            border-radius: 22px;
+
+            box-shadow:
+                0 25px 80px rgba(0,0,0,.75),
+                0 0 12px rgba(255,138,0,.65),
+                0 0 40px rgba(255,138,0,.22);
+        }
+
+        .activity-header {
+            display: flex;
+
+            justify-content: space-between;
+            align-items: flex-start;
+
+            gap: 20px;
+
+            padding: 22px;
+
+            border-bottom:
+                1px solid rgba(255,138,0,.18);
+        }
+
+        .activity-title {
+            color: var(--text-strong);
+
+            font-size: 20px;
+
+            font-weight: 800;
+        }
+
+        .activity-subtitle {
+            color: var(--muted);
+
+            font-size: 12px;
+
+            margin-top: 5px;
+        }
+
+        .activity-close {
+            width: 36px;
+            height: 36px;
+
+            border-radius: 50%;
+
+            border:
+                1px solid rgba(255,138,0,.45);
+
+            background:
+                rgba(255,138,0,.07);
+
+            color: var(--accent);
+
+            cursor: pointer;
+
+            font-size: 20px;
+
+            line-height: 1;
+
+            transition:
+                .2s ease;
+        }
+
+        .activity-close:hover {
+            background:
+                rgba(255,138,0,.16);
+
+            box-shadow:
+                var(--orange-glow);
+        }
+
+        .activity-summary {
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, 1fr);
+
+            gap: 10px;
+
+            padding: 18px 22px;
+
+            border-bottom:
+                1px solid rgba(255,138,0,.14);
+        }
+
+        .activity-stat {
+            padding: 14px;
+
+            border-radius: 13px;
+
+            background:
+                rgba(255,255,255,.025);
+
+            border:
+                1px solid rgba(255,138,0,.17);
+        }
+
+        .activity-stat-label {
+            color: var(--muted);
+
+            font-size: 10px;
+
+            text-transform: uppercase;
+
+            letter-spacing: .8px;
+        }
+
+        .activity-stat-value {
+            color: var(--text-strong);
+
+            font-size: 23px;
+
+            font-weight: 800;
+
+            margin-top: 6px;
+        }
+
+        .activity-stat.processing
+        .activity-stat-value {
+            color: var(--accent);
+        }
+
+        .activity-list {
+            overflow-y: auto;
+
+            padding: 16px 22px 22px;
+        }
+
+        .activity-item {
+            display: grid;
+
+            grid-template-columns:
+                1fr auto;
+
+            gap: 15px;
+
+            padding: 15px;
+
+            margin-bottom: 10px;
+
+            border:
+                1px solid rgba(255,138,0,.15);
+
+            border-radius: 14px;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,.025),
+                    rgba(255,255,255,.012)
+                );
+        }
+
+        .activity-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .activity-main {
+            min-width: 0;
+        }
+
+        .activity-model {
+            color: var(--text-strong);
+
+            font-size: 14px;
+
+            font-weight: 750;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+
+            white-space: nowrap;
+        }
+
+        .activity-meta {
+            display: flex;
+
+            flex-wrap: wrap;
+
+            gap: 7px 15px;
+
+            margin-top: 7px;
+
+            color: var(--muted);
+
+            font-size: 10px;
+        }
+
+        .activity-id {
+            color: var(--muted-light);
+
+            word-break: break-all;
+        }
+
+        .activity-side {
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: flex-end;
+
+            justify-content: center;
+
+            gap: 8px;
+        }
+
+        .activity-status {
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            min-width: 82px;
+
+            padding: 6px 9px;
+
+            border-radius: 100px;
+
+            font-size: 10px;
+
+            font-weight: 800;
+
+            text-transform: uppercase;
+        }
+
+        .status-success {
+            color: #22d98b;
+
+            background:
+                rgba(25,200,120,.09);
+
+            border:
+                1px solid rgba(25,200,120,.25);
+        }
+
+        .status-failed {
+            color: #ff5c52;
+
+            background:
+                rgba(255,59,48,.08);
+
+            border:
+                1px solid rgba(255,59,48,.25);
+        }
+
+        .status-processing {
+            color: var(--accent);
+
+            background:
+                rgba(255,138,0,.08);
+
+            border:
+                1px solid rgba(255,138,0,.28);
+
+            box-shadow:
+                0 0 8px rgba(255,138,0,.13);
+        }
+
+        .status-cancelled {
+            color: #aaa;
+
+            background:
+                rgba(150,150,150,.08);
+
+            border:
+                1px solid rgba(150,150,150,.20);
+        }
+
+        .cancel-button {
+            border:
+                1px solid rgba(255,59,48,.45);
+
+            background:
+                rgba(255,59,48,.07);
+
+            color: #ff665d;
+
+            border-radius: 8px;
+
+            padding: 6px 10px;
+
+            font-size: 10px;
+
+            font-weight: 800;
+
+            cursor: pointer;
+
+            transition:
+                .2s ease;
+        }
+
+        .cancel-button:hover {
+            background:
+                rgba(255,59,48,.15);
+
+            box-shadow:
+                0 0 10px rgba(255,59,48,.18);
+        }
+
+        .cancel-button:disabled {
+            opacity: .55;
+
+            cursor: wait;
+        }
+
+        .activity-empty {
+            padding: 50px 20px;
+
+            text-align: center;
+
+            color: var(--muted);
+
+            font-size: 13px;
+        }
+
+        .activity-loading {
+            padding: 45px 20px;
+
+            text-align: center;
+
+            color: var(--accent);
+
+            font-size: 13px;
+        }
+
+        .activity-error {
+            padding: 25px;
+
+            text-align: center;
+
+            color: #ff665d;
+
+            font-size: 12px;
         }
 
         /* =========================================================
@@ -610,8 +1129,11 @@
 
         .footer {
             text-align: center;
-            color: #777b82;
+
+            color: #666;
+
             font-size: 11px;
+
             padding-top: 35px;
         }
 
@@ -622,11 +1144,13 @@
         @media (max-width: 1050px) {
 
             .stats {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns:
+                    repeat(2, 1fr);
             }
 
             .progress-grid {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns:
+                    repeat(2, 1fr);
             }
 
             .columns {
@@ -642,6 +1166,7 @@
 
             .header {
                 align-items: flex-start;
+
                 flex-direction: column;
             }
 
@@ -656,6 +1181,7 @@
 
             .hero-top {
                 align-items: flex-start;
+
                 flex-direction: column;
             }
 
@@ -666,6 +1192,33 @@
             .info-row {
                 gap: 10px;
             }
+
+            .activity-summary {
+                grid-template-columns:
+                    repeat(2, 1fr);
+
+                padding: 15px;
+            }
+
+            .activity-list {
+                padding: 15px;
+            }
+
+            .activity-header {
+                padding: 18px;
+            }
+
+            .activity-item {
+                grid-template-columns: 1fr;
+            }
+
+            .activity-side {
+                align-items: flex-start;
+
+                flex-direction: row;
+
+                justify-content: space-between;
+            }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -674,7 +1227,9 @@
             *::before,
             *::after {
                 scroll-behavior: auto !important;
+
                 transition-duration: .01ms !important;
+
                 animation-duration: .01ms !important;
             }
         }
@@ -685,7 +1240,6 @@
 
     <!-- =========================================================
          SHARED ADMIN NAVIGATION
-         Navigation berada di admin-control/admin-nav.js
     ========================================================== -->
 
     <div id="adminNavigation"></div>
@@ -874,7 +1428,6 @@
 
             </div>
 
-
             <div class="module">
 
                 <div class="module-head">
@@ -899,7 +1452,6 @@
                 </div>
 
             </div>
-
 
             <div class="module">
 
@@ -926,7 +1478,6 @@
 
             </div>
 
-
             <div class="module">
 
                 <div class="module-head">
@@ -951,7 +1502,6 @@
                 </div>
 
             </div>
-
 
             <div class="module">
 
@@ -978,7 +1528,6 @@
 
             </div>
 
-
             <div class="module">
 
                 <div class="module-head">
@@ -1003,7 +1552,6 @@
                 </div>
 
             </div>
-
 
             <div class="module">
 
@@ -1030,7 +1578,6 @@
 
             </div>
 
-
             <div class="module">
 
                 <div class="module-head">
@@ -1055,7 +1602,6 @@
                 </div>
 
             </div>
-
 
             <div class="module">
 
@@ -1093,6 +1639,8 @@
         </div>
 
         <section class="columns">
+
+            <!-- APPLICATION STATUS -->
 
             <div class="panel">
 
@@ -1174,8 +1722,15 @@
 
             </div>
 
+            <!-- ACCOUNT -->
 
-            <div class="panel">
+            <div
+                class="panel account-panel"
+                id="accountPanel"
+                role="button"
+                tabindex="0"
+                aria-label="Lihat aktivitas akun"
+            >
 
                 <div class="panel-title">
                     Account
@@ -1241,6 +1796,10 @@
 
                 </div>
 
+                <div class="account-panel-hint">
+                    Klik untuk melihat aktivitas akun
+                </div>
+
             </div>
 
         </section>
@@ -1250,6 +1809,131 @@
         </div>
 
     </main>
+
+    <!-- =========================================================
+         ACCOUNT ACTIVITY MODAL
+    ========================================================== -->
+
+    <div
+        class="activity-backdrop"
+        id="activityBackdrop"
+        aria-hidden="true"
+    >
+
+        <div
+            class="activity-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="activityTitle"
+        >
+
+            <div class="activity-header">
+
+                <div>
+
+                    <div
+                        class="activity-title"
+                        id="activityTitle"
+                    >
+                        Aktivitas Akun
+                    </div>
+
+                    <div
+                        class="activity-subtitle"
+                        id="activitySubtitle"
+                    >
+                        Memuat aktivitas...
+                    </div>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="activity-close"
+                    id="activityClose"
+                    aria-label="Tutup"
+                >
+                    ×
+                </button>
+
+            </div>
+
+            <div class="activity-summary">
+
+                <div class="activity-stat">
+
+                    <div class="activity-stat-label">
+                        Total Generate
+                    </div>
+
+                    <div
+                        class="activity-stat-value"
+                        id="activityTotal"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+                <div class="activity-stat">
+
+                    <div class="activity-stat-label">
+                        Total Sukses
+                    </div>
+
+                    <div
+                        class="activity-stat-value"
+                        id="activitySuccess"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+                <div class="activity-stat">
+
+                    <div class="activity-stat-label">
+                        Total Gagal
+                    </div>
+
+                    <div
+                        class="activity-stat-value"
+                        id="activityFailed"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+                <div class="activity-stat processing">
+
+                    <div class="activity-stat-label">
+                        Sedang Proses
+                    </div>
+
+                    <div
+                        class="activity-stat-value"
+                        id="activityProcessing"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div
+                class="activity-list"
+                id="activityList"
+            >
+                <div class="activity-loading">
+                    Memuat aktivitas...
+                </div>
+            </div>
+
+        </div>
+
+    </div>
 
     <!-- =========================================================
          SUPABASE
@@ -1265,13 +1949,6 @@
 
     <!-- =========================================================
          SHARED ADMIN NAVIGATION
-         
-         PENTING:
-         dashboard.html berada di /admin/
-         admin-nav.js berada di /admin-control/
-         
-         Jadi path HARUS:
-         ../admin-control/admin-nav.js
     ========================================================== -->
 
     <script src="../admin-control/admin-nav.js"></script>
@@ -1314,6 +1991,849 @@
 
             /*
              * -----------------------------------------------------
+             * ACTIVITY STATE
+             * -----------------------------------------------------
+             */
+
+            let currentUser = null;
+
+            let activityRefreshTimer = null;
+
+            let activityIsOpen = false;
+
+            /*
+             * -----------------------------------------------------
+             * DOM HELPERS
+             * -----------------------------------------------------
+             */
+
+            function getElement(id) {
+                return document.getElementById(id);
+            }
+
+            function setText(id, value) {
+
+                const element = getElement(id);
+
+                if (element) {
+                    element.textContent = value;
+                }
+            }
+
+            /*
+             * -----------------------------------------------------
+             * NUMBER FORMAT
+             * -----------------------------------------------------
+             */
+
+            function formatNumber(value) {
+
+                const number =
+                    Number(value) || 0;
+
+                return number.toLocaleString("id-ID");
+            }
+
+            /*
+             * -----------------------------------------------------
+             * STATUS NORMALIZATION
+             * -----------------------------------------------------
+             */
+
+            function normalizeStatus(status) {
+
+                const value =
+                    String(status || "")
+                        .trim()
+                        .toLowerCase();
+
+                if (
+                    [
+                        "success",
+                        "completed",
+                        "complete",
+                        "done"
+                    ].includes(value)
+                ) {
+                    return "success";
+                }
+
+                if (
+                    [
+                        "failed",
+                        "failure",
+                        "error",
+                        "fail"
+                    ].includes(value)
+                ) {
+                    return "failed";
+                }
+
+                if (
+                    [
+                        "cancelled",
+                        "canceled"
+                    ].includes(value)
+                ) {
+                    return "cancelled";
+                }
+
+                if (
+                    [
+                        "processing",
+                        "generating",
+                        "running",
+                        "in_progress",
+                        "in-progress",
+                        "queued",
+                        "pending",
+                        "waiting",
+                        "queuing"
+                    ].includes(value)
+                ) {
+                    return "processing";
+                }
+
+                return value || "processing";
+            }
+
+            /*
+             * -----------------------------------------------------
+             * STATUS LABEL
+             * -----------------------------------------------------
+             */
+
+            function getStatusLabel(status) {
+
+                switch (status) {
+
+                    case "success":
+                        return "Sukses";
+
+                    case "failed":
+                        return "Gagal";
+
+                    case "cancelled":
+                        return "Dibatalkan";
+
+                    case "processing":
+                        return "Proses";
+
+                    default:
+                        return status || "Tidak diketahui";
+                }
+            }
+
+            /*
+             * -----------------------------------------------------
+             * MODEL NAME
+             * -----------------------------------------------------
+             */
+
+            function getModelName(row) {
+
+                return (
+                    row.model_name ||
+                    row.model ||
+                    row.model_id ||
+                    row.modelName ||
+                    row.modelId ||
+                    "Model tidak diketahui"
+                );
+            }
+
+            /*
+             * -----------------------------------------------------
+             * TASK ID
+             * -----------------------------------------------------
+             */
+
+            function getTaskId(row) {
+
+                return (
+                    row.task_id ||
+                    row.taskId ||
+                    row.provider_task_id ||
+                    row.job_id ||
+                    row.id ||
+                    "—"
+                );
+            }
+
+            /*
+             * -----------------------------------------------------
+             * DATE FORMAT
+             * -----------------------------------------------------
+             */
+
+            function formatDate(value) {
+
+                if (!value) {
+                    return "Waktu tidak tersedia";
+                }
+
+                const date =
+                    new Date(value);
+
+                if (
+                    Number.isNaN(
+                        date.getTime()
+                    )
+                ) {
+                    return String(value);
+                }
+
+                return date.toLocaleString(
+                    "id-ID",
+                    {
+                        dateStyle: "medium",
+                        timeStyle: "short"
+                    }
+                );
+            }
+
+            /*
+             * -----------------------------------------------------
+             * LOAD ACCOUNT ACTIVITY
+             * -----------------------------------------------------
+             */
+
+            async function loadAccountActivity() {
+
+                const list =
+                    getElement("activityList");
+
+                if (!list || !currentUser) {
+                    return;
+                }
+
+                if (!activityIsOpen) {
+                    return;
+                }
+
+                try {
+
+                    const {
+                        data,
+                        error
+                    } = await supabaseClient
+                        .from("generation_history")
+                        .select("*")
+                        .eq(
+                            "user_id",
+                            currentUser.id
+                        )
+                        .order(
+                            "created_at",
+                            {
+                                ascending: false
+                            }
+                        )
+                        .limit(100);
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    const rows =
+                        Array.isArray(data)
+                            ? data
+                            : [];
+
+                    /*
+                     * -------------------------------------------------
+                     * SUMMARY
+                     * -------------------------------------------------
+                     */
+
+                    let successCount = 0;
+                    let failedCount = 0;
+                    let processingCount = 0;
+
+                    rows.forEach(row => {
+
+                        const status =
+                            normalizeStatus(
+                                row.status
+                            );
+
+                        if (
+                            status === "success"
+                        ) {
+                            successCount++;
+                        }
+
+                        if (
+                            status === "failed"
+                        ) {
+                            failedCount++;
+                        }
+
+                        if (
+                            status === "processing"
+                        ) {
+                            processingCount++;
+                        }
+                    });
+
+                    setText(
+                        "activityTotal",
+                        formatNumber(rows.length)
+                    );
+
+                    setText(
+                        "activitySuccess",
+                        formatNumber(successCount)
+                    );
+
+                    setText(
+                        "activityFailed",
+                        formatNumber(failedCount)
+                    );
+
+                    setText(
+                        "activityProcessing",
+                        formatNumber(processingCount)
+                    );
+
+                    setText(
+                        "activitySubtitle",
+                        (
+                            currentUser.email ||
+                            "Akun administrator"
+                        )
+                    );
+
+                    /*
+                     * -------------------------------------------------
+                     * EMPTY
+                     * -------------------------------------------------
+                     */
+
+                    if (!rows.length) {
+
+                        list.innerHTML = `
+                            <div class="activity-empty">
+                                Belum ada aktivitas generate
+                                untuk akun ini.
+                            </div>
+                        `;
+
+                        return;
+                    }
+
+                    /*
+                     * -------------------------------------------------
+                     * RENDER
+                     * -------------------------------------------------
+                     */
+
+                    list.innerHTML =
+                        rows.map(row => {
+
+                            const status =
+                                normalizeStatus(
+                                    row.status
+                                );
+
+                            const modelName =
+                                getModelName(row);
+
+                            const taskId =
+                                getTaskId(row);
+
+                            const createdAt =
+                                row.created_at ||
+                                row.updated_at;
+
+                            const cancelButton =
+                                status === "processing"
+                                    ? `
+                                        <button
+                                            type="button"
+                                            class="cancel-button"
+                                            data-cancel-id="${escapeHtml(
+                                                String(
+                                                    row.id || ""
+                                                )
+                                            )}"
+                                        >
+                                            Cancel
+                                        </button>
+                                    `
+                                    : "";
+
+                            return `
+                                <div class="activity-item">
+
+                                    <div class="activity-main">
+
+                                        <div class="activity-model">
+                                            ${escapeHtml(
+                                                modelName
+                                            )}
+                                        </div>
+
+                                        <div class="activity-meta">
+
+                                            <span>
+                                                ${escapeHtml(
+                                                    formatDate(
+                                                        createdAt
+                                                    )
+                                                )}
+                                            </span>
+
+                                            <span class="activity-id">
+                                                Task:
+                                                ${escapeHtml(
+                                                    String(
+                                                        taskId
+                                                    )
+                                                )}
+                                            </span>
+
+                                        </div>
+
+                                    </div>
+
+                                    <div class="activity-side">
+
+                                        <span
+                                            class="activity-status ${getStatusClass(
+                                                status
+                                            )}"
+                                        >
+                                            ${escapeHtml(
+                                                getStatusLabel(
+                                                    status
+                                                )
+                                            )}
+                                        </span>
+
+                                        ${cancelButton}
+
+                                    </div>
+
+                                </div>
+                            `;
+
+                        }).join("");
+
+                } catch (error) {
+
+                    console.error(
+                        "Gagal memuat aktivitas akun:",
+                        error
+                    );
+
+                    list.innerHTML = `
+                        <div class="activity-error">
+                            Aktivitas akun tidak dapat dimuat.
+                            Periksa tabel generation_history
+                            dan konfigurasi Supabase.
+                        </div>
+                    `;
+                }
+            }
+
+            /*
+             * -----------------------------------------------------
+             * ESCAPE HTML
+             * -----------------------------------------------------
+             */
+
+            function escapeHtml(value) {
+
+                return String(value)
+                    .replace(
+                        /&/g,
+                        "&amp;"
+                    )
+                    .replace(
+                        /</g,
+                        "&lt;"
+                    )
+                    .replace(
+                        />/g,
+                        "&gt;"
+                    )
+                    .replace(
+                        /"/g,
+                        "&quot;"
+                    )
+                    .replace(
+                        /'/g,
+                        "&#039;"
+                    );
+            }
+
+            /*
+             * -----------------------------------------------------
+             * STATUS CSS CLASS
+             * -----------------------------------------------------
+             */
+
+            function getStatusClass(status) {
+
+                switch (status) {
+
+                    case "success":
+                        return "status-success";
+
+                    case "failed":
+                        return "status-failed";
+
+                    case "processing":
+                        return "status-processing";
+
+                    case "cancelled":
+                        return "status-cancelled";
+
+                    default:
+                        return "status-processing";
+                }
+            }
+
+            /*
+             * -----------------------------------------------------
+             * CANCEL GENERATION
+             * -----------------------------------------------------
+             */
+
+            async function cancelGeneration(id, button) {
+
+                if (
+                    !id ||
+                    !currentUser
+                ) {
+                    return;
+                }
+
+                const confirmed =
+                    window.confirm(
+                        "Batalkan task yang sedang diproses?"
+                    );
+
+                if (!confirmed) {
+                    return;
+                }
+
+                if (button) {
+
+                    button.disabled = true;
+
+                    button.textContent =
+                        "Cancelling...";
+                }
+
+                try {
+
+                    const {
+                        error
+                    } = await supabaseClient
+                        .from("generation_history")
+                        .update({
+                            status: "cancelled"
+                        })
+                        .eq(
+                            "id",
+                            id
+                        )
+                        .eq(
+                            "user_id",
+                            currentUser.id
+                        );
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    await loadAccountActivity();
+
+                } catch (error) {
+
+                    console.error(
+                        "Gagal membatalkan task:",
+                        error
+                    );
+
+                    window.alert(
+                        "Task gagal dibatalkan. " +
+                        "Periksa permission Supabase."
+                    );
+
+                    if (button) {
+
+                        button.disabled = false;
+
+                        button.textContent =
+                            "Cancel";
+                    }
+                }
+            }
+
+            /*
+             * -----------------------------------------------------
+             * ACTIVITY LIST EVENT
+             * -----------------------------------------------------
+             */
+
+            function setupActivityListEvents() {
+
+                const list =
+                    getElement("activityList");
+
+                if (!list) {
+                    return;
+                }
+
+                list.addEventListener(
+                    "click",
+                    event => {
+
+                        const button =
+                            event.target.closest(
+                                "[data-cancel-id]"
+                            );
+
+                        if (!button) {
+                            return;
+                        }
+
+                        const id =
+                            button.getAttribute(
+                                "data-cancel-id"
+                            );
+
+                        cancelGeneration(
+                            id,
+                            button
+                        );
+                    }
+                );
+            }
+
+            /*
+             * -----------------------------------------------------
+             * OPEN ACTIVITY
+             * -----------------------------------------------------
+             */
+
+            async function openActivity() {
+
+                const backdrop =
+                    getElement(
+                        "activityBackdrop"
+                    );
+
+                if (!backdrop) {
+                    return;
+                }
+
+                activityIsOpen = true;
+
+                backdrop.classList.add(
+                    "open"
+                );
+
+                backdrop.setAttribute(
+                    "aria-hidden",
+                    "false"
+                );
+
+                const list =
+                    getElement(
+                        "activityList"
+                    );
+
+                if (list) {
+
+                    list.innerHTML = `
+                        <div class="activity-loading">
+                            Memuat aktivitas...
+                        </div>
+                    `;
+                }
+
+                await loadAccountActivity();
+
+                /*
+                 * Refresh setiap 5 detik.
+                 */
+
+                if (
+                    activityRefreshTimer
+                ) {
+
+                    clearInterval(
+                        activityRefreshTimer
+                    );
+                }
+
+                activityRefreshTimer =
+                    setInterval(
+                        () => {
+
+                            if (
+                                activityIsOpen
+                            ) {
+                                loadAccountActivity();
+                            }
+
+                        },
+                        5000
+                    );
+            }
+
+            /*
+             * -----------------------------------------------------
+             * CLOSE ACTIVITY
+             * -----------------------------------------------------
+             */
+
+            function closeActivity() {
+
+                const backdrop =
+                    getElement(
+                        "activityBackdrop"
+                    );
+
+                if (!backdrop) {
+                    return;
+                }
+
+                activityIsOpen = false;
+
+                backdrop.classList.remove(
+                    "open"
+                );
+
+                backdrop.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+
+                if (
+                    activityRefreshTimer
+                ) {
+
+                    clearInterval(
+                        activityRefreshTimer
+                    );
+
+                    activityRefreshTimer =
+                        null;
+                }
+            }
+
+            /*
+             * -----------------------------------------------------
+             * ACTIVITY UI EVENTS
+             * -----------------------------------------------------
+             */
+
+            function setupActivityUI() {
+
+                const accountPanel =
+                    getElement(
+                        "accountPanel"
+                    );
+
+                const closeButton =
+                    getElement(
+                        "activityClose"
+                    );
+
+                const backdrop =
+                    getElement(
+                        "activityBackdrop"
+                    );
+
+                if (accountPanel) {
+
+                    accountPanel.addEventListener(
+                        "click",
+                        event => {
+
+                            /*
+                             * Jangan membuka modal ketika
+                             * user sedang memilih teks.
+                             */
+
+                            if (
+                                window
+                                    .getSelection()
+                                    .toString()
+                                    .length
+                            ) {
+                                return;
+                            }
+
+                            openActivity();
+                        }
+                    );
+
+                    accountPanel.addEventListener(
+                        "keydown",
+                        event => {
+
+                            if (
+                                event.key ===
+                                    "Enter" ||
+                                event.key ===
+                                    " "
+                            ) {
+
+                                event.preventDefault();
+
+                                openActivity();
+                            }
+                        }
+                    );
+                }
+
+                if (closeButton) {
+
+                    closeButton.addEventListener(
+                        "click",
+                        closeActivity
+                    );
+                }
+
+                if (backdrop) {
+
+                    backdrop.addEventListener(
+                        "click",
+                        event => {
+
+                            if (
+                                event.target ===
+                                backdrop
+                            ) {
+                                closeActivity();
+                            }
+                        }
+                    );
+                }
+
+                document.addEventListener(
+                    "keydown",
+                    event => {
+
+                        if (
+                            event.key ===
+                            "Escape"
+                        ) {
+
+                            closeActivity();
+                        }
+                    }
+                );
+            }
+
+            /*
+             * -----------------------------------------------------
              * DASHBOARD
              * -----------------------------------------------------
              */
@@ -1323,11 +2843,19 @@
                 try {
 
                     const {
-                        data: { session },
+                        data: {
+                            session
+                        },
                         error: sessionError
-                    } = await supabaseClient.auth.getSession();
+                    } =
+                        await supabaseClient
+                            .auth
+                            .getSession();
 
-                    if (sessionError || !session) {
+                    if (
+                        sessionError ||
+                        !session
+                    ) {
 
                         window.location.href =
                             "../login.html";
@@ -1335,7 +2863,11 @@
                         return;
                     }
 
-                    const user = session.user;
+                    const user =
+                        session.user;
+
+                    currentUser =
+                        user;
 
                     /*
                      * -------------------------------------------------
@@ -1346,13 +2878,20 @@
                     const {
                         data: profile,
                         error: profileError
-                    } = await supabaseClient
-                        .from("profiles")
-                        .select("*")
-                        .eq("id", user.id)
-                        .single();
+                    } =
+                        await supabaseClient
+                            .from("profiles")
+                            .select("*")
+                            .eq(
+                                "id",
+                                user.id
+                            )
+                            .single();
 
-                    if (profileError || !profile) {
+                    if (
+                        profileError ||
+                        !profile
+                    ) {
 
                         console.error(
                             "Profile tidak dapat dimuat:",
@@ -1363,7 +2902,9 @@
                     }
 
                     const role =
-                        String(profile.role || "")
+                        String(
+                            profile.role || ""
+                        )
                             .trim()
                             .toUpperCase();
 
@@ -1391,38 +2932,41 @@
                      */
 
                     const roleBadge =
-                        document.getElementById(
+                        getElement(
                             "roleBadge"
                         );
 
                     const accountName =
-                        document.getElementById(
+                        getElement(
                             "accountName"
                         );
 
                     const accountEmail =
-                        document.getElementById(
+                        getElement(
                             "accountEmail"
                         );
 
                     const accountRole =
-                        document.getElementById(
+                        getElement(
                             "accountRole"
                         );
 
                     const accountStatus =
-                        document.getElementById(
+                        getElement(
                             "accountStatus"
                         );
 
                     if (roleBadge) {
-                        roleBadge.textContent = role;
+
+                        roleBadge.textContent =
+                            role;
                     }
 
                     if (accountName) {
 
                         accountName.textContent =
-                            profile.name || "—";
+                            profile.name ||
+                            "—";
                     }
 
                     if (accountEmail) {
@@ -1457,30 +3001,31 @@
                         const {
                             count,
                             error
-                        } = await supabaseClient
-                            .from("profiles")
-                            .select("id", {
-                                count: "exact",
-                                head: true
-                            });
+                        } =
+                            await supabaseClient
+                                .from("profiles")
+                                .select(
+                                    "id",
+                                    {
+                                        count:
+                                            "exact",
+                                        head:
+                                            true
+                                    }
+                                );
 
                         if (
                             !error &&
-                            typeof count === "number"
+                            typeof count ===
+                                "number"
                         ) {
 
-                            const element =
-                                document.getElementById(
-                                    "totalUsers"
-                                );
-
-                            if (element) {
-
-                                element.textContent =
-                                    count.toLocaleString(
-                                        "id-ID"
-                                    );
-                            }
+                            setText(
+                                "totalUsers",
+                                formatNumber(
+                                    count
+                                )
+                            );
                         }
 
                     } catch (error) {
@@ -1502,31 +3047,35 @@
                         const {
                             count,
                             error
-                        } = await supabaseClient
-                            .from("profiles")
-                            .select("id", {
-                                count: "exact",
-                                head: true
-                            })
-                            .eq("status", "active");
+                        } =
+                            await supabaseClient
+                                .from("profiles")
+                                .select(
+                                    "id",
+                                    {
+                                        count:
+                                            "exact",
+                                        head:
+                                            true
+                                    }
+                                )
+                                .eq(
+                                    "status",
+                                    "active"
+                                );
 
                         if (
                             !error &&
-                            typeof count === "number"
+                            typeof count ===
+                                "number"
                         ) {
 
-                            const element =
-                                document.getElementById(
-                                    "activeUsers"
-                                );
-
-                            if (element) {
-
-                                element.textContent =
-                                    count.toLocaleString(
-                                        "id-ID"
-                                    );
-                            }
+                            setText(
+                                "activeUsers",
+                                formatNumber(
+                                    count
+                                )
+                            );
                         }
 
                     } catch (error) {
@@ -1548,30 +3097,33 @@
                         const {
                             count,
                             error
-                        } = await supabaseClient
-                            .from("generation_history")
-                            .select("id", {
-                                count: "exact",
-                                head: true
-                            });
+                        } =
+                            await supabaseClient
+                                .from(
+                                    "generation_history"
+                                )
+                                .select(
+                                    "id",
+                                    {
+                                        count:
+                                            "exact",
+                                        head:
+                                            true
+                                    }
+                                );
 
                         if (
                             !error &&
-                            typeof count === "number"
+                            typeof count ===
+                                "number"
                         ) {
 
-                            const element =
-                                document.getElementById(
-                                    "totalGenerations"
-                                );
-
-                            if (element) {
-
-                                element.textContent =
-                                    count.toLocaleString(
-                                        "id-ID"
-                                    );
-                            }
+                            setText(
+                                "totalGenerations",
+                                formatNumber(
+                                    count
+                                )
+                            );
                         }
 
                     } catch (error) {
@@ -1593,9 +3145,12 @@
                         const {
                             data,
                             error
-                        } = await supabaseClient
-                            .from("profiles")
-                            .select("credits");
+                        } =
+                            await supabaseClient
+                                .from("profiles")
+                                .select(
+                                    "credits"
+                                );
 
                         if (
                             !error &&
@@ -1604,7 +3159,10 @@
 
                             const totalCredits =
                                 data.reduce(
-                                    (sum, row) =>
+                                    (
+                                        sum,
+                                        row
+                                    ) =>
                                         sum +
                                         (
                                             Number(
@@ -1614,18 +3172,12 @@
                                     0
                                 );
 
-                            const element =
-                                document.getElementById(
-                                    "totalCredits"
-                                );
-
-                            if (element) {
-
-                                element.textContent =
-                                    totalCredits.toLocaleString(
-                                        "id-ID"
-                                    );
-                            }
+                            setText(
+                                "totalCredits",
+                                formatNumber(
+                                    totalCredits
+                                )
+                            );
                         }
 
                     } catch (error) {
@@ -1650,6 +3202,10 @@
              * START
              * -----------------------------------------------------
              */
+
+            setupActivityUI();
+
+            setupActivityListEvents();
 
             loadDashboard();
 
