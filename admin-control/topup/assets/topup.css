@@ -1543,3 +1543,181 @@ textarea.form-control {
     box-shadow:
         0 0 10px rgba(255, 106, 0, 0.06);
 }
+
+/* =========================================================
+   GEN-Z.AI — ORANGE NEON RING EFFECT
+   ========================================================= */
+
+.page-header,
+.stat-card,
+.section-card,
+.table-card,
+.package-card {
+    position: relative;
+
+    border: 1px solid rgba(255, 106, 0, 0.72) !important;
+
+    box-shadow:
+        0 0 4px rgba(255, 106, 0, 0.75),
+        0 0 12px rgba(255, 106, 0, 0.28),
+        inset 0 0 14px rgba(255, 106, 0, 0.035) !important;
+}
+
+
+/* Garis neon tipis di sekeliling blok */
+.page-header::after,
+.stat-card::before,
+.section-card::before,
+.table-card::before,
+.package-card::before {
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    pointer-events: none;
+
+    border-radius: inherit;
+
+    border: 1px solid rgba(255, 142, 55, 0.22);
+
+    box-shadow:
+        0 0 5px rgba(255, 106, 0, 0.35);
+
+    opacity: 0.9;
+}
+
+
+/* Hover */
+.page-header:hover,
+.stat-card:hover,
+.section-card:hover,
+.table-card:hover,
+.package-card:hover {
+    border-color:
+        #ff8a2a !important;
+
+    box-shadow:
+        0 0 5px rgba(255, 106, 0, 0.9),
+        0 0 16px rgba(255, 106, 0, 0.45),
+        0 0 35px rgba(255, 106, 0, 0.15),
+        inset 0 0 18px rgba(255, 106, 0, 0.045) !important;
+}
+
+
+/* =========================================================
+   STAT CARD ORANGE ACCENT
+   ========================================================= */
+
+.stat-card::after {
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 106, 0, 0.16),
+            transparent 70%
+        );
+}
+
+
+/* =========================================================
+   PACKAGE CARD
+   ========================================================= */
+
+.package-card {
+    overflow: hidden;
+}
+
+.package-card::before {
+    border-radius: 17px;
+}
+
+.package-card:hover {
+    transform: translateY(-4px);
+}
+
+
+/* =========================================================
+   MODAL ORANGE NEON
+   ========================================================= */
+
+.modal {
+    border:
+        1px solid rgba(255, 106, 0, 0.78) !important;
+
+    box-shadow:
+        0 0 6px rgba(255, 106, 0, 0.65),
+        0 0 25px rgba(255, 106, 0, 0.25),
+        0 0 55px rgba(255, 106, 0, 0.1) !important;
+}
+
+
+/* =========================================================
+   ORANGE NEON DIVIDER
+   ========================================================= */
+
+.section-header {
+    position: relative;
+}
+
+.section-header::after {
+    content: "";
+
+    position: absolute;
+
+    left: 24px;
+    right: 24px;
+    bottom: -1px;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 106, 0, 0.7),
+            transparent
+        );
+
+    box-shadow:
+        0 0 7px rgba(255, 106, 0, 0.5);
+}
+
+
+/* =========================================================
+   ORANGE ACTIVE STATUS
+   ========================================================= */
+
+.status-pending {
+    color: #ffad5c;
+
+    border-color:
+        rgba(255, 106, 0, 0.35);
+
+    background:
+        rgba(255, 106, 0, 0.08);
+
+    box-shadow:
+        0 0 8px rgba(255, 106, 0, 0.08);
+}
+
+
+/* =========================================================
+   CHECKBOX / SWITCH
+   ========================================================= */
+
+input[type="checkbox"]:checked {
+    accent-color: #ff6a00;
+}
+
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
+::selection {
+    color: #fff;
+
+    background:
+        rgba(255, 106, 0, 0.35);
+}
