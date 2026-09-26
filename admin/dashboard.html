@@ -1281,380 +1281,500 @@
     ========================================================== -->
 
     <script>
-        (() => {
-            "use strict";
+    (() => {
+        "use strict";
 
-            /*
-             * -----------------------------------------------------
-             * SUPABASE CLIENT
-             * -----------------------------------------------------
-             */
+        /*
+         * =====================================================
+         * SUPABASE CLIENT
+         * =====================================================
+         */
 
-            const supabaseClient =
-                window.GENZ_SUPABASE ||
-                window.supabaseClient ||
-                (
-                    window.supabase &&
-                    window.GENZ_CONFIG
-                        ? window.supabase.createClient(
-                            window.GENZ_CONFIG.SUPABASE_URL,
-                            window.GENZ_CONFIG.SUPABASE_KEY
-                        )
-                        : null
-                );
+        let supabaseClient = null;
 
-            if (!supabaseClient) {
+        /*
+         * Project GEN-Z.AI menggunakan:
+         *
+         * window.GENZ_CONFIG.SUPABASE_URL
+         * window.GENZ_CONFIG.SUPABASE_KEY
+         */
+
+        if (
+            window.supabase &&
+            typeof window.supabase.createClient === "function" &&
+            window.GENZ_CONFIG &&
+            window.GENZ_CONFIG.SUPABASE_URL &&
+            window.GENZ_CONFIG.SUPABASE_KEY
+        ) {
+            try {
+
+                supabaseClient =
+                    window.supabase.createClient(
+                        window.GENZ_CONFIG.SUPABASE_URL,
+                        window.GENZ_CONFIG.SUPABASE_KEY
+                    );
+
+            } catch (error) {
 
                 console.error(
-                    "GEN-Z.AI: Supabase client tidak tersedia."
+                    "GEN-Z.AI: Gagal membuat Supabase client.",
+                    error
                 );
 
+            }
+        }
+
+        /*
+         * Compatibility dengan client yang mungkin
+         * sudah dibuat halaman lain.
+         */
+
+        if (
+            !supabaseClient &&
+            window.GENZ_SUPABASE &&
+            typeof window.GENZ_SUPABASE.auth?.getSession ===
+                "function"
+        ) {
+            supabaseClient =
+                window.GENZ_SUPABASE;
+        }
+
+        if (
+            !supabaseClient &&
+            window.supabaseClient &&
+            typeof window.supabaseClient.auth?.getSession ===
+                "function"
+        ) {
+            supabaseClient =
+                window.supabaseClient;
+        }
+
+        if (!supabaseClient) {
+
+            console.error(
+                "GEN-Z.AI: Supabase client tidak tersedia."
+            );
+
+            return;
+        }
+
+        /*
+         * =====================================================
+         * HELPER
+         * =====================================================
+         */
+
+        function setStatistic(
+            elementId,
+            value
+        ) {
+
+            const element =
+                document.getElementById(
+                    elementId
+                );
+
+            if (!element) {
                 return;
             }
 
-            /*
-             * -----------------------------------------------------
-             * DASHBOARD
-             * -----------------------------------------------------
-             */
+            element.textContent =
+                Number(value || 0)
+                    .toLocaleString("id-ID");
+        }
 
-            async function loadDashboard() {
+        /*
+         * =====================================================
+         * DASHBOARD
+         * =====================================================
+         */
+
+        async function loadDashboard() {
+
+            try {
+
+                /*
+                 * -------------------------------------------------
+                 * SESSION
+                 * -------------------------------------------------
+                 */
+
+                const {
+                    data: sessionData,
+                    error: sessionError
+                } =
+                    await supabaseClient
+                        .auth
+                        .getSession();
+
+                if (
+                    sessionError ||
+                    !sessionData?.session
+                ) {
+
+                    console.error(
+                        "GEN-Z.AI: Session tidak tersedia.",
+                        sessionError
+                    );
+
+                    window.location.href =
+                        "../login.html";
+
+                    return;
+                }
+
+                const user =
+                    sessionData.session.user;
+
+                /*
+                 * -------------------------------------------------
+                 * PROFILE
+                 * -------------------------------------------------
+                 */
+
+                const {
+                    data: profile,
+                    error: profileError
+                } =
+                    await supabaseClient
+                        .from("profiles")
+                        .select(
+                            "id,email,name,role,credits,status"
+                        )
+                        .eq(
+                            "id",
+                            user.id
+                        )
+                        .single();
+
+                if (
+                    profileError ||
+                    !profile
+                ) {
+
+                    console.error(
+                        "GEN-Z.AI: Profile tidak dapat dimuat.",
+                        profileError
+                    );
+
+                    return;
+                }
+
+                /*
+                 * -------------------------------------------------
+                 * ROLE
+                 * -------------------------------------------------
+                 */
+
+                const role =
+                    String(
+                        profile.role || ""
+                    )
+                        .trim()
+                        .toUpperCase();
+
+                if (
+                    role !== "ADMIN" &&
+                    role !== "OWNER"
+                ) {
+
+                    window.location.href =
+                        "../user/dashboard.html";
+
+                    return;
+                }
+
+                /*
+                 * -------------------------------------------------
+                 * ACCOUNT INFORMATION
+                 * -------------------------------------------------
+                 */
+
+                const roleBadge =
+                    document.getElementById(
+                        "roleBadge"
+                    );
+
+                const accountName =
+                    document.getElementById(
+                        "accountName"
+                    );
+
+                const accountEmail =
+                    document.getElementById(
+                        "accountEmail"
+                    );
+
+                const accountRole =
+                    document.getElementById(
+                        "accountRole"
+                    );
+
+                const accountStatus =
+                    document.getElementById(
+                        "accountStatus"
+                    );
+
+                if (roleBadge) {
+
+                    roleBadge.textContent =
+                        role;
+                }
+
+                if (accountName) {
+
+                    accountName.textContent =
+                        profile.name ||
+                        "—";
+                }
+
+                if (accountEmail) {
+
+                    accountEmail.textContent =
+                        profile.email ||
+                        user.email ||
+                        "—";
+                }
+
+                if (accountRole) {
+
+                    accountRole.textContent =
+                        role;
+                }
+
+                if (accountStatus) {
+
+                    accountStatus.textContent =
+                        profile.status ||
+                        "active";
+                }
+
+                /*
+                 * =================================================
+                 * GLOBAL STATISTICS
+                 * =================================================
+                 *
+                 * Tidak menggunakan:
+                 *
+                 *     count: "exact"
+                 *     head: true
+                 *
+                 * Kita mengambil data yang memang dapat dibaca
+                 * lalu menghitungnya di browser.
+                 *
+                 * Ini menghindari statistik berhenti pada "—"
+                 * ketika COUNT HEAD ditolak oleh konfigurasi
+                 * PostgREST / RLS.
+                 */
+
+                /*
+                 * -------------------------------------------------
+                 * PROFILES
+                 * -------------------------------------------------
+                 */
+
+                let profileRows = [];
 
                 try {
 
                     const {
-                        data: { session },
-                        error: sessionError
-                    } = await supabaseClient.auth.getSession();
+                        data,
+                        error
+                    } =
+                        await supabaseClient
+                            .from("profiles")
+                            .select(
+                                "id,credits,status"
+                            );
 
-                    if (sessionError || !session) {
-
-                        window.location.href =
-                            "../login.html";
-
-                        return;
-                    }
-
-                    const user = session.user;
-
-                    /*
-                     * -------------------------------------------------
-                     * PROFILE
-                     * -------------------------------------------------
-                     */
-
-                    const {
-                        data: profile,
-                        error: profileError
-                    } = await supabaseClient
-                        .from("profiles")
-                        .select("*")
-                        .eq("id", user.id)
-                        .single();
-
-                    if (profileError || !profile) {
+                    if (error) {
 
                         console.error(
-                            "Profile tidak dapat dimuat:",
-                            profileError
+                            "GEN-Z.AI: Query profiles gagal.",
+                            error
                         );
 
-                        return;
-                    }
-
-                    const role =
-                        String(profile.role || "")
-                            .trim()
-                            .toUpperCase();
-
-                    /*
-                     * -------------------------------------------------
-                     * ADMIN ACCESS
-                     * -------------------------------------------------
-                     */
-
-                    if (
-                        role !== "ADMIN" &&
-                        role !== "OWNER"
+                    } else if (
+                        Array.isArray(data)
                     ) {
 
-                        window.location.href =
-                            "../user/dashboard.html";
+                        profileRows = data;
 
-                        return;
-                    }
-
-                    /*
-                     * -------------------------------------------------
-                     * ACCOUNT INFORMATION
-                     * -------------------------------------------------
-                     */
-
-                    const roleBadge =
-                        document.getElementById(
-                            "roleBadge"
-                        );
-
-                    const accountName =
-                        document.getElementById(
-                            "accountName"
-                        );
-
-                    const accountEmail =
-                        document.getElementById(
-                            "accountEmail"
-                        );
-
-                    const accountRole =
-                        document.getElementById(
-                            "accountRole"
-                        );
-
-                    const accountStatus =
-                        document.getElementById(
-                            "accountStatus"
-                        );
-
-                    if (roleBadge) {
-                        roleBadge.textContent = role;
-                    }
-
-                    if (accountName) {
-
-                        accountName.textContent =
-                            profile.name || "—";
-                    }
-
-                    if (accountEmail) {
-
-                        accountEmail.textContent =
-                            profile.email ||
-                            user.email ||
-                            "—";
-                    }
-
-                    if (accountRole) {
-
-                        accountRole.textContent =
-                            role;
-                    }
-
-                    if (accountStatus) {
-
-                        accountStatus.textContent =
-                            profile.status ||
-                            "active";
-                    }
-
-                    /*
-                     * -------------------------------------------------
-                     * TOTAL USERS
-                     * -------------------------------------------------
-                     */
-
-                    try {
-
-                        const {
-                            count,
-                            error
-                        } = await supabaseClient
-                            .from("profiles")
-                            .select("id", {
-                                count: "exact",
-                                head: true
-                            });
-
-                        if (
-                            !error &&
-                            typeof count === "number"
-                        ) {
-
-                            const element =
-                                document.getElementById(
-                                    "totalUsers"
-                                );
-
-                            if (element) {
-
-                                element.textContent =
-                                    count.toLocaleString(
-                                        "id-ID"
-                                    );
-                            }
-                        }
-
-                    } catch (error) {
-
-                        console.warn(
-                            "Total users tidak tersedia.",
-                            error
-                        );
-                    }
-
-                    /*
-                     * -------------------------------------------------
-                     * ACTIVE USERS
-                     * -------------------------------------------------
-                     */
-
-                    try {
-
-                        const {
-                            count,
-                            error
-                        } = await supabaseClient
-                            .from("profiles")
-                            .select("id", {
-                                count: "exact",
-                                head: true
-                            })
-                            .eq("status", "active");
-
-                        if (
-                            !error &&
-                            typeof count === "number"
-                        ) {
-
-                            const element =
-                                document.getElementById(
-                                    "activeUsers"
-                                );
-
-                            if (element) {
-
-                                element.textContent =
-                                    count.toLocaleString(
-                                        "id-ID"
-                                    );
-                            }
-                        }
-
-                    } catch (error) {
-
-                        console.warn(
-                            "Active users tidak tersedia.",
-                            error
-                        );
-                    }
-
-                    /*
-                     * -------------------------------------------------
-                     * GENERATION HISTORY
-                     * -------------------------------------------------
-                     */
-
-                    try {
-
-                        const {
-                            count,
-                            error
-                        } = await supabaseClient
-                            .from("generation_history")
-                            .select("id", {
-                                count: "exact",
-                                head: true
-                            });
-
-                        if (
-                            !error &&
-                            typeof count === "number"
-                        ) {
-
-                            const element =
-                                document.getElementById(
-                                    "totalGenerations"
-                                );
-
-                            if (element) {
-
-                                element.textContent =
-                                    count.toLocaleString(
-                                        "id-ID"
-                                    );
-                            }
-                        }
-
-                    } catch (error) {
-
-                        console.warn(
-                            "Generation statistics tidak tersedia.",
-                            error
-                        );
-                    }
-
-                    /*
-                     * -------------------------------------------------
-                     * TOTAL CREDITS
-                     * -------------------------------------------------
-                     */
-
-                    try {
-
-                        const {
-                            data,
-                            error
-                        } = await supabaseClient
-                            .from("profiles")
-                            .select("credits");
-
-                        if (
-                            !error &&
-                            Array.isArray(data)
-                        ) {
-
-                            const totalCredits =
-                                data.reduce(
-                                    (sum, row) =>
-                                        sum +
-                                        (
-                                            Number(
-                                                row.credits
-                                            ) || 0
-                                        ),
-                                    0
-                                );
-
-                            const element =
-                                document.getElementById(
-                                    "totalCredits"
-                                );
-
-                            if (element) {
-
-                                element.textContent =
-                                    totalCredits.toLocaleString(
-                                        "id-ID"
-                                    );
-                            }
-                        }
-
-                    } catch (error) {
-
-                        console.warn(
-                            "Credit statistics tidak tersedia.",
-                            error
-                        );
                     }
 
                 } catch (error) {
 
                     console.error(
-                        "Dashboard error:",
+                        "GEN-Z.AI: Error membaca profiles.",
                         error
                     );
-                }
-            }
 
-            /*
-             * -----------------------------------------------------
-             * START
-             * -----------------------------------------------------
-             */
+                }
+
+                /*
+                 * -------------------------------------------------
+                 * TOTAL USERS
+                 * -------------------------------------------------
+                 */
+
+                setStatistic(
+                    "totalUsers",
+                    profileRows.length
+                );
+
+                /*
+                 * -------------------------------------------------
+                 * ACTIVE USERS
+                 * -------------------------------------------------
+                 */
+
+                const activeUsers =
+                    profileRows.filter(
+                        row =>
+                            String(
+                                row?.status || ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            "active"
+                    ).length;
+
+                setStatistic(
+                    "activeUsers",
+                    activeUsers
+                );
+
+                /*
+                 * -------------------------------------------------
+                 * TOTAL CREDITS
+                 * -------------------------------------------------
+                 */
+
+                const totalCredits =
+                    profileRows.reduce(
+                        (
+                            total,
+                            row
+                        ) => {
+
+                            const credits =
+                                Number(
+                                    row?.credits
+                                );
+
+                            return (
+                                total +
+                                (
+                                    Number.isFinite(
+                                        credits
+                                    )
+                                        ? credits
+                                        : 0
+                                )
+                            );
+
+                        },
+                        0
+                    );
+
+                setStatistic(
+                    "totalCredits",
+                    totalCredits
+                );
+
+                /*
+                 * -------------------------------------------------
+                 * GENERATION HISTORY
+                 * -------------------------------------------------
+                 */
+
+                let generationRows = [];
+
+                try {
+
+                    const {
+                        data,
+                        error
+                    } =
+                        await supabaseClient
+                            .from(
+                                "generation_history"
+                            )
+                            .select("*");
+
+                    if (error) {
+
+                        console.error(
+                            "GEN-Z.AI: Query generation_history gagal.",
+                            error
+                        );
+
+                    } else if (
+                        Array.isArray(data)
+                    ) {
+
+                        generationRows =
+                            data;
+
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "GEN-Z.AI: Error membaca generation_history.",
+                        error
+                    );
+
+                }
+
+                /*
+                 * -------------------------------------------------
+                 * TOTAL GENERATIONS
+                 * -------------------------------------------------
+                 */
+
+                setStatistic(
+                    "totalGenerations",
+                    generationRows.length
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "GEN-Z.AI: Dashboard error.",
+                    error
+                );
+
+            }
+        }
+
+        /*
+         * =====================================================
+         * START
+         * =====================================================
+         */
+
+        if (
+            document.readyState ===
+            "loading"
+        ) {
+
+            document.addEventListener(
+                "DOMContentLoaded",
+                loadDashboard,
+                {
+                    once: true
+                }
+            );
+
+        } else {
 
             loadDashboard();
 
-        })();
-    </script>
+        }
+
+    })();
+</script>
 
 </body>
 </html>
