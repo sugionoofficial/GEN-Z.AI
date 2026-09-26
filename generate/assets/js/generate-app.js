@@ -3049,21 +3049,6 @@ async function renderForm(
     const elements =
         getDOM();
 
-    const formModule =
-        appState.modules.form;
-
-   const seedanceModule =
-    appState.modules.seedance;
-
-const modelId =
-    getModelId(
-        model
-    );
-
-const isSeedance =
-    modelId ===
-    "bytedance/seedance-2-5";
-
     if (
         !elements.dynamicFields
     ) {
@@ -3074,12 +3059,17 @@ const isSeedance =
 
     }
 
+    const render =
+        appState.modules.render;
+
     if (
-        !formModule
+        !render ||
+        typeof render.renderModelForm !==
+            "function"
     ) {
 
         throw new Error(
-            "Module generate-form.js tidak tersedia."
+            "generate-render.js tidak tersedia."
         );
 
     }
@@ -3091,115 +3081,9 @@ const isSeedance =
     elements.dynamicFields.innerHTML =
         "";
 
-    let result =
-        null;
-
-    /*
- * =====================================================
- * MODEL-SPECIFIC FORM
- * =====================================================
- *
- * Seedance mempunyai aturan media sendiri:
- *
- * - first_frame_url
- * - last_frame_url
- * - reference_image_urls
- * - reference_video_urls
- * - reference_audio_urls
- *
- * Karena itu jangan biarkan generic
- * generate-form.js merendernya.
- */
-
-const seedanceModule =
-    appState.modules.seedance;
-
-
-const modelId =
-    getModelId(
+    await render.renderModelForm(
         model
     );
-
-
-const isSeedance =
-    modelId ===
-    "bytedance/seedance-2-5";
-
-
-if (
-    isSeedance &&
-    seedanceModule &&
-    typeof seedanceModule.renderSeedanceForm ===
-        "function"
-) {
-
-    debug(
-        "Rendering Seedance-specific form."
-    );
-
-
-    await seedanceModule.renderSeedanceForm(
-        model
-    );
-
-}
-
-if (
-    isSeedance
-) {
-
-    if (
-        !seedanceModule ||
-        typeof seedanceModule.renderSeedanceForm !==
-            "function"
-    ) {
-
-        throw new Error(
-            "generate-seedance.js tidak tersedia."
-        );
-
-    }
-
-    await seedanceModule.renderSeedanceForm(
-        model
-    );
-
-}
-
-else if (
-    typeof formModule.renderGenerateForm ===
-    "function"
-) {
-
-    await formModule.renderGenerateForm();
-
-}
-
-else if (
-    typeof formModule.render ===
-    "function"
-) {
-
-    await formModule.render();
-
-}
-
-else if (
-    typeof formModule.init ===
-    "function"
-) {
-
-    await formModule.init();
-
-}
-
-else {
-
-    throw new Error(
-        "generate-form.js tidak memiliki renderGenerateForm(), render(), atau init()."
-    );
-
-}
 
     elements.dynamicFields.hidden =
         false;
