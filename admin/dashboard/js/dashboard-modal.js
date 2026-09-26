@@ -278,6 +278,10 @@
                 );
 
 
+            /*
+             * GENERATE SEDANG BERJALAN
+             */
+
             if (
                 [
                     "processing",
@@ -295,6 +299,10 @@
             }
 
 
+            /*
+             * GENERATE BERHASIL
+             */
+
             if (
                 [
                     "completed",
@@ -310,15 +318,56 @@
             }
 
 
+            /*
+             * =================================================
+             * GENERATE DIBATALKAN
+             * =================================================
+             *
+             * IMPORTANT:
+             *
+             * cancelled / canceled BUKAN failed.
+             *
+             * Sebelumnya kedua status ini masuk ke class
+             * "failed", sehingga Generate yang dibatalkan
+             * tampil sebagai Generate Gagal.
+             *
+             * Sekarang dipisahkan menjadi:
+             *
+             *     cancelled
+             *
+             * agar UI dapat membedakan:
+             *
+             *     Failed    = proses gagal
+             *     Cancelled = proses sengaja dibatalkan
+             */
+
+            if (
+                [
+                    "cancelled",
+                    "canceled"
+                ].includes(
+                    normalized
+                )
+            ) {
+
+                return "cancelled";
+
+            }
+
+
+            /*
+             * GENERATE GAGAL
+             */
+
             if (
                 [
                     "failed",
                     "failure",
                     "error",
-                    "cancelled",
-                    "canceled",
                     "rejected"
-                ].includes(normalized)
+                ].includes(
+                    normalized
+                )
             ) {
 
                 return "failed";
