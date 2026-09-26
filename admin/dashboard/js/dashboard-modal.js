@@ -1229,45 +1229,96 @@
 
 
                 /*
-                 * Update state lokal terlebih dahulu
-                 * supaya UI langsung berubah.
+                 * =================================================
+                 * SINKRONISASI STATE LOKAL
+                 * =================================================
+                 *
+                 * Jangan lagi mengubah:
+                 *
+                 *     activity.state.history
+                 *
+                 * secara manual.
+                 *
+                 * Activity module sekarang memiliki
+                 * markGenerationCancelled(), yang juga
+                 * membatalkan request refresh lama agar
+                 * response lama tidak menghidupkan kembali
+                 * status processing.
                  */
 
                 const activity =
                     this.getActivity();
 
 
-                const historyItem =
-                    activity.state.history
-                        .find(
-                            item =>
-                                String(
-                                    item?.id
-                                ) ===
-                                String(
-                                    generationId
-                                ) &&
-                                String(
-                                    item?.user_id ||
-                                    item?.profile_id ||
-                                    item?.owner_id
-                                ) ===
-                                String(
-                                    selectedUserId
+                let localStateUpdated =
+                    false;
+
+
+                if (
+                    typeof activity.markGenerationCancelled ===
+                    "function"
+                ) {
+
+                    localStateUpdated =
+                        activity.markGenerationCancelled(
+                            generationId,
+                            selectedUserId
+                        ) !== false;
+
+                } else {
+
+                    /*
+                     * Fallback kompatibilitas.
+                     *
+                     * Hanya digunakan jika dashboard-activity.js
+                     * belum menggunakan versi terbaru.
+                     */
+
+                    const historyItem =
+                        Array.isArray(
+                            activity.state?.history
+                        )
+                            ? activity.state.history
+                                .find(
+                                    item =>
+                                        String(
+                                            item?.id
+                                        ) ===
+                                        String(
+                                            generationId
+                                        ) &&
+                                        String(
+                                            item?.user_id ||
+                                            item?.profile_id ||
+                                            item?.owner_id
+                                        ) ===
+                                        String(
+                                            selectedUserId
+                                        )
                                 )
-                        );
+                            : null;
 
 
-                if (historyItem) {
+                    if (historyItem) {
 
-                    historyItem.status =
-                        "cancelled";
+                        historyItem.status =
+                            "cancelled";
+
+
+                        localStateUpdated =
+                            true;
+
+                    }
 
                 }
 
 
                 /*
-                 * Render ulang isi modal.
+                 * =================================================
+                 * RENDER MODAL
+                 * =================================================
+                 *
+                 * Render berdasarkan state lokal terbaru.
                  */
 
                 this.render(
@@ -1277,13 +1328,43 @@
 
 
                 /*
-                 * Render Account Activity juga,
-                 * sehingga lampu hijau pada akun
-                 * langsung mati jika tidak ada
-                 * generate aktif lainnya.
+                 * =================================================
+                 * RENDER ACCOUNT ACTIVITY
+                 * =================================================
+                 *
+                 * Lampu hijau account akan langsung mati
+                 * apabila tidak ada generation aktif lainnya.
                  */
 
-                activity.render();
+                if (
+                    typeof activity.render ===
+                    "function"
+                ) {
+
+                    activity.render();
+
+                }
+
+
+                /*
+                 * Jika Activity module versi baru tidak
+                 * menemukan row lokal, tetap lanjut karena
+                 * database sudah berhasil diperbarui.
+                 *
+                 * Tidak perlu melakukan fetch ulang di sini.
+                 * Auto-refresh Activity akan mengambil data
+                 * terbaru pada siklus berikutnya.
+                 */
+
+                if (!localStateUpdated) {
+
+                    console.warn(
+                        "[GENZ Dashboard Modal] " +
+                        "Generation berhasil dibatalkan di database, " +
+                        "tetapi row lokal tidak ditemukan."
+                    );
+
+                }
 
 
             } catch (error) {
