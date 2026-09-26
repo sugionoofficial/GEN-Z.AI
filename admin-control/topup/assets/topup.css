@@ -2310,4 +2310,3261 @@ input[type="checkbox"]:checked {
 }
 
 .action-buttons button {
-   
+    min-width: 34px;
+    min-height: 34px;
+
+    padding:
+        0 10px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.18);
+
+    border-radius: 9px;
+
+    color: #aaa;
+
+    background:
+        rgba(255, 255, 255, 0.035);
+
+    font-size: 10px;
+
+    font-weight: 750;
+
+    transition:
+        border-color 0.18s ease,
+        color 0.18s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.action-buttons button:hover {
+    color: #fff;
+
+    border-color:
+        rgba(255, 106, 0, 0.65);
+
+    background:
+        rgba(255, 106, 0, 0.09);
+
+    box-shadow:
+        0 0 10px rgba(255, 106, 0, 0.1);
+}
+
+
+/* =========================================================
+   APPROVE BUTTON
+   ========================================================= */
+
+.action-buttons .approve,
+.action-buttons .btn-approve {
+    color: #39e989;
+
+    border-color:
+        rgba(39, 233, 137, 0.18);
+
+    background:
+        rgba(39, 233, 137, 0.045);
+}
+
+.action-buttons .approve:hover,
+.action-buttons .btn-approve:hover {
+    border-color:
+        rgba(39, 233, 137, 0.55);
+
+    background:
+        rgba(39, 233, 137, 0.09);
+
+    box-shadow:
+        0 0 10px rgba(39, 233, 137, 0.1);
+}
+
+
+/* =========================================================
+   REJECT BUTTON
+   ========================================================= */
+
+.action-buttons .reject,
+.action-buttons .btn-reject {
+    color: #ff6565;
+
+    border-color:
+        rgba(255, 65, 65, 0.18);
+
+    background:
+        rgba(255, 65, 65, 0.045);
+}
+
+.action-buttons .reject:hover,
+.action-buttons .btn-reject:hover {
+    border-color:
+        rgba(255, 65, 65, 0.55);
+
+    background:
+        rgba(255, 65, 65, 0.09);
+
+    box-shadow:
+        0 0 10px rgba(255, 65, 65, 0.1);
+}
+
+
+/* =========================================================
+   EMPTY / LOADING
+   ========================================================= */
+
+#loadingState,
+#emptyState {
+    padding:
+        60px 25px;
+
+    color: #6f6f77;
+
+    text-align: center;
+
+    font-size: 12px;
+}
+
+#loadingState::before {
+    content: "";
+
+    display: block;
+
+    width: 22px;
+    height: 22px;
+
+    margin:
+        0 auto 12px;
+
+    border:
+        2px solid rgba(255, 106, 0, 0.15);
+
+    border-top-color:
+        #ff6a00;
+
+    border-radius: 50%;
+
+    animation:
+        topupSpin 0.8s linear infinite;
+}
+
+@keyframes topupSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+
+/* =========================================================
+   MOBILE TABLE
+   ========================================================= */
+
+@media (max-width: 760px) {
+
+    .toolbar {
+        padding: 14px;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-wrap table {
+        min-width: 900px;
+    }
+}
+
+/* =========================================================
+   GEN-Z.AI — PREMIUM MODAL SYSTEM
+   ========================================================= */
+
+/* Overlay */
+#editModal,
+#packageModal {
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 9999;
+
+    display: none;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    background:
+        rgba(0, 0, 0, 0.78);
+
+    backdrop-filter:
+        blur(14px);
+
+    -webkit-backdrop-filter:
+        blur(14px);
+}
+
+
+/* Saat JS membuka modal */
+#editModal[style*="display: flex"],
+#editModal[style*="display:flex"],
+#packageModal[style*="display: flex"],
+#packageModal[style*="display:flex"] {
+    display: flex !important;
+}
+
+
+/* =========================================================
+   MODAL CONTAINER
+   ========================================================= */
+
+#editModal > div,
+#packageModal > div {
+    position: relative;
+
+    width: min(560px, 100%);
+
+    max-height:
+        calc(100vh - 40px);
+
+    overflow-y: auto;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.75);
+
+    border-radius: 20px;
+
+    background:
+        radial-gradient(
+            circle at 100% 0%,
+            rgba(255, 106, 0, 0.08),
+            transparent 35%
+        ),
+        linear-gradient(
+            145deg,
+            #19191c,
+            #080808
+        );
+
+    box-shadow:
+        0 0 7px rgba(255, 106, 0, 0.7),
+        0 0 25px rgba(255, 106, 0, 0.2),
+        0 25px 80px rgba(0, 0, 0, 0.65);
+
+    animation:
+        topupModalOpen 0.22s ease;
+}
+
+
+@keyframes topupModalOpen {
+
+    from {
+        opacity: 0;
+
+        transform:
+            translateY(14px)
+            scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+
+        transform:
+            translateY(0)
+            scale(1);
+    }
+}
+
+
+/* =========================================================
+   MODAL HEADER
+   ========================================================= */
+
+#editModal .modal-header,
+#packageModal .modal-header {
+    position: relative;
+
+    padding:
+        22px 24px;
+
+    border-bottom:
+        1px solid rgba(255, 106, 0, 0.15);
+
+    background:
+        rgba(255, 106, 0, 0.025);
+}
+
+
+#editModal .modal-header::after,
+#packageModal .modal-header::after {
+    content: "";
+
+    position: absolute;
+
+    left: 24px;
+    right: 24px;
+    bottom: -1px;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            #ff6a00,
+            transparent
+        );
+
+    box-shadow:
+        0 0 7px rgba(255, 106, 0, 0.5);
+}
+
+
+#editModal .modal-header h2,
+#packageModal .modal-header h2 {
+    margin: 0;
+
+    color: #fff;
+
+    font-size: 19px;
+
+    font-weight: 850;
+
+    letter-spacing: -0.2px;
+}
+
+
+/* =========================================================
+   CLOSE BUTTON
+   ========================================================= */
+
+#editModal .close-btn,
+#packageModal .close-btn {
+    position: absolute;
+
+    top: 16px;
+    right: 18px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    width: 34px;
+    height: 34px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.2);
+
+    border-radius: 10px;
+
+    color: #85858d;
+
+    background:
+        rgba(255, 255, 255, 0.035);
+
+    cursor: pointer;
+
+    transition:
+        color 0.18s ease,
+        border-color 0.18s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+
+#editModal .close-btn:hover,
+#packageModal .close-btn:hover {
+    color: #fff;
+
+    border-color:
+        rgba(255, 106, 0, 0.7);
+
+    background:
+        rgba(255, 106, 0, 0.08);
+
+    box-shadow:
+        0 0 10px rgba(255, 106, 0, 0.12);
+}
+
+
+/* =========================================================
+   MODAL BODY
+   ========================================================= */
+
+#editModal .modal-body,
+#packageModal .modal-body {
+    padding:
+        24px;
+}
+
+
+/* =========================================================
+   FORM GROUP
+   ========================================================= */
+
+#editModal .form-group,
+#packageModal .form-group {
+    margin-bottom: 17px;
+}
+
+
+#editModal label,
+#packageModal label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: #bdbdc4;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: 0.35px;
+
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   FORM INPUT
+   ========================================================= */
+
+#editModal input,
+#editModal select,
+#editModal textarea,
+#packageModal input,
+#packageModal select,
+#packageModal textarea {
+    width: 100%;
+
+    min-height: 44px;
+
+    padding:
+        10px 13px;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.1);
+
+    border-radius: 11px;
+
+    outline: none;
+
+    color: #f5f5f7;
+
+    background:
+        rgba(4, 4, 5, 0.92);
+
+    font-family: inherit;
+
+    font-size: 13px;
+
+    transition:
+        border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease;
+}
+
+
+#editModal input:focus,
+#editModal select:focus,
+#editModal textarea:focus,
+#packageModal input:focus,
+#packageModal select:focus,
+#packageModal textarea:focus {
+    border-color:
+        rgba(255, 106, 0, 0.75);
+
+    background:
+        rgba(255, 106, 0, 0.025);
+
+    box-shadow:
+        0 0 0 3px rgba(255, 106, 0, 0.06),
+        0 0 13px rgba(255, 106, 0, 0.08);
+}
+
+
+#editModal textarea,
+#packageModal textarea {
+    min-height: 90px;
+
+    resize: vertical;
+}
+
+
+/* =========================================================
+   READONLY FIELD
+   ========================================================= */
+
+#editModal input[readonly],
+#packageModal input[readonly] {
+    color: #777b83;
+
+    border-color:
+        rgba(255, 255, 255, 0.055);
+
+    background:
+        rgba(255, 255, 255, 0.025);
+
+    cursor: not-allowed;
+}
+
+
+/* =========================================================
+   TWO COLUMN FORM
+   ========================================================= */
+
+#editModal .form-row,
+#packageModal .form-row {
+    display: grid;
+
+    grid-template-columns:
+        1fr 1fr;
+
+    gap: 14px;
+}
+
+
+/* =========================================================
+   CHECKBOX
+   ========================================================= */
+
+#packageModal input[type="checkbox"] {
+    width: 18px;
+    min-height: 18px;
+
+    accent-color:
+        #ff6a00;
+
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   MODAL FOOTER
+   ========================================================= */
+
+#editModal .modal-footer,
+#packageModal .modal-footer {
+    display: flex;
+
+    justify-content: flex-end;
+
+    gap: 10px;
+
+    padding:
+        18px 24px;
+
+    border-top:
+        1px solid rgba(255, 106, 0, 0.12);
+
+    background:
+        rgba(0, 0, 0, 0.16);
+}
+
+
+#editModal .modal-footer .btn,
+#packageModal .modal-footer .btn {
+    min-width: 110px;
+
+    min-height: 40px;
+
+    border-radius: 10px;
+}
+
+
+/* =========================================================
+   SAVE BUTTON
+   ========================================================= */
+
+#saveEditButton,
+#savePackageButton {
+    border:
+        1px solid rgba(255, 142, 55, 0.8);
+
+    background:
+        linear-gradient(
+            135deg,
+            #ff7b00,
+            #e84d00
+        );
+
+    color: #fff;
+
+    box-shadow:
+        0 0 12px rgba(255, 106, 0, 0.16);
+}
+
+
+#saveEditButton:hover,
+#savePackageButton:hover {
+    box-shadow:
+        0 0 18px rgba(255, 106, 0, 0.3),
+        0 0 32px rgba(255, 106, 0, 0.1);
+}
+
+
+/* =========================================================
+   CANCEL BUTTON
+   ========================================================= */
+
+#cancelEditButton,
+#cancelPackageButton {
+    border:
+        1px solid rgba(255, 255, 255, 0.1);
+
+    background:
+        rgba(255, 255, 255, 0.04);
+
+    color: #aaa;
+}
+
+
+#cancelEditButton:hover,
+#cancelPackageButton:hover {
+    color: #fff;
+
+    border-color:
+        rgba(255, 106, 0, 0.4);
+
+    background:
+        rgba(255, 106, 0, 0.06);
+}
+
+
+/* =========================================================
+   PRICE PREVIEW
+   ========================================================= */
+
+#packagePricePreview {
+    margin-top: 8px;
+
+    padding:
+        14px 16px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.25);
+
+    border-radius: 12px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255, 106, 0, 0.07),
+            rgba(255, 255, 255, 0.015)
+        );
+
+    box-shadow:
+        inset 0 0 15px rgba(255, 106, 0, 0.025);
+}
+
+
+/* =========================================================
+   MODAL SCROLLBAR
+   ========================================================= */
+
+#editModal > div::-webkit-scrollbar,
+#packageModal > div::-webkit-scrollbar {
+    width: 6px;
+}
+
+#editModal > div::-webkit-scrollbar-thumb,
+#packageModal > div::-webkit-scrollbar-thumb {
+    background:
+        rgba(255, 106, 0, 0.35);
+
+    border-radius: 20px;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    #editModal,
+    #packageModal {
+        padding: 10px;
+    }
+
+    #editModal > div,
+    #packageModal > div {
+        max-height:
+            calc(100vh - 20px);
+
+        border-radius: 16px;
+    }
+
+    #editModal .modal-body,
+    #packageModal .modal-body {
+        padding: 18px;
+    }
+
+    #editModal .modal-footer,
+    #packageModal .modal-footer {
+        flex-direction: column-reverse;
+
+        padding: 15px 18px;
+    }
+
+    #editModal .modal-footer .btn,
+    #packageModal .modal-footer .btn {
+        width: 100%;
+    }
+
+    #editModal .form-row,
+    #packageModal .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================================
+   GEN-Z.AI — PREMIUM PAGE FINISHING
+   NAVIGATION + BACKGROUND + MICRO DETAILS
+   ========================================================= */
+
+
+/* =========================================================
+   BACKGROUND GRID
+   ========================================================= */
+
+body::before {
+    content: "";
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: -2;
+
+    pointer-events: none;
+
+    background-image:
+        linear-gradient(
+            rgba(255, 106, 0, 0.018) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255, 106, 0, 0.018) 1px,
+            transparent 1px
+        );
+
+    background-size:
+        42px 42px;
+
+    mask-image:
+        linear-gradient(
+            to bottom,
+            black,
+            transparent 85%
+        );
+}
+
+
+/* Ambient orange light */
+body::after {
+    content: "";
+
+    position: fixed;
+
+    width: 520px;
+    height: 520px;
+
+    left: 50%;
+    top: 20%;
+
+    z-index: -1;
+
+    transform:
+        translate(-50%, -50%);
+
+    pointer-events: none;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 106, 0, 0.035),
+            transparent 68%
+        );
+
+    filter:
+        blur(25px);
+}
+
+
+/* =========================================================
+   NAVIGATION CONTAINER
+   ========================================================= */
+
+#navigation {
+    position: relative;
+
+    z-index: 100;
+
+    width: 100%;
+}
+
+
+/* Jika navigation menggunakan sidebar */
+#navigation aside,
+#navigation nav {
+    scrollbar-width: thin;
+
+    scrollbar-color:
+        rgba(255, 106, 0, 0.35)
+        transparent;
+}
+
+
+/* =========================================================
+   NAVIGATION SCROLLBAR
+   ========================================================= */
+
+#navigation ::-webkit-scrollbar {
+    width: 5px;
+}
+
+#navigation ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#navigation ::-webkit-scrollbar-thumb {
+    border-radius: 20px;
+
+    background:
+        rgba(255, 106, 0, 0.25);
+}
+
+
+/* =========================================================
+   MAIN CONTENT SPACING
+   ========================================================= */
+
+main.page {
+    position: relative;
+}
+
+
+/* =========================================================
+   PREMIUM BLOCK TOP LIGHT
+   ========================================================= */
+
+.page-header,
+.stat-card,
+.section-card,
+.table-card,
+.package-card {
+    overflow: hidden;
+}
+
+
+/* Cahaya berjalan sangat halus */
+.page-header::before,
+.stat-card::before,
+.section-card::before,
+.table-card::before,
+.package-card::before {
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   STAT CARD ACCENT
+   ========================================================= */
+
+.stat-card:nth-child(1) {
+    border-color:
+        rgba(255, 106, 0, 0.58) !important;
+}
+
+.stat-card:nth-child(2) {
+    border-color:
+        rgba(255, 136, 40, 0.58) !important;
+}
+
+.stat-card:nth-child(3) {
+    border-color:
+        rgba(255, 106, 0, 0.58) !important;
+}
+
+.stat-card:nth-child(4) {
+    border-color:
+        rgba(255, 145, 55, 0.58) !important;
+}
+
+
+/* =========================================================
+   SMALL STATUS LIGHT
+   ========================================================= */
+
+.status-badge::before {
+    animation:
+        statusPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+
+    0%,
+    100% {
+        opacity: 0.55;
+
+        box-shadow:
+            0 0 3px currentColor;
+    }
+
+    50% {
+        opacity: 1;
+
+        box-shadow:
+            0 0 7px currentColor,
+            0 0 11px currentColor;
+    }
+}
+
+
+/* =========================================================
+   TOPUP ACTIVE INDICATOR
+   ========================================================= */
+
+.status-pending::before {
+    animation:
+        pendingPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pendingPulse {
+
+    0%,
+    100% {
+        opacity: 0.45;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+
+/* =========================================================
+   DIVIDERS
+   ========================================================= */
+
+hr {
+    border: 0;
+
+    height: 1px;
+
+    margin:
+        20px 0;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 106, 0, 0.3),
+            transparent
+        );
+}
+
+
+/* =========================================================
+   LINKS
+   ========================================================= */
+
+a {
+    color:
+        #ff9345;
+
+    text-decoration: none;
+
+    transition:
+        color 0.18s ease,
+        text-shadow 0.18s ease;
+}
+
+a:hover {
+    color:
+        #ffb06d;
+
+    text-shadow:
+        0 0 8px rgba(255, 106, 0, 0.25);
+}
+
+
+/* =========================================================
+   FOCUS ACCESSIBILITY
+   ========================================================= */
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline:
+        1px solid #ff6a00;
+
+    outline-offset:
+        2px;
+}
+
+
+/* =========================================================
+   DISABLED
+   ========================================================= */
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+    opacity: 0.45;
+
+    filter:
+        saturate(0.5);
+}
+
+
+/* =========================================================
+   PREMIUM TEXT
+   ========================================================= */
+
+.page strong {
+    color: #f3f3f5;
+}
+
+.page small {
+    color: #73737b;
+}
+
+
+/* =========================================================
+   TABLE HOVER ORANGE LINE
+   ========================================================= */
+
+.table-wrap tbody tr {
+    position: relative;
+}
+
+.table-wrap tbody tr:hover::before {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 0;
+    bottom: 0;
+
+    width: 2px;
+
+    background:
+        #ff6a00;
+
+    box-shadow:
+        0 0 8px rgba(255, 106, 0, 0.75);
+}
+
+
+/* =========================================================
+   PACKAGE HOVER LIGHT
+   ========================================================= */
+
+.package-card:hover::after {
+    box-shadow:
+        0 0 12px rgba(255, 106, 0, 0.9);
+}
+
+
+/* =========================================================
+   NO DEFAULT BROWSER FEEL
+   ========================================================= */
+
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+}
+
+button {
+    appearance: none;
+}
+
+
+/* =========================================================
+   FINAL RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 760px) {
+
+    body {
+        background:
+            radial-gradient(
+                circle at 50% 0%,
+                rgba(255, 106, 0, 0.07),
+                transparent 35%
+            ),
+            #050505;
+    }
+
+    body::before {
+        background-size:
+            30px 30px;
+    }
+
+    .page-header,
+    .stat-card,
+    .section-card,
+    .table-card,
+    .package-card {
+        box-shadow:
+            0 0 5px rgba(255, 106, 0, 0.45),
+            0 0 15px rgba(255, 106, 0, 0.1);
+    }
+}
+
+/* =========================================================
+   GEN-Z.AI — PREMIUM TOPUP HEADER
+   ========================================================= */
+
+.page-header {
+    min-height: 118px;
+
+    display: flex;
+
+    align-items: center;
+
+    position: relative;
+
+    isolation: isolate;
+
+    background:
+        radial-gradient(
+            circle at 0% 50%,
+            rgba(255, 106, 0, 0.10),
+            transparent 30%
+        ),
+        linear-gradient(
+            135deg,
+            rgba(24, 24, 27, 0.98),
+            rgba(8, 8, 9, 0.98)
+        ) !important;
+}
+
+
+/* =========================================================
+   HEADER BRAND LIGHT
+   ========================================================= */
+
+.page-header::after {
+    content: "";
+
+    position: absolute;
+
+    right: -100px;
+    top: -100px;
+
+    width: 260px;
+    height: 260px;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 106, 0, 0.12),
+            transparent 68%
+        );
+
+    pointer-events: none;
+
+    z-index: -1;
+}
+
+
+/* =========================================================
+   TITLE
+   ========================================================= */
+
+.title-wrap {
+    position: relative;
+
+    z-index: 2;
+}
+
+.title-wrap h1 {
+    display: flex;
+
+    align-items: center;
+
+    gap: 11px;
+
+    color: #fff;
+
+    font-size: clamp(27px, 3vw, 38px);
+
+    font-weight: 900;
+
+    letter-spacing: -1px;
+}
+
+
+/* Orange indicator beside title */
+.title-wrap h1::before {
+    content: "";
+
+    width: 9px;
+    height: 9px;
+
+    flex: 0 0 9px;
+
+    border-radius: 50%;
+
+    background:
+        #ff6a00;
+
+    box-shadow:
+        0 0 7px #ff6a00,
+        0 0 15px rgba(255, 106, 0, 0.7);
+
+    animation:
+        titlePulse 1.8s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+
+    0%,
+    100% {
+        opacity: 0.55;
+
+        box-shadow:
+            0 0 5px #ff6a00;
+    }
+
+    50% {
+        opacity: 1;
+
+        box-shadow:
+            0 0 9px #ff6a00,
+            0 0 18px rgba(255, 106, 0, 0.7);
+    }
+}
+
+
+/* =========================================================
+   SUBTITLE
+   ========================================================= */
+
+.title-wrap p {
+    max-width: 620px;
+
+    margin-top: 9px;
+
+    color: #85858d;
+
+    font-size: 13px;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   HEADER ACTION
+   ========================================================= */
+
+.header-actions {
+    position: relative;
+
+    z-index: 3;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+}
+
+
+/* Refresh button */
+#refreshButton {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    min-height: 42px;
+
+    padding:
+        0 17px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.42);
+
+    border-radius: 11px;
+
+    color: #ff9b52;
+
+    background:
+        rgba(255, 106, 0, 0.055);
+
+    box-shadow:
+        0 0 8px rgba(255, 106, 0, 0.05);
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    cursor: pointer;
+
+    transition:
+        0.2s ease;
+}
+
+#refreshButton::before {
+    content: "↻";
+
+    display: inline-block;
+
+    font-size: 17px;
+
+    line-height: 1;
+
+    transition:
+        transform 0.35s ease;
+}
+
+#refreshButton:hover {
+    color: #fff;
+
+    border-color:
+        rgba(255, 106, 0, 0.85);
+
+    background:
+        rgba(255, 106, 0, 0.11);
+
+    box-shadow:
+        0 0 10px rgba(255, 106, 0, 0.15),
+        0 0 22px rgba(255, 106, 0, 0.06);
+
+    transform:
+        translateY(-1px);
+}
+
+#refreshButton:hover::before {
+    transform:
+        rotate(180deg);
+}
+
+#refreshButton:active {
+    transform:
+        translateY(0);
+}
+
+
+/* =========================================================
+   SECTION TITLE ACCENT
+   ========================================================= */
+
+.section-header h2 {
+    position: relative;
+
+    padding-left: 13px;
+}
+
+.section-header h2::before {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 50%;
+
+    width: 4px;
+    height: 20px;
+
+    transform:
+        translateY(-50%);
+
+    border-radius: 10px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ff9a45,
+            #ff5a00
+        );
+
+    box-shadow:
+        0 0 7px rgba(255, 106, 0, 0.65);
+}
+
+
+/* =========================================================
+   STAT LABEL MICRO ACCENT
+   ========================================================= */
+
+.stat-label {
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+}
+
+.stat-label::before {
+    content: "";
+
+    width: 5px;
+    height: 5px;
+
+    border-radius: 50%;
+
+    background:
+        #ff6a00;
+
+    box-shadow:
+        0 0 6px rgba(255, 106, 0, 0.7);
+}
+
+
+/* =========================================================
+   MOBILE HEADER
+   ========================================================= */
+
+@media (max-width: 760px) {
+
+    .page-header {
+        min-height: auto;
+
+        padding:
+            22px;
+    }
+
+    .title-wrap h1 {
+        font-size: 26px;
+    }
+
+    .title-wrap p {
+        font-size: 12px;
+    }
+
+    .header-actions {
+        width: 100%;
+    }
+
+    #refreshButton {
+        width: 100%;
+    }
+}
+
+/* =========================================================
+   GEN-Z.AI — PREMIUM STATISTICS CARDS
+   ========================================================= */
+
+.stats {
+    position: relative;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+
+    gap: 15px;
+}
+
+
+/* ---------------------------------------------------------
+   CARD BASE
+   --------------------------------------------------------- */
+
+.stat-card {
+    position: relative;
+
+    min-height: 142px;
+
+    overflow: hidden;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: space-between;
+
+    padding: 20px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.55) !important;
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(28, 28, 31, 0.98),
+            rgba(8, 8, 9, 0.98)
+        ) !important;
+
+    box-shadow:
+        0 0 6px rgba(255, 106, 0, 0.30),
+        0 0 20px rgba(255, 106, 0, 0.07),
+        inset 0 0 25px rgba(255, 106, 0, 0.018);
+
+    transition:
+        transform 0.22s ease,
+        border-color 0.22s ease,
+        box-shadow 0.22s ease;
+}
+
+
+/* Inner orange light */
+.stat-card::after {
+    content: "";
+
+    position: absolute;
+
+    width: 130px;
+    height: 130px;
+
+    right: -60px;
+    bottom: -70px;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 106, 0, 0.16),
+            transparent 70%
+        );
+
+    pointer-events: none;
+}
+
+
+/* Top light line */
+.stat-card::before {
+    content: "";
+
+    position: absolute;
+
+    left: 14px;
+    right: 14px;
+    top: 0;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 106, 0, 0.9),
+            transparent
+        );
+
+    box-shadow:
+        0 0 7px rgba(255, 106, 0, 0.65);
+
+    opacity: 0.7;
+
+    pointer-events: none;
+}
+
+
+/* ---------------------------------------------------------
+   HOVER
+   --------------------------------------------------------- */
+
+.stat-card:hover {
+    transform:
+        translateY(-4px);
+
+    border-color:
+        rgba(255, 106, 0, 0.95) !important;
+
+    box-shadow:
+        0 0 8px rgba(255, 106, 0, 0.55),
+        0 0 26px rgba(255, 106, 0, 0.13),
+        inset 0 0 28px rgba(255, 106, 0, 0.035);
+}
+
+
+/* ---------------------------------------------------------
+   LABEL
+   --------------------------------------------------------- */
+
+.stat-label {
+    position: relative;
+
+    z-index: 2;
+
+    color:
+        #85858d;
+
+    font-size:
+        11px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        0.8px;
+
+    text-transform:
+        uppercase;
+}
+
+
+/* ---------------------------------------------------------
+   VALUE
+   --------------------------------------------------------- */
+
+.stat-value {
+    position: relative;
+
+    z-index: 2;
+
+    margin-top: 8px;
+
+    color:
+        #ffffff;
+
+    font-size:
+        clamp(28px, 3vw, 38px);
+
+    line-height:
+        1;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        -1.5px;
+
+    text-shadow:
+        0 0 10px rgba(255, 255, 255, 0.06);
+}
+
+
+/* Orange value glow */
+.stat-card:hover .stat-value {
+    text-shadow:
+        0 0 10px rgba(255, 106, 0, 0.22);
+}
+
+
+/* ---------------------------------------------------------
+   SMALL STATUS LINE
+   --------------------------------------------------------- */
+
+.stat-card .stat-subtitle,
+.stat-card small {
+    position: relative;
+
+    z-index: 2;
+
+    color:
+        #66666e;
+
+    font-size:
+        10px;
+}
+
+
+/* ---------------------------------------------------------
+   INDIVIDUAL NEON IDENTITY
+   --------------------------------------------------------- */
+
+.stat-card:nth-child(1)::after {
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 106, 0, 0.17),
+            transparent 70%
+        );
+}
+
+.stat-card:nth-child(2)::after {
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 157, 72, 0.15),
+            transparent 70%
+        );
+}
+
+.stat-card:nth-child(3)::after {
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 106, 0, 0.20),
+            transparent 70%
+        );
+}
+
+.stat-card:nth-child(4)::after {
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 178, 95, 0.15),
+            transparent 70%
+        );
+}
+
+
+/* ---------------------------------------------------------
+   STATUS DOT
+   --------------------------------------------------------- */
+
+.stat-card .stat-label::before {
+    width: 6px;
+    height: 6px;
+
+    flex: 0 0 6px;
+
+    background:
+        #ff6a00;
+
+    box-shadow:
+        0 0 5px #ff6a00,
+        0 0 10px rgba(255, 106, 0, 0.55);
+
+    animation:
+        statDotPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes statDotPulse {
+
+    0%,
+    100% {
+        opacity: 0.55;
+
+        transform:
+            scale(0.85);
+    }
+
+    50% {
+        opacity: 1;
+
+        transform:
+            scale(1.15);
+
+        box-shadow:
+            0 0 7px #ff6a00,
+            0 0 13px rgba(255, 106, 0, 0.65);
+    }
+}
+
+
+/* ---------------------------------------------------------
+   MOBILE
+   --------------------------------------------------------- */
+
+@media (max-width: 900px) {
+
+    .stats {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+
+    .stats {
+        grid-template-columns:
+            1fr;
+    }
+
+    .stat-card {
+        min-height:
+            125px;
+
+        padding:
+            18px;
+    }
+
+    .stat-value {
+        font-size:
+            31px;
+    }
+}
+
+/* =========================================================
+   GEN-Z.AI — PREMIUM CREDIT PACKAGE SECTION
+   ========================================================= */
+
+#packagesGrid {
+    position: relative;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fit, minmax(230px, 1fr));
+
+    gap: 18px;
+
+    margin-top: 20px;
+}
+
+
+/* =========================================================
+   PACKAGE CARD
+   ========================================================= */
+
+.package-card {
+    position: relative;
+
+    min-height: 300px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    padding: 22px;
+
+    overflow: hidden;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.58) !important;
+
+    border-radius: 18px;
+
+    background:
+        linear-gradient(
+            155deg,
+            rgba(30, 30, 33, 0.98),
+            rgba(7, 7, 8, 0.99)
+        ) !important;
+
+    box-shadow:
+        0 0 7px rgba(255, 106, 0, 0.28),
+        0 0 22px rgba(255, 106, 0, 0.06),
+        inset 0 0 28px rgba(255, 106, 0, 0.018);
+
+    transition:
+        transform 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+
+/* Ambient package light */
+.package-card::before {
+    content: "";
+
+    position: absolute;
+
+    width: 180px;
+    height: 180px;
+
+    top: -95px;
+    right: -75px;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 106, 0, 0.16),
+            transparent 68%
+        );
+
+    pointer-events: none;
+}
+
+
+/* Top neon line */
+.package-card::after {
+    content: "";
+
+    position: absolute;
+
+    left: 16px;
+    right: 16px;
+    top: 0;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            #ff6a00,
+            transparent
+        );
+
+    box-shadow:
+        0 0 9px rgba(255, 106, 0, 0.75);
+
+    opacity: 0.75;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   HOVER
+   ========================================================= */
+
+.package-card:hover {
+    transform:
+        translateY(-6px);
+
+    border-color:
+        rgba(255, 106, 0, 1) !important;
+
+    box-shadow:
+        0 0 9px rgba(255, 106, 0, 0.60),
+        0 0 30px rgba(255, 106, 0, 0.14),
+        inset 0 0 35px rgba(255, 106, 0, 0.035);
+}
+
+
+/* =========================================================
+   PACKAGE NAME
+   ========================================================= */
+
+.package-card h3 {
+    position: relative;
+
+    z-index: 2;
+
+    margin:
+        2px 0 8px;
+
+    color:
+        #ffffff;
+
+    font-size:
+        18px;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        -0.3px;
+}
+
+
+/* =========================================================
+   PACKAGE CREDITS
+   ========================================================= */
+
+.package-card .package-credits,
+.package-card .credits {
+    position: relative;
+
+    z-index: 2;
+
+    margin-top:
+        8px;
+
+    color:
+        #ff9345;
+
+    font-size:
+        31px;
+
+    line-height:
+        1;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        -1px;
+
+    text-shadow:
+        0 0 9px rgba(255, 106, 0, 0.25);
+}
+
+
+/* Credit suffix */
+.package-card .package-credits span,
+.package-card .credits span {
+    color:
+        #77777f;
+
+    font-size:
+        11px;
+
+    font-weight:
+        700;
+
+    letter-spacing:
+        0;
+
+    text-shadow:
+        none;
+}
+
+
+/* =========================================================
+   PRICE
+   ========================================================= */
+
+.package-card .package-price,
+.package-card .price {
+    position: relative;
+
+    z-index: 2;
+
+    margin-top:
+        14px;
+
+    color:
+        #ffffff;
+
+    font-size:
+        23px;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        -0.5px;
+}
+
+
+/* Old price */
+.package-card .package-original-price,
+.package-card .original-price {
+    color:
+        #68686f;
+
+    font-size:
+        11px;
+
+    text-decoration:
+        line-through;
+}
+
+
+/* =========================================================
+   DISCOUNT BADGE
+   ========================================================= */
+
+.package-card .package-badge,
+.package-card .badge {
+    position: absolute;
+
+    top: 16px;
+    right: 16px;
+
+    z-index: 4;
+
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    min-height:
+        24px;
+
+    padding:
+        0 9px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.55);
+
+    border-radius:
+        999px;
+
+    color:
+        #ffad6c;
+
+    background:
+        rgba(255, 106, 0, 0.08);
+
+    box-shadow:
+        0 0 8px rgba(255, 106, 0, 0.08);
+
+    font-size:
+        9px;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        0.7px;
+
+    text-transform:
+        uppercase;
+}
+
+
+/* =========================================================
+   DESCRIPTION
+   ========================================================= */
+
+.package-card p {
+    position: relative;
+
+    z-index: 2;
+
+    margin:
+        13px 0 0;
+
+    color:
+        #77777f;
+
+    font-size:
+        11px;
+
+    line-height:
+        1.6;
+}
+
+
+/* =========================================================
+   PACKAGE ACTION AREA
+   ========================================================= */
+
+.package-card .package-actions,
+.package-card .actions {
+    position: relative;
+
+    z-index: 3;
+
+    display: flex;
+
+    gap: 8px;
+
+    margin-top:
+        auto;
+
+    padding-top:
+        20px;
+}
+
+
+/* =========================================================
+   PACKAGE BUTTONS
+   ========================================================= */
+
+.package-card button {
+    min-height:
+        36px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.42);
+
+    border-radius:
+        9px;
+
+    padding:
+        0 12px;
+
+    color:
+        #ff9a50;
+
+    background:
+        rgba(255, 106, 0, 0.055);
+
+    font-size:
+        10px;
+
+    font-weight:
+        800;
+
+    cursor:
+        pointer;
+
+    transition:
+        0.2s ease;
+}
+
+.package-card button:hover {
+    color:
+        #ffffff;
+
+    border-color:
+        #ff6a00;
+
+    background:
+        rgba(255, 106, 0, 0.13);
+
+    box-shadow:
+        0 0 10px rgba(255, 106, 0, 0.16);
+
+    transform:
+        translateY(-1px);
+}
+
+
+/* Primary package action */
+.package-card .primary,
+.package-card .edit-button {
+    color:
+        #ffffff;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255, 106, 0, 0.25),
+            rgba(255, 106, 0, 0.08)
+        );
+
+    border-color:
+        rgba(255, 106, 0, 0.75);
+}
+
+
+/* =========================================================
+   ACTIVE PACKAGE
+   ========================================================= */
+
+.package-card.active,
+.package-card[data-active="true"] {
+    border-color:
+        rgba(255, 106, 0, 0.95) !important;
+
+    box-shadow:
+        0 0 8px rgba(255, 106, 0, 0.5),
+        0 0 28px rgba(255, 106, 0, 0.12),
+        inset 0 0 30px rgba(255, 106, 0, 0.025);
+}
+
+
+/* =========================================================
+   PACKAGE EMPTY / LOADING
+   ========================================================= */
+
+#packageLoading,
+#packageEmpty {
+    min-height:
+        100px;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    padding:
+        20px;
+
+    border:
+        1px dashed rgba(255, 106, 0, 0.35);
+
+    border-radius:
+        14px;
+
+    color:
+        #77777f;
+
+    background:
+        rgba(255, 106, 0, 0.025);
+
+    font-size:
+        12px;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 760px) {
+
+    #packagesGrid {
+        grid-template-columns:
+            1fr;
+
+        gap:
+            14px;
+    }
+
+    .package-card {
+        min-height:
+            275px;
+
+        padding:
+            20px;
+    }
+
+    .package-card .package-credits,
+    .package-card .credits {
+        font-size:
+            28px;
+    }
+
+    .package-card .package-price,
+    .package-card .price {
+        font-size:
+            21px;
+    }
+}
+
+/* =========================================================
+   GEN-Z.AI — PREMIUM TOPUP REQUEST TOOLBAR
+   ========================================================= */
+
+.toolbar {
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    width: 100%;
+
+    margin-bottom: 16px;
+
+    padding: 12px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.42);
+
+    border-radius: 14px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255, 106, 0, 0.045),
+            rgba(12, 12, 14, 0.96)
+        );
+
+    box-shadow:
+        0 0 7px rgba(255, 106, 0, 0.18),
+        0 0 18px rgba(255, 106, 0, 0.035),
+        inset 0 0 20px rgba(255, 106, 0, 0.018);
+}
+
+
+/* Top neon line */
+.toolbar::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 14px;
+    right: 14px;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            #ff6a00,
+            transparent
+        );
+
+    box-shadow:
+        0 0 7px rgba(255, 106, 0, 0.7);
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   SEARCH WRAPPER
+   ========================================================= */
+
+.toolbar .search-wrapper {
+    position: relative;
+
+    flex: 1;
+}
+
+
+/* Search icon */
+.toolbar .search-wrapper::before {
+    content: "⌕";
+
+    position: absolute;
+
+    left: 14px;
+    top: 50%;
+
+    z-index: 2;
+
+    transform:
+        translateY(-52%);
+
+    color:
+        #ff8a3d;
+
+    font-size:
+        19px;
+
+    line-height:
+        1;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   SEARCH INPUT
+   ========================================================= */
+
+#searchInput {
+    width: 100%;
+
+    min-height: 43px;
+
+    padding:
+        0 14px 0 39px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.32);
+
+    border-radius:
+        10px;
+
+    color:
+        #eeeeef;
+
+    background:
+        rgba(4, 4, 5, 0.82);
+
+    font-size:
+        12px;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+}
+
+#searchInput::placeholder {
+    color:
+        #5f5f66;
+}
+
+#searchInput:hover {
+    border-color:
+        rgba(255, 106, 0, 0.52);
+}
+
+#searchInput:focus {
+    border-color:
+        #ff6a00;
+
+    background:
+        rgba(8, 8, 9, 0.96);
+
+    box-shadow:
+        0 0 0 2px rgba(255, 106, 0, 0.07),
+        0 0 13px rgba(255, 106, 0, 0.12);
+}
+
+
+/* =========================================================
+   STATUS FILTER
+   ========================================================= */
+
+#statusFilter {
+    min-width:
+        155px;
+
+    height:
+        43px;
+
+    padding:
+        0 35px 0 13px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.32);
+
+    border-radius:
+        10px;
+
+    color:
+        #d7d7da;
+
+    background:
+        rgba(4, 4, 5, 0.86);
+
+    font-size:
+        11px;
+
+    font-weight:
+        700;
+
+    cursor:
+        pointer;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+#statusFilter:hover {
+    border-color:
+        rgba(255, 106, 0, 0.58);
+
+    box-shadow:
+        0 0 10px rgba(255, 106, 0, 0.08);
+}
+
+#statusFilter:focus {
+    border-color:
+        #ff6a00;
+
+    outline:
+        none;
+
+    box-shadow:
+        0 0 0 2px rgba(255, 106, 0, 0.07),
+        0 0 13px rgba(255, 106, 0, 0.12);
+}
+
+#statusFilter option {
+    color:
+        #eeeeef;
+
+    background:
+        #101012;
+}
+
+
+/* =========================================================
+   TOOLBAR BUTTONS
+   ========================================================= */
+
+.toolbar button {
+    min-height:
+        43px;
+
+    padding:
+        0 15px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.38);
+
+    border-radius:
+        10px;
+
+    color:
+        #ff984e;
+
+    background:
+        rgba(255, 106, 0, 0.055);
+
+    font-size:
+        11px;
+
+    font-weight:
+        800;
+
+    cursor:
+        pointer;
+
+    transition:
+        0.2s ease;
+}
+
+.toolbar button:hover {
+    color:
+        #ffffff;
+
+    border-color:
+        #ff6a00;
+
+    background:
+        rgba(255, 106, 0, 0.12);
+
+    box-shadow:
+        0 0 11px rgba(255, 106, 0, 0.16);
+
+    transform:
+        translateY(-1px);
+}
+
+
+/* =========================================================
+   TABLE SECTION HEADER
+   ========================================================= */
+
+.table-card {
+    position: relative;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 760px) {
+
+    .toolbar {
+        flex-direction:
+            column;
+
+        align-items:
+            stretch;
+
+        gap:
+            9px;
+
+        padding:
+            10px;
+    }
+
+    .toolbar .search-wrapper {
+        width:
+            100%;
+    }
+
+    #statusFilter,
+    .toolbar button {
+        width:
+            100%;
+    }
+}
+
+/* =========================================================
+   GEN-Z.AI — PREMIUM TOP UP REQUEST TABLE
+   ========================================================= */
+
+.table-wrap {
+    position: relative;
+
+    width: 100%;
+
+    overflow-x: auto;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.35);
+
+    border-radius:
+        14px;
+
+    background:
+        rgba(5, 5, 6, 0.72);
+
+    box-shadow:
+        inset 0 0 25px rgba(255, 106, 0, 0.012);
+
+    scrollbar-width:
+        thin;
+
+    scrollbar-color:
+        rgba(255, 106, 0, 0.45)
+        transparent;
+}
+
+.table-wrap::-webkit-scrollbar {
+    height:
+        5px;
+}
+
+.table-wrap::-webkit-scrollbar-track {
+    background:
+        transparent;
+}
+
+.table-wrap::-webkit-scrollbar-thumb {
+    background:
+        rgba(255, 106, 0, 0.35);
+
+    border-radius:
+        20px;
+}
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.table-wrap table {
+    width:
+        100%;
+
+    min-width:
+        850px;
+
+    border-collapse:
+        separate;
+
+    border-spacing:
+        0;
+}
+
+
+/* =========================================================
+   TABLE HEADER
+   ========================================================= */
+
+.table-wrap thead {
+    position:
+        sticky;
+
+    top:
+        0;
+
+    z-index:
+        5;
+}
+
+.table-wrap thead th {
+    position:
+        relative;
+
+    height:
+        48px;
+
+    padding:
+        0 15px;
+
+    color:
+        #85858d;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(31, 31, 34, 0.98),
+            rgba(18, 18, 20, 0.98)
+        );
+
+    border-bottom:
+        1px solid rgba(255, 106, 0, 0.35);
+
+    font-size:
+        10px;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        0.75px;
+
+    text-align:
+        left;
+
+    text-transform:
+        uppercase;
+
+    white-space:
+        nowrap;
+}
+
+
+/* Header orange indicator */
+.table-wrap thead th:first-child {
+    border-top-left-radius:
+        13px;
+}
+
+.table-wrap thead th:last-child {
+    border-top-right-radius:
+        13px;
+}
+
+.table-wrap thead th::after {
+    content:
+        "";
+
+    position:
+        absolute;
+
+    left:
+        15px;
+
+    bottom:
+        -1px;
+
+    width:
+        22px;
+
+    height:
+        2px;
+
+    background:
+        #ff6a00;
+
+    box-shadow:
+        0 0 6px rgba(255, 106, 0, 0.65);
+
+    opacity:
+        0.55;
+}
+
+
+/* =========================================================
+   TABLE BODY
+   ========================================================= */
+
+.table-wrap tbody tr {
+    position:
+        relative;
+
+    background:
+        rgba(10, 10, 11, 0.72);
+
+    transition:
+        background 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.table-wrap tbody tr:nth-child(even) {
+    background:
+        rgba(18, 18, 20, 0.52);
+}
+
+
+/* Row hover */
+.table-wrap tbody tr:hover {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255, 106, 0, 0.065),
+            rgba(255, 106, 0, 0.018)
+        );
+
+    box-shadow:
+        inset 0 0 20px rgba(255, 106, 0, 0.025);
+}
+
+
+/* Orange active line */
+.table-wrap tbody tr:hover::before {
+    content:
+        "";
+
+    position:
+        absolute;
+
+    left:
+        0;
+
+    top:
+        0;
+
+    bottom:
+        0;
+
+    width:
+        2px;
+
+    background:
+        #ff6a00;
+
+    box-shadow:
+        0 0 9px rgba(255, 106, 0, 0.85);
+
+    pointer-events:
+        none;
+}
+
+
+/* =========================================================
+   TABLE CELLS
+   ========================================================= */
+
+.table-wrap tbody td {
+    height:
+        58px;
+
+    padding:
+        10px 15px;
+
+    color:
+        #c5c5ca;
+
+    border-bottom:
+        1px solid rgba(255, 255, 255, 0.035);
+
+    font-size:
+        11px;
+
+    vertical-align:
+        middle;
+
+    white-space:
+        nowrap;
+}
+
+.table-wrap tbody tr:last-child td {
+    border-bottom:
+        none;
+}
+
+
+/* =========================================================
+   USER / EMAIL
+   ========================================================= */
+
+.table-wrap td strong {
+    display:
+        block;
+
+    color:
+        #f0f0f2;
+
+    font-size:
+        12px;
+
+    font-weight:
+        800;
+}
+
+.table-wrap td small {
+    display:
+        block;
+
+    margin-top:
+        3px;
+
+    color:
+        #68686f;
+
+    font-size:
+        9px;
+}
+
+
+/* =========================================================
+   CREDIT VALUE
+   ========================================================= */
+
+.table-wrap td .credit,
+.table-wrap td .credits {
+    color:
+        #ff984e;
+
+    font-weight:
+        900;
+
+    text-shadow:
+        0 0 7px rgba(255, 106, 0, 0.18);
+}
+
+
+/* =========================================================
+   AMOUNT
+   ========================================================= */
+
+.table-wrap td .amount,
+.table-wrap td strong.amount {
+    color:
+        #ffffff;
+
+    font-weight:
+        900;
+}
+
+
+/* =========================================================
+   STATUS BADGE
+   ========================================================= */
+
+.status-badge {
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    gap:
+        6px;
+
+    min-height:
+        25px;
+
+    padding:
+        0 9px;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.08);
+
+    border-radius:
+        999px;
+
+    font-size:
+        9px;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        0.4px;
+
+    text-transform:
+        uppercase;
+}
+
+.status-badge::before {
+    content:
+        "";
+
+    width:
+        5px;
+
+    height:
+        5px;
+
+    flex:
+        0 0 5px;
+
+    border-radius:
+        50%;
+}
+
+
+/* Pending */
+.status-pending {
+    color:
+        #ffb15f;
+
+    background:
+        rgba(255, 157, 72, 0.08);
+
+    border-color:
+        rgba(255, 157, 72, 0.35);
+}
+
+.status-pending::before {
+    background:
+        #ff9a45;
+
+    box-shadow:
+        0 0 7px rgba(255, 154, 69, 0.75);
+}
+
+
+/* Approved */
+.status-approved {
+    color:
+        #72e6a0;
+
+    background:
+        rgba(66, 210, 120, 0.07);
+
+    border-color:
+        rgba(66, 210, 120, 0.3);
+}
+
+.status-approved::before {
+    background:
+        #4dde83;
+
+    box-shadow:
+        0 0 7px rgba(77, 222, 131, 0.75);
+}
+
+
+/* Rejected */
+.status-rejected {
+    color:
+        #ff7373;
+
+    background:
+        rgba(255, 70, 70, 0.07);
+
+    border-color:
+        rgba(255, 70, 70, 0.3);
+}
+
+.status-rejected::before {
+    background:
+        #ff5555;
+
+    box-shadow:
+        0 0 7px rgba(255, 85, 85, 0.75);
+}
+
+
+/* =========================================================
+   ACTION BUTTONS
+   ========================================================= */
+
+.table-wrap td button {
+    min-height:
+        31px;
+
+    padding:
+        0 10px;
+
+    border:
+        1px solid rgba(255, 106, 0, 0.32);
+
+    border-radius:
+        8px;
+
+    color:
+        #ff984e;
+
+    background:
+        rgba(255, 106, 0, 0.045);
+
+    font-size:
+        9px;
+
+    font-weight:
+        800;
+
+    cursor:
+        pointer;
+
+    transition:
+        0.18s ease;
+}
+
+.table-wrap td button:hover {
+    color:
+        #ffffff;
+
+    border-color:
+        #ff6a00;
+
+    background:
+        rgba(255, 106, 0, 0.12);
+
+    box-shadow:
+        0 0 9px rgba(255, 106, 0, 0.16);
+
+    transform:
+        translateY(-1px);
+}
+
+
+/* Approve */
+.table-wrap td button.approve,
+.table-wrap td .btn-approve {
+    color:
+        #73e6a0;
+
+    border-color:
+        rgba(72, 220, 126, 0.32);
+
+    background:
+        rgba(72, 220, 126, 0.045);
+}
+
+.table-wrap td button.approve:hover,
+.table-wrap td .btn-approve:hover {
+    border-color:
+        rgba(72, 220, 126, 0.8);
+
+    box-shadow:
+        0 0 10px rgba(72, 220, 126, 0.15);
+}
+
+
+/* Reject */
+.table-wrap td button.reject,
+.table-wrap td .btn-reject {
+    color:
+        #ff7777;
+
+    border-color:
+        rgba(255, 80, 80, 0.32);
+
+    background:
+        rgba(255, 80, 80, 0.045);
+}
+
+.table-wrap td button.reject:hover,
+.table-wrap td .btn-reject:hover {
+    border-color:
+        rgba(255, 80, 80, 0.8);
+
+    box-shadow:
+        0 0 10px rgba(255, 80, 80, 0.15);
+}
+
+
+/* =========================================================
+   LOADING / EMPTY STATE
+   ========================================================= */
+
+#loadingState,
+#emptyState {
+    min-height:
+        150px;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    padding:
+        30px;
+
+    color:
+        #68686f;
+
+    background:
+        rgba(255, 106, 0, 0.018);
+
+    font-size:
+        12px;
+
+    text-align:
+        center;
+}
+
+#loadingState::before {
+    content:
+        "";
+
+    width:
+        17px;
+
+    height:
+        17px;
+
+    margin-right:
+        10px;
+
+    border:
+        2px solid rgba(255, 106, 0, 0.18);
+
+    border-top-color:
+        #ff6a00;
+
+    border-radius:
+        50%;
+
+    animation:
+        tableSpinner 0.8s linear infinite;
+}
+
+@keyframes tableSpinner {
+    to {
+        transform:
+            rotate(360deg);
+    }
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 760px) {
+
+    .table-wrap {
+        border-radius:
+            12px;
+    }
+
+    .table-wrap tbody td {
+        height:
+            54px;
+
+        padding:
+            9px 12px;
+    }
+
+    .table-wrap thead th {
+        padding:
+            0 12px;
+    }
+}
