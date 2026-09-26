@@ -5051,6 +5051,19 @@ else {
            terakhir sebagai completed hanya karena polling
            function sudah return.
         ================================================= */
+       if (window.GENZGenerateCancellation?.isGenerateCancelled?.(result)) {
+    const cancelledResult =
+        window.GENZGenerateCancellation.normalizeGenerateCancellation(result);
+
+    setGenerateStatus(
+        "cancelled",
+        cancelledResult.message || "Generate dibatalkan oleh admin."
+    );
+
+    appState.generationInProgress = false;
+
+    return cancelledResult;
+}
 
         if (
             isPollingFailed(
