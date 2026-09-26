@@ -298,10 +298,6 @@
             border: 1px solid rgba(255, 138, 0, 0.20);
             border-radius: 18px;
 
-            /*
-             * Tetap DARK.
-             * Tidak menggunakan background orange.
-             */
             background:
                 linear-gradient(
                     145deg,
@@ -775,18 +771,15 @@
             font-weight: 900;
         }
 
-        .activity-stat.success
-        .activity-stat-value {
+        .activity-stat.success .activity-stat-value {
             color: var(--success);
         }
 
-        .activity-stat.failed
-        .activity-stat-value {
+        .activity-stat.failed .activity-stat-value {
             color: var(--danger);
         }
 
-        .activity-stat.processing
-        .activity-stat-value {
+        .activity-stat.processing .activity-stat-value {
             color: var(--accent);
         }
 
@@ -1761,14 +1754,6 @@
 
             let supabaseClient = null;
 
-            /*
-             * Prioritas:
-             * 1. window.supabaseClient
-             * 2. window.GENZ_SUPABASE jika memang client
-             * 3. window.GENZ_SUPABASE sebagai konfigurasi
-             * 4. variabel konfigurasi global lainnya
-             */
-
             if (
                 window.supabaseClient &&
                 typeof window.supabaseClient.auth?.getSession ===
@@ -2587,6 +2572,172 @@
             }
 
             /* =====================================================
+               GLOBAL STATISTICS
+            ====================================================== */
+
+            async function loadGlobalStatistics() {
+
+                /*
+                 * Default aman.
+                 *
+                 * Jika query statistik mengalami masalah,
+                 * dashboard tidak boleh meninggalkan "—".
+                 */
+                setText(
+                    "totalUsers",
+                    0
+                );
+
+                setText(
+                    "activeUsers",
+                    0
+                );
+
+                setText(
+                    "totalGenerations",
+                    0
+                );
+
+                setText(
+                    "totalCredits",
+                    0
+                );
+
+                /* -------------------------------------------------
+                   PROFILES
+                ------------------------------------------------- */
+
+                const {
+                    data: profileRows,
+                    error: profilesError
+                } =
+                    await supabaseClient
+                        .from("profiles")
+                        .select(
+                            "id, status, credits"
+                        );
+
+                if (profilesError) {
+
+                    console.error(
+                        "Failed to load global profile statistics:",
+                        profilesError
+                    );
+
+                } else {
+
+                    const rows =
+                        Array.isArray(
+                            profileRows
+                        )
+                            ? profileRows
+                            : [];
+
+                    const totalUsers =
+                        rows.length;
+
+                    const activeUsers =
+                        rows.filter(
+                            (row) =>
+                                String(
+                                    row?.status ??
+                                        ""
+                                )
+                                    .trim()
+                                    .toLowerCase() ===
+                                "active"
+                        ).length;
+
+                    const totalCredits =
+                        rows.reduce(
+                            (
+                                total,
+                                row
+                            ) => {
+
+                                const value =
+                                    Number(
+                                        row?.credits
+                                    );
+
+                                if (
+                                    Number.isFinite(
+                                        value
+                                    )
+                                ) {
+                                    return (
+                                        total +
+                                        value
+                                    );
+                                }
+
+                                return total;
+                            },
+                            0
+                        );
+
+                    setText(
+                        "totalUsers",
+                        formatNumber(
+                            totalUsers
+                        )
+                    );
+
+                    setText(
+                        "activeUsers",
+                        formatNumber(
+                            activeUsers
+                        )
+                    );
+
+                    setText(
+                        "totalCredits",
+                        formatNumber(
+                            totalCredits
+                        )
+                    );
+                }
+
+                /* -------------------------------------------------
+                   GENERATION HISTORY
+                ------------------------------------------------- */
+
+                const {
+                    data: generationRows,
+                    error: generationError
+                } =
+                    await supabaseClient
+                        .from(
+                            "generation_history"
+                        )
+                        .select("id");
+
+                if (generationError) {
+
+                    console.error(
+                        "Failed to load global generation statistics:",
+                        generationError
+                    );
+
+                } else {
+
+                    const rows =
+                        Array.isArray(
+                            generationRows
+                        )
+                            ? generationRows
+                            : [];
+
+                    setText(
+                        "totalGenerations",
+                        formatNumber(
+                            rows.length
+                        )
+                    );
+                }
+            }
+
+            /* =====================================================
                LOAD DASHBOARD
             ====================================================== */
 
@@ -2706,199 +2857,11 @@
                         "active"
                     );
 
-                    /* =================================================
+                    /* ---------------------------------------------
                        GLOBAL STATISTICS
-                    ================================================= */
+                    ---------------------------------------------- */
 
-                    /*
-                     * Total Users
-                     */
-
-                    const {
-                        count: totalUsers,
-                        error:
-                            totalUsersError
-                    } =
-                        await supabaseClient
-                            .from(
-                                "profiles"
-                            )
-                            .select(
-                                "id",
-                                {
-                                    count:
-                                        "exact",
-                                    head:
-                                        true
-                                }
-                            );
-
-                    if (totalUsersError) {
-                        console.error(
-                            "Failed to load total users:",
-                            totalUsersError
-                        );
-                    } else {
-                        setText(
-                            "totalUsers",
-                            formatNumber(
-                                totalUsers ??
-                                    0
-                            )
-                        );
-                    }
-
-                    /*
-                     * Active Users
-                     */
-
-                    const {
-                        count: activeUsers,
-                        error:
-                            activeUsersError
-                    } =
-                        await supabaseClient
-                            .from(
-                                "profiles"
-                            )
-                            .select(
-                                "id",
-                                {
-                                    count:
-                                        "exact",
-                                    head:
-                                        true
-                                }
-                            )
-                            .eq(
-                                "status",
-                                "active"
-                            );
-
-                    if (activeUsersError) {
-                        console.error(
-                            "Failed to load active users:",
-                            activeUsersError
-                        );
-                    } else {
-                        setText(
-                            "activeUsers",
-                            formatNumber(
-                                activeUsers ??
-                                    0
-                            )
-                        );
-                    }
-
-                    /*
-                     * Total Generations
-                     */
-
-                    const {
-                        count:
-                            totalGenerations,
-                        error:
-                            generationCountError
-                    } =
-                        await supabaseClient
-                            .from(
-                                "generation_history"
-                            )
-                            .select(
-                                "id",
-                                {
-                                    count:
-                                        "exact",
-                                    head:
-                                        true
-                                }
-                            );
-
-                    if (
-                        generationCountError
-                    ) {
-                        console.error(
-                            "Failed to load generation count:",
-                            generationCountError
-                        );
-                    } else {
-                        setText(
-                            "totalGenerations",
-                            formatNumber(
-                                totalGenerations ??
-                                    0
-                            )
-                        );
-                    }
-
-                    /*
-                     * Total Credits
-                     *
-                     * Credit tetap membaca
-                     * profiles.credits.
-                     */
-
-                    const {
-                        data: creditRows,
-                        error:
-                            creditsError
-                    } =
-                        await supabaseClient
-                            .from(
-                                "profiles"
-                            )
-                            .select(
-                                "credits"
-                            );
-
-                    if (creditsError) {
-                        console.error(
-                            "Failed to load credits:",
-                            creditsError
-                        );
-                    } else {
-
-                        let totalCredits = 0;
-
-                        if (
-                            Array.isArray(
-                                creditRows
-                            )
-                        ) {
-                            totalCredits =
-                                creditRows.reduce(
-                                    (
-                                        total,
-                                        row
-                                    ) => {
-
-                                        const credits =
-                                            Number(
-                                                row?.credits
-                                            );
-
-                                        return (
-                                            total +
-                                            (
-                                                Number.isFinite(
-                                                    credits
-                                                )
-                                                    ? credits
-                                                    : 0
-                                            )
-                                        );
-                                    },
-                                    0
-                                );
-                        }
-
-                        setText(
-                            "totalCredits",
-                            formatNumber(
-                                totalCredits
-                            )
-                        );
-                    }
+                    await loadGlobalStatistics();
 
                 } catch (error) {
 
@@ -2907,6 +2870,29 @@
                         error
                     );
 
+                    /*
+                     * Dashboard harus tetap menunjukkan angka,
+                     * bukan placeholder "—".
+                     */
+                    setText(
+                        "totalUsers",
+                        0
+                    );
+
+                    setText(
+                        "activeUsers",
+                        0
+                    );
+
+                    setText(
+                        "totalGenerations",
+                        0
+                    );
+
+                    setText(
+                        "totalCredits",
+                        0
+                    );
                 }
             }
 
