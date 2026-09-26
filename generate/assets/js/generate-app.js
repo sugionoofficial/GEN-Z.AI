@@ -3070,49 +3070,96 @@ async function renderForm(
     let result =
         null;
 
-    if (
-        typeof formModule.renderGenerateForm ===
+    /*
+ * =====================================================
+ * MODEL-SPECIFIC FORM
+ * =====================================================
+ *
+ * Seedance mempunyai aturan media sendiri:
+ *
+ * - first_frame_url
+ * - last_frame_url
+ * - reference_image_urls
+ * - reference_video_urls
+ * - reference_audio_urls
+ *
+ * Karena itu jangan biarkan generic
+ * generate-form.js merendernya.
+ */
+
+const seedanceModule =
+    appState.modules.seedance;
+
+
+const modelId =
+    getModelId(
+        model
+    );
+
+
+const isSeedance =
+    modelId ===
+    "bytedance/seedance-2-5";
+
+
+if (
+    isSeedance &&
+    seedanceModule &&
+    typeof seedanceModule.renderSeedanceForm ===
         "function"
-    ) {
+) {
 
-        result =
-            await formModule.renderGenerateForm(
-                model
-            );
+    debug(
+        "Rendering Seedance-specific form."
+    );
 
-    }
 
-    else if (
-        typeof formModule.render ===
-        "function"
-    ) {
+    await seedanceModule.renderSeedanceForm(
+        model
+    );
 
-        result =
-            await formModule.render(
-                model
-            );
+}
 
-    }
+else if (
+    typeof formModule.renderGenerateForm ===
+    "function"
+) {
 
-    else if (
-        typeof formModule.init ===
-        "function"
-    ) {
+    /*
+     * Semua model selain Seedance
+     * tetap memakai form lama.
+     */
+    await formModule.renderGenerateForm(
+        model
+    );
 
-        result =
-            await formModule.init(
-                model
-            );
+}
 
-    }
+else if (
+    typeof formModule.render ===
+    "function"
+) {
 
-    else {
+    await formModule.render();
 
-        throw new Error(
-            "generate-form.js tidak memiliki API render yang valid."
-        );
+}
 
-    }
+else if (
+    typeof formModule.init ===
+    "function"
+) {
+
+    await formModule.init();
+
+}
+
+else {
+
+    throw new Error(
+        "generate-form.js tidak memiliki renderGenerateForm(), render(), atau init()."
+    );
+
+}
 
     elements.dynamicFields.hidden =
         false;
