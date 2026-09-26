@@ -285,7 +285,8 @@
                     "queued",
                     "running",
                     "generating",
-                    "in_progress"
+                    "in_progress",
+                    "in-progress"
                 ].includes(normalized)
             ) {
 
@@ -360,8 +361,9 @@
                 this.getActivity();
 
 
-            return activity
-                .getUserHistory(userId);
+            return activity.getUserHistory(
+                userId
+            );
 
         },
 
@@ -476,10 +478,9 @@
 
             const history =
                 activityState
-                    ? activity
-                        .getUserHistory(
-                            userId
-                        )
+                    ? activity.getUserHistory(
+                        userId
+                    )
                     : this.getUserHistory(
                         userId
                     );
@@ -702,7 +703,8 @@
                     "queued",
                     "running",
                     "generating",
-                    "in_progress"
+                    "in_progress",
+                    "in-progress"
                 ].includes(
                     normalized
                 );
@@ -930,6 +932,25 @@
             }
 
 
+            const runningCount =
+                history.filter(
+                    item =>
+                        [
+                            "processing",
+                            "pending",
+                            "queued",
+                            "running",
+                            "generating",
+                            "in_progress",
+                            "in-progress"
+                        ].includes(
+                            this.normalizeStatus(
+                                item?.status
+                            )
+                        )
+                ).length;
+
+
             container.innerHTML = `
 
                 <div class="activity-modal-summary">
@@ -957,21 +978,7 @@
 
                         <strong>
                             ${this.formatNumber(
-                                history.filter(
-                                    item =>
-                                        [
-                                            "processing",
-                                            "pending",
-                                            "queued",
-                                            "running",
-                                            "generating",
-                                            "in_progress"
-                                        ].includes(
-                                            this.normalizeStatus(
-                                                item?.status
-                                            )
-                                        )
-                                ).length
+                                runningCount
                             )}
                         </strong>
 
@@ -1085,6 +1092,27 @@
             }
 
 
+            const selectedUserId =
+                this.state.selectedUserId;
+
+
+            /*
+             * Cancel hanya boleh dilakukan
+             * jika modal memang sedang membuka
+             * akun tertentu.
+             */
+
+            if (!selectedUserId) {
+
+                window.alert(
+                    "Akun Generate tidak ditemukan."
+                );
+
+                return;
+
+            }
+
+
             const confirmed =
                 window.confirm(
                     "Batalkan Generate yang sedang berjalan?"
@@ -1115,12 +1143,16 @@
 
 
                 /*
-                 * Mengikuti struktur dashboard lama:
-                 * update status generation_history
-                 * menjadi cancelled.
+                 * SECURITY:
+                 *
+                 * Jangan hanya menggunakan generation_history.id.
+                 *
+                 * Pastikan generation tersebut benar-benar
+                 * milik akun yang sedang dibuka.
                  */
 
                 const {
+                    data: updatedRows,
                     error
                 } =
                     await client
@@ -1134,11 +1166,65 @@
                         .eq(
                             "id",
                             generationId
+                        )
+                        .eq(
+                            "user_id",
+                            selectedUserId
+                        )
+                        .select(
+                            "id,user_id,status"
                         );
 
 
                 if (error) {
                     throw error;
+                }
+
+
+                /*
+                 * Jika tidak ada row yang berubah,
+                 * jangan menganggap Cancel berhasil.
+                 *
+                 * Ini juga melindungi dari kasus:
+                 * - ID tidak ditemukan
+                 * - generation bukan milik akun
+                 * - row sudah berubah sebelum request selesai
+                 */
+
+                if (
+                    !Array.isArray(updatedRows) ||
+                    updatedRows.length === 0
+                ) {
+
+                    throw new Error(
+                        "Generate tidak ditemukan atau bukan milik akun yang sedang dibuka."
+                    );
+
+                }
+
+
+                /*
+                 * Pastikan hasil update memang
+                 * menunjuk ke akun yang sedang dibuka.
+                 */
+
+                const updatedRow =
+                    updatedRows[0];
+
+
+                if (
+                    String(
+                        updatedRow?.user_id
+                    ) !==
+                    String(
+                        selectedUserId
+                    )
+                ) {
+
+                    throw new Error(
+                        "Validasi akun Generate gagal."
+                    );
+
                 }
 
 
@@ -1160,6 +1246,14 @@
                                 ) ===
                                 String(
                                     generationId
+                                ) &&
+                                String(
+                                    item?.user_id ||
+                                    item?.profile_id ||
+                                    item?.owner_id
+                                ) ===
+                                String(
+                                    selectedUserId
                                 )
                         );
 
@@ -1177,7 +1271,7 @@
                  */
 
                 this.render(
-                    this.state.selectedUserId,
+                    selectedUserId,
                     activity.state
                 );
 
@@ -1286,13 +1380,46 @@
             }
 
 
+            const target =
+                event.target;
+
+
             /*
-             * Hanya tutup jika yang diklik
-             * adalah backdrop, bukan panel.
+             * Struktur modal:
+             *
+             * #activityModal
+             *   └── .activity-modal-backdrop
+             *       └── .activity-modal-panel
+             *
+             * Karena backdrop berada di dalam
+             * #activityModal, event.target === modal
+             * tidak pernah menjadi kondisi yang tepat
+             * ketika backdrop diklik.
              */
 
             if (
-                event.target === modal
+                target &&
+                target.classList &&
+                target.classList.contains(
+                    "activity-modal-backdrop"
+                )
+            ) {
+
+                this.close();
+
+                return;
+
+            }
+
+
+            /*
+             * Dukungan tambahan apabila struktur
+             * HTML nantinya menggunakan modal
+             * sebagai backdrop langsung.
+             */
+
+            if (
+                target === modal
             ) {
 
                 this.close();
