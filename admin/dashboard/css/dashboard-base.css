@@ -1527,3 +1527,145 @@ body.activity-modal-open {
     }
 
 }
+
+/* =========================================================
+   ACCOUNT ACTIVITY - NEON ORANGE CARD
+========================================================= */
+
+#accountActivityGrid .account-card {
+    position: relative;
+    border: 1px solid rgba(255, 140, 0, 0.95) !important;
+    border-radius: 18px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 140, 0, 0.055),
+            rgba(12, 12, 18, 0.96) 48%,
+            rgba(5, 5, 8, 0.98)
+        ) !important;
+
+    box-shadow:
+        0 0 5px rgba(255, 140, 0, 0.55),
+        0 0 14px rgba(255, 140, 0, 0.28),
+        0 0 30px rgba(255, 140, 0, 0.10),
+        inset 0 0 18px rgba(255, 140, 0, 0.035);
+
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+}
+
+
+/* Hover */
+
+#accountActivityGrid .account-card:hover {
+    border-color: #ff9d00 !important;
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 0 7px rgba(255, 140, 0, 0.75),
+        0 0 18px rgba(255, 140, 0, 0.45),
+        0 0 38px rgba(255, 140, 0, 0.18),
+        inset 0 0 22px rgba(255, 140, 0, 0.05);
+}
+
+
+/* Focus keyboard */
+
+#accountActivityGrid .account-card:focus-visible {
+    outline: none;
+
+    border-color: #ffb000 !important;
+
+    box-shadow:
+        0 0 8px rgba(255, 140, 0, 0.85),
+        0 0 22px rgba(255, 140, 0, 0.50),
+        0 0 42px rgba(255, 140, 0, 0.20),
+        inset 0 0 24px rgba(255, 140, 0, 0.06);
+}
+
+
+/* =========================================================
+   ACCOUNT YANG SEDANG GENERATE
+   Border tetap ORANGE.
+   Lampu aktivitas tetap HIJAU.
+========================================================= */
+
+#accountActivityGrid .account-card.is-running {
+    border-color: rgba(255, 140, 0, 1) !important;
+
+    box-shadow:
+        0 0 6px rgba(255, 140, 0, 0.72),
+        0 0 18px rgba(255, 140, 0, 0.38),
+        0 0 34px rgba(255, 140, 0, 0.14),
+        inset 0 0 20px rgba(255, 140, 0, 0.045);
+}
+
+
+/* =========================================================
+   ACCOUNT LIGHT
+========================================================= */
+
+#accountActivityGrid .account-light {
+    width: 9px;
+    height: 9px;
+    min-width: 9px;
+    min-height: 9px;
+
+    border-radius: 50%;
+
+    background: rgba(120, 120, 120, 0.35);
+
+    box-shadow:
+        0 0 4px rgba(120, 120, 120, 0.15);
+
+    transition:
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+
+/* Hijau berkedip ketika generate aktif */
+
+#accountActivityGrid .account-light.active {
+    background: #39ff88;
+
+    box-shadow:
+        0 0 5px #39ff88,
+        0 0 12px rgba(57, 255, 136, 0.85),
+        0 0 24px rgba(57, 255, 136, 0.45);
+
+    animation:
+        accountActivityPulse 1.15s ease-in-out infinite;
+}
+
+
+@keyframes accountActivityPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+
+        transform: scale(1);
+
+        box-shadow:
+            0 0 5px #39ff88,
+            0 0 12px rgba(57, 255, 136, 0.85),
+            0 0 24px rgba(57, 255, 136, 0.45);
+    }
+
+    50% {
+        opacity: 0.28;
+
+        transform: scale(0.78);
+
+        box-shadow:
+            0 0 2px #39ff88,
+            0 0 6px rgba(57, 255, 136, 0.35);
+    }
+
+}
