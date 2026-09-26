@@ -511,6 +511,429 @@
         }
 
         /* =========================================================
+   ACCOUNT ACTIVITY
+========================================================= */
+
+.account-activity-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.account-card {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.98),
+            rgba(238,238,238,.95)
+        );
+
+    border: 1px solid var(--accent);
+    border-radius: 19px;
+    padding: 19px;
+
+    box-shadow:
+        0 12px 30px rgba(0,0,0,.08),
+        0 0 7px rgba(255,23,68,.40),
+        0 0 18px rgba(255,23,68,.14),
+        inset 0 1px 0 rgba(255,255,255,1);
+
+    transition:
+        transform .22s ease,
+        box-shadow .22s ease;
+}
+
+.account-card:hover {
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 17px 38px rgba(0,0,0,.12),
+        0 0 9px rgba(255,23,68,.58),
+        0 0 25px rgba(255,23,68,.22);
+}
+
+.account-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.account-main {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.account-light {
+    flex: 0 0 auto;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #999;
+}
+
+.account-light.active {
+    background: #16c978;
+
+    box-shadow:
+        0 0 7px rgba(22,201,120,.85),
+        0 0 17px rgba(22,201,120,.50);
+
+    animation:
+        accountPulse 1.15s infinite;
+}
+
+@keyframes accountPulse {
+
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: .20;
+        transform: scale(.72);
+    }
+}
+
+.account-email {
+    color: var(--text-strong);
+    font-size: 14px;
+    font-weight: 800;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.account-name {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 3px;
+}
+
+.account-role {
+    color: var(--accent-dark);
+    background: rgba(255,23,68,.07);
+    border: 1px solid rgba(255,23,68,.22);
+
+    border-radius: 100px;
+    padding: 5px 8px;
+
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.account-meta {
+    display: flex;
+    justify-content: space-between;
+
+    margin-top: 17px;
+    padding-top: 11px;
+
+    border-top:
+        1px solid rgba(255,23,68,.13);
+
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.account-meta strong {
+    color: var(--text-strong);
+}
+
+.account-activity-count {
+    margin-top: 9px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.account-activity-count.active {
+    color: #087b47;
+    font-weight: 750;
+}
+
+.account-empty {
+    grid-column: 1 / -1;
+
+    padding: 30px;
+    text-align: center;
+
+    color: var(--muted);
+
+    border:
+        1px dashed rgba(255,23,68,.35);
+
+    border-radius: 18px;
+
+    background:
+        rgba(255,255,255,.55);
+}
+
+/* =========================================================
+   ACTIVITY MODAL
+========================================================= */
+
+.activity-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    background:
+        rgba(0,0,0,.62);
+
+    backdrop-filter: blur(8px);
+}
+
+.activity-modal.open {
+    display: flex;
+}
+
+.activity-modal-panel {
+    width: min(900px, 100%);
+    max-height: 90vh;
+
+    overflow: auto;
+
+    background:
+        linear-gradient(
+            145deg,
+            #151515,
+            #090909
+        );
+
+    color: #f4f4f4;
+
+    border:
+        1px solid var(--accent);
+
+    border-radius: 20px;
+
+    padding: 22px;
+
+    box-shadow:
+        0 25px 80px rgba(0,0,0,.55),
+        0 0 12px rgba(255,23,68,.55),
+        0 0 35px rgba(255,23,68,.25);
+}
+
+.activity-modal-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+
+    margin-bottom: 18px;
+}
+
+.activity-modal-title {
+    font-size: 17px;
+    font-weight: 850;
+}
+
+.activity-modal-subtitle {
+    color: #999;
+    font-size: 11px;
+    margin-top: 5px;
+}
+
+.activity-close {
+    width: 34px;
+    height: 34px;
+
+    border:
+        1px solid rgba(255,23,68,.45);
+
+    border-radius: 10px;
+
+    background:
+        rgba(255,23,68,.08);
+
+    color: #ff4567;
+
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.activity-list {
+    display: grid;
+    gap: 11px;
+}
+
+.activity-item {
+    border:
+        1px solid rgba(255,255,255,.10);
+
+    border-radius: 14px;
+
+    padding: 15px;
+
+    background:
+        rgba(255,255,255,.045);
+}
+
+.activity-item.active {
+    border-color:
+        rgba(22,201,120,.40);
+}
+
+.activity-item-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.activity-model {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.activity-provider {
+    color: #999;
+    font-size: 10px;
+    margin-top: 4px;
+}
+
+.activity-status {
+    padding: 5px 8px;
+    border-radius: 100px;
+
+    font-size: 9px;
+    font-weight: 850;
+
+    text-transform: uppercase;
+}
+
+.activity-status.processing,
+.activity-status.pending {
+    color: #16c978;
+
+    background:
+        rgba(22,201,120,.09);
+
+    border:
+        1px solid rgba(22,201,120,.28);
+}
+
+.activity-status.success {
+    color: #75dca9;
+}
+
+.activity-status.failed,
+.activity-status.cancelled {
+    color: #ff6680;
+
+    background:
+        rgba(255,23,68,.07);
+
+    border:
+        1px solid rgba(255,23,68,.22);
+}
+
+.activity-info {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+
+    margin-top: 13px;
+}
+
+.activity-info-box {
+    padding: 9px;
+
+    border-radius: 10px;
+
+    background:
+        rgba(255,255,255,.035);
+}
+
+.activity-info-label {
+    color: #858585;
+    font-size: 9px;
+}
+
+.activity-info-value {
+    color: #e8e8e8;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    margin-top: 4px;
+
+    word-break: break-word;
+}
+
+.activity-prompt {
+    margin-top: 10px;
+    padding: 10px;
+
+    border-radius: 10px;
+
+    background:
+        rgba(0,0,0,.25);
+
+    color: #bdbdbd;
+
+    font-size: 10px;
+    line-height: 1.55;
+
+    word-break: break-word;
+}
+
+.activity-actions {
+    display: flex;
+    justify-content: flex-end;
+
+    margin-top: 12px;
+}
+
+.cancel-generation {
+    border:
+        1px solid rgba(255,23,68,.55);
+
+    border-radius: 9px;
+
+    background:
+        rgba(255,23,68,.10);
+
+    color: #ff4567;
+
+    padding: 8px 13px;
+
+    font-size: 10px;
+    font-weight: 850;
+
+    cursor: pointer;
+}
+
+.cancel-generation:disabled {
+    opacity: .45;
+    cursor: wait;
+}
+
+.activity-loading,
+.activity-no-data {
+    padding: 25px;
+    text-align: center;
+
+    color: #999;
+    font-size: 12px;
+}
+
+        /* =========================================================
            TWO COLUMN
         ========================================================= */
 
@@ -625,7 +1048,7 @@
                 grid-template-columns: repeat(2, 1fr);
             }
 
-            .progress-grid {
+            .account-activity-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
 
@@ -646,7 +1069,7 @@
             }
 
             .stats,
-            .progress-grid {
+            .account-activity-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -678,6 +1101,21 @@
                 animation-duration: .01ms !important;
             }
         }
+        @media (max-width: 1050px) {
+    .account-activity-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 650px) {
+    .account-activity-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .activity-info {
+        grid-template-columns: 1fr;
+    }
+}
     </style>
 </head>
 
@@ -855,250 +1293,797 @@
 
         </section>
 
-        <!-- =====================================================
-             FEATURE PROGRESS
-        ====================================================== -->
+        /* =====================================================
+   ACCOUNT ACTIVITY
+===================================================== */
 
-        <div class="section-title">
-            Feature Progress
+const accountActivityState = {
+    profiles: [],
+    history: [],
+    selectedUserId: null,
+    refreshTimer: null
+};
+
+function normalizeActivityStatus(status) {
+
+    const value =
+        String(status || "pending")
+            .trim()
+            .toLowerCase();
+
+    if (value === "completed") {
+        return "success";
+    }
+
+    if (value === "queued") {
+        return "pending";
+    }
+
+    return value || "pending";
+}
+
+function isRunningGeneration(item) {
+
+    const status =
+        normalizeActivityStatus(
+            item?.status
+        );
+
+    return (
+        status === "processing" ||
+        status === "pending"
+    );
+}
+
+function formatActivityDate(value) {
+
+    if (!value) {
+        return "—";
+    }
+
+    const date =
+        new Date(value);
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return String(value);
+    }
+
+    return date.toLocaleString(
+        "id-ID",
+        {
+            dateStyle: "short",
+            timeStyle: "short"
+        }
+    );
+}
+
+function formatActivityCredits(value) {
+
+    return Number(
+        value || 0
+    ).toLocaleString("id-ID");
+}
+
+async function loadAccountActivity() {
+
+    const grid =
+        document.getElementById(
+            "accountActivityGrid"
+        );
+
+    if (!grid) {
+        return;
+    }
+
+    try {
+
+        const profileResult =
+            await supabaseClient
+                .from("profiles")
+                .select(
+                    "id,name,email,role,credits,status"
+                )
+                .order(
+                    "email",
+                    {
+                        ascending: true
+                    }
+                );
+
+        if (
+            profileResult.error
+        ) {
+            throw profileResult.error;
+        }
+
+        const historyResult =
+            await supabaseClient
+                .from("generation_history")
+                .select("*")
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+        if (
+            historyResult.error
+        ) {
+            throw historyResult.error;
+        }
+
+        accountActivityState.profiles =
+            Array.isArray(
+                profileResult.data
+            )
+                ? profileResult.data
+                : [];
+
+        accountActivityState.history =
+            Array.isArray(
+                historyResult.data
+            )
+                ? historyResult.data
+                : [];
+
+        renderAccountActivity();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] Account Activity:",
+            error
+        );
+
+        grid.innerHTML = `
+            <div class="account-empty">
+                Gagal memuat aktivitas akun:
+                ${error?.message || "Unknown error"}
+            </div>
+        `;
+    }
+}
+
+function renderAccountActivity() {
+
+    const grid =
+        document.getElementById(
+            "accountActivityGrid"
+        );
+
+    if (!grid) {
+        return;
+    }
+
+    const profiles =
+        accountActivityState.profiles;
+
+    const history =
+        accountActivityState.history;
+
+    if (!profiles.length) {
+
+        grid.innerHTML = `
+            <div class="account-empty">
+                Belum ada akun yang tersedia.
+            </div>
+        `;
+
+        return;
+    }
+
+    grid.innerHTML =
+        profiles.map(
+            profile => {
+
+                const userId =
+                    String(
+                        profile.id || ""
+                    );
+
+                const userHistory =
+                    history.filter(
+                        item =>
+                            String(
+                                item.user_id || ""
+                            ) === userId
+                    );
+
+                const activeCount =
+                    userHistory.filter(
+                        isRunningGeneration
+                    ).length;
+
+                const active =
+                    activeCount > 0;
+
+                return `
+                    <div
+                        class="account-card"
+                        data-user-id="${userId}"
+                        tabindex="0"
+                    >
+
+                        <div class="account-head">
+
+                            <div class="account-main">
+
+                                <span
+                                    class="account-light ${
+                                        active
+                                            ? "active"
+                                            : ""
+                                    }"
+                                ></span>
+
+                                <div>
+
+                                    <div class="account-email">
+                                        ${
+                                            profile.email ||
+                                            "Email tidak tersedia"
+                                        }
+                                    </div>
+
+                                    <div class="account-name">
+                                        ${
+                                            profile.name ||
+                                            "Tanpa nama"
+                                        }
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            <div class="account-role">
+                                ${
+                                    String(
+                                        profile.role ||
+                                        "USER"
+                                    ).toUpperCase()
+                                }
+                            </div>
+
+                        </div>
+
+                        <div class="account-meta">
+
+                            <span>
+                                Credits
+                                <strong>
+                                    ${
+                                        formatActivityCredits(
+                                            profile.credits
+                                        )
+                                    }
+                                </strong>
+                            </span>
+
+                            <span>
+                                History
+                                <strong>
+                                    ${userHistory.length}
+                                </strong>
+                            </span>
+
+                        </div>
+
+                        <div
+                            class="
+                                account-activity-count
+                                ${active ? "active" : ""}
+                            "
+                        >
+                            ${
+                                active
+                                    ? activeCount +
+                                      " generate sedang berjalan"
+                                    : "Tidak ada generate yang sedang berjalan"
+                            }
+                        </div>
+
+                    </div>
+                `;
+            }
+        )
+        .join("");
+
+    grid
+        .querySelectorAll(
+            ".account-card"
+        )
+        .forEach(
+            card => {
+
+                card.addEventListener(
+                    "click",
+                    () => {
+                        openAccountActivity(
+                            card.dataset.userId
+                        );
+                    }
+                );
+
+                card.addEventListener(
+                    "keydown",
+                    event => {
+
+                        if (
+                            event.key ===
+                                "Enter" ||
+                            event.key ===
+                                " "
+                        ) {
+
+                            event.preventDefault();
+
+                            openAccountActivity(
+                                card.dataset.userId
+                            );
+                        }
+                    }
+                );
+            }
+        );
+}
+
+function openAccountActivity(
+    userId
+) {
+
+    const profile =
+        accountActivityState.profiles
+            .find(
+                item =>
+                    String(item.id) ===
+                    String(userId)
+            );
+
+    if (!profile) {
+        return;
+    }
+
+    accountActivityState.selectedUserId =
+        String(userId);
+
+    const modal =
+        document.getElementById(
+            "activityModal"
+        );
+
+    const title =
+        document.getElementById(
+            "activityModalTitle"
+        );
+
+    const subtitle =
+        document.getElementById(
+            "activityModalSubtitle"
+        );
+
+    const list =
+        document.getElementById(
+            "activityList"
+        );
+
+    const history =
+        accountActivityState.history
+            .filter(
+                item =>
+                    String(
+                        item.user_id || ""
+                    ) ===
+                    String(userId)
+            );
+
+    if (title) {
+
+        title.textContent =
+            profile.email ||
+            "Account Activity";
+    }
+
+    if (subtitle) {
+
+        subtitle.textContent =
+            (
+                profile.name ||
+                "Tanpa nama"
+            ) +
+            " • " +
+            String(
+                profile.role ||
+                "USER"
+            ).toUpperCase();
+    }
+
+    if (list) {
+
+        if (!history.length) {
+
+            list.innerHTML = `
+                <div class="activity-no-data">
+                    Akun ini belum memiliki aktivitas generate.
+                </div>
+            `;
+
+        } else {
+
+            list.innerHTML =
+                history
+                    .map(
+                        renderActivityItem
+                    )
+                    .join("");
+
+            bindCancelButtons();
+        }
+    }
+
+    if (modal) {
+
+        modal.classList.add(
+            "open"
+        );
+
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+    }
+}
+
+function renderActivityItem(
+    item
+) {
+
+    const status =
+        normalizeActivityStatus(
+            item.status
+        );
+
+    const active =
+        isRunningGeneration(
+            item
+        );
+
+    return `
+        <div
+            class="
+                activity-item
+                ${active ? "active" : ""}
+            "
+        >
+
+            <div class="activity-item-head">
+
+                <div>
+
+                    <div class="activity-model">
+                        ${
+                            item.model_name ||
+                            item.model_id ||
+                            "Model"
+                        }
+                    </div>
+
+                    <div class="activity-provider">
+                        ${
+                            item.provider_name ||
+                            item.provider ||
+                            "GEN-Z.AI"
+                        }
+                    </div>
+
+                </div>
+
+                <div
+                    class="
+                        activity-status
+                        ${status}
+                    "
+                >
+                    ${status}
+                </div>
+
+            </div>
+
+            <div class="activity-info">
+
+                <div class="activity-info-box">
+
+                    <div class="activity-info-label">
+                        Task ID
+                    </div>
+
+                    <div class="activity-info-value">
+                        ${
+                            item.task_id ||
+                            item.id ||
+                            "—"
+                        }
+                    </div>
+
+                </div>
+
+                <div class="activity-info-box">
+
+                    <div class="activity-info-label">
+                        Mulai
+                    </div>
+
+                    <div class="activity-info-value">
+                        ${
+                            formatActivityDate(
+                                item.created_at
+                            )
+                        }
+                    </div>
+
+                </div>
+
+                <div class="activity-info-box">
+
+                    <div class="activity-info-label">
+                        Credit
+                    </div>
+
+                    <div class="activity-info-value">
+                        ${
+                            formatActivityCredits(
+                                item.credit_cost
+                            )
+                        }
+                    </div>
+
+                </div>
+
+            </div>
+
+            ${
+                item.prompt
+                    ? `
+                        <div class="activity-prompt">
+                            ${item.prompt}
+                        </div>
+                    `
+                    : ""
+            }
+
+            ${
+                active
+                    ? `
+                        <div class="activity-actions">
+
+                            <button
+                                type="button"
+                                class="cancel-generation"
+                                data-history-id="${item.id}"
+                            >
+                                Cancel Generate
+                            </button>
+
+                        </div>
+                    `
+                    : ""
+            }
+
         </div>
-
-        <section class="progress-grid">
-
-            <div class="module">
-
-                <div class="module-head">
-
-                    <div class="module-name">
-                        Authentication
-                    </div>
-
-                    <div class="module-status ready">
-                        Ready
-                    </div>
-
-                </div>
-
-                <div class="bar">
-                    <span style="width:100%"></span>
-                </div>
-
-                <div class="module-footer">
-                    <span>Login / Register</span>
-                    <span>100%</span>
-                </div>
-
-            </div>
-
-
-            <div class="module">
-
-                <div class="module-head">
-
-                    <div class="module-name">
-                        Generate Video
-                    </div>
-
-                    <div class="module-status active-status">
-                        Active
-                    </div>
-
-                </div>
-
-                <div class="bar">
-                    <span style="width:90%"></span>
-                </div>
-
-                <div class="module-footer">
-                    <span>Generator Interface</span>
-                    <span>90%</span>
-                </div>
-
-            </div>
-
-
-            <div class="module">
-
-                <div class="module-head">
-
-                    <div class="module-name">
-                        Generation History
-                    </div>
-
-                    <div class="module-status ready">
-                        Ready
-                    </div>
-
-                </div>
-
-                <div class="bar">
-                    <span style="width:95%"></span>
-                </div>
-
-                <div class="module-footer">
-                    <span>History / Status</span>
-                    <span>95%</span>
-                </div>
-
-            </div>
-
-
-            <div class="module">
-
-                <div class="module-head">
-
-                    <div class="module-name">
-                        Provider System
-                    </div>
-
-                    <div class="module-status ready">
-                        Ready
-                    </div>
-
-                </div>
-
-                <div class="bar">
-                    <span style="width:90%"></span>
-                </div>
-
-                <div class="module-footer">
-                    <span>Provider Registry</span>
-                    <span>90%</span>
-                </div>
-
-            </div>
-
-
-            <div class="module">
-
-                <div class="module-head">
-
-                    <div class="module-name">
-                        Model System
-                    </div>
-
-                    <div class="module-status active-status">
-                        Active
-                    </div>
-
-                </div>
-
-                <div class="bar">
-                    <span style="width:85%"></span>
-                </div>
-
-                <div class="module-footer">
-                    <span>Model Registry</span>
-                    <span>85%</span>
-                </div>
-
-            </div>
-
-
-            <div class="module">
-
-                <div class="module-head">
-
-                    <div class="module-name">
-                        Credit System
-                    </div>
-
-                    <div class="module-status ready">
-                        Ready
-                    </div>
-
-                </div>
-
-                <div class="bar">
-                    <span style="width:95%"></span>
-                </div>
-
-                <div class="module-footer">
-                    <span>Balance / Transactions</span>
-                    <span>95%</span>
-                </div>
-
-            </div>
-
-
-            <div class="module">
-
-                <div class="module-head">
-
-                    <div class="module-name">
-                        Top Up System
-                    </div>
-
-                    <div class="module-status active-status">
-                        Active
-                    </div>
-
-                </div>
-
-                <div class="bar">
-                    <span style="width:80%"></span>
-                </div>
-
-                <div class="module-footer">
-                    <span>Top Up Workflow</span>
-                    <span>80%</span>
-                </div>
-
-            </div>
-
-
-            <div class="module">
-
-                <div class="module-head">
-
-                    <div class="module-name">
-                        Admin Control
-                    </div>
-
-                    <div class="module-status active-status">
-                        Active
-                    </div>
-
-                </div>
-
-                <div class="bar">
-                    <span style="width:85%"></span>
-                </div>
-
-                <div class="module-footer">
-                    <span>Management Center</span>
-                    <span>85%</span>
-                </div>
-
-            </div>
-
-
-            <div class="module">
-
-                <div class="module-head">
-
-                    <div class="module-name">
-                        Database
-                    </div>
-
-                    <div class="module-status ready">
-                        Ready
-                    </div>
-
-                </div>
-
-                <div class="bar">
-                    <span style="width:95%"></span>
-                </div>
-
-                <div class="module-footer">
-                    <span>Supabase</span>
-                    <span>95%</span>
-                </div>
-
-            </div>
-
-        </section>
+    `;
+}
+
+function bindCancelButtons() {
+
+    document
+        .querySelectorAll(
+            ".cancel-generation"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    async event => {
+
+                        event.stopPropagation();
+
+                        await cancelGeneration(
+                            button.dataset.historyId,
+                            button
+                        );
+                    }
+                );
+            }
+        );
+}
+
+async function cancelGeneration(
+    historyId,
+    button
+) {
+
+    if (
+        !supabaseClient ||
+        !historyId
+    ) {
+        return;
+    }
+
+    if (
+        !window.confirm(
+            "Batalkan generate ini?"
+        )
+    ) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent =
+        "Membatalkan...";
+
+    try {
+
+        const result =
+            await supabaseClient
+                .from(
+                    "generation_history"
+                )
+                .update({
+                    status:
+                        "cancelled"
+                })
+                .eq(
+                    "id",
+                    historyId
+                );
+
+        if (
+            result.error
+        ) {
+            throw result.error;
+        }
+
+        accountActivityState.history =
+            accountActivityState.history
+                .map(
+                    item => {
+
+                        if (
+                            String(item.id) !==
+                            String(historyId)
+                        ) {
+                            return item;
+                        }
+
+                        return {
+                            ...item,
+                            status:
+                                "cancelled"
+                        };
+                    }
+                );
+
+        renderAccountActivity();
+
+        if (
+            accountActivityState.selectedUserId
+        ) {
+
+            openAccountActivity(
+                accountActivityState.selectedUserId
+            );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] Cancel error:",
+            error
+        );
+
+        button.disabled = false;
+
+        button.textContent =
+            "Cancel Generate";
+
+        window.alert(
+            "Gagal membatalkan generate: " +
+            (
+                error?.message ||
+                "Unknown error"
+            )
+        );
+    }
+}
+
+function closeActivityModal() {
+
+    const modal =
+        document.getElementById(
+            "activityModal"
+        );
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove(
+        "open"
+    );
+
+    modal.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+}
+
+document
+    .getElementById(
+        "activityModalClose"
+    )
+    ?.addEventListener(
+        "click",
+        closeActivityModal
+    );
+
+document
+    .getElementById(
+        "activityModal"
+    )
+    ?.addEventListener(
+        "click",
+        event => {
+
+            if (
+                event.target.id ===
+                "activityModal"
+            ) {
+                closeActivityModal();
+            }
+        }
+    );
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key ===
+            "Escape"
+        ) {
+            closeActivityModal();
+        }
+    }
+);
+
+/* Initial load */
+await loadAccountActivity();
+
+/* Auto refresh */
+accountActivityState.refreshTimer =
+    window.setInterval(
+        async () => {
+
+            await loadAccountActivity();
+
+            if (
+                accountActivityState.selectedUserId
+            ) {
+
+                openAccountActivity(
+                    accountActivityState.selectedUserId
+                );
+            }
+
+        },
+        5000
+    );
 
         <!-- =====================================================
              SYSTEM INFORMATION
