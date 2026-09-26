@@ -1351,12 +1351,30 @@
 
         if (!supabaseClient) {
 
-            console.error(
-                "GEN-Z.AI: Supabase client tidak tersedia."
-            );
+    console.error(
+        "GEN-Z.AI: Supabase client tidak tersedia."
+    );
 
-            return;
+    const ids = [
+        "totalUsers",
+        "activeUsers",
+        "totalGenerations",
+        "totalCredits"
+    ];
+
+    ids.forEach(id => {
+
+        const element =
+            document.getElementById(id);
+
+        if (element) {
+            element.textContent = "0";
         }
+
+    });
+
+    return;
+}
 
         /*
          * =====================================================
