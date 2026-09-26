@@ -4349,6 +4349,9 @@ function getPollingState(
 function isPollingCompleted(
     value
 ) {
+   if (window.GENZGenerateCancellation?.isGenerateCancelled?.(value)) {
+    return false;
+}
 
     if (
         value?.failed === true
@@ -4373,10 +4376,6 @@ function isPollingCompleted(
             "failure",
 
             "error",
-
-            "cancelled",
-
-            "canceled",
 
             "rejected",
 
