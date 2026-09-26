@@ -458,7 +458,7 @@
                     );
 
                     window.location.href =
-                        "admin/dashboard.html";
+                        "admin/dashboard/index.html";
 
                     return;
                 }
