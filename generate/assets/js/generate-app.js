@@ -73,6 +73,9 @@ const SEEDANCE_MODULE =
 const RENDER_MODULE =
     "./generate-render.js";
 
+const SUBMIT_MODULE =
+    "./generate-submit.js";
+
 const VALIDATION_MODULE =
     "./generate-validation.js";
 
@@ -128,6 +131,9 @@ const appState = {
             null,
 
         render:
+            null,
+
+        submit:
             null,
 
         validation:
@@ -1245,7 +1251,13 @@ async function loadCoreModules() {
     "render",
     RENDER_MODULE,
     true
-);
+   );
+
+   await loadModule(
+    "submit",
+    SUBMIT_MODULE,
+    true
+   );
 
     await loadModule(
         "validation",
