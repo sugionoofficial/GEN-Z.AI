@@ -3240,6 +3240,103 @@ async function syncGenerationHistory(
         };
     }
 
+       /*
+     * -------------------------------------------------------
+     * TASK SUDAH DIBATALKAN OLEH SISTEM / ADMIN
+     * -------------------------------------------------------
+     *
+     * CANCELLED adalah terminal database state.
+     *
+     * Jika Admin sudah membatalkan generation:
+     *
+     *     processing
+     *          ↓
+     *     cancelled
+     *
+     * polling provider TIDAK BOLEH mengubahnya kembali
+     * menjadi processing / success / failed.
+     *
+     * Provider mungkin masih mengembalikan status lama,
+     * tetapi database cancellation adalah keputusan lokal
+     * yang harus dihormati.
+     */
+
+    if (
+        lower(
+            history.status
+        ) === "cancelled"
+    ) {
+        return {
+            history_updated:
+                false,
+
+            history_matched:
+                true,
+
+            history_status:
+                "cancelled",
+
+            history_reason:
+                "history_already_cancelled",
+
+            history_row_id:
+                history.id,
+
+            history_database_status:
+                "cancelled",
+
+            history_result_url:
+                history.result_url ||
+                null,
+
+            history_completed_at:
+                history.completed_at ||
+                null,
+
+            history_update_strategy:
+                null,
+
+            history_update_rows:
+                0,
+
+            history_retry:
+                false,
+
+            history_error:
+                null,
+
+            history_error_status:
+                null,
+
+            history_error_code:
+                null,
+
+            history_error_details:
+                null,
+
+            history_error_hint:
+                null,
+
+            history_error_data:
+                null,
+
+            history_error_diagnostics:
+                null,
+
+            history_error_path:
+                null,
+
+            history_error_method:
+                null,
+
+            history_error_body:
+                null,
+
+            history_update_payload:
+                null
+        };
+    }
+
 
     /*
      * -------------------------------------------------------
@@ -3938,6 +4035,141 @@ export default async function handler(
 
                     error:
                         "model_id wajib diisi."
+                }
+            );
+        }
+
+               /*
+         * ---------------------------------------------------
+         * CHECK LOCAL CANCELLATION
+         * ---------------------------------------------------
+         *
+         * Admin dapat membatalkan generation melalui
+         * generation_history.
+         *
+         * Jika status sudah cancelled:
+         *
+         * - jangan query provider
+         * - jangan menjalankan adapter
+         * - jangan mengubah status kembali
+         * - langsung kembalikan cancelled
+         */
+
+        const existingHistory =
+            await findGenerationHistory(
+                user.id,
+                taskId
+            );
+
+
+        if (
+            existingHistory &&
+            lower(
+                existingHistory.status
+            ) === "cancelled"
+        ) {
+
+            return json(
+                res,
+                200,
+                {
+                    success:
+                        true,
+
+                    user_id:
+                        user.id,
+
+                    model_id:
+                        modelId,
+
+                    task_id:
+                        taskId,
+
+                    taskId:
+                        taskId,
+
+                    state:
+                        "cancelled",
+
+                    provider_state:
+                        "cancelled",
+
+                    processing:
+                        false,
+
+                    completed:
+                        false,
+
+                    failed:
+                        true,
+
+                    has_result:
+                        Boolean(
+                            existingHistory.result_url
+                        ),
+
+                    hasResult:
+                        Boolean(
+                            existingHistory.result_url
+                        ),
+
+                    result_urls:
+                        existingHistory.result_url
+                            ? [
+                                existingHistory.result_url
+                            ]
+                            : [],
+
+                    resultUrls:
+                        existingHistory.result_url
+                            ? [
+                                existingHistory.result_url
+                            ]
+                            : [],
+
+                    result:
+                        existingHistory.result_url
+                            ? {
+                                resultUrls: [
+                                    existingHistory.result_url
+                                ]
+                            }
+                            : null,
+
+                    history_updated:
+                        false,
+
+                    history_matched:
+                        true,
+
+                    history_status:
+                        "cancelled",
+
+                    history_reason:
+                        "generation_cancelled",
+
+                    history_row_id:
+                        existingHistory.id,
+
+                    history_database_status:
+                        "cancelled",
+
+                    history_result_url:
+                        existingHistory.result_url ||
+                        null,
+
+                    history_completed_at:
+                        existingHistory.completed_at ||
+                        null,
+
+                    adapter_found:
+                        false,
+
+                    credential_resolved:
+                        false,
+
+                    cancellation:
+                        true
                 }
             );
         }
