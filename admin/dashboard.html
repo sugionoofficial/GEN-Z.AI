@@ -754,6 +754,22 @@
         <!-- =====================================================
              GLOBAL STATISTICS
         ====================================================== -->
+        <div
+    id="dashboardDiagnostic"
+    style="
+        display:block;
+        margin:0 0 15px;
+        padding:10px 14px;
+        border:1px solid rgba(255,23,68,.35);
+        border-radius:10px;
+        background:#111;
+        color:#ff1744;
+        font-size:12px;
+        font-family:monospace;
+    "
+>
+    Dashboard: initializing...
+</div>
 
         <div class="section-title">
             Application Overview
@@ -1470,6 +1486,21 @@
                 const user =
                     sessionData.session.user;
 
+                const diagnostic =
+    document.getElementById(
+        "dashboardDiagnostic"
+    );
+
+if (diagnostic) {
+    diagnostic.textContent =
+        "Dashboard: loadDashboard() berjalan...";
+}
+
+                if (diagnostic) {
+    diagnostic.textContent =
+        "Dashboard: Supabase session OK";
+}
+
                 /*
                  * -------------------------------------------------
                  * PROFILE
@@ -1503,6 +1534,11 @@
 
                     return;
                 }
+
+                if (diagnostic) {
+    diagnostic.textContent =
+        "Dashboard: profile OK, loading statistics...";
+}
 
                 /*
                  * -------------------------------------------------
@@ -1818,6 +1854,10 @@
         }
 
     })();
+        if (diagnostic) {
+    diagnostic.textContent =
+        "Dashboard: statistics loaded";
+}
 </script>
 
 </body>
