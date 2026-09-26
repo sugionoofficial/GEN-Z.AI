@@ -11,6 +11,7 @@
    - Refresh otomatis
    - Menyimpan state aktivitas
    - Melindungi state dari race condition refresh
+   - Menjaga status cancelled agar tidak kembali processing
 
    Tidak menangani:
    - Auth/session
@@ -50,22 +51,8 @@
 
             lastLoadedAt: null,
 
-            /*
-             * Setiap load mendapat nomor request.
-             *
-             * Response lama tidak boleh menimpa
-             * response yang lebih baru.
-             */
             requestSequence: 0,
 
-            /*
-             * Digunakan ketika ada perubahan lokal
-             * seperti Cancel Generate.
-             *
-             * Request yang sudah dimulai sebelum
-             * perubahan lokal tidak boleh menimpa
-             * state terbaru.
-             */
             stateRevision: 0
 
         },
@@ -79,10 +66,16 @@
             "processing",
             "pending",
             "queued",
+            "queue",
             "running",
             "generating",
             "in_progress",
-            "in-progress"
+            "in-progress",
+            "created",
+            "submitted",
+            "starting",
+            "started",
+            "waiting"
         ],
 
 
@@ -91,7 +84,9 @@
             "complete",
             "success",
             "succeeded",
-            "done"
+            "successful",
+            "done",
+            "finished"
         ],
 
 
@@ -99,7 +94,8 @@
             "failed",
             "failure",
             "error",
-            "rejected"
+            "rejected",
+            "terminated"
         ],
 
 
@@ -153,7 +149,25 @@
             )
                 .trim()
                 .toLowerCase()
-                .replace(/\s+/g, "_");
+                .replace(/[\s-]+/g, "_");
+
+        },
+
+
+        getHistoryStatus(item) {
+
+            if (!item) {
+                return "";
+            }
+
+
+            return (
+                item.status ??
+                item.state ??
+                item.provider_state ??
+                item.history_status ??
+                ""
+            );
 
         },
 
@@ -222,6 +236,87 @@
         },
 
 
+        isHistoryRunning(item) {
+
+            if (!item) {
+                return false;
+            }
+
+
+            /*
+             * Cancellation selalu memiliki prioritas.
+             *
+             * Jangan pernah menganggap row cancelled
+             * sebagai processing walaupun ada field
+             * provider_state lama yang masih running.
+             */
+
+            if (
+                this.isCancelledStatus(
+                    item.status
+                ) ||
+                this.isCancelledStatus(
+                    item.history_status
+                ) ||
+                this.isCancelledStatus(
+                    item.state
+                )
+            ) {
+
+                return false;
+
+            }
+
+
+            /*
+             * Status utama generation_history.
+             */
+
+            if (
+                this.isRunningStatus(
+                    item.status
+                )
+            ) {
+
+                return true;
+
+            }
+
+
+            /*
+             * Fallback untuk data provider lama.
+             */
+
+            if (
+                !item.status &&
+                this.isRunningStatus(
+                    item.state
+                )
+            ) {
+
+                return true;
+
+            }
+
+
+            if (
+                !item.status &&
+                !item.state &&
+                this.isRunningStatus(
+                    item.provider_state
+                )
+            ) {
+
+                return true;
+
+            }
+
+
+            return false;
+
+        },
+
+
         /* =====================================================
            REQUEST CONTROL
         ===================================================== */
@@ -264,18 +359,7 @@
 
         invalidatePendingRequests() {
 
-            /*
-             * Naikkan revision agar seluruh request
-             * yang sedang berjalan menjadi stale.
-             */
-
             this.state.stateRevision += 1;
-
-
-            /*
-             * Naikkan sequence juga supaya request
-             * lama tidak pernah dianggap terbaru.
-             */
 
             this.state.requestSequence += 1;
 
@@ -377,6 +461,31 @@
             return (
                 profile?.email ||
                 "-"
+            );
+
+        },
+
+
+        getHistoryUserId(item) {
+
+            return (
+                item?.user_id ||
+                item?.profile_id ||
+                item?.owner_id ||
+                null
+            );
+
+        },
+
+
+        getHistoryDate(item) {
+
+            return (
+                item?.created_at ||
+                item?.updated_at ||
+                item?.started_at ||
+                item?.createdAt ||
+                null
             );
 
         },
@@ -493,14 +602,6 @@
                 options.silent === true;
 
 
-            /*
-             * Setiap load mendapatkan token unik.
-             *
-             * Jika ada refresh baru sebelum request
-             * lama selesai, request lama tidak boleh
-             * menulis state.
-             */
-
             const requestToken =
                 this.createRequestToken();
 
@@ -539,10 +640,6 @@
                 }
 
 
-                /*
-                 * Pastikan session masih tersedia.
-                 */
-
                 if (
                     !auth.state ||
                     !auth.state.session
@@ -559,13 +656,6 @@
                     this.getClient();
 
 
-                /*
-                 * Profiles dan history tidak
-                 * saling bergantung.
-                 *
-                 * Ambil bersamaan.
-                 */
-
                 const [
                     profiles,
                     history
@@ -581,11 +671,8 @@
 
 
                 /*
-                 * REQUEST SEQUENCE GUARD
-                 *
-                 * Jika selama request berlangsung
-                 * ada Cancel Generate atau refresh
-                 * baru, response ini dianggap stale.
+                 * Jangan biarkan response lama
+                 * menimpa state terbaru.
                  */
 
                 if (
@@ -608,11 +695,6 @@
 
                 }
 
-
-                /*
-                 * Hanya response terbaru yang
-                 * boleh menulis state.
-                 */
 
                 this.state.profiles =
                     profiles;
@@ -647,11 +729,6 @@
 
 
             } catch (error) {
-
-                /*
-                 * Jangan menampilkan error dari request
-                 * yang sudah tidak relevan.
-                 */
 
                 if (
                     !this.isRequestCurrent(
@@ -718,18 +795,10 @@
                 .filter(
                     item => {
 
-                        /*
-                         * Struktur utama biasanya
-                         * user_id.
-                         *
-                         * Fallback tetap dipertahankan
-                         * untuk kompatibilitas data lama.
-                         */
-
                         const historyUserId =
-                            item?.user_id ||
-                            item?.profile_id ||
-                            item?.owner_id;
+                            this.getHistoryUserId(
+                                item
+                            );
 
 
                         return String(
@@ -737,6 +806,29 @@
                         ) === String(
                             userId
                         );
+
+                    }
+                )
+                .sort(
+                    (a, b) => {
+
+                        const aDate =
+                            new Date(
+                                this.getHistoryDate(
+                                    a
+                                ) || 0
+                            ).getTime();
+
+
+                        const bDate =
+                            new Date(
+                                this.getHistoryDate(
+                                    b
+                                ) || 0
+                            ).getTime();
+
+
+                        return bDate - aDate;
 
                     }
                 );
@@ -756,8 +848,8 @@
                 )
                 .filter(
                     item =>
-                        this.isRunningStatus(
-                            item?.status
+                        this.isHistoryRunning(
+                            item
                         )
                 );
 
@@ -779,8 +871,8 @@
             const activeGenerations =
                 history.filter(
                     item =>
-                        this.isRunningStatus(
-                            item?.status
+                        this.isHistoryRunning(
+                            item
                         )
                 );
 
@@ -895,6 +987,12 @@
                 );
 
 
+            const activeLabel =
+                activeCount === 1
+                    ? "1 Generate Aktif"
+                    : `${this.formatNumber(activeCount)} Generate Aktif`;
+
+
             return `
                 <article
                     class="
@@ -977,6 +1075,26 @@
                         </div>
 
 
+                        ${
+                            active
+                                ? `
+                                    <div class="account-running-info">
+                                        <span
+                                            class="account-running-dot"
+                                            aria-hidden="true"
+                                        ></span>
+
+                                        <span>
+                                            ${this.escapeHTML(
+                                                activeLabel
+                                            )}
+                                        </span>
+                                    </div>
+                                  `
+                                : ""
+                        }
+
+
                         <div class="account-activity-summary">
 
                             <div class="activity-summary-item">
@@ -1029,7 +1147,7 @@
                     <div class="account-card-bottom">
 
                         <span class="account-view-hint">
-                            Klik untuk melihat aktivitas
+                            Klik untuk melihat semua aktivitas
                         </span>
 
                         ${
@@ -1038,9 +1156,9 @@
                                     <span class="account-last-activity">
                                         ${this.escapeHTML(
                                             this.formatDate(
-                                                account
-                                                    .latestActivity
-                                                    ?.created_at
+                                                this.getHistoryDate(
+                                                    account.latestActivity
+                                                )
                                             )
                                         )}
                                     </span>
@@ -1121,11 +1239,6 @@
                 );
 
 
-            /*
-             * Akun yang sedang generate
-             * ditampilkan lebih dahulu.
-             */
-
             accounts.sort(
                 (a, b) => {
 
@@ -1145,6 +1258,31 @@
                     ) {
 
                         return 1;
+
+                    }
+
+
+                    const aDate =
+                        new Date(
+                            this.getHistoryDate(
+                                a.latestActivity
+                            ) || 0
+                        ).getTime();
+
+
+                    const bDate =
+                        new Date(
+                            this.getHistoryDate(
+                                b.latestActivity
+                            ) || 0
+                        ).getTime();
+
+
+                    if (
+                        aDate !== bDate
+                    ) {
+
+                        return bDate - aDate;
 
                     }
 
@@ -1253,12 +1391,6 @@
             }
 
 
-            /*
-             * Event delegation.
-             *
-             * Listener hanya dipasang satu kali.
-             */
-
             if (
                 container.dataset
                     .activityEventsBound === "true"
@@ -1300,11 +1432,6 @@
                     this.state.selectedUserId =
                         userId;
 
-
-                    /*
-                     * Modal ditangani
-                     * dashboard-modal.js.
-                     */
 
                     if (
                         window.GENZDashboardModal &&
@@ -1494,8 +1621,7 @@
 
 
             /*
-             * Batalkan request lama yang masih
-             * mungkin sedang berjalan.
+             * Batalkan request lama yang masih berjalan.
              */
 
             this.invalidatePendingRequests();
@@ -1514,9 +1640,9 @@
 
 
                             const itemUserId =
-                                item?.user_id ||
-                                item?.profile_id ||
-                                item?.owner_id;
+                                this.getHistoryUserId(
+                                    item
+                                );
 
 
                             return (
@@ -1545,8 +1671,67 @@
             }
 
 
+            /*
+             * Cancellation adalah terminal state.
+             *
+             * Hapus kemungkinan state running
+             * yang tersimpan di field lain.
+             */
+
             historyItem.status =
                 "cancelled";
+
+
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    historyItem,
+                    "history_status"
+                )
+            ) {
+
+                historyItem.history_status =
+                    "cancelled";
+
+            }
+
+
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    historyItem,
+                    "state"
+                )
+            ) {
+
+                historyItem.state =
+                    "cancelled";
+
+            }
+
+
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    historyItem,
+                    "provider_state"
+                )
+            ) {
+
+                historyItem.provider_state =
+                    "cancelled";
+
+            }
+
+
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    historyItem,
+                    "history_reason"
+                )
+            ) {
+
+                historyItem.history_reason =
+                    "generation_cancelled";
+
+            }
 
 
             this.markLocalStateChanged();
