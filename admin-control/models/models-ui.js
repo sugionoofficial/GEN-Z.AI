@@ -1822,90 +1822,196 @@
                     "newModelBtn",
                     "newModelButton"
                 ],
-                function () {
+                async function () {
 
-                    const form =
-                        window.GENZModelsForm ||
-                        null;
-
-
-                    if (
-                        !form ||
-                        typeof form.openCreate !==
-                            "function"
-                    ) {
-
-                        throw new Error(
-                            "Form Create Model belum tersedia."
-                        );
-
-                    }
+    const form =
+        window.GENZModelsForm ||
+        null;
 
 
-                    /*
-                     * Gunakan root form yang tersedia.
-                     */
+    if (
+        !form ||
+        typeof form.openCreate !==
+            "function"
+    ) {
 
-                    const root =
-                        document.querySelector(
-                            "[data-model-form]"
-                        ) ||
-                        document.getElementById(
-                            "modelForm"
-                        ) ||
-                        document.getElementById(
-                            "model-form"
-                        ) ||
-                        null;
+        throw new Error(
+            "Form Create Model belum tersedia."
+        );
+
+    }
 
 
-                    /*
-                     * Sinkronkan data terbaru sebelum
-                     * membuka Create.
-                     */
+    /*
+     * Gunakan root form yang tersedia.
+     */
 
-                    if (
-                        typeof form.setData ===
-                            "function"
-                    ) {
-
-                        form.setData({
-
-                            root,
-
-                            providers:
-                                [
-                                    ...state.providers
-                                ],
-
-                            models:
-                                [
-                                    ...state.models
-                                ]
-
-                        });
-
-                    }
+    const root =
+        document.querySelector(
+            "[data-model-form]"
+        ) ||
+        document.getElementById(
+            "modelForm"
+        ) ||
+        document.getElementById(
+            "model-form"
+        ) ||
+        null;
 
 
-                    return form.openCreate(
-                        root,
-                        {
+    /*
+     * -----------------------------------------------------
+     * PENTING
+     *
+     * Form Create harus menggunakan catalog yang sama
+     * dengan Model Search.
+     *
+     * Catalog Model Search terdiri dari:
+     *
+     * 1. Model dari Supabase
+     * 2. Model dari MODEL_REGISTRY
+     *
+     * Contoh registry:
+     * bytedance/seedance-2-5
+     *
+     * Sebelumnya form hanya menerima state.models,
+     * sehingga Seedance tidak pernah sampai ke form.
+     * -----------------------------------------------------
+     */
 
-                            providers:
-                                [
-                                    ...state.providers
-                                ],
+    const search =
+        window.GENZModelsSearch ||
+        null;
 
-                            models:
-                                [
-                                    ...state.models
-                                ]
 
-                        }
-                    );
+    let catalog =
+        [];
 
-                }
+
+    if (
+        search &&
+        typeof search.ensureCatalog ===
+            "function"
+    ) {
+
+        try {
+
+            await search.ensureCatalog();
+
+        }
+        catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Model Search catalog gagal dimuat:",
+                error
+            );
+
+        }
+
+    }
+
+
+    if (
+        search &&
+        typeof search.getModels ===
+            "function"
+    ) {
+
+        try {
+
+            const searchModels =
+                search.getModels();
+
+
+            if (
+                Array.isArray(
+                    searchModels
+                )
+            ) {
+
+                catalog =
+                    [
+                        ...searchModels
+                    ];
+
+            }
+
+        }
+        catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal mengambil catalog Model Search:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Fallback ke state.models jika catalog search
+     * belum tersedia.
+     */
+
+    if (
+        !catalog.length
+    ) {
+
+        catalog =
+            [
+                ...state.models
+            ];
+
+    }
+
+
+    /*
+     * Sinkronkan data terbaru sebelum membuka Create.
+     */
+
+    if (
+        typeof form.setData ===
+            "function"
+    ) {
+
+        form.setData({
+
+            root,
+
+            providers:
+                [
+                    ...state.providers
+                ],
+
+            models:
+                [
+                    ...catalog
+                ]
+
+        });
+
+    }
+
+
+    return form.openCreate(
+        root,
+        {
+
+            providers:
+                [
+                    ...state.providers
+                ],
+
+            models:
+                [
+                    ...catalog
+                ]
+
+        }
+    );
+
+}
             )
         ) {
 
