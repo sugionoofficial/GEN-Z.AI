@@ -193,48 +193,85 @@
 
 
         /* =================================================
-           FORM COORDINATOR
+           MODELS CRUD
+           -------------------------------------------------
+           Owner operasi database:
+
+               Create
+               Update
+               Delete
+
+           Harus dimuat sebelum coordinator karena
+           coordinator menggunakan:
+
+               window.GENZModelsCRUD
         ================================================= */
 
         {
-    id:
-        "model-form-coordinator",
+            id:
+                "models-crud",
 
-    src:
-        FUNCTION_PATH +
-        "model-form-coordinator.js",
+            src:
+                FUNCTION_PATH +
+                "models-crud.js",
 
-    global:
-        "GENZModelFormCoordinator"
-},
-
-
-/* =================================================
-   FORM COMPATIBILITY BRIDGE
-   -------------------------------------------------
-   Menyediakan:
-       GENZModelsForm
-
-   untuk trigger Create / Edit / Delete
-   dari Models UI.
-================================================= */
-
-{
-    id:
-        "models-form",
-
-    src:
-        BASE_PATH +
-        "models-form.js",
-
-    global:
-        "GENZModelsForm"
-},
+            global:
+                "GENZModelsCRUD"
+        },
 
 
-/* =================================================
-   FORM EVENTS
-================================================= */
+        /* =================================================
+           FORM COORDINATOR
+           -------------------------------------------------
+           Coordinator menjadi bridge antara:
+
+               Form
+                ↓
+               Create/Edit/Delete
+                ↓
+               Models CRUD
+        ================================================= */
+
+        {
+            id:
+                "model-form-coordinator",
+
+            src:
+                FUNCTION_PATH +
+                "model-form-coordinator.js",
+
+            global:
+                "GENZModelFormCoordinator"
+        },
+
+
+        /* =================================================
+           FORM COMPATIBILITY BRIDGE
+           -------------------------------------------------
+           Menyediakan:
+
+               GENZModelsForm
+
+           untuk trigger Create / Edit / Delete
+           dari Models UI.
+        ================================================= */
+
+        {
+            id:
+                "models-form",
+
+            src:
+                BASE_PATH +
+                "models-form.js",
+
+            global:
+                "GENZModelsForm"
+        },
+
+
+        /* =================================================
+           FORM EVENTS
+        ================================================= */
 
         {
             id:
@@ -530,6 +567,7 @@
          * Jika global sudah ada, module dianggap
          * sudah siap.
          */
+
         if (
             module.global &&
             hasGlobal(
@@ -558,6 +596,7 @@
          * Cek namespace yang sudah pernah
          * di-import.
          */
+
         if (
             moduleNamespaces.has(
                 module.id
@@ -625,6 +664,7 @@
         /*
          * Hubungkan module ES ke global.
          */
+
         registerGlobal(
             module,
             namespace
@@ -662,6 +702,7 @@
          * Jika module sudah mendaftarkan
          * global sendiri, jangan ditimpa.
          */
+
         if (
             hasGlobal(
                 module.global
@@ -682,6 +723,7 @@
          * 1. default export
          * 2. namespace object
          */
+
         if (
             namespace &&
             namespace.default !==
@@ -717,6 +759,7 @@
         /*
          * Validasi final.
          */
+
         if (
             !hasGlobal(
                 module.global
@@ -760,6 +803,7 @@
         /*
          * Jangan import dua kali.
          */
+
         if (
             loadedModules.has(
                 key
