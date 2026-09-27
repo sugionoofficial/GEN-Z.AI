@@ -2610,6 +2610,693 @@
 
 </div>
 
+    <!-- =====================================================
+     MODEL CREATE / EDIT MODAL
+     ===================================================== -->
+
+<style>
+
+    .model-modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 30000;
+
+        display: none;
+
+        align-items: center;
+        justify-content: center;
+
+        padding: 24px;
+
+        background:
+            rgba(0, 0, 0, 0.78);
+
+        backdrop-filter:
+            blur(10px);
+
+        -webkit-backdrop-filter:
+            blur(10px);
+    }
+
+    .model-modal-overlay.show {
+        display: flex;
+    }
+
+    .model-modal {
+        width: min(980px, 100%);
+        max-height: calc(100vh - 48px);
+
+        display: flex;
+        flex-direction: column;
+
+        overflow: hidden;
+
+        border-radius: 22px;
+
+        background:
+            linear-gradient(
+                145deg,
+                rgba(24, 24, 28, 0.98),
+                rgba(5, 5, 7, 0.98)
+            );
+
+        border:
+            1px solid
+            rgba(255, 23, 68, 0.55);
+
+        box-shadow:
+            0 0 12px
+            rgba(255, 23, 68, 0.30),
+
+            0 0 55px
+            rgba(255, 23, 68, 0.16),
+
+            0 30px 100px
+            rgba(0, 0, 0, 0.65);
+    }
+
+    .model-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 15px;
+
+        padding: 18px 22px;
+
+        border-bottom:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+    }
+
+    .model-modal-header h2 {
+        margin: 0;
+
+        color: #ffffff;
+
+        font-size: 18px;
+        font-weight: 900;
+    }
+
+    .model-modal-close {
+        width: 38px;
+        height: 38px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        border: 1px solid
+            rgba(255, 255, 255, 0.12);
+
+        border-radius: 10px;
+
+        background:
+            rgba(255, 255, 255, 0.05);
+
+        color: #ffffff;
+
+        font-size: 22px;
+        line-height: 1;
+
+        cursor: pointer;
+    }
+
+    .model-modal-close:hover {
+        background:
+            rgba(255, 23, 68, 0.15);
+
+        border-color:
+            rgba(255, 23, 68, 0.55);
+    }
+
+    .model-modal-body {
+        flex: 1;
+
+        overflow-y: auto;
+
+        padding: 22px;
+    }
+
+    .model-form-grid {
+        display: grid;
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap: 15px;
+    }
+
+    .model-form-field {
+        min-width: 0;
+    }
+
+    .model-form-field.full {
+        grid-column: 1 / -1;
+    }
+
+    .model-form-field label {
+        display: block;
+
+        margin-bottom: 7px;
+
+        color:
+            rgba(255, 255, 255, 0.70);
+
+        font-size: 11px;
+        font-weight: 800;
+
+        letter-spacing: 0.04em;
+    }
+
+    .model-form-field input,
+    .model-form-field select,
+    .model-form-field textarea {
+        width: 100%;
+
+        border:
+            1px solid
+            rgba(255, 255, 255, 0.12);
+
+        border-radius: 10px;
+
+        background:
+            rgba(255, 255, 255, 0.055);
+
+        color: #ffffff;
+
+        outline: none;
+
+        padding:
+            11px 12px;
+
+        font-size: 12px;
+
+        transition:
+            border-color 0.2s ease,
+            box-shadow 0.2s ease,
+            background 0.2s ease;
+    }
+
+    .model-form-field input:focus,
+    .model-form-field select:focus,
+    .model-form-field textarea:focus {
+        border-color:
+            rgba(255, 23, 68, 0.65);
+
+        background:
+            rgba(255, 23, 68, 0.045);
+
+        box-shadow:
+            0 0 0 3px
+            rgba(255, 23, 68, 0.08);
+    }
+
+    .model-form-field textarea {
+        min-height: 90px;
+
+        resize: vertical;
+    }
+
+    .model-form-field select option {
+        background: #111111;
+        color: #ffffff;
+    }
+
+    .model-form-hint {
+        margin-top: 6px;
+
+        color:
+            rgba(255, 255, 255, 0.38);
+
+        font-size: 10px;
+
+        line-height: 1.5;
+    }
+
+    .model-search-box {
+        position: relative;
+    }
+
+    .model-search-results {
+        position: absolute;
+
+        left: 0;
+        right: 0;
+        top: calc(100% + 5px);
+
+        z-index: 50;
+
+        max-height: 220px;
+
+        overflow-y: auto;
+
+        border:
+            1px solid
+            rgba(255, 23, 68, 0.30);
+
+        border-radius: 10px;
+
+        background:
+            rgba(12, 12, 15, 0.98);
+
+        box-shadow:
+            0 18px 45px
+            rgba(0, 0, 0, 0.50);
+    }
+
+    .model-selected-info {
+        margin-top: 7px;
+
+        color:
+            rgba(255, 255, 255, 0.40);
+
+        font-size: 10px;
+
+        line-height: 1.5;
+    }
+
+    .model-modal-footer {
+        display: flex;
+
+        align-items: center;
+        justify-content: flex-end;
+
+        gap: 9px;
+
+        padding: 16px 22px;
+
+        border-top:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+    }
+
+    @media (max-width: 700px) {
+
+        .model-modal-overlay {
+            padding: 10px;
+        }
+
+        .model-modal {
+            max-height:
+                calc(100vh - 20px);
+
+            border-radius: 16px;
+        }
+
+        .model-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .model-form-field.full {
+            grid-column: auto;
+        }
+
+        .model-modal-body {
+            padding: 16px;
+        }
+
+        .model-modal-header,
+        .model-modal-footer {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+    }
+
+</style>
+
+
+<div
+    id="modelModal"
+    class="model-modal-overlay"
+    aria-hidden="true"
+>
+
+    <div
+        class="model-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modalTitle"
+    >
+
+        <div class="model-modal-header">
+
+            <h2 id="modalTitle">
+                Tambah Model
+            </h2>
+
+            <button
+                type="button"
+                id="closeModalBtn"
+                class="model-modal-close"
+                aria-label="Tutup"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form
+            id="modelForm"
+            autocomplete="off"
+        >
+
+            <div class="model-modal-body">
+
+                <input
+                    type="hidden"
+                    id="modelId"
+                >
+
+
+                <div class="model-form-grid">
+
+                    <!-- PROVIDER -->
+
+                    <div class="model-form-field">
+
+                        <label for="providerId">
+                            Provider *
+                        </label>
+
+                        <select
+                            id="providerId"
+                            name="provider_id"
+                            required
+                        >
+
+                            <option value="">
+                                Pilih Provider
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- STATUS -->
+
+                    <div class="model-form-field">
+
+                        <label for="modelStatus">
+                            Status *
+                        </label>
+
+                        <select
+                            id="modelStatus"
+                            name="status"
+                            required
+                        >
+
+                            <option value="active">
+                                Active
+                            </option>
+
+                            <option value="inactive">
+                                Inactive
+                            </option>
+
+                            <option value="maintenance">
+                                Maintenance
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- MODEL ID -->
+
+                    <div class="model-form-field">
+
+                        <label for="modelCodeSearch">
+                            Model ID *
+                        </label>
+
+                        <div class="model-search-box">
+
+                            <input
+                                id="modelCodeSearch"
+                                type="search"
+                                autocomplete="off"
+                                placeholder="Cari Model ID..."
+                            >
+
+                            <input
+                                id="modelCode"
+                                name="model_id"
+                                type="hidden"
+                                required
+                            >
+
+                            <div
+                                id="modelSearchResults"
+                                class="model-search-results"
+                            ></div>
+
+                        </div>
+
+                        <div
+                            id="selectedModelInfo"
+                            class="model-selected-info"
+                        >
+                            Belum ada model dipilih.
+                        </div>
+
+                    </div>
+
+
+                    <!-- MODEL NAME -->
+
+                    <div class="model-form-field">
+
+                        <label for="modelName">
+                            Model Name *
+                        </label>
+
+                        <input
+                            id="modelName"
+                            name="model_name"
+                            type="text"
+                            autocomplete="off"
+                            placeholder="Nama model"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- DESCRIPTION -->
+
+                    <div class="model-form-field full">
+
+                        <label for="description">
+                            Description
+                        </label>
+
+                        <textarea
+                            id="description"
+                            name="description"
+                            placeholder="Deskripsi model..."
+                        ></textarea>
+
+                    </div>
+
+
+                    <!-- DISCOUNT -->
+
+                    <div class="model-form-field">
+
+                        <label for="discountPercent">
+                            Discount (%)
+                        </label>
+
+                        <input
+                            id="discountPercent"
+                            name="discount_percent"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value="0"
+                        >
+
+                    </div>
+
+
+                    <!-- CREDIT 480P -->
+
+                    <div class="model-form-field">
+
+                        <label for="credit480p">
+                            Credit 480p
+                        </label>
+
+                        <input
+                            id="credit480p"
+                            name="credit_480p"
+                            type="number"
+                            min="0"
+                            step="1"
+                            value="0"
+                        >
+
+                    </div>
+
+
+                    <!-- CREDIT 720P -->
+
+                    <div class="model-form-field">
+
+                        <label for="credit720p">
+                            Credit 720p
+                        </label>
+
+                        <input
+                            id="credit720p"
+                            name="credit_720p"
+                            type="number"
+                            min="0"
+                            step="1"
+                            value="0"
+                        >
+
+                    </div>
+
+
+                    <!-- CREDIT 1080P -->
+
+                    <div class="model-form-field">
+
+                        <label for="credit1080p">
+                            Credit 1080p
+                        </label>
+
+                        <input
+                            id="credit1080p"
+                            name="credit_1080p"
+                            type="number"
+                            min="0"
+                            step="1"
+                            value="0"
+                        >
+
+                    </div>
+
+
+                    <!-- MIN DURATION -->
+
+                    <div class="model-form-field">
+
+                        <label for="minDuration">
+                            Min Duration
+                        </label>
+
+                        <input
+                            id="minDuration"
+                            name="min_duration"
+                            type="number"
+                            min="0"
+                            step="1"
+                        >
+
+                    </div>
+
+
+                    <!-- MAX DURATION -->
+
+                    <div class="model-form-field">
+
+                        <label for="maxDuration">
+                            Max Duration
+                        </label>
+
+                        <input
+                            id="maxDuration"
+                            name="max_duration"
+                            type="number"
+                            min="0"
+                            step="1"
+                        >
+
+                    </div>
+
+
+                    <!-- RATIOS -->
+
+                    <div class="model-form-field">
+
+                        <label for="supportedRatios">
+                            Supported Ratios
+                        </label>
+
+                        <input
+                            id="supportedRatios"
+                            name="supported_ratios"
+                            type="text"
+                            placeholder="9:16, 16:9, 1:1"
+                        >
+
+                        <div class="model-form-hint">
+                            Pisahkan dengan koma.
+                        </div>
+
+                    </div>
+
+
+                    <!-- RESOLUTIONS -->
+
+                    <div class="model-form-field">
+
+                        <label for="supportedResolutions">
+                            Supported Resolutions
+                        </label>
+
+                        <input
+                            id="supportedResolutions"
+                            name="supported_resolutions"
+                            type="text"
+                            placeholder="480p, 720p, 1080p"
+                        >
+
+                        <div class="model-form-hint">
+                            Pisahkan dengan koma.
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="model-modal-footer">
+
+                <button
+                    type="button"
+                    id="cancelModalBtn"
+                    class="btn btn-secondary"
+                >
+                    Batal
+                </button>
+
+                <button
+                    type="submit"
+                    id="saveModelBtn"
+                    class="btn btn-primary"
+                >
+                    Simpan Model
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
 
 <!-- =============================================================
      SHARED SUPABASE
