@@ -108,9 +108,6 @@ function getAppState() {
 
 function getDOM() {
 
-    const app =
-        getApp();
-
     /*
      * generate-app.js tidak mengekspos getDOM().
      *
@@ -659,7 +656,11 @@ function normalizeCancellation(
     value
 ) {
 
+    const modules =
+        getModules();
+
     const cancellation =
+        modules.cancellation ||
         window.GENZGenerateCancellation;
 
     if (
@@ -697,7 +698,11 @@ function isCancelled(
     value
 ) {
 
+    const modules =
+        getModules();
+
     const cancellation =
+        modules.cancellation ||
         window.GENZGenerateCancellation;
 
     if (
@@ -1587,7 +1592,7 @@ async function handleGenerateSubmit(
    PUBLIC API
 ========================================================= */
 
-window.GENZGenerateSubmit =
+const GENZGenerateSubmit =
     Object.freeze({
 
         handleGenerateSubmit,
@@ -1597,3 +1602,28 @@ window.GENZGenerateSubmit =
                 generationInProgress
 
     });
+
+
+/*
+ * Compatibility global.
+ *
+ * Tetap dipertahankan karena beberapa bagian
+ * sistem lama masih dapat mengakses API ini
+ * melalui window.
+ */
+
+window.GENZGenerateSubmit =
+    GENZGenerateSubmit;
+
+
+/* =========================================================
+   ES MODULE EXPORT
+========================================================= */
+
+export {
+
+    handleGenerateSubmit,
+
+    isGenerationInProgress
+
+};
