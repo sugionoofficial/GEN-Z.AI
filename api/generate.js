@@ -690,86 +690,6 @@ function getModelId(
 
 }
 
-
-/* =========================================================
-   GET PARAMETERS
-   =========================================================
-   NSFW CHECKER:
- *
- *   Nilai dari browser TIDAK dipercaya.
- *
- *   Field nsfw_checker tidak pernah diambil
- *   dari request.
- *
- *   Hanya parameter yang masuk whitelist
- *   yang diteruskan.
- *
- *   Nilai nsfw_checker akan dipasang secara
- *   server-side setelah sanitasi.
- * ========================================================= */
-
-function getParameters(
-    body
-) {
-
-    const allowedKeys = [
-
-        "image_urls",
-
-        "index",
-
-        "prompt",
-
-        "mode",
-
-        "aspect_ratio",
-
-        "duration",
-
-        "resolution"
-
-    ];
-
-
-    const parameters = {};
-
-
-    const source =
-        body &&
-        body.parameters &&
-        typeof body.parameters ===
-            "object" &&
-        !Array.isArray(
-            body.parameters
-        )
-            ? body.parameters
-            : body || {};
-
-
-    for (
-        const key of allowedKeys
-    ) {
-
-        if (
-            Object.prototype.hasOwnProperty.call(
-                source,
-                key
-            )
-        ) {
-
-            parameters[key] =
-                source[key];
-
-        }
-
-    }
-
-
-    return parameters;
-
-}
-
-
 /* =========================================================
    MODEL REGISTRY LOOKUP
    ========================================================= */
@@ -3105,71 +3025,6 @@ function validateAdapterInput(
 
 }
 
-
-/* =========================================================
-   SANITIZE PARAMETERS
-   ========================================================= */
-
-function sanitizeParameters(
-    parameters
-) {
-
-    const allowedKeys = [
-
-        "image_urls",
-
-        "index",
-
-        "prompt",
-
-        "mode",
-
-        "aspect_ratio",
-
-        "duration",
-
-        "resolution"
-
-    ];
-
-
-    const result = {};
-
-
-    for (
-        const key of allowedKeys
-    ) {
-
-        if (
-            Object.prototype.hasOwnProperty.call(
-                parameters,
-                key
-            )
-        ) {
-
-            result[key] =
-                parameters[key];
-
-        }
-
-    }
-
-
-    /*
-     * =====================================================
-     * NSFW CHECKER - SERVER ENFORCED
-     * =====================================================
-     */
-
-    result.nsfw_checker =
-        true;
-
-
-    return result;
-
-}
-
-
 /* =========================================================
    HANDLER
    ========================================================= */
@@ -3479,25 +3334,14 @@ export default async function handler(
      */
 
     const rawParameters =
-        getParameters(
-            body
-        );
+    adapter.getParameters(
+        body
+    );
 
-
-    const parameters =
-        sanitizeParameters(
-            rawParameters
-        );
-
-
-    /*
-     * =====================================================
-     * NSFW CHECKER
-     * =====================================================
-     */
-
-    parameters.nsfw_checker =
-        true;
+const parameters =
+    adapter.sanitizeParameters(
+        rawParameters
+    );
 
 
     /*
