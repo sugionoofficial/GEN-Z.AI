@@ -57,27 +57,36 @@
         if (
             typeof window !== "undefined" &&
             window.GENZ_SUPABASE &&
-            typeof window.GENZ_SUPABASE.from === "function"
+            typeof window.GENZ_SUPABASE.from ===
+                "function"
         ) {
+
             return window.GENZ_SUPABASE;
+
         }
 
 
         if (
             typeof window !== "undefined" &&
             window.supabaseClient &&
-            typeof window.supabaseClient.from === "function"
+            typeof window.supabaseClient.from ===
+                "function"
         ) {
+
             return window.supabaseClient;
+
         }
 
 
         if (
             typeof window !== "undefined" &&
             window.supabase &&
-            typeof window.supabase.from === "function"
+            typeof window.supabase.from ===
+                "function"
         ) {
+
             return window.supabase;
+
         }
 
 
@@ -90,6 +99,7 @@
 
         const client =
             getSupabaseClient();
+
 
         if (!client) {
 
@@ -104,6 +114,7 @@
             throw error;
 
         }
+
 
         return client;
 
@@ -120,10 +131,15 @@
             value === null ||
             value === undefined
         ) {
+
             return "";
+
         }
 
-        return String(value).trim();
+
+        return String(
+            value
+        ).trim();
 
     }
 
@@ -134,15 +150,23 @@
             value === null ||
             value === undefined
         ) {
+
             return "";
+
         }
 
-        return String(value).trim();
+
+        return String(
+            value
+        ).trim();
 
     }
 
 
-    function hasOwn(object, key) {
+    function hasOwn(
+        object,
+        key
+    ) {
 
         return (
             object &&
@@ -165,13 +189,19 @@
             value === undefined ||
             value === ""
         ) {
+
             return fallback;
+
         }
+
 
         const number =
             Number(value);
 
-        return Number.isFinite(number)
+
+        return Number.isFinite(
+            number
+        )
             ? number
             : fallback;
 
@@ -180,11 +210,16 @@
 
     function normalizeArray(value) {
 
-        if (Array.isArray(value)) {
+        if (
+            Array.isArray(value)
+        ) {
 
             return value
-                .map(item =>
-                    normalizeText(item)
+                .map(
+                    item =>
+                        normalizeText(
+                            item
+                        )
                 )
                 .filter(Boolean);
 
@@ -196,17 +231,25 @@
             value === undefined ||
             value === ""
         ) {
+
             return [];
+
         }
 
 
-        if (typeof value === "string") {
+        if (
+            typeof value ===
+            "string"
+        ) {
 
             const text =
                 value.trim();
 
+
             if (!text) {
+
                 return [];
+
             }
 
 
@@ -222,12 +265,19 @@
             ) {
 
                 return text
-                    .slice(1, -1)
+                    .slice(
+                        1,
+                        -1
+                    )
                     .split(",")
-                    .map(item =>
-                        item
-                            .trim()
-                            .replace(/^"(.*)"$/, "$1")
+                    .map(
+                        item =>
+                            item
+                                .trim()
+                                .replace(
+                                    /^"(.*)"$/,
+                                    "$1"
+                                )
                     )
                     .filter(Boolean);
 
@@ -246,33 +296,49 @@
                 try {
 
                     const parsed =
-                        JSON.parse(text);
+                        JSON.parse(
+                            text
+                        );
 
-                    if (Array.isArray(parsed)) {
+
+                    if (
+                        Array.isArray(
+                            parsed
+                        )
+                    ) {
 
                         return parsed
-                            .map(item =>
-                                normalizeText(item)
+                            .map(
+                                item =>
+                                    normalizeText(
+                                        item
+                                    )
                             )
                             .filter(Boolean);
 
                     }
 
                 } catch (_) {
-                    /* fallback below */
+
+                    /*
+                     * Fallback ke
+                     * comma-separated.
+                     */
+
                 }
 
             }
 
 
             /*
-             * Comma-separated
+             * Comma-separated.
              */
 
             return text
                 .split(",")
-                .map(item =>
-                    item.trim()
+                .map(
+                    item =>
+                        item.trim()
                 )
                 .filter(Boolean);
 
@@ -285,48 +351,79 @@
 
 
     /* =====================================================
-       MODEL ID
+       DATABASE MODEL ID
     ===================================================== */
 
-    function getModelDatabaseId(model) {
+    function getModelDatabaseId(
+        model
+    ) {
 
         if (
             model === null ||
             model === undefined
         ) {
+
             return "";
+
         }
 
+
+        /*
+         * Support:
+         *
+         * remove("uuid")
+         * update("uuid", data)
+         */
 
         if (
-            typeof model !== "object"
+            typeof model !==
+            "object"
         ) {
-            return normalizeId(model);
+
+            return normalizeId(
+                model
+            );
+
         }
 
 
+        /*
+         * Database primary key.
+         */
+
         return normalizeId(
+
             model.id ??
             model.model_id_record ??
-            model.modelIdRecord
+            model.modelIdRecord ??
+            model.database_id ??
+            model.databaseId
+
         );
 
     }
 
 
-    function getModelCode(model) {
+    function getModelCode(
+        model
+    ) {
 
         if (
             !model ||
-            typeof model !== "object"
+            typeof model !==
+            "object"
         ) {
+
             return "";
+
         }
 
 
         return normalizeText(
+
             model.model_id ??
             model.modelId
+
         );
 
     }
@@ -336,33 +433,42 @@
        CREATE PAYLOAD
     ===================================================== */
 
-    function normalizeCreatePayload(data) {
+    function normalizeCreatePayload(
+        data
+    ) {
 
         const source =
             data &&
-            typeof data === "object"
+            typeof data ===
+                "object"
                 ? data
                 : {};
 
 
         const providerId =
             normalizeId(
+
                 source.provider_id ??
                 source.providerId
+
             );
 
 
         const modelId =
             normalizeText(
+
                 source.model_id ??
                 source.modelId
+
             );
 
 
         const modelName =
             normalizeText(
+
                 source.model_name ??
                 source.modelName
+
             );
 
 
@@ -374,70 +480,94 @@
 
         const discountPercent =
             toNumber(
+
                 source.discount_percent ??
                 source.discountPercent,
+
                 0
+
             );
 
 
         const credit480p =
             toNumber(
+
                 source.credit_480p ??
                 source.credit480p,
+
                 0
+
             );
 
 
         const credit720p =
             toNumber(
+
                 source.credit_720p ??
                 source.credit720p,
+
                 0
+
             );
 
 
         const credit1080p =
             toNumber(
+
                 source.credit_1080p ??
                 source.credit1080p,
+
                 0
+
             );
 
 
         const minDuration =
             toNumber(
+
                 source.min_duration ??
                 source.minDuration,
+
                 0
+
             );
 
 
         const maxDuration =
             toNumber(
+
                 source.max_duration ??
                 source.maxDuration,
+
                 minDuration
+
             );
 
 
         const supportedRatios =
             normalizeArray(
+
                 source.supported_ratios ??
                 source.supportedRatios
+
             );
 
 
         const supportedResolutions =
             normalizeArray(
+
                 source.supported_resolutions ??
                 source.supportedResolutions
+
             );
 
 
         const status =
             normalizeText(
+
                 source.status ||
                 "active"
+
             ).toLowerCase();
 
 
@@ -491,11 +621,14 @@
        UPDATE PAYLOAD
     ===================================================== */
 
-    function normalizeUpdatePayload(data) {
+    function normalizeUpdatePayload(
+        data
+    ) {
 
         const source =
             data &&
-            typeof data === "object"
+            typeof data ===
+                "object"
                 ? data
                 : {};
 
@@ -504,59 +637,92 @@
 
 
         /*
-         * Identity fields.
-         *
-         * Model ID dan provider biasanya dikunci
-         * pada Edit Model.
-         *
-         * Tetap diteruskan jika caller memang
-         * menyediakannya.
+         * Provider.
          */
 
         if (
-            hasOwn(source, "provider_id") ||
-            hasOwn(source, "providerId")
+            hasOwn(
+                source,
+                "provider_id"
+            ) ||
+            hasOwn(
+                source,
+                "providerId"
+            )
         ) {
 
             payload.provider_id =
                 normalizeId(
+
                     source.provider_id ??
                     source.providerId
+
                 );
 
         }
 
 
+        /*
+         * Model ID.
+         */
+
         if (
-            hasOwn(source, "model_id") ||
-            hasOwn(source, "modelId")
+            hasOwn(
+                source,
+                "model_id"
+            ) ||
+            hasOwn(
+                source,
+                "modelId"
+            )
         ) {
 
             payload.model_id =
                 normalizeText(
+
                     source.model_id ??
                     source.modelId
+
                 );
 
         }
 
 
+        /*
+         * Model name.
+         */
+
         if (
-            hasOwn(source, "model_name") ||
-            hasOwn(source, "modelName")
+            hasOwn(
+                source,
+                "model_name"
+            ) ||
+            hasOwn(
+                source,
+                "modelName"
+            )
         ) {
 
             payload.model_name =
                 normalizeText(
+
                     source.model_name ??
                     source.modelName
+
                 );
 
         }
 
 
+        /*
+         * Description.
+         */
+
         if (
-            hasOwn(source, "description")
+            hasOwn(
+                source,
+                "description"
+            )
         ) {
 
             payload.description =
@@ -567,8 +733,15 @@
         }
 
 
+        /*
+         * Status.
+         */
+
         if (
-            hasOwn(source, "status")
+            hasOwn(
+                source,
+                "status"
+            )
         ) {
 
             payload.status =
@@ -579,119 +752,221 @@
         }
 
 
+        /*
+         * Discount.
+         */
+
         if (
-            hasOwn(source, "discount_percent") ||
-            hasOwn(source, "discountPercent")
+            hasOwn(
+                source,
+                "discount_percent"
+            ) ||
+            hasOwn(
+                source,
+                "discountPercent"
+            )
         ) {
 
             payload.discount_percent =
                 toNumber(
+
                     source.discount_percent ??
                     source.discountPercent,
+
                     0
+
                 );
 
         }
 
 
+        /*
+         * Credit 480p.
+         */
+
         if (
-            hasOwn(source, "credit_480p") ||
-            hasOwn(source, "credit480p")
+            hasOwn(
+                source,
+                "credit_480p"
+            ) ||
+            hasOwn(
+                source,
+                "credit480p"
+            )
         ) {
 
             payload.credit_480p =
                 toNumber(
+
                     source.credit_480p ??
                     source.credit480p,
+
                     0
+
                 );
 
         }
 
 
+        /*
+         * Credit 720p.
+         */
+
         if (
-            hasOwn(source, "credit_720p") ||
-            hasOwn(source, "credit720p")
+            hasOwn(
+                source,
+                "credit_720p"
+            ) ||
+            hasOwn(
+                source,
+                "credit720p"
+            )
         ) {
 
             payload.credit_720p =
                 toNumber(
+
                     source.credit_720p ??
                     source.credit720p,
+
                     0
+
                 );
 
         }
 
 
+        /*
+         * Credit 1080p.
+         */
+
         if (
-            hasOwn(source, "credit_1080p") ||
-            hasOwn(source, "credit1080p")
+            hasOwn(
+                source,
+                "credit_1080p"
+            ) ||
+            hasOwn(
+                source,
+                "credit1080p"
+            )
         ) {
 
             payload.credit_1080p =
                 toNumber(
+
                     source.credit_1080p ??
                     source.credit1080p,
+
                     0
+
                 );
 
         }
 
 
+        /*
+         * Minimum duration.
+         */
+
         if (
-            hasOwn(source, "min_duration") ||
-            hasOwn(source, "minDuration")
+            hasOwn(
+                source,
+                "min_duration"
+            ) ||
+            hasOwn(
+                source,
+                "minDuration"
+            )
         ) {
 
             payload.min_duration =
                 toNumber(
+
                     source.min_duration ??
                     source.minDuration,
+
                     0
+
                 );
 
         }
 
 
+        /*
+         * Maximum duration.
+         */
+
         if (
-            hasOwn(source, "max_duration") ||
-            hasOwn(source, "maxDuration")
+            hasOwn(
+                source,
+                "max_duration"
+            ) ||
+            hasOwn(
+                source,
+                "maxDuration"
+            )
         ) {
 
             payload.max_duration =
                 toNumber(
+
                     source.max_duration ??
                     source.maxDuration,
+
                     0
+
                 );
 
         }
 
 
+        /*
+         * Ratios.
+         */
+
         if (
-            hasOwn(source, "supported_ratios") ||
-            hasOwn(source, "supportedRatios")
+            hasOwn(
+                source,
+                "supported_ratios"
+            ) ||
+            hasOwn(
+                source,
+                "supportedRatios"
+            )
         ) {
 
             payload.supported_ratios =
                 normalizeArray(
+
                     source.supported_ratios ??
                     source.supportedRatios
+
                 );
 
         }
 
 
+        /*
+         * Resolutions.
+         */
+
         if (
-            hasOwn(source, "supported_resolutions") ||
-            hasOwn(source, "supportedResolutions")
+            hasOwn(
+                source,
+                "supported_resolutions"
+            ) ||
+            hasOwn(
+                source,
+                "supportedResolutions"
+            )
         ) {
 
             payload.supported_resolutions =
                 normalizeArray(
+
                     source.supported_resolutions ??
                     source.supportedResolutions
+
                 );
 
         }
@@ -706,12 +981,16 @@
        VALIDATE CREATE
     ===================================================== */
 
-    function validateCreatePayload(payload) {
+    function validateCreatePayload(
+        payload
+    ) {
 
         const errors = [];
 
 
-        if (!payload.provider_id) {
+        if (
+            !payload.provider_id
+        ) {
 
             errors.push(
                 "provider_id wajib diisi."
@@ -720,7 +999,9 @@
         }
 
 
-        if (!payload.model_id) {
+        if (
+            !payload.model_id
+        ) {
 
             errors.push(
                 "model_id wajib diisi."
@@ -729,7 +1010,9 @@
         }
 
 
-        if (!payload.model_name) {
+        if (
+            !payload.model_name
+        ) {
 
             errors.push(
                 "model_name wajib diisi."
@@ -804,7 +1087,9 @@
         const errors = [];
 
 
-        if (!databaseId) {
+        if (
+            !databaseId
+        ) {
 
             errors.push(
                 "ID database model wajib diisi."
@@ -814,7 +1099,10 @@
 
 
         if (
-            hasOwn(payload, "provider_id") &&
+            hasOwn(
+                payload,
+                "provider_id"
+            ) &&
             !payload.provider_id
         ) {
 
@@ -826,7 +1114,10 @@
 
 
         if (
-            hasOwn(payload, "model_id") &&
+            hasOwn(
+                payload,
+                "model_id"
+            ) &&
             !payload.model_id
         ) {
 
@@ -838,7 +1129,10 @@
 
 
         if (
-            hasOwn(payload, "model_name") &&
+            hasOwn(
+                payload,
+                "model_name"
+            ) &&
             !payload.model_name
         ) {
 
@@ -850,7 +1144,10 @@
 
 
         if (
-            hasOwn(payload, "discount_percent") &&
+            hasOwn(
+                payload,
+                "discount_percent"
+            ) &&
             (
                 payload.discount_percent < 0 ||
                 payload.discount_percent > 100
@@ -859,6 +1156,101 @@
 
             errors.push(
                 "discount_percent harus berada di antara 0 dan 100."
+            );
+
+        }
+
+
+        if (
+            hasOwn(
+                payload,
+                "credit_480p"
+            ) &&
+            payload.credit_480p < 0
+        ) {
+
+            errors.push(
+                "credit_480p tidak boleh negatif."
+            );
+
+        }
+
+
+        if (
+            hasOwn(
+                payload,
+                "credit_720p"
+            ) &&
+            payload.credit_720p < 0
+        ) {
+
+            errors.push(
+                "credit_720p tidak boleh negatif."
+            );
+
+        }
+
+
+        if (
+            hasOwn(
+                payload,
+                "credit_1080p"
+            ) &&
+            payload.credit_1080p < 0
+        ) {
+
+            errors.push(
+                "credit_1080p tidak boleh negatif."
+            );
+
+        }
+
+
+        if (
+            hasOwn(
+                payload,
+                "min_duration"
+            ) &&
+            payload.min_duration < 0
+        ) {
+
+            errors.push(
+                "min_duration tidak boleh negatif."
+            );
+
+        }
+
+
+        if (
+            hasOwn(
+                payload,
+                "max_duration"
+            ) &&
+            payload.max_duration < 0
+        ) {
+
+            errors.push(
+                "max_duration tidak boleh negatif."
+            );
+
+        }
+
+
+        if (
+            hasOwn(
+                payload,
+                "min_duration"
+            ) &&
+            hasOwn(
+                payload,
+                "max_duration"
+            ) &&
+            payload.max_duration <
+            payload.min_duration
+        ) {
+
+            errors.push(
+                "max_duration tidak boleh lebih kecil dari min_duration."
             );
 
         }
@@ -873,7 +1265,9 @@
        CREATE
     ===================================================== */
 
-    async function create(data) {
+    async function create(
+        data
+    ) {
 
         const payload =
             normalizeCreatePayload(
@@ -887,7 +1281,9 @@
             );
 
 
-        if (errors.length) {
+        if (
+            errors.length
+        ) {
 
             const error =
                 new Error(
@@ -909,15 +1305,47 @@
             requireSupabase();
 
 
-        const response =
-            await supabase
-                .from(MODEL_TABLE)
-                .insert(payload)
-                .select("*")
-                .single();
+        let response;
 
 
-        if (response.error) {
+        try {
+
+            response =
+                await supabase
+                    .from(
+                        MODEL_TABLE
+                    )
+                    .insert(
+                        payload
+                    )
+                    .select("*")
+                    .single();
+
+        } catch (
+            error
+        ) {
+
+            const wrapped =
+                new Error(
+                    error?.message ||
+                    "Gagal membuat model."
+                );
+
+            wrapped.code =
+                error?.code ||
+                "MODEL_CREATE_FAILED";
+
+            wrapped.cause =
+                error;
+
+            throw wrapped;
+
+        }
+
+
+        if (
+            response?.error
+        ) {
 
             const error =
                 new Error(
@@ -943,7 +1371,9 @@
         }
 
 
-        if (!response.data) {
+        if (
+            !response?.data
+        ) {
 
             const error =
                 new Error(
@@ -979,6 +1409,14 @@
 
     /* =====================================================
        UPDATE
+       -----------------------------------------------------
+       Mendukung:
+
+           update(modelObject)
+
+       atau:
+
+           update(databaseId, payload)
     ===================================================== */
 
     async function update(
@@ -997,15 +1435,14 @@
 
 
         /*
-         * Support:
-         *
          * update(modelObject)
          */
 
         if (
             !source &&
             modelOrId &&
-            typeof modelOrId === "object"
+            typeof modelOrId ===
+                "object"
         ) {
 
             source =
@@ -1015,15 +1452,14 @@
 
 
         /*
-         * Support:
-         *
          * update(id, payload)
          */
 
         if (
             !databaseId &&
             source &&
-            typeof source === "object"
+            typeof source ===
+                "object"
         ) {
 
             databaseId =
@@ -1047,7 +1483,9 @@
             );
 
 
-        if (errors.length) {
+        if (
+            errors.length
+        ) {
 
             const error =
                 new Error(
@@ -1066,7 +1504,9 @@
 
 
         if (
-            Object.keys(payload).length === 0
+            Object.keys(
+                payload
+            ).length === 0
         ) {
 
             const error =
@@ -1086,16 +1526,51 @@
             requireSupabase();
 
 
-        const response =
-            await supabase
-                .from(MODEL_TABLE)
-                .update(payload)
-                .eq("id", databaseId)
-                .select("*")
-                .single();
+        let response;
 
 
-        if (response.error) {
+        try {
+
+            response =
+                await supabase
+                    .from(
+                        MODEL_TABLE
+                    )
+                    .update(
+                        payload
+                    )
+                    .eq(
+                        "id",
+                        databaseId
+                    )
+                    .select("*")
+                    .single();
+
+        } catch (
+            error
+        ) {
+
+            const wrapped =
+                new Error(
+                    error?.message ||
+                    "Gagal memperbarui model."
+                );
+
+            wrapped.code =
+                error?.code ||
+                "MODEL_UPDATE_FAILED";
+
+            wrapped.cause =
+                error;
+
+            throw wrapped;
+
+        }
+
+
+        if (
+            response?.error
+        ) {
 
             const error =
                 new Error(
@@ -1121,7 +1596,9 @@
         }
 
 
-        if (!response.data) {
+        if (
+            !response?.data
+        ) {
 
             const error =
                 new Error(
@@ -1157,6 +1634,14 @@
 
     /* =====================================================
        DELETE
+       -----------------------------------------------------
+       Mendukung:
+
+           remove("database-id")
+
+       atau:
+
+           remove(modelObject)
     ===================================================== */
 
     async function remove(
@@ -1169,7 +1654,9 @@
             );
 
 
-        if (!databaseId) {
+        if (
+            !databaseId
+        ) {
 
             const error =
                 new Error(
@@ -1188,16 +1675,48 @@
             requireSupabase();
 
 
-        const response =
-            await supabase
-                .from(MODEL_TABLE)
-                .delete()
-                .eq("id", databaseId)
-                .select("*")
-                .single();
+        let response;
 
 
-        if (response.error) {
+        try {
+
+            response =
+                await supabase
+                    .from(
+                        MODEL_TABLE
+                    )
+                    .delete()
+                    .eq(
+                        "id",
+                        databaseId
+                    )
+                    .select("*");
+
+        } catch (
+            error
+        ) {
+
+            const wrapped =
+                new Error(
+                    error?.message ||
+                    "Gagal menghapus model."
+                );
+
+            wrapped.code =
+                error?.code ||
+                "MODEL_DELETE_FAILED";
+
+            wrapped.cause =
+                error;
+
+            throw wrapped;
+
+        }
+
+
+        if (
+            response?.error
+        ) {
 
             const error =
                 new Error(
@@ -1223,6 +1742,39 @@
         }
 
 
+        const deletedRows =
+            Array.isArray(
+                response?.data
+            )
+                ? response.data
+                : [];
+
+
+        /*
+         * Jika tidak ada row yang terhapus,
+         * jangan menganggap DELETE berhasil.
+         */
+
+        if (
+            deletedRows.length === 0
+        ) {
+
+            const error =
+                new Error(
+                    "Model tidak ditemukan atau tidak dapat dihapus."
+                );
+
+            error.code =
+                "MODEL_DELETE_NOT_FOUND";
+
+            error.modelId =
+                databaseId;
+
+            throw error;
+
+        }
+
+
         return {
 
             success:
@@ -1232,7 +1784,8 @@
                 "delete",
 
             model:
-                response.data || null,
+                deletedRows[0] ||
+                null,
 
             modelId:
                 databaseId
@@ -1259,12 +1812,16 @@
 
     /* =====================================================
        INITIALIZE
+       -----------------------------------------------------
+       CRUD tidak melakukan query saat initialize.
+       Hanya menandai module siap digunakan.
     ===================================================== */
 
     function initialize() {
 
         initialized =
             true;
+
 
         return true;
 
@@ -1324,9 +1881,17 @@
         });
 
 
+    /* =====================================================
+       GLOBAL
+    ===================================================== */
+
     window.GENZModelsCRUD =
         API;
 
+
+    /*
+     * Compatibility alias.
+     */
 
     window.GENZModelCRUD =
         API;
@@ -1335,6 +1900,5 @@
     console.log(
         "[GEN-Z.AI] Models CRUD loaded."
     );
-
 
 })();
