@@ -7,6 +7,12 @@ import parameters, {
 } from "./parameters.js";
 
 
+import parameterAdapter, {
+    getParameters,
+    sanitizeParameters
+} from "./parameter-adapter.js";
+
+
 import createTask, {
     buildInput,
     buildPayload
@@ -28,6 +34,12 @@ const model = {
     parameters,
 
     validate,
+
+    getParameters,
+
+    sanitizeParameters,
+
+    parameterAdapter,
 
     buildInput,
 
@@ -51,6 +63,12 @@ export {
     parameters,
 
     validate,
+
+    getParameters,
+
+    sanitizeParameters,
+
+    parameterAdapter,
 
     buildInput,
 
