@@ -1293,60 +1293,33 @@ if (
             : [];
 
 
-    /*
+        /*
      * =================================================
      * REGISTRY CATALOG
      * =================================================
      *
-     * Tambahkan model yang tersedia di repository
-     * tetapi belum terdaftar di Supabase.
+     * Registry model SUDAH dimasukkan oleh
+     * ensureCatalog().
      *
-     * Contoh:
+     * Jangan memanggil loadRegistryModels()
+     * lagi di sini.
      *
-     * bytedance/seedance-2-5
+     * Jika dipanggil ulang tanpa providers,
+     * model seperti Seedance:
      *
-     * Registry hanya digunakan untuk:
-     * - pencarian
-     * - pemilihan Model ID
+     *   providerId = "kie_ai"
      *
-     * Registry TIDAK otomatis membuat record
-     * ke tabel Models.
+     * kehilangan mapping ke:
+     *
+     *   providers.id
+     *   providers.provider_id
+     *   providers.provider_name
+     *
+     * Akibatnya model akan hilang ketika
+     * Provider GEN-Z.AI dipilih.
      */
 
-    let registryModels = [];
-
-
-    const data =
-        window.GENZModelsData;
-
-
-    if (
-        data &&
-        typeof data.loadRegistryModels ===
-            "function"
-    ) {
-
-        try {
-
-            registryModels =
-                data.loadRegistryModels();
-
-        } catch (
-            error
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] Registry Model gagal dimuat:",
-                error
-            );
-
-
-            registryModels =
-                [];
-
-        }
-
-    }
+    const registryModels = [];
 
 
     /*
@@ -1373,15 +1346,6 @@ if (
     const catalog = [
 
         ...baseModels,
-
-        ...(
-            Array.isArray(
-                registryModels
-            )
-                ? registryModels
-                : []
-        )
-
     ];
 
 
