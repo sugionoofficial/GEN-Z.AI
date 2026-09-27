@@ -1793,52 +1793,163 @@
 
     function bindButtons() {
 
-        let bound =
-            false;
+    let bound =
+        false;
 
 
-        /*
-         * Refresh saja.
-         *
-         * Create/Edit/Delete tetap dimiliki
-         * module masing-masing.
-         */
+    /* =====================================================
+       ADD / CREATE MODEL
+       -----------------------------------------------------
+       Create tetap dimiliki oleh:
+       GENZModelFormCreate
+       GENZModelsForm
+       GENZModelFormCoordinator
 
-        if (
-            bindButton(
-                [
-                    "refreshBtn",
-                    "refreshModels",
-                    "refreshModelsButton",
-                    "refreshModelButton"
-                ],
-                function () {
+       Models UI hanya menjadi trigger.
+    ===================================================== */
 
-                    return refreshModels(
-                        {
-                            includeInactive:
-                                true
-                        }
+    if (
+        bindButton(
+            [
+                "addModelBtn",
+                "addModelButton",
+                "createModelBtn",
+                "createModelButton",
+                "newModelBtn",
+                "newModelButton"
+            ],
+            function () {
+
+                const form =
+                    window.GENZModelsForm ||
+                    null;
+
+
+                if (
+                    !form ||
+                    typeof form.openCreate !==
+                        "function"
+                ) {
+
+                    throw new Error(
+                        "Form Create Model belum tersedia."
                     );
 
                 }
-            )
-        ) {
-
-            bound =
-                true;
-
-        }
 
 
-        buttonsBound =
-            bound ||
-            buttonsBound;
+                /*
+                 * Gunakan root form yang tersedia.
+                 */
+
+                const root =
+                    document.querySelector(
+                        "[data-model-form]"
+                    ) ||
+                    document.getElementById(
+                        "modelForm"
+                    ) ||
+                    document.getElementById(
+                        "model-form"
+                    ) ||
+                    null;
 
 
-        return buttonsBound;
+                /*
+                 * Sinkronkan data terbaru sebelum
+                 * membuka Create.
+                 */
+
+                if (
+                    typeof form.setData ===
+                        "function"
+                ) {
+
+                    form.setData({
+
+                        root,
+
+                        providers:
+                            [
+                                ...state.providers
+                            ],
+
+                        models:
+                            [
+                                ...state.models
+                            ]
+
+                    });
+
+                }
+
+
+                return form.openCreate(
+                    root,
+                    {
+
+                        providers:
+                            [
+                                ...state.providers
+                            ],
+
+                        models:
+                            [
+                                ...state.models
+                            ]
+
+                    }
+                );
+
+            }
+        )
+    ) {
+
+        bound =
+            true;
 
     }
+
+
+    /* =====================================================
+       REFRESH MODELS
+    ===================================================== */
+
+    if (
+        bindButton(
+            [
+                "refreshBtn",
+                "refreshModels",
+                "refreshModelsButton",
+                "refreshModelButton"
+            ],
+            function () {
+
+                return refreshModels(
+                    {
+                        includeInactive:
+                            true
+                    }
+                );
+
+            }
+        )
+    ) {
+
+        bound =
+            true;
+
+    }
+
+
+    buttonsBound =
+        bound ||
+        buttonsBound;
+
+
+    return buttonsBound;
+
+}
 
 
     /* =====================================================
@@ -1959,7 +2070,7 @@
 
                     await loadModels(
                         {
-                            force: false,
+                            force: true,
 
                             includeInactive: true,
 
