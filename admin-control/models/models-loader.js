@@ -26,10 +26,10 @@
     ===================================================== */
 
     const BASE_PATH =
-        "./";
+    "./models/";
 
-    const FUNCTION_PATH =
-        "./functions/";
+const FUNCTION_PATH =
+    "./models/functions/";
 
 
     /* =====================================================
