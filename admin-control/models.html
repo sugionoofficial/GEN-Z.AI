@@ -2972,27 +2972,55 @@
 
                 <div class="model-form-grid">
 
-                    <!-- PROVIDER -->
+                    <!-- PROVIDER ID -->
 
-                    <div class="model-form-field">
+<div class="model-form-field">
 
-                        <label for="providerId">
-                            Provider *
-                        </label>
+    <label for="providerId">
+        Provider ID *
+    </label>
 
-                        <select
-                            id="providerId"
-                            name="provider_id"
-                            required
-                        >
+    <select
+        id="providerId"
+        name="provider_id"
+        required
+    >
 
-                            <option value="">
-                                Pilih Provider
-                            </option>
+        <option value="">
+            Pilih Provider
+        </option>
 
-                        </select>
+    </select>
 
-                    </div>
+    <div class="model-form-hint">
+        Provider ID diambil dari provider yang terdaftar.
+    </div>
+
+</div>
+
+
+<!-- PROVIDER NAME -->
+
+<div class="model-form-field">
+
+    <label for="providerName">
+        Provider Name *
+    </label>
+
+    <input
+        id="providerName"
+        name="provider_name"
+        type="text"
+        autocomplete="off"
+        placeholder="Nama Provider"
+        required
+    >
+
+    <div class="model-form-hint">
+        Nama provider terdaftar. Dapat diedit dari form ini.
+    </div>
+
+</div>
 
 
                     <!-- STATUS -->
