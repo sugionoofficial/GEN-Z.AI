@@ -1285,8 +1285,57 @@ const GENZGenerateCancellation =
 
 
 /* =========================================================
-   GLOBAL EXPORT
+   GLOBAL COMPATIBILITY
+   ---------------------------------------------------------
+   Tetap dipertahankan karena:
+   - generate-submit.js menggunakan window.GENZGenerateCancellation
+   - generate-runtime.js menggunakan window.GENZGenerateCancellation
+   - kode lama tetap dapat mengakses cancellation
 ========================================================= */
 
 window.GENZGenerateCancellation =
     GENZGenerateCancellation;
+
+
+/* =========================================================
+   ES MODULE EXPORT
+   ---------------------------------------------------------
+   Diperlukan agar generate-app.js yang menggunakan
+   dynamic import() mendapatkan module API yang benar.
+========================================================= */
+
+export {
+
+    GENZ_CANCELLED_STATES,
+
+    getCancellationState,
+
+    isCancelledState,
+
+    isGenerateCancelled,
+
+    isGenerateFailed,
+
+    isGenerateCompleted,
+
+    isGenerateProcessing,
+
+    extractResultUrls,
+
+    getCancellationMessage,
+
+    normalizeGenerateCancellation,
+
+    getGenerateStatusType,
+
+    getGenerateStatusMessage,
+
+    escapeCancellationText,
+
+    renderGenerateCancellation,
+
+    handleGenerateCancellation,
+
+    createCancelledResult
+
+};
