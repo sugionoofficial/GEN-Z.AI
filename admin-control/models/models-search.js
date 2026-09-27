@@ -834,8 +834,19 @@
     }
 
 
-    /* =====================================================
+        /* =====================================================
        DATA CATALOG
+       -----------------------------------------------------
+       Catalog Model ID untuk form Tambah Model terdiri dari:
+
+       1. Model yang sudah terdaftar di Supabase
+       2. Model yang tersedia di repository registry
+
+       Jika model yang sama sudah terdaftar di Supabase,
+       data Supabase diprioritaskan.
+
+       Registry TIDAK otomatis membuat model masuk
+       ke tabel Admin Models.
     ===================================================== */
 
     async function ensureCatalog(
@@ -862,11 +873,8 @@
 
 
         /*
-         * Request yang sedang berjalan selalu
-         * dipakai bersama.
-         *
-         * Ini mencegah double request ketika
-         * input diketik cepat.
+         * Request yang sedang berjalan
+         * digunakan bersama.
          */
         if (
             loadingPromise
@@ -904,23 +912,125 @@
 
                 try {
 
+                    /*
+                     * =================================================
+                     * REGISTERED MODELS
+                     * =================================================
+                     *
+                     * Ini tetap mengambil model dari
+                     * Supabase.
+                     */
+
                     const loaded =
                         await data.loadModels({
 
                             force:
-
                                 force,
 
                             includeInactive:
-
                                 options.includeInactive ===
                                 true
 
                         });
 
 
+                    /*
+                     * =================================================
+                     * REGISTRY MODELS
+                     * =================================================
+                     *
+                     * Registry berisi model yang tersedia
+                     * di repository tetapi belum tentu
+                     * sudah didaftarkan ke Supabase.
+                     *
+                     * Contoh:
+                     *
+                     * bytedance/seedance-2-5
+                     */
+
+                    let registryModels = [];
+
+
+                    if (
+                        typeof data.loadRegistryModels ===
+                        "function"
+                    ) {
+
+                        try {
+
+                            registryModels =
+                                data.loadRegistryModels();
+
+                        }
+                        catch (registryError) {
+
+                            console.warn(
+                                "[GEN-Z.AI] Registry model tidak dapat dimuat:",
+                                registryError
+                            );
+
+
+                            registryModels =
+                                [];
+
+                        }
+
+                    }
+
+
+                    /*
+                     * =================================================
+                     * MERGE
+                     * =================================================
+                     *
+                     * Model Supabase diletakkan lebih dahulu.
+                     *
+                     * normalizeModels() di models-search.js
+                     * melakukan dedupe berdasarkan model_id.
+                     *
+                     * Jadi:
+                     *
+                     * Supabase:
+                     *   bytedance/seedance-2-5
+                     *
+                     * Registry:
+                     *   bytedance/seedance-2-5
+                     *
+                     * hasil akhirnya hanya satu.
+                     *
+                     * Data Supabase tetap menjadi prioritas.
+                     */
+
+                    const catalog =
+                        [
+
+                            ...(
+                                Array.isArray(
+                                    loaded
+                                )
+                                    ? loaded
+                                    : []
+                            ),
+
+                            ...(
+                                Array.isArray(
+                                    registryModels
+                                )
+                                    ? registryModels
+                                    : []
+                            )
+
+                        ];
+
+
+                    /*
+                     * =================================================
+                     * SET CATALOG
+                     * =================================================
+                     */
+
                     setModels(
-                        loaded
+                        catalog
                     );
 
 
@@ -928,7 +1038,8 @@
                         ...models
                     ];
 
-                } catch (
+                }
+                catch (
                     error
                 ) {
 
@@ -942,7 +1053,8 @@
                         ...models
                     ];
 
-                } finally {
+                }
+                finally {
 
                     loadingPromise =
                         null;
