@@ -82,7 +82,7 @@ async function getSession() {
             data,
             error
         } =
-            await supabase.auth.getSession();
+        await supabase.auth.getSession();
 
 
         if (error) {
@@ -427,46 +427,6 @@ function bindPricingEvents() {
 
 
 /* ============================================================
-   FORM SUBMIT
-============================================================ */
-
-function bindFormSubmit() {
-
-    const form =
-        document.querySelector(
-            "form"
-        );
-
-
-    if (!form) {
-
-        return;
-    }
-
-
-    if (
-        form.dataset
-            .modelEditSubmitBound ===
-        "true"
-    ) {
-
-        return;
-    }
-
-
-    form.addEventListener(
-        "submit",
-        handleSave
-    );
-
-
-    form.dataset
-        .modelEditSubmitBound =
-            "true";
-}
-
-
-/* ============================================================
    BUTTON EVENTS
 ============================================================ */
 
@@ -480,7 +440,7 @@ function bindButtonEvents() {
         dom.saveButton &&
         dom.saveButton.dataset
             .modelEditBound !==
-            "true"
+        "true"
     ) {
 
         dom.saveButton.addEventListener(
@@ -498,7 +458,7 @@ function bindButtonEvents() {
         dom.cancelButton &&
         dom.cancelButton.dataset
             .modelEditBound !==
-            "true"
+        "true"
     ) {
 
         dom.cancelButton.addEventListener(
@@ -516,7 +476,7 @@ function bindButtonEvents() {
         dom.backButton &&
         dom.backButton.dataset
             .modelEditBound !==
-            "true"
+        "true"
     ) {
 
         dom.backButton.addEventListener(
@@ -534,7 +494,7 @@ function bindButtonEvents() {
         dom.logoutButton &&
         dom.logoutButton.dataset
             .modelEditBound !==
-            "true"
+        "true"
     ) {
 
         dom.logoutButton.addEventListener(
@@ -563,7 +523,7 @@ function bindSidebarEvents() {
         dom.navToggle &&
         dom.navToggle.dataset
             .modelEditBound !==
-            "true"
+        "true"
     ) {
 
         dom.navToggle.addEventListener(
@@ -581,7 +541,7 @@ function bindSidebarEvents() {
         dom.sidebarOverlay &&
         dom.sidebarOverlay.dataset
             .modelEditBound !==
-            "true"
+        "true"
     ) {
 
         dom.sidebarOverlay.addEventListener(
@@ -599,7 +559,7 @@ function bindSidebarEvents() {
         dom.sidebar &&
         dom.sidebar.dataset
             .modelEditBound !==
-            "true"
+        "true"
     ) {
 
         dom.sidebar.addEventListener(
@@ -718,8 +678,6 @@ function bindAlert() {
 function bindEvents() {
 
     bindButtonEvents();
-
-    bindFormSubmit();
 
     bindPricingEvents();
 
