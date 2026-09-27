@@ -3831,10 +3831,6 @@ const parameters =
 
     try {
 
-        parameters.nsfw_checker =
-            true;
-
-
         task =
             await adapter.createTask(
                 parameters,
