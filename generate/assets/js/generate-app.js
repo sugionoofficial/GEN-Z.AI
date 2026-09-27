@@ -1248,6 +1248,12 @@ async function loadCoreModules() {
    );
 
    await loadModule(
+    "cancellation",
+    CANCELLATION_MODULE,
+    true
+   );
+
+   await loadModule(
     "render",
     RENDER_MODULE,
     true
