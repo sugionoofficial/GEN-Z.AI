@@ -659,6 +659,12 @@
 
     }
 
+           /*
+     * Pastikan tombol X / Batal
+     * sudah memiliki event handler.
+     */
+    bindModalEvents();
+
 
     /*
      * Buka modal.
@@ -904,6 +910,33 @@
     function close(
         options = {}
     ) {
+
+               /*
+         * Tutup modal secara langsung.
+         * Jangan bergantung pada module UI/layout,
+         * karena modal Models dibuat di models.html.
+         */
+        const modal =
+            document.getElementById(
+                "modelModal"
+            );
+
+        if (modal) {
+
+            modal.classList.remove(
+                "show"
+            );
+
+            modal.setAttribute(
+                "aria-hidden",
+                "true"
+            );
+
+        }
+
+        document.body.classList.remove(
+            "modal-open"
+        );
 
         const layout =
             getLayout();
