@@ -511,7 +511,26 @@ function getRootElement(root) {
     }
 
 
-    return root;
+    if (
+        root instanceof Element
+    ) {
+
+        return root;
+
+    }
+
+
+    if (
+        root.jquery &&
+        root[0] instanceof Element
+    ) {
+
+        return root[0];
+
+    }
+
+
+    return null;
 
 }
 
@@ -1091,6 +1110,25 @@ export function validateEditProvider(
 
 /* =========================================================
    RENDER EDIT FORM
+   ---------------------------------------------------------
+   FIX:
+   renderModelForm() bukan generator HTML.
+
+   Signature yang benar:
+       renderModelForm(
+           root,
+           model,
+           providers,
+           options
+       )
+
+   Fungsi tersebut langsung mengisi DOM.
+
+   attachModelFormEvents() juga membutuhkan:
+       root,
+       models,
+       providers,
+       options
    ========================================================= */
 
 export function renderEditForm(
@@ -1190,29 +1228,59 @@ export function renderEditForm(
 
 
     /*
-     * Render form.
+     * Render form langsung ke container.
+     *
+     * JANGAN menggunakan:
+     *
+     * container.innerHTML = renderModelForm(...)
+     *
+     * karena renderModelForm() bukan function
+     * yang mengembalikan HTML string.
      */
 
-    container.innerHTML =
-        renderModelForm(
-            normalized,
-            {
-                providers,
-                models
-            }
-        );
+    renderModelForm(
+        container,
+        normalized,
+        providers,
+        {
+            ...options,
+
+            models,
+
+            mode:
+                "edit",
+
+            edit:
+                true
+        }
+    );
 
 
     /*
-     * Event hanya dipasang setelah HTML
-     * selesai dibuat.
+     * Event dipasang setelah field form
+     * tersedia di DOM.
+     *
+     * Signature:
+     * attachModelFormEvents(
+     *     root,
+     *     models,
+     *     providers,
+     *     options
+     * )
      */
 
     attachModelFormEvents(
         container,
+        models,
+        providers,
         {
-            providers,
-            models
+            ...options,
+
+            mode:
+                "edit",
+
+            edit:
+                true
         }
     );
 
@@ -1271,6 +1339,8 @@ export async function openEditModel(
         root,
         data.model,
         {
+
+            ...options,
 
             providers:
                 data.providers,
@@ -2638,11 +2708,29 @@ export function bindEditForm(
             : [];
 
 
+    /*
+     * Signature yang benar:
+     *
+     * attachModelFormEvents(
+     *     root,
+     *     models,
+     *     providers,
+     *     options
+     * )
+     */
+
     attachModelFormEvents(
         container,
+        models,
+        providers,
         {
-            providers,
-            models
+            ...options,
+
+            mode:
+                "edit",
+
+            edit:
+                true
         }
     );
 
