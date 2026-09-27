@@ -1791,7 +1791,37 @@ function normalizePersistedModel(
    Tidak dianggap sebagai model aktif Admin Models.
 ========================================================= */
 
-function loadRegistryModels() {
+function loadRegistryModels(
+    options = {}
+) {
+
+    /*
+     * Provider dapat diberikan dari caller.
+     *
+     * Registry model seperti Seedance menggunakan:
+     *
+     *     providerId: "kie_ai"
+     *
+     * sedangkan database Provider menggunakan:
+     *
+     *     providers.id
+     *
+     * normalizeRegistryModel() akan mencocokkan
+     * provider_id = "kie_ai" lalu mengambil UUID
+     * providers.id yang sebenarnya.
+     */
+
+    const providerMap =
+        Array.isArray(options)
+            ? options
+            : (
+                Array.isArray(
+                    options.providers
+                )
+                    ? options.providers
+                    : []
+            );
+
 
     const models =
         MODEL_REGISTRY
@@ -1799,7 +1829,7 @@ function loadRegistryModels() {
                 registryEntry =>
                     normalizeRegistryModel(
                         registryEntry,
-                        [],
+                        providerMap,
                         null
                     )
             )
