@@ -3559,23 +3559,159 @@ export default async function handler(
             // ==================================
 
             const requestedModelId =
-                req.query?.model_id ||
-                req.query?.modelId ||
-                null;
+    req.query?.model_id ||
+    req.query?.modelId ||
+    null;
+
+const requestedDatabaseId =
+    req.query?.id ||
+    null;
 
 
-            if (
-                requestedModelId
-            ) {
+/*
+ * =========================================================
+ * SINGLE MODEL BY MODEL ID
+ * =========================================================
+ */
 
-                const data =
-                    await getSingleModel(
+if (
+    requestedModelId
+) {
 
-                        config,
+    const data =
+        await getSingleModel(
+            config,
+            requestedModelId
+        );
 
-                        requestedModelId
 
-                    );
+    return json(
+        res,
+        200,
+        {
+
+            success: true,
+
+            model:
+                data.model,
+
+            models:
+                [
+                    data.model
+                ],
+
+            provider:
+                data.provider,
+
+            providers:
+                data.provider
+                    ? [
+                        data.provider
+                    ]
+                    : [],
+
+            kiePricing:
+                [],
+
+            counts: {
+
+                models:
+                    1,
+
+                providers:
+                    data.provider
+                        ? 1
+                        : 0,
+
+                kiePricing:
+                    0
+
+            }
+
+        }
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * SINGLE MODEL BY DATABASE ID
+ * =========================================================
+ *
+ * Dipakai oleh:
+ *
+ * /api/admin-models?id=<database-uuid>
+ *
+ * Jalur ini juga TIDAK boleh menjalankan listModels(),
+ * karena listModels() memuat seluruh KIE pricing.
+ *
+ * Kita gunakan getSingleModel() karena fungsi tersebut
+ * memang sudah bisa mencari berdasarkan:
+ *
+ * 1. model_id
+ * 2. database id
+ * =========================================================
+ */
+
+if (
+    requestedDatabaseId
+) {
+
+    const data =
+        await getSingleModel(
+            config,
+            requestedDatabaseId
+        );
+
+
+    return json(
+        res,
+        200,
+        {
+
+            success: true,
+
+            model:
+                data.model,
+
+            models:
+                [
+                    data.model
+                ],
+
+            provider:
+                data.provider,
+
+            providers:
+                data.provider
+                    ? [
+                        data.provider
+                    ]
+                    : [],
+
+            kiePricing:
+                [],
+
+            counts: {
+
+                models:
+                    1,
+
+                providers:
+                    data.provider
+                        ? 1
+                        : 0,
+
+                kiePricing:
+                    0
+
+            }
+
+        }
+    );
+
+}
 
 
                 return json(
