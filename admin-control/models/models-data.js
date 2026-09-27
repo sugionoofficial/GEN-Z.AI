@@ -708,7 +708,16 @@ async function getProviderByCode(
         await loadProviders();
 
 
+    const normalizedCode =
+        String(
+            providerCode
+        )
+            .trim()
+            .toLowerCase();
+
+
     return (
+
         providers.find(
             provider =>
                 String(
@@ -716,12 +725,28 @@ async function getProviderByCode(
                 )
                     .trim()
                     .toLowerCase() ===
+                normalizedCode
+        )
+
+        ||
+
+        providers.find(
+            provider =>
                 String(
-                    providerCode
+                    provider?.provider_code ||
+                    provider?.providerCode ||
+                    provider?.code ||
+                    ""
                 )
                     .trim()
-                    .toLowerCase()
-        ) || null
+                    .toLowerCase() ===
+                normalizedCode
+        )
+
+        ||
+
+        null
+
     );
 
 }
@@ -864,20 +889,38 @@ function getDurationRange(
 /* =========================================================
    PROVIDER MATCH HELPER
    ---------------------------------------------------------
-   Registry provider code:
+   Registry provider dapat menggunakan:
+
+       kie
        kie_ai
 
-   Supabase provider dapat mempunyai:
-       id            = UUID
-       provider_id   = kie_ai
-       provider_name = KIE.AI
+   Supabase provider internal:
 
-   Pencocokan dilakukan terhadap ketiganya.
+       id            = UUID
+       provider_id   = kie
+       provider_name = GEN-Z.AI
+
+   KIE.AI merupakan provider/API yang sama.
+
+   Karena itu:
+
+       kie_ai
+          |
+          +----> kie
+
+   dan:
+
+       kie
+          |
+          +----> kie
+
+   Registry TIDAK membuat provider baru.
 ========================================================= */
 
 function findRegistryProvider(
     providerCode,
-    providerMap
+    providerMap,
+    providerName = ""
 ) {
 
     const code =
@@ -888,9 +931,17 @@ function findRegistryProvider(
             .toLowerCase();
 
 
+    const name =
+        String(
+            providerName || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
     if (
-        !code ||
-        !Array.isArray(providerMap)
+        !Array.isArray(providerMap) ||
+        !providerMap.length
     ) {
 
         return null;
@@ -898,47 +949,259 @@ function findRegistryProvider(
     }
 
 
-    return (
+    /*
+     * =====================================================
+     * 1. EXACT PROVIDER CODE
+     *
+     * Contoh:
+     *
+     * registry:
+     *     kie
+     *
+     * database:
+     *     provider_id = kie
+     *
+     * =====================================================
+     */
 
-        providerMap.find(
-            provider =>
-                String(
-                    provider?.provider_id || ""
-                )
-                    .trim()
-                    .toLowerCase() ===
-                code
-        )
+    if (code) {
 
-        ||
+        const exactCode =
+            providerMap.find(
+                provider => {
 
-        providerMap.find(
-            provider =>
-                String(
-                    provider?.id || ""
-                )
-                    .trim()
-                    .toLowerCase() ===
-                code
-        )
+                    const databaseCode =
+                        String(
+                            provider?.provider_id ||
+                            provider?.provider_code ||
+                            provider?.providerCode ||
+                            provider?.code ||
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase();
 
-        ||
 
-        providerMap.find(
-            provider =>
-                String(
-                    provider?.provider_name || ""
-                )
-                    .trim()
-                    .toLowerCase() ===
-                code
-        )
+                    return (
+                        databaseCode ===
+                        code
+                    );
 
-        ||
+                }
+            );
 
-        null
 
-    );
+        if (exactCode) {
+
+            return exactCode;
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * 2. DATABASE UUID
+     *
+     * Compatibility untuk registry yang kebetulan
+     * menggunakan UUID sebagai providerId.
+     * =====================================================
+     */
+
+    if (code) {
+
+        const byDatabaseId =
+            providerMap.find(
+                provider => {
+
+                    return (
+                        String(
+                            provider?.id || ""
+                        )
+                            .trim()
+                            .toLowerCase() ===
+                        code
+                    );
+
+                }
+            );
+
+
+        if (byDatabaseId) {
+
+            return byDatabaseId;
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * 3. PROVIDER NAME
+     *
+     * Contoh:
+     *
+     * GEN-Z.AI
+     * =====================================================
+     */
+
+    if (name) {
+
+        const byProviderName =
+            providerMap.find(
+                provider => {
+
+                    const databaseName =
+                        String(
+                            provider?.provider_name ||
+                            provider?.providerName ||
+                            provider?.name ||
+                            provider?.display_name ||
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+
+                    return (
+                        databaseName ===
+                        name
+                    );
+
+                }
+            );
+
+
+        if (byProviderName) {
+
+            return byProviderName;
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * 4. KIE ALIAS
+     *
+     * External KIE adapter kadang memakai:
+     *
+     *     kie_ai
+     *
+     * sementara provider internal GEN-Z.AI memakai:
+     *
+     *     kie
+     *
+     * Jangan membuat provider "kie_ai".
+     *
+     * Gunakan provider internal "kie".
+     * =====================================================
+     */
+
+    const isKieAlias =
+        code === "kie_ai" ||
+        code === "kie.ai" ||
+        code === "kie a.i.";
+
+
+    if (isKieAlias) {
+
+        const kieProvider =
+            providerMap.find(
+                provider => {
+
+                    const databaseCode =
+                        String(
+                            provider?.provider_id ||
+                            provider?.provider_code ||
+                            provider?.providerCode ||
+                            provider?.code ||
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+
+                    return (
+                        databaseCode ===
+                        "kie"
+                    );
+
+                }
+            );
+
+
+        if (kieProvider) {
+
+            return kieProvider;
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * 5. KIE NAME ALIAS
+     *
+     * Untuk konfigurasi yang masih memakai:
+     *
+     *     KIE.AI
+     *
+     * sementara database:
+     *
+     *     GEN-Z.AI
+     *
+     * tetap gunakan provider internal "kie".
+     * =====================================================
+     */
+
+    const isKieName =
+        name === "kie.ai" ||
+        name === "kie a.i." ||
+        name === "kie";
+
+
+    if (isKieName) {
+
+        const kieProvider =
+            providerMap.find(
+                provider => {
+
+                    const databaseCode =
+                        String(
+                            provider?.provider_id ||
+                            provider?.provider_code ||
+                            provider?.providerCode ||
+                            provider?.code ||
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+
+                    return (
+                        databaseCode ===
+                        "kie"
+                    );
+
+                }
+            );
+
+
+        if (kieProvider) {
+
+            return kieProvider;
+
+        }
+
+    }
+
+
+    return null;
 
 }
 
@@ -988,15 +1251,33 @@ function normalizeRegistryModel(
     /*
      * Registry provider code.
      *
-     * Contoh:
+     * Contoh Seedance:
      *
-     * kie_ai
+     * kie
      */
 
     const providerCode =
         String(
             config.providerId ||
             config.provider_id ||
+            config.providerCode ||
+            config.provider_code ||
+            ""
+        ).trim();
+
+
+    /*
+     * Registry provider name.
+     *
+     * Contoh Seedance:
+     *
+     * GEN-Z.AI
+     */
+
+    const providerName =
+        String(
+            config.providerName ||
+            config.provider_name ||
             ""
         ).trim();
 
@@ -1010,7 +1291,8 @@ function normalizeRegistryModel(
     const provider =
         findRegistryProvider(
             providerCode,
-            providerMap
+            providerMap,
+            providerName
         );
 
 
@@ -1099,15 +1381,22 @@ function normalizeRegistryModel(
 
 
     /*
-     * Provider DATA.
+     * =====================================================
+     * PROVIDER DATA
      *
-     * Jika Provider ditemukan:
-     * gunakan seluruh identitas aktual.
+     * Jika ditemukan:
+     *
+     * id            = UUID Supabase
+     * provider_id   = kode internal, misalnya "kie"
+     * provider_name = GEN-Z.AI
      *
      * Jika tidak ditemukan:
-     * provider_id tetap null.
      *
-     * Tidak pernah membuat UUID / provider palsu.
+     * provider_id tetap kode registry
+     * tetapi UUID tetap null.
+     *
+     * Tidak pernah membuat UUID palsu.
+     * =====================================================
      */
 
     const providerData =
@@ -1120,11 +1409,17 @@ function normalizeRegistryModel(
 
                 provider_id:
                     provider.provider_id ||
+                    provider.provider_code ||
+                    provider.providerCode ||
+                    provider.code ||
                     providerCode,
 
                 provider_name:
                     provider.provider_name ||
-                    config.providerName ||
+                    provider.providerName ||
+                    provider.name ||
+                    provider.display_name ||
+                    providerName ||
                     providerCode,
 
                 status:
@@ -1143,13 +1438,29 @@ function normalizeRegistryModel(
                     providerCode,
 
                 provider_name:
-                    config.providerName ||
+                    providerName ||
                     providerCode,
 
                 status:
                     "unknown"
 
             };
+
+
+    /*
+     * =====================================================
+     * PROVIDER UUID
+     *
+     * Model table memakai providers.id sebagai FK.
+     *
+     * Jadi jangan pernah menggunakan "kie" sebagai UUID.
+     * =====================================================
+     */
+
+    const providerUuid =
+        provider?.id ??
+        persisted?.provider_id ??
+        null;
 
 
     return {
@@ -1167,37 +1478,52 @@ function normalizeRegistryModel(
         description:
             description,
 
+
         /*
-         * PENTING:
+         * FK DATABASE:
          *
-         * Kalau Provider ditemukan,
-         * gunakan providers.id yang sebenarnya.
-         *
-         * Jangan gunakan providerCode sebagai UUID.
+         * providers.id
          */
 
         provider_id:
-            provider?.id ??
-            persisted?.provider_id ??
-            null,
+            providerUuid,
+
+
+        /*
+         * PROVIDER CODE:
+         *
+         * providers.provider_id
+         *
+         * Contoh:
+         * kie
+         */
 
         provider_code:
-            providerCode,
+            providerData.provider_id,
+
+
+        /*
+         * DISPLAY NAME:
+         *
+         * GEN-Z.AI
+         */
 
         provider_name:
             providerData.provider_name,
 
+
         provider_uuid:
-            provider?.id ??
-            persisted?.provider_id ??
-            null,
+            providerUuid,
+
 
         provider:
             providerData,
 
+
         type:
             config.type ||
             "",
+
 
         api:
             config.api
@@ -1206,54 +1532,71 @@ function normalizeRegistryModel(
                 }
                 : {},
 
+
         parameters:
             parameters,
+
 
         supported_ratios:
             supportedRatios,
 
+
         supported_resolutions:
             supportedResolutions,
+
 
         min_duration:
             durationRange.min,
 
+
         max_duration:
             durationRange.max,
+
 
         discount_percent:
             safeDiscount,
 
+
         credit_480p:
             credit480p,
+
 
         credit_720p:
             credit720p,
 
+
         credit_1080p:
             credit1080p,
+
 
         credit480p:
             credit480p,
 
+
         credit720p:
             credit720p,
+
 
         credit1080p:
             credit1080p,
 
+
         status:
             status,
 
+
         source:
             "model-folder",
+
 
         source_folder:
             registryEntry.folder ||
             "",
 
+
         registry:
             true,
+
 
         adapter_available:
             true
@@ -1581,8 +1924,12 @@ function normalizePersistedModel(
     const providerCode =
         String(
             provider?.provider_id ||
+            provider?.provider_code ||
+            provider?.providerCode ||
+            provider?.code ||
             persistedModel.provider_code ||
             registryConfig?.providerId ||
+            registryConfig?.provider_id ||
             ""
         ).trim();
 
@@ -1590,8 +1937,12 @@ function normalizePersistedModel(
     const providerName =
         String(
             provider?.provider_name ||
+            provider?.providerName ||
+            provider?.name ||
+            provider?.display_name ||
             persistedModel.provider_name ||
             registryConfig?.providerName ||
+            registryConfig?.provider_name ||
             providerCode ||
             ""
         ).trim();
@@ -1615,11 +1966,18 @@ function normalizePersistedModel(
                     provider.id,
 
                 provider_id:
-                    provider.provider_id,
+                    provider.provider_id ||
+                    provider.provider_code ||
+                    provider.providerCode ||
+                    provider.code ||
+                    providerCode,
 
                 provider_name:
                     provider.provider_name ||
-                    providerCode,
+                    provider.providerName ||
+                    provider.name ||
+                    provider.display_name ||
+                    providerName,
 
                 status:
                     provider.status
