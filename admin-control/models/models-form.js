@@ -10,6 +10,7 @@
    - Menjembatani Create / Edit / Delete
    - Delegasi ke module baru
    - Menjaga API lama tetap dapat dipanggil
+   - Menyediakan catalog model DB + registry untuk Create
    - Tidak melakukan query Supabase langsung
 
    Module utama:
@@ -18,6 +19,7 @@
    - GENZModelFormDelete
    - GENZModelFormCoordinator
    - GENZModelFormLayout
+   - GENZModelsData
 
    Tidak menggunakan:
    - kie_models
@@ -27,10 +29,6 @@
    - kie_constraints
    - kie_dependencies
    - kie_pricing
-
-   Catatan:
-   File ini sengaja dipertahankan karena beberapa file lama
-   masih dapat memanggil GENZModelsForm.
    ========================================================= */
 
 (function () {
@@ -57,7 +55,17 @@
             null,
 
         initialized:
-            false
+            false,
+
+        /*
+         * Catalog terakhir yang dipakai
+         * oleh form Create.
+         */
+        providers:
+            [],
+
+        models:
+            []
 
     };
 
@@ -126,11 +134,35 @@
     }
 
 
+    function getData() {
+
+        return (
+            window.GENZModelsData ||
+            null
+        );
+
+    }
+
+
     /* =====================================================
        HELPERS
        ===================================================== */
 
     function normalizeId(
+        value
+    ) {
+
+        return String(
+            value === null ||
+            value === undefined
+                ? ""
+                : value
+        ).trim();
+
+    }
+
+
+    function normalizeText(
         value
     ) {
 
@@ -227,6 +259,810 @@
 
 
     /* =====================================================
+       ARRAY / CATALOG HELPERS
+       ===================================================== */
+
+    function normalizeArray(
+        value
+    ) {
+
+        return Array.isArray(value)
+            ? value.filter(Boolean)
+            : [];
+
+    }
+
+
+    function getModelId(
+        model
+    ) {
+
+        return normalizeId(
+            model?.model_id ??
+            model?.modelId ??
+            model?.id
+        );
+
+    }
+
+
+    function getProviderReference(
+        provider
+    ) {
+
+        return normalizeId(
+            provider?.id ??
+            provider?.provider_id ??
+            provider?.providerId ??
+            provider?.provider_code ??
+            provider?.providerCode
+        );
+
+    }
+
+
+    function getProviderCode(
+        provider
+    ) {
+
+        return normalizeText(
+            provider?.provider_id ??
+            provider?.providerId ??
+            provider?.provider_code ??
+            provider?.providerCode ??
+            provider?.code
+        );
+
+    }
+
+
+    function getProviderName(
+        provider
+    ) {
+
+        return normalizeText(
+            provider?.provider_name ??
+            provider?.providerName ??
+            provider?.name
+        );
+
+    }
+
+
+    /*
+     * Merge model database + registry.
+     *
+     * Database model selalu menjadi prioritas.
+     * Registry hanya menyediakan catalog teknis
+     * untuk model yang belum tersimpan.
+     */
+    function mergeModelCatalog(
+        databaseModels,
+        registryModels
+    ) {
+
+        const result = [];
+        const seen = new Set();
+
+        const databaseList =
+            normalizeArray(
+                databaseModels
+            );
+
+        const registryList =
+            normalizeArray(
+                registryModels
+            );
+
+
+        /*
+         * 1. Database terlebih dahulu.
+         */
+        databaseList.forEach(
+            model => {
+
+                const id =
+                    getModelId(
+                        model
+                    );
+
+                if (!id) {
+                    return;
+                }
+
+                const key =
+                    id.toLowerCase();
+
+                if (
+                    seen.has(key)
+                ) {
+                    return;
+                }
+
+                seen.add(key);
+
+                result.push(
+                    model
+                );
+
+            }
+        );
+
+
+        /*
+         * 2. Registry sebagai catalog tambahan.
+         */
+        registryList.forEach(
+            model => {
+
+                const id =
+                    getModelId(
+                        model
+                    );
+
+                if (!id) {
+                    return;
+                }
+
+                const key =
+                    id.toLowerCase();
+
+                if (
+                    seen.has(key)
+                ) {
+                    return;
+                }
+
+                seen.add(key);
+
+                result.push(
+                    model
+                );
+
+            }
+        );
+
+
+        return result;
+
+    }
+
+
+    /*
+     * Merge provider tanpa membuat provider palsu.
+     *
+     * Provider hanya berasal dari:
+     * - provider database
+     * - provider object yang memang diberikan registry
+     *
+     * Tidak membuat GEN-Z.AI / KIE.AI secara hardcoded.
+     */
+    function mergeProviderCatalog(
+        databaseProviders,
+        models
+    ) {
+
+        const result = [];
+        const seen = new Set();
+
+
+        normalizeArray(
+            databaseProviders
+        ).forEach(
+            provider => {
+
+                const reference =
+                    getProviderReference(
+                        provider
+                    );
+
+                const code =
+                    getProviderCode(
+                        provider
+                    );
+
+                const key =
+                    (
+                        reference ||
+                        code
+                    ).toLowerCase();
+
+                if (!key) {
+                    return;
+                }
+
+                if (
+                    seen.has(key)
+                ) {
+                    return;
+                }
+
+                seen.add(key);
+
+                result.push(
+                    provider
+                );
+
+            }
+        );
+
+
+        /*
+         * Registry provider hanya dipakai jika
+         * model registry memang membawa informasi
+         * provider tersebut.
+         */
+        normalizeArray(
+            models
+        ).forEach(
+            model => {
+
+                const provider =
+                    model?.provider;
+
+                if (
+                    !provider ||
+                    typeof provider !==
+                        "object"
+                ) {
+                    return;
+                }
+
+                const reference =
+                    getProviderReference(
+                        provider
+                    );
+
+                const code =
+                    getProviderCode(
+                        provider
+                    );
+
+                const name =
+                    getProviderName(
+                        provider
+                    );
+
+                const key =
+                    (
+                        reference ||
+                        code ||
+                        name
+                    ).toLowerCase();
+
+                if (!key) {
+                    return;
+                }
+
+                if (
+                    seen.has(key)
+                ) {
+                    return;
+                }
+
+                seen.add(key);
+
+                result.push(
+                    provider
+                );
+
+            }
+        );
+
+
+        return result;
+
+    }
+
+
+    /*
+     * Ambil provider dari model registry bila
+     * model hanya membawa provider_id / provider_code.
+     *
+     * Tidak membuat provider baru.
+     */
+    function attachProviderObjects(
+        models,
+        providers
+    ) {
+
+        const providerList =
+            normalizeArray(
+                providers
+            );
+
+
+        return normalizeArray(
+            models
+        ).map(
+            model => {
+
+                if (
+                    model?.provider &&
+                    typeof model.provider ===
+                        "object"
+                ) {
+                    return model;
+                }
+
+
+                const providerId =
+                    normalizeId(
+                        model?.provider_id ??
+                        model?.providerId ??
+                        model?.provider_uuid ??
+                        model?.providerUuid
+                    );
+
+                const providerCode =
+                    normalizeText(
+                        model?.provider_code ??
+                        model?.providerCode
+                    );
+
+
+                let provider =
+                    null;
+
+
+                if (
+                    providerId
+                ) {
+
+                    provider =
+                        providerList.find(
+                            item => {
+
+                                const id =
+                                    normalizeId(
+                                        item?.id
+                                    );
+
+                                const code =
+                                    normalizeText(
+                                        item?.provider_id ??
+                                        item?.providerId ??
+                                        item?.provider_code ??
+                                        item?.providerCode ??
+                                        item?.code
+                                    );
+
+                                return (
+                                    id ===
+                                        providerId ||
+                                    code ===
+                                        providerId
+                                );
+
+                            }
+                        ) ||
+                        null;
+
+                }
+
+
+                if (
+                    !provider &&
+                    providerCode
+                ) {
+
+                    provider =
+                        providerList.find(
+                            item => {
+
+                                const code =
+                                    normalizeText(
+                                        item?.provider_id ??
+                                        item?.providerId ??
+                                        item?.provider_code ??
+                                        item?.providerCode ??
+                                        item?.code
+                                    );
+
+                                return (
+                                    code.toLowerCase() ===
+                                    providerCode.toLowerCase()
+                                );
+
+                            }
+                        ) ||
+                        null;
+
+                }
+
+
+                if (!provider) {
+                    return model;
+                }
+
+
+                return {
+                    ...model,
+
+                    provider,
+
+                    provider_name:
+                        model?.provider_name ||
+                        model?.providerName ||
+                        getProviderName(
+                            provider
+                        ),
+
+                    provider_code:
+                        model?.provider_code ||
+                        model?.providerCode ||
+                        getProviderCode(
+                            provider
+                        )
+                };
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       LOAD CREATE CATALOG
+       ===================================================== */
+
+    function loadCreateCatalog(
+        providers = [],
+        models = []
+    ) {
+
+        const data =
+            getData();
+
+
+        /*
+         * Catalog awal berasal dari caller.
+         */
+        const databaseProviders =
+            normalizeArray(
+                providers
+            );
+
+        const databaseModels =
+            normalizeArray(
+                models
+            );
+
+
+        /*
+         * Jika data module belum tersedia,
+         * jangan membuat data palsu.
+         */
+        if (!data) {
+
+            const finalModels =
+                attachProviderObjects(
+                    databaseModels,
+                    databaseProviders
+                );
+
+            const finalProviders =
+                mergeProviderCatalog(
+                    databaseProviders,
+                    finalModels
+                );
+
+            return {
+                providers:
+                    finalProviders,
+
+                models:
+                    finalModels
+            };
+
+        }
+
+
+        /*
+         * Registry loader.
+         */
+        let registryResult =
+            [];
+
+
+        if (
+            typeof data.loadRegistryModels ===
+                "function"
+        ) {
+
+            try {
+
+                registryResult =
+                    data.loadRegistryModels();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Registry model loader warning:",
+                    error
+                );
+
+                registryResult =
+                    [];
+
+            }
+
+        }
+
+
+        /*
+         * loadRegistryModels() pada architecture
+         * saat ini dapat mengembalikan Promise.
+         *
+         * Jika synchronous, langsung digunakan.
+         * Jika Promise, caller akan melakukan
+         * refresh asynchronous.
+         */
+        if (
+            registryResult &&
+            typeof registryResult.then ===
+                "function"
+        ) {
+
+            return Promise.resolve(
+                registryResult
+            )
+                .then(
+                    registryModels => {
+
+                        const mergedModels =
+                            mergeModelCatalog(
+                                databaseModels,
+                                registryModels
+                            );
+
+                        const finalProviders =
+                            mergeProviderCatalog(
+                                databaseProviders,
+                                mergedModels
+                            );
+
+                        const finalModels =
+                            attachProviderObjects(
+                                mergedModels,
+                                finalProviders
+                            );
+
+                        return {
+                            providers:
+                                finalProviders,
+
+                            models:
+                                finalModels
+                        };
+
+                    }
+                )
+                .catch(
+                    error => {
+
+                        console.warn(
+                            "[GEN-Z.AI] Registry catalog warning:",
+                            error
+                        );
+
+
+                        const finalModels =
+                            attachProviderObjects(
+                                databaseModels,
+                                databaseProviders
+                            );
+
+                        const finalProviders =
+                            mergeProviderCatalog(
+                                databaseProviders,
+                                finalModels
+                            );
+
+                        return {
+                            providers:
+                                finalProviders,
+
+                            models:
+                                finalModels
+                        };
+
+                    }
+                );
+
+        }
+
+
+        /*
+         * Synchronous registry.
+         */
+        const mergedModels =
+            mergeModelCatalog(
+                databaseModels,
+                registryResult
+            );
+
+        const finalProviders =
+            mergeProviderCatalog(
+                databaseProviders,
+                mergedModels
+            );
+
+        const finalModels =
+            attachProviderObjects(
+                mergedModels,
+                finalProviders
+            );
+
+
+        return {
+            providers:
+                finalProviders,
+
+            models:
+                finalModels
+        };
+
+    }
+
+
+    /*
+     * Simpan catalog ke state.
+     */
+    function setCatalog(
+        catalog
+    ) {
+
+        const safeCatalog =
+            catalog || {};
+
+
+        state.providers =
+            normalizeArray(
+                safeCatalog.providers
+            );
+
+        state.models =
+            normalizeArray(
+                safeCatalog.models
+            );
+
+
+        return {
+            providers:
+                state.providers,
+
+            models:
+                state.models
+        };
+
+    }
+
+
+    /*
+     * Render ulang form setelah registry
+     * selesai dimuat.
+     *
+     * Tidak membuka modal kedua kali.
+     */
+    function refreshCreateCatalog(
+        catalog,
+        options = {}
+    ) {
+
+        const normalized =
+            setCatalog(
+                catalog
+            );
+
+
+        const layout =
+            getLayout();
+
+
+        if (
+            !layout ||
+            typeof layout.renderModelForm !==
+                "function"
+        ) {
+
+            return normalized;
+
+        }
+
+
+        const root =
+            state.root;
+
+
+        if (!root) {
+            return normalized;
+        }
+
+
+        /*
+         * Jangan memilih provider secara paksa.
+         *
+         * Jika caller memang memberikan providerId,
+         * gunakan itu.
+         */
+        const requestedProviderId =
+            normalizeId(
+                options.providerId ??
+                options.provider_id ??
+                ""
+            );
+
+
+        layout.renderModelForm(
+
+            root,
+
+            null,
+
+            normalized.providers,
+
+            {
+                ...options,
+
+                models:
+                    normalized.models,
+
+                mode:
+                    "create",
+
+                create:
+                    true,
+
+                providerId:
+                    requestedProviderId
+
+            }
+
+        );
+
+
+        if (
+            typeof layout.attachModelFormEvents ===
+                "function"
+        ) {
+
+            layout.attachModelFormEvents(
+
+                root,
+
+                normalized.models,
+
+                normalized.providers,
+
+                {
+                    ...options,
+
+                    models:
+                        normalized.models,
+
+                    mode:
+                        "create",
+
+                    create:
+                        true,
+
+                    providerId:
+                        requestedProviderId
+
+                }
+
+            );
+
+        }
+
+
+        return normalized;
+
+    }
+
+
+    /* =====================================================
        ALERT
        ===================================================== */
 
@@ -267,10 +1103,6 @@
         }
 
 
-        /*
-         * Compatibility fallback.
-         * Tidak melakukan operasi database.
-         */
         if (
             type ===
                 "error"
@@ -344,7 +1176,8 @@
 
     }
 
-       /* =====================================================
+
+    /* =====================================================
        MODAL EVENTS
        ===================================================== */
 
@@ -360,9 +1193,6 @@
         }
 
 
-        /*
-         * Hindari pemasangan listener berulang.
-         */
         if (
             modal.dataset
                 .modelCloseEventsAttached ===
@@ -385,9 +1215,6 @@
             );
 
 
-        /*
-         * Tombol X.
-         */
         if (closeButton) {
 
             closeButton.addEventListener(
@@ -404,9 +1231,6 @@
         }
 
 
-        /*
-         * Tombol Batal.
-         */
         if (cancelButton) {
 
             cancelButton.addEventListener(
@@ -423,9 +1247,6 @@
         }
 
 
-        /*
-         * Klik area gelap di luar modal.
-         */
         modal.addEventListener(
             "click",
             function (event) {
@@ -443,9 +1264,6 @@
         );
 
 
-        /*
-         * Tombol ESC.
-         */
         document.addEventListener(
             "keydown",
             function (event) {
@@ -487,256 +1305,375 @@
        ===================================================== */
 
     function openCreate(
-    root,
-    options = {}
-) {
-
-    state.mode =
-        "create";
-
-    state.model =
-        null;
-
-    state.modelId =
-        null;
-
-    state.root =
-        resolveRoot(
-            root
-        );
-
-
-    const providers =
-        Array.isArray(
-            options.providers
-        )
-            ? options.providers
-            : [];
-
-    const models =
-        Array.isArray(
-            options.models
-        )
-            ? options.models
-            : [];
-
-
-    /*
-     * Sinkronkan Create module.
-     */
-    const create =
-        getCreate();
-
-    if (
-        create &&
-        typeof create.openCreate ===
-            "function"
+        root,
+        options = {}
     ) {
 
-        create.openCreate({
+        state.mode =
+            "create";
 
-            root:
-                state.root,
+        state.model =
+            null;
+
+        state.modelId =
+            null;
+
+        state.root =
+            resolveRoot(
+                root
+            );
+
+
+        const suppliedProviders =
+            Array.isArray(
+                options.providers
+            )
+                ? options.providers
+                : [];
+
+
+        const suppliedModels =
+            Array.isArray(
+                options.models
+            )
+                ? options.models
+                : [];
+
+
+        /*
+         * Simpan catalog awal.
+         */
+        setCatalog({
 
             providers:
-                providers,
+                suppliedProviders,
 
             models:
-                models
+                suppliedModels
 
         });
 
-    }
+
+        /*
+         * Sinkronkan Create module
+         * dengan catalog awal.
+         */
+        const create =
+            getCreate();
 
 
-    /*
-     * Render form.
-     */
-    const layout =
-        getLayout();
+        if (
+            create &&
+            typeof create.openCreate ===
+                "function"
+        ) {
 
-    if (
-        !layout ||
-        typeof layout.renderModelForm !==
-            "function"
-    ) {
+            create.openCreate({
 
-        throw new Error(
-            "GENZModelFormLayout.renderModelForm() belum tersedia."
-        );
+                root:
+                    state.root,
 
-    }
+                providers:
+                    state.providers,
 
+                models:
+                    state.models
 
-    layout.renderModelForm(
-
-        state.root,
-
-        null,
-
-        providers,
-
-        {
-            ...options,
-
-            models:
-                models,
-
-            mode:
-                "create",
-
-            create:
-                true
+            });
 
         }
 
-    );
+
+        /*
+         * Render awal.
+         */
+        const layout =
+            getLayout();
 
 
-    /*
-     * Pasang event form.
-     */
-    if (
-        typeof layout.attachModelFormEvents ===
-            "function"
-    ) {
+        if (
+            !layout ||
+            typeof layout.renderModelForm !==
+                "function"
+        ) {
 
-        layout.attachModelFormEvents(
+            throw new Error(
+                "GENZModelFormLayout.renderModelForm() belum tersedia."
+            );
+
+        }
+
+
+        /*
+         * Provider default TIDAK dipaksa.
+         *
+         * Jika caller memberikan providerId,
+         * gunakan provider tersebut.
+         *
+         * Jika kosong, select harus berada pada
+         * placeholder "Pilih provider...".
+         */
+        const requestedProviderId =
+            normalizeId(
+                options.providerId ??
+                options.provider_id ??
+                ""
+            );
+
+
+        layout.renderModelForm(
 
             state.root,
 
-            models,
+            null,
 
-            providers,
+            state.providers,
 
             {
                 ...options,
 
                 models:
-                    models,
+                    state.models,
 
                 mode:
                     "create",
 
                 create:
-                    true
+                    true,
+
+                providerId:
+                    requestedProviderId
 
             }
 
         );
 
-    }
 
-
-    /*
-     * Pastikan field Create tidak membawa
-     * data dari Edit sebelumnya.
-     */
-    if (state.root) {
-
-        const form =
-            state.root;
-
+        /*
+         * Pasang event form.
+         */
         if (
-            form.reset &&
-            typeof form.reset ===
+            typeof layout.attachModelFormEvents ===
                 "function"
         ) {
 
-            /*
-             * Jangan reset sebelum render.
-             * Field sudah dirender dan
-             * harus tetap memakai default
-             * dari layout.
-             */
+            layout.attachModelFormEvents(
+
+                state.root,
+
+                state.models,
+
+                state.providers,
+
+                {
+                    ...options,
+
+                    models:
+                        state.models,
+
+                    mode:
+                        "create",
+
+                    create:
+                        true,
+
+                    providerId:
+                        requestedProviderId
+
+                }
+
+            );
 
         }
 
-        form.dataset.modelFormMode =
-            "create";
 
-        delete form.dataset.modelId;
+        if (state.root) {
+
+            const form =
+                state.root;
+
+            form.dataset.modelFormMode =
+                "create";
+
+            delete form.dataset.modelId;
+
+        }
+
+
+        bindModalEvents();
+
+
+        /*
+         * Buka modal.
+         */
+        const modal =
+            document.getElementById(
+                "modelModal"
+            );
+
+        if (modal) {
+
+            modal.classList.add(
+                "show"
+            );
+
+            modal.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+
+            document.body.classList.add(
+                "modal-open"
+            );
+
+        }
+
+
+        /*
+         * Judul modal.
+         */
+        const title =
+            document.getElementById(
+                "modalTitle"
+            );
+
+        if (title) {
+
+            title.textContent =
+                "Tambah Model";
+
+        }
+
+
+        /*
+         * Fokus awal.
+         */
+        window.setTimeout(
+            function () {
+
+                const provider =
+                    document.getElementById(
+                        "providerId"
+                    );
+
+                if (
+                    provider &&
+                    typeof provider.focus ===
+                        "function"
+                ) {
+
+                    provider.focus();
+
+                }
+
+            },
+            50
+        );
+
+
+        /*
+         * =================================================
+         * LOAD REGISTRY CATALOG
+         * =================================================
+         *
+         * Ini bagian penting untuk Seedance.
+         *
+         * Model database tetap dipakai.
+         * Registry hanya ditambahkan sebagai catalog
+         * model yang bisa dipilih saat Create.
+         */
+        const catalogResult =
+            loadCreateCatalog(
+                suppliedProviders,
+                suppliedModels
+            );
+
+
+        if (
+            catalogResult &&
+            typeof catalogResult.then ===
+                "function"
+        ) {
+
+            catalogResult.then(
+                catalog => {
+
+                    /*
+                     * Jangan render ulang jika modal
+                     * sudah ditutup / pindah ke Edit.
+                     */
+                    if (
+                        state.mode !==
+                            "create"
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    refreshCreateCatalog(
+                        catalog,
+                        options
+                    );
+
+
+                    /*
+                     * Pastikan Create module juga
+                     * mendapat catalog terbaru.
+                     */
+                    const createModule =
+                        getCreate();
+
+
+                    if (
+                        createModule &&
+                        typeof createModule.openCreate ===
+                            "function"
+                    ) {
+
+                        try {
+
+                            createModule.openCreate({
+
+                                root:
+                                    state.root,
+
+                                providers:
+                                    state.providers,
+
+                                models:
+                                    state.models
+
+                            });
+
+                        } catch (error) {
+
+                            console.warn(
+                                "[GEN-Z.AI] Create catalog refresh warning:",
+                                error
+                            );
+
+                        }
+
+                    }
+
+                }
+            );
+
+        } else {
+
+            refreshCreateCatalog(
+                catalogResult,
+                options
+            );
+
+        }
+
+
+        return getState();
 
     }
-
-           /*
-     * Pastikan tombol X / Batal
-     * sudah memiliki event handler.
-     */
-    bindModalEvents();
-
-
-    /*
-     * Buka modal.
-     */
-    const modal =
-        document.getElementById(
-            "modelModal"
-        );
-
-    if (modal) {
-
-        modal.classList.add(
-            "show"
-        );
-
-        modal.setAttribute(
-            "aria-hidden",
-            "false"
-        );
-
-        document.body.classList.add(
-            "modal-open"
-        );
-
-    }
-
-
-    /*
-     * Judul modal.
-     */
-    const title =
-        document.getElementById(
-            "modalTitle"
-        );
-
-    if (title) {
-
-        title.textContent =
-            "Tambah Model";
-
-    }
-
-
-    /*
-     * Fokus awal.
-     */
-    window.setTimeout(
-        function () {
-
-            const provider =
-                document.getElementById(
-                    "providerId"
-                );
-
-            if (
-                provider &&
-                typeof provider.focus ===
-                    "function"
-            ) {
-
-                provider.focus();
-
-            }
-
-        },
-        50
-    );
-
-
-    return getState();
-
-}
 
 
     /* =====================================================
@@ -770,9 +1707,7 @@
             getEdit();
 
 
-        if (
-            !edit
-        ) {
+        if (!edit) {
 
             throw new Error(
                 "GENZModelFormEdit belum tersedia."
@@ -911,11 +1846,6 @@
         options = {}
     ) {
 
-               /*
-         * Tutup modal secara langsung.
-         * Jangan bergantung pada module UI/layout,
-         * karena modal Models dibuat di models.html.
-         */
         const modal =
             document.getElementById(
                 "modelModal"
@@ -937,6 +1867,7 @@
         document.body.classList.remove(
             "modal-open"
         );
+
 
         const layout =
             getLayout();
@@ -1046,10 +1977,6 @@
             );
 
 
-        /*
-         * Saat edit, module edit memiliki collector
-         * sendiri bila tersedia.
-         */
         if (
             state.mode ===
                 "edit"
@@ -1074,9 +2001,6 @@
         }
 
 
-        /*
-         * Create collector.
-         */
         const create =
             getCreate();
 
@@ -1094,9 +2018,6 @@
         }
 
 
-        /*
-         * Layout compatibility.
-         */
         const layout =
             getLayout();
 
@@ -1224,11 +2145,30 @@
                 );
 
 
-            const errors =
+            const validation =
                 validate(
                     normalized,
                     options
                 );
+
+
+            /*
+             * Compatibility:
+             * beberapa create module mengembalikan
+             * array error, beberapa object.
+             */
+            const errors =
+                Array.isArray(
+                    validation
+                )
+                    ? validation
+                    : (
+                        Array.isArray(
+                            validation?.errors
+                        )
+                            ? validation.errors
+                            : []
+                    );
 
 
             if (
@@ -1274,10 +2214,6 @@
             getCoordinator();
 
 
-        /*
-         * Coordinator adalah owner orchestration.
-         * Jangan memanggil dirinya kembali dari callback.
-         */
         if (
             coordinator &&
             typeof coordinator.create ===
@@ -1687,7 +2623,7 @@
                 "create" ||
             normalized ===
                 "edit" ||
-            normalized ===
+                normalized ===
                 "delete"
         ) {
 
@@ -1719,6 +2655,25 @@
 
 
     /* =====================================================
+       GET CATALOG
+       ===================================================== */
+
+    function getCatalog() {
+
+        return {
+
+            providers:
+                state.providers,
+
+            models:
+                state.models
+
+        };
+
+    }
+
+
+    /* =====================================================
        RESET
        ===================================================== */
 
@@ -1735,6 +2690,12 @@
 
         state.root =
             null;
+
+        state.providers =
+            [];
+
+        state.models =
+            [];
 
 
         const create =
@@ -1860,7 +2821,13 @@
                 state.root,
 
             initialized:
-                state.initialized
+                state.initialized,
+
+            providers:
+                state.providers,
+
+            models:
+                state.models
 
         };
 
@@ -1869,9 +2836,6 @@
 
     /* =====================================================
        EVENT HANDLER
-       -----------------------------------------------------
-       Compatibility untuk script lama yang masih
-       memanggil handleSubmit / handleFormSubmit.
        ===================================================== */
 
     async function handleSubmit(
@@ -1940,6 +2904,8 @@
 
         getState,
 
+        getCatalog,
+
         setMode,
 
         getMode,
@@ -2000,10 +2966,6 @@
         api;
 
 
-    /*
-     * Beberapa kode lama dapat menggunakan
-     * GENZModelForm sebagai nama global.
-     */
     window.GENZModelForm =
         api;
 
