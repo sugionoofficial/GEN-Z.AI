@@ -1394,9 +1394,6 @@
 
         /* =====================================================
            MULTI RESOLUTION PRICING
-           -----------------------------------------------------
-           Digunakan oleh model-table.js untuk menampilkan:
-           480p / 720p / 1080p
         ====================================================== */
 
         .model-pricing-grid {
@@ -1644,8 +1641,7 @@
 
             font-weight: 900;
 
-            letter-spacing:
-                0.6px;
+            letter-spacing: 0.6px;
 
             text-transform:
                 uppercase;
@@ -2336,14 +2332,14 @@
 
 <!-- =============================================================
      SHARED ROLE-BASED NAVIGATION
-     ============================================================= -->
+============================================================= -->
 
 <div id="navigation"></div>
 
 
 <!-- =============================================================
      MAIN
-     ============================================================= -->
+============================================================= -->
 
 <main class="main-content">
 
@@ -2375,25 +2371,25 @@
 
         <div class="header-actions">
 
-    <button
-        type="button"
-        id="addModelBtn"
-        class="btn btn-primary"
-    >
-        ＋
-        Tambah Model
-    </button>
+            <button
+                type="button"
+                id="addModelBtn"
+                class="btn btn-primary"
+            >
+                ＋
+                Tambah Model
+            </button>
 
-    <button
-        type="button"
-        id="refreshModelsBtn"
-        class="btn btn-secondary"
-    >
-        ↻
-        Refresh
-    </button>
+            <button
+                type="button"
+                id="refreshModelsBtn"
+                class="btn btn-secondary"
+            >
+                ↻
+                Refresh
+            </button>
 
-</div>
+        </div>
 
     </header>
 
@@ -2565,11 +2561,6 @@
         </div>
 
 
-        <!--
-            Compatibility container.
-            Tidak digunakan sebagai UI utama.
-        -->
-
         <div id="modelTableBody"></div>
 
     </section>
@@ -2579,7 +2570,7 @@
 
 <!-- =============================================================
      TOAST
-     ============================================================= -->
+============================================================= -->
 
 <div
     id="toastContainer"
@@ -2591,7 +2582,7 @@
 
 <!-- =============================================================
      LOADING
-     ============================================================= -->
+============================================================= -->
 
 <div
     id="pageLoading"
@@ -2610,20 +2601,25 @@
 
 </div>
 
-    <!-- =====================================================
+
+<!-- =====================================================
      MODEL CREATE / EDIT MODAL
-     ===================================================== -->
+====================================================== -->
 
 <style>
 
     .model-modal-overlay {
+
         position: fixed;
+
         inset: 0;
+
         z-index: 30000;
 
         display: none;
 
         align-items: center;
+
         justify-content: center;
 
         padding: 24px;
@@ -2638,15 +2634,22 @@
             blur(10px);
     }
 
+
     .model-modal-overlay.show {
+
         display: flex;
     }
 
+
     .model-modal {
+
         width: min(980px, 100%);
-        max-height: calc(100vh - 48px);
+
+        max-height:
+            calc(100vh - 48px);
 
         display: flex;
+
         flex-direction: column;
 
         overflow: hidden;
@@ -2665,6 +2668,7 @@
             rgba(255, 23, 68, 0.55);
 
         box-shadow:
+
             0 0 12px
             rgba(255, 23, 68, 0.30),
 
@@ -2675,104 +2679,75 @@
             rgba(0, 0, 0, 0.65);
     }
 
-    .model-modal-header {
+
+    /*
+     * FORM MENJADI FLEX CONTAINER.
+     *
+     * Ini penting agar:
+     * header tetap di atas,
+     * body dapat scroll,
+     * footer tetap terlihat.
+     */
+
+    #modelForm {
+
         display: flex;
+
+        flex-direction: column;
+
+        flex: 1;
+
+        min-height: 0;
+
+        overflow: hidden;
+    }
+
+
+    .model-modal-header {
+
+        display: flex;
+
         align-items: center;
+
         justify-content: space-between;
 
         gap: 15px;
 
-        padding: 18px 22px;
+        padding:
+            18px
+            22px;
 
         border-bottom:
             1px solid
             rgba(255, 255, 255, 0.08);
+
+        flex-shrink: 0;
     }
 
+
     .model-modal-header h2 {
+
         margin: 0;
 
-        color: #ffffff;
+        color:
+            #ffffff;
 
         font-size: 18px;
+
         font-weight: 900;
     }
 
+
     .model-modal-close {
+
         width: 38px;
         height: 38px;
 
         display: inline-flex;
+
         align-items: center;
+
         justify-content: center;
-
-        border: 1px solid
-            rgba(255, 255, 255, 0.12);
-
-        border-radius: 10px;
-
-        background:
-            rgba(255, 255, 255, 0.05);
-
-        color: #ffffff;
-
-        font-size: 22px;
-        line-height: 1;
-
-        cursor: pointer;
-    }
-
-    .model-modal-close:hover {
-        background:
-            rgba(255, 23, 68, 0.15);
-
-        border-color:
-            rgba(255, 23, 68, 0.55);
-    }
-
-    .model-modal-body {
-        flex: 1;
-
-        overflow-y: auto;
-
-        padding: 22px;
-    }
-
-    .model-form-grid {
-        display: grid;
-
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-
-        gap: 15px;
-    }
-
-    .model-form-field {
-        min-width: 0;
-    }
-
-    .model-form-field.full {
-        grid-column: 1 / -1;
-    }
-
-    .model-form-field label {
-        display: block;
-
-        margin-bottom: 7px;
-
-        color:
-            rgba(255, 255, 255, 0.70);
-
-        font-size: 11px;
-        font-weight: 800;
-
-        letter-spacing: 0.04em;
-    }
-
-    .model-form-field input,
-    .model-form-field select,
-    .model-form-field textarea {
-        width: 100%;
 
         border:
             1px solid
@@ -2781,26 +2756,171 @@
         border-radius: 10px;
 
         background:
+            rgba(255, 255, 255, 0.05);
+
+        color:
+            #ffffff;
+
+        font-size: 22px;
+
+        line-height: 1;
+
+        cursor:
+            pointer;
+    }
+
+
+    .model-modal-close:hover {
+
+        background:
+            rgba(255, 23, 68, 0.15);
+
+        border-color:
+            rgba(255, 23, 68, 0.55);
+    }
+
+
+    .model-modal-body {
+
+        flex:
+            1 1 auto;
+
+        min-height:
+            0;
+
+        overflow-y:
+            auto;
+
+        overflow-x:
+            hidden;
+
+        padding:
+            22px;
+    }
+
+
+    .model-modal-body::-webkit-scrollbar {
+
+        width:
+            7px;
+    }
+
+
+    .model-modal-body::-webkit-scrollbar-track {
+
+        background:
+            rgba(255,255,255,0.025);
+    }
+
+
+    .model-modal-body::-webkit-scrollbar-thumb {
+
+        background:
+            rgba(255,23,68,0.35);
+
+        border-radius:
+            999px;
+    }
+
+
+    .model-modal-body::-webkit-scrollbar-thumb:hover {
+
+        background:
+            rgba(255,23,68,0.55);
+    }
+
+
+    .model-form-grid {
+
+        display: grid;
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap:
+            15px;
+    }
+
+
+    .model-form-field {
+
+        min-width:
+            0;
+    }
+
+
+    .model-form-field.full {
+
+        grid-column:
+            1 / -1;
+    }
+
+
+    .model-form-field label {
+
+        display:
+            block;
+
+        margin-bottom:
+            7px;
+
+        color:
+            rgba(255, 255, 255, 0.70);
+
+        font-size:
+            11px;
+
+        font-weight:
+            800;
+
+        letter-spacing:
+            0.04em;
+    }
+
+
+    .model-form-field input,
+    .model-form-field select,
+    .model-form-field textarea {
+
+        width:
+            100%;
+
+        border:
+            1px solid
+            rgba(255, 255, 255, 0.12);
+
+        border-radius:
+            10px;
+
+        background:
             rgba(255, 255, 255, 0.055);
 
-        color: #ffffff;
+        color:
+            #ffffff;
 
-        outline: none;
+        outline:
+            none;
 
         padding:
             11px 12px;
 
-        font-size: 12px;
+        font-size:
+            12px;
 
         transition:
+
             border-color 0.2s ease,
+
             box-shadow 0.2s ease,
+
             background 0.2s ease;
     }
+
 
     .model-form-field input:focus,
     .model-form-field select:focus,
     .model-form-field textarea:focus {
+
         border-color:
             rgba(255, 23, 68, 0.65);
 
@@ -2812,50 +2932,79 @@
             rgba(255, 23, 68, 0.08);
     }
 
-    .model-form-field textarea {
-        min-height: 90px;
 
-        resize: vertical;
+    .model-form-field textarea {
+
+        min-height:
+            90px;
+
+        resize:
+            vertical;
     }
+
 
     .model-form-field select option {
-        background: #111111;
-        color: #ffffff;
+
+        background:
+            #111111;
+
+        color:
+            #ffffff;
     }
 
+
     .model-form-hint {
-        margin-top: 6px;
+
+        margin-top:
+            6px;
 
         color:
             rgba(255, 255, 255, 0.38);
 
-        font-size: 10px;
+        font-size:
+            10px;
 
-        line-height: 1.5;
+        line-height:
+            1.5;
     }
+
 
     .model-search-box {
-        position: relative;
+
+        position:
+            relative;
     }
 
+
     .model-search-results {
-        position: absolute;
 
-        left: 0;
-        right: 0;
-        top: calc(100% + 5px);
+        position:
+            absolute;
 
-        z-index: 50;
+        left:
+            0;
 
-        max-height: 220px;
+        right:
+            0;
 
-        overflow-y: auto;
+        top:
+            calc(100% + 5px);
+
+        z-index:
+            50;
+
+        max-height:
+            220px;
+
+        overflow-y:
+            auto;
 
         border:
             1px solid
             rgba(255, 23, 68, 0.30);
 
-        border-radius: 10px;
+        border-radius:
+            10px;
 
         background:
             rgba(12, 12, 15, 0.98);
@@ -2865,62 +3014,102 @@
             rgba(0, 0, 0, 0.50);
     }
 
+
     .model-selected-info {
-        margin-top: 7px;
+
+        margin-top:
+            7px;
 
         color:
             rgba(255, 255, 255, 0.40);
 
-        font-size: 10px;
+        font-size:
+            10px;
 
-        line-height: 1.5;
+        line-height:
+            1.5;
     }
 
+
     .model-modal-footer {
-        display: flex;
 
-        align-items: center;
-        justify-content: flex-end;
+        display:
+            flex;
 
-        gap: 9px;
+        align-items:
+            center;
 
-        padding: 16px 22px;
+        justify-content:
+            flex-end;
+
+        gap:
+            9px;
+
+        padding:
+            16px 22px;
 
         border-top:
             1px solid
             rgba(255, 255, 255, 0.08);
+
+        flex-shrink:
+            0;
+
+        background:
+            rgba(5, 5, 7, 0.98);
     }
+
 
     @media (max-width: 700px) {
 
         .model-modal-overlay {
-            padding: 10px;
+
+            padding:
+                10px;
         }
 
+
         .model-modal {
+
             max-height:
                 calc(100vh - 20px);
 
-            border-radius: 16px;
+            border-radius:
+                16px;
         }
+
 
         .model-form-grid {
-            grid-template-columns: 1fr;
+
+            grid-template-columns:
+                1fr;
         }
+
 
         .model-form-field.full {
-            grid-column: auto;
+
+            grid-column:
+                auto;
         }
 
+
         .model-modal-body {
-            padding: 16px;
+
+            padding:
+                16px;
         }
+
 
         .model-modal-header,
         .model-modal-footer {
-            padding-left: 16px;
-            padding-right: 16px;
+
+            padding-left:
+                16px;
+
+            padding-right:
+                16px;
         }
+
     }
 
 </style>
@@ -2938,6 +3127,7 @@
         aria-modal="true"
         aria-labelledby="modalTitle"
     >
+
 
         <div class="model-modal-header">
 
@@ -2962,7 +3152,9 @@
             autocomplete="off"
         >
 
+
             <div class="model-modal-body">
+
 
                 <input
                     type="hidden"
@@ -2972,89 +3164,65 @@
 
                 <div class="model-form-grid">
 
-                    <!-- PROVIDER ID -->
 
-<div class="model-form-field">
-
-    <label for="providerId">
-        Provider ID *
-    </label>
-
-    <select
-        id="providerId"
-        name="provider_id"
-        required
-    >
-
-        <option value="">
-            Pilih Provider
-        </option>
-
-    </select>
-
-    <div class="model-form-hint">
-        Provider ID diambil dari provider yang terdaftar.
-    </div>
-
-</div>
-
-
-<!-- PROVIDER NAME -->
-
-<div class="model-form-field">
-
-    <label for="providerName">
-        Provider Name *
-    </label>
-
-    <input
-        id="providerName"
-        name="provider_name"
-        type="text"
-        autocomplete="off"
-        placeholder="Nama Provider"
-        required
-    >
-
-    <div class="model-form-hint">
-        Nama provider terdaftar. Dapat diedit dari form ini.
-    </div>
-
-</div>
-
-
-                    <!-- STATUS -->
+                    <!-- =================================================
+                         PROVIDER ID
+                    ================================================== -->
 
                     <div class="model-form-field">
 
-                        <label for="modelStatus">
-                            Status *
+                        <label for="providerId">
+                            Provider ID *
                         </label>
 
                         <select
-                            id="modelStatus"
-                            name="status"
+                            id="providerId"
+                            name="provider_id"
                             required
                         >
 
-                            <option value="active">
-                                Active
-                            </option>
-
-                            <option value="inactive">
-                                Inactive
-                            </option>
-
-                            <option value="maintenance">
-                                Maintenance
+                            <option value="">
+                                Pilih Provider
                             </option>
 
                         </select>
 
+                        <div class="model-form-hint">
+                            Provider ID diambil dari provider yang terdaftar.
+                        </div>
+
                     </div>
 
 
-                    <!-- MODEL ID -->
+                    <!-- =================================================
+                         PROVIDER NAME
+                    ================================================== -->
+
+                    <div class="model-form-field">
+
+                        <label for="providerName">
+                            Provider Name *
+                        </label>
+
+                        <input
+                            id="providerName"
+                            name="provider_name"
+                            type="text"
+                            autocomplete="off"
+                            placeholder="Nama Provider"
+                            required
+                        >
+
+                        <div class="model-form-hint">
+                            Nama provider terdaftar. Dapat diedit dari form ini.
+                        </div>
+
+                    </div>
+
+
+                    <!-- =================================================
+                         MODEL ID
+                    ================================================== -->
 
                     <div class="model-form-field">
 
@@ -3095,7 +3263,9 @@
                     </div>
 
 
-                    <!-- MODEL NAME -->
+                    <!-- =================================================
+                         MODEL NAME
+                    ================================================== -->
 
                     <div class="model-form-field">
 
@@ -3115,7 +3285,42 @@
                     </div>
 
 
-                    <!-- DESCRIPTION -->
+                    <!-- =================================================
+                         STATUS
+                    ================================================== -->
+
+                    <div class="model-form-field">
+
+                        <label for="modelStatus">
+                            Status *
+                        </label>
+
+                        <select
+                            id="modelStatus"
+                            name="status"
+                            required
+                        >
+
+                            <option value="active">
+                                Active
+                            </option>
+
+                            <option value="inactive">
+                                Inactive
+                            </option>
+
+                            <option value="maintenance">
+                                Maintenance
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- =================================================
+                         DESCRIPTION
+                    ================================================== -->
 
                     <div class="model-form-field full">
 
@@ -3132,7 +3337,9 @@
                     </div>
 
 
-                    <!-- DISCOUNT -->
+                    <!-- =================================================
+                         DISCOUNT
+                    ================================================== -->
 
                     <div class="model-form-field">
 
@@ -3153,7 +3360,9 @@
                     </div>
 
 
-                    <!-- CREDIT 480P -->
+                    <!-- =================================================
+                         CREDIT 480P
+                    ================================================== -->
 
                     <div class="model-form-field">
 
@@ -3173,7 +3382,9 @@
                     </div>
 
 
-                    <!-- CREDIT 720P -->
+                    <!-- =================================================
+                         CREDIT 720P
+                    ================================================== -->
 
                     <div class="model-form-field">
 
@@ -3193,7 +3404,9 @@
                     </div>
 
 
-                    <!-- CREDIT 1080P -->
+                    <!-- =================================================
+                         CREDIT 1080P
+                    ================================================== -->
 
                     <div class="model-form-field">
 
@@ -3213,7 +3426,9 @@
                     </div>
 
 
-                    <!-- MIN DURATION -->
+                    <!-- =================================================
+                         MIN DURATION
+                    ================================================== -->
 
                     <div class="model-form-field">
 
@@ -3232,7 +3447,9 @@
                     </div>
 
 
-                    <!-- MAX DURATION -->
+                    <!-- =================================================
+                         MAX DURATION
+                    ================================================== -->
 
                     <div class="model-form-field">
 
@@ -3251,7 +3468,9 @@
                     </div>
 
 
-                    <!-- RATIOS -->
+                    <!-- =================================================
+                         SUPPORTED RATIOS
+                    ================================================== -->
 
                     <div class="model-form-field">
 
@@ -3273,7 +3492,9 @@
                     </div>
 
 
-                    <!-- RESOLUTIONS -->
+                    <!-- =================================================
+                         SUPPORTED RESOLUTIONS
+                    ================================================== -->
 
                     <div class="model-form-field">
 
@@ -3294,10 +3515,15 @@
 
                     </div>
 
+
                 </div>
 
             </div>
 
+
+            <!-- =====================================================
+                 MODAL FOOTER
+            ====================================================== -->
 
             <div class="model-modal-footer">
 
@@ -3319,6 +3545,7 @@
 
             </div>
 
+
         </form>
 
     </div>
@@ -3328,7 +3555,7 @@
 
 <!-- =============================================================
      SHARED SUPABASE
-     ============================================================= -->
+============================================================= -->
 
 <script
     type="module"
@@ -3338,7 +3565,7 @@
 
 <!-- =============================================================
      SHARED ROLE-BASED NAVIGATION
-     ============================================================= -->
+============================================================= -->
 
 <script
     src="../navigation/navigation.js"
@@ -3347,7 +3574,8 @@
 
 <!-- =============================================================
      MODEL MODULES
-     ============================================================= -->
+============================================================= -->
+
 <script
     type="module"
     src="./models/models-loader.js"
@@ -3718,10 +3946,6 @@
             getModelsUI();
 
 
-        /*
-         * Jangan menandai pageInitialized
-         * sebelum module benar-benar siap.
-         */
         if (
             !ui ||
             typeof ui.getModels !==
@@ -3805,7 +4029,7 @@
 
     /* =========================================================
        LOADER EVENT
-       ========================================================= */
+    ========================================================= */
 
     document.addEventListener(
         "genz-models-loader-ready",
@@ -3816,53 +4040,54 @@
         }
     );
 
+
     document.addEventListener(
-    "genz-models-loader-error",
-    function (event) {
+        "genz-models-loader-error",
+        function (event) {
 
-        if (
-            pageInitialized
-        ) {
+            if (
+                pageInitialized
+            ) {
 
-            return;
+                return;
 
+            }
+
+
+            const message =
+                event?.detail?.message ||
+                "Gagal memuat Models.";
+
+
+            console.error(
+                "[Models] Loader error:",
+                event?.detail
+            );
+
+
+            pageInitialized =
+                true;
+
+
+            setLoading(
+                false
+            );
+
+
+            showToast(
+                message,
+                "error"
+            );
+
+        },
+        {
+            once: true
         }
-
-
-        const message =
-            event?.detail?.message ||
-            "Gagal memuat Models.";
-
-
-        console.error(
-            "[Models] Loader error:",
-            event?.detail
-        );
-
-
-        pageInitialized =
-            true;
-
-
-        setLoading(
-            false
-        );
-
-
-        showToast(
-            message,
-            "error"
-        );
-
-    },
-    {
-        once: true
-    }
-);
+    );
 
 
     /* =========================================================
-       LOADER ERROR
+       UI ERROR
     ========================================================= */
 
     document.addEventListener(
@@ -3905,14 +4130,6 @@
 
     /* =========================================================
        LOADER STATE WATCHER
-       ---------------------------------------------------------
-       Ini bagian penting.
-
-       Event bisa saja terjadi sebelum listener
-       halaman selesai dipasang.
-
-       Karena itu kita juga memeriksa state loader
-       secara berkala sampai benar-benar siap.
     ========================================================= */
 
     let loaderWatchAttempts =
@@ -4223,10 +4440,6 @@
 
     /* =========================================================
        START PAGE
-       ---------------------------------------------------------
-       Tidak memanggil GENZModelsUI.initialize().
-       models-loader.js tetap menjadi pemilik
-       initialization lifecycle.
     ========================================================= */
 
     (async () => {
@@ -4241,10 +4454,6 @@
             );
 
 
-            /*
-             * Cek langsung jika loader sudah selesai
-             * sebelum listener menerima event.
-             */
             const loader =
                 window.GENZModelsLoader;
 
