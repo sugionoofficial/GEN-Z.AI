@@ -6,23 +6,23 @@
  * MODEL EDIT SAVE
  *
  * Tanggung jawab:
- * - Mengambil nilai form
- * - Validasi data
- * - Menyiapkan payload PATCH
- * - Menyimpan model melalui Admin Models API
- * - Memperbarui state setelah berhasil
+ * - Mengambil nilai field editable
+ * - Validasi
+ * - Membentuk payload PATCH
+ * - Menyimpan model
+ * - Verifikasi hasil penyimpanan
  *
  * Tidak melakukan:
- * - Initial load
+ * - Initial loading
  * - Registry loading
+ * - Render halaman
  * - Event binding
- * - Render struktur halaman
  * ============================================================
  */
 
 import {
     getDOM,
-    getState,
+    getCurrentModel,
     getCurrentDatabaseModel,
     setCurrentModel,
     setSaving,
@@ -43,8 +43,16 @@ import {
 
 
 /* ============================================================
-   NUMBER
+   HELPERS
 ============================================================ */
+
+function cleanString(value) {
+
+    return String(
+        value ?? ""
+    ).trim();
+}
+
 
 function parseNumber(
     value,
@@ -72,32 +80,24 @@ function parseNumber(
 
 
 /* ============================================================
-   STRING
+   STATUS
 ============================================================ */
 
-function cleanString(
-    value
-) {
+function getStatus() {
 
-    return String(
-        value ?? ""
-    ).trim();
-}
+    const dom =
+        getDOM();
 
-
-/* ============================================================
-   GET STATUS
-============================================================ */
-
-function getStatus(
-    dom
-) {
 
     if (!dom.statusToggle) {
 
         return "active";
     }
 
+
+    /*
+     * HTML asli menggunakan checkbox.
+     */
 
     if (
         dom.statusToggle.type ===
@@ -116,18 +116,14 @@ function getStatus(
         ).toLowerCase();
 
 
-    if (
+    return (
         value === "active" ||
         value === "aktif" ||
         value === "enabled" ||
         value === "true"
-    ) {
-
-        return "active";
-    }
-
-
-    return "inactive";
+    )
+        ? "active"
+        : "inactive";
 }
 
 
@@ -145,41 +141,60 @@ function collectFormData() {
         getCurrentDatabaseModel();
 
 
+    const currentModel =
+        getCurrentModel();
+
+
+    /*
+     * model_id berasal dari model database/current model,
+     * karena #modelId pada HTML adalah readonly display,
+     * bukan input.
+     */
+
     const modelId =
         cleanString(
-            dom.modelId?.value ||
             databaseModel?.model_id ||
-            databaseModel?.id
-        );
-
-
-    const providerId =
-        cleanString(
-            databaseModel?.provider_id
+            currentModel?.model_id ||
+            databaseModel?.id ||
+            currentModel?.id
         );
 
 
     const data = {
 
+        /*
+         * Database primary key.
+         */
+
         id:
             databaseModel?.id ||
+            currentModel?.id ||
             null,
+
+
+        /*
+         * Identifier model.
+         */
 
         model_id:
             modelId,
+
+
+        /*
+         * Editable fields.
+         */
 
         model_name:
             cleanString(
                 dom.modelName?.value
             ),
 
-        provider_id:
-            providerId,
 
         description:
             cleanString(
                 dom.description?.value
             ),
+
 
         discount_percent:
             parseNumber(
@@ -187,11 +202,13 @@ function collectFormData() {
                 0
             ),
 
+
         credit_480p:
             parseNumber(
                 dom.credit480p?.value,
                 0
             ),
+
 
         credit_720p:
             parseNumber(
@@ -199,75 +216,17 @@ function collectFormData() {
                 0
             ),
 
+
         credit_1080p:
             parseNumber(
                 dom.credit1080p?.value,
                 0
             ),
 
+
         status:
-            getStatus(
-                dom
-            )
+            getStatus()
     };
-
-
-    /*
-     * Duration, ratio, dan resolution
-     * dipertahankan dari database apabila
-     * field UI tidak tersedia atau readonly.
-     */
-
-    if (
-        databaseModel &&
-        Object.prototype.hasOwnProperty.call(
-            databaseModel,
-            "min_duration"
-        )
-    ) {
-
-        data.min_duration =
-            databaseModel.min_duration;
-    }
-
-
-    if (
-        databaseModel &&
-        Object.prototype.hasOwnProperty.call(
-            databaseModel,
-            "max_duration"
-        )
-    ) {
-
-        data.max_duration =
-            databaseModel.max_duration;
-    }
-
-
-    if (
-        databaseModel &&
-        Object.prototype.hasOwnProperty.call(
-            databaseModel,
-            "supported_ratios"
-        )
-    ) {
-
-        data.supported_ratios =
-            databaseModel.supported_ratios;
-    }
-
-
-    if (
-        databaseModel &&
-        Object.prototype.hasOwnProperty.call(
-            databaseModel,
-            "supported_resolutions"
-        )
-    ) {
-
-        data.supported_resolutions =
-            databaseModel.supported_resolutions;
-    }
 
 
     return data;
@@ -275,7 +234,7 @@ function collectFormData() {
 
 
 /* ============================================================
-   VALIDATE FORM
+   VALIDATE
 ============================================================ */
 
 function validateFormData(
@@ -306,7 +265,7 @@ function validateFormData(
     if (!data.model_id) {
 
         errors.push(
-            "Model ID wajib diisi."
+            "Model ID tidak tersedia."
         );
     }
 
@@ -319,12 +278,31 @@ function validateFormData(
     }
 
 
+    /*
+     * Discount
+     */
+
     if (
-        data.discount_percent !== null &&
-        (
-            data.discount_percent < 0 ||
-            data.discount_percent > 100
+        data.discount_percent === null ||
+        data.discount_percent === undefined ||
+        !Number.isFinite(
+            Number(
+                data.discount_percent
+            )
         )
+    ) {
+
+        errors.push(
+            "Discount tidak valid."
+        );
+
+    } else if (
+        Number(
+            data.discount_percent
+        ) < 0 ||
+        Number(
+            data.discount_percent
+        ) > 100
     ) {
 
         errors.push(
@@ -333,35 +311,53 @@ function validateFormData(
     }
 
 
-    const creditFields = [
+    /*
+     * Credit.
+     *
+     * Nilai 0 VALID.
+     */
 
-        [
-            "480p",
-            data.credit_480p
-        ],
+    const credits = [
 
-        [
-            "720p",
-            data.credit_720p
-        ],
+        {
+            label: "480p",
+            value:
+                data.credit_480p
+        },
 
-        [
-            "1080p",
-            data.credit_1080p
-        ]
+        {
+            label: "720p",
+            value:
+                data.credit_720p
+        },
+
+        {
+            label: "1080p",
+            value:
+                data.credit_1080p
+        }
+
     ];
 
 
-    creditFields.forEach(
-        ([label, value]) => {
+    credits.forEach(
+        item => {
 
             if (
-                value === null ||
-                value < 0
+                item.value === null ||
+                item.value === undefined ||
+                !Number.isFinite(
+                    Number(
+                        item.value
+                    )
+                ) ||
+                Number(
+                    item.value
+                ) < 0
             ) {
 
                 errors.push(
-                    `Credit ${label} tidak valid.`
+                    `Credit ${item.label} tidak valid.`
                 );
             }
         }
@@ -373,17 +369,12 @@ function validateFormData(
 
 
 /* ============================================================
-   BUILD PATCH PAYLOAD
+   PATCH PAYLOAD
 ============================================================ */
 
 function buildPatchPayload(
     data
 ) {
-
-    /*
-     * Hanya field yang memang boleh
-     * diedit dari halaman Edit Model.
-     */
 
     return {
 
@@ -412,21 +403,19 @@ function buildPatchPayload(
 
 
 /* ============================================================
-   SAVE MODEL
+   SAVE
 ============================================================ */
 
 async function saveModel(
     options = {}
 ) {
 
-    if (isSaving()) {
+    if (
+        isSaving()
+    ) {
 
         return null;
     }
-
-
-    const dom =
-        getDOM();
 
 
     clearAlert();
@@ -442,7 +431,9 @@ async function saveModel(
         );
 
 
-    if (errors.length) {
+    if (
+        errors.length
+    ) {
 
         const message =
             errors.join(" ");
@@ -478,11 +469,7 @@ async function saveModel(
     try {
 
         /*
-         * PATCH berdasarkan database UUID.
-         *
-         * model_id tidak digunakan sebagai
-         * primary selector karena database
-         * record ID adalah source of truth.
+         * PATCH menggunakan database ID.
          */
 
         const result =
@@ -504,8 +491,10 @@ async function saveModel(
 
 
         /*
-         * Jika API tidak mengembalikan model,
-         * ambil kembali satu record saja.
+         * API seharusnya mengembalikan model.
+         *
+         * Jika tidak, verifikasi hanya satu record,
+         * bukan GET seluruh model.
          */
 
         if (!savedModel) {
@@ -529,8 +518,7 @@ async function saveModel(
 
 
         /*
-         * Fallback ke data form jika API
-         * tidak mengembalikan representasi model.
+         * Fallback terakhir.
          */
 
         if (!savedModel) {
