@@ -4,6 +4,11 @@
  * ============================================================
  * GEN-Z.AI
  * MODEL EDIT STATE
+ *
+ * Satu-satunya sumber state untuk halaman Edit Model.
+ * Tidak melakukan API request.
+ * Tidak melakukan rendering.
+ * Tidak melakukan save.
  * ============================================================
  */
 
@@ -24,17 +29,22 @@ function getDOM() {
 
     return {
 
+        /* App */
         app:
-            document.querySelector(".app"),
+            document.querySelector(".app") ||
+            document.querySelector("#appShell"),
 
+        /* Navigation */
         sidebar:
-            document.querySelector(".sidebar"),
+            document.querySelector(".sidebar") ||
+            document.querySelector("#adminSidebar"),
 
         sidebarOverlay:
             document.querySelector("#sidebarOverlay"),
 
         navToggle:
-            document.querySelector(".nav-toggle"),
+            document.querySelector(".nav-toggle") ||
+            document.querySelector("#navToggle"),
 
         backButton:
             document.querySelector("#backButton"),
@@ -48,17 +58,20 @@ function getDOM() {
         logoutButton:
             document.querySelector("#logoutButton"),
 
+
+        /* Alert / loading */
+
         alert:
             document.querySelector("#alertBox"),
 
         loading:
             document.querySelector("#loadingBox"),
 
-        loadingText:
-            document.querySelector("#loadingBox"),
-
         editContent:
             document.querySelector("#editContent"),
+
+
+        /* Hero */
 
         modelHero:
             document.querySelector(".model-hero"),
@@ -68,6 +81,9 @@ function getDOM() {
 
         heroModelId:
             document.querySelector("#heroModelId"),
+
+
+        /* Model information */
 
         modelName:
             document.querySelector("#modelName"),
@@ -84,11 +100,17 @@ function getDOM() {
         description:
             document.querySelector("#description"),
 
+
+        /* Status */
+
         statusToggle:
             document.querySelector("#statusToggle"),
 
         statusText:
             document.querySelector("#statusText"),
+
+
+        /* Price */
 
         priceUsd:
             document.querySelector("#priceUsd"),
@@ -99,6 +121,9 @@ function getDOM() {
         discount:
             document.querySelector("#discount"),
 
+
+        /* Credit */
+
         credit480p:
             document.querySelector("#credit480p"),
 
@@ -108,50 +133,71 @@ function getDOM() {
         credit1080p:
             document.querySelector("#credit1080p"),
 
-        finalPrice:
-            document.querySelector("#finalPrice"),
 
-        duration:
-            document.querySelector("#duration"),
+        /* Technical parameters */
 
-        ratio:
-            document.querySelector("#ratio"),
+        durationValue:
+            document.querySelector("#durationValue"),
 
-        resolution:
-            document.querySelector("#resolution"),
+        ratioValue:
+            document.querySelector("#ratioValue"),
+
+        resolutionValue:
+            document.querySelector("#resolutionValue"),
+
+
+        /* Pricing preview */
 
         pricingCredit480p:
-            document.querySelector("#pricingCredit480p"),
+            document.querySelector(
+                "#pricingCredit480p"
+            ),
 
         pricingDiscount480p:
-            document.querySelector("#pricingDiscount480p"),
+            document.querySelector(
+                "#pricingDiscount480p"
+            ),
 
         pricingFinal480p:
-            document.querySelector("#pricingFinal480p"),
+            document.querySelector(
+                "#pricingFinal480p"
+            ),
 
         pricingCredit720p:
-            document.querySelector("#pricingCredit720p"),
+            document.querySelector(
+                "#pricingCredit720p"
+            ),
 
         pricingDiscount720p:
-            document.querySelector("#pricingDiscount720p"),
+            document.querySelector(
+                "#pricingDiscount720p"
+            ),
 
         pricingFinal720p:
-            document.querySelector("#pricingFinal720p"),
+            document.querySelector(
+                "#pricingFinal720p"
+            ),
 
         pricingCredit1080p:
-            document.querySelector("#pricingCredit1080p"),
+            document.querySelector(
+                "#pricingCredit1080p"
+            ),
 
         pricingDiscount1080p:
-            document.querySelector("#pricingDiscount1080p"),
+            document.querySelector(
+                "#pricingDiscount1080p"
+            ),
 
         pricingFinal1080p:
-            document.querySelector("#pricingFinal1080p")
+            document.querySelector(
+                "#pricingFinal1080p"
+            )
     };
 }
 
 
 /* ============================================================
-   STATE
+   STATE ACCESS
 ============================================================ */
 
 function getState() {
@@ -172,10 +218,12 @@ function setState(
         return state;
     }
 
+
     Object.assign(
         state,
         patch
     );
+
 
     return state;
 }
@@ -191,6 +239,7 @@ function setCurrentModel(
 
     state.currentModel =
         model || null;
+
 
     return state.currentModel;
 }
@@ -212,6 +261,7 @@ function setCurrentDatabaseModel(
 
     state.currentDatabaseModel =
         model || null;
+
 
     return state.currentDatabaseModel;
 }
@@ -236,6 +286,7 @@ function setCurrentModelId(
             modelId || ""
         ).trim();
 
+
     return state.currentModelId;
 }
 
@@ -256,6 +307,7 @@ function setSaving(
 
     state.saving =
         Boolean(value);
+
 
     return state.saving;
 }
@@ -278,6 +330,7 @@ function setInitialized(
     state.initialized =
         Boolean(value);
 
+
     return state.initialized;
 }
 
@@ -294,20 +347,16 @@ function isInitialized() {
 
 function resetState() {
 
-    state.currentModel =
-        null;
+    state.currentModel = null;
 
-    state.currentModelId =
-        "";
+    state.currentModelId = "";
 
-    state.currentDatabaseModel =
-        null;
+    state.currentDatabaseModel = null;
 
-    state.saving =
-        false;
+    state.saving = false;
 
-    state.initialized =
-        false;
+    state.initialized = false;
+
 
     return state;
 }
@@ -325,27 +374,21 @@ const GENZModelEditState =
         getDOM,
 
         getState,
-
         setState,
 
         setCurrentModel,
-
         getCurrentModel,
 
         setCurrentDatabaseModel,
-
         getCurrentDatabaseModel,
 
         setCurrentModelId,
-
         getCurrentModelId,
 
         setSaving,
-
         isSaving,
 
         setInitialized,
-
         isInitialized,
 
         resetState
@@ -356,6 +399,10 @@ window.GENZModelEditState =
     GENZModelEditState;
 
 
+/* ============================================================
+   ES MODULE EXPORTS
+============================================================ */
+
 export {
 
     state,
@@ -363,27 +410,21 @@ export {
     getDOM,
 
     getState,
-
     setState,
 
     setCurrentModel,
-
     getCurrentModel,
 
     setCurrentDatabaseModel,
-
     getCurrentDatabaseModel,
 
     setCurrentModelId,
-
     getCurrentModelId,
 
     setSaving,
-
     isSaving,
 
     setInitialized,
-
     isInitialized,
 
     resetState
