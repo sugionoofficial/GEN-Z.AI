@@ -4,35 +4,20 @@
  * ============================================================
  * GEN-Z.AI
  * MODEL EDIT STATE
- *
- * Tanggung jawab:
- * - Menyimpan state halaman Edit Model
- * - Menyimpan referensi DOM
- * - Menyediakan akses state untuk module lain
- *
- * Tidak melakukan:
- * - API request
- * - Render
- * - Save
- * - Registry loading
  * ============================================================
  */
 
 const state = {
     currentModel: null,
-
     currentModelId: "",
-
     currentDatabaseModel: null,
-
     saving: false,
-
     initialized: false
 };
 
 
 /* ============================================================
-   DOM REFERENCES
+   DOM
 ============================================================ */
 
 function getDOM() {
@@ -46,164 +31,127 @@ function getDOM() {
             document.querySelector(".sidebar"),
 
         sidebarOverlay:
-            document.querySelector(".sidebar-overlay"),
+            document.querySelector("#sidebarOverlay"),
 
         navToggle:
             document.querySelector(".nav-toggle"),
 
         backButton:
-            document.querySelector(".back-button"),
+            document.querySelector("#backButton"),
 
         cancelButton:
-            document.querySelector(
-                "#cancelButton"
-            ),
+            document.querySelector("#cancelButton"),
 
         saveButton:
-            document.querySelector(
-                "#saveButton"
-            ),
+            document.querySelector("#saveButton"),
 
         logoutButton:
-            document.querySelector(
-                "#logoutButton"
-            ),
+            document.querySelector("#logoutButton"),
 
         alert:
-            document.querySelector(
-                "#alert"
-            ),
+            document.querySelector("#alertBox"),
 
         loading:
-            document.querySelector(
-                "#loading"
-            ),
+            document.querySelector("#loadingBox"),
 
         loadingText:
-            document.querySelector(
-                "#loadingText"
-            ),
+            document.querySelector("#loadingBox"),
+
+        editContent:
+            document.querySelector("#editContent"),
 
         modelHero:
-            document.querySelector(
-                ".model-hero"
-            ),
+            document.querySelector(".model-hero"),
 
         heroModelName:
-            document.querySelector(
-                "#heroModelName"
-            ),
+            document.querySelector("#heroModelName"),
 
         heroModelId:
-            document.querySelector(
-                "#heroModelId"
-            ),
-
-        heroProvider:
-            document.querySelector(
-                "#heroProvider"
-            ),
-
-        heroType:
-            document.querySelector(
-                "#heroType"
-            ),
+            document.querySelector("#heroModelId"),
 
         modelName:
-            document.querySelector(
-                "#modelName"
-            ),
+            document.querySelector("#modelName"),
 
         modelId:
-            document.querySelector(
-                "#modelId"
-            ),
+            document.querySelector("#modelId"),
 
         provider:
-            document.querySelector(
-                "#provider"
-            ),
+            document.querySelector("#providerName"),
 
         type:
-            document.querySelector(
-                "#type"
-            ),
+            document.querySelector("#modelType"),
 
         description:
-            document.querySelector(
-                "#description"
-            ),
+            document.querySelector("#description"),
 
         statusToggle:
-            document.querySelector(
-                "#statusToggle"
-            ),
+            document.querySelector("#statusToggle"),
 
         statusText:
-            document.querySelector(
-                "#statusText"
-            ),
-
-        statusDescription:
-            document.querySelector(
-                "#statusDescription"
-            ),
+            document.querySelector("#statusText"),
 
         priceUsd:
-            document.querySelector(
-                "#priceUsd"
-            ),
+            document.querySelector("#priceUsd"),
 
         exchangeRate:
-            document.querySelector(
-                "#exchangeRate"
-            ),
+            document.querySelector("#exchangeRate"),
 
         discount:
-            document.querySelector(
-                "#discount"
-            ),
+            document.querySelector("#discount"),
 
         credit480p:
-            document.querySelector(
-                "#credit480p"
-            ),
+            document.querySelector("#credit480p"),
 
         credit720p:
-            document.querySelector(
-                "#credit720p"
-            ),
+            document.querySelector("#credit720p"),
 
         credit1080p:
-            document.querySelector(
-                "#credit1080p"
-            ),
+            document.querySelector("#credit1080p"),
 
         finalPrice:
-            document.querySelector(
-                "#finalPrice"
-            ),
+            document.querySelector("#finalPrice"),
 
         duration:
-            document.querySelector(
-                "#duration"
-            ),
+            document.querySelector("#duration"),
 
         ratio:
-            document.querySelector(
-                "#ratio"
-            ),
+            document.querySelector("#ratio"),
 
         resolution:
-            document.querySelector(
-                "#resolution"
-            )
+            document.querySelector("#resolution"),
+
+        pricingCredit480p:
+            document.querySelector("#pricingCredit480p"),
+
+        pricingDiscount480p:
+            document.querySelector("#pricingDiscount480p"),
+
+        pricingFinal480p:
+            document.querySelector("#pricingFinal480p"),
+
+        pricingCredit720p:
+            document.querySelector("#pricingCredit720p"),
+
+        pricingDiscount720p:
+            document.querySelector("#pricingDiscount720p"),
+
+        pricingFinal720p:
+            document.querySelector("#pricingFinal720p"),
+
+        pricingCredit1080p:
+            document.querySelector("#pricingCredit1080p"),
+
+        pricingDiscount1080p:
+            document.querySelector("#pricingDiscount1080p"),
+
+        pricingFinal1080p:
+            document.querySelector("#pricingFinal1080p")
     };
 }
 
 
 /* ============================================================
-   STATE ACCESS
+   STATE
 ============================================================ */
 
 function getState() {
@@ -212,12 +160,15 @@ function getState() {
 }
 
 
-function setState(patch = {}) {
+function setState(
+    patch = {}
+) {
 
     if (
         !patch ||
         typeof patch !== "object"
     ) {
+
         return state;
     }
 
@@ -231,10 +182,12 @@ function setState(patch = {}) {
 
 
 /* ============================================================
-   MODEL
+   CURRENT MODEL
 ============================================================ */
 
-function setCurrentModel(model) {
+function setCurrentModel(
+    model
+) {
 
     state.currentModel =
         model || null;
@@ -294,10 +247,12 @@ function getCurrentModelId() {
 
 
 /* ============================================================
-   SAVING STATE
+   SAVING
 ============================================================ */
 
-function setSaving(value) {
+function setSaving(
+    value
+) {
 
     state.saving =
         Boolean(value);
@@ -313,7 +268,7 @@ function isSaving() {
 
 
 /* ============================================================
-   INITIALIZATION
+   INITIALIZED
 ============================================================ */
 
 function setInitialized(
@@ -339,15 +294,20 @@ function isInitialized() {
 
 function resetState() {
 
-    state.currentModel = null;
+    state.currentModel =
+        null;
 
-    state.currentModelId = "";
+    state.currentModelId =
+        "";
 
-    state.currentDatabaseModel = null;
+    state.currentDatabaseModel =
+        null;
 
-    state.saving = false;
+    state.saving =
+        false;
 
-    state.initialized = false;
+    state.initialized =
+        false;
 
     return state;
 }
@@ -365,34 +325,32 @@ const GENZModelEditState =
         getDOM,
 
         getState,
+
         setState,
 
         setCurrentModel,
+
         getCurrentModel,
 
         setCurrentDatabaseModel,
+
         getCurrentDatabaseModel,
 
         setCurrentModelId,
+
         getCurrentModelId,
 
         setSaving,
+
         isSaving,
 
         setInitialized,
+
         isInitialized,
 
         resetState
     });
 
-
-/*
- * Global bridge.
- *
- * Module lain dapat menggunakan:
- *
- * window.GENZModelEditState
- */
 
 window.GENZModelEditState =
     GENZModelEditState;
@@ -405,21 +363,27 @@ export {
     getDOM,
 
     getState,
+
     setState,
 
     setCurrentModel,
+
     getCurrentModel,
 
     setCurrentDatabaseModel,
+
     getCurrentDatabaseModel,
 
     setCurrentModelId,
+
     getCurrentModelId,
 
     setSaving,
+
     isSaving,
 
     setInitialized,
+
     isInitialized,
 
     resetState
