@@ -1090,61 +1090,206 @@
     ===================================================== */
 
     function setModels(
-        list
+    list
+) {
+
+    /*
+     * =================================================
+     * BASE CATALOG
+     * =================================================
+     *
+     * Model dari Supabase tetap menjadi source utama
+     * untuk model yang sudah terdaftar.
+     */
+
+    const baseModels =
+        Array.isArray(
+            list
+        )
+            ? [
+                ...list
+            ]
+            : [];
+
+
+    /*
+     * =================================================
+     * REGISTRY CATALOG
+     * =================================================
+     *
+     * Tambahkan model yang tersedia di repository
+     * tetapi belum terdaftar di Supabase.
+     *
+     * Contoh:
+     *
+     * bytedance/seedance-2-5
+     *
+     * Registry hanya digunakan untuk:
+     * - pencarian
+     * - pemilihan Model ID
+     *
+     * Registry TIDAK otomatis membuat record
+     * ke tabel Models.
+     */
+
+    let registryModels = [];
+
+
+    const data =
+        window.GENZModelsData;
+
+
+    if (
+        data &&
+        typeof data.loadRegistryModels ===
+            "function"
     ) {
 
-        const normalized =
-            normalizeModels(
-                list
+        try {
+
+            registryModels =
+                data.loadRegistryModels();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Registry Model gagal dimuat:",
+                error
             );
 
 
-        models =
-            normalized;
-
-
-        catalogLoaded =
-            true;
-
-
-        /*
-         * Sinkronisasi selectedModel dengan
-         * object terbaru dari catalog.
-         */
-        if (
-            selectedModel
-        ) {
-
-            const selectedId =
-                normalizeString(
-                    selectedModel.model_id
-                );
-
-
-            selectedModel =
-                models.find(
-                    function (
-                        model
-                    ) {
-
-                        return (
-                            normalizeString(
-                                model.model_id
-                            ) ===
-                            selectedId
-                        );
-
-                    }
-                ) || null;
+            registryModels =
+                [];
 
         }
 
+    }
 
-        return [
-            ...models
-        ];
+
+    /*
+     * =================================================
+     * MERGE
+     * =================================================
+     *
+     * Supabase diletakkan lebih dahulu.
+     *
+     * normalizeModels() melakukan dedupe
+     * berdasarkan model_id.
+     *
+     * Jadi jika Seedance sudah terdaftar:
+     *
+     * Supabase:
+     *   bytedance/seedance-2-5
+     *
+     * Registry:
+     *   bytedance/seedance-2-5
+     *
+     * hasil hanya satu dan Supabase menang.
+     */
+
+    const catalog = [
+
+        ...baseModels,
+
+        ...(
+            Array.isArray(
+                registryModels
+            )
+                ? registryModels
+                : []
+        )
+
+    ];
+
+
+    /*
+     * =================================================
+     * NORMALIZE CATALOG
+     * =================================================
+     */
+
+    const normalized =
+        normalizeModels(
+            catalog
+        );
+
+
+    models =
+        normalized;
+
+
+    /*
+     * =================================================
+     * MARK READY
+     * =================================================
+     */
+
+    catalogLoaded =
+        true;
+
+
+    /*
+     * =================================================
+     * SYNC SELECTED MODEL
+     * =================================================
+     */
+
+    if (
+        selectedModel
+    ) {
+
+        const selectedId =
+            normalizeString(
+                selectedModel.model_id
+            );
+
+
+        selectedModel =
+            models.find(
+                function (
+                    model
+                ) {
+
+                    return (
+                        normalizeString(
+                            model.model_id
+                        ) ===
+                        selectedId
+                    );
+
+                }
+            ) || null;
 
     }
+
+
+    /*
+     * =================================================
+     * DEBUG
+     * =================================================
+     */
+
+    console.info(
+        "[GEN-Z.AI] Model Search catalog:",
+        models.map(
+            function (
+                model
+            ) {
+
+                return model.model_id;
+
+            }
+        )
+    );
+
+
+    return [
+        ...models
+    ];
+
+}
 
 
     function getModels() {
