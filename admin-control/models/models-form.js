@@ -350,46 +350,180 @@
        ===================================================== */
 
     function openCreate(
-        root,
-        options = {}
+    root,
+    options = {}
+) {
+
+    state.mode =
+        "create";
+
+    state.model =
+        null;
+
+    state.modelId =
+        null;
+
+    state.root =
+        resolveRoot(
+            root
+        );
+
+
+    const create =
+        getCreate();
+
+
+    /*
+     * Sinkronkan state Create.
+     */
+    if (
+        create &&
+        typeof create.openCreate ===
+            "function"
     ) {
 
-        state.mode =
-            "create";
+        try {
 
-        state.model =
-            null;
+            create.openCreate({
 
-        state.modelId =
-            null;
+                root:
+                    state.root,
 
-        state.root =
-            resolveRoot(
-                root
+                providers:
+                    Array.isArray(
+                        options.providers
+                    )
+                        ? options.providers
+                        : [],
+
+                models:
+                    Array.isArray(
+                        options.models
+                    )
+                        ? options.models
+                        : []
+
+            });
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Create module open warning:",
+                error
             );
 
+        }
 
-        const create =
-            getCreate();
+    }
 
 
+    const layout =
+        getLayout();
+
+
+    /*
+     * Render form Create.
+     *
+     * model-form-layout.js menggunakan:
+     *
+     * renderModelForm(
+     *     root,
+     *     model,
+     *     providers,
+     *     options
+     * )
+     */
+    if (
+        layout &&
+        typeof layout.renderModelForm ===
+            "function"
+    ) {
+
+        try {
+
+            layout.renderModelForm(
+
+                state.root,
+
+                null,
+
+                Array.isArray(
+                    options.providers
+                )
+                    ? options.providers
+                    : [],
+
+                {
+                    ...options,
+
+                    models:
+                        Array.isArray(
+                            options.models
+                        )
+                            ? options.models
+                            : []
+
+                }
+
+            );
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI] Render Create Model gagal:",
+                error
+            );
+
+            throw error;
+
+        }
+
+
+        /*
+         * Pasang event form setelah
+         * form selesai dirender.
+         */
         if (
-            create &&
-            typeof create.openCreate ===
+            typeof layout.attachModelFormEvents ===
                 "function"
         ) {
 
             try {
 
-                create.openCreate(
+                layout.attachModelFormEvents(
+
                     state.root,
-                    options
+
+                    Array.isArray(
+                        options.models
+                    )
+                        ? options.models
+                        : [],
+
+                    Array.isArray(
+                        options.providers
+                    )
+                        ? options.providers
+                        : [],
+
+                    {
+                        ...options,
+
+                        models:
+                            Array.isArray(
+                                options.models
+                            )
+                                ? options.models
+                                : []
+
+                    }
+
                 );
 
             } catch (error) {
 
                 console.warn(
-                    "[GEN-Z.AI] Create module open warning:",
+                    "[GEN-Z.AI] Model form events warning:",
                     error
                 );
 
@@ -397,54 +531,18 @@
 
         }
 
+    } else {
 
-        const layout =
-            getLayout();
-
-
-        if (
-            layout
-        ) {
-
-            try {
-
-                if (
-                    typeof layout.openCreate ===
-                        "function"
-                ) {
-
-                    layout.openCreate(
-                        state.root,
-                        options
-                    );
-
-                } else if (
-                    typeof layout.renderCreate ===
-                        "function"
-                ) {
-
-                    layout.renderCreate(
-                        state.root,
-                        options
-                    );
-
-                }
-
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] Layout create warning:",
-                    error
-                );
-
-            }
-
-        }
-
-
-        return getState();
+        throw new Error(
+            "GENZModelFormLayout.renderModelForm() belum tersedia."
+        );
 
     }
+
+
+    return getState();
+
+}
 
 
     /* =====================================================
