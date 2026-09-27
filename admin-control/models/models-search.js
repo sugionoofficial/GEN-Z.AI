@@ -1068,31 +1068,95 @@
                     let registryModels = [];
 
 
-                    if (
-                        typeof data.loadRegistryModels ===
-                        "function"
-                    ) {
+/*
+ * =================================================
+ * LOAD PROVIDERS
+ * =================================================
+ *
+ * Registry model membutuhkan data Provider asli
+ * agar:
+ *
+ *   kie_ai
+ *
+ * dapat dihubungkan ke:
+ *
+ *   providers.id
+ *
+ * tanpa membuat Provider palsu.
+ */
 
-                        try {
-
-                            registryModels =
-                                data.loadRegistryModels();
-
-                        }
-                        catch (registryError) {
-
-                            console.warn(
-                                "[GEN-Z.AI] Registry model tidak dapat dimuat:",
-                                registryError
-                            );
+let registryProviders = [];
 
 
-                            registryModels =
-                                [];
+if (
+    typeof data.loadProviders ===
+        "function"
+) {
 
-                        }
+    try {
 
-                    }
+        registryProviders =
+            await data.loadProviders({
+
+                force:
+                    force,
+
+                includeInactive:
+                    true
+
+            });
+
+    }
+    catch (providerError) {
+
+        console.warn(
+            "[GEN-Z.AI] Provider registry tidak dapat dimuat:",
+            providerError
+        );
+
+        registryProviders =
+            [];
+
+    }
+
+}
+
+
+/*
+ * =================================================
+ * LOAD REGISTRY MODELS
+ * =================================================
+ */
+
+if (
+    typeof data.loadRegistryModels ===
+        "function"
+) {
+
+    try {
+
+        registryModels =
+            data.loadRegistryModels({
+
+                providers:
+                    registryProviders
+
+            });
+
+    }
+    catch (registryError) {
+
+        console.warn(
+            "[GEN-Z.AI] Registry model tidak dapat dimuat:",
+            registryError
+        );
+
+        registryModels =
+            [];
+
+    }
+
+}
 
 
                     /*
