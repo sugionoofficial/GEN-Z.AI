@@ -9,8 +9,8 @@
    - Memuat seluruh module Models
    - Menjamin dependency order
    - Mendukung ES Module import/export
-   - Menghubungkan default export ke window global
-     untuk compatibility module lama
+   - Menghubungkan export ke window global
+   - Menyediakan compatibility alias global
    - Menjalankan GENZModelsInit setelah semua module siap
    - Mencegah duplicate loading
 
@@ -41,9 +41,6 @@
 
     /* =====================================================
        MODULE DEFINITIONS
-       -----------------------------------------------------
-       Urutan dipertahankan karena beberapa module memakai
-       public API melalui window.
     ===================================================== */
 
     const MODULES = [
@@ -137,7 +134,11 @@
                 "model-form-layout.js",
 
             global:
-                "GENZModelFormLayout"
+                "GENZModelFormLayout",
+
+            aliases: [
+                "GENZModelsFormLayout"
+            ]
         },
 
 
@@ -154,7 +155,11 @@
                 "model-form-create.js",
 
             global:
-                "GENZModelFormCreate"
+                "GENZModelFormCreate",
+
+            aliases: [
+                "GENZModelsFormCreate"
+            ]
         },
 
 
@@ -171,7 +176,11 @@
                 "model-form-edit.js",
 
             global:
-                "GENZModelFormEdit"
+                "GENZModelFormEdit",
+
+            aliases: [
+                "GENZModelsFormEdit"
+            ]
         },
 
 
@@ -188,23 +197,16 @@
                 "model-form-delete.js",
 
             global:
-                "GENZModelFormDelete"
+                "GENZModelFormDelete",
+
+            aliases: [
+                "GENZModelsFormDelete"
+            ]
         },
 
 
         /* =================================================
            MODELS CRUD
-           -------------------------------------------------
-           Owner operasi database:
-
-               Create
-               Update
-               Delete
-
-           Harus dimuat sebelum coordinator karena
-           coordinator menggunakan:
-
-               window.GENZModelsCRUD
         ================================================= */
 
         {
@@ -216,20 +218,16 @@
                 "models-crud.js",
 
             global:
-                "GENZModelsCRUD"
+                "GENZModelsCRUD",
+
+            aliases: [
+                "GENZModelCRUD"
+            ]
         },
 
 
         /* =================================================
            FORM COORDINATOR
-           -------------------------------------------------
-           Coordinator menjadi bridge antara:
-
-               Form
-                ↓
-               Create/Edit/Delete
-                ↓
-               Models CRUD
         ================================================= */
 
         {
@@ -241,19 +239,16 @@
                 "model-form-coordinator.js",
 
             global:
-                "GENZModelFormCoordinator"
+                "GENZModelFormCoordinator",
+
+            aliases: [
+                "GENZModelsFormCoordinator"
+            ]
         },
 
 
         /* =================================================
            FORM COMPATIBILITY BRIDGE
-           -------------------------------------------------
-           Menyediakan:
-
-               GENZModelsForm
-
-           untuk trigger Create / Edit / Delete
-           dari Models UI.
         ================================================= */
 
         {
@@ -265,7 +260,11 @@
                 "models-form.js",
 
             global:
-                "GENZModelsForm"
+                "GENZModelsForm",
+
+            aliases: [
+                "GENZModelForm"
+            ]
         },
 
 
@@ -282,7 +281,12 @@
                 "model-form-events.js",
 
             global:
-                "GENZModelFormEvents"
+                "GENZModelFormEvents",
+
+            aliases: [
+                "GENZModelsFormEvents",
+                "GENZModelSearchEvents"
+            ]
         },
 
 
@@ -350,7 +354,11 @@
                 "model-search-events.js",
 
             global:
-                "GENZModelSearchEvents"
+                "GENZModelSearchEvents",
+
+            aliases: [
+                "GENZModelsSearchEvents"
+            ]
         },
 
 
@@ -384,7 +392,11 @@
                 "model-table.js",
 
             global:
-                "GENZModelTable"
+                "GENZModelTable",
+
+            aliases: [
+                "GENZModelsTable"
+            ]
         },
 
 
@@ -401,7 +413,11 @@
                 "model-table-events.js",
 
             global:
-                "GENZModelTableEvents"
+                "GENZModelTableEvents",
+
+            aliases: [
+                "GENZModelsTableEvents"
+            ]
         },
 
 
@@ -418,7 +434,11 @@
                 "model-page-search.js",
 
             global:
-                "GENZModelPageSearch"
+                "GENZModelPageSearch",
+
+            aliases: [
+                "GENZModelsPageSearch"
+            ]
         },
 
 
@@ -479,7 +499,9 @@
        GLOBAL HELPERS
     ===================================================== */
 
-    function getGlobal(name) {
+    function getGlobal(
+        name
+    ) {
 
         if (!name) {
             return null;
@@ -493,7 +515,9 @@
     }
 
 
-    function hasGlobal(name) {
+    function hasGlobal(
+        name
+    ) {
 
         return Boolean(
             getGlobal(name)
@@ -506,7 +530,9 @@
        URL HELPERS
     ===================================================== */
 
-    function resolveModuleUrl(src) {
+    function resolveModuleUrl(
+        src
+    ) {
 
         if (!src) {
 
@@ -525,29 +551,81 @@
 
 
     /* =====================================================
-       LOAD ES MODULE
+       REGISTER COMPATIBILITY ALIASES
        -----------------------------------------------------
-       Ini adalah bagian terpenting.
+       Beberapa module lama memakai nama singular.
 
-       Jangan menggunakan:
+       models-init memakai nama plural.
 
-           script.onload
-           lalu menunggu window.global
+       Contoh:
 
-       untuk module ES.
+           GENZModelTable
+                   ↓
+           GENZModelsTable
 
-       ES Module export tidak otomatis menjadi:
-           window.GENZModelsData
+       Alias hanya dibuat jika target belum tersedia.
+    ===================================================== */
 
-       Karena itu kita menggunakan:
+    function registerCompatibilityAliases(
+        module
+    ) {
 
-           import(url)
+        if (
+            !module ||
+            !Array.isArray(
+                module.aliases
+            )
+        ) {
 
-       lalu mengambil:
+            return;
 
-           namespace.default
+        }
 
-       dan menghubungkannya ke global yang diperlukan.
+
+        const source =
+            module.global
+                ? window[
+                    module.global
+                ]
+                : null;
+
+
+        if (!source) {
+
+            return;
+
+        }
+
+
+        module.aliases.forEach(
+            function (alias) {
+
+                if (
+                    !alias
+                ) {
+
+                    return;
+
+                }
+
+
+                if (
+                    !window[alias]
+                ) {
+
+                    window[alias] =
+                        source;
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       LOAD ES MODULE
     ===================================================== */
 
     async function importModule(
@@ -564,8 +642,8 @@
 
 
         /*
-         * Jika global sudah ada, module dianggap
-         * sudah siap.
+         * Jika global utama sudah ada,
+         * jangan import ulang.
          */
 
         if (
@@ -575,12 +653,19 @@
             )
         ) {
 
+            registerCompatibilityAliases(
+                module
+            );
+
             return {
+
                 module,
+
                 namespace:
                     getGlobal(
                         module.global
                     )
+
             };
 
         }
@@ -593,7 +678,7 @@
 
 
         /*
-         * Cek namespace yang sudah pernah
+         * Namespace yang sudah pernah
          * di-import.
          */
 
@@ -608,14 +693,24 @@
                     module.id
                 );
 
+
             registerGlobal(
                 module,
                 namespace
             );
 
+
+            registerCompatibilityAliases(
+                module
+            );
+
+
             return {
+
                 module,
+
                 namespace
+
             };
 
         }
@@ -631,7 +726,9 @@
                     url
                 );
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             console.error(
                 "[GEN-Z.AI] Gagal import Models module:",
@@ -639,6 +736,7 @@
                 module.src,
                 error
             );
+
 
             throw new Error(
                 "Gagal memuat module Models '" +
@@ -662,7 +760,7 @@
 
 
         /*
-         * Hubungkan module ES ke global.
+         * Hubungkan ES Module ke global.
          */
 
         registerGlobal(
@@ -671,9 +769,21 @@
         );
 
 
+        /*
+         * Buat compatibility alias.
+         */
+
+        registerCompatibilityAliases(
+            module
+        );
+
+
         return {
+
             module,
+
             namespace
+
         };
 
     }
@@ -721,7 +831,7 @@
          * Prioritas:
          *
          * 1. default export
-         * 2. namespace object
+         * 2. namespace
          */
 
         if (
@@ -835,6 +945,16 @@
                 await promise;
 
 
+            /*
+             * Pastikan alias dibuat
+             * setelah module selesai.
+             */
+
+            registerCompatibilityAliases(
+                module
+            );
+
+
             console.info(
                 "[GEN-Z.AI] Models module loaded:",
                 module.id
@@ -843,7 +963,9 @@
 
             return result;
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             loadedModules.delete(
                 key
@@ -893,9 +1015,7 @@
                     /*
                      * Sequential loading.
                      *
-                     * Ini sengaja tidak memakai Promise.all().
-                     * Beberapa module memakai public API global
-                     * dari module sebelumnya.
+                     * Jangan menggunakan Promise.all().
                      */
 
                     for (
@@ -911,7 +1031,9 @@
 
 
                     /*
-                     * Verifikasi seluruh global.
+                     * =================================================
+                     * VERIFY PRIMARY + COMPATIBILITY GLOBALS
+                     * =================================================
                      */
 
                     const missing =
@@ -938,9 +1060,11 @@
                     );
 
 
-                    /* =====================================
-                       INITIALIZE
-                    ===================================== */
+                    /*
+                     * =================================================
+                     * INITIALIZE
+                     * =================================================
+                     */
 
                     const init =
                         window.GENZModelsInit;
@@ -973,9 +1097,11 @@
                         true;
 
 
-                    /* =====================================
-                       READY EVENT
-                    ===================================== */
+                    /*
+                     * =================================================
+                     * READY EVENT
+                     * =================================================
+                     */
 
                     try {
 
@@ -985,7 +1111,9 @@
                             )
                         );
 
-                    } catch (eventError) {
+                    } catch (
+                        eventError
+                    ) {
 
                         console.warn(
                             "[GEN-Z.AI] Event Models ready gagal:",
@@ -1002,10 +1130,13 @@
 
                     return true;
 
-                } catch (error) {
+                } catch (
+                    error
+                ) {
 
                     initialized =
                         false;
+
 
                     console.error(
                         "[GEN-Z.AI] Models loader error:",
@@ -1047,6 +1178,10 @@
         MODULES.forEach(
             function (module) {
 
+                /*
+                 * Primary global
+                 */
+
                 if (
                     module.global &&
                     !hasGlobal(
@@ -1056,6 +1191,39 @@
 
                     missing.push(
                         module.global
+                    );
+
+                    return;
+
+                }
+
+
+                /*
+                 * Compatibility aliases
+                 */
+
+                if (
+                    Array.isArray(
+                        module.aliases
+                    )
+                ) {
+
+                    module.aliases.forEach(
+                        function (alias) {
+
+                            if (
+                                !hasGlobal(
+                                    alias
+                                )
+                            ) {
+
+                                missing.push(
+                                    alias
+                                );
+
+                            }
+
+                        }
                     );
 
                 }
@@ -1106,7 +1274,9 @@
 
 
         if (!module) {
+
             return false;
+
         }
 
 
@@ -1141,6 +1311,13 @@
 
                     global:
                         module.global,
+
+                    aliases:
+                        Array.isArray(
+                            module.aliases
+                        )
+                            ? module.aliases.slice()
+                            : [],
 
                     loaded:
                         module.global
@@ -1251,7 +1428,9 @@
 
                 init.reset();
 
-            } catch (error) {
+            } catch (
+                error
+            ) {
 
                 console.warn(
                     "[GEN-Z.AI] Models init reset gagal:",
