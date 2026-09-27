@@ -30,6 +30,17 @@ let generationInProgress =
 
 
 /* =========================================================
+   GENERATION STATE
+========================================================= */
+
+function isGenerationInProgress() {
+
+    return generationInProgress;
+
+}
+
+
+/* =========================================================
    GET APP
 ========================================================= */
 
@@ -1597,9 +1608,7 @@ const GENZGenerateSubmit =
 
         handleGenerateSubmit,
 
-        isGenerationInProgress:
-            () =>
-                generationInProgress
+        isGenerationInProgress
 
     });
 
