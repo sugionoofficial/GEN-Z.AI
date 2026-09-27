@@ -41,6 +41,21 @@
  *   Registry TIDAK membuat Provider palsu.
  *   Provider tetap harus berasal dari Supabase.
  *
+ * PROVIDER RESOLUTION
+ *   Registry:
+ *       kie_ai
+ *       kie
+ *       KIE.AI
+ *
+ *   Supabase:
+ *       provider_id   = kie
+ *       provider_name = GEN-Z.AI
+ *
+ *   Semua alias KIE harus menunjuk ke:
+ *
+ *       providers.id
+ *       8b318a16-8ab5-45b1-94ca-83272a7f658f
+ *
  * =========================================================
  */
 
@@ -451,17 +466,7 @@ function clearCache() {
 
 
 /* =========================================================
-   PROVIDER IDENTITY
-   ---------------------------------------------------------
-   Supabase provider dapat memiliki field:
-
-       id
-       provider_id
-       provider_name
-       status
-
-   Tetapi resolver juga mendukung variasi nama field
-   agar registry tidak bergantung pada satu bentuk object.
+   PROVIDER IDENTITY NORMALIZER
 ========================================================= */
 
 function normalizeProviderIdentity(
@@ -538,7 +543,7 @@ function normalizeProviderIdentity(
 
 
 /* =========================================================
-   PROVIDER TOKEN NORMALIZER
+   PROVIDER TOKEN
 ========================================================= */
 
 function normalizeProviderToken(
@@ -555,21 +560,10 @@ function normalizeProviderToken(
 
 
 /* =========================================================
-   PROVIDER ALIAS
-   ---------------------------------------------------------
-   Registry dapat menggunakan:
-
-       kie
-       kie_ai
-
-   Database GEN-Z.AI menggunakan:
-
-       provider_id = kie
-
-   Keduanya menunjuk provider Supabase yang sama.
+   KIE PROVIDER ALIAS
 ========================================================= */
 
-function isKieProviderCode(
+function isKieProviderAlias(
     value
 ) {
 
@@ -580,17 +574,22 @@ function isKieProviderCode(
 
 
     return (
+
         token === "kie" ||
+
         token === "kie_ai" ||
+
         token === "kie.ai" ||
+
         token === "kie a.i."
+
     );
 
 }
 
 
 /* =========================================================
-   PROVIDER MATCH
+   PROVIDER CODE MATCH
 ========================================================= */
 
 function providerMatchesCode(
@@ -643,7 +642,7 @@ function providerMatchesCode(
 
 
     /*
-     * Exact provider code.
+     * EXACT CODE
      */
 
     if (
@@ -657,7 +656,7 @@ function providerMatchesCode(
 
 
     /*
-     * Exact database UUID.
+     * DATABASE UUID
      */
 
     if (
@@ -671,7 +670,7 @@ function providerMatchesCode(
 
 
     /*
-     * Exact provider name.
+     * PROVIDER NAME
      */
 
     if (
@@ -685,31 +684,55 @@ function providerMatchesCode(
 
 
     /*
-     * KIE alias.
+     * KIE ALIAS
      *
-     * Registry:
-     *     kie_ai
+     * kie
+     * kie_ai
+     * kie.ai
+     * kie a.i.
      *
-     * Supabase:
-     *     kie
-     *
-     * Jangan membuat provider baru.
+     * semuanya harus mengarah ke
+     * provider_id = kie.
      */
 
     if (
-        isKieProviderCode(
+        isKieProviderAlias(
             requested
         )
     ) {
 
-        if (
+        return (
             providerCode === "kie" ||
-            providerCode === "kie_ai"
-        ) {
+            providerCode === "kie_ai" ||
+            providerName === "kie.ai" ||
+            providerName === "kie a.i." ||
+            providerName === "kie"
+        );
 
-            return true;
+    }
 
-        }
+
+    /*
+     * GEN-Z.AI DISPLAY NAME
+     *
+     * Registry bisa menggunakan:
+     *
+     *     GEN-Z.AI
+     *
+     * Database:
+     *
+     *     provider_id = kie
+     */
+
+    if (
+        requested === "gen-z.ai" ||
+        requested === "genz.ai" ||
+        requested === "gen-z"
+    ) {
+
+        return (
+            providerCode === "kie"
+        );
 
     }
 
@@ -734,13 +757,73 @@ function filterActiveProviders(
 
 
     return source.filter(
-        provider =>
-            String(
-                provider?.status || ""
-            )
-                .trim()
-                .toLowerCase() ===
-            "active"
+        provider => {
+
+            const status =
+                String(
+                    provider?.status ||
+                    provider?.state ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            return status === "active";
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   PROVIDER SORT
+========================================================= */
+
+function sortProviders(
+    providers
+) {
+
+    const source =
+        Array.isArray(providers)
+            ? providers.slice()
+            : [];
+
+
+    return source.sort(
+        (
+            first,
+            second
+        ) => {
+
+            const firstName =
+                String(
+                    first?.provider_name ||
+                    first?.providerName ||
+                    first?.name ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            const secondName =
+                String(
+                    second?.provider_name ||
+                    second?.providerName ||
+                    second?.name ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            return firstName.localeCompare(
+                secondName
+            );
+
+        }
     );
 
 }
@@ -760,6 +843,10 @@ async function loadProviders(
     } = options;
 
 
+    /*
+     * CACHE
+     */
+
     if (
         providersLoaded &&
         !force
@@ -769,21 +856,18 @@ async function loadProviders(
             providerCache.slice();
 
 
-        if (
-            !includeInactive
-        ) {
-
-            return filterActiveProviders(
+        return includeInactive
+            ? result
+            : filterActiveProviders(
                 result
             );
 
-        }
-
-
-        return result;
-
     }
 
+
+    /*
+     * SINGLE FLIGHT
+     */
 
     if (
         providersLoadingPromise
@@ -793,27 +877,28 @@ async function loadProviders(
             await providersLoadingPromise;
 
 
-        if (
-            !includeInactive
-        ) {
-
-            return filterActiveProviders(
+        return includeInactive
+            ? result
+            : filterActiveProviders(
                 result
             );
 
-        }
-
-
-        return result;
-
     }
 
+
+    /*
+     * SUPABASE
+     */
 
     const supabase =
         getSupabaseClient();
 
 
     if (!supabase) {
+
+        console.warn(
+            "[GEN-Z.AI] Providers: Supabase client belum tersedia."
+        );
 
         return [];
 
@@ -825,6 +910,19 @@ async function loadProviders(
 
             try {
 
+                /*
+                 * Jangan gunakan:
+                 *
+                 * .order("provider_name")
+                 *
+                 * di query ini.
+                 *
+                 * Jika schema berbeda sedikit saja,
+                 * seluruh provider bisa gagal dibaca.
+                 *
+                 * Sorting dilakukan di JavaScript.
+                 */
+
                 const {
                     data,
                     error
@@ -832,23 +930,25 @@ async function loadProviders(
                     .from(
                         PROVIDER_TABLE
                     )
-                    .select("*")
-                    .order(
-                        "provider_name",
-                        {
-                            ascending: true
-                        }
-                    );
+                    .select("*");
 
 
                 if (
                     error
                 ) {
 
-                    console.warn(
-                        "GEN-Z.AI: gagal membaca providers:",
-                        error.message
+                    console.error(
+                        "[GEN-Z.AI] Gagal membaca providers:",
+                        error
                     );
+
+
+                    providerCache =
+                        [];
+
+
+                    providersLoaded =
+                        false;
 
 
                     return [];
@@ -856,67 +956,72 @@ async function loadProviders(
                 }
 
 
-                /*
-                 * Normalisasi provider tanpa menghapus
-                 * field asli dari Supabase.
-                 *
-                 * Ini penting agar modul lain tetap
-                 * mendapatkan object provider lengkap.
-                 */
-
-                const normalized =
+                const rows =
                     Array.isArray(data)
-
-                        ? data.map(
-                            provider => {
-
-                                const identity =
-                                    normalizeProviderIdentity(
-                                        provider
-                                    );
-
-
-                                if (!identity) {
-
-                                    return provider;
-
-                                }
-
-
-                                return {
-
-                                    ...provider,
-
-                                    id:
-                                        provider.id ??
-                                        identity.databaseId ??
-                                        null,
-
-                                    provider_id:
-                                        provider.provider_id ??
-                                        identity.providerCode ??
-                                        null,
-
-                                    provider_name:
-                                        provider.provider_name ??
-                                        identity.providerName ??
-                                        null,
-
-                                    status:
-                                        provider.status ??
-                                        identity.status ??
-                                        null
-
-                                };
-
-                            }
-                        )
-
+                        ? data
                         : [];
 
 
+                /*
+                 * Normalisasi tanpa menghapus
+                 * field asli.
+                 */
+
+                const normalized =
+                    rows.map(
+                        provider => {
+
+                            const identity =
+                                normalizeProviderIdentity(
+                                    provider
+                                );
+
+
+                            if (!identity) {
+
+                                return provider;
+
+                            }
+
+
+                            return {
+
+                                ...provider,
+
+                                id:
+                                    provider.id ??
+                                    identity.databaseId,
+
+                                provider_id:
+                                    provider.provider_id ??
+                                    provider.providerId ??
+                                    provider.provider_code ??
+                                    provider.providerCode ??
+                                    provider.code ??
+                                    "",
+
+                                provider_name:
+                                    provider.provider_name ??
+                                    provider.providerName ??
+                                    provider.name ??
+                                    provider.display_name ??
+                                    "",
+
+                                status:
+                                    provider.status ??
+                                    provider.state ??
+                                    "unknown"
+
+                            };
+
+                        }
+                    );
+
+
                 providerCache =
-                    normalized;
+                    sortProviders(
+                        normalized
+                    );
 
 
                 providersLoaded =
@@ -924,9 +1029,7 @@ async function loadProviders(
 
 
                 /*
-                 * Debug internal provider.
-                 *
-                 * Tidak membuat provider baru.
+                 * DEBUG PROVIDER DATABASE
                  */
 
                 console.info(
@@ -955,6 +1058,47 @@ async function loadProviders(
                 );
 
 
+                /*
+                 * Pastikan provider KIE
+                 * benar-benar ditemukan.
+                 */
+
+                const kieProvider =
+                    providerCache.find(
+                        provider =>
+                            providerMatchesCode(
+                                provider,
+                                "kie"
+                            )
+                    );
+
+
+                console.info(
+                    "[GEN-Z.AI] Provider KIE resolved:",
+                    kieProvider
+                        ? {
+
+                            id:
+                                kieProvider.id ??
+                                null,
+
+                            provider_id:
+                                kieProvider.provider_id ??
+                                null,
+
+                            provider_name:
+                                kieProvider.provider_name ??
+                                null,
+
+                            status:
+                                kieProvider.status ??
+                                null
+
+                        }
+                        : null
+                );
+
+
                 return providerCache.slice();
 
             }
@@ -962,10 +1106,17 @@ async function loadProviders(
                 error
             ) {
 
-                console.warn(
-                    "GEN-Z.AI: error membaca providers:",
+                console.error(
+                    "[GEN-Z.AI] Exception membaca providers:",
                     error
                 );
+
+
+                providerCache =
+                    [];
+
+                providersLoaded =
+                    false;
 
 
                 return [];
@@ -981,18 +1132,11 @@ async function loadProviders(
             await providersLoadingPromise;
 
 
-        if (
-            !includeInactive
-        ) {
-
-            return filterActiveProviders(
+        return includeInactive
+            ? result
+            : filterActiveProviders(
                 result
             );
-
-        }
-
-
-        return result;
 
     }
     finally {
@@ -1006,273 +1150,7 @@ async function loadProviders(
 
 
 /* =========================================================
-   PROVIDER MATCH HELPER
-   ---------------------------------------------------------
-   Registry provider dapat menggunakan:
-
-       kie
-       kie_ai
-
-   Supabase provider internal:
-
-       id            = UUID
-       provider_id   = kie
-       provider_name = GEN-Z.AI
-
-   Keduanya harus menunjuk ke provider Supabase
-   yang sama.
-
-   Registry TIDAK membuat provider baru.
-========================================================= */
-
-function findRegistryProvider(
-    providerCode,
-    providerMap,
-    providerName = ""
-) {
-
-    const code =
-        normalizeProviderToken(
-            providerCode
-        );
-
-
-    const name =
-        normalizeProviderToken(
-            providerName
-        );
-
-
-    if (
-        !Array.isArray(providerMap) ||
-        !providerMap.length
-    ) {
-
-        return null;
-
-    }
-
-
-    /*
-     * =====================================================
-     * 1. EXACT / NORMALIZED MATCH
-     *
-     * Mencocokkan:
-     *
-     * - provider_id
-     * - provider_code
-     * - providerCode
-     * - code
-     * - UUID
-     * - provider_name
-     *
-     * =====================================================
-     */
-
-    if (code) {
-
-        const exactMatch =
-            providerMap.find(
-                provider =>
-                    providerMatchesCode(
-                        provider,
-                        code
-                    )
-            );
-
-
-        if (exactMatch) {
-
-            return exactMatch;
-
-        }
-
-    }
-
-
-    /*
-     * =====================================================
-     * 2. PROVIDER NAME
-     *
-     * Contoh:
-     *
-     * registry providerName:
-     *     GEN-Z.AI
-     *
-     * database:
-     *     provider_name = GEN-Z.AI
-     *
-     * =====================================================
-     */
-
-    if (name) {
-
-        const byProviderName =
-            providerMap.find(
-                provider => {
-
-                    const identity =
-                        normalizeProviderIdentity(
-                            provider
-                        );
-
-
-                    if (!identity) {
-
-                        return false;
-
-                    }
-
-
-                    return (
-                        normalizeProviderToken(
-                            identity.providerName
-                        ) ===
-                        name
-                    );
-
-                }
-            );
-
-
-        if (byProviderName) {
-
-            return byProviderName;
-
-        }
-
-    }
-
-
-    /*
-     * =====================================================
-     * 3. KIE ALIAS
-     *
-     * Registry lama:
-     *
-     *     kie_ai
-     *
-     * Database:
-     *
-     *     kie
-     *
-     * Jika exact match gagal, cari provider
-     * internal dengan provider_id "kie".
-     * =====================================================
-     */
-
-    if (
-        isKieProviderCode(
-            code
-        )
-    ) {
-
-        const kieProvider =
-            providerMap.find(
-                provider => {
-
-                    const identity =
-                        normalizeProviderIdentity(
-                            provider
-                        );
-
-
-                    if (!identity) {
-
-                        return false;
-
-                    }
-
-
-                    const candidate =
-                        normalizeProviderToken(
-                            identity.providerCode
-                        );
-
-
-                    return (
-                        candidate === "kie" ||
-                        candidate === "kie_ai"
-                    );
-
-                }
-            );
-
-
-        if (kieProvider) {
-
-            return kieProvider;
-
-        }
-
-    }
-
-
-    /*
-     * =====================================================
-     * 4. KIE NAME ALIAS
-     *
-     * Jika registry masih membawa:
-     *
-     *     KIE.AI
-     *
-     * tetapi database menggunakan:
-     *
-     *     GEN-Z.AI
-     *
-     * tetap gunakan provider dengan code "kie".
-     * =====================================================
-     */
-
-    if (
-        name === "kie.ai" ||
-        name === "kie a.i." ||
-        name === "kie"
-    ) {
-
-        const kieProvider =
-            providerMap.find(
-                provider => {
-
-                    const identity =
-                        normalizeProviderIdentity(
-                            provider
-                        );
-
-
-                    if (!identity) {
-
-                        return false;
-
-                    }
-
-
-                    return (
-                        normalizeProviderToken(
-                            identity.providerCode
-                        ) === "kie"
-                    );
-
-                }
-            );
-
-
-        if (kieProvider) {
-
-            return kieProvider;
-
-        }
-
-    }
-
-
-    return null;
-
-}
-
-
-/* =========================================================
-   PROVIDER LOOKUP
+   PROVIDER LOOKUP BY ID
 ========================================================= */
 
 async function getProviderById(
@@ -1294,7 +1172,16 @@ async function getProviderById(
         await loadProviders();
 
 
+    const normalizedId =
+        String(
+            providerId
+        )
+            .trim()
+            .toLowerCase();
+
+
     return (
+
         providers.find(
             provider => {
 
@@ -1305,21 +1192,27 @@ async function getProviderById(
 
 
                 return (
-                    String(
-                        identity?.databaseId ??
-                        ""
+                    normalizeProviderToken(
+                        identity?.databaseId
                     ) ===
-                    String(
-                        providerId
-                    )
+                    normalizedId
                 );
 
             }
-        ) || null
+        )
+
+        ||
+
+        null
+
     );
 
 }
 
+
+/* =========================================================
+   PROVIDER LOOKUP BY CODE
+========================================================= */
 
 async function getProviderByCode(
     providerCode
@@ -1340,22 +1233,179 @@ async function getProviderByCode(
         await loadProviders();
 
 
+    return (
+
+        providers.find(
+            provider =>
+                providerMatchesCode(
+                    provider,
+                    providerCode
+                )
+        )
+
+        ||
+
+        null
+
+    );
+
+}
+
+
+/* =========================================================
+   PROVIDER LOOKUP FOR REGISTRY
+========================================================= */
+
+function findRegistryProvider(
+    providerCode,
+    providerMap,
+    providerName = ""
+) {
+
     /*
-     * Gunakan resolver yang sama dengan registry.
+     * Jika caller tidak mengirim providerMap,
+     * gunakan cache provider Supabase.
      *
-     * Ini memastikan:
-     *
-     * kie
-     * kie_ai
-     *
-     * dapat menunjuk provider Supabase yang sama.
+     * Ini penting karena loadRegistryModels()
+     * adalah synchronous.
      */
 
-    return findRegistryProvider(
-        providerCode,
-        providers,
-        ""
-    );
+    const source =
+        Array.isArray(providerMap) &&
+        providerMap.length
+
+            ? providerMap
+
+            : providerCache;
+
+
+    if (
+        !Array.isArray(source) ||
+        !source.length
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Registry provider lookup: providerMap kosong."
+        );
+
+
+        return null;
+
+    }
+
+
+    const code =
+        normalizeProviderToken(
+            providerCode
+        );
+
+
+    const name =
+        normalizeProviderToken(
+            providerName
+        );
+
+
+    /*
+     * =====================================================
+     * 1. EXACT / NORMALIZED PROVIDER CODE
+     * =====================================================
+     */
+
+    if (code) {
+
+        const exact =
+            source.find(
+                provider =>
+                    providerMatchesCode(
+                        provider,
+                        code
+                    )
+            );
+
+
+        if (exact) {
+
+            return exact;
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * 2. PROVIDER NAME
+     * =====================================================
+     */
+
+    if (name) {
+
+        const byName =
+            source.find(
+                provider =>
+                    providerMatchesCode(
+                        provider,
+                        name
+                    )
+            );
+
+
+        if (byName) {
+
+            return byName;
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * 3. KIE FALLBACK
+     *
+     * Hanya mencari record yang memang mempunyai
+     * provider_id = kie.
+     *
+     * Tidak membuat object provider baru.
+     * =====================================================
+     */
+
+    if (
+        isKieProviderAlias(code) ||
+        isKieProviderAlias(name)
+    ) {
+
+        const kieProvider =
+            source.find(
+                provider => {
+
+                    const identity =
+                        normalizeProviderIdentity(
+                            provider
+                        );
+
+
+                    return (
+                        normalizeProviderToken(
+                            identity?.providerCode
+                        ) === "kie"
+                    );
+
+                }
+            );
+
+
+        if (kieProvider) {
+
+            return kieProvider;
+
+        }
+
+    }
+
+
+    return null;
 
 }
 
@@ -1458,8 +1508,11 @@ function getDurationRange(
     if (!definition) {
 
         return {
+
             min: 0,
+
             max: 0
+
         };
 
     }
@@ -1538,15 +1591,6 @@ function normalizeRegistryModel(
 
     /*
      * Registry provider code.
-     *
-     * Seedance:
-     *
-     *     kie
-     *
-     * Grok:
-     *
-     *     kie_ai
-     *
      */
 
     const providerCode =
@@ -1572,9 +1616,7 @@ function normalizeRegistryModel(
 
 
     /*
-     * Cari provider AKTUAL dari Supabase.
-     *
-     * Tidak membuat provider baru.
+     * Provider aktual dari Supabase.
      */
 
     const provider =
@@ -1584,6 +1626,10 @@ function normalizeRegistryModel(
             providerName
         );
 
+
+    /*
+     * Parameter registry.
+     */
 
     const supportedRatios =
         getParameterEnum(
@@ -1671,15 +1717,18 @@ function normalizeRegistryModel(
 
     /*
      * =====================================================
-     * PROVIDER IDENTITY AKTUAL
+     * PROVIDER DATA
      *
-     * Jika provider ditemukan dari Supabase:
+     * provider = record asli Supabase.
      *
-     * id            = UUID providers.id
-     * provider_id   = providers.provider_id
-     * provider_name = providers.provider_name
-     * status        = providers.status
+     * UUID:
+     *     provider.id
      *
+     * CODE:
+     *     provider.provider_id
+     *
+     * NAME:
+     *     provider.provider_name
      * =====================================================
      */
 
@@ -1689,44 +1738,61 @@ function normalizeRegistryModel(
         );
 
 
-    /*
-     * =====================================================
-     * PROVIDER DATA
-     * =====================================================
-     */
+    const providerUuid =
+        providerIdentity?.databaseId ??
+        persisted?.provider_id ??
+        null;
+
+
+    const resolvedProviderCode =
+        providerIdentity?.providerCode ||
+        providerCode ||
+        "";
+
+
+    const resolvedProviderName =
+        providerIdentity?.providerName ||
+        providerName ||
+        resolvedProviderCode ||
+        "";
+
+
+    const resolvedProviderStatus =
+        providerIdentity?.status ||
+        "unknown";
+
 
     const providerData =
-        providerIdentity
+        provider
 
             ? {
 
                 id:
-                    providerIdentity.databaseId ??
-                    null,
+                    providerUuid,
 
                 provider_id:
-                    providerIdentity.providerCode ||
-                    providerCode,
+                    resolvedProviderCode,
 
                 provider_name:
-                    providerIdentity.providerName ||
-                    providerName ||
-                    providerCode,
+                    resolvedProviderName,
 
                 status:
-                    providerIdentity.status ||
-                    "unknown"
+                    resolvedProviderStatus
 
             }
 
             : {
 
                 /*
-                 * Registry tidak boleh membuat UUID.
+                 * Jangan membuat provider palsu.
+                 *
+                 * provider_id hanya boleh menjadi
+                 * registry code untuk informasi diagnostik.
+                 *
+                 * provider_id utama tetap UUID/null.
                  */
 
                 id:
-                    persisted?.provider_id ??
                     null,
 
                 provider_id:
@@ -1744,31 +1810,37 @@ function normalizeRegistryModel(
 
     /*
      * =====================================================
-     * PROVIDER UUID
-     *
-     * Model table menggunakan:
-     *
-     *     providers.id
-     *
-     * bukan:
-     *
-     *     providers.provider_id
-     *
-     * Jadi untuk provider "kie":
-     *
-     * provider_id:
-     *     UUID Supabase
-     *
-     * provider_code:
-     *     kie
-     *
+     * DEBUG PROVIDER REGISTRY
      * =====================================================
      */
 
-    const providerUuid =
-        providerIdentity?.databaseId ??
-        persisted?.provider_id ??
-        null;
+    console.info(
+        "[GEN-Z.AI] Registry provider resolved:",
+        {
+
+            model_id:
+                modelId,
+
+            registry_provider_id:
+                providerCode,
+
+            registry_provider_name:
+                providerName,
+
+            database_provider_id:
+                providerUuid,
+
+            database_provider_code:
+                resolvedProviderCode,
+
+            database_provider_name:
+                resolvedProviderName,
+
+            found:
+                Boolean(provider)
+
+        }
+    );
 
 
     return {
@@ -1801,24 +1873,18 @@ function normalizeRegistryModel(
          * PROVIDER CODE:
          *
          * providers.provider_id
-         *
-         * Contoh:
-         *
-         * kie
          */
 
         provider_code:
-            providerData.provider_id,
+            resolvedProviderCode,
 
 
         /*
          * DISPLAY NAME:
-         *
-         * GEN-Z.AI
          */
 
         provider_name:
-            providerData.provider_name,
+            resolvedProviderName,
 
 
         provider_uuid:
@@ -2147,8 +2213,11 @@ function normalizePersistedModel(
                 registryParameters
             )
             : {
+
                 min: 0,
+
                 max: 0
+
             };
 
 
@@ -2260,6 +2329,7 @@ function normalizePersistedModel(
     const providerStatus =
         String(
             providerIdentity?.status ||
+            provider?.status ||
             "unknown"
         )
             .trim()
@@ -2267,23 +2337,25 @@ function normalizePersistedModel(
 
 
     const providerData =
-        providerIdentity
+        provider
 
             ? {
 
                 id:
-                    providerIdentity.databaseId,
+                    providerIdentity?.databaseId ??
+                    persistedProviderId,
 
                 provider_id:
-                    providerIdentity.providerCode ||
+                    providerIdentity?.providerCode ||
                     providerCode,
 
                 provider_name:
-                    providerIdentity.providerName ||
+                    providerIdentity?.providerName ||
                     providerName,
 
                 status:
-                    providerIdentity.status
+                    providerIdentity?.status ||
+                    providerStatus
 
             }
 
@@ -2441,17 +2513,98 @@ function loadRegistryModels(
     options = {}
 ) {
 
-    const providerMap =
-        Array.isArray(options)
-            ? options
-            : (
-                Array.isArray(
-                    options.providers
-                )
-                    ? options.providers
-                    : []
-            );
+    /*
+     * Prioritas:
+     *
+     * 1. options.providers
+     * 2. options array
+     * 3. providerCache
+     */
 
+    let providerMap;
+
+
+    if (
+        Array.isArray(options)
+    ) {
+
+        providerMap =
+            options;
+
+    }
+    else if (
+        Array.isArray(
+            options?.providers
+        )
+    ) {
+
+        providerMap =
+            options.providers;
+
+    }
+    else {
+
+        providerMap =
+            [];
+
+    }
+
+
+    /*
+     * Jika caller memberikan array kosong,
+     * gunakan cache provider Supabase.
+     */
+
+    if (
+        !providerMap.length &&
+        providerCache.length
+    ) {
+
+        providerMap =
+            providerCache.slice();
+
+    }
+
+
+    /*
+     * Debug provider map.
+     */
+
+    console.info(
+        "[GEN-Z.AI] Registry providerMap:",
+        providerMap.map(
+            provider => ({
+
+                id:
+                    provider?.id ??
+                    null,
+
+                provider_id:
+                    provider?.provider_id ??
+                    null,
+
+                provider_name:
+                    provider?.provider_name ??
+                    null,
+
+                status:
+                    provider?.status ??
+                    null
+
+            })
+        )
+    );
+
+
+    console.info(
+        "[GEN-Z.AI] Registry providerMap length:",
+        providerMap.length
+    );
+
+
+    /*
+     * Registry models.
+     */
 
     const models =
         MODEL_REGISTRY
@@ -2467,7 +2620,7 @@ function loadRegistryModels(
 
 
     /*
-     * Debug registry.
+     * Final catalog debug.
      */
 
     console.info(
@@ -2673,6 +2826,13 @@ async function loadModels(
 
             }
 
+
+            /*
+             * Load provider terlebih dahulu.
+             *
+             * Ini memastikan normalizePersistedModel()
+             * menerima record provider asli.
+             */
 
             const providers =
                 await loadProviders({
@@ -3397,7 +3557,6 @@ const ModelData = {
 
     readResolutionCredit,
 
-
     normalizeProviderIdentity,
 
     normalizeProviderToken,
@@ -3494,7 +3653,6 @@ export {
 
     readResolutionCredit,
 
-
     normalizeProviderIdentity,
 
     normalizeProviderToken,
@@ -3502,7 +3660,6 @@ export {
     providerMatchesCode,
 
     findRegistryProvider,
-
 
     normalizeRegistryModel,
 
