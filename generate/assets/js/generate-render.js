@@ -478,7 +478,7 @@ function validateModelParameters(
    PUBLIC API
 ========================================================= */
 
-window.GENZGenerateRender =
+const GENZGenerateRender =
     Object.freeze({
 
         SEEDANCE_MODEL_ID,
@@ -496,3 +496,34 @@ window.GENZGenerateRender =
         validateModelParameters
 
     });
+
+
+/* =========================================================
+   GLOBAL COMPATIBILITY
+========================================================= */
+
+window.GENZGenerateRender =
+    GENZGenerateRender;
+
+
+/* =========================================================
+   ES MODULE EXPORT
+========================================================= */
+
+export {
+
+    SEEDANCE_MODEL_ID,
+
+    getModelId,
+
+    isSeedanceModel,
+
+    renderModelForm,
+
+    resetModelForm,
+
+    getModelParameters,
+
+    validateModelParameters
+
+};
