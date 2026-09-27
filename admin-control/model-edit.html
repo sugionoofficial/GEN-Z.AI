@@ -2399,7 +2399,53 @@
 ========================================================= -->
 
 <script type="module">
-    import "./models/model-edit/model-edit-app.js";
+    const loadingBox =
+        document.getElementById("loadingBox");
+
+    const editContent =
+        document.getElementById("editContent");
+
+    const alertBox =
+        document.getElementById("alertBox");
+
+    function showModuleError(error) {
+
+        console.error(
+            "GEN-Z.AI Model Edit Module Error:",
+            error
+        );
+
+        if (loadingBox) {
+            loadingBox.classList.add("hidden");
+        }
+
+        if (editContent) {
+            editContent.classList.add("hidden");
+        }
+
+        if (alertBox) {
+
+            alertBox.textContent =
+                error?.message ||
+                String(error) ||
+                "Gagal memuat modul Edit Model.";
+
+            alertBox.className =
+                "alert show error";
+        }
+    }
+
+    try {
+
+        await import(
+            "./models/model-edit/model-edit-app.js"
+        );
+
+    } catch (error) {
+
+        showModuleError(error);
+
+    }
 </script>
 
 </body>
