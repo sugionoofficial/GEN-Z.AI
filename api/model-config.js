@@ -81,6 +81,7 @@ import grokImagineImageToVideo
 import seedance25
     from "../models/seedance-2-5/index.js";
 
+
 /* =========================================================
    MODEL REGISTRY
    ========================================================= */
@@ -88,7 +89,7 @@ import seedance25
 const MODEL_REGISTRY = Object.freeze([
 
     grokImagineImageToVideo,
-   
+
     seedance25
 
 ]);
@@ -1617,7 +1618,7 @@ function buildModelConfig(
          credit_720p
          credit_1080p
          discount_percent
-       
+
        PENTING:
          - Tidak menggunakan credit_cost.
          - Tidak menggunakan credit_final.
@@ -1995,79 +1996,81 @@ async function resolveModel(
        ===================================================== */
 
     const databaseModel =
-    await loadDatabaseModel(
-        modelId
-    );
+        await loadDatabaseModel(
+            modelId
+        );
 
 
-/*
- * Repository adapter saja TIDAK berarti model tersedia.
- * Model baru boleh masuk Generate hanya setelah dibuat
- * melalui Admin Models dan mempunyai record di Supabase.
- *
- * Ini mencegah adapter Seedance/Grok yang sudah ada di
- * repository tampil otomatis sebelum diaktifkan admin.
- */
-if (!databaseModel) {
+    /*
+     * Repository adapter saja TIDAK berarti model tersedia.
+     *
+     * Model baru boleh masuk Generate hanya setelah dibuat
+     * melalui Admin Models dan mempunyai record di Supabase.
+     *
+     * Ini mencegah adapter Seedance/Grok yang sudah ada di
+     * repository tampil otomatis sebelum diaktifkan admin.
+     */
 
-    return {
+    if (!databaseModel) {
 
-        error:
-            "Model is not configured",
+        return {
 
-        details: {
+            error:
+                "Model is not configured",
 
-            model_id:
-                modelId
+            details: {
 
-        }
+                model_id:
+                    modelId
 
-    };
+            }
 
-}
+        };
 
-
-/* =====================================================
-   STATUS
-   ===================================================== */
-
-if (
-    databaseModel
-) {
-
-        const status =
-            String(
-                databaseModel.status ||
-                ""
-            )
-                .trim()
-                .toLowerCase();
+    }
 
 
-        if (
-            status &&
-            status !==
-                "active"
-        ) {
+    /* =====================================================
+       STATUS
+       ===================================================== */
 
-            return {
+    const status =
+        String(
+            databaseModel.status ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
 
-                error:
-                    "Model is not active",
 
-                details: {
+    /*
+     * Model harus secara eksplisit berstatus active.
+     *
+     * Status kosong/null TIDAK dianggap aktif.
+     */
 
-                    model_id:
-                        modelId,
+    if (
+        status !==
+        "active"
+    ) {
 
-                    status:
-                        databaseModel.status
+        return {
 
-                }
+            error:
+                "Model is not active",
 
-            };
+            details: {
 
-        }
+                model_id:
+                    modelId,
+
+                status:
+                    databaseModel.status ||
+                    null
+
+            }
+
+        };
 
     }
 
@@ -2083,19 +2086,28 @@ if (
         );
 
 
+    /*
+     * Model tanpa provider valid tidak boleh
+     * dikirim ke Generate.
+     */
+
     if (!provider) {
 
         return {
 
-            model:
-                buildModelConfig(
-                    adapter,
-                    databaseModel,
-                    null
-                ),
+            error:
+                "Provider is not configured",
 
-            warning:
-                "Provider is not configured"
+            details: {
+
+                model_id:
+                    modelId,
+
+                provider_id:
+                    databaseModel?.provider_id ||
+                    null
+
+            }
 
         };
 
@@ -2115,23 +2127,38 @@ if (
             .toLowerCase();
 
 
+    /*
+     * Provider harus secara eksplisit active.
+     *
+     * Tidak menggunakan providers.is_active karena
+     * schema provider saat ini menggunakan status.
+     */
+
     if (
-        providerStatus &&
         providerStatus !==
-            "active"
+        "active"
     ) {
 
         return {
 
-            model:
-                buildModelConfig(
-                    adapter,
-                    databaseModel,
-                    provider
-                ),
+            error:
+                "Model provider is not active",
 
-            warning:
-                "Model provider is not active"
+            details: {
+
+                model_id:
+                    modelId,
+
+                provider_id:
+                    databaseModel?.provider_id ||
+                    provider?.provider_id ||
+                    null,
+
+                status:
+                    provider?.status ||
+                    null
+
+            }
 
         };
 
@@ -2260,52 +2287,51 @@ async function loadAllModels() {
         }
 
 
+        /*
+         * Registry hanya menyediakan adapter teknis.
+         *
+         * Tanpa record Admin Models di Supabase,
+         * model belum terdaftar dan tidak boleh
+         * dikirim ke Generate.
+         */
+
         const databaseModel =
-    databaseMap.get(
-        modelId
-    ) ||
-    null;
+            databaseMap.get(
+                modelId
+            ) ||
+            null;
 
 
-/*
- * IMPORTANT:
- * Registry hanya menyediakan adapter teknis.
- * Tanpa record Admin Models di Supabase, model
- * belum terdaftar dan tidak boleh dikirim ke Generate.
- */
-if (!databaseModel) {
+        if (!databaseModel) {
 
-    continue;
+            continue;
 
-}
+        }
 
 
-/* =================================================
-   STATUS
-   ================================================= */
+        /* =================================================
+           STATUS
+           ================================================= */
 
-if (
-    databaseModel
-) {
-
-            const status =
-                String(
-                    databaseModel.status ||
-                    ""
-                )
-                    .trim()
-                    .toLowerCase();
+        const status =
+            String(
+                databaseModel.status ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
 
 
-            if (
-                status &&
-                status !==
-                    "active"
-            ) {
+        /*
+         * Model harus secara eksplisit active.
+         */
 
-                continue;
+        if (
+            status !==
+            "active"
+        ) {
 
-            }
+            continue;
 
         }
 
@@ -2342,12 +2368,8 @@ if (
 
         if (!provider) {
 
-            result.push(
-                buildModelConfig(
-                    adapter,
-                    databaseModel,
-                    null
-                )
+            console.warn(
+                `[model-config] Model ${modelId} skipped because provider is not configured`
             );
 
             continue;
@@ -2368,11 +2390,44 @@ if (
                 .toLowerCase();
 
 
+        /*
+         * Provider harus secara eksplisit active.
+         */
+
         if (
-            providerStatus &&
             providerStatus !==
-                "active"
+            "active"
         ) {
+
+            console.warn(
+                `[model-config] Model ${modelId} skipped because provider is not active`
+            );
+
+            continue;
+
+        }
+
+
+        /* =================================================
+           ADAPTER MODEL ID VALIDATION
+           ================================================= */
+
+        const adapterModelId =
+            String(
+                adapter?.config?.id ||
+                ""
+            ).trim();
+
+
+        if (
+            adapterModelId &&
+            adapterModelId !==
+                modelId
+        ) {
+
+            console.warn(
+                `[model-config] Model ${modelId} skipped because adapter configuration does not match`
+            );
 
             continue;
 
@@ -2491,31 +2546,53 @@ export default async function handler(
 
 
                 if (
-    resolved.error ===
-    "Model is not active"
-) {
+                    resolved.error ===
+                    "Model is not active"
+                ) {
 
-    status =
-        409;
+                    status =
+                        409;
 
-}
-
-
-if (
-    resolved.error ===
-    "Model is not configured"
-) {
-
-    status =
-        404;
-
-}
+                }
 
 
-if (
-    resolved.error ===
-    "Model adapter configuration mismatch"
-) {
+                if (
+                    resolved.error ===
+                    "Provider is not configured"
+                ) {
+
+                    status =
+                        404;
+
+                }
+
+
+                if (
+                    resolved.error ===
+                    "Model provider is not active"
+                ) {
+
+                    status =
+                        409;
+
+                }
+
+
+                if (
+                    resolved.error ===
+                    "Model is not configured"
+                ) {
+
+                    status =
+                        404;
+
+                }
+
+
+                if (
+                    resolved.error ===
+                    "Model adapter configuration mismatch"
+                ) {
 
                     status =
                         500;
