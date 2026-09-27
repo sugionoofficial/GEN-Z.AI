@@ -6,12 +6,15 @@
 //
 // Endpoint:
 // GET    /api/admin-models
+// GET    /api/admin-models?model_id=MODEL_ID
+// GET    /api/admin-models?id=DATABASE_UUID
 // POST   /api/admin-models
 // PATCH  /api/admin-models
 // DELETE /api/admin-models
 //
 // Fitur:
 // - List model
+// - Ambil single model
 // - Tambah model
 // - Edit model
 // - Hapus model
@@ -505,20 +508,6 @@ const verifyAdmin = async (
 // ========================================
 // MODEL FIELDS
 // ========================================
-//
-// PRICING DATABASE:
-// - credit_480p
-// - credit_720p
-// - credit_1080p
-// - discount_percent
-//
-// LEGACY:
-// - credit_cost  -> TIDAK digunakan
-// - credit_final -> TIDAK digunakan
-//
-// Credit final dihitung runtime oleh
-// Generate/API generate.
-// ========================================
 
 const MODEL_FIELDS = [
 
@@ -774,19 +763,6 @@ const cleanArray = (
 
 // ========================================
 // CLEAN MODEL
-// ========================================
-//
-// Hanya field yang memang diizinkan yang
-// diteruskan ke database.
-//
-// credit_cost dan credit_final sengaja
-// tidak pernah dimasukkan ke model.
-//
-// Jika frontend lama masih mengirim:
-// - credit_cost
-// - credit_final
-//
-// keduanya otomatis diabaikan.
 // ========================================
 
 const cleanModel = (
@@ -1121,15 +1097,6 @@ const cleanModel = (
 
     // ====================================
     // EXPLICIT LEGACY PROTECTION
-    // ====================================
-    //
-    // Jangan pernah meneruskan field lama
-    // meskipun suatu saat cleanModel()
-    // dikembangkan kembali.
-    //
-    // Saat ini keduanya memang tidak pernah
-    // dimasukkan ke model, tetapi delete ini
-    // menjadi lapisan pengaman tambahan.
     // ====================================
 
     delete model.credit_cost;
@@ -2080,6 +2047,204 @@ const getModelKiePricing = (
 
 
 // ========================================
+// GET SINGLE MODEL
+// ========================================
+//
+// Digunakan oleh halaman Edit Model.
+//
+// GET /api/admin-models?model_id=MODEL_ID
+// GET /api/admin-models?id=DATABASE_UUID
+//
+// Jalur ini TIDAK menjalankan loadKiePricing()
+// sehingga halaman Edit Model tidak perlu
+// memuat seluruh data KIE.
+// ========================================
+
+const getSingleModel = async (
+    config,
+    identifier,
+    lookupBy = "model_id"
+) => {
+
+    const value =
+        String(
+            identifier || ""
+        ).trim();
+
+
+    if (!value) {
+
+        throw new Error(
+            "Model ID wajib diisi."
+        );
+
+    }
+
+
+    const filterField =
+        lookupBy === "id"
+            ? "id"
+            : "model_id";
+
+
+    const modelPath =
+        `/rest/v1/models?select=${encodeURIComponent(MODEL_FIELDS.join(","))}&${filterField}=eq.${encodeURIComponent(value)}&limit=1`;
+
+
+    const modelResult =
+        await supabaseRequest(
+
+            config.url,
+
+            modelPath,
+
+            {
+
+                method: "GET",
+
+                headers: {
+
+                    "apikey":
+                        config.serviceRoleKey,
+
+                    "Authorization":
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Accept":
+                        "application/json"
+
+                }
+
+            }
+
+        );
+
+
+    if (
+        !modelResult.response.ok
+    ) {
+
+        console.error(
+            "SINGLE MODEL QUERY ERROR:",
+            modelResult.data
+        );
+
+        throw new Error(
+
+            getSupabaseError(
+
+                modelResult.data,
+
+                "Gagal mengambil data model."
+
+            )
+
+        );
+
+    }
+
+
+    const models =
+        Array.isArray(
+            modelResult.data
+        )
+            ? modelResult.data
+            : [];
+
+
+    if (
+        models.length === 0
+    ) {
+
+        return null;
+
+    }
+
+
+    const model =
+        models[0];
+
+
+    // ====================================
+    // LOAD PROVIDER
+    // ====================================
+
+    let provider = null;
+
+
+    if (
+        model.provider_id
+    ) {
+
+        provider =
+            await getProvider(
+
+                config,
+
+                model.provider_id
+
+            );
+
+    }
+
+
+    // ====================================
+    // MERGE PROVIDER
+    // ====================================
+
+    return {
+
+        ...model,
+
+        provider_name:
+            provider?.provider_name ||
+            null,
+
+        provider_code:
+            provider?.provider_id ||
+            null,
+
+        provider_status:
+            provider?.status ||
+            null,
+
+        provider_is_default:
+            provider?.is_default ??
+            false,
+
+        // KIE pricing tidak dimuat pada
+        // single-model endpoint.
+        //
+        // Ini sengaja agar Edit Model
+        // tidak menunggu seluruh database KIE.
+
+        kie_pricing:
+            [],
+
+        kie_pricing_count:
+            0,
+
+        kie_price:
+            null,
+
+        kie_currency:
+            null,
+
+        kie_billing_unit:
+            null,
+
+        kie_pricing_id:
+            null
+
+    };
+
+};
+
+
+// ========================================
 // LIST MODELS
 // ========================================
 
@@ -2637,14 +2802,6 @@ const createModel = async (
     // ====================================
     // LEGACY PRICING PROTECTION
     // ====================================
-    //
-    // Jangan pernah menyimpan:
-    // - credit_cost
-    // - credit_final
-    //
-    // Pricing database hanya menggunakan
-    // credit_480p / 720p / 1080p + discount.
-    // ====================================
 
     delete model.credit_cost;
     delete model.credit_final;
@@ -2781,11 +2938,6 @@ const updateModel = async (
 
     // ====================================
     // LEGACY PRICING PROTECTION
-    // ====================================
-    //
-    // Field lama tidak pernah diteruskan
-    // ke Supabase walaupun request frontend
-    // masih membawanya.
     // ====================================
 
     delete model.credit_cost;
@@ -3426,6 +3578,243 @@ export default async function handler(
     ) {
 
         try {
+
+            // ====================================
+            // SINGLE MODEL BY MODEL ID
+            // ====================================
+            //
+            // Contoh:
+            //
+            // /api/admin-models?model_id=xxx
+            //
+            // Jalur ini tidak menjalankan
+            // listModels() dan tidak memuat
+            // seluruh KIE pricing.
+            // ====================================
+
+            const requestedModelId =
+                req.query?.model_id;
+
+
+            if (
+                requestedModelId
+            ) {
+
+                const model =
+                    await getSingleModel(
+
+                        config,
+
+                        requestedModelId,
+
+                        "model_id"
+
+                    );
+
+
+                if (
+                    !model
+                ) {
+
+                    return json(
+
+                        res,
+
+                        404,
+
+                        {
+
+                            success: false,
+
+                            error:
+                                "Model tidak ditemukan."
+
+                        }
+
+                    );
+
+                }
+
+
+                const provider =
+                    model.provider_id
+
+                        ? await getProvider(
+
+                            config,
+
+                            model.provider_id
+
+                        )
+
+                        : null;
+
+
+                return json(
+
+                    res,
+
+                    200,
+
+                    {
+
+                        success: true,
+
+                        model,
+
+                        models: [
+
+                            model
+
+                        ],
+
+                        providers:
+                            provider
+                                ? [provider]
+                                : [],
+
+                        kiePricing: [],
+
+                        counts: {
+
+                            models: 1,
+
+                            providers:
+                                provider
+                                    ? 1
+                                    : 0,
+
+                            kiePricing: 0
+
+                        }
+
+                    }
+
+                );
+
+            }
+
+
+            // ====================================
+            // SINGLE MODEL BY DATABASE ID
+            // ====================================
+            //
+            // Contoh:
+            //
+            // /api/admin-models?id=UUID
+            //
+            // ====================================
+
+            const requestedDatabaseId =
+                req.query?.id;
+
+
+            if (
+                requestedDatabaseId
+            ) {
+
+                const model =
+                    await getSingleModel(
+
+                        config,
+
+                        requestedDatabaseId,
+
+                        "id"
+
+                    );
+
+
+                if (
+                    !model
+                ) {
+
+                    return json(
+
+                        res,
+
+                        404,
+
+                        {
+
+                            success: false,
+
+                            error:
+                                "Model tidak ditemukan."
+
+                        }
+
+                    );
+
+                }
+
+
+                const provider =
+                    model.provider_id
+
+                        ? await getProvider(
+
+                            config,
+
+                            model.provider_id
+
+                        )
+
+                        : null;
+
+
+                return json(
+
+                    res,
+
+                    200,
+
+                    {
+
+                        success: true,
+
+                        model,
+
+                        models: [
+
+                            model
+
+                        ],
+
+                        providers:
+                            provider
+                                ? [provider]
+                                : [],
+
+                        kiePricing: [],
+
+                        counts: {
+
+                            models: 1,
+
+                            providers:
+                                provider
+                                    ? 1
+                                    : 0,
+
+                            kiePricing: 0
+
+                        }
+
+                    }
+
+                );
+
+            }
+
+
+            // ====================================
+            // NORMAL LIST MODELS
+            // ====================================
+            //
+            // Perilaku lama tetap dipertahankan
+            // untuk halaman Models Admin.
+            // ====================================
 
             const data =
                 await listModels(
