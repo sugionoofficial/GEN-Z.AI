@@ -26,17 +26,11 @@
    - Delete database operation
    - Provider lifecycle
 
-   Pricing source:
-   - credit_480p
-   - credit_720p
-   - credit_1080p
-   - discount_percent
-
-   Credit Final:
-   - runtime only
-   - tidak disimpan ke database
-   - tidak menggunakan credit_cost
-   - tidak menggunakan credit_final
+   CREATE FORM:
+   - Provider harus kosong saat pertama dibuka
+   - Tidak boleh otomatis memilih GEN-Z.AI
+   - Model ID mengikuti provider yang dipilih
+   - Registry model tetap dapat ditampilkan
    ========================================================= */
 
 (function () {
@@ -52,12 +46,6 @@
         "maintenance"
     ]);
 
-    /*
-     * Compatibility only.
-     *
-     * Capability tidak dibuat dari daftar ini.
-     * Data model tetap menjadi source of truth.
-     */
     const RESOLUTION_ORDER = [
         "480p",
         "720p",
@@ -227,6 +215,7 @@
 
     function getRoot(root) {
         if (
+            typeof Element !== "undefined" &&
             root instanceof Element
         ) {
             return root;
@@ -379,12 +368,6 @@
             "[name='model_description']"
         ],
 
-        /*
-         * Legacy pricing selectors sengaja dipertahankan
-         * hanya sebagai compatibility terhadap DOM lama.
-         *
-         * Tidak dibaca / ditulis sebagai sumber pricing.
-         */
         creditCost: [
             "#creditCost",
             "#credit_cost",
@@ -464,15 +447,134 @@
     };
 
     /* =========================================================
+       PROVIDER HELPERS
+       ========================================================= */
+
+    function getProviderIdentifiers(
+        provider
+    ) {
+        if (
+            !provider ||
+            typeof provider !== "object"
+        ) {
+            return [];
+        }
+
+        return uniqueArray([
+            provider.id,
+            provider.provider_id,
+            provider.providerId,
+            provider.provider_code,
+            provider.providerCode,
+            provider.code
+        ]).map(value =>
+            normalizeText(
+                value
+            ).toLowerCase()
+        );
+    }
+
+    function getProviderName(
+        provider
+    ) {
+        if (
+            !provider ||
+            typeof provider !== "object"
+        ) {
+            return "";
+        }
+
+        return normalizeText(
+            provider.provider_name ??
+            provider.providerName ??
+            provider.name ??
+            provider.display_name ??
+            provider.displayName
+        );
+    }
+
+    function getModelProviderIdentifiers(
+        model
+    ) {
+        if (
+            !model ||
+            typeof model !== "object"
+        ) {
+            return [];
+        }
+
+        const nestedProvider =
+            model.provider &&
+            typeof model.provider === "object"
+                ? model.provider
+                : {};
+
+        return uniqueArray([
+            model.provider_id,
+            model.providerId,
+            model.provider_uuid,
+            model.providerUuid,
+            model.provider_code,
+            model.providerCode,
+
+            nestedProvider.id,
+            nestedProvider.provider_id,
+            nestedProvider.providerId,
+            nestedProvider.provider_code,
+            nestedProvider.providerCode,
+            nestedProvider.code
+        ]).map(value =>
+            normalizeText(
+                value
+            ).toLowerCase()
+        );
+    }
+
+    function providerMatchesModel(
+        model,
+        providerId,
+        provider
+    ) {
+        const targetValues =
+            uniqueArray([
+                providerId,
+                provider?.id,
+                provider?.provider_id,
+                provider?.providerId,
+                provider?.provider_code,
+                provider?.providerCode,
+                provider?.code
+            ]).map(value =>
+                normalizeText(
+                    value
+                ).toLowerCase()
+            ).filter(Boolean);
+
+        if (!targetValues.length) {
+            return true;
+        }
+
+        const modelValues =
+            getModelProviderIdentifiers(
+                model
+            );
+
+        if (!modelValues.length) {
+            return false;
+        }
+
+        return targetValues.some(
+            target =>
+                modelValues.includes(
+                    target
+                )
+        );
+    }
+
+    /* =========================================================
        CREDIT
        ========================================================= */
 
-    /*
-     * Runtime-only discounted credit.
-     *
-     * Tidak menggunakan credit_cost.
-     * Tidak membaca credit_final dari database.
-     */
     function calculateCreditFinal(
         credit,
         discountPercent
@@ -615,10 +717,6 @@
 
     /* =========================================================
        MODEL NORMALIZATION
-       ---------------------------------------------------------
-       Tidak menggunakan normalizeModel() dari
-       models-data.js karena function tersebut bukan
-       public export pada architecture saat ini.
        ========================================================= */
 
     function normalizeFormModel(
@@ -631,6 +729,12 @@
             return null;
         }
 
+        const nestedProvider =
+            model.provider &&
+            typeof model.provider === "object"
+                ? model.provider
+                : {};
+
         const discountPercent =
             normalizeNumber(
                 model.discount_percent ??
@@ -638,16 +742,6 @@
                 0
             );
 
-        /*
-         * Pricing hanya menggunakan:
-         * - credit_480p
-         * - credit_720p
-         * - credit_1080p
-         * - discount_percent
-         *
-         * Tidak ada fallback ke credit_cost
-         * atau credit_final.
-         */
         const credit480p =
             readCreditField(
                 model,
@@ -675,13 +769,15 @@
         const supportedRatios =
             uniqueArray(
                 model.supported_ratios ??
-                model.supportedRatios
+                model.supportedRatios ??
+                model.ratios
             );
 
         const supportedResolutions =
             uniqueArray(
                 model.supported_resolutions ??
-                model.supportedResolutions
+                model.supportedResolutions ??
+                model.resolutions
             );
 
         const minDuration =
@@ -707,37 +803,53 @@
             provider_id:
                 normalizeId(
                     model.provider_id ??
-                    model.providerId
+                    model.providerId ??
+                    model.provider_uuid ??
+                    model.providerUuid ??
+                    nestedProvider.id ??
+                    nestedProvider.provider_id ??
+                    nestedProvider.providerId
                 ),
 
             provider_name:
                 normalizeText(
                     model.provider_name ??
-                    model.providerName
+                    model.providerName ??
+                    nestedProvider.provider_name ??
+                    nestedProvider.providerName ??
+                    nestedProvider.name
                 ),
 
             provider_code:
                 normalizeText(
                     model.provider_code ??
-                    model.providerCode
+                    model.providerCode ??
+                    nestedProvider.provider_id ??
+                    nestedProvider.providerId ??
+                    nestedProvider.provider_code ??
+                    nestedProvider.providerCode ??
+                    nestedProvider.code
                 ),
 
             model_id:
                 normalizeText(
                     model.model_id ??
-                    model.modelId
+                    model.modelId ??
+                    model.code
                 ),
 
             model_name:
                 normalizeText(
                     model.model_name ??
-                    model.modelName
+                    model.modelName ??
+                    model.name
                 ),
 
             model_family:
                 normalizeText(
                     model.model_family ??
-                    model.modelFamily
+                    model.modelFamily ??
+                    model.family
                 ),
 
             description:
@@ -786,15 +898,20 @@
                     model.kie_price ??
                     model.kiePrice,
                     0
-                )
+                ),
+
+            /*
+             * Preserve original registry object metadata.
+             * Tidak digunakan sebagai database source.
+             */
+            provider:
+                model.provider ||
+                null
         };
     }
 
     /* =========================================================
        PROVIDER LOOKUP
-       ---------------------------------------------------------
-       Synchronous lookup terhadap array provider
-       yang sudah diberikan oleh Models lifecycle.
        ========================================================= */
 
     function resolveProvider(
@@ -809,72 +926,20 @@
         const target =
             normalizeId(
                 providerId
-            );
+            ).toLowerCase();
 
         if (!target) {
             return null;
         }
 
-        /*
-         * Primary relation:
-         * models.provider_id -> providers.id
-         */
-        const byId =
-            list.find(provider => {
-                return (
-                    normalizeId(
-                        provider?.id
-                    ) === target
-                );
-            });
-
-        if (byId) {
-            return byId;
-        }
-
-        /*
-         * Compatibility provider_id
-         */
-        const byProviderId =
-            list.find(provider => {
-                return (
-                    normalizeId(
-                        provider?.provider_id
-                    ) === target
-                );
-            });
-
-        if (byProviderId) {
-            return byProviderId;
-        }
-
-        /*
-         * Compatibility code
-         */
-        const byCode =
-            list.find(provider => {
-                return (
-                    normalizeId(
-                        provider?.code
-                    ) === target
-                );
-            });
-
-        if (byCode) {
-            return byCode;
-        }
-
-        const byProviderCode =
-            list.find(provider => {
-                return (
-                    normalizeId(
-                        provider?.provider_code
-                    ) === target
-                );
-            });
-
         return (
-            byProviderCode ||
+            list.find(provider => {
+                return getProviderIdentifiers(
+                    provider
+                ).includes(
+                    target
+                );
+            }) ||
             null
         );
     }
@@ -906,7 +971,8 @@
                 const id =
                     normalizeId(
                         model?.model_id ??
-                        model?.modelId
+                        model?.modelId ??
+                        model?.code
                     ).toLowerCase();
 
                 return (
@@ -922,140 +988,194 @@
        ========================================================= */
 
     function updateProviderOptions(
-    root,
-    providers,
-    selectedProviderId = ""
-) {
-    const select =
-        queryFirst(
-            root,
-            FIELD.provider
-        );
-
-    if (
-        !select ||
-        select.tagName !==
-            "SELECT"
+        root,
+        providers,
+        selectedProviderId = "",
+        options = {}
     ) {
-        return false;
-    }
-
-    const selected =
-        normalizeId(
-            selectedProviderId
-        );
-
-    const fragment =
-        document.createDocumentFragment();
-
-    const placeholder =
-        document.createElement(
-            "option"
-        );
-
-    placeholder.value = "";
-    placeholder.textContent =
-        "Pilih provider...";
-
-    fragment.appendChild(
-        placeholder
-    );
-
-    const list =
-        Array.isArray(providers)
-            ? providers
-            : [];
-
-    list.forEach(provider => {
-
-        const id =
-            normalizeId(
-                provider?.id
+        const select =
+            queryFirst(
+                root,
+                FIELD.provider
             );
 
-        if (!id) {
-            return;
+        if (
+            !select ||
+            select.tagName !==
+                "SELECT"
+        ) {
+            return false;
         }
 
-        const providerCode =
-            normalizeText(
-                provider?.provider_id ??
-                provider?.providerId ??
-                provider?.provider_code ??
-                provider?.providerCode ??
-                provider?.code
+        /*
+         * CREATE:
+         *
+         * Jangan otomatis memilih provider.
+         *
+         * Ini penting agar GEN-Z.AI lama dari DOM /
+         * browser state tidak terpilih lagi.
+         */
+        const isCreate =
+            options.mode === "create" ||
+            options.create === true;
+
+        const explicitSelected =
+            normalizeId(
+                selectedProviderId
             );
 
-        const providerName =
-            normalizeText(
-                provider?.provider_name ??
-                provider?.providerName ??
-                provider?.name ??
-                providerCode ??
-                id
-            );
+        const selected =
+            isCreate
+                ? explicitSelected
+                : explicitSelected;
 
-        const option =
+        const fragment =
+            document.createDocumentFragment();
+
+        const placeholder =
             document.createElement(
                 "option"
             );
 
-        /*
-         * PRIMARY VALUE
-         *
-         * models.provider_id
-         * ->
-         * providers.id
-         */
-        option.value =
-            id;
+        placeholder.value = "";
+        placeholder.textContent =
+            "Pilih provider...";
+        placeholder.disabled = false;
 
         /*
-         * Metadata provider.
-         *
-         * provider_id:
-         *   kie_ai
-         *
-         * provider_uuid:
-         *   providers.id
-         *
-         * provider_name:
-         *   GEN-Z.AI
+         * CREATE harus mulai dari placeholder.
          */
-        option.dataset.providerUuid =
-            id;
-
-        option.dataset.providerId =
-            providerCode;
-
-        option.dataset.providerCode =
-            providerCode;
-
-        option.dataset.providerName =
-            providerName;
-
-        option.textContent =
-            providerName;
-
-        if (
-            id === selected
-        ) {
-            option.selected =
-                true;
-        }
+        placeholder.selected =
+            !selected;
 
         fragment.appendChild(
-            option
+            placeholder
         );
 
-    });
+        const list =
+            Array.isArray(providers)
+                ? providers
+                : [];
 
-    select.replaceChildren(
-        fragment
-    );
+        const used =
+            new Set();
 
-    return true;
-}
+        list.forEach(provider => {
+
+            const identifiers =
+                getProviderIdentifiers(
+                    provider
+                );
+
+            /*
+             * Value database:
+             *
+             * provider.id diprioritaskan.
+             *
+             * Jangan mengganti UUID database
+             * dengan provider code.
+             */
+            const id =
+                normalizeId(
+                    provider?.id ??
+                    provider?.uuid
+                );
+
+            /*
+             * Provider tanpa id database
+             * tidak boleh dibuat menjadi data palsu.
+             */
+            if (!id) {
+                return;
+            }
+
+            if (
+                used.has(id)
+            ) {
+                return;
+            }
+
+            used.add(id);
+
+            const providerCode =
+                normalizeText(
+                    provider?.provider_id ??
+                    provider?.providerId ??
+                    provider?.provider_code ??
+                    provider?.providerCode ??
+                    provider?.code
+                );
+
+            const providerName =
+                getProviderName(
+                    provider
+                ) ||
+                providerCode ||
+                id;
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                id;
+
+            option.dataset.providerUuid =
+                id;
+
+            option.dataset.providerId =
+                providerCode;
+
+            option.dataset.providerCode =
+                providerCode;
+
+            option.dataset.providerName =
+                providerName;
+
+            option.textContent =
+                providerName;
+
+            /*
+             * Hanya pilih provider jika benar-benar
+             * dikirim oleh caller.
+             */
+            if (
+                selected &&
+                (
+                    id === selected ||
+                    identifiers.includes(
+                        selected.toLowerCase()
+                    )
+                )
+            ) {
+                option.selected =
+                    true;
+            }
+
+            fragment.appendChild(
+                option
+            );
+        });
+
+        select.replaceChildren(
+            fragment
+        );
+
+        /*
+         * Pastikan CREATE tidak kembali ke provider
+         * lama walaupun browser mempertahankan state.
+         */
+        if (
+            isCreate &&
+            !selected
+        ) {
+            select.value = "";
+            select.selectedIndex = 0;
+        }
+
+        return true;
+    }
 
     function updateProviderStatus(
         root,
@@ -1080,10 +1200,6 @@
                 providerField.value
             );
 
-        /*
-         * Hanya update UI state.
-         * Tidak menulis field database lain.
-         */
         const statusElement =
             queryFirst(
                 form,
@@ -1118,264 +1234,254 @@
        ========================================================= */
 
     function updateModelIdOptions(
-    root,
-    models,
-    providerId = null
-) {
-    const field =
-        queryFirst(
-            root,
-            FIELD.modelId
-        );
-
-    if (!field) {
-        return false;
-    }
-
-    let datalist = null;
-
-    if (
-        field.getAttribute(
-            "list"
-        )
+        root,
+        models,
+        providerId = null
     ) {
-        datalist =
-            document.getElementById(
-                field.getAttribute(
-                    "list"
-                )
-            );
-    }
-
-    if (!datalist) {
-        datalist =
+        const field =
             queryFirst(
-                getRoot(root),
-                [
-                    "#modelIdList",
-                    "#model-id-list",
-                    "datalist[data-model-id-list]"
+                root,
+                FIELD.modelId
+            );
+
+        if (!field) {
+            return false;
+        }
+
+        let datalist = null;
+
+        if (
+            field.getAttribute(
+                "list"
+            )
+        ) {
+            datalist =
+                document.getElementById(
+                    field.getAttribute(
+                        "list"
+                    )
+                );
+        }
+
+        if (!datalist) {
+            datalist =
+                queryFirst(
+                    getRoot(root),
+                    [
+                        "#modelIdList",
+                        "#model-id-list",
+                        "datalist[data-model-id-list]"
+                    ]
+                );
+        }
+
+        if (!datalist) {
+            return false;
+        }
+
+        const form =
+            getRoot(root);
+
+        const providerField =
+            queryFirst(
+                form,
+                FIELD.provider
+            );
+
+        const selectedOption =
+            providerField &&
+            providerField.selectedIndex >= 0
+                ? providerField.options[
+                    providerField.selectedIndex
                 ]
+                : null;
+
+        const providerTarget =
+            normalizeId(
+                providerId ??
+                providerField?.value ??
+                ""
             );
-    }
 
-    if (!datalist) {
-        return false;
-    }
+        const selectedProvider =
+            resolveProvider(
+                window.__GENZ_MODEL_FORM_PROVIDERS__ ||
+                [],
+                providerTarget
+            );
 
-    const form =
-        getRoot(root);
-
-    const providerField =
-        queryFirst(
-            form,
-            FIELD.provider
-        );
-
-    const selectedOption =
-        providerField &&
-        providerField.selectedIndex >= 0
-            ? providerField.options[
-                providerField.selectedIndex
-            ]
-            : null;
-
-    /*
-     * =================================================
-     * SELECTED PROVIDER
-     * =================================================
-     */
-
-    const providerTarget =
-        normalizeId(
-            providerId ??
-            providerField?.value ??
-            ""
-        );
-
-    const providerCode =
-        normalizeText(
-            selectedOption?.dataset?.providerId ??
-            selectedOption?.dataset?.providerCode ??
-            ""
-        ).toLowerCase();
-
-    const providerUuid =
-        normalizeText(
-            selectedOption?.dataset?.providerUuid ??
-            providerTarget ??
-            ""
-        ).toLowerCase();
-
-    const list =
-        Array.isArray(models)
-            ? models
-            : [];
-
-    /*
-     * =================================================
-     * PROVIDER FILTER
-     * =================================================
-     *
-     * Model dapat terhubung melalui:
-     *
-     * 1. models.provider_id
-     * 2. models.provider_uuid
-     * 3. models.provider_code
-     * 4. models.provider.provider_id
-     * 5. models.provider.id
-     *
-     * Ini penting untuk registry Seedance.
-     */
-
-    const filtered =
-        providerTarget
-            ? list.filter(model => {
-
-                const modelProviderId =
-                    normalizeText(
-                        model?.provider_id ??
-                        model?.providerId ??
-                        ""
-                    ).toLowerCase();
-
-                const modelProviderUuid =
-                    normalizeText(
-                        model?.provider_uuid ??
-                        model?.providerUuid ??
-                        model?.provider?.id ??
-                        ""
-                    ).toLowerCase();
-
-                const modelProviderCode =
-                    normalizeText(
-                        model?.provider_code ??
-                        model?.providerCode ??
-                        model?.provider?.provider_id ??
-                        model?.provider?.providerId ??
-                        model?.provider?.provider_code ??
-                        model?.provider?.providerCode ??
-                        ""
-                    ).toLowerCase();
-
-                /*
-                 * Primary:
-                 *
-                 * models.provider_id
-                 * =
-                 * providers.id
-                 */
-                if (
-                    providerUuid &&
-                    (
-                        modelProviderId ===
-                            providerUuid ||
-                        modelProviderUuid ===
-                            providerUuid
-                    )
-                ) {
-                    return true;
-                }
-
-                /*
-                 * Registry:
-                 *
-                 * provider_code
-                 * =
-                 * providers.provider_id
-                 */
-                if (
-                    providerCode &&
-                    modelProviderCode ===
-                        providerCode
-                ) {
-                    return true;
-                }
-
-                /*
-                 * Compatibility:
-                 * providerTarget dapat berupa
-                 * provider UUID atau provider code.
-                 */
-                if (
-                    providerTarget &&
-                    (
-                        modelProviderId ===
-                            providerTarget.toLowerCase() ||
-                        modelProviderUuid ===
-                            providerTarget.toLowerCase() ||
-                        modelProviderCode ===
-                            providerTarget.toLowerCase()
-                    )
-                ) {
-                    return true;
-                }
-
-                return false;
-
-            })
-            : list;
-
-    /*
-     * =================================================
-     * RENDER MODEL ID
-     * =================================================
-     */
-
-    datalist.replaceChildren();
-
-    filtered.forEach(model => {
-
-        const modelId =
+        const providerCode =
             normalizeText(
-                model?.model_id ??
-                model?.modelId
-            );
+                selectedOption?.dataset?.providerId ??
+                selectedOption?.dataset?.providerCode ??
+                selectedProvider?.provider_id ??
+                selectedProvider?.providerId ??
+                selectedProvider?.provider_code ??
+                selectedProvider?.providerCode ??
+                selectedProvider?.code ??
+                ""
+            ).toLowerCase();
 
-        if (!modelId) {
-            return;
-        }
-
-        const option =
-            document.createElement(
-                "option"
-            );
-
-        option.value =
-            modelId;
-
-        const modelName =
+        const providerUuid =
             normalizeText(
-                model?.model_name ??
-                model?.modelName ??
-                model?.name
-            );
+                selectedOption?.dataset?.providerUuid ??
+                providerTarget ??
+                ""
+            ).toLowerCase();
 
-        if (modelName) {
-            option.label =
-                modelName;
-        }
+        const list =
+            Array.isArray(models)
+                ? models
+                : [];
 
         /*
-         * Simpan metadata untuk debugging
-         * dan selection berikutnya.
+         * =====================================================
+         * IMPORTANT
+         * =====================================================
+         *
+         * Jika provider belum dipilih:
+         *
+         * tampilkan SEMUA model yang tersedia.
+         *
+         * Dengan begitu Seedance tidak hilang hanya karena
+         * form baru dibuka.
          */
-        option.dataset.modelId =
-            modelId;
+        const filtered =
+            providerTarget
+                ? list.filter(model => {
 
-        if (modelName) {
-            option.dataset.modelName =
-                modelName;
-        }
+                    const modelValues =
+                        getModelProviderIdentifiers(
+                            model
+                        );
 
-        datalist.appendChild(
-            option
-        );
+                    /*
+                     * UUID / database id
+                     */
+                    if (
+                        providerUuid &&
+                        modelValues.includes(
+                            providerUuid
+                        )
+                    ) {
+                        return true;
+                    }
 
-    });
+                    /*
+                     * provider_id / code
+                     *
+                     * Contoh:
+                     * kie_ai
+                     */
+                    if (
+                        providerCode &&
+                        modelValues.includes(
+                            providerCode
+                        )
+                    ) {
+                        return true;
+                    }
 
-    return true;
-}
+                    /*
+                     * providerTarget langsung
+                     */
+                    if (
+                        providerTarget &&
+                        modelValues.includes(
+                            providerTarget.toLowerCase()
+                        )
+                    ) {
+                        return true;
+                    }
+
+                    return false;
+
+                })
+                : list;
+
+        datalist.replaceChildren();
+
+        const usedModelIds =
+            new Set();
+
+        filtered.forEach(model => {
+
+            const normalized =
+                normalizeFormModel(
+                    model
+                );
+
+            if (!normalized) {
+                return;
+            }
+
+            const modelId =
+                normalizeText(
+                    normalized.model_id
+                );
+
+            if (!modelId) {
+                return;
+            }
+
+            const key =
+                modelId.toLowerCase();
+
+            if (
+                usedModelIds.has(key)
+            ) {
+                return;
+            }
+
+            usedModelIds.add(key);
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                modelId;
+
+            const modelName =
+                normalizeText(
+                    normalized.model_name
+                );
+
+            if (modelName) {
+                option.label =
+                    modelName;
+            }
+
+            option.dataset.modelId =
+                modelId;
+
+            if (modelName) {
+                option.dataset.modelName =
+                    modelName;
+            }
+
+            if (
+                normalized.provider_code
+            ) {
+                option.dataset.providerCode =
+                    normalized.provider_code;
+            }
+
+            if (
+                normalized.provider_name
+            ) {
+                option.dataset.providerName =
+                    normalized.provider_name;
+            }
+
+            datalist.appendChild(
+                option
+            );
+        });
+
+        return true;
+    }
 
     /* =========================================================
        CHECKBOX HELPERS
@@ -1486,6 +1592,7 @@
         root
     ) {
         const ratios = [];
+        const resolutions = [];
 
         getRatioCheckboxes(
             root
@@ -1504,8 +1611,6 @@
                 ratios.push(value);
             }
         });
-
-        const resolutions = [];
 
         getResolutionCheckboxes(
             root
@@ -1691,16 +1796,6 @@
         providers = [],
         options = {}
     ) {
-        /*
-         * Compatibility signature:
-         *
-         * renderModelForm(
-         *   root,
-         *   model,
-         *   providers,
-         *   options
-         * )
-         */
         const form =
             getRoot(root);
 
@@ -1708,36 +1803,65 @@
             return null;
         }
 
+        /*
+         * Simpan provider list agar updateModelIdOptions()
+         * dapat melakukan resolusi code <-> UUID.
+         */
+        window.__GENZ_MODEL_FORM_PROVIDERS__ =
+            Array.isArray(providers)
+                ? providers
+                : [];
+
         const data =
             normalizeFormModel(
                 model
             );
 
-        const providerId =
-            normalizeId(
-                data?.provider_id
-            );
-
         /*
-         * Provider select.
+         * EDIT:
+         * gunakan provider milik model.
+         *
+         * CREATE:
+         * provider HARUS kosong kecuali caller memang
+         * secara eksplisit mengirim provider.
          */
+        let providerId = "";
+
+        const isCreate =
+            options.mode === "create" ||
+            options.create === true;
+
+        if (!isCreate) {
+            providerId =
+                normalizeId(
+                    data?.provider_id
+                );
+        } else {
+            providerId =
+                normalizeId(
+                    options.providerId ??
+                    options.provider_id ??
+                    options.selectedProviderId ??
+                    ""
+                );
+        }
+
         updateProviderOptions(
             form,
             providers,
-            providerId
+            providerId,
+            options
         );
 
-        /*
-         * Provider status.
-         */
         updateProviderStatus(
             form,
             providers
         );
 
-        /*
-         * Model identity.
-         */
+        /* =====================================================
+           MODEL ID
+           ===================================================== */
+
         setValue(
             form,
             FIELD.modelId,
@@ -1756,14 +1880,10 @@
             data?.description || ""
         );
 
-        /*
-         * Credits.
-         *
-         * Hanya credit per resolution dan discount.
-         *
-         * credit_cost dan credit_final tidak lagi
-         * menjadi bagian dari state pricing.
-         */
+        /* =====================================================
+           CREDIT
+           ===================================================== */
+
         setValue(
             form,
             FIELD.discountPercent,
@@ -1796,12 +1916,6 @@
                 : ""
         );
 
-        /*
-         * Legacy DOM fields tidak digunakan.
-         *
-         * Jika masih ada di HTML lama, kosongkan agar
-         * tidak ikut membawa nilai pricing lama.
-         */
         setValue(
             form,
             FIELD.creditCost,
@@ -1814,9 +1928,10 @@
             ""
         );
 
-        /*
-         * Duration.
-         */
+        /* =====================================================
+           DURATION
+           ===================================================== */
+
         setValue(
             form,
             FIELD.minDuration,
@@ -1833,9 +1948,10 @@
                 : ""
         );
 
-        /*
-         * Status.
-         */
+        /* =====================================================
+           STATUS
+           ===================================================== */
+
         setValue(
             form,
             FIELD.status,
@@ -1844,11 +1960,10 @@
                 : "inactive"
         );
 
-        /*
-         * Capability.
-         *
-         * Tidak membuat capability baru.
-         */
+        /* =====================================================
+           CAPABILITIES
+           ===================================================== */
+
         setCapabilityCheckboxes(
             form,
             data
@@ -1869,30 +1984,53 @@
                 : []
         );
 
-        /*
-         * Datalist.
-         */
+        /* =====================================================
+           MODEL ID CATALOG
+           ===================================================== */
+
         updateModelIdOptions(
             form,
             options.models || [],
             providerId
         );
 
-        /*
-         * Respect edit mode locking.
-         */
-        if (
-            options.mode === "edit" ||
-            options.edit === true
-        ) {
-            lockIdentityFields(
-                form,
-                true
-            );
-        } else {
+        /* =====================================================
+           CREATE FORM RESET
+           ===================================================== */
+
+        if (isCreate) {
+
+            /*
+             * Jangan biarkan provider lama dari DOM.
+             */
+            if (!providerId) {
+                const providerField =
+                    queryFirst(
+                        form,
+                        FIELD.provider
+                    );
+
+                if (providerField) {
+                    providerField.value =
+                        "";
+                    providerField.selectedIndex =
+                        0;
+                }
+            }
+
+            /*
+             * Create tidak boleh mengunci identity.
+             */
             lockIdentityFields(
                 form,
                 false
+            );
+
+        } else {
+
+            lockIdentityFields(
+                form,
+                true
             );
         }
 
@@ -1969,12 +2107,6 @@
             );
 
         if (!selected) {
-            /*
-             * Search module mungkin sedang memiliki
-             * hasil yang belum masuk currentModels.
-             *
-             * Jangan mengosongkan form secara agresif.
-             */
             return null;
         }
 
@@ -1984,9 +2116,51 @@
             );
 
         /*
-         * Hanya sinkronisasi field yang memang
-         * dimiliki Layout.
+         * Jika model ditemukan dari provider tertentu,
+         * sinkronkan provider hanya jika provider field
+         * masih kosong.
+         *
+         * Jangan mengubah provider secara paksa.
          */
+        const providerField =
+            queryFirst(
+                form,
+                FIELD.provider
+            );
+
+        if (
+            providerField &&
+            !providerField.value
+        ) {
+            const providerTarget =
+                data.provider_id ||
+                data.provider_code;
+
+            const providers =
+                window.__GENZ_MODEL_FORM_PROVIDERS__ ||
+                [];
+
+            const provider =
+                resolveProvider(
+                    providers,
+                    providerTarget
+                );
+
+            if (provider?.id) {
+                providerField.value =
+                    provider.id;
+
+                providerField.dispatchEvent(
+                    new Event(
+                        "change",
+                        {
+                            bubbles: true
+                        }
+                    )
+                );
+            }
+        }
+
         setValue(
             form,
             FIELD.modelName,
@@ -2023,9 +2197,6 @@
             data.credit_1080p
         );
 
-        /*
-         * Bersihkan field legacy bila masih ada.
-         */
         setValue(
             form,
             FIELD.creditCost,
@@ -2096,18 +2267,17 @@
                 )
             );
 
-        /*
-         * Update model datalist berdasarkan provider.
-         */
+        window.__GENZ_MODEL_FORM_PROVIDERS__ =
+            Array.isArray(providers)
+                ? providers
+                : [];
+
         updateModelIdOptions(
             form,
             models,
             providerId
         );
 
-        /*
-         * Jangan query provider di sini.
-         */
         updateProviderStatus(
             form,
             providers
@@ -2122,38 +2292,45 @@
                 )
             );
 
-        if (!currentModelId) {
-            return null;
-        }
-
-        const currentModel =
-            findModel(
-                models,
-                currentModelId
-            );
-
-        if (!currentModel) {
-            return null;
-        }
-
-        const currentProviderId =
-            normalizeId(
-                currentModel.provider_id ??
-                currentModel.providerId
-            );
-
         /*
-         * Model lama berasal dari provider lain.
-         * Bersihkan field dependent.
+         * Provider baru dipilih.
+         *
+         * Jika model lama bukan bagian dari provider baru,
+         * bersihkan field model.
          */
-        if (
-            currentProviderId &&
-            currentProviderId !==
-                providerId
-        ) {
-            clearDependentModelFields(
-                form
-            );
+        if (currentModelId) {
+
+            const currentModel =
+                findModel(
+                    models,
+                    currentModelId
+                );
+
+            if (!currentModel) {
+                clearDependentModelFields(
+                    form
+                );
+
+                return providerId;
+            }
+
+            const provider =
+                resolveProvider(
+                    providers,
+                    providerId
+                );
+
+            if (
+                !providerMatchesModel(
+                    currentModel,
+                    providerId,
+                    provider
+                )
+            ) {
+                clearDependentModelFields(
+                    form
+                );
+            }
         }
 
         return providerId;
@@ -2180,9 +2357,6 @@
             ""
         );
 
-        /*
-         * Legacy pricing field tidak lagi digunakan.
-         */
         setValue(
             root,
             FIELD.creditCost,
@@ -2312,12 +2486,6 @@
                 discount
             );
 
-        /*
-         * Jika UI mempunyai preview khusus per resolution,
-         * sinkronkan runtime value.
-         *
-         * Field-field ini bukan database fields.
-         */
         const previewSelectors = {
             "480p": [
                 "#creditFinal480p",
@@ -2359,12 +2527,6 @@
             final1080p
         );
 
-        /*
-         * Legacy single Credit Final tidak lagi
-         * menjadi bagian dari pricing state.
-         *
-         * Kosongkan bila elemen lama masih ada.
-         */
         setValue(
             form,
             FIELD.creditFinal,
@@ -2403,10 +2565,6 @@
                 form
             );
 
-        /*
-         * Checkbox menjadi prioritas.
-         * Select hanya fallback.
-         */
         const supportedRatios =
             checkboxData
                 .supported_ratios.length
@@ -2423,12 +2581,6 @@
                 : selectData
                     .supported_resolutions;
 
-        /*
-         * Hanya kirim field pricing yang memang
-         * menjadi source of truth.
-         *
-         * Credit Final TIDAK dikirim.
-         */
         return {
             provider_id:
                 normalizeId(
@@ -2567,13 +2719,6 @@
                 0
             );
 
-        /*
-         * Resolution credits:
-         * preserve explicit values including 0.
-         *
-         * Tidak ada fallback ke credit_cost
-         * atau credit_final.
-         */
         const credit480p =
             readCreditField(
                 source,
@@ -2853,16 +2998,24 @@
                 .filter(Boolean);
         }
 
+        const providers =
+            window.__GENZ_MODEL_FORM_PROVIDERS__ ||
+            [];
+
+        const provider =
+            resolveProvider(
+                providers,
+                target
+            );
+
         return list
-            .filter(model => {
-                return (
-                    normalizeId(
-                        model?.provider_id ??
-                        model?.providerId
-                    ) ===
-                    target
-                );
-            })
+            .filter(model =>
+                providerMatchesModel(
+                    model,
+                    target,
+                    provider
+                )
+            )
             .map(
                 normalizeFormModel
             )
@@ -2871,15 +3024,17 @@
 
     /* =========================================================
        LOAD FORM DATA
-       ---------------------------------------------------------
-       Tidak melakukan query langsung.
-       models/providers diberikan dari Models lifecycle.
        ========================================================= */
 
     function loadModelFormData(
         providers = [],
         models = []
     ) {
+        window.__GENZ_MODEL_FORM_PROVIDERS__ =
+            Array.isArray(providers)
+                ? providers
+                : [];
+
         const normalizedModels =
             Array.isArray(models)
                 ? models
@@ -2931,7 +3086,8 @@
         const provider =
             resolveProvider(
                 providers,
-                normalized.provider_id
+                normalized.provider_id ||
+                normalized.provider_code
             );
 
         const data =
@@ -2977,8 +3133,31 @@
             return false;
         }
 
+        window.__GENZ_MODEL_FORM_PROVIDERS__ =
+            Array.isArray(providers)
+                ? providers
+                : [];
+
+        /*
+         * Simpan referensi array yang dapat diperbarui.
+         *
+         * Ini mencegah event handler memakai katalog model
+         * lama ketika registry/model list telah diperbarui.
+         */
+        form.__GENZ_MODEL_FORM_MODELS__ =
+            Array.isArray(models)
+                ? models
+                : [];
+
+        form.__GENZ_MODEL_FORM_PROVIDERS__ =
+            Array.isArray(providers)
+                ? providers
+                : [];
+
         /*
          * Jangan attach duplicate listeners.
+         *
+         * Tetapi referensi data tetap diperbarui di atas.
          */
         if (
             form.dataset
@@ -3028,10 +3207,19 @@
             providerField.addEventListener(
                 "change",
                 () => {
+
+                    const currentModels =
+                        form.__GENZ_MODEL_FORM_MODELS__ ||
+                        [];
+
+                    const currentProviders =
+                        form.__GENZ_MODEL_FORM_PROVIDERS__ ||
+                        [];
+
                     handleProviderChange(
                         form,
-                        models,
-                        providers
+                        currentModels,
+                        currentProviders
                     );
                 }
             );
@@ -3041,20 +3229,53 @@
             modelField.addEventListener(
                 "change",
                 () => {
+
+                    const currentModels =
+                        form.__GENZ_MODEL_FORM_MODELS__ ||
+                        [];
+
                     updateSelectedModelFields(
                         form,
-                        models,
+                        currentModels,
                         options
                     );
                 }
             );
+
+            modelField.addEventListener(
+                "input",
+                () => {
+
+                    const currentModels =
+                        form.__GENZ_MODEL_FORM_MODELS__ ||
+                        [];
+
+                    const modelId =
+                        normalizeId(
+                            modelField.value
+                        );
+
+                    if (!modelId) {
+                        return;
+                    }
+
+                    const selected =
+                        findModel(
+                            currentModels,
+                            modelId
+                        );
+
+                    if (selected) {
+                        updateSelectedModelFields(
+                            form,
+                            currentModels,
+                            options
+                        );
+                    }
+                }
+            );
         }
 
-        /*
-         * Credit final adalah runtime preview.
-         * Setiap perubahan base credit atau discount
-         * langsung menghitung ulang ketiga resolusi.
-         */
         [
             discountField,
             credit480pField,
@@ -3063,6 +3284,7 @@
         ]
             .filter(Boolean)
             .forEach(field => {
+
                 field.addEventListener(
                     "input",
                     () => {
@@ -3145,10 +3367,6 @@
 
 /* =========================================================
    ES MODULE EXPORTS
-   ---------------------------------------------------------
-   Compatibility:
-   - API global GENZModelFormLayout tetap dipertahankan
-   - Named exports disediakan untuk model-form-edit.js
    ========================================================= */
 
 const MODEL_FORM_LAYOUT_API =
