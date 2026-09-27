@@ -6,18 +6,14 @@
  * MODEL EDIT RENDER
  *
  * Tanggung jawab:
- * - Menampilkan data model ke halaman
- * - Mengisi hero model
- * - Mengisi field form
- * - Menampilkan status
- * - Menampilkan parameter
- * - Menampilkan pricing
+ * - Render identitas model
+ * - Render status
+ * - Render parameter teknis
+ * - Render credit
+ * - Render pricing preview
+ * - Render loading / alert
  *
- * Tidak melakukan:
- * - API request
- * - Save
- * - Load model
- * - Event binding
+ * Tidak melakukan API request.
  * ============================================================
  */
 
@@ -27,7 +23,7 @@ import {
 
 
 /* ============================================================
-   SAFE VALUE
+   VALUE HELPERS
 ============================================================ */
 
 function valueOrEmpty(value) {
@@ -44,18 +40,14 @@ function valueOrEmpty(value) {
 }
 
 
-/* ============================================================
-   NUMBER FORMAT
-============================================================ */
-
-function formatNumber(
+function numberValue(
     value,
-    fallback = "0"
+    fallback = 0
 ) {
 
     if (
-        value === undefined ||
         value === null ||
+        value === undefined ||
         value === ""
     ) {
 
@@ -67,90 +59,186 @@ function formatNumber(
         Number(value);
 
 
+    return Number.isFinite(number)
+        ? number
+        : fallback;
+}
+
+
+function nullableNumber(
+    value
+) {
+
     if (
-        !Number.isFinite(number)
+        value === null ||
+        value === undefined ||
+        value === ""
     ) {
 
-        return fallback;
+        return null;
     }
 
 
-    return number.toLocaleString(
-        "id-ID"
-    );
+    const number =
+        Number(value);
+
+
+    return Number.isFinite(number)
+        ? number
+        : null;
 }
 
 
 /* ============================================================
-   CURRENCY FORMAT
+   ARRAY NORMALIZATION
 ============================================================ */
 
-function formatCurrency(
-    value,
-    currency = "IDR"
+function normalizeArray(
+    value
 ) {
 
     if (
-        value === undefined ||
-        value === null ||
-        value === ""
+        Array.isArray(value)
     ) {
 
-        return "-";
+        return value;
     }
-
-
-    const number =
-        Number(value);
 
 
     if (
-        !Number.isFinite(number)
+        typeof value === "string"
     ) {
 
-        return "-";
-    }
+        try {
+
+            const parsed =
+                JSON.parse(value);
 
 
-    return new Intl.NumberFormat(
-        "id-ID",
-        {
-            style: "currency",
-            currency,
-            maximumFractionDigits: 0
+            if (
+                Array.isArray(parsed)
+            ) {
+
+                return parsed;
+            }
+
+        } catch (_) {
+            /* fallback */
         }
-    ).format(number);
+
+
+        return value
+            .split(",")
+            .map(
+                item =>
+                    item.trim()
+            )
+            .filter(Boolean);
+    }
+
+
+    return [];
 }
 
 
 /* ============================================================
-   NORMALIZE STATUS
+   PARAMETER HELPERS
 ============================================================ */
 
-function isModelActive(
-    model
+function getParameterDefinition(
+    model,
+    parameterName
 ) {
 
-    const status =
-        String(
-            model?.status ||
-            ""
-        )
-        .trim()
-        .toLowerCase();
+    const parameters =
+        model?.parameters;
+
+
+    if (
+        !Array.isArray(parameters)
+    ) {
+
+        return null;
+    }
 
 
     return (
-        status === "active" ||
-        status === "aktif" ||
-        status === "enabled" ||
-        status === "true"
+        parameters.find(
+            parameter =>
+                parameter &&
+                parameter.name ===
+                    parameterName
+        ) ||
+        null
     );
 }
 
 
+function getParameterValues(
+    model,
+    parameterName
+) {
+
+    const definition =
+        getParameterDefinition(
+            model,
+            parameterName
+        );
+
+
+    if (!definition) {
+
+        return [];
+    }
+
+
+    if (
+        Array.isArray(
+            definition.enum
+        )
+    ) {
+
+        return definition.enum;
+    }
+
+
+    if (
+        Array.isArray(
+            definition.options
+        )
+    ) {
+
+        return definition.options;
+    }
+
+
+    return [];
+}
+
+
+function getParameterDefault(
+    model,
+    parameterName
+) {
+
+    const definition =
+        getParameterDefinition(
+            model,
+            parameterName
+        );
+
+
+    return definition
+        ? (
+            definition.default ??
+            null
+        )
+        : null;
+}
+
+
 /* ============================================================
-   SET TEXT
+   TEXT / VALUE
 ============================================================ */
 
 function setText(
@@ -159,6 +247,7 @@ function setText(
 ) {
 
     if (!element) {
+
         return;
     }
 
@@ -168,22 +257,557 @@ function setText(
 }
 
 
-/* ============================================================
-   SET VALUE
-============================================================ */
-
 function setValue(
     element,
     value
 ) {
 
     if (!element) {
+
         return;
     }
 
 
     element.value =
         valueOrEmpty(value);
+}
+
+
+/* ============================================================
+   MODEL STATUS
+============================================================ */
+
+function isModelActive(
+    model
+) {
+
+    return (
+        String(
+            model?.status ||
+            ""
+        )
+        .trim()
+        .toLowerCase() ===
+        "active"
+    );
+}
+
+
+/* ============================================================
+   STATUS
+============================================================ */
+
+function renderStatus(
+    model
+) {
+
+    const dom =
+        getDOM();
+
+
+    const active =
+        isModelActive(
+            model
+        );
+
+
+    if (
+        dom.statusToggle
+    ) {
+
+        dom.statusToggle.checked =
+            active;
+    }
+
+
+    setText(
+        dom.statusText,
+        active
+            ? "Aktif"
+            : "Nonaktif"
+    );
+}
+
+
+/* ============================================================
+   PARAMETERS
+============================================================ */
+
+function renderParameters(
+    model
+) {
+
+    const dom =
+        getDOM();
+
+
+    /*
+     * Duration
+     */
+
+    const durationParameter =
+        getParameterDefinition(
+            model,
+            "duration"
+        );
+
+
+    const minDuration =
+        model?.min_duration ??
+        durationParameter?.min ??
+        null;
+
+
+    const maxDuration =
+        model?.max_duration ??
+        durationParameter?.max ??
+        null;
+
+
+    if (
+        minDuration !== null &&
+        maxDuration !== null
+    ) {
+
+        setText(
+            dom.durationValue,
+            `${minDuration} - ${maxDuration} detik`
+        );
+
+    } else if (
+        minDuration !== null
+    ) {
+
+        setText(
+            dom.durationValue,
+            `${minDuration} detik`
+        );
+
+    } else if (
+        maxDuration !== null
+    ) {
+
+        setText(
+            dom.durationValue,
+            `${maxDuration} detik`
+        );
+
+    } else {
+
+        const defaultDuration =
+            getParameterDefault(
+                model,
+                "duration"
+            );
+
+
+        setText(
+            dom.durationValue,
+            defaultDuration !== null
+                ? `${defaultDuration} detik`
+                : "Mengikuti parameters.js"
+        );
+    }
+
+
+    /*
+     * Aspect ratio
+     */
+
+    let ratios =
+        normalizeArray(
+            model?.supported_ratios
+        );
+
+
+    if (!ratios.length) {
+
+        ratios =
+            getParameterValues(
+                model,
+                "aspect_ratio"
+            );
+    }
+
+
+    if (!ratios.length) {
+
+        const defaultRatio =
+            getParameterDefault(
+                model,
+                "aspect_ratio"
+            );
+
+
+        if (
+            defaultRatio !== null
+        ) {
+
+            ratios = [
+                defaultRatio
+            ];
+        }
+    }
+
+
+    setText(
+        dom.ratioValue,
+        ratios.length
+            ? ratios.join(" • ")
+            : "Mengikuti parameters.js"
+    );
+
+
+    /*
+     * Resolution
+     */
+
+    let resolutions =
+        normalizeArray(
+            model?.supported_resolutions
+        );
+
+
+    if (!resolutions.length) {
+
+        resolutions =
+            getParameterValues(
+                model,
+                "resolution"
+            );
+    }
+
+
+    if (!resolutions.length) {
+
+        const defaultResolution =
+            getParameterDefault(
+                model,
+                "resolution"
+            );
+
+
+        if (
+            defaultResolution !== null
+        ) {
+
+            resolutions = [
+                defaultResolution
+            ];
+        }
+    }
+
+
+    setText(
+        dom.resolutionValue,
+        resolutions.length
+            ? resolutions.join(" • ")
+            : "Mengikuti parameters.js"
+    );
+}
+
+
+/* ============================================================
+   CREDIT FORMAT
+============================================================ */
+
+function formatCredit(
+    value
+) {
+
+    const number =
+        nullableNumber(value);
+
+
+    if (
+        number === null
+    ) {
+
+        return "Belum diatur";
+    }
+
+
+    return `${number.toLocaleString(
+        "id-ID",
+        {
+            maximumFractionDigits: 2
+        }
+    )} Credit`;
+}
+
+
+/* ============================================================
+   DISCOUNT FORMAT
+============================================================ */
+
+function formatDiscount(
+    value
+) {
+
+    const percent =
+        Math.min(
+            100,
+            Math.max(
+                0,
+                numberValue(value)
+            )
+        );
+
+
+    if (
+        percent <= 0
+    ) {
+
+        return "Tidak ada";
+    }
+
+
+    return `${percent.toLocaleString(
+        "id-ID",
+        {
+            maximumFractionDigits: 2
+        }
+    )}%`;
+}
+
+
+/* ============================================================
+   FINAL CREDIT
+============================================================ */
+
+function calculateFinalCredit(
+    credit,
+    discountPercent
+) {
+
+    const numericCredit =
+        nullableNumber(
+            credit
+        );
+
+
+    if (
+        numericCredit === null
+    ) {
+
+        return null;
+    }
+
+
+    const percent =
+        Math.min(
+            100,
+            Math.max(
+                0,
+                numberValue(
+                    discountPercent
+                )
+            )
+        );
+
+
+    return (
+        numericCredit *
+        (
+            1 -
+            percent / 100
+        )
+    );
+}
+
+
+/* ============================================================
+   RESOLUTION PRICING
+============================================================ */
+
+function updateResolutionPricing(
+    model = null
+) {
+
+    const dom =
+        getDOM();
+
+
+    const discountPercent =
+        Math.min(
+            100,
+            Math.max(
+                0,
+                numberValue(
+                    dom.discount?.value ??
+                    model?.discount_percent ??
+                    0
+                )
+            )
+        );
+
+
+    const values = [
+
+        {
+            credit:
+                dom.credit480p?.value,
+
+            creditEl:
+                dom.pricingCredit480p,
+
+            discountEl:
+                dom.pricingDiscount480p,
+
+            finalEl:
+                dom.pricingFinal480p
+        },
+
+        {
+            credit:
+                dom.credit720p?.value,
+
+            creditEl:
+                dom.pricingCredit720p,
+
+            discountEl:
+                dom.pricingDiscount720p,
+
+            finalEl:
+                dom.pricingFinal720p
+        },
+
+        {
+            credit:
+                dom.credit1080p?.value,
+
+            creditEl:
+                dom.pricingCredit1080p,
+
+            discountEl:
+                dom.pricingDiscount1080p,
+
+            finalEl:
+                dom.pricingFinal1080p
+        }
+
+    ];
+
+
+    values.forEach(
+        item => {
+
+            const finalCredit =
+                calculateFinalCredit(
+                    item.credit,
+                    discountPercent
+                );
+
+
+            setText(
+                item.creditEl,
+                formatCredit(
+                    item.credit
+                )
+            );
+
+
+            setText(
+                item.discountEl,
+                formatDiscount(
+                    discountPercent
+                )
+            );
+
+
+            setText(
+                item.finalEl,
+                formatCredit(
+                    finalCredit
+                )
+            );
+        }
+    );
+
+
+    return {
+        discountPercent
+    };
+}
+
+
+/* ============================================================
+   PRICE PREVIEW
+============================================================ */
+
+function updatePricePreview(
+    model = null
+) {
+
+    const dom =
+        getDOM();
+
+
+    const usd =
+        Math.max(
+            0,
+            numberValue(
+                dom.priceUsd?.value ??
+                model?.price_usd ??
+                0
+            )
+        );
+
+
+    const rate =
+        Math.max(
+            0,
+            numberValue(
+                dom.exchangeRate?.value ??
+                0
+            )
+        );
+
+
+    const discountPercent =
+        Math.min(
+            100,
+            Math.max(
+                0,
+                numberValue(
+                    dom.discount?.value ??
+                    model?.discount_percent ??
+                    0
+                )
+            )
+        );
+
+
+    const idr =
+        usd *
+        rate;
+
+
+    const finalIdr =
+        idr *
+        (
+            1 -
+            discountPercent / 100
+        );
+
+
+    updateResolutionPricing(
+        model
+    );
+
+
+    return {
+
+        usd,
+
+        rate,
+
+        idr,
+
+        discountPercent,
+
+        finalIdr
+    };
 }
 
 
@@ -210,46 +834,42 @@ function renderModel(
         getDOM();
 
 
-    const modelName =
-        model.model_name ||
-        model.name ||
-        model.model_id ||
-        "-";
-
-
     const modelId =
-        model.model_id ||
-        model.id ||
+        String(
+            model?.model_id ||
+            model?.id ||
+            ""
+        ).trim();
+
+
+    const name =
+        model?.model_name ||
+        model?.name ||
+        modelId ||
+        "Model";
+
+
+    const provider =
+        model?.provider_name ||
+        model?.providerName ||
+        model?.provider_id ||
+        model?.providerId ||
         "-";
 
 
-    const providerName =
-        model.provider_name ||
-        model.provider?.provider_name ||
-        model.provider?.name ||
-        model.provider_id ||
+    const type =
+        model?.type ||
+        model?.model_type ||
         "-";
 
 
-    const modelType =
-        model.type ||
-        model.model_type ||
-        model.family ||
-        "Video";
-
-
-    const description =
-        model.description ||
-        "";
-
-
-    /* --------------------------------------------------------
-       HERO
-    -------------------------------------------------------- */
+    /*
+     * Hero
+     */
 
     setText(
         dom.heroModelName,
-        modelName
+        name
     );
 
 
@@ -259,317 +879,151 @@ function renderModel(
     );
 
 
-    setText(
-        dom.heroProvider,
-        providerName
-    );
-
-
-    setText(
-        dom.heroType,
-        modelType
-    );
-
-
-    /* --------------------------------------------------------
-       FORM BASIC
-    -------------------------------------------------------- */
+    /*
+     * Basic
+     */
 
     setValue(
         dom.modelName,
-        modelName
+        name
     );
 
 
-    setValue(
+    setText(
         dom.modelId,
         modelId
     );
 
 
-    setValue(
+    setText(
         dom.provider,
-        providerName
+        provider
     );
 
 
-    setValue(
+    setText(
         dom.type,
-        modelType
+        type
     );
 
 
     setValue(
         dom.description,
-        description
+        model?.description ?? ""
     );
 
 
-    /* --------------------------------------------------------
-       STATUS
-    -------------------------------------------------------- */
+    /*
+     * Status
+     */
 
-    const active =
-        isModelActive(
-            model
-        );
-
-
-    if (dom.statusToggle) {
-
-        if (
-            dom.statusToggle.type ===
-            "checkbox"
-        ) {
-
-            dom.statusToggle.checked =
-                active;
-
-        } else {
-
-            dom.statusToggle.value =
-                active
-                    ? "active"
-                    : "inactive";
-        }
-    }
-
-
-    setText(
-        dom.statusText,
-        active
-            ? "Aktif"
-            : "Nonaktif"
+    renderStatus(
+        model
     );
 
 
-    setText(
-        dom.statusDescription,
-        active
-            ? "Model tersedia untuk digunakan."
-            : "Model tidak tersedia untuk digunakan."
+    /*
+     * Parameters
+     */
+
+    renderParameters(
+        model
     );
 
 
-    /* --------------------------------------------------------
-       KIE PRICE
-    -------------------------------------------------------- */
+    /*
+     * Registry USD price
+     */
 
-    const kiePrice =
-        model.kie_price ??
-        model.price_usd ??
-        model.usd_price ??
+    const registryPrice =
+        model?.price_usd ??
+        model?.priceUSD ??
         null;
 
 
-    const currency =
-        model.kie_currency ||
-        model.currency ||
-        "USD";
+    if (
+        dom.priceUsd
+    ) {
 
-
-    setValue(
-        dom.priceUsd,
-        kiePrice
-    );
-
-
-    if (dom.priceUsd) {
-
-        if (
-            dom.priceUsd.tagName ===
-            "INPUT"
-        ) {
-
-            dom.priceUsd.value =
-                valueOrEmpty(
-                    kiePrice
-                );
-        }
+        dom.priceUsd.value =
+            registryPrice !== null
+                ? valueOrEmpty(
+                    registryPrice
+                )
+                : "";
     }
 
 
-    /* --------------------------------------------------------
-       EXCHANGE RATE
-    -------------------------------------------------------- */
+    /*
+     * Exchange rate.
+     *
+     * Jangan mengarang kurs.
+     * Biarkan modul kurs existing atau
+     * nilai halaman yang sudah tersedia.
+     */
 
-    const exchangeRate =
-        model.exchange_rate ??
-        model.usd_to_idr ??
-        model.exchangeRate ??
-        null;
-
-
-    setValue(
-        dom.exchangeRate,
-        exchangeRate
-    );
-
-
-    /* --------------------------------------------------------
-       DISCOUNT
-    -------------------------------------------------------- */
-
-    const discount =
-        model.discount_percent ??
-        model.discount ??
-        0;
-
+    /*
+     * Discount
+     */
 
     setValue(
         dom.discount,
-        discount
+        model?.discount_percent ??
+        0
     );
 
 
-    /* --------------------------------------------------------
-       CREDIT
-    -------------------------------------------------------- */
+    /*
+     * Credits
+     */
 
     setValue(
         dom.credit480p,
-        model.credit_480p
+        model?.credit_480p ??
+        ""
     );
 
 
     setValue(
         dom.credit720p,
-        model.credit_720p
+        model?.credit_720p ??
+        ""
     );
 
 
     setValue(
         dom.credit1080p,
-        model.credit_1080p
+        model?.credit_1080p ??
+        ""
     );
 
 
-    /* --------------------------------------------------------
-       FINAL PRICE
-    -------------------------------------------------------- */
+    /*
+     * Pricing preview
+     */
 
-    const finalPrice =
-        model.credit_final ??
-        model.final_price ??
-        model.finalPrice ??
-        null;
+    updatePricePreview(
+        model
+    );
 
 
-    if (dom.finalPrice) {
-
-        if (
-            dom.finalPrice.tagName ===
-            "INPUT"
-        ) {
-
-            dom.finalPrice.value =
-                valueOrEmpty(
-                    finalPrice
-                );
-
-        } else {
-
-            dom.finalPrice.textContent =
-                finalPrice === null
-                    ? "-"
-                    : formatNumber(
-                        finalPrice
-                    );
-        }
-    }
-
-
-    /* --------------------------------------------------------
-       DURATION
-    -------------------------------------------------------- */
-
-    let duration = "";
-
+    /*
+     * Hero state
+     */
 
     if (
-        model.min_duration !==
-            undefined &&
-        model.max_duration !==
-            undefined &&
-        model.min_duration !==
-            null &&
-        model.max_duration !==
-            null
+        dom.modelHero
     ) {
-
-        duration =
-            `${model.min_duration} - ${model.max_duration}`;
-
-    } else if (
-        model.duration !==
-            undefined &&
-        model.duration !== null
-    ) {
-
-        duration =
-            model.duration;
-    }
-
-
-    setValue(
-        dom.duration,
-        duration
-    );
-
-
-    /* --------------------------------------------------------
-       RATIO
-    -------------------------------------------------------- */
-
-    const ratio =
-        model.supported_ratios ??
-        model.ratios ??
-        model.ratio ??
-        "";
-
-
-    setValue(
-        dom.ratio,
-        normalizeListValue(
-            ratio
-        )
-    );
-
-
-    /* --------------------------------------------------------
-       RESOLUTION
-    -------------------------------------------------------- */
-
-    const resolution =
-        model.supported_resolutions ??
-        model.resolutions ??
-        model.resolution ??
-        "";
-
-
-    setValue(
-        dom.resolution,
-        normalizeListValue(
-            resolution
-        )
-    );
-
-
-    /* --------------------------------------------------------
-       MODEL HERO STATE
-    -------------------------------------------------------- */
-
-    if (dom.modelHero) {
 
         dom.modelHero.dataset.status =
-            active
+            isModelActive(
+                model
+            )
                 ? "active"
                 : "inactive";
 
         dom.modelHero.dataset.modelId =
-            valueOrEmpty(
-                modelId
-            );
+            modelId;
     }
 
 
@@ -578,80 +1032,73 @@ function renderModel(
 
 
 /* ============================================================
-   NORMALIZE ARRAY / STRING
-============================================================ */
-
-function normalizeListValue(
-    value
-) {
-
-    if (
-        Array.isArray(value)
-    ) {
-
-        return value.join(
-            ", "
-        );
-    }
-
-
-    if (
-        typeof value ===
-        "object" &&
-        value !== null
-    ) {
-
-        return Object.values(
-            value
-        ).join(", ");
-    }
-
-
-    return valueOrEmpty(
-        value
-    );
-}
-
-
-/* ============================================================
-   RENDER LOADING
+   LOADING
 ============================================================ */
 
 function renderLoading(
     loading = true,
-    message = "Memuat data model..."
+    message = "Memuat konfigurasi model..."
 ) {
 
     const dom =
         getDOM();
 
 
-    if (dom.loading) {
+    if (
+        dom.loading
+    ) {
 
-        dom.loading.hidden =
-            !loading;
+        if (loading) {
+
+            dom.loading.classList.remove(
+                "hidden"
+            );
+
+        } else {
+
+            dom.loading.classList.add(
+                "hidden"
+            );
+        }
     }
 
 
-    if (dom.loadingText) {
+    if (
+        dom.loadingText
+    ) {
 
-        dom.loadingText.textContent =
-            message;
+        /*
+         * loadingBox adalah satu container,
+         * jadi jangan mengganti seluruh textContent
+         * karena itu akan menghapus spinner.
+         *
+         * HTML asli tidak memiliki #loadingText.
+         */
     }
 
 
-    if (dom.modelHero) {
+    if (
+        dom.editContent
+    ) {
 
-        dom.modelHero.classList.toggle(
-            "is-loading",
-            loading
-        );
+        if (loading) {
+
+            dom.editContent.classList.add(
+                "hidden"
+            );
+
+        } else {
+
+            dom.editContent.classList.remove(
+                "hidden"
+            );
+        }
     }
 }
 
 
 /* ============================================================
-   RENDER SAVE STATE
+   SAVING
 ============================================================ */
 
 function renderSaving(
@@ -662,64 +1109,61 @@ function renderSaving(
         getDOM();
 
 
-    if (dom.saveButton) {
+    if (
+        !dom.saveButton
+    ) {
 
-        dom.saveButton.disabled =
-            saving;
-
-
-        dom.saveButton.dataset.saving =
-            saving
-                ? "true"
-                : "false";
-
-
-        if (saving) {
-
-            dom.saveButton.dataset.originalText =
-                dom.saveButton.textContent;
-
-            dom.saveButton.textContent =
-                "Menyimpan...";
-
-        } else {
-
-            const original =
-                dom.saveButton.dataset
-                    .originalText;
-
-
-            if (original) {
-
-                dom.saveButton.textContent =
-                    original;
-            }
-        }
+        return;
     }
 
 
-    if (dom.cancelButton) {
+    dom.saveButton.disabled =
+        Boolean(saving);
 
-        dom.cancelButton.disabled =
-            saving;
+
+    if (saving) {
+
+        if (
+            !dom.saveButton.dataset
+                .originalText
+        ) {
+
+            dom.saveButton.dataset
+                .originalText =
+                    dom.saveButton.textContent;
+        }
+
+
+        dom.saveButton.textContent =
+            "Menyimpan...";
+
+    } else {
+
+        dom.saveButton.textContent =
+            dom.saveButton.dataset
+                .originalText ||
+            "Simpan Perubahan";
     }
 }
 
 
 /* ============================================================
-   RENDER ALERT
+   ALERT
 ============================================================ */
 
 function renderAlert(
     message = "",
-    type = "info"
+    type = "error"
 ) {
 
     const dom =
         getDOM();
 
 
-    if (!dom.alert) {
+    if (
+        !dom.alert
+    ) {
+
         return;
     }
 
@@ -730,31 +1174,21 @@ function renderAlert(
         );
 
 
-    dom.alert.dataset.type =
-        type;
-
-
-    dom.alert.hidden =
-        !message;
+    dom.alert.className =
+        message
+            ? `alert show ${type}`
+            : "alert";
 }
 
-
-/* ============================================================
-   CLEAR ALERT
-============================================================ */
 
 function clearAlert() {
 
     renderAlert(
         "",
-        "info"
+        "error"
     );
 }
 
-
-/* ============================================================
-   RENDER ERROR
-============================================================ */
 
 function renderError(
     message
@@ -767,10 +1201,6 @@ function renderError(
     );
 }
 
-
-/* ============================================================
-   RENDER SUCCESS
-============================================================ */
 
 function renderSuccess(
     message
@@ -793,6 +1223,10 @@ const GENZModelEditRender =
 
         renderModel,
 
+        renderParameters,
+
+        renderStatus,
+
         renderLoading,
 
         renderSaving,
@@ -805,11 +1239,23 @@ const GENZModelEditRender =
 
         renderSuccess,
 
-        formatNumber,
+        updateResolutionPricing,
 
-        formatCurrency,
+        updatePricePreview,
 
-        normalizeListValue,
+        calculateFinalCredit,
+
+        formatCredit,
+
+        formatDiscount,
+
+        normalizeArray,
+
+        getParameterDefinition,
+
+        getParameterValues,
+
+        getParameterDefault,
 
         isModelActive
     });
@@ -823,6 +1269,10 @@ export {
 
     renderModel,
 
+    renderParameters,
+
+    renderStatus,
+
     renderLoading,
 
     renderSaving,
@@ -835,11 +1285,23 @@ export {
 
     renderSuccess,
 
-    formatNumber,
+    updateResolutionPricing,
 
-    formatCurrency,
+    updatePricePreview,
 
-    normalizeListValue,
+    calculateFinalCredit,
+
+    formatCredit,
+
+    formatDiscount,
+
+    normalizeArray,
+
+    getParameterDefinition,
+
+    getParameterValues,
+
+    getParameterDefault,
 
     isModelActive
 };
