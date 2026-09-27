@@ -720,118 +720,235 @@
     ===================================================== */
 
     function providerMatches(
-        model,
-        selectedProvider = null
+    model,
+    selectedProvider = null
+) {
+
+    const selected =
+        selectedProvider ||
+        getSelectedProvider();
+
+
+    if (
+        !selected
     ) {
 
-        const selected =
-            selectedProvider ||
-            getSelectedProvider();
-
-
-        if (
-            !selected
-        ) {
-
-            return true;
-
-        }
-
-
-        const selectedId =
-            normalizeString(
-                selected.id
-            );
-
-
-        const selectedUuid =
-            normalizeString(
-                selected.uuid
-            );
-
-
-        const selectedCode =
-            normalizeString(
-                selected.providerId
-            );
-
-
-        /*
-         * Provider belum dipilih.
-         */
-        if (
-            !selectedId &&
-            !selectedUuid &&
-            !selectedCode
-        ) {
-
-            return true;
-
-        }
-
-
-        const modelIds =
-            getModelProviderUuids(
-                model
-            );
-
-
-        const modelCodes =
-            getModelProviderCodes(
-                model
-            );
-
-
-        /*
-         * Prioritas:
-         *
-         * providers.id
-         * providers.provider_id
-         */
-        if (
-            selectedId &&
-            (
-                modelIds.includes(
-                    selectedId
-                ) ||
-                modelCodes.includes(
-                    selectedId
-                )
-            )
-        ) {
-
-            return true;
-
-        }
-
-
-        if (
-            selectedUuid &&
-            modelIds.includes(
-                selectedUuid
-            )
-        ) {
-
-            return true;
-
-        }
-
-
-        if (
-            selectedCode &&
-            modelCodes.includes(
-                selectedCode
-            )
-        ) {
-
-            return true;
-
-        }
-
-
-        return false;
+        return true;
 
     }
+
+
+    const selectedId =
+        normalizeString(
+            selected.id
+        );
+
+
+    const selectedUuid =
+        normalizeString(
+            selected.uuid
+        );
+
+
+    const selectedCode =
+        normalizeString(
+            selected.providerId
+        );
+
+
+    const selectedName =
+        normalizeString(
+            selected.name ||
+            selected.text
+        );
+
+
+    /*
+     * Provider belum dipilih.
+     */
+    if (
+        !selectedId &&
+        !selectedUuid &&
+        !selectedCode &&
+        !selectedName
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+     * =================================================
+     * MODEL PROVIDER IDENTIFIERS
+     * =================================================
+     */
+
+    const modelIds =
+        getModelProviderUuids(
+            model
+        );
+
+
+    const modelCodes =
+        getModelProviderCodes(
+            model
+        );
+
+
+    const modelProviderName =
+        normalizeString(
+            model?.provider_name ||
+            model?.providerName ||
+            model?.provider?.provider_name ||
+            model?.provider?.providerName ||
+            model?.provider?.name ||
+            ""
+        );
+
+
+    /*
+     * =================================================
+     * MATCH PROVIDER ID
+     * =================================================
+     */
+
+    if (
+        selectedId &&
+        (
+            modelIds.includes(
+                selectedId
+            ) ||
+            modelCodes.includes(
+                selectedId
+            )
+        )
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+     * =================================================
+     * MATCH PROVIDER UUID
+     * =================================================
+     */
+
+    if (
+        selectedUuid &&
+        (
+            modelIds.includes(
+                selectedUuid
+            ) ||
+            modelCodes.includes(
+                selectedUuid
+            )
+        )
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+     * =================================================
+     * MATCH PROVIDER CODE
+     * =================================================
+     *
+     * Contoh:
+     *
+     * Provider:
+     *   KIE.AI
+     *
+     * Code:
+     *   kie_ai
+     *
+     * Seedance:
+     *   provider_code = kie_ai
+     */
+
+    if (
+        selectedCode &&
+        (
+            modelCodes.includes(
+                selectedCode
+            ) ||
+            modelProviderName ===
+                selectedCode
+        )
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+     * =================================================
+     * MATCH PROVIDER NAME
+     * =================================================
+     *
+     * Ini yang menangani:
+     *
+     * selected provider:
+     *   KIE.AI
+     *
+     * registry model:
+     *   provider_name = KIE.AI
+     */
+
+    if (
+        selectedName &&
+        modelProviderName &&
+        (
+            modelProviderName ===
+                selectedName ||
+            modelProviderName.includes(
+                selectedName
+            ) ||
+            selectedName.includes(
+                modelProviderName
+            )
+        )
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+     * =================================================
+     * SPECIAL PROVIDER CODE FALLBACK
+     * =================================================
+     *
+     * Untuk registry model yang mempunyai:
+     *
+     * provider_code = kie_ai
+     *
+     * tetapi option Provider hanya menyimpan
+     * nama "KIE.AI".
+     */
+
+    if (
+        selectedName ===
+            "kie.ai" &&
+        modelCodes.includes(
+            "kie_ai"
+        )
+    ) {
+
+        return true;
+
+    }
+
+
+    return false;
+
+}
 
 
         /* =====================================================
