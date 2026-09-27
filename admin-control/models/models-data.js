@@ -42,12 +42,6 @@
  *        +-- discount_percent
  *        +-- Credit final dihitung runtime
  *
- * RUMUS RUNTIME:
- *
- *   final =
- *       credit -
- *       (credit * discount_percent / 100)
- *
  * PENTING
  *
  * Pricing database aktif hanya:
@@ -352,10 +346,6 @@ function normalizeDiscount(
         );
 
 
-    /*
-     * Discount selalu dibatasi 0-100.
-     */
-
     return Math.min(
         100,
         Math.max(
@@ -369,23 +359,6 @@ function normalizeDiscount(
 
 /* =========================================================
    RESOLUTION CREDIT NORMALIZER
-   ---------------------------------------------------------
-   Source:
- *
- *   models.credit_480p
- *   models.credit_720p
- *   models.credit_1080p
- *
- * Compatibility:
- *
- *   credit480p
- *   credit720p
- *   credit1080p
- *
- * PENTING:
- *   Nilai 0 dianggap VALID.
- *
- * Tidak menggunakan field pricing legacy.
 ========================================================= */
 
 function readResolutionCredit(
@@ -491,7 +464,38 @@ function clearCache() {
 
 
 /* =========================================================
+   PROVIDER FILTER
+========================================================= */
+
+function filterActiveProviders(
+    providers
+) {
+
+    const source =
+        Array.isArray(providers)
+            ? providers
+            : [];
+
+
+    return source.filter(
+        provider =>
+            String(
+                provider?.status || ""
+            )
+                .trim()
+                .toLowerCase() ===
+            "active"
+    );
+
+}
+
+
+/* =========================================================
    LOAD PROVIDERS
+   ---------------------------------------------------------
+   PENTING:
+   Cache selalu menyimpan FULL provider list.
+   includeInactive hanya berlaku sebagai filter hasil.
 ========================================================= */
 
 async function loadProviders(
@@ -515,7 +519,7 @@ async function loadProviders(
         !force
     ) {
 
-        let result =
+        const result =
             providerCache.slice();
 
 
@@ -523,16 +527,9 @@ async function loadProviders(
             !includeInactive
         ) {
 
-            result =
-                result.filter(
-                    provider =>
-                        String(
-                            provider?.status || ""
-                        )
-                            .trim()
-                            .toLowerCase() ===
-                        "active"
-                );
+            return filterActiveProviders(
+                result
+            );
 
         }
 
@@ -544,7 +541,7 @@ async function loadProviders(
 
     /*
      * =====================================================
-     * DUPLICATE REQUEST
+     * DUPLICATE REQUEST PROTECTION
      * =====================================================
      */
 
@@ -560,14 +557,8 @@ async function loadProviders(
             !includeInactive
         ) {
 
-            return result.filter(
-                provider =>
-                    String(
-                        provider?.status || ""
-                    )
-                        .trim()
-                        .toLowerCase() ===
-                    "active"
+            return filterActiveProviders(
+                result
             );
 
         }
@@ -578,29 +569,20 @@ async function loadProviders(
     }
 
 
+    /*
+     * =====================================================
+     * SUPABASE
+     * =====================================================
+     */
+
     const supabase =
         getSupabaseClient();
 
 
     /*
-     * =====================================================
-     * SUPABASE BELUM SIAP
-     * =====================================================
+     * Supabase belum siap.
      *
-     * PENTING:
-     *
-     * Jangan:
-     *
-     *   providerCache = [];
-     *   providersLoaded = true;
-     *
-     * karena itu akan mengunci cache sebagai
-     * hasil kosong permanen sampai force refresh.
-     *
-     * Supabase belum siap bukan berarti database
-     * tidak mempunyai provider.
-     *
-     * Biarkan caller mencoba lagi.
+     * Jangan menandai providersLoaded=true.
      */
 
     if (!supabase) {
@@ -610,42 +592,40 @@ async function loadProviders(
     }
 
 
+    /*
+     * =====================================================
+     * DATABASE REQUEST
+     * =====================================================
+     *
+     * Selalu mengambil seluruh provider.
+     *
+     * Filtering active dilakukan setelah data
+     * berhasil diterima.
+     *
+     * Ini mencegah cache menjadi active-only
+     * ketika request pertama memakai
+     * includeInactive:false.
+     */
+
     providersLoadingPromise =
         (async function () {
 
             try {
 
-                let query =
-                    supabase
-                        .from(
-                            PROVIDER_TABLE
-                        )
-                        .select("*")
-                        .order(
-                            "provider_name",
-                            {
-                                ascending: true
-                            }
-                        );
-
-
-                if (
-                    !includeInactive
-                ) {
-
-                    query =
-                        query.eq(
-                            "status",
-                            "active"
-                        );
-
-                }
-
-
                 const {
                     data,
                     error
-                } = await query;
+                } = await supabase
+                    .from(
+                        PROVIDER_TABLE
+                    )
+                    .select("*")
+                    .order(
+                        "provider_name",
+                        {
+                            ascending: true
+                        }
+                    );
 
 
                 if (
@@ -659,11 +639,10 @@ async function loadProviders(
 
 
                     /*
-                     * Jangan menandai loaded jika
-                     * request database gagal.
+                     * Jangan menyentuh cache.
                      *
-                     * Dengan begitu request berikutnya
-                     * masih dapat mencoba kembali.
+                     * Request gagal bukan berarti
+                     * database kosong.
                      */
 
                     return [];
@@ -671,10 +650,19 @@ async function loadProviders(
                 }
 
 
-                providerCache =
+                const normalized =
                     Array.isArray(data)
                         ? data.slice()
                         : [];
+
+
+                /*
+                 * Cache hanya diubah setelah
+                 * request database berhasil.
+                 */
+
+                providerCache =
+                    normalized;
 
 
                 providersLoaded =
@@ -694,8 +682,7 @@ async function loadProviders(
 
 
                 /*
-                 * Jangan mengunci cache sebagai loaded
-                 * ketika terjadi error.
+                 * Jangan mengunci cache sebagai loaded.
                  */
 
                 return [];
@@ -715,14 +702,8 @@ async function loadProviders(
             !includeInactive
         ) {
 
-            return result.filter(
-                provider =>
-                    String(
-                        provider?.status || ""
-                    )
-                        .trim()
-                        .toLowerCase() ===
-                    "active"
+            return filterActiveProviders(
+                result
             );
 
         }
@@ -948,9 +929,6 @@ function getDurationRange(
 
 /* =========================================================
    REGISTRY MODEL NORMALIZER
-   ---------------------------------------------------------
-   Registry hanya adapter metadata.
-   Tidak boleh menjadi source pricing.
 ========================================================= */
 
 function normalizeRegistryModel(
@@ -1060,18 +1038,7 @@ function normalizeRegistryModel(
 
 
     /*
-     * =====================================================
-     * RESOLUTION CREDIT
-     * =====================================================
-     *
      * Registry tidak menentukan harga.
-     *
-     * Jika persisted model tersedia,
-     * gunakan credit dari persisted model.
-     *
-     * Jika tidak tersedia, nilainya 0.
-     *
-     * Tidak ada fallback ke harga lama.
      */
 
     const credit480p =
@@ -1156,37 +1123,29 @@ function normalizeRegistryModel(
             persisted?.id ??
             null,
 
-
         model_id:
             modelId,
-
 
         model_name:
             modelName,
 
-
         description:
             description,
-
 
         provider_id:
             provider?.id ??
             persisted?.provider_id ??
             null,
 
-
         provider_code:
             providerCode,
-
 
         provider:
             providerData,
 
-
         type:
             config.type ||
             "",
-
 
         api:
             config.api
@@ -1195,70 +1154,53 @@ function normalizeRegistryModel(
                 }
                 : {},
 
-
         parameters:
             parameters,
-
 
         supported_ratios:
             supportedRatios,
 
-
         supported_resolutions:
             supportedResolutions,
-
 
         min_duration:
             durationRange.min,
 
-
         max_duration:
             durationRange.max,
-
 
         discount_percent:
             safeDiscount,
 
-
         credit_480p:
             credit480p,
-
 
         credit_720p:
             credit720p,
 
-
         credit_1080p:
             credit1080p,
-
 
         credit480p:
             credit480p,
 
-
         credit720p:
             credit720p,
-
 
         credit1080p:
             credit1080p,
 
-
         status:
             status,
-
 
         source:
             "model-folder",
 
-
         source_folder:
             registryEntry.folder || "",
 
-
         registry:
             true,
-
 
         adapter_available:
             true
@@ -1270,6 +1212,10 @@ function normalizeRegistryModel(
 
 /* =========================================================
    LOAD PERSISTED ADMIN MODELS
+   ---------------------------------------------------------
+   PENTING:
+   Error database TIDAK dianggap sebagai
+   "database kosong".
 ========================================================= */
 
 async function loadPersistedModels() {
@@ -1278,15 +1224,17 @@ async function loadPersistedModels() {
         getSupabaseClient();
 
 
-    /*
-     * Supabase belum siap.
-     *
-     * Jangan dianggap sebagai database kosong.
-     */
-
     if (!supabase) {
 
-        return [];
+        const error =
+            new Error(
+                "SUPABASE_NOT_READY"
+            );
+
+        error.code =
+            "SUPABASE_NOT_READY";
+
+        throw error;
 
     }
 
@@ -1313,13 +1261,19 @@ async function loadPersistedModels() {
             error
         ) {
 
-            console.warn(
-                "GEN-Z.AI: konfigurasi Admin Models tidak dapat dibaca:",
-                error.message
-            );
+            const databaseError =
+                new Error(
+                    error.message ||
+                    "MODEL_QUERY_FAILED"
+                );
 
+            databaseError.code =
+                "MODEL_QUERY_FAILED";
 
-            return [];
+            databaseError.details =
+                error;
+
+            throw databaseError;
 
         }
 
@@ -1338,7 +1292,15 @@ async function loadPersistedModels() {
         );
 
 
-        return [];
+        /*
+         * Lempar kembali error.
+         *
+         * Jangan return [] karena [] bisa dianggap
+         * sebagai database kosong dan kemudian
+         * dikunci ke cache.
+         */
+
+        throw error;
 
     }
 
@@ -1381,9 +1343,6 @@ function getRegistryEntryByModelId(
 
 /* =========================================================
    PERSISTED ADMIN MODEL NORMALIZER
-   ---------------------------------------------------------
-   Supabase models adalah source of truth untuk model
-   yang benar-benar digunakan Admin Models.
 ========================================================= */
 
 function normalizePersistedModel(
@@ -1446,7 +1405,7 @@ function normalizePersistedModel(
      * Registry OPTIONAL.
      *
      * Registry hanya dipakai untuk metadata adapter
-     * dan capability fallback.
+     * dan technical capability fallback.
      */
 
     const registryEntry =
@@ -1709,10 +1668,8 @@ function normalizePersistedModel(
             persistedModel.id ??
             null,
 
-
         model_id:
             modelId,
-
 
         model_name:
             String(
@@ -1721,28 +1678,22 @@ function normalizePersistedModel(
                 modelId
             ).trim(),
 
-
         description:
             persistedModel.description ??
             registryConfig?.description ??
             "",
 
-
         provider_id:
             persistedProviderId,
-
 
         provider_code:
             providerCode,
 
-
         provider:
             providerData,
 
-
         type:
             modelType,
-
 
         api:
             registryConfig?.api
@@ -1751,7 +1702,6 @@ function normalizePersistedModel(
                 }
                 : {},
 
-
         parameters:
             registryParameters
                 ? {
@@ -1759,69 +1709,53 @@ function normalizePersistedModel(
                 }
                 : {},
 
-
         supported_ratios:
             supportedRatios,
-
 
         supported_resolutions:
             supportedResolutions,
 
-
         min_duration:
             minDuration,
-
 
         max_duration:
             maxDuration,
 
-
         discount_percent:
             safeDiscount,
-
 
         credit_480p:
             credit480p,
 
-
         credit_720p:
             credit720p,
-
 
         credit_1080p:
             credit1080p,
 
-
         credit480p:
             credit480p,
-
 
         credit720p:
             credit720p,
 
-
         credit1080p:
             credit1080p,
-
 
         status:
             status,
 
-
         source:
             "admin-model",
-
 
         source_folder:
             registryEntry?.folder ||
             "",
 
-
         registry:
             Boolean(
                 registryEntry
             ),
-
 
         adapter_available:
             Boolean(
@@ -1904,6 +1838,68 @@ function getRegistryModel(
 
 
 /* =========================================================
+   MODEL RESULT FILTER
+========================================================= */
+
+function filterLoadedModels(
+    models,
+    options = {}
+) {
+
+    const {
+        includeInactive = true,
+        activeProviderOnly = false
+    } = options;
+
+
+    let result =
+        Array.isArray(models)
+            ? models.slice()
+            : [];
+
+
+    if (
+        !includeInactive
+    ) {
+
+        result =
+            result.filter(
+                model =>
+                    String(
+                        model?.status || ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    "active"
+            );
+
+    }
+
+
+    if (
+        activeProviderOnly
+    ) {
+
+        result =
+            result.filter(
+                model =>
+                    String(
+                        model?.provider?.status || ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    "active"
+            );
+
+    }
+
+
+    return result;
+
+}
+
+
+/* =========================================================
    LOAD MODELS
 ========================================================= */
 
@@ -1929,54 +1925,20 @@ async function loadModels(
         !force
     ) {
 
-        let result =
-            modelCache.slice();
-
-
-        if (
-            !includeInactive
-        ) {
-
-            result =
-                result.filter(
-                    model =>
-                        String(
-                            model?.status || ""
-                        )
-                            .trim()
-                            .toLowerCase() ===
-                        "active"
-                );
-
-        }
-
-
-        if (
-            activeProviderOnly
-        ) {
-
-            result =
-                result.filter(
-                    model =>
-                        String(
-                            model?.provider?.status || ""
-                        )
-                            .trim()
-                            .toLowerCase() ===
-                        "active"
-                );
-
-        }
-
-
-        return result;
+        return filterLoadedModels(
+            modelCache,
+            {
+                includeInactive,
+                activeProviderOnly
+            }
+        );
 
     }
 
 
     /*
      * =====================================================
-     * DUPLICATE REQUEST PROTECTION
+     * DUPLICATE REQUEST
      * =====================================================
      */
 
@@ -1988,52 +1950,22 @@ async function loadModels(
             await modelsLoadingPromise;
 
 
-        let filtered =
-            Array.isArray(result)
-                ? result.slice()
-                : [];
-
-
-        if (
-            !includeInactive
-        ) {
-
-            filtered =
-                filtered.filter(
-                    model =>
-                        String(
-                            model?.status || ""
-                        )
-                            .trim()
-                            .toLowerCase() ===
-                        "active"
-                );
-
-        }
-
-
-        if (
-            activeProviderOnly
-        ) {
-
-            filtered =
-                filtered.filter(
-                    model =>
-                        String(
-                            model?.provider?.status || ""
-                        )
-                            .trim()
-                            .toLowerCase() ===
-                        "active"
-                );
-
-        }
-
-
-        return filtered;
+        return filterLoadedModels(
+            result,
+            {
+                includeInactive,
+                activeProviderOnly
+            }
+        );
 
     }
 
+
+    /*
+     * =====================================================
+     * LOAD
+     * =====================================================
+     */
 
     modelsLoadingPromise =
         (async function () {
@@ -2043,14 +1975,8 @@ async function loadModels(
              * SUPABASE CLIENT
              * =================================================
              *
-             * Jangan memulai load database sebelum
-             * Supabase benar-benar tersedia.
-             *
-             * Jika belum tersedia, throw agar:
-             *
-             *   modelsLoaded tetap false
-             *
-             * sehingga tidak terjadi cache kosong permanen.
+             * Jangan menganggap Supabase belum siap
+             * sebagai database kosong.
              */
 
             const supabase =
@@ -2118,7 +2044,12 @@ async function loadModels(
 
 
             /*
-             * Cache model lengkap.
+             * =================================================
+             * CACHE
+             * =================================================
+             *
+             * Hanya cache setelah seluruh proses
+             * database berhasil.
              */
 
             modelCache =
@@ -2140,55 +2071,41 @@ async function loadModels(
             await modelsLoadingPromise;
 
 
-        let result =
-            loadedModels.slice();
+        return filterLoadedModels(
+            loadedModels,
+            {
+                includeInactive,
+                activeProviderOnly
+            }
+        );
 
-
-        /*
-         * Filter status Admin Models.
-         */
-
-        if (
-            !includeInactive
-        ) {
-
-            result =
-                result.filter(
-                    model =>
-                        String(
-                            model?.status || ""
-                        )
-                            .trim()
-                            .toLowerCase() ===
-                        "active"
-                );
-
-        }
-
+    } catch (
+        error
+    ) {
 
         /*
-         * Filter provider aktif.
+         * =================================================
+         * PENTING
+         * =================================================
+         *
+         * Jangan:
+         *
+         *   modelCache = [];
+         *   modelsLoaded = true;
+         *
+         * ketika query gagal.
+         *
+         * Caller berikutnya harus tetap dapat
+         * mencoba membaca database kembali.
          */
 
-        if (
-            activeProviderOnly
-        ) {
-
-            result =
-                result.filter(
-                    model =>
-                        String(
-                            model?.provider?.status || ""
-                        )
-                            .trim()
-                            .toLowerCase() ===
-                        "active"
-                );
-
-        }
+        console.warn(
+            "GEN-Z.AI: loadModels gagal:",
+            error
+        );
 
 
-        return result;
+        throw error;
 
     } finally {
 
@@ -2269,7 +2186,7 @@ async function getModelByModelId(
 
 
     /*
-     * Cari hanya dari Admin Models.
+     * Hanya Admin Models.
      *
      * Registry tidak boleh membuat model palsu.
      */
@@ -2525,18 +2442,7 @@ function formatCredit(
 
 
 /* =========================================================
-   FORMAT RESOLUTION CREDIT
-   ---------------------------------------------------------
-   Source:
- *
- *   credit_480p
- *   credit_720p
- *   credit_1080p
- *
- * Tidak menghitung discount.
- *
- * Discount dan credit final dihitung oleh layer
- * pricing/runtime yang memang bertanggung jawab.
+   GET RESOLUTION CREDIT
 ========================================================= */
 
 function getResolutionCredit(
@@ -2599,8 +2505,6 @@ function getResolutionCredit(
 
 
     /*
-     * Resolution tidak dikenal.
-     *
      * Jangan mengarang harga.
      */
 
@@ -2611,9 +2515,6 @@ function getResolutionCredit(
 
 /* =========================================================
    GET MODEL PRICING CONFIG
-   ---------------------------------------------------------
-   Helper ringan untuk module lain.
-   Tidak menghitung credit final.
 ========================================================= */
 
 function getModelPricingConfig(
@@ -2907,18 +2808,10 @@ const ModelData = {
     getProviderByCode,
 
 
-    /*
-     * REGISTRY ONLY
-     */
-
     loadRegistryModels,
 
     getRegistryModel,
 
-
-    /*
-     * ADMIN MODELS
-     */
 
     loadModels,
 
@@ -3002,18 +2895,10 @@ export {
     getProviderByCode,
 
 
-    /*
-     * REGISTRY
-     */
-
     loadRegistryModels,
 
     getRegistryModel,
 
-
-    /*
-     * ADMIN MODELS
-     */
 
     loadModels,
 
