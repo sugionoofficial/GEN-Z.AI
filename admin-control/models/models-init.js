@@ -71,6 +71,8 @@
 
         "GENZModelsFormEvents",
 
+        "GENZModelsCRUD",
+
         "GENZModelFormCoordinator",
 
         "GENZModelsFormLayout",
@@ -101,8 +103,8 @@
     const OPTIONAL_MODULES = Object.freeze([
 
         /*
-         * Tidak semua deployment membutuhkan
-         * module tambahan ini.
+         * Loader hanya optional dari sisi init.
+         * Loader sendiri yang memanggil initialize().
          */
 
         "GENZModelsLoader"
@@ -310,6 +312,28 @@
 
         return getGlobal(
             "GENZModelsFormEvents"
+        );
+
+    }
+
+
+    /* =====================================================
+       CRUD MODULE
+       -----------------------------------------------------
+       Model database operations:
+
+           Create
+           Update
+           Delete
+
+       CRUD hanya menyediakan API.
+       Lifecycle init tidak melakukan operasi database.
+       ===================================================== */
+
+    function getCRUDModule() {
+
+        return getGlobal(
+            "GENZModelsCRUD"
         );
 
     }
@@ -1088,8 +1112,6 @@
        SYNC PRICING WITH MODELS
        -----------------------------------------------------
        Pricing hanya melakukan normalisasi/cache.
-
-       Tidak ada perhitungan harga di init.
        ===================================================== */
 
     function syncPriceWithModels(
@@ -1332,9 +1354,7 @@
 
 
         /*
-         * Pricing sync dilakukan lebih dahulu
-         * agar UI/table yang membutuhkan pricing
-         * membaca cache terbaru.
+         * Pricing sync.
          */
 
         syncPriceWithModels(
@@ -1393,8 +1413,6 @@
 
         /*
          * 1. Data
-         *
-         * Source of model configuration.
          */
 
         const models =
@@ -1403,9 +1421,6 @@
 
         /*
          * 2. Provider
-         *
-         * Provider lifecycle tetap berada
-         * di provider module.
          */
 
         const providers =
@@ -1413,45 +1428,42 @@
 
 
         /*
-         * 3. Provider dropdown.
+         * 3. Provider dropdown
          */
 
         await initializeProviderDropdown();
 
 
         /*
-         * 4. UI.
+         * 4. UI
          */
 
         await initializeUI();
 
 
         /*
-         * 5. Form layout.
+         * 5. Form layout
          */
 
         await initializeFormLayout();
 
 
         /*
-         * 6. Pricing.
-         *
-         * Tidak menghitung pricing di sini.
-         * GENZModelsPrice yang bertanggung jawab.
+         * 6. Pricing
          */
 
         await initializePrice();
 
 
         /*
-         * 7. Price calculation events.
+         * 7. Price calculation
          */
 
         await initializePriceCalculation();
 
 
         /*
-         * 8. Search.
+         * 8. Search
          */
 
         await initializeSearch();
@@ -1460,28 +1472,28 @@
 
 
         /*
-         * 9. Form events.
+         * 9. Form events
          */
 
         await initializeFormEvents();
 
 
         /*
-         * 10. Table events.
+         * 10. Table events
          */
 
         await initializeTableEvents();
 
 
         /*
-         * 11. Page search.
+         * 11. Page search
          */
 
         await initializePageSearch();
 
 
         /*
-         * 12. Final synchronization.
+         * 12. Final synchronization
          */
 
         const finalState =
@@ -1515,16 +1527,8 @@
             initialized
         ) {
 
-            /*
-             * Jangan bootstrap ulang.
-             *
-             * Hanya sinkronisasi ringan agar cache
-             * pricing mengikuti ModelData terbaru.
-             */
-
             const models =
                 getCachedModels();
-
 
             const providers =
                 getCachedProviders();
@@ -1953,6 +1957,9 @@
         const price =
             getPriceModule();
 
+        const crud =
+            getCRUDModule();
+
         const models =
             getCachedModels();
 
@@ -1977,6 +1984,11 @@
             providerReady:
                 Boolean(
                     provider
+                ),
+
+            crudReady:
+                Boolean(
+                    crud
                 ),
 
             pricingReady:
@@ -2111,7 +2123,13 @@
 
             verifyRequiredModules,
 
-            getModuleStatus
+            getModuleStatus,
+
+            /*
+             * CRUD accessor
+             */
+
+            getCRUDModule
 
         });
 
