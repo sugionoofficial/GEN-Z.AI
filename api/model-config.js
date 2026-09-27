@@ -2239,6 +2239,10 @@ async function loadAllModels() {
             ) ||
             null;
 
+       if (!databaseModel) {
+          continue;
+       }
+
 
         /* =================================================
            STATUS
