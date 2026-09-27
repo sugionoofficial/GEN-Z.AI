@@ -668,6 +668,9 @@
 
     /* =====================================================
        REFRESH MODELS
+       -----------------------------------------------------
+       Refresh manual SELALU memaksa reload.
+       Initial load TIDAK menggunakan fungsi ini.
     ===================================================== */
 
     async function refreshModels(
@@ -1012,6 +1015,7 @@
                 return true;
 
             }
+
 
             if (
                 typeof search.syncModels ===
@@ -1515,7 +1519,7 @@
        PRICE DISPLAY
        -----------------------------------------------------
        Models UI TIDAK menghitung pricing.
-       
+
        Pricing didelegasikan ke:
        GENZModelsPrice
 
@@ -1793,163 +1797,163 @@
 
     function bindButtons() {
 
-    let bound =
-        false;
+        let bound =
+            false;
 
 
-    /* =====================================================
-       ADD / CREATE MODEL
-       -----------------------------------------------------
-       Create tetap dimiliki oleh:
-       GENZModelFormCreate
-       GENZModelsForm
-       GENZModelFormCoordinator
+        /* =====================================================
+           ADD / CREATE MODEL
+           -----------------------------------------------------
+           Create tetap dimiliki oleh:
+           GENZModelFormCreate
+           GENZModelsForm
+           GENZModelFormCoordinator
 
-       Models UI hanya menjadi trigger.
-    ===================================================== */
+           Models UI hanya menjadi trigger.
+        ===================================================== */
 
-    if (
-        bindButton(
-            [
-                "addModelBtn",
-                "addModelButton",
-                "createModelBtn",
-                "createModelButton",
-                "newModelBtn",
-                "newModelButton"
-            ],
-            function () {
+        if (
+            bindButton(
+                [
+                    "addModelBtn",
+                    "addModelButton",
+                    "createModelBtn",
+                    "createModelButton",
+                    "newModelBtn",
+                    "newModelButton"
+                ],
+                function () {
 
-                const form =
-                    window.GENZModelsForm ||
-                    null;
+                    const form =
+                        window.GENZModelsForm ||
+                        null;
 
 
-                if (
-                    !form ||
-                    typeof form.openCreate !==
-                        "function"
-                ) {
+                    if (
+                        !form ||
+                        typeof form.openCreate !==
+                            "function"
+                    ) {
 
-                    throw new Error(
-                        "Form Create Model belum tersedia."
+                        throw new Error(
+                            "Form Create Model belum tersedia."
+                        );
+
+                    }
+
+
+                    /*
+                     * Gunakan root form yang tersedia.
+                     */
+
+                    const root =
+                        document.querySelector(
+                            "[data-model-form]"
+                        ) ||
+                        document.getElementById(
+                            "modelForm"
+                        ) ||
+                        document.getElementById(
+                            "model-form"
+                        ) ||
+                        null;
+
+
+                    /*
+                     * Sinkronkan data terbaru sebelum
+                     * membuka Create.
+                     */
+
+                    if (
+                        typeof form.setData ===
+                            "function"
+                    ) {
+
+                        form.setData({
+
+                            root,
+
+                            providers:
+                                [
+                                    ...state.providers
+                                ],
+
+                            models:
+                                [
+                                    ...state.models
+                                ]
+
+                        });
+
+                    }
+
+
+                    return form.openCreate(
+                        root,
+                        {
+
+                            providers:
+                                [
+                                    ...state.providers
+                                ],
+
+                            models:
+                                [
+                                    ...state.models
+                                ]
+
+                        }
                     );
 
                 }
+            )
+        ) {
+
+            bound =
+                true;
+
+        }
 
 
-                /*
-                 * Gunakan root form yang tersedia.
-                 */
+        /* =====================================================
+           REFRESH MODELS
+        ===================================================== */
 
-                const root =
-                    document.querySelector(
-                        "[data-model-form]"
-                    ) ||
-                    document.getElementById(
-                        "modelForm"
-                    ) ||
-                    document.getElementById(
-                        "model-form"
-                    ) ||
-                    null;
+        if (
+            bindButton(
+                [
+                    "refreshBtn",
+                    "refreshModels",
+                    "refreshModelsButton",
+                    "refreshModelButton"
+                ],
+                function () {
 
-
-                /*
-                 * Sinkronkan data terbaru sebelum
-                 * membuka Create.
-                 */
-
-                if (
-                    typeof form.setData ===
-                        "function"
-                ) {
-
-                    form.setData({
-
-                        root,
-
-                        providers:
-                            [
-                                ...state.providers
-                            ],
-
-                        models:
-                            [
-                                ...state.models
-                            ]
-
-                    });
+                    return refreshModels(
+                        {
+                            includeInactive:
+                                true
+                        }
+                    );
 
                 }
+            )
+        ) {
+
+            bound =
+                true;
+
+        }
 
 
-                return form.openCreate(
-                    root,
-                    {
+        buttonsBound =
+            bound ||
+            buttonsBound;
 
-                        providers:
-                            [
-                                ...state.providers
-                            ],
 
-                        models:
-                            [
-                                ...state.models
-                            ]
-
-                    }
-                );
-
-            }
-        )
-    ) {
-
-        bound =
-            true;
+        return buttonsBound;
 
     }
-
-
-    /* =====================================================
-       REFRESH MODELS
-    ===================================================== */
-
-    if (
-        bindButton(
-            [
-                "refreshBtn",
-                "refreshModels",
-                "refreshModelsButton",
-                "refreshModelButton"
-            ],
-            function () {
-
-                return refreshModels(
-                    {
-                        includeInactive:
-                            true
-                    }
-                );
-
-            }
-        )
-    ) {
-
-        bound =
-            true;
-
-    }
-
-
-    buttonsBound =
-        bound ||
-        buttonsBound;
-
-
-    return buttonsBound;
-
-}
 
 
     /* =====================================================
@@ -2050,6 +2054,13 @@
 
                     /*
                      * Provider.
+                     *
+                     * Initial load menggunakan
+                     * cache/provider state normal.
+                     *
+                     * Refresh manual tetap dapat
+                     * memaksa reload melalui tombol
+                     * Refresh.
                      */
 
                     await loadProviders(
@@ -2066,11 +2077,17 @@
                      *
                      * models-data.js adalah source
                      * model Admin Models.
+                     *
+                     * IMPORTANT:
+                     * Initial page load TIDAK force reload.
+                     *
+                     * Force reload hanya dilakukan
+                     * melalui refreshModels().
                      */
 
                     await loadModels(
                         {
-                            force: true,
+                            force: false,
 
                             includeInactive: true,
 
