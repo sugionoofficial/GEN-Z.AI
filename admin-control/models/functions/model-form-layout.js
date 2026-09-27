@@ -922,96 +922,140 @@
        ========================================================= */
 
     function updateProviderOptions(
-        root,
-        providers,
-        selectedProviderId = ""
+    root,
+    providers,
+    selectedProviderId = ""
+) {
+    const select =
+        queryFirst(
+            root,
+            FIELD.provider
+        );
+
+    if (
+        !select ||
+        select.tagName !==
+            "SELECT"
     ) {
-        const select =
-            queryFirst(
-                root,
-                FIELD.provider
+        return false;
+    }
+
+    const selected =
+        normalizeId(
+            selectedProviderId
+        );
+
+    const fragment =
+        document.createDocumentFragment();
+
+    const placeholder =
+        document.createElement(
+            "option"
+        );
+
+    placeholder.value = "";
+    placeholder.textContent =
+        "Pilih provider...";
+
+    fragment.appendChild(
+        placeholder
+    );
+
+    const list =
+        Array.isArray(providers)
+            ? providers
+            : [];
+
+    list.forEach(provider => {
+
+        const id =
+            normalizeId(
+                provider?.id
             );
 
-        if (
-            !select ||
-            select.tagName !==
-                "SELECT"
-        ) {
-            return false;
+        if (!id) {
+            return;
         }
 
-        const selected =
-            normalizeId(
-                selectedProviderId
+        const providerCode =
+            normalizeText(
+                provider?.provider_id ??
+                provider?.providerId ??
+                provider?.provider_code ??
+                provider?.providerCode ??
+                provider?.code
             );
 
-        /*
-         * Jangan membuat provider palsu.
-         */
-        const fragment =
-            document.createDocumentFragment();
+        const providerName =
+            normalizeText(
+                provider?.provider_name ??
+                provider?.providerName ??
+                provider?.name ??
+                providerCode ??
+                id
+            );
 
-        const placeholder =
+        const option =
             document.createElement(
                 "option"
             );
 
-        placeholder.value = "";
-        placeholder.textContent =
-            "Pilih provider...";
+        /*
+         * PRIMARY VALUE
+         *
+         * models.provider_id
+         * ->
+         * providers.id
+         */
+        option.value =
+            id;
+
+        /*
+         * Metadata provider.
+         *
+         * provider_id:
+         *   kie_ai
+         *
+         * provider_uuid:
+         *   providers.id
+         *
+         * provider_name:
+         *   GEN-Z.AI
+         */
+        option.dataset.providerUuid =
+            id;
+
+        option.dataset.providerId =
+            providerCode;
+
+        option.dataset.providerCode =
+            providerCode;
+
+        option.dataset.providerName =
+            providerName;
+
+        option.textContent =
+            providerName;
+
+        if (
+            id === selected
+        ) {
+            option.selected =
+                true;
+        }
 
         fragment.appendChild(
-            placeholder
+            option
         );
 
-        const list =
-            Array.isArray(providers)
-                ? providers
-                : [];
+    });
 
-        list.forEach(provider => {
-            const id =
-                normalizeId(
-                    provider?.id
-                );
+    select.replaceChildren(
+        fragment
+    );
 
-            if (!id) {
-                return;
-            }
-
-            const option =
-                document.createElement(
-                    "option"
-                );
-
-            option.value = id;
-
-            option.textContent =
-                normalizeText(
-                    provider?.name ??
-                    provider?.provider_name ??
-                    provider?.code ??
-                    provider?.provider_code ??
-                    id
-                );
-
-            if (
-                id === selected
-            ) {
-                option.selected = true;
-            }
-
-            fragment.appendChild(
-                option
-            );
-        });
-
-        select.replaceChildren(
-            fragment
-        );
-
-        return true;
-    }
+    return true;
+}
 
     function updateProviderStatus(
         root,
@@ -1074,124 +1118,264 @@
        ========================================================= */
 
     function updateModelIdOptions(
-        root,
-        models,
-        providerId = null
+    root,
+    models,
+    providerId = null
+) {
+    const field =
+        queryFirst(
+            root,
+            FIELD.modelId
+        );
+
+    if (!field) {
+        return false;
+    }
+
+    let datalist = null;
+
+    if (
+        field.getAttribute(
+            "list"
+        )
     ) {
-        const field =
+        datalist =
+            document.getElementById(
+                field.getAttribute(
+                    "list"
+                )
+            );
+    }
+
+    if (!datalist) {
+        datalist =
             queryFirst(
-                root,
-                FIELD.modelId
+                getRoot(root),
+                [
+                    "#modelIdList",
+                    "#model-id-list",
+                    "datalist[data-model-id-list]"
+                ]
+            );
+    }
+
+    if (!datalist) {
+        return false;
+    }
+
+    const form =
+        getRoot(root);
+
+    const providerField =
+        queryFirst(
+            form,
+            FIELD.provider
+        );
+
+    const selectedOption =
+        providerField &&
+        providerField.selectedIndex >= 0
+            ? providerField.options[
+                providerField.selectedIndex
+            ]
+            : null;
+
+    /*
+     * =================================================
+     * SELECTED PROVIDER
+     * =================================================
+     */
+
+    const providerTarget =
+        normalizeId(
+            providerId ??
+            providerField?.value ??
+            ""
+        );
+
+    const providerCode =
+        normalizeText(
+            selectedOption?.dataset?.providerId ??
+            selectedOption?.dataset?.providerCode ??
+            ""
+        ).toLowerCase();
+
+    const providerUuid =
+        normalizeText(
+            selectedOption?.dataset?.providerUuid ??
+            providerTarget ??
+            ""
+        ).toLowerCase();
+
+    const list =
+        Array.isArray(models)
+            ? models
+            : [];
+
+    /*
+     * =================================================
+     * PROVIDER FILTER
+     * =================================================
+     *
+     * Model dapat terhubung melalui:
+     *
+     * 1. models.provider_id
+     * 2. models.provider_uuid
+     * 3. models.provider_code
+     * 4. models.provider.provider_id
+     * 5. models.provider.id
+     *
+     * Ini penting untuk registry Seedance.
+     */
+
+    const filtered =
+        providerTarget
+            ? list.filter(model => {
+
+                const modelProviderId =
+                    normalizeText(
+                        model?.provider_id ??
+                        model?.providerId ??
+                        ""
+                    ).toLowerCase();
+
+                const modelProviderUuid =
+                    normalizeText(
+                        model?.provider_uuid ??
+                        model?.providerUuid ??
+                        model?.provider?.id ??
+                        ""
+                    ).toLowerCase();
+
+                const modelProviderCode =
+                    normalizeText(
+                        model?.provider_code ??
+                        model?.providerCode ??
+                        model?.provider?.provider_id ??
+                        model?.provider?.providerId ??
+                        model?.provider?.provider_code ??
+                        model?.provider?.providerCode ??
+                        ""
+                    ).toLowerCase();
+
+                /*
+                 * Primary:
+                 *
+                 * models.provider_id
+                 * =
+                 * providers.id
+                 */
+                if (
+                    providerUuid &&
+                    (
+                        modelProviderId ===
+                            providerUuid ||
+                        modelProviderUuid ===
+                            providerUuid
+                    )
+                ) {
+                    return true;
+                }
+
+                /*
+                 * Registry:
+                 *
+                 * provider_code
+                 * =
+                 * providers.provider_id
+                 */
+                if (
+                    providerCode &&
+                    modelProviderCode ===
+                        providerCode
+                ) {
+                    return true;
+                }
+
+                /*
+                 * Compatibility:
+                 * providerTarget dapat berupa
+                 * provider UUID atau provider code.
+                 */
+                if (
+                    providerTarget &&
+                    (
+                        modelProviderId ===
+                            providerTarget.toLowerCase() ||
+                        modelProviderUuid ===
+                            providerTarget.toLowerCase() ||
+                        modelProviderCode ===
+                            providerTarget.toLowerCase()
+                    )
+                ) {
+                    return true;
+                }
+
+                return false;
+
+            })
+            : list;
+
+    /*
+     * =================================================
+     * RENDER MODEL ID
+     * =================================================
+     */
+
+    datalist.replaceChildren();
+
+    filtered.forEach(model => {
+
+        const modelId =
+            normalizeText(
+                model?.model_id ??
+                model?.modelId
             );
 
-        if (!field) {
-            return false;
+        if (!modelId) {
+            return;
+        }
+
+        const option =
+            document.createElement(
+                "option"
+            );
+
+        option.value =
+            modelId;
+
+        const modelName =
+            normalizeText(
+                model?.model_name ??
+                model?.modelName ??
+                model?.name
+            );
+
+        if (modelName) {
+            option.label =
+                modelName;
         }
 
         /*
-         * Jika field bukan input yang memiliki datalist,
-         * jangan memaksakan perubahan markup.
+         * Simpan metadata untuk debugging
+         * dan selection berikutnya.
          */
-        let datalist = null;
+        option.dataset.modelId =
+            modelId;
 
-        if (
-            field.getAttribute(
-                "list"
-            )
-        ) {
-            datalist =
-                document.getElementById(
-                    field.getAttribute(
-                        "list"
-                    )
-                );
+        if (modelName) {
+            option.dataset.modelName =
+                modelName;
         }
 
-        if (!datalist) {
-            datalist =
-                queryFirst(
-                    getRoot(root),
-                    [
-                        "#modelIdList",
-                        "#model-id-list",
-                        "datalist[data-model-id-list]"
-                    ]
-                );
-        }
+        datalist.appendChild(
+            option
+        );
 
-        if (!datalist) {
-            return false;
-        }
+    });
 
-        const providerTarget =
-            providerId === null
-                ? normalizeId(
-                    queryFirst(
-                        root,
-                        FIELD.provider
-                    )?.value
-                )
-                : normalizeId(
-                    providerId
-                );
-
-        const list =
-            Array.isArray(models)
-                ? models
-                : [];
-
-        const filtered =
-            providerTarget
-                ? list.filter(model => {
-                    return (
-                        normalizeId(
-                            model?.provider_id ??
-                            model?.providerId
-                        ) ===
-                        providerTarget
-                    );
-                })
-                : list;
-
-        datalist.replaceChildren();
-
-        filtered.forEach(model => {
-            const modelId =
-                normalizeText(
-                    model?.model_id ??
-                    model?.modelId
-                );
-
-            if (!modelId) {
-                return;
-            }
-
-            const option =
-                document.createElement(
-                    "option"
-                );
-
-            option.value =
-                modelId;
-
-            const modelName =
-                normalizeText(
-                    model?.model_name ??
-                    model?.modelName
-                );
-
-            if (modelName) {
-                option.label =
-                    modelName;
-            }
-
-            datalist.appendChild(
-                option
-            );
-        });
-
-        return true;
-    }
+    return true;
+}
 
     /* =========================================================
        CHECKBOX HELPERS
