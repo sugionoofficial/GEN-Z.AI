@@ -32,32 +32,14 @@
  *        +-- ratios
  *        +-- resolutions
  *
- * CREDIT ARCHITECTURE
+ * REGISTRY
+ *   Registry hanya menyediakan:
+ *   - adapter
+ *   - model metadata
+ *   - technical parameters
  *
- *   models.credit_480p
- *   models.credit_720p
- *   models.credit_1080p
- *        |
- *        +-- credit dasar sesuai resolution
- *        +-- discount_percent
- *        +-- Credit final dihitung runtime
- *
- * PENTING
- *
- * Pricing database aktif hanya:
- *
- *   credit_480p
- *   credit_720p
- *   credit_1080p
- *   discount_percent
- *
- * Module ini TIDAK membaca:
- *
- *   credit_cost
- *   credit_final
- *
- * Credit final bukan kolom database yang menjadi
- * source of truth.
+ *   Registry TIDAK membuat Provider palsu.
+ *   Provider tetap harus berasal dari Supabase.
  *
  * =========================================================
  */
@@ -79,16 +61,15 @@ import seedanceParameters
    CONSTANT
 ========================================================= */
 
-const MODEL_TABLE = "models";
+const MODEL_TABLE =
+    "models";
 
-const PROVIDER_TABLE = "providers";
+const PROVIDER_TABLE =
+    "providers";
 
 
 /* =========================================================
    MODEL REGISTRY
-   ---------------------------------------------------------
-   Registry hanya menyimpan adapter / technical metadata.
-   Registry TIDAK menjadi source pricing.
 ========================================================= */
 
 const MODEL_REGISTRY = [
@@ -221,12 +202,6 @@ function normalizeArray(
         }
 
 
-        /*
-         * PostgreSQL ARRAY
-         *
-         * {16:9,9:16}
-         */
-
         if (
             trimmed.startsWith("{") &&
             trimmed.endsWith("}")
@@ -249,10 +224,6 @@ function normalizeArray(
         }
 
 
-        /*
-         * JSON ARRAY
-         */
-
         try {
 
             const parsed =
@@ -269,16 +240,13 @@ function normalizeArray(
 
             }
 
-        } catch (_) {
+        }
+        catch (_) {
 
             /* bukan JSON */
 
         }
 
-
-        /*
-         * CSV
-         */
 
         if (
             trimmed.includes(",")
@@ -308,10 +276,6 @@ function normalizeArray(
 
 }
 
-
-/*
- * Compatibility alias.
- */
 
 const normalizeArrayValue =
     normalizeArray;
@@ -445,11 +409,14 @@ function readResolutionCredit(
 
 function clearProviderCache() {
 
-    providerCache = [];
+    providerCache =
+        [];
 
-    providersLoaded = false;
+    providersLoaded =
+        false;
 
-    providersLoadingPromise = null;
+    providersLoadingPromise =
+        null;
 
     return true;
 
@@ -458,11 +425,14 @@ function clearProviderCache() {
 
 function clearModelCache() {
 
-    modelCache = [];
+    modelCache =
+        [];
 
-    modelsLoaded = false;
+    modelsLoaded =
+        false;
 
-    modelsLoadingPromise = null;
+    modelsLoadingPromise =
+        null;
 
     return true;
 
@@ -509,10 +479,6 @@ function filterActiveProviders(
 
 /* =========================================================
    LOAD PROVIDERS
-   ---------------------------------------------------------
-   PENTING:
-   Cache selalu menyimpan FULL provider list.
-   includeInactive hanya berlaku sebagai filter hasil.
 ========================================================= */
 
 async function loadProviders(
@@ -524,12 +490,6 @@ async function loadProviders(
         includeInactive = true
     } = options;
 
-
-    /*
-     * =====================================================
-     * CACHE
-     * =====================================================
-     */
 
     if (
         providersLoaded &&
@@ -556,12 +516,6 @@ async function loadProviders(
     }
 
 
-    /*
-     * =====================================================
-     * DUPLICATE REQUEST PROTECTION
-     * =====================================================
-     */
-
     if (
         providersLoadingPromise
     ) {
@@ -586,21 +540,9 @@ async function loadProviders(
     }
 
 
-    /*
-     * =====================================================
-     * SUPABASE
-     * =====================================================
-     */
-
     const supabase =
         getSupabaseClient();
 
-
-    /*
-     * Supabase belum siap.
-     *
-     * Jangan menandai providersLoaded=true.
-     */
 
     if (!supabase) {
 
@@ -608,21 +550,6 @@ async function loadProviders(
 
     }
 
-
-    /*
-     * =====================================================
-     * DATABASE REQUEST
-     * =====================================================
-     *
-     * Selalu mengambil seluruh provider.
-     *
-     * Filtering active dilakukan setelah data
-     * berhasil diterima.
-     *
-     * Ini mencegah cache menjadi active-only
-     * ketika request pertama memakai
-     * includeInactive:false.
-     */
 
     providersLoadingPromise =
         (async function () {
@@ -655,13 +582,6 @@ async function loadProviders(
                     );
 
 
-                    /*
-                     * Jangan menyentuh cache.
-                     *
-                     * Request gagal bukan berarti
-                     * database kosong.
-                     */
-
                     return [];
 
                 }
@@ -673,11 +593,6 @@ async function loadProviders(
                         : [];
 
 
-                /*
-                 * Cache hanya diubah setelah
-                 * request database berhasil.
-                 */
-
                 providerCache =
                     normalized;
 
@@ -688,7 +603,8 @@ async function loadProviders(
 
                 return providerCache.slice();
 
-            } catch (
+            }
+            catch (
                 error
             ) {
 
@@ -697,10 +613,6 @@ async function loadProviders(
                     error
                 );
 
-
-                /*
-                 * Jangan mengunci cache sebagai loaded.
-                 */
 
                 return [];
 
@@ -728,7 +640,8 @@ async function loadProviders(
 
         return result;
 
-    } finally {
+    }
+    finally {
 
         providersLoadingPromise =
             null;
@@ -800,10 +713,14 @@ async function getProviderByCode(
             provider =>
                 String(
                     provider?.provider_id || ""
-                ) ===
+                )
+                    .trim()
+                    .toLowerCase() ===
                 String(
                     providerCode
                 )
+                    .trim()
+                    .toLowerCase()
         ) || null
     );
 
@@ -945,6 +862,88 @@ function getDurationRange(
 
 
 /* =========================================================
+   PROVIDER MATCH HELPER
+   ---------------------------------------------------------
+   Registry provider code:
+       kie_ai
+
+   Supabase provider dapat mempunyai:
+       id            = UUID
+       provider_id   = kie_ai
+       provider_name = KIE.AI
+
+   Pencocokan dilakukan terhadap ketiganya.
+========================================================= */
+
+function findRegistryProvider(
+    providerCode,
+    providerMap
+) {
+
+    const code =
+        String(
+            providerCode || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        !code ||
+        !Array.isArray(providerMap)
+    ) {
+
+        return null;
+
+    }
+
+
+    return (
+
+        providerMap.find(
+            provider =>
+                String(
+                    provider?.provider_id || ""
+                )
+                    .trim()
+                    .toLowerCase() ===
+                code
+        )
+
+        ||
+
+        providerMap.find(
+            provider =>
+                String(
+                    provider?.id || ""
+                )
+                    .trim()
+                    .toLowerCase() ===
+                code
+        )
+
+        ||
+
+        providerMap.find(
+            provider =>
+                String(
+                    provider?.provider_name || ""
+                )
+                    .trim()
+                    .toLowerCase() ===
+                code
+        )
+
+        ||
+
+        null
+
+    );
+
+}
+
+
+/* =========================================================
    REGISTRY MODEL NORMALIZER
 ========================================================= */
 
@@ -969,7 +968,8 @@ function normalizeRegistryModel(
 
 
     const parameters =
-        registryEntry.parameters || {};
+        registryEntry.parameters ||
+        {};
 
 
     const modelId =
@@ -985,26 +985,33 @@ function normalizeRegistryModel(
     }
 
 
+    /*
+     * Registry provider code.
+     *
+     * Contoh:
+     *
+     * kie_ai
+     */
+
     const providerCode =
         String(
-            config.providerId || ""
+            config.providerId ||
+            config.provider_id ||
+            ""
         ).trim();
 
 
+    /*
+     * Cari Provider AKTUAL dari Supabase.
+     *
+     * Tidak membuat Provider baru.
+     */
+
     const provider =
-        Array.isArray(providerMap)
-
-            ? (
-                providerMap.find(
-                    item =>
-                        String(
-                            item?.provider_id || ""
-                        ) ===
-                        providerCode
-                ) || null
-            )
-
-            : null;
+        findRegistryProvider(
+            providerCode,
+            providerMap
+        );
 
 
     const supportedRatios =
@@ -1028,7 +1035,8 @@ function normalizeRegistryModel(
 
 
     const persisted =
-        persistedModel || null;
+        persistedModel ||
+        null;
 
 
     const modelName =
@@ -1053,10 +1061,6 @@ function normalizeRegistryModel(
             .trim()
             .toLowerCase();
 
-
-    /*
-     * Registry tidak menentukan harga.
-     */
 
     const credit480p =
         readResolutionCredit(
@@ -1094,16 +1098,29 @@ function normalizeRegistryModel(
         );
 
 
+    /*
+     * Provider DATA.
+     *
+     * Jika Provider ditemukan:
+     * gunakan seluruh identitas aktual.
+     *
+     * Jika tidak ditemukan:
+     * provider_id tetap null.
+     *
+     * Tidak pernah membuat UUID / provider palsu.
+     */
+
     const providerData =
         provider
 
             ? {
 
                 id:
-                    provider.id,
+                    provider.id ?? null,
 
                 provider_id:
-                    provider.provider_id,
+                    provider.provider_id ||
+                    providerCode,
 
                 provider_name:
                     provider.provider_name ||
@@ -1111,7 +1128,8 @@ function normalizeRegistryModel(
                     providerCode,
 
                 status:
-                    provider.status
+                    provider.status ||
+                    "unknown"
 
             }
 
@@ -1149,6 +1167,15 @@ function normalizeRegistryModel(
         description:
             description,
 
+        /*
+         * PENTING:
+         *
+         * Kalau Provider ditemukan,
+         * gunakan providers.id yang sebenarnya.
+         *
+         * Jangan gunakan providerCode sebagai UUID.
+         */
+
         provider_id:
             provider?.id ??
             persisted?.provider_id ??
@@ -1156,6 +1183,14 @@ function normalizeRegistryModel(
 
         provider_code:
             providerCode,
+
+        provider_name:
+            providerData.provider_name,
+
+        provider_uuid:
+            provider?.id ??
+            persisted?.provider_id ??
+            null,
 
         provider:
             providerData,
@@ -1214,7 +1249,8 @@ function normalizeRegistryModel(
             "model-folder",
 
         source_folder:
-            registryEntry.folder || "",
+            registryEntry.folder ||
+            "",
 
         registry:
             true,
@@ -1229,10 +1265,6 @@ function normalizeRegistryModel(
 
 /* =========================================================
    LOAD PERSISTED ADMIN MODELS
-   ---------------------------------------------------------
-   PENTING:
-   Error database TIDAK dianggap sebagai
-   "database kosong".
 ========================================================= */
 
 async function loadPersistedModels() {
@@ -1299,7 +1331,8 @@ async function loadPersistedModels() {
             ? data
             : [];
 
-    } catch (
+    }
+    catch (
         error
     ) {
 
@@ -1308,14 +1341,6 @@ async function loadPersistedModels() {
             error
         );
 
-
-        /*
-         * Lempar kembali error.
-         *
-         * Jangan return [] karena [] bisa dianggap
-         * sebagai database kosong dan kemudian
-         * dikunci ke cache.
-         */
 
         throw error;
 
@@ -1390,15 +1415,14 @@ function normalizePersistedModel(
     }
 
 
-    /*
-     * Provider ditentukan oleh provider_id
-     * dari Admin Models.
-     */
-
     const persistedProviderId =
         persistedModel.provider_id ??
         null;
 
+
+    /*
+     * Provider Supabase berdasarkan UUID.
+     */
 
     const provider =
         Array.isArray(providerMap)
@@ -1410,20 +1434,14 @@ function normalizePersistedModel(
                             item?.id || ""
                         ) ===
                         String(
-                            persistedProviderId || ""
+                            persistedProviderId ||
+                            ""
                         )
                 ) || null
             )
 
             : null;
 
-
-    /*
-     * Registry OPTIONAL.
-     *
-     * Registry hanya dipakai untuk metadata adapter
-     * dan technical capability fallback.
-     */
 
     const registryEntry =
         getRegistryEntryByModelId(
@@ -1440,12 +1458,6 @@ function normalizePersistedModel(
         registryEntry?.parameters ||
         null;
 
-
-    /*
-     * =====================================================
-     * TECHNICAL PARAMETERS
-     * =====================================================
-     */
 
     const persistedRatios =
         normalizeArray(
@@ -1530,12 +1542,6 @@ function normalizePersistedModel(
             : registryResolutions;
 
 
-    /*
-     * =====================================================
-     * CREDIT CONFIGURATION
-     * =====================================================
-     */
-
     const safeDiscount =
         normalizeDiscount(
             persistedModel.discount_percent
@@ -1571,12 +1577,6 @@ function normalizePersistedModel(
             0
         );
 
-
-    /*
-     * =====================================================
-     * PROVIDER CODE
-     * =====================================================
-     */
 
     const providerCode =
         String(
@@ -1643,12 +1643,6 @@ function normalizePersistedModel(
             };
 
 
-    /*
-     * =====================================================
-     * STATUS
-     * =====================================================
-     */
-
     const status =
         String(
             persistedModel.status ||
@@ -1658,12 +1652,6 @@ function normalizePersistedModel(
             .toLowerCase();
 
 
-    /*
-     * =====================================================
-     * MODEL TYPE
-     * =====================================================
-     */
-
     const modelType =
         String(
             persistedModel.type ||
@@ -1672,12 +1660,6 @@ function normalizePersistedModel(
             ""
         ).trim();
 
-
-    /*
-     * =====================================================
-     * FINAL NORMALIZED MODEL
-     * =====================================================
-     */
 
     return {
 
@@ -1705,6 +1687,12 @@ function normalizePersistedModel(
 
         provider_code:
             providerCode,
+
+        provider_name:
+            providerName,
+
+        provider_uuid:
+            persistedProviderId,
 
         provider:
             providerData,
@@ -1786,30 +1774,11 @@ function normalizePersistedModel(
 
 /* =========================================================
    LOAD REGISTRY MODELS
-   ---------------------------------------------------------
-   Registry model hanya metadata.
-   Tidak dianggap sebagai model aktif Admin Models.
 ========================================================= */
 
 function loadRegistryModels(
     options = {}
 ) {
-
-    /*
-     * Provider dapat diberikan dari caller.
-     *
-     * Registry model seperti Seedance menggunakan:
-     *
-     *     providerId: "kie_ai"
-     *
-     * sedangkan database Provider menggunakan:
-     *
-     *     providers.id
-     *
-     * normalizeRegistryModel() akan mencocokkan
-     * provider_id = "kie_ai" lalu mengambil UUID
-     * providers.id yang sebenarnya.
-     */
 
     const providerMap =
         Array.isArray(options)
@@ -1834,6 +1803,33 @@ function loadRegistryModels(
                     )
             )
             .filter(Boolean);
+
+
+    /*
+     * Debug hanya untuk memastikan registry
+     * benar-benar masuk catalog.
+     */
+
+    console.info(
+        "[GEN-Z.AI] Registry model catalog:",
+        models.map(
+            model => ({
+
+                model_id:
+                    model.model_id,
+
+                provider_id:
+                    model.provider_id,
+
+                provider_code:
+                    model.provider_code,
+
+                provider_name:
+                    model.provider_name
+
+            })
+        )
+    );
 
 
     return models.slice();
@@ -1877,7 +1873,7 @@ function getRegistryModel(
 
     return normalizeRegistryModel(
         entry,
-        [],
+        providerCache,
         null
     );
 
@@ -1961,12 +1957,6 @@ async function loadModels(
     } = options;
 
 
-    /*
-     * =====================================================
-     * CACHE
-     * =====================================================
-     */
-
     if (
         modelsLoaded &&
         !force
@@ -1982,12 +1972,6 @@ async function loadModels(
 
     }
 
-
-    /*
-     * =====================================================
-     * DUPLICATE REQUEST
-     * =====================================================
-     */
 
     if (
         modelsLoadingPromise
@@ -2008,23 +1992,8 @@ async function loadModels(
     }
 
 
-    /*
-     * =====================================================
-     * LOAD
-     * =====================================================
-     */
-
     modelsLoadingPromise =
         (async function () {
-
-            /*
-             * =================================================
-             * SUPABASE CLIENT
-             * =================================================
-             *
-             * Jangan menganggap Supabase belum siap
-             * sebagai database kosong.
-             */
 
             const supabase =
                 getSupabaseClient();
@@ -2045,38 +2014,20 @@ async function loadModels(
             }
 
 
-            /*
-             * =================================================
-             * PROVIDERS
-             * =================================================
-             */
-
             const providers =
                 await loadProviders({
+
                     force,
-                    includeInactive: true
+
+                    includeInactive:
+                        true
+
                 });
 
-
-            /*
-             * =================================================
-             * ADMIN MODELS
-             * =================================================
-             */
 
             const persistedModels =
                 await loadPersistedModels();
 
-
-            /*
-             * =================================================
-             * NORMALIZE
-             * =================================================
-             *
-             * Semua model berasal dari Supabase.
-             *
-             * Registry hanya memperkaya metadata.
-             */
 
             const models =
                 persistedModels
@@ -2089,15 +2040,6 @@ async function loadModels(
                     )
                     .filter(Boolean);
 
-
-            /*
-             * =================================================
-             * CACHE
-             * =================================================
-             *
-             * Hanya cache setelah seluruh proses
-             * database berhasil.
-             */
 
             modelCache =
                 models.slice();
@@ -2126,25 +2068,10 @@ async function loadModels(
             }
         );
 
-    } catch (
+    }
+    catch (
         error
     ) {
-
-        /*
-         * =================================================
-         * PENTING
-         * =================================================
-         *
-         * Jangan:
-         *
-         *   modelCache = [];
-         *   modelsLoaded = true;
-         *
-         * ketika query gagal.
-         *
-         * Caller berikutnya harus tetap dapat
-         * mencoba membaca database kembali.
-         */
 
         console.warn(
             "GEN-Z.AI: loadModels gagal:",
@@ -2154,7 +2081,8 @@ async function loadModels(
 
         throw error;
 
-    } finally {
+    }
+    finally {
 
         modelsLoadingPromise =
             null;
@@ -2232,12 +2160,6 @@ async function getModelByModelId(
     }
 
 
-    /*
-     * Hanya Admin Models.
-     *
-     * Registry tidak boleh membuat model palsu.
-     */
-
     const models =
         await loadModels();
 
@@ -2291,10 +2213,6 @@ function filterModels(
     return source.filter(
         model => {
 
-            /*
-             * Provider UUID
-             */
-
             if (
                 providerId !== undefined &&
                 providerId !== null &&
@@ -2317,10 +2235,6 @@ function filterModels(
             }
 
 
-            /*
-             * Provider code
-             */
-
             if (
                 providerCode
             ) {
@@ -2340,10 +2254,6 @@ function filterModels(
 
             }
 
-
-            /*
-             * Status
-             */
 
             if (
                 status &&
@@ -2365,10 +2275,6 @@ function filterModels(
 
             }
 
-
-            /*
-             * Search
-             */
 
             if (
                 normalizedSearch
@@ -2550,10 +2456,6 @@ function getResolutionCredit(
 
     }
 
-
-    /*
-     * Jangan mengarang harga.
-     */
 
     return 0;
 
