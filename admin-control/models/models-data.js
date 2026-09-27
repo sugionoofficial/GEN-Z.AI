@@ -39,9 +39,7 @@
  *   models.credit_1080p
  *        |
  *        +-- credit dasar sesuai resolution
- *        |
  *        +-- discount_percent
- *        |
  *        +-- Credit final dihitung runtime
  *
  * RUMUS RUNTIME:
@@ -507,7 +505,9 @@ async function loadProviders(
 
 
     /*
+     * =====================================================
      * CACHE
+     * =====================================================
      */
 
     if (
@@ -543,7 +543,9 @@ async function loadProviders(
 
 
     /*
-     * Hindari duplicate request.
+     * =====================================================
+     * DUPLICATE REQUEST
+     * =====================================================
      */
 
     if (
@@ -581,16 +583,27 @@ async function loadProviders(
 
 
     /*
-     * Supabase belum tersedia.
+     * =====================================================
+     * SUPABASE BELUM SIAP
+     * =====================================================
      *
-     * Jangan membuat provider palsu.
+     * PENTING:
+     *
+     * Jangan:
+     *
+     *   providerCache = [];
+     *   providersLoaded = true;
+     *
+     * karena itu akan mengunci cache sebagai
+     * hasil kosong permanen sampai force refresh.
+     *
+     * Supabase belum siap bukan berarti database
+     * tidak mempunyai provider.
+     *
+     * Biarkan caller mencoba lagi.
      */
 
     if (!supabase) {
-
-        providerCache = [];
-
-        providersLoaded = true;
 
         return [];
 
@@ -645,9 +658,13 @@ async function loadProviders(
                     );
 
 
-                    providerCache = [];
-
-                    providersLoaded = true;
+                    /*
+                     * Jangan menandai loaded jika
+                     * request database gagal.
+                     *
+                     * Dengan begitu request berikutnya
+                     * masih dapat mencoba kembali.
+                     */
 
                     return [];
 
@@ -676,9 +693,10 @@ async function loadProviders(
                 );
 
 
-                providerCache = [];
-
-                providersLoaded = true;
+                /*
+                 * Jangan mengunci cache sebagai loaded
+                 * ketika terjadi error.
+                 */
 
                 return [];
 
@@ -691,6 +709,23 @@ async function loadProviders(
 
         const result =
             await providersLoadingPromise;
+
+
+        if (
+            !includeInactive
+        ) {
+
+            return result.filter(
+                provider =>
+                    String(
+                        provider?.status || ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    "active"
+            );
+
+        }
 
 
         return result;
@@ -1181,12 +1216,6 @@ function normalizeRegistryModel(
             durationRange.max,
 
 
-        /*
-         * =================================================
-         * ACTIVE PRICING CONFIGURATION
-         * =================================================
-         */
-
         discount_percent:
             safeDiscount,
 
@@ -1202,10 +1231,6 @@ function normalizeRegistryModel(
         credit_1080p:
             credit1080p,
 
-
-        /*
-         * CamelCase compatibility.
-         */
 
         credit480p:
             credit480p,
@@ -1252,6 +1277,12 @@ async function loadPersistedModels() {
     const supabase =
         getSupabaseClient();
 
+
+    /*
+     * Supabase belum siap.
+     *
+     * Jangan dianggap sebagai database kosong.
+     */
 
     if (!supabase) {
 
@@ -1523,28 +1554,17 @@ function normalizePersistedModel(
             : registryResolutions;
 
 
-    /* =====================================================
-       CREDIT CONFIGURATION
-    ===================================================== */
+    /*
+     * =====================================================
+     * CREDIT CONFIGURATION
+     * =====================================================
+     */
 
     const safeDiscount =
         normalizeDiscount(
             persistedModel.discount_percent
         );
 
-
-    /* =====================================================
-       RESOLUTION-SPECIFIC CREDIT
-       -----------------------------------------------------
-       Source utama:
-       - credit_480p
-       - credit_720p
-       - credit_1080p
-       
-       Tidak memakai field pricing legacy.
-       
-       Nilai 0 tetap valid.
-    ===================================================== */
 
     const credit480p =
         readResolutionCredit(
@@ -1576,9 +1596,11 @@ function normalizePersistedModel(
         );
 
 
-    /* =====================================================
-       PROVIDER CODE
-    ===================================================== */
+    /*
+     * =====================================================
+     * PROVIDER CODE
+     * =====================================================
+     */
 
     const providerCode =
         String(
@@ -1645,9 +1667,11 @@ function normalizePersistedModel(
             };
 
 
-    /* =====================================================
-       STATUS
-    ===================================================== */
+    /*
+     * =====================================================
+     * STATUS
+     * =====================================================
+     */
 
     const status =
         String(
@@ -1658,9 +1682,11 @@ function normalizePersistedModel(
             .toLowerCase();
 
 
-    /* =====================================================
-       MODEL TYPE
-    ===================================================== */
+    /*
+     * =====================================================
+     * MODEL TYPE
+     * =====================================================
+     */
 
     const modelType =
         String(
@@ -1671,32 +1697,22 @@ function normalizePersistedModel(
         ).trim();
 
 
-    /* =====================================================
-       FINAL NORMALIZED MODEL
-    ===================================================== */
+    /*
+     * =====================================================
+     * FINAL NORMALIZED MODEL
+     * =====================================================
+     */
 
     return {
-
-        /*
-         * Supabase UUID.
-         */
 
         id:
             persistedModel.id ??
             null,
 
 
-        /*
-         * MODEL ID
-         */
-
         model_id:
             modelId,
 
-
-        /*
-         * MODEL NAME
-         */
 
         model_name:
             String(
@@ -1706,51 +1722,27 @@ function normalizePersistedModel(
             ).trim(),
 
 
-        /*
-         * DESCRIPTION
-         */
-
         description:
             persistedModel.description ??
             registryConfig?.description ??
             "",
 
 
-        /*
-         * PROVIDER UUID
-         */
-
         provider_id:
             persistedProviderId,
 
-
-        /*
-         * PROVIDER CODE
-         */
 
         provider_code:
             providerCode,
 
 
-        /*
-         * PROVIDER OBJECT
-         */
-
         provider:
             providerData,
 
 
-        /*
-         * MODEL TYPE
-         */
-
         type:
             modelType,
 
-
-        /*
-         * API / ADAPTER CONFIG
-         */
 
         api:
             registryConfig?.api
@@ -1759,10 +1751,6 @@ function normalizePersistedModel(
                 }
                 : {},
 
-
-        /*
-         * TECHNICAL PARAMETERS
-         */
 
         parameters:
             registryParameters
@@ -1788,12 +1776,6 @@ function normalizePersistedModel(
             maxDuration,
 
 
-        /*
-         * =================================================
-         * ACTIVE CREDIT CONFIGURATION
-         * =================================================
-         */
-
         discount_percent:
             safeDiscount,
 
@@ -1810,10 +1792,6 @@ function normalizePersistedModel(
             credit1080p,
 
 
-        /*
-         * CamelCase compatibility.
-         */
-
         credit480p:
             credit480p,
 
@@ -1826,44 +1804,24 @@ function normalizePersistedModel(
             credit1080p,
 
 
-        /*
-         * STATUS ADMIN MODEL
-         */
-
         status:
             status,
 
 
-        /*
-         * SOURCE
-         */
-
         source:
             "admin-model",
 
-
-        /*
-         * Registry folder hanya metadata adapter.
-         */
 
         source_folder:
             registryEntry?.folder ||
             "",
 
 
-        /*
-         * Apakah model mempunyai registry entry.
-         */
-
         registry:
             Boolean(
                 registryEntry
             ),
 
-
-        /*
-         * Apakah adapter teknis tersedia.
-         */
 
         adapter_available:
             Boolean(
@@ -2079,6 +2037,40 @@ async function loadModels(
 
     modelsLoadingPromise =
         (async function () {
+
+            /*
+             * =================================================
+             * SUPABASE CLIENT
+             * =================================================
+             *
+             * Jangan memulai load database sebelum
+             * Supabase benar-benar tersedia.
+             *
+             * Jika belum tersedia, throw agar:
+             *
+             *   modelsLoaded tetap false
+             *
+             * sehingga tidak terjadi cache kosong permanen.
+             */
+
+            const supabase =
+                getSupabaseClient();
+
+
+            if (!supabase) {
+
+                const error =
+                    new Error(
+                        "SUPABASE_NOT_READY"
+                    );
+
+                error.code =
+                    "SUPABASE_NOT_READY";
+
+                throw error;
+
+            }
+
 
             /*
              * =================================================
