@@ -7,19 +7,18 @@
  *
  * Tanggung jawab:
  * - Bootstrap halaman
- * - Menunggu DOM
+ * - Auth check
  * - Load model
  * - Bind event
  * - Save
- * - Cancel / Back
+ * - Back
  * - Logout
- * - Sidebar mobile
+ * - Sidebar
  *
  * Tidak melakukan:
- * - Query API langsung
- * - Render detail model
- * - Logika PATCH
- * - Registry loading
+ * - API request langsung
+ * - Render model
+ * - PATCH langsung
  * ============================================================
  */
 
@@ -41,7 +40,9 @@ import {
 import {
     renderLoading,
     renderError,
-    clearAlert
+    clearAlert,
+    updateResolutionPricing,
+    updatePricePreview
 } from "./model-edit-render.js";
 
 
@@ -60,7 +61,7 @@ function getSupabase() {
 
 
 /* ============================================================
-   AUTH TOKEN
+   SESSION
 ============================================================ */
 
 async function getSession() {
@@ -113,7 +114,7 @@ async function getSession() {
 
 
 /* ============================================================
-   ADMIN ACCESS CHECK
+   AUTH CHECK
 ============================================================ */
 
 async function checkAdminAccess() {
@@ -130,11 +131,7 @@ async function checkAdminAccess() {
     }
 
 
-    const user =
-        session.user;
-
-
-    if (!user) {
+    if (!session.user) {
 
         throw new Error(
             "Data user tidak ditemukan."
@@ -142,25 +139,21 @@ async function checkAdminAccess() {
     }
 
 
-    /*
-     * Jangan memblokir halaman hanya berdasarkan
-     * field role tertentu di client.
-     *
-     * API tetap menjadi authority untuk permission.
-     */
-
-    return user;
+    return session.user;
 }
 
 
 /* ============================================================
-   NAVIGATION
+   BACK
 ============================================================ */
 
 function goBack() {
 
     if (
-        window.history.length > 1
+        document.referrer &&
+        document.referrer.includes(
+            window.location.host
+        )
     ) {
 
         window.history.back();
@@ -276,7 +269,7 @@ function toggleSidebar() {
 
 
 /* ============================================================
-   SAVE HANDLER
+   SAVE
 ============================================================ */
 
 async function handleSave(
@@ -304,7 +297,7 @@ async function handleSave(
 
 
 /* ============================================================
-   CANCEL HANDLER
+   CANCEL / BACK
 ============================================================ */
 
 function handleCancel(
@@ -321,10 +314,6 @@ function handleCancel(
 }
 
 
-/* ============================================================
-   BACK HANDLER
-============================================================ */
-
 function handleBack(
     event
 ) {
@@ -340,7 +329,7 @@ function handleBack(
 
 
 /* ============================================================
-   LOGOUT HANDLER
+   LOGOUT
 ============================================================ */
 
 async function handleLogout(
@@ -358,59 +347,81 @@ async function handleLogout(
 
 
 /* ============================================================
-   SIDEBAR NAVIGATION
+   PRICING EVENTS
 ============================================================ */
 
-function bindNavigation() {
+function bindPricingEvents() {
 
     const dom =
         getDOM();
 
 
-    dom.backButton?.addEventListener(
-        "click",
-        handleBack
+    /*
+     * Discount dan credit hanya memengaruhi
+     * preview pricing di halaman.
+     */
+
+    [
+        dom.discount,
+        dom.credit480p,
+        dom.credit720p,
+        dom.credit1080p
+    ]
+    .filter(Boolean)
+    .forEach(
+        element => {
+
+            element.addEventListener(
+                "input",
+                () => {
+
+                    updateResolutionPricing();
+
+                    updatePricePreview();
+                }
+            );
+
+            element.addEventListener(
+                "change",
+                () => {
+
+                    updateResolutionPricing();
+
+                    updatePricePreview();
+                }
+            );
+        }
     );
 
 
-    dom.cancelButton?.addEventListener(
-        "click",
-        handleCancel
-    );
+    /*
+     * Kurs / USD price.
+     */
 
+    [
+        dom.priceUsd,
+        dom.exchangeRate
+    ]
+    .filter(Boolean)
+    .forEach(
+        element => {
 
-    dom.logoutButton?.addEventListener(
-        "click",
-        handleLogout
-    );
+            element.addEventListener(
+                "input",
+                () => {
 
+                    updatePricePreview();
+                }
+            );
 
-    dom.navToggle?.addEventListener(
-        "click",
-        toggleSidebar
-    );
+            element.addEventListener(
+                "change",
+                () => {
 
-
-    dom.sidebarOverlay?.addEventListener(
-        "click",
-        closeSidebar
-    );
-}
-
-
-/* ============================================================
-   SAVE BUTTON
-============================================================ */
-
-function bindSave() {
-
-    const dom =
-        getDOM();
-
-
-    dom.saveButton?.addEventListener(
-        "click",
-        handleSave
+                    updatePricePreview();
+                }
+            );
+        }
     );
 }
 
@@ -420,12 +431,6 @@ function bindSave() {
 ============================================================ */
 
 function bindFormSubmit() {
-
-    /*
-     * Jangan bergantung hanya pada tombol Save.
-     * Jika halaman memiliki form, Enter juga harus
-     * menjalankan save.
-     */
 
     const form =
         document.querySelector(
@@ -439,85 +444,186 @@ function bindFormSubmit() {
     }
 
 
+    if (
+        form.dataset
+            .modelEditSubmitBound ===
+        "true"
+    ) {
+
+        return;
+    }
+
+
     form.addEventListener(
         "submit",
         handleSave
     );
+
+
+    form.dataset
+        .modelEditSubmitBound =
+            "true";
 }
 
 
 /* ============================================================
-   ALERT CLEAR
+   BUTTON EVENTS
 ============================================================ */
 
-function bindAlertDismiss() {
+function bindButtonEvents() {
 
     const dom =
         getDOM();
 
 
-    if (!dom.alert) {
+    if (
+        dom.saveButton &&
+        dom.saveButton.dataset
+            .modelEditBound !==
+            "true"
+    ) {
 
-        return;
+        dom.saveButton.addEventListener(
+            "click",
+            handleSave
+        );
+
+        dom.saveButton.dataset
+            .modelEditBound =
+                "true";
     }
 
 
-    dom.alert.addEventListener(
-        "click",
-        event => {
+    if (
+        dom.cancelButton &&
+        dom.cancelButton.dataset
+            .modelEditBound !==
+            "true"
+    ) {
 
-            const target =
-                event.target;
+        dom.cancelButton.addEventListener(
+            "click",
+            handleCancel
+        );
+
+        dom.cancelButton.dataset
+            .modelEditBound =
+                "true";
+    }
 
 
-            if (
-                target?.closest(
-                    "[data-dismiss-alert]"
-                )
-            ) {
+    if (
+        dom.backButton &&
+        dom.backButton.dataset
+            .modelEditBound !==
+            "true"
+    ) {
 
-                clearAlert();
-            }
-        }
-    );
+        dom.backButton.addEventListener(
+            "click",
+            handleBack
+        );
+
+        dom.backButton.dataset
+            .modelEditBound =
+                "true";
+    }
+
+
+    if (
+        dom.logoutButton &&
+        dom.logoutButton.dataset
+            .modelEditBound !==
+            "true"
+    ) {
+
+        dom.logoutButton.addEventListener(
+            "click",
+            handleLogout
+        );
+
+        dom.logoutButton.dataset
+            .modelEditBound =
+                "true";
+    }
 }
 
 
 /* ============================================================
-   MOBILE SIDEBAR LINKS
+   SIDEBAR EVENTS
 ============================================================ */
 
-function bindSidebarLinks() {
+function bindSidebarEvents() {
 
     const dom =
         getDOM();
 
 
-    if (!dom.sidebar) {
+    if (
+        dom.navToggle &&
+        dom.navToggle.dataset
+            .modelEditBound !==
+            "true"
+    ) {
 
-        return;
+        dom.navToggle.addEventListener(
+            "click",
+            toggleSidebar
+        );
+
+        dom.navToggle.dataset
+            .modelEditBound =
+                "true";
     }
 
 
-    dom.sidebar.addEventListener(
-        "click",
-        event => {
+    if (
+        dom.sidebarOverlay &&
+        dom.sidebarOverlay.dataset
+            .modelEditBound !==
+            "true"
+    ) {
 
-            const link =
-                event.target.closest(
-                    "a"
-                );
+        dom.sidebarOverlay.addEventListener(
+            "click",
+            closeSidebar
+        );
+
+        dom.sidebarOverlay.dataset
+            .modelEditBound =
+                "true";
+    }
 
 
-            if (!link) {
+    if (
+        dom.sidebar &&
+        dom.sidebar.dataset
+            .modelEditBound !==
+            "true"
+    ) {
 
-                return;
+        dom.sidebar.addEventListener(
+            "click",
+            event => {
+
+                const link =
+                    event.target.closest(
+                        "a"
+                    );
+
+
+                if (link) {
+
+                    closeSidebar();
+                }
             }
+        );
 
 
-            closeSidebar();
-        }
-    );
+        dom.sidebar.dataset
+            .modelEditBound =
+                "true";
+    }
 }
 
 
@@ -526,6 +632,16 @@ function bindSidebarLinks() {
 ============================================================ */
 
 function bindKeyboard() {
+
+    if (
+        document.body.dataset
+            .modelEditKeyboardBound ===
+        "true"
+    ) {
+
+        return;
+    }
+
 
     document.addEventListener(
         "keydown",
@@ -540,31 +656,83 @@ function bindKeyboard() {
             }
         }
     );
+
+
+    document.body.dataset
+        .modelEditKeyboardBound =
+            "true";
 }
 
 
 /* ============================================================
-   BIND EVENTS
+   ALERT
+============================================================ */
+
+function bindAlert() {
+
+    const dom =
+        getDOM();
+
+
+    if (
+        !dom.alert ||
+        dom.alert.dataset
+            .modelEditBound ===
+        "true"
+    ) {
+
+        return;
+    }
+
+
+    dom.alert.addEventListener(
+        "click",
+        event => {
+
+            const dismiss =
+                event.target.closest(
+                    "[data-dismiss-alert]"
+                );
+
+
+            if (
+                dismiss
+            ) {
+
+                clearAlert();
+            }
+        }
+    );
+
+
+    dom.alert.dataset
+        .modelEditBound =
+            "true";
+}
+
+
+/* ============================================================
+   ALL EVENTS
 ============================================================ */
 
 function bindEvents() {
 
-    bindNavigation();
-
-    bindSave();
+    bindButtonEvents();
 
     bindFormSubmit();
 
-    bindAlertDismiss();
+    bindPricingEvents();
 
-    bindSidebarLinks();
+    bindSidebarEvents();
 
     bindKeyboard();
+
+    bindAlert();
 }
 
 
 /* ============================================================
-   LOAD PAGE
+   INITIALIZE
 ============================================================ */
 
 async function initialize() {
@@ -596,27 +764,26 @@ async function initialize() {
     try {
 
         renderLoading(
-            true,
-            "Memuat data model..."
+            true
         );
 
 
         /*
-         * Auth diperiksa lebih dulu.
+         * Auth
          */
 
         await checkAdminAccess();
 
 
         /*
-         * Bind event satu kali.
+         * Events
          */
 
         bindEvents();
 
 
         /*
-         * Load model.
+         * Model
          */
 
         await loadModel();
@@ -658,7 +825,7 @@ function destroy() {
 
 
 /* ============================================================
-   AUTO BOOTSTRAP
+   BOOTSTRAP
 ============================================================ */
 
 async function bootstrap() {
@@ -759,7 +926,7 @@ export {
 
 
 /* ============================================================
-   START
+   AUTO START
 ============================================================ */
 
 if (
