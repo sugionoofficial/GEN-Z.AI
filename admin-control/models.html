@@ -2718,6 +2718,7 @@
             }, 220);
 
         }, 3500);
+
     }
 
 
@@ -2744,6 +2745,7 @@
             "show",
             Boolean(show)
         );
+
     }
 
 
@@ -2826,6 +2828,7 @@
                     providerSet.add(
                         provider
                     );
+
                 }
 
             }
@@ -2864,6 +2867,7 @@
 
             totalElement.textContent =
                 String(total);
+
         }
 
 
@@ -2871,6 +2875,7 @@
 
             activeElement.textContent =
                 String(active);
+
         }
 
 
@@ -2878,6 +2883,7 @@
 
             inactiveElement.textContent =
                 String(inactive);
+
         }
 
 
@@ -2885,38 +2891,14 @@
 
             providersElement.textContent =
                 String(providerCount);
+
         }
+
     }
 
 
     /* =========================================================
-       GET MODEL DATA MODULE
-    ========================================================= */
-
-    function getModelsData() {
-
-        return (
-            window.GENZModelsData ||
-            null
-        );
-    }
-
-
-    /* =========================================================
-       GET TABLE MODULE
-    ========================================================= */
-
-    function getModelTable() {
-
-        return (
-            window.GENZModelTable ||
-            null
-        );
-    }
-
-
-    /* =========================================================
-       GET UI MODULE
+       MODULE ACCESS
     ========================================================= */
 
     function getModelsUI() {
@@ -2925,135 +2907,28 @@
             window.GENZModelsUI ||
             null
         );
+
     }
 
 
-    /* =========================================================
-       WAIT FOR MODULES
-    ========================================================= */
+    function getModelTable() {
 
-    async function waitForModules() {
-
-    const maxAttempts =
-        160;
-
-
-    for (
-        let attempt = 0;
-        attempt < maxAttempts;
-        attempt++
-    ) {
-
-        const data =
-            window.GENZModelsData ||
-            null;
-
-
-        const table =
+        return (
             window.GENZModelsTable ||
             window.GENZModelTable ||
-            null;
+            null
+        );
 
-
-        const ui =
-            window.GENZModelsUI ||
-            null;
-
-
-        const form =
-            window.GENZModelsForm ||
-            null;
-
-
-        const formCreate =
-            window.GENZModelsFormCreate ||
-            null;
-
-
-        const formLayout =
-            window.GENZModelFormLayout ||
-            window.GENZModelsFormLayout ||
-            null;
-
-
-        if (
-            data &&
-            typeof data.loadModels ===
-                "function" &&
-
-            table &&
-
-            ui &&
-            typeof ui.initialize ===
-                "function" &&
-
-            form &&
-            typeof form.openCreate ===
-                "function" &&
-
-            formCreate &&
-            typeof formCreate.openCreate ===
-                "function" &&
-
-            formLayout
-        ) {
-
-            return true;
-        }
-
-
-        await sleep(50);
-    }
-
-
-    return false;
-}
-
-
-    /* =========================================================
-       LOAD ALL MODELS
-    ========================================================= */
-
-    async function loadAllModels(
-        force = false
-    ) {
-
-        const data =
-            getModelsData();
-
-
-        if (
-            !data ||
-            typeof data.loadModels !==
-                "function"
-        ) {
-
-            throw new Error(
-                "GENZModelsData.loadModels() tidak tersedia."
-            );
-        }
-
-
-        const result =
-            await data.loadModels({
-
-                force:
-                    Boolean(force),
-
-                includeInactive:
-                    true
-
-            });
-
-
-        return Array.isArray(result)
-            ? result
-            : [];
     }
 
 
     /* =========================================================
        APPLY MODELS
+       ---------------------------------------------------------
+       Hanya melakukan render.
+
+       Tidak melakukan query Supabase.
+       Tidak melakukan initialize ulang.
     ========================================================= */
 
     function applyModels(
@@ -3080,7 +2955,15 @@
                 list
             );
 
-            table.render();
+
+            if (
+                typeof table.render ===
+                    "function"
+            ) {
+
+                table.render();
+
+            }
 
         }
         else {
@@ -3088,6 +2971,7 @@
             throw new Error(
                 "GENZModelTable belum tersedia."
             );
+
         }
 
 
@@ -3096,140 +2980,79 @@
         );
 
 
-        const ui =
-            getModelsUI();
-
-
-        if (
-            ui &&
-            typeof ui.syncSearch ===
-                "function"
-        ) {
-
-            try {
-
-                ui.syncSearch(
-                    list
-                );
-
-            }
-            catch (error) {
-
-                console.warn(
-                    "[Models] syncSearch warning:",
-                    error
-                );
-            }
-        }
-
-
         return list;
+
     }
 
 
     /* =========================================================
-       INITIALIZE
+       LOADER READY HANDLER
+       ---------------------------------------------------------
+       models-loader.js adalah satu-satunya pemilik
+       initialization module Models.
+
+       Halaman ini hanya mengambil state yang sudah
+       dihasilkan oleh GENZModelsUI.
     ========================================================= */
 
-    async function initializePage() {
+    let pageInitialized =
+        false;
 
-        setLoading(
-            true
-        );
+
+    function handleModelsReady() {
+
+        if (
+            pageInitialized
+        ) {
+
+            return;
+
+        }
+
+
+        pageInitialized =
+            true;
 
 
         try {
-
-            const ready =
-                await waitForModules();
-
-
-            if (!ready) {
-
-                throw new Error(
-                    "Module Models GEN-Z.AI belum siap."
-                );
-            }
-
 
             const ui =
                 getModelsUI();
 
 
             if (
-    ui &&
-    typeof ui.initialize ===
-        "function"
-) {
+                !ui ||
+                typeof ui.getModels !==
+                    "function"
+            ) {
 
-    const result =
-        await ui.initialize();
+                throw new Error(
+                    "GENZModelsUI belum menyediakan getModels()."
+                );
 
-
-    const initializedModels =
-        Array.isArray(
-            result?.models
-        )
-            ? result.models
-            : null;
-
-
-    if (
-        initializedModels
-    ) {
-
-        applyModels(
-            initializedModels
-        );
-
-        return;
-    }
-
-
-    const table =
-        getModelTable();
-
-
-    if (
-        table &&
-        typeof table.getModels ===
-            "function"
-    ) {
-
-        const current =
-            table.getModels();
-
-
-        if (
-            Array.isArray(current) &&
-            current.length > 0
-        ) {
-
-            updateStats(
-                current
-            );
-
-            return;
-        }
-    }
-}
+            }
 
 
             const models =
-                await loadAllModels(
-                    false
-                );
+                ui.getModels();
 
 
             applyModels(
                 models
             );
 
+
+            console.info(
+                "[GEN-Z.AI] Models page ready:",
+                models.length,
+                "model"
+            );
+
         }
         catch (error) {
 
             console.error(
-                "[Models] initialization error:",
+                "[Models] render error:",
                 error
             );
 
@@ -3246,14 +3069,15 @@
 
                 table.renderError(
                     error?.message ||
-                    "Gagal memuat model."
+                    "Gagal menampilkan model."
                 );
+
             }
 
 
             showToast(
                 error?.message ||
-                "Gagal memuat model.",
+                "Gagal menampilkan model.",
                 "error"
             );
 
@@ -3263,12 +3087,71 @@
             setLoading(
                 false
             );
+
         }
+
     }
 
 
     /* =========================================================
+       LOADER EVENT
+       ========================================================= */
+
+    document.addEventListener(
+        "genz-models-loader-ready",
+        handleModelsReady,
+        {
+            once: true
+        }
+    );
+
+
+    /* =========================================================
+       LOADER ERROR FALLBACK
+    ========================================================= */
+
+    document.addEventListener(
+        "genz-models-ui-error",
+        function (event) {
+
+            if (
+                pageInitialized
+            ) {
+
+                return;
+
+            }
+
+
+            console.error(
+                "[Models] UI initialization error:",
+                event?.detail
+            );
+
+
+            setLoading(
+                false
+            );
+
+
+            showToast(
+                event?.detail?.message ||
+                "Gagal menginisialisasi Models.",
+                "error"
+            );
+
+        },
+        {
+            once: true
+        }
+    );
+
+
+    /* =========================================================
        REFRESH
+       ---------------------------------------------------------
+       Refresh tetap menjadi satu-satunya jalur
+       yang melakukan force reload.
     ========================================================= */
 
     const refreshButton =
@@ -3288,6 +3171,27 @@
                 ) {
 
                     return;
+
+                }
+
+
+                const ui =
+                    getModelsUI();
+
+
+                if (
+                    !ui ||
+                    typeof ui.refreshModels !==
+                        "function"
+                ) {
+
+                    showToast(
+                        "Fungsi Refresh Models belum tersedia.",
+                        "error"
+                    );
+
+                    return;
+
                 }
 
 
@@ -3303,8 +3207,11 @@
                 try {
 
                     const models =
-                        await loadAllModels(
-                            true
+                        await ui.refreshModels(
+                            {
+                                includeInactive:
+                                    true
+                            }
                         );
 
 
@@ -3314,7 +3221,7 @@
 
 
                     showToast(
-                        `${models.length} model berhasil dimuat dari registry.`,
+                        `${models.length} model berhasil dimuat.`,
                         "success"
                     );
 
@@ -3343,10 +3250,12 @@
 
                     refreshButton.disabled =
                         false;
+
                 }
 
             }
         );
+
     }
 
 
@@ -3392,6 +3301,7 @@
                             "[Models] auth check:",
                             error
                         );
+
                     }
 
 
@@ -3400,13 +3310,13 @@
                      * role/profile routing.
                      *
                      * Jangan membuat guard kedua
-                     * di halaman ini karena dapat
-                     * menimbulkan redirect ganda.
+                     * di halaman ini.
                      */
 
                     if (!data?.user) {
 
                         return true;
+
                     }
 
 
@@ -3422,22 +3332,32 @@
 
 
                     return true;
+
                 }
+
             }
 
 
             await sleep(
                 50
             );
+
         }
 
 
         return true;
+
     }
 
 
     /* =========================================================
        START PAGE
+       ---------------------------------------------------------
+       JANGAN memanggil GENZModelsUI.initialize()
+       di sini.
+
+       models-loader.js sudah menjadi pemilik
+       initialization lifecycle.
     ========================================================= */
 
     (async () => {
@@ -3446,7 +3366,36 @@
 
             await checkAdminAccess();
 
-            await initializePage();
+
+            setLoading(
+                true
+            );
+
+
+            /*
+             * Karena models-loader.js dipasang
+             * sebelum bootstrap ini dan loader
+             * menunggu DOMContentLoaded, event
+             * genz-models-loader-ready akan
+             * diterima oleh listener di atas.
+             *
+             * Tidak ada initialize() kedua.
+             */
+
+            const loader =
+                window.GENZModelsLoader;
+
+
+            if (
+                loader &&
+                typeof loader.isInitialized ===
+                    "function" &&
+                loader.isInitialized()
+            ) {
+
+                handleModelsReady();
+
+            }
 
         }
         catch (error) {
