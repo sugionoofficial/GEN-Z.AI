@@ -178,11 +178,53 @@ async function requestAdminModels(
     }
 
 
-    const response =
+    /*
+ * Fail-safe agar halaman Edit Model tidak
+ * terkunci selamanya jika API tidak merespons.
+ */
+const controller =
+    new AbortController();
+
+const timeout =
+    setTimeout(
+        () => controller.abort(),
+        15000
+    );
+
+options.signal =
+    controller.signal;
+
+let response;
+
+try {
+
+    response =
         await fetch(
             url,
             options
         );
+
+} catch (error) {
+
+    if (
+        error?.name ===
+        "AbortError"
+    ) {
+
+        throw new Error(
+            "Admin Models API timeout setelah 15 detik."
+        );
+    }
+
+    throw new Error(
+        error?.message ||
+        "Gagal menghubungi Admin Models API."
+    );
+
+} finally {
+
+    clearTimeout(timeout);
+}
 
 
     const data =
