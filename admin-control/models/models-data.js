@@ -68,6 +68,12 @@ import grokConfig
 import grokParameters
     from "../../models/grok-imagine-image-to-video/parameters.js";
 
+import seedanceConfig
+    from "../../models/seedance-2-5/config.js";
+
+import seedanceParameters
+    from "../../models/seedance-2-5/parameters.js";
+
 
 /* =========================================================
    CONSTANT
@@ -96,6 +102,17 @@ const MODEL_REGISTRY = [
 
         parameters:
             grokParameters
+    },
+
+    {
+        folder:
+            "models/seedance-2-5",
+
+        config:
+            seedanceConfig,
+
+        parameters:
+            seedanceParameters
     }
 
 ];
