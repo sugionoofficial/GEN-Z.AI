@@ -3101,6 +3101,50 @@
         }
     );
 
+    document.addEventListener(
+    "genz-models-loader-error",
+    function (event) {
+
+        if (
+            pageInitialized
+        ) {
+
+            return;
+
+        }
+
+
+        const message =
+            event?.detail?.message ||
+            "Gagal memuat Models.";
+
+
+        console.error(
+            "[Models] Loader error:",
+            event?.detail
+        );
+
+
+        pageInitialized =
+            true;
+
+
+        setLoading(
+            false
+        );
+
+
+        showToast(
+            message,
+            "error"
+        );
+
+    },
+    {
+        once: true
+    }
+);
+
 
     /* =========================================================
        LOADER ERROR
