@@ -2934,55 +2934,80 @@
 
     async function waitForModules() {
 
-        const maxAttempts =
-            160;
+    const maxAttempts =
+        160;
 
 
-        for (
-            let attempt = 0;
-            attempt < maxAttempts;
-            attempt++
+    for (
+        let attempt = 0;
+        attempt < maxAttempts;
+        attempt++
+    ) {
+
+        const data =
+            window.GENZModelsData ||
+            null;
+
+
+        const table =
+            window.GENZModelsTable ||
+            window.GENZModelTable ||
+            null;
+
+
+        const ui =
+            window.GENZModelsUI ||
+            null;
+
+
+        const form =
+            window.GENZModelsForm ||
+            null;
+
+
+        const formCreate =
+            window.GENZModelsFormCreate ||
+            null;
+
+
+        const formLayout =
+            window.GENZModelFormLayout ||
+            window.GENZModelsFormLayout ||
+            null;
+
+
+        if (
+            data &&
+            typeof data.loadModels ===
+                "function" &&
+
+            table &&
+
+            ui &&
+            typeof ui.initialize ===
+                "function" &&
+
+            form &&
+            typeof form.openCreate ===
+                "function" &&
+
+            formCreate &&
+            typeof formCreate.openCreate ===
+                "function" &&
+
+            formLayout
         ) {
 
-            const data =
-                getModelsData();
-
-
-            const table =
-                getModelTable();
-
-
-            const ui =
-                getModelsUI();
-
-
-            if (
-                data &&
-                typeof data.loadModels ===
-                    "function" &&
-                table
-            ) {
-
-                return true;
-            }
-
-
-            if (
-                data &&
-                table &&
-                ui
-            ) {
-
-                return true;
-            }
-
-
-            await sleep(50);
+            return true;
         }
 
 
-        return false;
+        await sleep(50);
     }
+
+
+    return false;
+}
 
 
     /* =========================================================
