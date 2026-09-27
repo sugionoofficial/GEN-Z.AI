@@ -2924,11 +2924,6 @@
 
     /* =========================================================
        APPLY MODELS
-       ---------------------------------------------------------
-       Hanya melakukan render.
-
-       Tidak melakukan query Supabase.
-       Tidak melakukan initialize ulang.
     ========================================================= */
 
     function applyModels(
@@ -2987,12 +2982,6 @@
 
     /* =========================================================
        LOADER READY HANDLER
-       ---------------------------------------------------------
-       models-loader.js adalah satu-satunya pemilik
-       initialization module Models.
-
-       Halaman ini hanya mengambil state yang sudah
-       dihasilkan oleh GENZModelsUI.
     ========================================================= */
 
     let pageInitialized =
@@ -3010,28 +2999,26 @@
         }
 
 
-        pageInitialized =
-            true;
+        const ui =
+            getModelsUI();
+
+
+        /*
+         * Jangan menandai pageInitialized
+         * sebelum module benar-benar siap.
+         */
+        if (
+            !ui ||
+            typeof ui.getModels !==
+                "function"
+        ) {
+
+            return;
+
+        }
 
 
         try {
-
-            const ui =
-                getModelsUI();
-
-
-            if (
-                !ui ||
-                typeof ui.getModels !==
-                    "function"
-            ) {
-
-                throw new Error(
-                    "GENZModelsUI belum menyediakan getModels()."
-                );
-
-            }
-
 
             const models =
                 ui.getModels();
@@ -3040,6 +3027,10 @@
             applyModels(
                 models
             );
+
+
+            pageInitialized =
+                true;
 
 
             console.info(
@@ -3081,6 +3072,10 @@
                 "error"
             );
 
+
+            pageInitialized =
+                true;
+
         }
         finally {
 
@@ -3099,15 +3094,16 @@
 
     document.addEventListener(
         "genz-models-loader-ready",
-        handleModelsReady,
-        {
-            once: true
+        () => {
+
+            handleModelsReady();
+
         }
     );
 
 
     /* =========================================================
-       LOADER ERROR FALLBACK
+       LOADER ERROR
     ========================================================= */
 
     document.addEventListener(
@@ -3129,6 +3125,10 @@
             );
 
 
+            pageInitialized =
+                true;
+
+
             setLoading(
                 false
             );
@@ -3140,18 +3140,138 @@
                 "error"
             );
 
-        },
-        {
-            once: true
         }
     );
 
 
     /* =========================================================
-       REFRESH
+       LOADER STATE WATCHER
        ---------------------------------------------------------
-       Refresh tetap menjadi satu-satunya jalur
-       yang melakukan force reload.
+       Ini bagian penting.
+
+       Event bisa saja terjadi sebelum listener
+       halaman selesai dipasang.
+
+       Karena itu kita juga memeriksa state loader
+       secara berkala sampai benar-benar siap.
+    ========================================================= */
+
+    let loaderWatchAttempts =
+        0;
+
+
+    const MAX_LOADER_WATCH_ATTEMPTS =
+        300;
+
+
+    const loaderWatcher =
+        setInterval(
+            () => {
+
+                if (
+                    pageInitialized
+                ) {
+
+                    clearInterval(
+                        loaderWatcher
+                    );
+
+                    return;
+
+                }
+
+
+                loaderWatchAttempts++;
+
+
+                const loader =
+                    window.GENZModelsLoader;
+
+
+                if (
+                    loader &&
+                    typeof loader.isInitialized ===
+                        "function"
+                ) {
+
+                    let initialized =
+                        false;
+
+
+                    try {
+
+                        initialized =
+                            loader.isInitialized();
+
+                    }
+                    catch (error) {
+
+                        console.warn(
+                            "[Models] loader state check failed:",
+                            error
+                        );
+
+                    }
+
+
+                    if (
+                        initialized
+                    ) {
+
+                        clearInterval(
+                            loaderWatcher
+                        );
+
+
+                        handleModelsReady();
+
+                        return;
+
+                    }
+
+                }
+
+
+                if (
+                    loaderWatchAttempts >=
+                    MAX_LOADER_WATCH_ATTEMPTS
+                ) {
+
+                    clearInterval(
+                        loaderWatcher
+                    );
+
+
+                    if (
+                        !pageInitialized
+                    ) {
+
+                        console.error(
+                            "[Models] Loader tidak menjadi ready setelah menunggu."
+                        );
+
+
+                        setLoading(
+                            false
+                        );
+
+
+                        showToast(
+                            "Model loader tidak berhasil diinisialisasi.",
+                            "error"
+                        );
+
+                    }
+
+                }
+
+            },
+            100
+        );
+
+
+    /* =========================================================
+       REFRESH
     ========================================================= */
 
     const refreshButton =
@@ -3305,14 +3425,6 @@
                     }
 
 
-                    /*
-                     * Navigation shared menangani
-                     * role/profile routing.
-                     *
-                     * Jangan membuat guard kedua
-                     * di halaman ini.
-                     */
-
                     if (!data?.user) {
 
                         return true;
@@ -3353,10 +3465,8 @@
     /* =========================================================
        START PAGE
        ---------------------------------------------------------
-       JANGAN memanggil GENZModelsUI.initialize()
-       di sini.
-
-       models-loader.js sudah menjadi pemilik
+       Tidak memanggil GENZModelsUI.initialize().
+       models-loader.js tetap menjadi pemilik
        initialization lifecycle.
     ========================================================= */
 
@@ -3373,15 +3483,9 @@
 
 
             /*
-             * Karena models-loader.js dipasang
-             * sebelum bootstrap ini dan loader
-             * menunggu DOMContentLoaded, event
-             * genz-models-loader-ready akan
-             * diterima oleh listener di atas.
-             *
-             * Tidak ada initialize() kedua.
+             * Cek langsung jika loader sudah selesai
+             * sebelum listener menerima event.
              */
-
             const loader =
                 window.GENZModelsLoader;
 
@@ -3389,11 +3493,36 @@
             if (
                 loader &&
                 typeof loader.isInitialized ===
-                    "function" &&
-                loader.isInitialized()
+                    "function"
             ) {
 
-                handleModelsReady();
+                let initialized =
+                    false;
+
+
+                try {
+
+                    initialized =
+                        loader.isInitialized();
+
+                }
+                catch (error) {
+
+                    console.warn(
+                        "[Models] initial loader state check failed:",
+                        error
+                    );
+
+                }
+
+
+                if (
+                    initialized
+                ) {
+
+                    handleModelsReady();
+
+                }
 
             }
 
