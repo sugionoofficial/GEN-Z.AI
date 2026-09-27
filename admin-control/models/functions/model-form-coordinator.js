@@ -72,6 +72,26 @@
 
 
     /* =====================================================
+       CRUD MODULE
+       -----------------------------------------------------
+       CRUD adalah satu-satunya owner operasi database
+       Create / Update / Delete.
+
+       Coordinator hanya menjadi bridge.
+       ===================================================== */
+
+    function getCRUD() {
+
+        return (
+            window.GENZModelsCRUD ||
+            window.GENZModelCRUD ||
+            null
+        );
+
+    }
+
+
+    /* =====================================================
        DATA MODULE
        ===================================================== */
 
@@ -226,11 +246,212 @@
 
 
     /* =====================================================
+       RESOLVE CRUD CREATE HANDLER
+       -----------------------------------------------------
+       Caller callback tetap memiliki prioritas.
+       Jika tidak diberikan, gunakan GENZModelsCRUD.
+       ===================================================== */
+
+    function resolveCreateHandler(
+        options = {}
+    ) {
+
+        if (
+            typeof options.insert ===
+            "function"
+        ) {
+
+            return options.insert;
+
+        }
+
+
+        if (
+            typeof options.onSubmit ===
+            "function"
+        ) {
+
+            return options.onSubmit;
+
+        }
+
+
+        if (
+            typeof options.submit ===
+            "function"
+        ) {
+
+            return options.submit;
+
+        }
+
+
+        const crud =
+            requireModule(
+                getCRUD(),
+                "Models CRUD"
+            );
+
+
+        return function (
+            preparedData
+        ) {
+
+            const handler =
+                requireFunction(
+                    crud,
+                    "create",
+                    "Models CRUD"
+                );
+
+
+            return handler.call(
+                crud,
+                preparedData
+            );
+
+        };
+
+    }
+
+
+    /* =====================================================
+       RESOLVE CRUD UPDATE HANDLER
+       -----------------------------------------------------
+       Caller callback tetap memiliki prioritas.
+       Jika tidak diberikan, gunakan GENZModelsCRUD.
+       ===================================================== */
+
+    function resolveUpdateHandler(
+        options = {}
+    ) {
+
+        if (
+            typeof options.submit ===
+            "function"
+        ) {
+
+            return options.submit;
+
+        }
+
+
+        if (
+            typeof options.onSubmit ===
+            "function"
+        ) {
+
+            return options.onSubmit;
+
+        }
+
+
+        const crud =
+            requireModule(
+                getCRUD(),
+                "Models CRUD"
+            );
+
+
+        return function (
+            preparedData
+        ) {
+
+            const handler =
+                requireFunction(
+                    crud,
+                    "update",
+                    "Models CRUD"
+                );
+
+
+            return handler.call(
+                crud,
+                preparedData
+            );
+
+        };
+
+    }
+
+
+    /* =====================================================
+       RESOLVE CRUD DELETE HANDLER
+       -----------------------------------------------------
+       Caller callback tetap memiliki prioritas.
+       Jika tidak diberikan, gunakan GENZModelsCRUD.
+       ===================================================== */
+
+    function resolveDeleteHandler(
+        options = {}
+    ) {
+
+        if (
+            typeof options.remove ===
+            "function"
+        ) {
+
+            return options.remove;
+
+        }
+
+
+        if (
+            typeof options.onDelete ===
+            "function"
+        ) {
+
+            return options.onDelete;
+
+        }
+
+
+        const crud =
+            requireModule(
+                getCRUD(),
+                "Models CRUD"
+            );
+
+
+        return function (
+            databaseId,
+            metadata = {}
+        ) {
+
+            const handler =
+                requireFunction(
+                    crud,
+                    "remove",
+                    "Models CRUD"
+                );
+
+
+            /*
+             * Delete module mengirim databaseId
+             * sebagai argument pertama.
+             *
+             * metadata tetap diterima agar kontrak
+             * module Delete tidak berubah.
+             */
+
+            return handler.call(
+                crud,
+                databaseId,
+                metadata
+            );
+
+        };
+
+    }
+
+
+    /* =====================================================
        CREATE
        ===================================================== */
 
     async function create(
-        data
+        data,
+        options = {}
     ) {
 
         const module =
@@ -248,16 +469,35 @@
             );
 
 
+        const insertHandler =
+            resolveCreateHandler(
+                options
+            );
+
+
         /*
-         * Hanya delegasi.
+         * Hanya delegasi ke owner Create.
          *
-         * Tidak memanggil coordinator lagi.
+         * Create module bertanggung jawab:
+         * - normalisasi
+         * - validasi
+         * - duplicate check
+         * - menyiapkan data
+         *
+         * Setelah itu callback insert
+         * meneruskan data ke Models CRUD.
          */
 
         const result =
             await handler.call(
                 module,
-                data
+                data,
+                {
+                    ...options,
+
+                    insert:
+                        insertHandler
+                }
             );
 
 
@@ -274,7 +514,8 @@
        ===================================================== */
 
     async function createFromForm(
-        event = null
+        event = null,
+        options = {}
     ) {
 
         const module =
@@ -292,6 +533,12 @@
             );
 
 
+        const insertHandler =
+            resolveCreateHandler(
+                options
+            );
+
+
         /*
          * Event langsung diteruskan ke owner Create.
          *
@@ -301,7 +548,13 @@
         const result =
             await handler.call(
                 module,
-                event
+                event,
+                {
+                    ...options,
+
+                    insert:
+                        insertHandler
+                }
             );
 
 
@@ -482,27 +735,9 @@
         options = {}
     ) {
 
-        if (
-            typeof options.submit ===
-            "function"
-        ) {
-
-            return options.submit;
-
-        }
-
-
-        if (
-            typeof options.onSubmit ===
-            "function"
-        ) {
-
-            return options.onSubmit;
-
-        }
-
-
-        return null;
+        return resolveUpdateHandler(
+            options
+        );
 
     }
 
@@ -551,20 +786,12 @@
                     );
 
 
-                if (!submitHandler) {
-
-                    throw new Error(
-                        "EDIT_SUBMIT_HANDLER_MISSING"
-                    );
-
-                }
-
-
                 const result =
                     await module.submitEditModel(
                         root,
                         {
                             ...options,
+
                             submit:
                                 submitHandler
                         }
@@ -596,7 +823,15 @@
 
             const result =
                 await module.update(
-                    data
+                    data,
+                    {
+                        ...options,
+
+                        submit:
+                            resolveUpdateHandler(
+                                options
+                            )
+                    }
                 );
 
 
@@ -669,10 +904,8 @@
 
 
             /*
-             * Submit harus diberikan oleh caller.
-             *
-             * Coordinator sendiri tidak melakukan
-             * database update.
+             * Submit otomatis diarahkan ke CRUD
+             * jika caller tidak memberikan callback.
              */
 
             const submitHandler =
@@ -681,26 +914,19 @@
                 );
 
 
-            if (!submitHandler) {
-
-                throw new Error(
-                    "EDIT_SUBMIT_HANDLER_MISSING"
-                );
-
-            }
-
-
             const result =
                 await module.submitEditModel(
                     formRoot,
                     {
                         ...options,
+
                         root:
                             formRoot,
+
                         submit:
                             submitHandler
                     }
-                );
+            );
 
 
             await invalidateModelCache();
@@ -722,7 +948,15 @@
 
             const result =
                 await module.updateFromForm(
-                    root
+                    root,
+                    {
+                        ...options,
+
+                        submit:
+                            resolveUpdateHandler(
+                                options
+                            )
+                    }
                 );
 
 
@@ -882,7 +1116,8 @@
        ===================================================== */
 
     async function remove(
-        model
+        model,
+        options = {}
     ) {
 
         const module =
@@ -900,10 +1135,22 @@
             );
 
 
+        const removeHandler =
+            resolveDeleteHandler(
+                options
+            );
+
+
         const result =
             await handler.call(
                 module,
-                model
+                model,
+                {
+                    ...options,
+
+                    remove:
+                        removeHandler
+                }
             );
 
 
@@ -920,7 +1167,8 @@
        ===================================================== */
 
     async function removeById(
-        modelId
+        modelId,
+        options = {}
     ) {
 
         const module =
@@ -938,12 +1186,24 @@
             );
 
 
+        const removeHandler =
+            resolveDeleteHandler(
+                options
+            );
+
+
         const result =
             await handler.call(
                 module,
                 normalizeId(
                     modelId
-                )
+                ),
+                {
+                    ...options,
+
+                    remove:
+                        removeHandler
+                }
             );
 
 
@@ -1101,7 +1361,8 @@
 
         const result =
             await create(
-                data
+                data,
+                options
             );
 
 
@@ -1158,7 +1419,8 @@
 
         const result =
             await remove(
-                model
+                model,
+                options
             );
 
 
@@ -1414,6 +1676,9 @@
             delete:
                 getDelete(),
 
+            crud:
+                getCRUD(),
+
             data:
                 getDataModule(),
 
@@ -1446,6 +1711,11 @@
             delete:
                 Boolean(
                     modules.delete
+                ),
+
+            crud:
+                Boolean(
+                    modules.crud
                 ),
 
             data:
