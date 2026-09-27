@@ -9,7 +9,7 @@
  * - Mendapatkan access token
  * - Komunikasi dengan /api/admin-models
  * - Parsing response API
- * - Mencari model Admin
+ * - Mencari satu model Admin
  *
  * Tidak melakukan:
  * - Render UI
@@ -37,6 +37,7 @@ async function getAccessToken() {
         throw new Error(
             "Supabase belum terhubung."
         );
+
     }
 
 
@@ -53,6 +54,7 @@ async function getAccessToken() {
             error.message ||
             "Gagal mengambil session."
         );
+
     }
 
 
@@ -66,10 +68,12 @@ async function getAccessToken() {
         throw new Error(
             "Sesi login tidak ditemukan. Silakan login kembali."
         );
+
     }
 
 
     return accessToken;
+
 }
 
 
@@ -115,9 +119,12 @@ async function requestAdminModels(
                             value
                         ).trim()
                     );
+
                 }
+
             }
         );
+
     }
 
 
@@ -142,10 +149,12 @@ async function requestAdminModels(
 
             Authorization:
                 `Bearer ${accessToken}`
+
         },
 
         credentials:
             "same-origin"
+
     };
 
 
@@ -160,10 +169,12 @@ async function requestAdminModels(
         ] =
             "application/json";
 
+
         options.body =
             JSON.stringify(
                 body
             );
+
     }
 
 
@@ -189,6 +200,7 @@ async function requestAdminModels(
             data?.message ||
             `Admin Models API gagal (${response.status}).`
         );
+
     }
 
 
@@ -201,10 +213,12 @@ async function requestAdminModels(
             data.message ||
             "Admin Models API gagal."
         );
+
     }
 
 
     return data;
+
 }
 
 
@@ -221,6 +235,7 @@ function extractAdminModels(
     ) {
 
         return data;
+
     }
 
 
@@ -231,6 +246,7 @@ function extractAdminModels(
     ) {
 
         return data.models;
+
     }
 
 
@@ -241,6 +257,7 @@ function extractAdminModels(
     ) {
 
         return data.data;
+
     }
 
 
@@ -251,6 +268,7 @@ function extractAdminModels(
     ) {
 
         return data.data.models;
+
     }
 
 
@@ -263,6 +281,7 @@ function extractAdminModels(
         return [
             data.model
         ];
+
     }
 
 
@@ -275,10 +294,12 @@ function extractAdminModels(
         return [
             data.data.model
         ];
+
     }
 
 
     return [];
+
 }
 
 
@@ -296,6 +317,7 @@ function findAdminModel(
     ) {
 
         return null;
+
     }
 
 
@@ -308,6 +330,7 @@ function findAdminModel(
     if (!normalized) {
 
         return null;
+
     }
 
 
@@ -320,6 +343,7 @@ function findAdminModel(
                         item?.model_id ||
                         ""
                     ).trim();
+
 
                 const databaseId =
                     String(
@@ -334,10 +358,12 @@ function findAdminModel(
                     databaseId ===
                         normalized
                 );
+
             }
         ) ||
         null
     );
+
 }
 
 
@@ -356,6 +382,7 @@ function extractSavedModel(
     ) {
 
         return data.model;
+
     }
 
 
@@ -366,6 +393,7 @@ function extractSavedModel(
     ) {
 
         return data.data.model;
+
     }
 
 
@@ -383,6 +411,7 @@ function extractSavedModel(
     ) {
 
         return data.data;
+
     }
 
 
@@ -394,6 +423,7 @@ function extractSavedModel(
     ) {
 
         return data.models[0];
+
     }
 
 
@@ -403,6 +433,7 @@ function extractSavedModel(
     ) {
 
         return data[0];
+
     }
 
 
@@ -418,10 +449,12 @@ function extractSavedModel(
     ) {
 
         return data;
+
     }
 
 
     return null;
+
 }
 
 
@@ -444,10 +477,21 @@ async function getAdminModel(
         throw new Error(
             "Model ID tidak ditemukan."
         );
+
     }
 
 
-    const result =
+    /*
+     * --------------------------------------------------------
+     * PRIORITAS 1
+     *
+     * Cari berdasarkan model_id.
+     * Ini adalah identifier utama yang digunakan
+     * oleh halaman Generate / registry.
+     * --------------------------------------------------------
+     */
+
+    let result =
         await requestAdminModels(
             "GET",
             null,
@@ -458,28 +502,72 @@ async function getAdminModel(
         );
 
 
-    const models =
+    let models =
         extractAdminModels(
             result
         );
 
 
-    const model =
+    let model =
         findAdminModel(
             models,
             requestedId
         );
 
 
-    if (!model) {
+    if (model) {
 
-        throw new Error(
-            `Model "${requestedId}" tidak ditemukan pada Admin Models.`
-        );
+        return model;
+
     }
 
 
-    return model;
+    /*
+     * --------------------------------------------------------
+     * PRIORITAS 2
+     *
+     * Jika model_id tidak ditemukan, coba database UUID/id.
+     *
+     * Ini penting karena halaman Edit Model dapat dibuka
+     * menggunakan ?id=...
+     * --------------------------------------------------------
+     */
+
+    result =
+        await requestAdminModels(
+            "GET",
+            null,
+            {
+                id:
+                    requestedId
+            }
+        );
+
+
+    models =
+        extractAdminModels(
+            result
+        );
+
+
+    model =
+        findAdminModel(
+            models,
+            requestedId
+        );
+
+
+    if (model) {
+
+        return model;
+
+    }
+
+
+    throw new Error(
+        `Model "${requestedId}" tidak ditemukan pada Admin Models.`
+    );
+
 }
 
 
@@ -501,6 +589,7 @@ const GENZModelEditAPI =
         extractSavedModel,
 
         getAdminModel
+
     });
 
 
@@ -521,4 +610,5 @@ export {
     extractSavedModel,
 
     getAdminModel
+
 };
