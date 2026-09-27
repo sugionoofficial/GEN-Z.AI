@@ -13,14 +13,7 @@
    - Menyediakan compatibility alias global
    - Menjalankan GENZModelsInit setelah semua module siap
    - Mencegah duplicate loading
-
-   Tidak bertanggung jawab:
-   - Query Supabase
-   - Provider CRUD
-   - Form CRUD
-   - Search logic
-   - Table rendering
-   - Pricing logic
+   - Melaporkan error initialization ke halaman
 ========================================================= */
 
 (function () {
@@ -45,10 +38,6 @@
 
     const MODULES = [
 
-        /* =================================================
-           DATA
-        ================================================= */
-
         {
             id: "models-data",
             src:
@@ -57,11 +46,6 @@
             global:
                 "GENZModelsData"
         },
-
-
-        /* =================================================
-           PROVIDER
-        ================================================= */
 
         {
             id: "models-provider",
@@ -72,11 +56,6 @@
                 "GENZModelsProvider"
         },
 
-
-        /* =================================================
-           PRICE
-        ================================================= */
-
         {
             id: "models-price",
             src:
@@ -85,11 +64,6 @@
             global:
                 "GENZModelsPrice"
         },
-
-
-        /* =================================================
-           PRICE CALCULATION
-        ================================================= */
 
         {
             id:
@@ -103,11 +77,6 @@
                 "GENZModelPriceCalculation"
         },
 
-
-        /* =================================================
-           PROVIDER DROPDOWN
-        ================================================= */
-
         {
             id:
                 "model-provider-dropdown",
@@ -119,11 +88,6 @@
             global:
                 "GENZModelProviderDropdown"
         },
-
-
-        /* =================================================
-           FORM LAYOUT
-        ================================================= */
 
         {
             id:
@@ -141,11 +105,6 @@
             ]
         },
 
-
-        /* =================================================
-           FORM CREATE
-        ================================================= */
-
         {
             id:
                 "model-form-create",
@@ -161,11 +120,6 @@
                 "GENZModelsFormCreate"
             ]
         },
-
-
-        /* =================================================
-           FORM EDIT
-        ================================================= */
 
         {
             id:
@@ -183,11 +137,6 @@
             ]
         },
 
-
-        /* =================================================
-           FORM DELETE
-        ================================================= */
-
         {
             id:
                 "model-form-delete",
@@ -203,11 +152,6 @@
                 "GENZModelsFormDelete"
             ]
         },
-
-
-        /* =================================================
-           MODELS CRUD
-        ================================================= */
 
         {
             id:
@@ -225,11 +169,6 @@
             ]
         },
 
-
-        /* =================================================
-           FORM COORDINATOR
-        ================================================= */
-
         {
             id:
                 "model-form-coordinator",
@@ -246,11 +185,6 @@
             ]
         },
 
-
-        /* =================================================
-           FORM COMPATIBILITY BRIDGE
-        ================================================= */
-
         {
             id:
                 "models-form",
@@ -266,11 +200,6 @@
                 "GENZModelForm"
             ]
         },
-
-
-        /* =================================================
-           FORM EVENTS
-        ================================================= */
 
         {
             id:
@@ -289,11 +218,6 @@
             ]
         },
 
-
-        /* =================================================
-           SEARCH DROPDOWN
-        ================================================= */
-
         {
             id:
                 "model-search-dropdown",
@@ -305,11 +229,6 @@
             global:
                 "GENZModelSearchDropdown"
         },
-
-
-        /* =================================================
-           SEARCH RENDER
-        ================================================= */
 
         {
             id:
@@ -323,11 +242,6 @@
                 "GENZModelSearchRender"
         },
 
-
-        /* =================================================
-           SEARCH SELECT
-        ================================================= */
-
         {
             id:
                 "model-search-select",
@@ -339,11 +253,6 @@
             global:
                 "GENZModelSearchSelect"
         },
-
-
-        /* =================================================
-           SEARCH EVENTS
-        ================================================= */
 
         {
             id:
@@ -361,11 +270,6 @@
             ]
         },
 
-
-        /* =================================================
-           SEARCH COORDINATOR
-        ================================================= */
-
         {
             id:
                 "models-search",
@@ -377,11 +281,6 @@
             global:
                 "GENZModelsSearch"
         },
-
-
-        /* =================================================
-           TABLE
-        ================================================= */
 
         {
             id:
@@ -399,11 +298,6 @@
             ]
         },
 
-
-        /* =================================================
-           TABLE EVENTS
-        ================================================= */
-
         {
             id:
                 "model-table-events",
@@ -419,11 +313,6 @@
                 "GENZModelsTableEvents"
             ]
         },
-
-
-        /* =================================================
-           PAGE SEARCH
-        ================================================= */
 
         {
             id:
@@ -441,11 +330,6 @@
             ]
         },
 
-
-        /* =================================================
-           UI
-        ================================================= */
-
         {
             id:
                 "models-ui",
@@ -457,11 +341,6 @@
             global:
                 "GENZModelsUI"
         },
-
-
-        /* =================================================
-           INIT
-        ================================================= */
 
         {
             id:
@@ -551,19 +430,7 @@
 
 
     /* =====================================================
-       REGISTER COMPATIBILITY ALIASES
-       -----------------------------------------------------
-       Beberapa module lama memakai nama singular.
-
-       models-init memakai nama plural.
-
-       Contoh:
-
-           GENZModelTable
-                   ↓
-           GENZModelsTable
-
-       Alias hanya dibuat jika target belum tersedia.
+       ALIAS
     ===================================================== */
 
     function registerCompatibilityAliases(
@@ -591,27 +458,19 @@
 
 
         if (!source) {
-
             return;
-
         }
 
 
         module.aliases.forEach(
             function (alias) {
 
-                if (
-                    !alias
-                ) {
-
+                if (!alias) {
                     return;
-
                 }
 
 
-                if (
-                    !window[alias]
-                ) {
+                if (!window[alias]) {
 
                     window[alias] =
                         source;
@@ -625,7 +484,91 @@
 
 
     /* =====================================================
-       LOAD ES MODULE
+       REGISTER GLOBAL
+    ===================================================== */
+
+    function registerGlobal(
+        module,
+        namespace
+    ) {
+
+        if (
+            !module ||
+            !module.global
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            hasGlobal(
+                module.global
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        let exported;
+
+
+        if (
+            namespace &&
+            namespace.default !==
+                undefined
+        ) {
+
+            exported =
+                namespace.default;
+
+        }
+        else {
+
+            exported =
+                namespace;
+
+        }
+
+
+        if (
+            exported !==
+                undefined &&
+            exported !==
+                null
+        ) {
+
+            window[
+                module.global
+            ] =
+                exported;
+
+        }
+
+
+        if (
+            !hasGlobal(
+                module.global
+            )
+        ) {
+
+            throw new Error(
+                "Module Models tidak mendaftarkan global '" +
+                module.global +
+                "': " +
+                module.src
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       IMPORT MODULE
     ===================================================== */
 
     async function importModule(
@@ -640,11 +583,6 @@
 
         }
 
-
-        /*
-         * Jika global utama sudah ada,
-         * jangan import ulang.
-         */
 
         if (
             module.global &&
@@ -676,11 +614,6 @@
                 module.src
             );
 
-
-        /*
-         * Namespace yang sudah pernah
-         * di-import.
-         */
 
         if (
             moduleNamespaces.has(
@@ -721,12 +654,20 @@
 
         try {
 
+            console.info(
+                "[GEN-Z.AI] Import Models module:",
+                module.id,
+                url
+            );
+
+
             namespace =
                 await import(
                     url
                 );
 
-        } catch (
+        }
+        catch (
             error
         ) {
 
@@ -738,16 +679,18 @@
             );
 
 
+            const message =
+                error &&
+                error.message
+                    ? error.message
+                    : String(error);
+
+
             throw new Error(
                 "Gagal memuat module Models '" +
                 module.id +
                 "': " +
-                (
-                    error &&
-                    error.message
-                        ? error.message
-                        : String(error)
-                )
+                message
             );
 
         }
@@ -759,19 +702,11 @@
         );
 
 
-        /*
-         * Hubungkan ES Module ke global.
-         */
-
         registerGlobal(
             module,
             namespace
         );
 
-
-        /*
-         * Buat compatibility alias.
-         */
 
         registerCompatibilityAliases(
             module
@@ -785,105 +720,6 @@
             namespace
 
         };
-
-    }
-
-
-    /* =====================================================
-       REGISTER GLOBAL
-    ===================================================== */
-
-    function registerGlobal(
-        module,
-        namespace
-    ) {
-
-        if (
-            !module ||
-            !module.global
-        ) {
-
-            return;
-
-        }
-
-
-        /*
-         * Jika module sudah mendaftarkan
-         * global sendiri, jangan ditimpa.
-         */
-
-        if (
-            hasGlobal(
-                module.global
-            )
-        ) {
-
-            return;
-
-        }
-
-
-        let exported;
-
-
-        /*
-         * Prioritas:
-         *
-         * 1. default export
-         * 2. namespace
-         */
-
-        if (
-            namespace &&
-            namespace.default !==
-                undefined
-        ) {
-
-            exported =
-                namespace.default;
-
-        } else {
-
-            exported =
-                namespace;
-
-        }
-
-
-        if (
-            exported !==
-                undefined &&
-            exported !==
-                null
-        ) {
-
-            window[
-                module.global
-            ] =
-                exported;
-
-        }
-
-
-        /*
-         * Validasi final.
-         */
-
-        if (
-            !hasGlobal(
-                module.global
-            )
-        ) {
-
-            throw new Error(
-                "Module Models tidak mendaftarkan global '" +
-                module.global +
-                "': " +
-                module.src
-            );
-
-        }
 
     }
 
@@ -909,10 +745,6 @@
             module.id ||
             module.src;
 
-
-        /*
-         * Jangan import dua kali.
-         */
 
         if (
             loadedModules.has(
@@ -945,11 +777,6 @@
                 await promise;
 
 
-            /*
-             * Pastikan alias dibuat
-             * setelah module selesai.
-             */
-
             registerCompatibilityAliases(
                 module
             );
@@ -963,7 +790,8 @@
 
             return result;
 
-        } catch (
+        }
+        catch (
             error
         ) {
 
@@ -979,7 +807,7 @@
 
 
     /* =====================================================
-       LOAD ALL MODULES
+       LOAD ALL
     ===================================================== */
 
     async function loadAll() {
@@ -1012,12 +840,6 @@
                     );
 
 
-                    /*
-                     * Sequential loading.
-                     *
-                     * Jangan menggunakan Promise.all().
-                     */
-
                     for (
                         const module
                         of MODULES
@@ -1029,12 +851,6 @@
 
                     }
 
-
-                    /*
-                     * =================================================
-                     * VERIFY PRIMARY + COMPATIBILITY GLOBALS
-                     * =================================================
-                     */
 
                     const missing =
                         getMissingModules();
@@ -1060,35 +876,39 @@
                     );
 
 
-                    /*
-                     * =================================================
-                     * INITIALIZE
-                     * =================================================
-                     */
-
                     const init =
                         window.GENZModelsInit;
 
 
                     if (
-                        init &&
-                        typeof init.initialize ===
-                        "function"
+                        !init ||
+                        typeof init.initialize !==
+                            "function"
                     ) {
 
-                        const result =
-                            await init.initialize();
+                        throw new Error(
+                            "GENZModelsInit.initialize() tidak tersedia."
+                        );
+
+                    }
 
 
-                        if (
-                            result === false
-                        ) {
+                    console.info(
+                        "[GEN-Z.AI] Menjalankan GENZModelsInit.initialize()..."
+                    );
 
-                            throw new Error(
-                                "GENZModelsInit.initialize() mengembalikan false."
-                            );
 
-                        }
+                    const result =
+                        await init.initialize();
+
+
+                    if (
+                        result === false
+                    ) {
+
+                        throw new Error(
+                            "GENZModelsInit.initialize() mengembalikan false."
+                        );
 
                     }
 
@@ -1097,40 +917,39 @@
                         true;
 
 
-                    /*
-                     * =================================================
-                     * READY EVENT
-                     * =================================================
-                     */
-
-                    try {
-
-                        document.dispatchEvent(
-                            new CustomEvent(
-                                "genz-models-loader-ready"
-                            )
-                        );
-
-                    } catch (
-                        eventError
-                    ) {
-
-                        console.warn(
-                            "[GEN-Z.AI] Event Models ready gagal:",
-                            eventError
-                        );
-
-                    }
-
-
                     console.info(
-                        "[GEN-Z.AI] Models loader selesai."
+                        "[GEN-Z.AI] Models initialization berhasil."
+                    );
+
+
+                    document.dispatchEvent(
+                        new CustomEvent(
+                            "genz-models-loader-ready",
+                            {
+                                detail: {
+                                    models:
+                                        Array.isArray(
+                                            result?.models
+                                        )
+                                            ? result.models
+                                            : [],
+
+                                    providers:
+                                        Array.isArray(
+                                            result?.providers
+                                        )
+                                            ? result.providers
+                                            : []
+                                }
+                            }
+                        )
                     );
 
 
                     return true;
 
-                } catch (
+                }
+                catch (
                     error
                 ) {
 
@@ -1149,9 +968,26 @@
                     );
 
 
+                    document.dispatchEvent(
+                        new CustomEvent(
+                            "genz-models-loader-error",
+                            {
+                                detail: {
+                                    message:
+                                        error?.message ||
+                                        String(error),
+
+                                    error
+                                }
+                            }
+                        )
+                    );
+
+
                     return false;
 
-                } finally {
+                }
+                finally {
 
                     loadingPromise =
                         null;
@@ -1178,10 +1014,6 @@
         MODULES.forEach(
             function (module) {
 
-                /*
-                 * Primary global
-                 */
-
                 if (
                     module.global &&
                     !hasGlobal(
@@ -1197,10 +1029,6 @@
 
                 }
 
-
-                /*
-                 * Compatibility aliases
-                 */
 
                 if (
                     Array.isArray(
@@ -1255,7 +1083,8 @@
                     );
 
                 }
-            ) || null
+            ) ||
+            null
         );
 
     }
@@ -1280,9 +1109,7 @@
         }
 
 
-        if (
-            !module.global
-        ) {
+        if (!module.global) {
 
             return true;
 
@@ -1421,14 +1248,15 @@
         if (
             init &&
             typeof init.reset ===
-            "function"
+                "function"
         ) {
 
             try {
 
                 init.reset();
 
-            } catch (
+            }
+            catch (
                 error
             ) {
 
@@ -1482,32 +1310,30 @@
 
     /* =====================================================
        BOOT
+       -----------------------------------------------------
+       Jangan menunggu DOMContentLoaded.
+       Script ini sendiri sudah dimuat setelah
+       Supabase client pada models.html.
     ===================================================== */
 
     function boot() {
 
-        loadAll();
+        loadAll()
+            .catch(
+                function (error) {
+
+                    console.error(
+                        "[GEN-Z.AI] Models boot error:",
+                        error
+                    );
+
+                }
+            );
 
     }
 
 
-    if (
-        document.readyState ===
-        "loading"
-    ) {
+    boot();
 
-        document.addEventListener(
-            "DOMContentLoaded",
-            boot,
-            {
-                once: true
-            }
-        );
-
-    } else {
-
-        boot();
-
-    }
 
 })();
