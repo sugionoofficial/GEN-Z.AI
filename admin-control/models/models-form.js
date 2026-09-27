@@ -369,175 +369,226 @@
         );
 
 
-    const create =
-        getCreate();
+    const providers =
+        Array.isArray(
+            options.providers
+        )
+            ? options.providers
+            : [];
+
+    const models =
+        Array.isArray(
+            options.models
+        )
+            ? options.models
+            : [];
 
 
     /*
-     * Sinkronkan state Create.
+     * Sinkronkan Create module.
      */
+    const create =
+        getCreate();
+
     if (
         create &&
         typeof create.openCreate ===
             "function"
     ) {
 
-        try {
+        create.openCreate({
 
-            create.openCreate({
+            root:
+                state.root,
 
-                root:
-                    state.root,
+            providers:
+                providers,
 
-                providers:
-                    Array.isArray(
-                        options.providers
-                    )
-                        ? options.providers
-                        : [],
+            models:
+                models
 
-                models:
-                    Array.isArray(
-                        options.models
-                    )
-                        ? options.models
-                        : []
-
-            });
-
-        } catch (error) {
-
-            console.warn(
-                "[GEN-Z.AI] Create module open warning:",
-                error
-            );
-
-        }
+        });
 
     }
 
 
+    /*
+     * Render form.
+     */
     const layout =
         getLayout();
 
-
-    /*
-     * Render form Create.
-     *
-     * model-form-layout.js menggunakan:
-     *
-     * renderModelForm(
-     *     root,
-     *     model,
-     *     providers,
-     *     options
-     * )
-     */
     if (
-        layout &&
-        typeof layout.renderModelForm ===
+        !layout ||
+        typeof layout.renderModelForm !==
             "function"
     ) {
-
-        try {
-
-            layout.renderModelForm(
-
-                state.root,
-
-                null,
-
-                Array.isArray(
-                    options.providers
-                )
-                    ? options.providers
-                    : [],
-
-                {
-                    ...options,
-
-                    models:
-                        Array.isArray(
-                            options.models
-                        )
-                            ? options.models
-                            : []
-
-                }
-
-            );
-
-        } catch (error) {
-
-            console.error(
-                "[GEN-Z.AI] Render Create Model gagal:",
-                error
-            );
-
-            throw error;
-
-        }
-
-
-        /*
-         * Pasang event form setelah
-         * form selesai dirender.
-         */
-        if (
-            typeof layout.attachModelFormEvents ===
-                "function"
-        ) {
-
-            try {
-
-                layout.attachModelFormEvents(
-
-                    state.root,
-
-                    Array.isArray(
-                        options.models
-                    )
-                        ? options.models
-                        : [],
-
-                    Array.isArray(
-                        options.providers
-                    )
-                        ? options.providers
-                        : [],
-
-                    {
-                        ...options,
-
-                        models:
-                            Array.isArray(
-                                options.models
-                            )
-                                ? options.models
-                                : []
-
-                    }
-
-                );
-
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] Model form events warning:",
-                    error
-                );
-
-            }
-
-        }
-
-    } else {
 
         throw new Error(
             "GENZModelFormLayout.renderModelForm() belum tersedia."
         );
 
     }
+
+
+    layout.renderModelForm(
+
+        state.root,
+
+        null,
+
+        providers,
+
+        {
+            ...options,
+
+            models:
+                models,
+
+            mode:
+                "create",
+
+            create:
+                true
+
+        }
+
+    );
+
+
+    /*
+     * Pasang event form.
+     */
+    if (
+        typeof layout.attachModelFormEvents ===
+            "function"
+    ) {
+
+        layout.attachModelFormEvents(
+
+            state.root,
+
+            models,
+
+            providers,
+
+            {
+                ...options,
+
+                models:
+                    models,
+
+                mode:
+                    "create",
+
+                create:
+                    true
+
+            }
+
+        );
+
+    }
+
+
+    /*
+     * Pastikan field Create tidak membawa
+     * data dari Edit sebelumnya.
+     */
+    if (state.root) {
+
+        const form =
+            state.root;
+
+        if (
+            form.reset &&
+            typeof form.reset ===
+                "function"
+        ) {
+
+            /*
+             * Jangan reset sebelum render.
+             * Field sudah dirender dan
+             * harus tetap memakai default
+             * dari layout.
+             */
+
+        }
+
+        form.dataset.modelFormMode =
+            "create";
+
+        delete form.dataset.modelId;
+
+    }
+
+
+    /*
+     * Buka modal.
+     */
+    const modal =
+        document.getElementById(
+            "modelModal"
+        );
+
+    if (modal) {
+
+        modal.classList.add(
+            "show"
+        );
+
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+        document.body.classList.add(
+            "modal-open"
+        );
+
+    }
+
+
+    /*
+     * Judul modal.
+     */
+    const title =
+        document.getElementById(
+            "modalTitle"
+        );
+
+    if (title) {
+
+        title.textContent =
+            "Tambah Model";
+
+    }
+
+
+    /*
+     * Fokus awal.
+     */
+    window.setTimeout(
+        function () {
+
+            const provider =
+                document.getElementById(
+                    "providerId"
+                );
+
+            if (
+                provider &&
+                typeof provider.focus ===
+                    "function"
+            ) {
+
+                provider.focus();
+
+            }
+
+        },
+        50
+    );
 
 
     return getState();
