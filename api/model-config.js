@@ -1995,18 +1995,45 @@ async function resolveModel(
        ===================================================== */
 
     const databaseModel =
-        await loadDatabaseModel(
-            modelId
-        );
+    await loadDatabaseModel(
+        modelId
+    );
 
 
-    /* =====================================================
-       STATUS
-       ===================================================== */
+/*
+ * Repository adapter saja TIDAK berarti model tersedia.
+ * Model baru boleh masuk Generate hanya setelah dibuat
+ * melalui Admin Models dan mempunyai record di Supabase.
+ *
+ * Ini mencegah adapter Seedance/Grok yang sudah ada di
+ * repository tampil otomatis sebelum diaktifkan admin.
+ */
+if (!databaseModel) {
 
-    if (
-        databaseModel
-    ) {
+    return {
+
+        error:
+            "Model is not configured",
+
+        details: {
+
+            model_id:
+                modelId
+
+        }
+
+    };
+
+}
+
+
+/* =====================================================
+   STATUS
+   ===================================================== */
+
+if (
+    databaseModel
+) {
 
         const status =
             String(
@@ -2234,23 +2261,32 @@ async function loadAllModels() {
 
 
         const databaseModel =
-            databaseMap.get(
-                modelId
-            ) ||
-            null;
-
-       if (!databaseModel) {
-          continue;
-       }
+    databaseMap.get(
+        modelId
+    ) ||
+    null;
 
 
-        /* =================================================
-           STATUS
-           ================================================= */
+/*
+ * IMPORTANT:
+ * Registry hanya menyediakan adapter teknis.
+ * Tanpa record Admin Models di Supabase, model
+ * belum terdaftar dan tidak boleh dikirim ke Generate.
+ */
+if (!databaseModel) {
 
-        if (
-            databaseModel
-        ) {
+    continue;
+
+}
+
+
+/* =================================================
+   STATUS
+   ================================================= */
+
+if (
+    databaseModel
+) {
 
             const status =
                 String(
@@ -2455,20 +2491,31 @@ export default async function handler(
 
 
                 if (
-                    resolved.error ===
-                    "Model is not active"
-                ) {
+    resolved.error ===
+    "Model is not active"
+) {
 
-                    status =
-                        409;
+    status =
+        409;
 
-                }
+}
 
 
-                if (
-                    resolved.error ===
-                    "Model adapter configuration mismatch"
-                ) {
+if (
+    resolved.error ===
+    "Model is not configured"
+) {
+
+    status =
+        404;
+
+}
+
+
+if (
+    resolved.error ===
+    "Model adapter configuration mismatch"
+) {
 
                     status =
                         500;
