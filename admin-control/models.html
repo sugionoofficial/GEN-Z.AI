@@ -2375,16 +2375,25 @@
 
         <div class="header-actions">
 
-            <button
-                type="button"
-                id="refreshModelsBtn"
-                class="btn btn-secondary"
-            >
-                ↻
-                Refresh
-            </button>
+    <button
+        type="button"
+        id="addModelBtn"
+        class="btn btn-primary"
+    >
+        ＋
+        Tambah Model
+    </button>
 
-        </div>
+    <button
+        type="button"
+        id="refreshModelsBtn"
+        class="btn btn-secondary"
+    >
+        ↻
+        Refresh
+    </button>
+
+</div>
 
     </header>
 
@@ -3154,36 +3163,62 @@
 
 
             if (
-                ui &&
-                typeof ui.initialize ===
-                    "function"
-            ) {
+    ui &&
+    typeof ui.initialize ===
+        "function"
+) {
 
-                await ui.initialize();
-
-
-                const table =
-                    getModelTable();
+    const result =
+        await ui.initialize();
 
 
-                if (
-                    table &&
-                    typeof table.getModels ===
-                        "function"
-                ) {
-
-                    const current =
-                        table.getModels();
+    const initializedModels =
+        Array.isArray(
+            result?.models
+        )
+            ? result.models
+            : null;
 
 
-                    updateStats(
-                        current
-                    );
+    if (
+        initializedModels
+    ) {
+
+        applyModels(
+            initializedModels
+        );
+
+        return;
+    }
 
 
-                    return;
-                }
-            }
+    const table =
+        getModelTable();
+
+
+    if (
+        table &&
+        typeof table.getModels ===
+            "function"
+    ) {
+
+        const current =
+            table.getModels();
+
+
+        if (
+            Array.isArray(current) &&
+            current.length > 0
+        ) {
+
+            updateStats(
+                current
+            );
+
+            return;
+        }
+    }
+}
 
 
             const models =
