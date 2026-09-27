@@ -3,7 +3,7 @@
    MODEL SEARCH EVENTS
    ---------------------------------------------------------
    File:
-   admin-control/models/functions/model-search-events.js
+   admin-control/models/functions/model-form-events.js
 
    Tanggung jawab:
    - Event input Model ID
@@ -30,7 +30,7 @@
 
     /* =====================================================
        STATE
-    ===================================================== */
+       ===================================================== */
 
     let bound = false;
 
@@ -39,13 +39,8 @@
 
     /* =====================================================
        SELECTORS
-    ===================================================== */
+       ===================================================== */
 
-    /*
-     * Model ID search input.
-     *
-     * Mendukung struktur lama dan baru.
-     */
     const INPUT_SELECTOR = [
         "#modelCodeSearch",
         "#modelSearch",
@@ -57,22 +52,14 @@
     ].join(", ");
 
 
-    /*
-     * Container hasil search.
-     *
-     * Selector item hasil sengaja tidak dimasukkan
-     * di sini karena container dapat berbeda.
-     */
     const RESULT_SELECTOR = [
         "#modelSearchResults",
         "#modelResults",
-        "#modelDropdown"
+        "#modelDropdown",
+        "[data-model-search-results]"
     ].join(", ");
 
 
-    /*
-     * Item hasil.
-     */
     const RESULT_ITEM_SELECTOR = [
         ".model-search-item",
         "[data-model-id]",
@@ -80,13 +67,6 @@
     ].join(", ");
 
 
-    /*
-     * Semua kemungkinan event Provider yang pernah
-     * digunakan oleh module GEN-Z.AI.
-     *
-     * Kita dengarkan semuanya agar module tetap
-     * kompatibel selama migrasi arsitektur.
-     */
     const PROVIDER_EVENTS = [
         "genz-model-provider-changed",
         "genz-models-provider-changed",
@@ -96,19 +76,20 @@
 
     /* =====================================================
        GET INPUT
-    ===================================================== */
+       ===================================================== */
 
     function getInput() {
 
         return document.querySelector(
             INPUT_SELECTOR
         );
+
     }
 
 
     /* =====================================================
        GET RESULT BOX
-    ===================================================== */
+       ===================================================== */
 
     function getResultsBox() {
 
@@ -129,12 +110,13 @@
                 "[data-model-search-results]"
             )
         );
+
     }
 
 
     /* =====================================================
        GET TARGET
-    ===================================================== */
+       ===================================================== */
 
     function getClosestTarget(
         event,
@@ -152,18 +134,20 @@
         ) {
 
             return null;
+
         }
 
 
         return target.closest(
             selector
         );
+
     }
 
 
     /* =====================================================
        IS MODEL INPUT
-    ===================================================== */
+       ===================================================== */
 
     function getInputTarget(
         event
@@ -173,12 +157,13 @@
             event,
             INPUT_SELECTOR
         );
+
     }
 
 
     /* =====================================================
        IS RESULT CONTAINER
-    ===================================================== */
+       ===================================================== */
 
     function getResultTarget(
         event
@@ -188,12 +173,13 @@
             event,
             RESULT_SELECTOR
         );
+
     }
 
 
     /* =====================================================
        IS RESULT ITEM
-    ===================================================== */
+       ===================================================== */
 
     function getResultItem(
         event
@@ -203,12 +189,13 @@
             event,
             RESULT_ITEM_SELECTOR
         );
+
     }
 
 
     /* =====================================================
        STOP EVENT SAFELY
-    ===================================================== */
+       ===================================================== */
 
     function stopEvent(
         event
@@ -219,22 +206,25 @@
         ) {
 
             return;
+
         }
 
 
         if (
             typeof event.preventDefault ===
-                "function"
+            "function"
         ) {
 
             event.preventDefault();
+
         }
+
     }
 
 
     /* =====================================================
        BIND
-    ===================================================== */
+       ===================================================== */
 
     function bind(
         api
@@ -248,6 +238,7 @@
         ) {
 
             return true;
+
         }
 
 
@@ -260,6 +251,7 @@
             );
 
             return false;
+
         }
 
 
@@ -288,6 +280,7 @@
             );
 
             return false;
+
         }
 
 
@@ -310,6 +303,7 @@
 
             onDocumentClick:
                 api.onDocumentClick
+
         };
 
 
@@ -332,6 +326,7 @@
             ) {
 
                 return;
+
             }
 
 
@@ -347,7 +342,9 @@
                     "[GEN-Z.AI] Model Search input handler error:",
                     error
                 );
+
             }
+
         }
 
 
@@ -370,6 +367,7 @@
             ) {
 
                 return;
+
             }
 
 
@@ -385,7 +383,9 @@
                     "[GEN-Z.AI] Model Search focus handler error:",
                     error
                 );
+
             }
+
         }
 
 
@@ -408,6 +408,7 @@
             ) {
 
                 return;
+
             }
 
 
@@ -423,7 +424,9 @@
                     "[GEN-Z.AI] Model Search keyboard handler error:",
                     error
                 );
+
             }
+
         }
 
 
@@ -446,6 +449,7 @@
             ) {
 
                 return;
+
             }
 
 
@@ -454,6 +458,7 @@
              * pada item hasil, bukan area kosong
              * di dalam dropdown.
              */
+
             const item =
                 getResultItem(
                     event
@@ -465,6 +470,7 @@
             ) {
 
                 return;
+
             }
 
 
@@ -480,7 +486,9 @@
                     "[GEN-Z.AI] Model Search result click error:",
                     error
                 );
+
             }
+
         }
 
 
@@ -504,7 +512,9 @@
                     "[GEN-Z.AI] Model Search Provider change error:",
                     error
                 );
+
             }
+
         }
 
 
@@ -524,6 +534,7 @@
              * ditutup oleh listener document sebelum
              * selection selesai.
              */
+
             const input =
                 getInputTarget(
                     event
@@ -535,6 +546,7 @@
             ) {
 
                 return;
+
             }
 
 
@@ -549,6 +561,7 @@
             ) {
 
                 return;
+
             }
 
 
@@ -564,7 +577,9 @@
                     "[GEN-Z.AI] Model Search document click error:",
                     error
                 );
+
             }
+
         }
 
 
@@ -651,6 +666,7 @@
                     delegatedProviderChanged,
                     false
                 );
+
             }
         );
 
@@ -690,7 +706,9 @@
                     "[GEN-Z.AI] Dropdown position event gagal dipasang:",
                     error
                 );
+
             }
+
         }
 
 
@@ -714,6 +732,7 @@
          * Delegation tetap akan menangkap input
          * ketika element dibuat kemudian.
          */
+
         const input =
             getInput();
 
@@ -734,16 +753,18 @@
             console.info(
                 "[GEN-Z.AI] Model ID input belum ada. Event delegation tetap aktif."
             );
+
         }
 
 
         return true;
+
     }
 
 
     /* =====================================================
        UNBIND
-    ===================================================== */
+       ===================================================== */
 
     function unbind() {
 
@@ -753,6 +774,7 @@
         ) {
 
             return true;
+
         }
 
 
@@ -769,6 +791,7 @@
                 handlers.delegatedInput,
                 false
             );
+
         }
 
 
@@ -785,6 +808,7 @@
                 handlers.delegatedFocus,
                 false
             );
+
         }
 
 
@@ -801,6 +825,7 @@
                 handlers.delegatedKeydown,
                 false
             );
+
         }
 
 
@@ -817,6 +842,7 @@
                 handlers.delegatedResultsClick,
                 false
             );
+
         }
 
 
@@ -844,7 +870,9 @@
                         handlers.delegatedProviderChanged,
                         false
                     );
+
                 }
+
             }
         );
 
@@ -862,6 +890,7 @@
                 handlers.delegatedDocumentClick,
                 false
             );
+
         }
 
 
@@ -900,7 +929,9 @@
                     "[GEN-Z.AI] Gagal menutup dropdown saat unbind:",
                     error
                 );
+
             }
+
         }
 
 
@@ -910,12 +941,13 @@
 
 
         return true;
+
     }
 
 
     /* =====================================================
        REBIND
-    ===================================================== */
+       ===================================================== */
 
     function rebind(
         api
@@ -926,22 +958,24 @@
         return bind(
             api
         );
+
     }
 
 
     /* =====================================================
        IS BOUND
-    ===================================================== */
+       ===================================================== */
 
     function isBound() {
 
         return bound;
+
     }
 
 
     /* =====================================================
        INITIALIZE
-    ===================================================== */
+       ===================================================== */
 
     function initialize(
         api
@@ -950,14 +984,15 @@
         return bind(
             api
         );
+
     }
 
 
     /* =====================================================
        PUBLIC API
-    ===================================================== */
+       ===================================================== */
 
-    window.GENZModelSearchEvents =
+    const API =
         Object.freeze({
 
             bind,
@@ -973,8 +1008,29 @@
         });
 
 
+    /*
+     * PRIMARY NAME
+     * -----------------------------------------------------
+     * models-init.js mencari nama plural ini.
+     */
+
+    window.GENZModelsFormEvents =
+        API;
+
+
+    /*
+     * COMPATIBILITY NAME
+     * -----------------------------------------------------
+     * Nama lama tetap dipertahankan agar module
+     * lain yang sudah menggunakan nama ini tidak rusak.
+     */
+
+    window.GENZModelSearchEvents =
+        API;
+
+
     console.info(
-        "[GEN-Z.AI] GENZModelSearchEvents loaded."
+        "[GEN-Z.AI] GENZModelsFormEvents loaded."
     );
 
 })();
