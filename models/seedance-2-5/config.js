@@ -3,9 +3,9 @@ const config = {
 
     name: "Seedance 2.5",
 
-    providerId: "kie_ai",
+    providerId: "kie",
 
-    providerName: "KIE.AI",
+    providerName: "GEN-Z.AI",
 
     type: "text-to-video",
 
