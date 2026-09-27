@@ -7,6 +7,12 @@ import parameters, {
 } from "./parameters.js";
 
 
+import parameterAdapter, {
+    getParameters,
+    sanitizeParameters
+} from "./parameter-adapter.js";
+
+
 import createTask, {
     buildInput,
     buildPayload
@@ -17,6 +23,10 @@ import queryTask
     from "./query-task.js";
 
 
+/* =========================================================
+   MODEL ADAPTER
+   ========================================================= */
+
 const model = {
 
     config,
@@ -24,6 +34,12 @@ const model = {
     parameters,
 
     validate,
+
+    getParameters,
+
+    sanitizeParameters,
+
+    parameterAdapter,
 
     buildInput,
 
@@ -35,6 +51,10 @@ const model = {
 
 };
 
+
+/* =========================================================
+   NAMED EXPORTS
+   ========================================================= */
 
 export {
 
@@ -44,6 +64,12 @@ export {
 
     validate,
 
+    getParameters,
+
+    sanitizeParameters,
+
+    parameterAdapter,
+
     buildInput,
 
     buildPayload,
@@ -54,5 +80,9 @@ export {
 
 };
 
+
+/* =========================================================
+   DEFAULT EXPORT
+   ========================================================= */
 
 export default model;
