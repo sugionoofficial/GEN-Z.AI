@@ -30,6 +30,8 @@
    - Tidak dispatch event CRUD dari dalam fungsi CRUD.
    - Tidak membuat recursive create/edit/delete.
    - Tidak menghitung pricing.
+   - Setelah mutation berhasil, coordinator meminta UI
+     melakukan reload data melalui GENZModelsUI.refreshModels().
    ========================================================= */
 
 (function (window) {
@@ -114,6 +116,27 @@
         return (
             window.GENZModelsTable ||
             window.GENZModelTable ||
+            null
+        );
+
+    }
+
+
+    /* =====================================================
+       UI MODULE
+       -----------------------------------------------------
+       UI adalah owner proses:
+       - load model
+       - refresh data
+       - sync search
+       - sync table
+       - update statistics
+       ===================================================== */
+
+    function getUI() {
+
+        return (
+            window.GENZModelsUI ||
             null
         );
 
@@ -501,7 +524,27 @@
             );
 
 
+        /*
+         * Mutation database sudah berhasil.
+         *
+         * Bersihkan cache agar load berikutnya
+         * tidak menggunakan data lama.
+         */
+
         await invalidateModelCache();
+
+
+        /*
+         * Setelah cache dibersihkan, minta UI
+         * mengambil data terbaru dari source of truth.
+         *
+         * Refresh tidak boleh membuat Create
+         * dianggap gagal.
+         */
+
+        await refreshModelsUI(
+            options
+        );
 
 
         return result;
@@ -558,7 +601,17 @@
             );
 
 
+        /*
+         * Create dari form juga harus menghapus
+         * cache dan menyegarkan UI.
+         */
+
         await invalidateModelCache();
+
+
+        await refreshModelsUI(
+            options
+        );
 
 
         return result;
@@ -801,6 +854,11 @@
                 await invalidateModelCache();
 
 
+                await refreshModelsUI(
+                    options
+                );
+
+
                 return result;
 
             }
@@ -836,6 +894,11 @@
 
 
             await invalidateModelCache();
+
+
+            await refreshModelsUI(
+                options
+            );
 
 
             return result;
@@ -926,10 +989,15 @@
                         submit:
                             submitHandler
                     }
-            );
+                );
 
 
             await invalidateModelCache();
+
+
+            await refreshModelsUI(
+                options
+            );
 
 
             return result;
@@ -961,6 +1029,11 @@
 
 
             await invalidateModelCache();
+
+
+            await refreshModelsUI(
+                options
+            );
 
 
             return result;
@@ -1157,6 +1230,11 @@
         await invalidateModelCache();
 
 
+        await refreshModelsUI(
+            options
+        );
+
+
         return result;
 
     }
@@ -1210,6 +1288,11 @@
         await invalidateModelCache();
 
 
+        await refreshModelsUI(
+            options
+        );
+
+
         return result;
 
     }
@@ -1245,6 +1328,12 @@
 
             } catch (error) {
 
+                /*
+                 * Cache gagal dibersihkan tidak boleh
+                 * mengubah status mutation database
+                 * yang sudah berhasil.
+                 */
+
                 console.warn(
                     "[GEN-Z.AI] Gagal clear model cache:",
                     error
@@ -1258,12 +1347,150 @@
 
 
     /* =====================================================
+       REFRESH MODELS UI
+       -----------------------------------------------------
+       Ini adalah refresh utama setelah mutation.
+
+       models-ui.js:
+       - clear cache
+       - loadModels()
+       - sync search
+       - sync page search
+       - sync table
+       - update statistics
+
+       Karena itu coordinator tidak melakukan
+       query Supabase sendiri.
+       ===================================================== */
+
+    async function refreshModelsUI(
+        options = {}
+    ) {
+
+        /*
+         * Caller dapat secara eksplisit mematikan
+         * automatic refresh apabila diperlukan untuk
+         * workflow khusus.
+         */
+
+        if (
+            options &&
+            options.refresh === false
+        ) {
+
+            return null;
+
+        }
+
+
+        const ui =
+            getUI();
+
+
+        if (
+            !ui ||
+            typeof ui.refreshModels !==
+                "function"
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] GENZModelsUI.refreshModels() belum tersedia."
+            );
+
+
+            /*
+             * Jangan membuat mutation database
+             * dianggap gagal hanya karena UI belum
+             * siap melakukan refresh.
+             */
+
+            return null;
+
+        }
+
+
+        try {
+
+            return await ui.refreshModels({
+
+                /*
+                 * Halaman Admin Models sebelumnya
+                 * memang menggunakan includeInactive=true.
+                 */
+
+                includeInactive: true,
+
+                /*
+                 * Pertahankan opsi lain yang mungkin
+                 * dikirim caller.
+                 */
+
+                ...options
+
+            });
+
+        } catch (error) {
+
+            /*
+             * Database mutation sudah berhasil.
+             * Error refresh UI hanya dicatat sebagai
+             * warning agar data tidak dilaporkan gagal
+             * padahal sudah tersimpan.
+             */
+
+            console.warn(
+                "[GEN-Z.AI] Model berhasil diubah, tetapi refresh UI gagal:",
+                error
+            );
+
+
+            return null;
+
+        }
+
+    }
+
+
+    /* =====================================================
        REFRESH TABLE
+       -----------------------------------------------------
+       Compatibility helper.
+
+       Catatan:
+       Fungsi ini bukan source-of-truth reload.
+       Untuk mengambil data terbaru dari Supabase,
+       gunakan refreshModelsUI().
        ===================================================== */
 
     async function refreshTable(
         options = {}
     ) {
+
+        /*
+         * Prioritaskan Models UI karena module ini
+         * yang mengetahui bagaimana data harus
+         * di-load dan disinkronkan ke table.
+         */
+
+        const uiResult =
+            await refreshModelsUI(
+                options
+            );
+
+
+        if (
+            uiResult !== null
+        ) {
+
+            return uiResult;
+
+        }
+
+
+        /*
+         * Compatibility fallback untuk implementasi
+         * table lama.
+         */
 
         const table =
             getTableModule();
@@ -1334,24 +1561,17 @@
     /* =====================================================
        CRUD OPERATION WRAPPERS
        -----------------------------------------------------
-       Wrapper ini tidak otomatis refresh UI kecuali
-       caller secara eksplisit memberikan:
+       Setelah Create / Update / Delete sukses,
+       fungsi utama sudah melakukan:
+       
+       mutation
+        ↓
+       invalidate cache
+        ↓
+       refresh Models UI
 
-       {
-           refresh: true
-       }
-
-       Hal ini mencegah siklus:
-
-       CRUD
-        ↓
-       refresh
-        ↓
-       render
-        ↓
-       event
-        ↓
-       CRUD
+       Wrapper ini dipertahankan untuk kompatibilitas
+       dengan caller lama.
        ===================================================== */
 
     async function createAndRefresh(
@@ -1359,26 +1579,23 @@
         options = {}
     ) {
 
-        const result =
-            await create(
-                data,
-                options
-            );
+        /*
+         * create() sudah melakukan refresh UI.
+         *
+         * Jangan melakukan refresh kedua di sini,
+         * karena itu hanya akan menghasilkan:
+         *
+         * Create
+         * -> refresh
+         * -> refresh lagi
+         *
+         * yang tidak diperlukan.
+         */
 
-
-        if (
-            options.refresh ===
-            true
-        ) {
-
-            await refreshTable(
-                options
-            );
-
-        }
-
-
-        return result;
+        return await create(
+            data,
+            options
+        );
 
     }
 
@@ -1388,26 +1605,14 @@
         options = {}
     ) {
 
-        const result =
-            await update(
-                data,
-                options
-            );
+        /*
+         * update() sudah melakukan refresh UI.
+         */
 
-
-        if (
-            options.refresh ===
-            true
-        ) {
-
-            await refreshTable(
-                options
-            );
-
-        }
-
-
-        return result;
+        return await update(
+            data,
+            options
+        );
 
     }
 
@@ -1417,26 +1622,14 @@
         options = {}
     ) {
 
-        const result =
-            await remove(
-                model,
-                options
-            );
+        /*
+         * remove() sudah melakukan refresh UI.
+         */
 
-
-        if (
-            options.refresh ===
-            true
-        ) {
-
-            await refreshTable(
-                options
-            );
-
-        }
-
-
-        return result;
+        return await remove(
+            model,
+            options
+        );
 
     }
 
@@ -1683,7 +1876,10 @@
                 getDataModule(),
 
             table:
-                getTableModule()
+                getTableModule(),
+
+            ui:
+                getUI()
 
         };
 
@@ -1726,6 +1922,11 @@
             table:
                 Boolean(
                     modules.table
+                ),
+
+            ui:
+                Boolean(
+                    modules.ui
                 )
 
         };
@@ -1813,6 +2014,8 @@
             /* =========================
                UI
             ========================= */
+
+            refreshModelsUI,
 
             refreshTable,
 
