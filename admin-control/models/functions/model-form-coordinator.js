@@ -87,12 +87,6 @@
 
     /* =====================================================
        TABLE MODULE
-       -----------------------------------------------------
-       Nama plural adalah nama utama yang digunakan oleh
-       models-init.js.
-
-       Nama singular dipertahankan sebagai compatibility
-       fallback agar module lama tidak rusak.
        ===================================================== */
 
     function getTableModule() {
@@ -202,6 +196,7 @@
 
         }
 
+
         if (
             !model ||
             typeof model !==
@@ -212,6 +207,7 @@
 
         }
 
+
         /*
          * Record ID database.
          *
@@ -219,6 +215,7 @@
          * bukan pengganti record id apabila keduanya
          * tersedia.
          */
+
         return normalizeId(
             model.id ||
             model.model_id_record ||
@@ -242,6 +239,7 @@
                 "Create Model"
             );
 
+
         const handler =
             requireFunction(
                 module,
@@ -249,18 +247,22 @@
                 "Create Model"
             );
 
+
         /*
          * Hanya delegasi.
          *
          * Tidak memanggil coordinator lagi.
          */
+
         const result =
             await handler.call(
                 module,
                 data
             );
 
+
         await invalidateModelCache();
+
 
         return result;
 
@@ -281,6 +283,7 @@
                 "Create Model"
             );
 
+
         const handler =
             requireFunction(
                 module,
@@ -288,18 +291,22 @@
                 "Create Model"
             );
 
+
         /*
          * Event langsung diteruskan ke owner Create.
          *
          * Coordinator tidak dispatch ulang event.
          */
+
         const result =
             await handler.call(
                 module,
                 event
             );
 
+
         await invalidateModelCache();
+
 
         return result;
 
@@ -321,10 +328,12 @@
                 "Edit Model"
             );
 
+
         /*
          * Modul baru menyediakan
          * openEditModel().
          */
+
         if (
             typeof module.openEditModel ===
             "function"
@@ -344,6 +353,7 @@
         /*
          * Compatibility dengan module lama.
          */
+
         if (
             typeof module.populate ===
             "function"
@@ -391,6 +401,7 @@
                 "Edit Model"
             );
 
+
         if (
             typeof module.prepareEditSubmission ===
             "function"
@@ -407,6 +418,7 @@
         /*
          * Compatibility lama.
          */
+
         if (
             typeof module.collectEditData ===
             "function"
@@ -437,6 +449,65 @@
 
 
     /* =====================================================
+       RESOLVE EDIT ROOT
+       -----------------------------------------------------
+       Root dapat diberikan melalui:
+       - options.root
+       - options.container
+       - options.formRoot
+       - parameter root pada updateFromForm()
+       ===================================================== */
+
+    function resolveEditRoot(
+        root,
+        options = {}
+    ) {
+
+        return (
+            root ||
+            options.root ||
+            options.container ||
+            options.formRoot ||
+            null
+        );
+
+    }
+
+
+    /* =====================================================
+       RESOLVE SUBMIT HANDLER
+       ===================================================== */
+
+    function resolveEditSubmitHandler(
+        options = {}
+    ) {
+
+        if (
+            typeof options.submit ===
+            "function"
+        ) {
+
+            return options.submit;
+
+        }
+
+
+        if (
+            typeof options.onSubmit ===
+            "function"
+        ) {
+
+            return options.onSubmit;
+
+        }
+
+
+        return null;
+
+    }
+
+
+    /* =====================================================
        EDIT: UPDATE DIRECT
        ===================================================== */
 
@@ -451,40 +522,57 @@
                 "Edit Model"
             );
 
+
         /*
          * PRIORITAS 1:
-         * Module baru.
+         * Module Edit baru.
          *
-         * Jika ada submit handler dari caller,
-         * gunakan handler tersebut.
+         * submitEditModel() adalah owner proses
+         * pengumpulan + validasi + delegasi submit.
          */
+
         if (
             typeof module.submitEditModel ===
-                "function" &&
-            options.root
+            "function"
         ) {
 
-            const submit =
-                typeof options.submit ===
-                    "function"
-                    ? options.submit
-                    : typeof options.onSubmit ===
-                        "function"
-                        ? options.onSubmit
-                        : null;
+            const root =
+                resolveEditRoot(
+                    null,
+                    options
+                );
 
-            if (submit) {
+
+            if (root) {
+
+                const submitHandler =
+                    resolveEditSubmitHandler(
+                        options
+                    );
+
+
+                if (!submitHandler) {
+
+                    throw new Error(
+                        "EDIT_SUBMIT_HANDLER_MISSING"
+                    );
+
+                }
+
 
                 const result =
                     await module.submitEditModel(
-                        options.root,
+                        root,
                         {
                             ...options,
-                            submit
+                            submit:
+                                submitHandler
                         }
                     );
 
+
                 await invalidateModelCache();
+
 
                 return result;
 
@@ -497,9 +585,10 @@
          * PRIORITAS 2:
          * Module Edit lama.
          *
-         * Hanya dipakai jika fungsi update
-         * memang benar-benar dimiliki Edit module.
+         * Hanya digunakan jika module lama
+         * benar-benar menyediakan update().
          */
+
         if (
             typeof module.update ===
             "function"
@@ -510,7 +599,9 @@
                     data
                 );
 
+
             await invalidateModelCache();
+
 
             return result;
 
@@ -528,6 +619,7 @@
          *
          * yang berujung Maximum call stack size exceeded.
          */
+
         throw new Error(
             "Module Edit Model tidak menyediakan fungsi update atau submitEditModel."
         );
@@ -550,19 +642,22 @@
                 "Edit Model"
             );
 
+
         /*
          * Module baru.
          */
+
         if (
             typeof module.submitEditModel ===
-                "function"
+            "function"
         ) {
 
             const formRoot =
-                root ||
-                options.root ||
-                options.container ||
-                options.formRoot;
+                resolveEditRoot(
+                    root,
+                    options
+                );
+
 
             if (!formRoot) {
 
@@ -572,43 +667,44 @@
 
             }
 
+
             /*
              * Submit harus diberikan oleh caller.
              *
              * Coordinator sendiri tidak melakukan
              * database update.
              */
+
             const submitHandler =
-                typeof options.submit ===
-                    "function"
-                    ? options.submit
-                    : typeof options.onSubmit ===
-                        "function"
-                        ? options.onSubmit
-                        : null;
+                resolveEditSubmitHandler(
+                    options
+                );
+
 
             if (!submitHandler) {
 
-                /*
-                 * Jangan membuat fallback recursive.
-                 */
                 throw new Error(
                     "EDIT_SUBMIT_HANDLER_MISSING"
                 );
 
             }
 
+
             const result =
                 await module.submitEditModel(
                     formRoot,
                     {
                         ...options,
+                        root:
+                            formRoot,
                         submit:
                             submitHandler
                     }
                 );
 
+
             await invalidateModelCache();
+
 
             return result;
 
@@ -618,6 +714,7 @@
         /*
          * Module lama.
          */
+
         if (
             typeof module.updateFromForm ===
             "function"
@@ -628,7 +725,9 @@
                     root
                 );
 
+
             await invalidateModelCache();
+
 
             return result;
 
@@ -644,6 +743,7 @@
          *
          * karena itu sumber stack overflow.
          */
+
         throw new Error(
             "Module Edit Model tidak menyediakan updateFromForm."
         );
@@ -666,18 +766,22 @@
                 "Edit Model"
             );
 
+
         /*
          * Module baru.
          */
+
         if (
             typeof module.openEditModel ===
             "function"
         ) {
 
             const root =
-                options.root ||
-                options.container ||
-                options.formRoot;
+                resolveEditRoot(
+                    null,
+                    options
+                );
+
 
             if (root) {
 
@@ -695,6 +799,7 @@
         /*
          * Compatibility module lama.
          */
+
         if (
             typeof module.populate ===
             "function"
@@ -711,6 +816,7 @@
          * Resolve model saja apabila belum ada
          * root render.
          */
+
         if (
             typeof module.resolveModelForEdit ===
             "function"
@@ -739,6 +845,7 @@
 
         const module =
             getEdit();
+
 
         if (!module) {
             return null;
@@ -784,6 +891,7 @@
                 "Delete Model"
             );
 
+
         const handler =
             requireFunction(
                 module,
@@ -791,13 +899,16 @@
                 "Delete Model"
             );
 
+
         const result =
             await handler.call(
                 module,
                 model
             );
 
+
         await invalidateModelCache();
+
 
         return result;
 
@@ -818,12 +929,14 @@
                 "Delete Model"
             );
 
+
         const handler =
             requireFunction(
                 module,
                 "removeById",
                 "Delete Model"
             );
+
 
         const result =
             await handler.call(
@@ -833,7 +946,9 @@
                 )
             );
 
+
         await invalidateModelCache();
+
 
         return result;
 
@@ -849,6 +964,7 @@
         const data =
             getDataModule();
 
+
         if (!data) {
             return;
         }
@@ -857,6 +973,7 @@
         /*
          * models-data.js memiliki clearCache().
          */
+
         if (
             typeof data.clearCache ===
             "function"
@@ -890,6 +1007,7 @@
 
         const table =
             getTableModule();
+
 
         if (!table) {
             return null;
@@ -936,6 +1054,7 @@
                  * membutuhkan signature berbeda,
                  * lanjutkan ke candidate berikutnya.
                  */
+
                 console.warn(
                     "[GEN-Z.AI] Table refresh warning:",
                     functionName,
@@ -985,6 +1104,7 @@
                 data
             );
 
+
         if (
             options.refresh ===
             true
@@ -995,6 +1115,7 @@
             );
 
         }
+
 
         return result;
 
@@ -1012,6 +1133,7 @@
                 options
             );
 
+
         if (
             options.refresh ===
             true
@@ -1022,6 +1144,7 @@
             );
 
         }
+
 
         return result;
 
@@ -1038,6 +1161,7 @@
                 model
             );
 
+
         if (
             options.refresh ===
             true
@@ -1048,6 +1172,7 @@
             );
 
         }
+
 
         return result;
 
@@ -1090,9 +1215,12 @@
 
 
         const token = {
+
             key,
+
             createdAt:
                 Date.now()
+
         };
 
 
@@ -1149,6 +1277,7 @@
                 "create"
             );
 
+
         if (!token) {
 
             return null;
@@ -1195,6 +1324,7 @@
                 id
             );
 
+
         if (!token) {
 
             return null;
@@ -1240,6 +1370,7 @@
                 "delete",
                 id
             );
+
 
         if (!token) {
 
@@ -1439,7 +1570,7 @@
 
     /* =====================================================
        LOG
-    ===================================================== */
+       ===================================================== */
 
     console.info(
         "[GEN-Z.AI] GENZModelFormCoordinator loaded."
