@@ -344,6 +344,143 @@
 
     }
 
+       /* =====================================================
+       MODAL EVENTS
+       ===================================================== */
+
+    function bindModalEvents() {
+
+        const modal =
+            document.getElementById(
+                "modelModal"
+            );
+
+        if (!modal) {
+            return false;
+        }
+
+
+        /*
+         * Hindari pemasangan listener berulang.
+         */
+        if (
+            modal.dataset
+                .modelCloseEventsAttached ===
+            "true"
+        ) {
+
+            return true;
+
+        }
+
+
+        const closeButton =
+            document.getElementById(
+                "closeModalBtn"
+            );
+
+        const cancelButton =
+            document.getElementById(
+                "cancelModalBtn"
+            );
+
+
+        /*
+         * Tombol X.
+         */
+        if (closeButton) {
+
+            closeButton.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+                    close();
+
+                }
+            );
+
+        }
+
+
+        /*
+         * Tombol Batal.
+         */
+        if (cancelButton) {
+
+            cancelButton.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+                    close();
+
+                }
+            );
+
+        }
+
+
+        /*
+         * Klik area gelap di luar modal.
+         */
+        modal.addEventListener(
+            "click",
+            function (event) {
+
+                if (
+                    event.target ===
+                    modal
+                ) {
+
+                    close();
+
+                }
+
+            }
+        );
+
+
+        /*
+         * Tombol ESC.
+         */
+        document.addEventListener(
+            "keydown",
+            function (event) {
+
+                if (
+                    event.key ===
+                    "Escape"
+                ) {
+
+                    const isVisible =
+                        modal.classList.contains(
+                            "show"
+                        );
+
+                    if (isVisible) {
+
+                        close();
+
+                    }
+
+                }
+
+            }
+        );
+
+
+        modal.dataset
+            .modelCloseEventsAttached =
+            "true";
+
+
+        return true;
+
+    }
+
 
     /* =====================================================
        OPEN CREATE
