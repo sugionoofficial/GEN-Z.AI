@@ -2958,3 +2958,29 @@
         API;
 
 })();
+
+/* =========================================================
+   ES MODULE EXPORTS
+   ---------------------------------------------------------
+   Compatibility:
+   - API global GENZModelFormLayout tetap dipertahankan
+   - Named exports disediakan untuk model-form-edit.js
+   ========================================================= */
+
+const MODEL_FORM_LAYOUT_API =
+    window.GENZModelFormLayout || {};
+
+export const renderModelForm =
+    MODEL_FORM_LAYOUT_API.renderModelForm;
+
+export const collectModelFormData =
+    MODEL_FORM_LAYOUT_API.collectModelFormData;
+
+export const normalizeModelSubmission =
+    MODEL_FORM_LAYOUT_API.normalizeModelSubmission;
+
+export const validateModelFormData =
+    MODEL_FORM_LAYOUT_API.validateModelFormData;
+
+export const attachModelFormEvents =
+    MODEL_FORM_LAYOUT_API.attachModelFormEvents;
