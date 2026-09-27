@@ -885,6 +885,116 @@ function getDurationRange(
 
 }
 
+function normalizeProviderIdentity(provider) {
+    if (!provider || typeof provider !== "object") {
+        return null;
+    }
+
+    const databaseId =
+        provider.id ??
+        provider.uuid ??
+        provider.provider_uuid ??
+        provider.providerUuid ??
+        null;
+
+    const providerCode =
+        provider.provider_id ??
+        provider.providerId ??
+        provider.provider_code ??
+        provider.providerCode ??
+        provider.provider ??
+        provider.code ??
+        "";
+
+    const providerName =
+        provider.provider_name ??
+        provider.providerName ??
+        provider.name ??
+        provider.display_name ??
+        provider.displayName ??
+        providerCode ??
+        databaseId ??
+        "";
+
+    const status =
+        provider.status ??
+        provider.state ??
+        "unknown";
+
+    return {
+        databaseId,
+        providerCode: String(providerCode).trim(),
+        providerName: String(providerName).trim(),
+        status: String(status).trim()
+    };
+}
+
+
+function normalizeProviderToken(value) {
+    return String(value ?? "")
+        .trim()
+        .toLowerCase();
+}
+
+
+function providerMatchesCode(provider, requestedCode) {
+    const identity = normalizeProviderIdentity(provider);
+
+    if (!identity) {
+        return false;
+    }
+
+    const requested = normalizeProviderToken(requestedCode);
+
+    if (!requested) {
+        return false;
+    }
+
+    const providerCode =
+        normalizeProviderToken(identity.providerCode);
+
+    const providerId =
+        normalizeProviderToken(identity.databaseId);
+
+    const providerName =
+        normalizeProviderToken(identity.providerName);
+
+    /*
+     * Normal exact matching.
+     */
+    if (
+        providerCode === requested ||
+        providerId === requested ||
+        providerName === requested
+    ) {
+        return true;
+    }
+
+    /*
+     * KIE provider alias.
+     *
+     * Registry lama menggunakan:
+     *     kie_ai
+     *
+     * Database GEN-Z.AI menggunakan:
+     *     kie
+     *
+     * Keduanya harus menunjuk ke provider
+     * Supabase yang sama.
+     */
+    if (
+        requested === "kie" ||
+        requested === "kie_ai"
+    ) {
+        return (
+            providerCode === "kie" ||
+            providerCode === "kie_ai"
+        );
+    }
+
+    return false;
+}
+
 
 /* =========================================================
    PROVIDER MATCH HELPER
