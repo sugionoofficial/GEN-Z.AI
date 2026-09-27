@@ -197,21 +197,44 @@
         ================================================= */
 
         {
-            id:
-                "model-form-coordinator",
+    id:
+        "model-form-coordinator",
 
-            src:
-                FUNCTION_PATH +
-                "model-form-coordinator.js",
+    src:
+        FUNCTION_PATH +
+        "model-form-coordinator.js",
 
-            global:
-                "GENZModelFormCoordinator"
-        },
+    global:
+        "GENZModelFormCoordinator"
+},
 
 
-        /* =================================================
-           FORM EVENTS
-        ================================================= */
+/* =================================================
+   FORM COMPATIBILITY BRIDGE
+   -------------------------------------------------
+   Menyediakan:
+       GENZModelsForm
+
+   untuk trigger Create / Edit / Delete
+   dari Models UI.
+================================================= */
+
+{
+    id:
+        "models-form",
+
+    src:
+        BASE_PATH +
+        "models-form.js",
+
+    global:
+        "GENZModelsForm"
+},
+
+
+/* =================================================
+   FORM EVENTS
+================================================= */
 
         {
             id:
