@@ -1293,35 +1293,6 @@ if (
             : [];
 
 
-        /*
-     * =================================================
-     * REGISTRY CATALOG
-     * =================================================
-     *
-     * Registry model SUDAH dimasukkan oleh
-     * ensureCatalog().
-     *
-     * Jangan memanggil loadRegistryModels()
-     * lagi di sini.
-     *
-     * Jika dipanggil ulang tanpa providers,
-     * model seperti Seedance:
-     *
-     *   providerId = "kie_ai"
-     *
-     * kehilangan mapping ke:
-     *
-     *   providers.id
-     *   providers.provider_id
-     *   providers.provider_name
-     *
-     * Akibatnya model akan hilang ketika
-     * Provider GEN-Z.AI dipilih.
-     */
-
-    const registryModels = [];
-
-
     /*
      * =================================================
      * MERGE
