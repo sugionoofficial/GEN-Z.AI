@@ -399,7 +399,7 @@
 
             min-height: 100vh;
 
-            margin-left: 245px;
+            margin-left: 0;
 
             padding:
                 28px;
@@ -408,9 +408,6 @@
                 margin-left .22s ease;
         }
 
-        .app.sidebar-collapsed .main {
-            margin-left: 0;
-        }
 
         .content {
             width:
@@ -1079,6 +1076,49 @@
             padding-left: 40px;
         }
 
+        .currency-preview {
+            display: grid;
+            grid-template-columns: repeat(3,minmax(0,1fr));
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .currency-preview-box {
+            position: relative;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 12px;
+            background: rgba(0,0,0,.24);
+        }
+
+        .currency-preview-box.final {
+            border-color: rgba(255,23,68,.25);
+            background: rgba(255,23,68,.055);
+            box-shadow: 0 0 24px rgba(255,23,68,.06);
+        }
+
+        .currency-preview-title {
+            color: #fff;
+            font-size: 12px;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+
+        .currency-preview-value {
+            color: rgba(255,255,255,.88);
+            font-size: 16px;
+            font-weight: 950;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .currency-preview-help {
+            margin-top: 5px;
+            color: rgba(255,255,255,.32);
+            font-size: 9px;
+            line-height: 1.45;
+        }
+
         .price-preview {
             display: grid;
 
@@ -1440,7 +1480,8 @@
                 width: 210px;
             }
 
-            .price-preview {
+            .price-preview,
+            .currency-preview {
                 grid-template-columns:
                     1fr;
             }
@@ -1529,120 +1570,13 @@
 
 <body>
 
-<button
-    type="button"
-    class="nav-toggle"
-    id="navToggle"
-    aria-label="Tutup navigasi"
-    aria-controls="adminSidebar"
-    aria-expanded="true"
->
-    ☰
-</button>
+<div id="navigation"></div>
 
 
 <div
     class="app"
     id="appShell"
 >
-
-    <!-- =====================================================
-         SIDEBAR
-    ====================================================== -->
-
-    <aside
-        class="sidebar"
-        id="adminSidebar"
-    >
-
-        <div class="brand">
-
-            <div class="brand-logo">
-                G
-            </div>
-
-            <div>
-                <div class="brand-text">
-                    GEN-Z.AI
-                </div>
-
-                <div class="brand-sub">
-                    ADMIN CONTROL
-                </div>
-            </div>
-
-        </div>
-
-
-        <div class="nav-title">
-            Management
-        </div>
-
-
-        <nav class="nav">
-
-            <a href="./admin-panel.html">
-                <span class="nav-icon">⌂</span>
-                <span class="nav-label">
-                    Dashboard
-                </span>
-            </a>
-
-            <a href="./user.html">
-                <span class="nav-icon">♙</span>
-                <span class="nav-label">
-                    Users
-                </span>
-            </a>
-
-            <a href="./providers.html">
-                <span class="nav-icon">◈</span>
-                <span class="nav-label">
-                    Providers
-                </span>
-            </a>
-
-            <a
-                href="./models.html"
-                class="active"
-            >
-                <span class="nav-icon">◆</span>
-                <span class="nav-label">
-                    Models
-                </span>
-            </a>
-
-            <a href="./credit.html">
-                <span class="nav-icon">₿</span>
-                <span class="nav-label">
-                    Credit
-                </span>
-            </a>
-
-        </nav>
-
-
-        <div class="sidebar-bottom">
-
-            <button
-                type="button"
-                class="logout"
-                id="logoutButton"
-            >
-                Logout
-            </button>
-
-        </div>
-
-    </aside>
-
-
-    <div
-        class="sidebar-overlay"
-        id="sidebarOverlay"
-        aria-hidden="true"
-    ></div>
-
 
     <!-- =====================================================
          MAIN
@@ -1810,23 +1744,7 @@
                         <div class="field">
 
                             <label>
-                                Provider ID
-                            </label>
-
-                            <div
-                                class="readonly-value mono"
-                                id="providerId"
-                            >
-                                -
-                            </div>
-
-                        </div>
-
-
-                        <div class="field">
-
-                            <label>
-                                Provider Name
+                                Provider
                             </label>
 
                             <div
@@ -2035,6 +1953,29 @@
                                 Nilai 0 berarti tanpa diskon.
                             </div>
 
+                        </div>
+
+                    </div>
+
+
+                    <div class="currency-preview">
+
+                        <div class="currency-preview-box">
+                            <div class="currency-preview-title">Harga Dasar IDR</div>
+                            <div class="currency-preview-value" id="priceIdrPreview">Rp0</div>
+                            <div class="currency-preview-help">USD × kurs manual</div>
+                        </div>
+
+                        <div class="currency-preview-box">
+                            <div class="currency-preview-title">Diskon IDR</div>
+                            <div class="currency-preview-value" id="discountIdrPreview">Rp0</div>
+                            <div class="currency-preview-help">Nilai potongan berdasarkan persentase diskon</div>
+                        </div>
+
+                        <div class="currency-preview-box final">
+                            <div class="currency-preview-title">Harga Setelah Diskon</div>
+                            <div class="currency-preview-value" id="finalIdrPreview">Rp0</div>
+                            <div class="currency-preview-help">Hanya preview/patokan Credit</div>
                         </div>
 
                     </div>
@@ -2313,6 +2254,22 @@
 <script src="./supabase.js"></script>
 
 
+<!-- =====================================================
+     SHARED NAVIGATION
+
+     navigation.js adalah satu-satunya pemilik:
+     - Authentication
+     - Session
+     - Profile
+     - Role
+     - Navigation
+     - Logout
+     - Redirect
+====================================================== -->
+
+<script src="/navigation/navigation.js"></script>
+
+
 <!-- =========================================================
      MODEL EDIT
 ========================================================= -->
@@ -2322,8 +2279,6 @@
     import {
         loadModels,
         getModelByModelId,
-        getRegistryModel,
-        loadRegistryModels,
         loadProviders
     } from "./models/models-data.js";
 
@@ -2333,13 +2288,9 @@
         null;
 
     const appShell = document.getElementById("appShell");
-    const navToggle = document.getElementById("navToggle");
-    const sidebarOverlay = document.getElementById("sidebarOverlay");
-    const adminSidebar = document.getElementById("adminSidebar");
     const backButton = document.getElementById("backButton");
     const cancelButton = document.getElementById("cancelButton");
     const saveButton = document.getElementById("saveButton");
-    const logoutButton = document.getElementById("logoutButton");
     const alertBox = document.getElementById("alertBox");
     const loadingBox = document.getElementById("loadingBox");
     const editContent = document.getElementById("editContent");
@@ -2347,7 +2298,6 @@
     const heroModelId = document.getElementById("heroModelId");
     const modelName = document.getElementById("modelName");
     const modelId = document.getElementById("modelId");
-    const providerId = document.getElementById("providerId");
     const providerName = document.getElementById("providerName");
     const modelType = document.getElementById("modelType");
     const description = document.getElementById("description");
@@ -2356,6 +2306,9 @@
     const priceUsd = document.getElementById("priceUsd");
     const exchangeRate = document.getElementById("exchangeRate");
     const discount = document.getElementById("discount");
+    const priceIdrPreview = document.getElementById("priceIdrPreview");
+    const discountIdrPreview = document.getElementById("discountIdrPreview");
+    const finalIdrPreview = document.getElementById("finalIdrPreview");
     const pricingCredit480p = document.getElementById("pricingCredit480p");
     const pricingDiscount480p = document.getElementById("pricingDiscount480p");
     const pricingFinal480p = document.getElementById("pricingFinal480p");
@@ -2376,26 +2329,6 @@
     let currentModelId = "";
     let currentDatabaseModel = null;
     let saving = false;
-
-    function setNavigation(open) {
-        appShell.classList.toggle("sidebar-collapsed", !open);
-        navToggle.setAttribute("aria-expanded", String(open));
-        navToggle.setAttribute("aria-label", open ? "Tutup navigasi" : "Buka navigasi");
-    }
-
-    function toggleNavigation() {
-        const isOpen = !appShell.classList.contains("sidebar-collapsed");
-        setNavigation(!isOpen);
-    }
-
-    navToggle.addEventListener("click", toggleNavigation);
-    sidebarOverlay.addEventListener("click", () => setNavigation(false));
-
-    adminSidebar.querySelectorAll("a").forEach(link => {
-        link.addEventListener("click", () => {
-            if (window.innerWidth <= 720) setNavigation(false);
-        });
-    });
 
     function showAlert(message, type = "error") {
         alertBox.textContent = message;
@@ -2553,16 +2486,37 @@
         return { discountPercent };
     }
 
+    function formatIdr(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number) || number <= 0) return "Rp0";
+        return `Rp${number.toLocaleString("id-ID", {
+            maximumFractionDigits: 0
+        })}`;
+    }
+
     function updatePricePreview() {
         const usd = Math.max(0, numberValue(priceUsd.value));
         const rate = Math.max(0, numberValue(exchangeRate.value));
         const discountPercent = Math.min(100, Math.max(0, numberValue(discount.value)));
         const idr = usd * rate;
-        const finalIdr = idr * (1 - discountPercent / 100);
+        const discountIdr = idr * (discountPercent / 100);
+        const finalIdr = idr - discountIdr;
+
+        if (priceIdrPreview) {
+            priceIdrPreview.textContent = formatIdr(idr);
+        }
+
+        if (discountIdrPreview) {
+            discountIdrPreview.textContent = formatIdr(discountIdr);
+        }
+
+        if (finalIdrPreview) {
+            finalIdrPreview.textContent = formatIdr(finalIdr);
+        }
 
         updateResolutionPricing();
 
-        return { usd, rate, idr, discountPercent, finalIdr };
+        return { usd, rate, idr, discountIdr, discountPercent, finalIdr };
     }
 
     function renderModel(model) {
@@ -2570,25 +2524,14 @@
         currentModelId = String(model?.model_id || model?.id || "").trim();
 
         const name = model?.model_name || model?.name || currentModelId || "Model";
-        const providerCode =
-            model?.provider_code ||
-            model?.provider?.provider_id ||
-            model?.providerId ||
-            "-";
-
-        const providerDisplayName =
-            model?.provider_name ||
-            model?.provider?.provider_name ||
-            model?.providerName ||
-            "-";
+        const provider = model?.provider_name || model?.providerName || model?.provider_id || model?.providerId || "-";
         const type = model?.type || model?.model_type || "-";
 
         heroModelName.textContent = name;
         heroModelId.textContent = currentModelId;
         modelName.value = name;
         modelId.textContent = currentModelId;
-        providerId.textContent = providerCode;
-        providerName.textContent = providerDisplayName;
+        providerName.textContent = provider;
         modelType.textContent = type;
         description.value = model?.description ?? "";
 
@@ -2681,30 +2624,9 @@
         return null;
     }
 
-    function mergeModelData(registryModel, adminModel, requestedId, providerRecord = null) {
+    function mergeModelData(registryModel, adminModel, requestedId) {
         const registry = registryModel || {};
         const admin = adminModel || {};
-        const provider = providerRecord || registry.provider || admin.provider || {};
-
-        const providerCode =
-            provider.provider_id ||
-            registry.provider_code ||
-            registry.provider?.provider_id ||
-            admin.provider_code ||
-            "-";
-
-        const providerNameValue =
-            provider.provider_name ||
-            registry.provider_name ||
-            registry.provider?.provider_name ||
-            admin.provider_name ||
-            "-";
-
-        const providerDatabaseId =
-            provider.id ||
-            admin.provider_id ||
-            registry.provider?.id ||
-            null;
 
         return {
             ...registry,
@@ -2712,54 +2634,27 @@
             id: admin.id ?? registry.id ?? null,
             model_id: admin.model_id || registry.model_id || requestedId,
             model_name: admin.model_name || registry.model_name || registry.name || requestedId,
-            provider_id: providerDatabaseId,
-            provider_code: providerCode,
-            provider_name: providerNameValue,
-            provider: {
-                id: providerDatabaseId,
-                provider_id: providerCode,
-                provider_name: providerNameValue,
-                status: provider.status || admin.provider_status || registry.provider?.status || ""
-            },
+            provider_id: admin.provider_id ?? registry.provider_id ?? registry.providerId ?? null,
+            provider_name: admin.provider_name || registry.provider_name || registry.providerName || registry.provider_id || "-",
             type: registry.type || registry.model_type || admin.type || admin.model_type || "-",
             model_type: registry.model_type || registry.type || admin.model_type || admin.type || "-",
             description: admin.description ?? "",
-            status: admin.status ?? registry.status ?? "inactive",
-            discount_percent: admin.discount_percent ?? registry.discount_percent ?? 0,
-            credit_480p: admin.credit_480p ?? registry.credit_480p ?? null,
-            credit_720p: admin.credit_720p ?? registry.credit_720p ?? null,
-            credit_1080p: admin.credit_1080p ?? registry.credit_1080p ?? null
+            status: admin.status ?? "inactive",
+            discount_percent: admin.discount_percent ?? 0,
+            credit_480p: admin.credit_480p ?? null,
+            credit_720p: admin.credit_720p ?? null,
+            credit_1080p: admin.credit_1080p ?? null
         };
     }
 
     async function loadRegistryModel(requestedId) {
         try {
-            const providers = await loadProviders({ includeInactive: true });
-
-            const directRegistry = await getRegistryModel(requestedId);
-            if (directRegistry) {
-                const providerCode =
-                    directRegistry.provider_code ||
-                    directRegistry.provider?.provider_id ||
-                    directRegistry.providerId ||
-                    null;
-
-                const provider = Array.isArray(providers)
-                    ? providers.find(item =>
-                        String(item?.provider_id || "").trim().toLowerCase() ===
-                        String(providerCode || "").trim().toLowerCase()
-                    )
-                    : null;
-
-                return { model: directRegistry, provider };
-            }
-
+            await loadProviders({ includeInactive: true });
             await loadModels({ force: true, includeInactive: true });
-            const persisted = await getModelByModelId(requestedId);
-            return { model: persisted, provider: null };
+            return await getModelByModelId(requestedId);
         } catch (error) {
             console.warn("GEN-Z.AI model-edit registry load warning:", error);
-            return { model: null, provider: null };
+            return null;
         }
     }
 
@@ -2775,15 +2670,11 @@
         }
 
         try {
-            /*
-             * ADMIN MODEL DIMUAT TERLEBIH DAHULU.
-             *
-             * URL bisa berisi model_id ATAU UUID record models.id.
-             * Setelah record ditemukan, gunakan model_id sebenarnya
-             * untuk mencari registry. Ini mencegah registry kosong
-             * hanya karena URL membawa UUID database.
-             */
-            const adminResult = await requestAdminModels("GET");
+            const [adminResult, registryResult] = await Promise.all([
+                requestAdminModels("GET"),
+                loadRegistryModel(requestedId)
+            ]);
+
             const adminModels = extractAdminModels(adminResult);
             const adminModel = findAdminModel(adminModels, requestedId);
 
@@ -2792,63 +2683,7 @@
             }
 
             currentDatabaseModel = adminModel;
-
-            const actualModelId =
-                String(
-                    adminModel?.model_id ||
-                    requestedId
-                ).trim();
-
-            /*
-             * Registry dicari memakai model_id, bukan UUID database.
-             */
-            const registryResult = await loadRegistryModel(actualModelId);
-            const registryModel = registryResult?.model || null;
-
-            /*
-             * Provider selalu diambil dari tabel providers sebagai
-             * source of truth.
-             *
-             * models.provider_id = providers.id (UUID)
-             * providers.provider_id = kode, contoh: kie
-             * providers.provider_name = nama, contoh: GEN-Z.AI
-             */
-            const providers = await loadProviders({ includeInactive: true });
-            const adminProviderId =
-                String(adminModel?.provider_id || "").trim().toLowerCase();
-            const adminProviderCode =
-                String(
-                    adminModel?.provider_code ||
-                    adminModel?.providerId ||
-                    registryModel?.provider_code ||
-                    registryModel?.provider?.provider_id ||
-                    ""
-                ).trim().toLowerCase();
-            const adminProviderName =
-                String(
-                    adminModel?.provider_name ||
-                    registryModel?.provider_name ||
-                    registryModel?.provider?.provider_name ||
-                    ""
-                ).trim().toLowerCase();
-
-            const providerRecord =
-                (Array.isArray(providers) ? providers : []).find(provider => {
-                    const dbId = String(provider?.id || "").trim().toLowerCase();
-                    const code = String(provider?.provider_id || "").trim().toLowerCase();
-                    const name = String(provider?.provider_name || "").trim().toLowerCase();
-                    return (adminProviderId && dbId === adminProviderId) ||
-                           (adminProviderCode && code === adminProviderCode) ||
-                           (adminProviderName && name === adminProviderName);
-                }) || null;
-
-            const mergedModel = mergeModelData(
-                registryModel,
-                adminModel,
-                actualModelId,
-                providerRecord
-            );
-
+            const mergedModel = mergeModelData(registryResult, adminModel, requestedId);
             renderModel(mergedModel);
             setLoading(false);
         } catch (error) {
@@ -2964,35 +2799,32 @@
         }
     }
 
-    async function logout() {
-        try {
-            if (supabase) await supabase.auth.signOut();
-        } catch (error) {
-            console.error("Logout error:", error);
-        }
-        window.location.href = "../login.html";
-    }
-
     backButton.addEventListener("click", goBack);
     cancelButton.addEventListener("click", goBack);
     saveButton.addEventListener("click", saveModel);
-    logoutButton.addEventListener("click", logout);
     statusToggle.addEventListener("change", updateStatusText);
     priceUsd.addEventListener("input", updatePricePreview);
     exchangeRate.addEventListener("input", updatePricePreview);
     discount.addEventListener("input", updatePricePreview);
 
-    if (window.innerWidth <= 720) {
-        setNavigation(false);
-    } else {
-        setNavigation(true);
+    async function startModelEdit() {
+        if (
+            window.GENZNavigationReady &&
+            typeof window.GENZNavigationReady.then === "function"
+        ) {
+            try {
+                const ready = await window.GENZNavigationReady;
+                if (ready !== true) return;
+            } catch (error) {
+                console.error("GEN-Z.AI navigation readiness error:", error);
+                return;
+            }
+        }
+
+        loadModel();
     }
 
-    window.addEventListener("resize", () => {
-        if (window.innerWidth > 720) sidebarOverlay.style.display = "none";
-    });
-
-    loadModel();
+    startModelEdit();
 
 </script>
 
