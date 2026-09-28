@@ -117,14 +117,26 @@ const FULL_WIDTH_PARAMETERS =
 
 function getContainer() {
 
+    const domContainer =
+        document.getElementById(
+            "dynamicFields"
+        );
+
+    if (
+        domContainer
+    ) {
+
+        return domContainer;
+
+    }
+
+
     const elements =
         getGenerateElements();
 
+
     return (
         elements?.dynamicFields ||
-        document.getElementById(
-            "dynamicFields"
-        ) ||
         null
     );
 
