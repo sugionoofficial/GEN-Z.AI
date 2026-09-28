@@ -860,6 +860,10 @@ function injectStyles() {
             max-width: 100%;
             min-width: 0;
 
+            align-self: start;
+            height: max-content;
+            box-sizing: border-box;
+            
             margin: 0 0 18px 0;
             padding: 16px;
 
