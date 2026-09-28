@@ -9,17 +9,23 @@
  * admin-control/models/functions/models-crud.js
  *
  * TANGGUNG JAWAB
- * - INSERT model ke Supabase
- * - UPDATE model di Supabase
- * - DELETE model dari Supabase
+ * - CREATE model melalui /api/admin-models
+ * - UPDATE model melalui /api/admin-models
+ * - DELETE model melalui /api/admin-models
  *
- * TIDAK BERTANGGUNG JAWAB
- * - Render UI
- * - Form validation UI
- * - Pricing calculation
- * - Cache
- * - Search
- * - Table rendering
+ * KEAMANAN
+ * - Browser TIDAK melakukan INSERT langsung ke Supabase.
+ * - Browser TIDAK melakukan UPDATE langsung ke Supabase.
+ * - Browser TIDAK melakukan DELETE langsung ke Supabase.
+ * - Semua perubahan model melewati:
+ *
+ *      /api/admin-models
+ *
+ * - API melakukan verifikasi:
+ *      ADMIN / OWNER
+ *
+ * - API menggunakan Supabase Service Role
+ *   secara server-side.
  *
  * SOURCE OF TRUTH
  * - Supabase table: models
@@ -38,14 +44,35 @@
        CONSTANT
     ===================================================== */
 
-    const MODEL_TABLE = "models";
+    const MODEL_TABLE =
+        "models";
+
+
+    /*
+     * Endpoint HARUS absolute dari root.
+     *
+     * Jangan menggunakan:
+     *
+     *     ../api/admin-models
+     *
+     * karena halaman Models dapat berada pada beberapa
+     * level directory berbeda.
+     *
+     * Endpoint repository:
+     *
+     *     /api/admin-models
+     */
+
+    const ADMIN_MODELS_API =
+        "/api/admin-models";
 
 
     /* =====================================================
        STATE
     ===================================================== */
 
-    let initialized = false;
+    let initialized =
+        false;
 
 
     /* =====================================================
@@ -122,10 +149,413 @@
 
 
     /* =====================================================
-       HELPERS
-    ===================================================== */
+       AUTH SESSION
+       ===================================================== */
 
-    function normalizeId(value) {
+    async function getAccessToken() {
+
+        const supabase =
+            requireSupabase();
+
+
+        let sessionResult;
+
+        try {
+
+            sessionResult =
+                await supabase
+                    .auth
+                    .getSession();
+
+        } catch (
+            error
+        ) {
+
+            const wrapped =
+                new Error(
+                    error?.message ||
+                    "Gagal mengambil session Supabase."
+                );
+
+            wrapped.code =
+                "MODEL_API_SESSION_ERROR";
+
+            wrapped.cause =
+                error;
+
+            throw wrapped;
+
+        }
+
+
+        const sessionError =
+            sessionResult?.error;
+
+
+        if (
+            sessionError
+        ) {
+
+            const error =
+                new Error(
+                    sessionError.message ||
+                    "Gagal mengambil session Supabase."
+                );
+
+            error.code =
+                sessionError.code ||
+                "MODEL_API_SESSION_ERROR";
+
+            error.supabase =
+                sessionError;
+
+            throw error;
+
+        }
+
+
+        const accessToken =
+            sessionResult
+                ?.data
+                ?.session
+                ?.access_token ||
+            "";
+
+
+        if (
+            !accessToken
+        ) {
+
+            const error =
+                new Error(
+                    "Sesi login tidak ditemukan. Silakan login kembali."
+                );
+
+            error.code =
+                "MODEL_API_AUTH_REQUIRED";
+
+            throw error;
+
+        }
+
+
+        return accessToken;
+
+    }
+
+
+    /* =====================================================
+       ADMIN MODELS API REQUEST
+       ===================================================== */
+
+    async function requestAdminModelsAPI(
+        method = "GET",
+        body = null,
+        query = null
+    ) {
+
+        const accessToken =
+            await getAccessToken();
+
+
+        const params =
+            new URLSearchParams();
+
+
+        if (
+            query &&
+            typeof query ===
+                "object"
+        ) {
+
+            Object.entries(
+                query
+            ).forEach(
+                (
+                    [
+                        key,
+                        value
+                    ]
+                ) => {
+
+                    if (
+                        value !==
+                            undefined &&
+                        value !==
+                            null &&
+                        String(
+                            value
+                        ).trim() !== ""
+                    ) {
+
+                        params.set(
+                            key,
+                            String(
+                                value
+                            ).trim()
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        const queryString =
+            params.toString();
+
+
+        /*
+         * Endpoint menggunakan absolute root path.
+         *
+         * Contoh:
+         *
+         * POST
+         * /api/admin-models
+         *
+         * PATCH
+         * /api/admin-models
+         *
+         * DELETE
+         * /api/admin-models?id=...
+         */
+
+        const url =
+            queryString
+                ? `${ADMIN_MODELS_API}?${queryString}`
+                : ADMIN_MODELS_API;
+
+
+        const options = {
+
+            method,
+
+            headers: {
+
+                Accept:
+                    "application/json",
+
+                Authorization:
+                    `Bearer ${accessToken}`
+
+            },
+
+            credentials:
+                "same-origin"
+
+        };
+
+
+        /*
+         * Body hanya untuk method yang
+         * memang mengirim payload.
+         */
+
+        if (
+            body !== null &&
+            body !== undefined &&
+            method !== "GET"
+        ) {
+
+            options.headers[
+                "Content-Type"
+            ] =
+                "application/json";
+
+
+            options.body =
+                JSON.stringify(
+                    body
+                );
+
+        }
+
+
+        const controller =
+            new AbortController();
+
+
+        const timeout =
+            setTimeout(
+                () => {
+
+                    controller.abort();
+
+                },
+                15000
+            );
+
+
+        options.signal =
+            controller.signal;
+
+
+        let response;
+
+
+        try {
+
+            response =
+                await fetch(
+                    url,
+                    options
+                );
+
+        } catch (
+            error
+        ) {
+
+            if (
+                error?.name ===
+                "AbortError"
+            ) {
+
+                const timeoutError =
+                    new Error(
+                        "Admin Models API timeout setelah 15 detik."
+                    );
+
+                timeoutError.code =
+                    "MODEL_API_TIMEOUT";
+
+                throw timeoutError;
+
+            }
+
+
+            const wrapped =
+                new Error(
+                    error?.message ||
+                    "Gagal menghubungi Admin Models API."
+                );
+
+            wrapped.code =
+                "MODEL_API_REQUEST_FAILED";
+
+            wrapped.cause =
+                error;
+
+            throw wrapped;
+
+        } finally {
+
+            clearTimeout(
+                timeout
+            );
+
+        }
+
+
+        /*
+         * API seharusnya selalu mengembalikan
+         * JSON. Tetap dibuat aman apabila response
+         * bukan JSON.
+         */
+
+        let result = {};
+
+
+        try {
+
+            result =
+                await response
+                    .json();
+
+        } catch (
+            _
+        ) {
+
+            result = {};
+
+        }
+
+
+        /*
+         * HTTP ERROR
+         */
+
+        if (
+            !response.ok
+        ) {
+
+            const error =
+                new Error(
+                    result?.error ||
+                    result?.message ||
+                    `Admin Models API gagal (${response.status}).`
+                );
+
+
+            error.code =
+                result?.code ||
+                `MODEL_API_HTTP_${response.status}`;
+
+
+            error.status =
+                response.status;
+
+
+            error.response =
+                result;
+
+
+            throw error;
+
+        }
+
+
+        /*
+         * API dapat mengembalikan:
+         *
+         * {
+         *     success: false,
+         *     error: "..."
+         * }
+         *
+         * walaupun HTTP status 200.
+         */
+
+        if (
+            result?.success ===
+                false
+        ) {
+
+            const error =
+                new Error(
+                    result.error ||
+                    result.message ||
+                    "Admin Models API gagal."
+                );
+
+
+            error.code =
+                result.code ||
+                "MODEL_API_FAILED";
+
+
+            error.response =
+                result;
+
+
+            throw error;
+
+        }
+
+
+        return result;
+
+    }
+
+
+    /* =====================================================
+       HELPERS
+       ===================================================== */
+
+    function normalizeId(
+        value
+    ) {
 
         if (
             value === null ||
@@ -144,7 +574,9 @@
     }
 
 
-    function normalizeText(value) {
+    function normalizeText(
+        value
+    ) {
 
         if (
             value === null ||
@@ -196,7 +628,9 @@
 
 
         const number =
-            Number(value);
+            Number(
+                value
+            );
 
 
         return Number.isFinite(
@@ -208,20 +642,28 @@
     }
 
 
-    function normalizeArray(value) {
+    function normalizeArray(
+        value
+    ) {
 
         if (
-            Array.isArray(value)
+            Array.isArray(
+                value
+            )
         ) {
 
             return value
+
                 .map(
                     item =>
                         normalizeText(
                             item
                         )
                 )
-                .filter(Boolean);
+
+                .filter(
+                    Boolean
+                );
 
         }
 
@@ -246,7 +688,9 @@
                 value.trim();
 
 
-            if (!text) {
+            if (
+                !text
+            ) {
 
                 return [];
 
@@ -254,22 +698,31 @@
 
 
             /*
-             * PostgreSQL ARRAY:
+             * PostgreSQL ARRAY
              *
              * {16:9,9:16}
              */
 
             if (
-                text.startsWith("{") &&
-                text.endsWith("}")
+                text.startsWith(
+                    "{"
+                ) &&
+                text.endsWith(
+                    "}"
+                )
             ) {
 
                 return text
+
                     .slice(
                         1,
                         -1
                     )
-                    .split(",")
+
+                    .split(
+                        ","
+                    )
+
                     .map(
                         item =>
                             item
@@ -279,7 +732,10 @@
                                     "$1"
                                 )
                     )
-                    .filter(Boolean);
+
+                    .filter(
+                        Boolean
+                    );
 
             }
 
@@ -289,8 +745,12 @@
              */
 
             if (
-                text.startsWith("[") &&
-                text.endsWith("]")
+                text.startsWith(
+                    "["
+                ) &&
+                text.endsWith(
+                    "]"
+                )
             ) {
 
                 try {
@@ -308,17 +768,23 @@
                     ) {
 
                         return parsed
+
                             .map(
                                 item =>
                                     normalizeText(
                                         item
                                     )
                             )
-                            .filter(Boolean);
+
+                            .filter(
+                                Boolean
+                            );
 
                     }
 
-                } catch (_) {
+                } catch (
+                    _
+                ) {
 
                     /*
                      * Fallback ke
@@ -335,12 +801,19 @@
              */
 
             return text
-                .split(",")
+
+                .split(
+                    ","
+                )
+
                 .map(
                     item =>
                         item.trim()
                 )
-                .filter(Boolean);
+
+                .filter(
+                    Boolean
+                );
 
         }
 
@@ -352,7 +825,7 @@
 
     /* =====================================================
        DATABASE MODEL ID
-    ===================================================== */
+       ===================================================== */
 
     function getModelDatabaseId(
         model
@@ -394,9 +867,13 @@
         return normalizeId(
 
             model.id ??
+
             model.model_id_record ??
+
             model.modelIdRecord ??
+
             model.database_id ??
+
             model.databaseId
 
         );
@@ -411,7 +888,7 @@
         if (
             !model ||
             typeof model !==
-            "object"
+                "object"
         ) {
 
             return "";
@@ -422,6 +899,7 @@
         return normalizeText(
 
             model.model_id ??
+
             model.modelId
 
         );
@@ -431,7 +909,7 @@
 
     /* =====================================================
        CREATE PAYLOAD
-    ===================================================== */
+       ===================================================== */
 
     function normalizeCreatePayload(
         data
@@ -449,6 +927,7 @@
             normalizeId(
 
                 source.provider_id ??
+
                 source.providerId
 
             );
@@ -458,6 +937,7 @@
             normalizeText(
 
                 source.model_id ??
+
                 source.modelId
 
             );
@@ -467,6 +947,7 @@
             normalizeText(
 
                 source.model_name ??
+
                 source.modelName
 
             );
@@ -482,6 +963,7 @@
             toNumber(
 
                 source.discount_percent ??
+
                 source.discountPercent,
 
                 0
@@ -493,6 +975,7 @@
             toNumber(
 
                 source.credit_480p ??
+
                 source.credit480p,
 
                 0
@@ -504,6 +987,7 @@
             toNumber(
 
                 source.credit_720p ??
+
                 source.credit720p,
 
                 0
@@ -515,6 +999,7 @@
             toNumber(
 
                 source.credit_1080p ??
+
                 source.credit1080p,
 
                 0
@@ -526,6 +1011,7 @@
             toNumber(
 
                 source.min_duration ??
+
                 source.minDuration,
 
                 0
@@ -537,6 +1023,7 @@
             toNumber(
 
                 source.max_duration ??
+
                 source.maxDuration,
 
                 minDuration
@@ -548,6 +1035,7 @@
             normalizeArray(
 
                 source.supported_ratios ??
+
                 source.supportedRatios
 
             );
@@ -557,6 +1045,7 @@
             normalizeArray(
 
                 source.supported_resolutions ??
+
                 source.supportedResolutions
 
             );
@@ -619,7 +1108,7 @@
 
     /* =====================================================
        UPDATE PAYLOAD
-    ===================================================== */
+       ===================================================== */
 
     function normalizeUpdatePayload(
         data
@@ -655,6 +1144,7 @@
                 normalizeId(
 
                     source.provider_id ??
+
                     source.providerId
 
                 );
@@ -681,6 +1171,7 @@
                 normalizeText(
 
                     source.model_id ??
+
                     source.modelId
 
                 );
@@ -707,6 +1198,7 @@
                 normalizeText(
 
                     source.model_name ??
+
                     source.modelName
 
                 );
@@ -771,6 +1263,7 @@
                 toNumber(
 
                     source.discount_percent ??
+
                     source.discountPercent,
 
                     0
@@ -799,6 +1292,7 @@
                 toNumber(
 
                     source.credit_480p ??
+
                     source.credit480p,
 
                     0
@@ -827,6 +1321,7 @@
                 toNumber(
 
                     source.credit_720p ??
+
                     source.credit720p,
 
                     0
@@ -855,6 +1350,7 @@
                 toNumber(
 
                     source.credit_1080p ??
+
                     source.credit1080p,
 
                     0
@@ -883,6 +1379,7 @@
                 toNumber(
 
                     source.min_duration ??
+
                     source.minDuration,
 
                     0
@@ -911,6 +1408,7 @@
                 toNumber(
 
                     source.max_duration ??
+
                     source.maxDuration,
 
                     0
@@ -939,6 +1437,7 @@
                 normalizeArray(
 
                     source.supported_ratios ??
+
                     source.supportedRatios
 
                 );
@@ -965,6 +1464,7 @@
                 normalizeArray(
 
                     source.supported_resolutions ??
+
                     source.supportedResolutions
 
                 );
@@ -979,7 +1479,7 @@
 
     /* =====================================================
        VALIDATE CREATE
-    ===================================================== */
+       ===================================================== */
 
     function validateCreatePayload(
         payload
@@ -1077,7 +1577,7 @@
 
     /* =====================================================
        VALIDATE UPDATE
-    ===================================================== */
+       ===================================================== */
 
     function validateUpdatePayload(
         databaseId,
@@ -1263,6 +1763,16 @@
 
     /* =====================================================
        CREATE
+       -----------------------------------------------------
+       Browser
+           ↓
+       /api/admin-models
+           ↓
+       verify ADMIN / OWNER
+           ↓
+       Service Role
+           ↓
+       models
     ===================================================== */
 
     async function create(
@@ -1290,19 +1800,18 @@
                     errors.join(" ")
                 );
 
+
             error.code =
                 "MODEL_CREATE_VALIDATION_ERROR";
+
 
             error.errors =
                 errors;
 
+
             throw error;
 
         }
-
-
-        const supabase =
-            requireSupabase();
 
 
         let response;
@@ -1311,15 +1820,10 @@
         try {
 
             response =
-                await supabase
-                    .from(
-                        MODEL_TABLE
-                    )
-                    .insert(
-                        payload
-                    )
-                    .select("*")
-                    .single();
+                await requestAdminModelsAPI(
+                    "POST",
+                    payload
+                );
 
         } catch (
             error
@@ -1331,57 +1835,52 @@
                     "Gagal membuat model."
                 );
 
+
             wrapped.code =
                 error?.code ||
                 "MODEL_CREATE_FAILED";
 
+
+            wrapped.status =
+                error?.status;
+
+
+            wrapped.response =
+                error?.response;
+
+
             wrapped.cause =
                 error;
+
 
             throw wrapped;
 
         }
 
 
+        const model =
+            response?.model ||
+            response?.data ||
+            null;
+
+
         if (
-            response?.error
+            !model
         ) {
 
             const error =
                 new Error(
-                    response.error.message ||
-                    "Gagal membuat model."
+                    "Model berhasil diproses tetapi data hasil CREATE kosong."
                 );
 
-            error.code =
-                response.error.code ||
-                "MODEL_CREATE_FAILED";
-
-            error.details =
-                response.error.details;
-
-            error.hint =
-                response.error.hint;
-
-            error.supabase =
-                response.error;
-
-            throw error;
-
-        }
-
-
-        if (
-            !response?.data
-        ) {
-
-            const error =
-                new Error(
-                    "Model berhasil diproses tetapi data hasil INSERT kosong."
-                );
 
             error.code =
                 "MODEL_CREATE_EMPTY_RESULT";
+
+
+            error.response =
+                response;
+
 
             throw error;
 
@@ -1397,10 +1896,10 @@
                 "create",
 
             model:
-                response.data,
+                model,
 
             data:
-                response.data
+                model
 
         };
 
@@ -1411,12 +1910,12 @@
        UPDATE
        -----------------------------------------------------
        Mendukung:
-
-           update(modelObject)
-
+ *
+       update(modelObject)
+ *
        atau:
-
-           update(databaseId, payload)
+ *
+       update(databaseId, payload)
     ===================================================== */
 
     async function update(
@@ -1492,11 +1991,14 @@
                     errors.join(" ")
                 );
 
+
             error.code =
                 "MODEL_UPDATE_VALIDATION_ERROR";
 
+
             error.errors =
                 errors;
+
 
             throw error;
 
@@ -1514,16 +2016,32 @@
                     "Tidak ada perubahan model yang dikirim."
                 );
 
+
             error.code =
                 "MODEL_UPDATE_EMPTY_PAYLOAD";
+
 
             throw error;
 
         }
 
 
-        const supabase =
-            requireSupabase();
+        /*
+         * API menerima id di body.
+         *
+         * API juga mendukung req.query.id,
+         * tetapi body dibuat eksplisit supaya
+         * PATCH konsisten.
+         */
+
+        const requestBody = {
+
+            ...payload,
+
+            id:
+                databaseId
+
+        };
 
 
         let response;
@@ -1532,19 +2050,10 @@
         try {
 
             response =
-                await supabase
-                    .from(
-                        MODEL_TABLE
-                    )
-                    .update(
-                        payload
-                    )
-                    .eq(
-                        "id",
-                        databaseId
-                    )
-                    .select("*")
-                    .single();
+                await requestAdminModelsAPI(
+                    "PATCH",
+                    requestBody
+                );
 
         } catch (
             error
@@ -1556,48 +2065,37 @@
                     "Gagal memperbarui model."
                 );
 
+
             wrapped.code =
                 error?.code ||
                 "MODEL_UPDATE_FAILED";
 
+
+            wrapped.status =
+                error?.status;
+
+
+            wrapped.response =
+                error?.response;
+
+
             wrapped.cause =
                 error;
+
 
             throw wrapped;
 
         }
 
 
-        if (
-            response?.error
-        ) {
-
-            const error =
-                new Error(
-                    response.error.message ||
-                    "Gagal memperbarui model."
-                );
-
-            error.code =
-                response.error.code ||
-                "MODEL_UPDATE_FAILED";
-
-            error.details =
-                response.error.details;
-
-            error.hint =
-                response.error.hint;
-
-            error.supabase =
-                response.error;
-
-            throw error;
-
-        }
+        const model =
+            response?.model ||
+            response?.data ||
+            null;
 
 
         if (
-            !response?.data
+            !model
         ) {
 
             const error =
@@ -1605,8 +2103,14 @@
                     "Model berhasil diproses tetapi data hasil UPDATE kosong."
                 );
 
+
             error.code =
                 "MODEL_UPDATE_EMPTY_RESULT";
+
+
+            error.response =
+                response;
+
 
             throw error;
 
@@ -1622,10 +2126,10 @@
                 "update",
 
             model:
-                response.data,
+                model,
 
             data:
-                response.data
+                model
 
         };
 
@@ -1636,12 +2140,12 @@
        DELETE
        -----------------------------------------------------
        Mendukung:
-
-           remove("database-id")
-
+ *
+       remove("database-id")
+ *
        atau:
-
-           remove(modelObject)
+ *
+       remove(modelObject)
     ===================================================== */
 
     async function remove(
@@ -1663,16 +2167,14 @@
                     "ID database model wajib diisi."
                 );
 
+
             error.code =
                 "MODEL_DELETE_ID_MISSING";
+
 
             throw error;
 
         }
-
-
-        const supabase =
-            requireSupabase();
 
 
         let response;
@@ -1681,16 +2183,21 @@
         try {
 
             response =
-                await supabase
-                    .from(
-                        MODEL_TABLE
-                    )
-                    .delete()
-                    .eq(
-                        "id",
-                        databaseId
-                    )
-                    .select("*");
+                await requestAdminModelsAPI(
+
+                    "DELETE",
+
+                    {
+                        id:
+                            databaseId
+                    },
+
+                    {
+                        id:
+                            databaseId
+                    }
+
+                );
 
         } catch (
             error
@@ -1702,77 +2209,33 @@
                     "Gagal menghapus model."
                 );
 
+
             wrapped.code =
                 error?.code ||
                 "MODEL_DELETE_FAILED";
 
+
+            wrapped.status =
+                error?.status;
+
+
+            wrapped.response =
+                error?.response;
+
+
             wrapped.cause =
                 error;
+
 
             throw wrapped;
 
         }
 
 
-        if (
-            response?.error
-        ) {
-
-            const error =
-                new Error(
-                    response.error.message ||
-                    "Gagal menghapus model."
-                );
-
-            error.code =
-                response.error.code ||
-                "MODEL_DELETE_FAILED";
-
-            error.details =
-                response.error.details;
-
-            error.hint =
-                response.error.hint;
-
-            error.supabase =
-                response.error;
-
-            throw error;
-
-        }
-
-
-        const deletedRows =
-            Array.isArray(
-                response?.data
-            )
-                ? response.data
-                : [];
-
-
-        /*
-         * Jika tidak ada row yang terhapus,
-         * jangan menganggap DELETE berhasil.
-         */
-
-        if (
-            deletedRows.length === 0
-        ) {
-
-            const error =
-                new Error(
-                    "Model tidak ditemukan atau tidak dapat dihapus."
-                );
-
-            error.code =
-                "MODEL_DELETE_NOT_FOUND";
-
-            error.modelId =
-                databaseId;
-
-            throw error;
-
-        }
+        const model =
+            response?.model ||
+            response?.data ||
+            null;
 
 
         return {
@@ -1784,8 +2247,7 @@
                 "delete",
 
             model:
-                deletedRows[0] ||
-                null,
+                model,
 
             modelId:
                 databaseId
@@ -1830,7 +2292,7 @@
 
     /* =====================================================
        STATE
-    ===================================================== */
+       ===================================================== */
 
     function getState() {
 
@@ -1840,7 +2302,10 @@
                 initialized,
 
             table:
-                MODEL_TABLE
+                MODEL_TABLE,
+
+            api:
+                ADMIN_MODELS_API
 
         };
 
@@ -1849,18 +2314,24 @@
 
     /* =====================================================
        API
-    ===================================================== */
+       ===================================================== */
 
     const API =
         Object.freeze({
 
             MODEL_TABLE,
 
+            ADMIN_MODELS_API,
+
             initialize,
 
             getState,
 
             getSupabaseClient,
+
+            getAccessToken,
+
+            requestAdminModelsAPI,
 
             normalizeCreatePayload,
 
@@ -1883,7 +2354,7 @@
 
     /* =====================================================
        GLOBAL
-    ===================================================== */
+       ===================================================== */
 
     window.GENZModelsCRUD =
         API;
@@ -1900,5 +2371,6 @@
     console.log(
         "[GEN-Z.AI] Models CRUD loaded."
     );
+
 
 })();
