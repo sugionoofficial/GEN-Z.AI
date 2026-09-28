@@ -547,21 +547,25 @@
 
 
         /* =====================================================
-           SEMUA FIELD SEEDANCE
-        ====================================================== */
+   SEMUA FIELD SEEDANCE
+====================================================== */
 
-        #dynamicFields > .generate-field {
+#dynamicFields > .generate-field {
 
-            width: auto !important;
+    width: auto !important;
 
-            min-width: 0 !important;
+    min-width: 0 !important;
 
-            max-width: none !important;
+    max-width: none !important;
 
-            margin: 0 !important;
+    margin: 0 !important;
 
-            grid-column: auto;
-        }
+    box-sizing: border-box !important;
+
+    grid-column: span 1 !important;
+
+    align-self: start !important;
+}
 
 
         /* =====================================================
