@@ -3293,7 +3293,7 @@ const parseBody = (
 // MAIN HANDLER
 // ========================================
 
-export default async function handler(
+async function handler(
     req,
     res
 ) {
@@ -4123,3 +4123,4 @@ if (
     );
 
 }
+module.exports = handler;
