@@ -1364,7 +1364,7 @@ function findRegistryProvider(
      * 2. providerCache
      * 3. modelCache
      *
-     * Tidak ada provider buatan.
+     * Registry TIDAK PERNAH membuat provider.
      * =====================================================
      */
 
@@ -1401,46 +1401,107 @@ function findRegistryProvider(
 
     /*
      * =====================================================
+     * CANONICAL PROVIDER REQUEST
+     * =====================================================
+     *
+     * Semua alias KIE dianggap provider code:
+     *
+     *     kie
+     *
+     * sehingga:
+     *
+     *     kie
+     *     kie_ai
+     *     kie.ai
+     *     kie a.i.
+     *
+     * semuanya mencari provider Supabase dengan
+     * provider_id = kie / alias KIE.
+     */
+
+    const requestedCodes = [
+
+        code,
+
+        name
+
+    ]
+        .filter(Boolean);
+
+
+    /*
+     * Tambahkan canonical KIE.
+     */
+
+    if (
+        isKieProviderAlias(code) ||
+        isKieProviderAlias(name)
+    ) {
+
+        requestedCodes.push(
+            "kie"
+        );
+
+        requestedCodes.push(
+            "kie_ai"
+        );
+
+        requestedCodes.push(
+            "kie.ai"
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * REMOVE DUPLICATE TOKENS
+     * =====================================================
+     */
+
+    const uniqueRequestedCodes =
+        [
+            ...new Set(
+                requestedCodes
+                    .map(
+                        normalizeProviderToken
+                    )
+                    .filter(Boolean)
+            )
+        ];
+
+
+    /*
+     * =====================================================
      * 1. PROVIDER MAP
      * =====================================================
      */
 
     if (
-        source.length
+        source.length &&
+        uniqueRequestedCodes.length
     ) {
 
-        const found =
-            source.find(
-                provider =>
-                    providerMatchesCode(
-                        provider,
-                        code
-                    )
-            );
+        for (
+            const requested of
+                uniqueRequestedCodes
+        ) {
 
-
-        if (found) {
-
-            return found;
-
-        }
-
-
-        if (name) {
-
-            const byName =
+            const found =
                 source.find(
                     provider =>
                         providerMatchesCode(
                             provider,
-                            name
+                            requested
                         )
                 );
 
 
-            if (byName) {
+            if (
+                found
+            ) {
 
-                return byName;
+                return found;
 
             }
 
@@ -1456,41 +1517,31 @@ function findRegistryProvider(
      */
 
     if (
-        providerCache.length
+        providerCache.length &&
+        providerCache !== source &&
+        uniqueRequestedCodes.length
     ) {
 
-        const found =
-            providerCache.find(
-                provider =>
-                    providerMatchesCode(
-                        provider,
-                        code
-                    )
-            );
+        for (
+            const requested of
+                uniqueRequestedCodes
+        ) {
 
-
-        if (found) {
-
-            return found;
-
-        }
-
-
-        if (name) {
-
-            const byName =
+            const found =
                 providerCache.find(
                     provider =>
                         providerMatchesCode(
                             provider,
-                            name
+                            requested
                         )
                 );
 
 
-            if (byName) {
+            if (
+                found
+            ) {
 
-                return byName;
+                return found;
 
             }
 
@@ -1523,37 +1574,27 @@ function findRegistryProvider(
 
     /*
      * =====================================================
-     * 4. KIE ALIAS
+     * 4. EXPLICIT KIE FALLBACK
      * =====================================================
+     *
+     * Hanya menggunakan provider yang benar-benar
+     * sudah ada di Supabase/model cache.
+     *
+     * Tidak membuat provider baru.
      */
 
     if (
-        isKieProviderAlias(
-            code
-        ) ||
-        isKieProviderAlias(
-            name
-        )
+        isKieProviderAlias(code) ||
+        isKieProviderAlias(name)
     ) {
 
         const kieProvider =
             providerCache.find(
-                provider => {
-
-                    const identity =
-                        normalizeProviderIdentity(
-                            provider
-                        );
-
-
-                    return (
-                        normalizeProviderToken(
-                            identity?.providerCode
-                        ) ===
+                provider =>
+                    providerMatchesCode(
+                        provider,
                         "kie"
-                    );
-
-                }
+                    )
             );
 
 
@@ -1583,6 +1624,12 @@ function findRegistryProvider(
 
     }
 
+
+    /*
+     * =====================================================
+     * NOT FOUND
+     * =====================================================
+     */
 
     return null;
 
@@ -1924,21 +1971,56 @@ function normalizeRegistryModel(
      */
 
     const providerUuid =
-        providerIdentity?.databaseId ??
-        null;
+    providerIdentity?.databaseId ??
+    null;
 
 
-    const resolvedProviderCode =
-        providerIdentity?.providerCode ||
-        providerCode ||
-        "";
+/*
+ * =====================================================
+ * RESOLVED PROVIDER IDENTITY
+ * =====================================================
+ *
+ * Jika provider ditemukan di Supabase:
+ *
+ *   provider_id     = providers.id
+ *   provider_code   = providers.provider_id
+ *   provider_name   = providers.provider_name
+ *
+ * Registry tidak boleh mengambil alih identitas tersebut.
+ */
+
+const resolvedProviderCode =
+    provider
+        ? (
+            providerIdentity?.providerCode ||
+            ""
+        )
+        : (
+            providerCode ||
+            ""
+        );
 
 
-    const resolvedProviderName =
-        providerIdentity?.providerName ||
-        providerName ||
-        resolvedProviderCode ||
-        "";
+const resolvedProviderName =
+    provider
+        ? (
+            providerIdentity?.providerName ||
+            ""
+        )
+        : (
+            providerName ||
+            providerCode ||
+            ""
+        );
+
+
+const resolvedProviderStatus =
+    provider
+        ? (
+            providerIdentity?.status ||
+            "unknown"
+        )
+        : "unknown";
 
 
     const resolvedProviderStatus =
