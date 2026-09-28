@@ -13,6 +13,7 @@
    - Provider changed
    - Click outside
    - Event delegation
+   - Submit Form Model
 
    Tidak bertanggung jawab:
    - Query Supabase
@@ -72,6 +73,21 @@
         "genz-models-provider-changed",
         "genz-provider-changed"
     ];
+
+
+    /*
+     * Selector form utama untuk halaman Models.
+     *
+     * Delegasi submit memakai selector ini sehingga
+     * tetap bekerja pada modal yang sudah ada maupun
+     * form yang dibuat ulang.
+     */
+    const FORM_SELECTOR = [
+        "#modelForm",
+        "#modelsForm",
+        "form[data-model-form]",
+        "form[data-model]"
+    ].join(", ");
 
 
     /* =====================================================
@@ -193,6 +209,70 @@
     }
 
 
+    /* =========================================================
+       FUNGSI:
+       getFormTarget()
+
+       FILE YANG DITANGANI:
+       admin-control/models/functions/model-form-events.js
+
+       POSISI DALAM ALUR:
+       Submit Form → Identifikasi Form Model → Handler Submit
+
+       TANGGUNG JAWAB:
+       - Menentukan elemen form Model yang menjadi sumber submit event.
+       - Menggunakan selector yang sama untuk seluruh kompatibilitas form.
+       - Mengembalikan null bila event bukan berasal dari form Model.
+
+       TIDAK MENANGANI:
+       - Validasi data.
+       - CRUD.
+       - Query Supabase.
+       - Menutup modal.
+       ========================================================= */
+    function getFormTarget(
+        event
+    ) {
+
+        return getClosestTarget(
+            event,
+            FORM_SELECTOR
+        );
+
+    }
+
+
+    /* =========================================================
+       FUNGSI:
+       getFormBridge()
+
+       FILE YANG DITANGANI:
+       admin-control/models/functions/model-form-events.js
+
+       POSISI DALAM ALUR:
+       Submit Form → GENZModelsForm → Coordinator/Create/Edit
+
+       TANGGUNG JAWAB:
+       - Mengambil bridge form yang memiliki handleSubmit().
+       - Mengutamakan global canonical GENZModelsForm.
+       - Menjaga alias GENZModelForm tetap kompatibel.
+
+       TIDAK MENANGANI:
+       - Insert database.
+       - Validasi payload.
+       - Normalisasi provider/model.
+       ========================================================= */
+    function getFormBridge() {
+
+        return (
+            window.GENZModelsForm ||
+            window.GENZModelForm ||
+            null
+        );
+
+    }
+
+
     /* =====================================================
        STOP EVENT SAFELY
        ===================================================== */
@@ -222,10 +302,27 @@
     }
 
 
-    /* =====================================================
-       BIND
-       ===================================================== */
+    /* =========================================================
+       FUNGSI:
+       bind()
 
+       FILE YANG DITANGANI:
+       admin-control/models/functions/model-form-events.js
+
+       POSISI DALAM ALUR:
+       Models Init → Event Binding → Search / Provider / Form Submit
+
+       TANGGUNG JAWAB:
+       - Memasang listener module Models satu kali.
+       - Menjaga event Search dan Provider yang sudah ada.
+       - Mendaftarkan submit handler agar form tidak reload native.
+
+       TIDAK MENANGANI:
+       - CRUD database.
+       - Validasi payload.
+       - Render tabel.
+       - Query Supabase.
+       ========================================================= */
     function bind(
         api
     ) {
@@ -492,6 +589,135 @@
         }
 
 
+        /* =========================================================
+           FUNGSI:
+           delegatedFormSubmit()
+
+           FILE YANG DITANGANI:
+           admin-control/models/functions/model-form-events.js
+
+           POSISI DALAM ALUR:
+           Tombol Simpan Model → Submit Event → Models Form
+           → Coordinator → CRUD → Supabase
+
+           TANGGUNG JAWAB:
+           - Mencegah browser melakukan native form submit.
+           - Meneruskan event ke GENZModelsForm.handleSubmit().
+           - Menutup modal hanya setelah proses simpan berhasil.
+           - Menampilkan notifikasi sukses setelah mutation selesai.
+
+           TIDAK MENANGANI:
+           - CRUD Supabase secara langsung.
+           - Validasi payload.
+           - Normalisasi provider/model.
+           - Refresh tabel secara langsung.
+           ========================================================= */
+        async function delegatedFormSubmit(
+            event
+        ) {
+
+            const form =
+                getFormTarget(
+                    event
+                );
+
+            if (
+                !form
+            ) {
+                return;
+            }
+
+
+            /*
+             * Cegah browser melakukan reload /
+             * native form submission.
+             */
+            stopEvent(
+                event
+            );
+
+
+            const formBridge =
+                getFormBridge();
+
+
+            if (
+                !formBridge ||
+                typeof formBridge.handleSubmit !==
+                    "function"
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI] GENZModelsForm.handleSubmit() belum tersedia."
+                );
+
+                return;
+
+            }
+
+
+            try {
+
+                const result =
+                    await formBridge.handleSubmit(
+                        event,
+                        {
+                            root:
+                                form
+                        }
+                    );
+
+
+                /*
+                 * Modal hanya ditutup setelah Promise
+                 * simpan selesai.
+                 */
+                if (
+                    result !== false &&
+                    typeof formBridge.close ===
+                        "function"
+                ) {
+
+                    formBridge.close({
+                        afterSubmit:
+                            true
+                    });
+
+                }
+
+
+                if (
+                    result !== false &&
+                    typeof formBridge.showAlert ===
+                        "function"
+                ) {
+
+                    formBridge.showAlert(
+                        "Model berhasil disimpan.",
+                        "success"
+                    );
+
+                }
+
+            }
+            catch (
+                error
+            ) {
+
+                /*
+                 * handleSubmit() sudah menangani
+                 * notifikasi error.
+                 */
+                console.error(
+                    "[GEN-Z.AI] Model form submit error:",
+                    error
+                );
+
+            }
+
+        }
+
+
         /* =================================================
            PROVIDER CHANGED
            ================================================= */
@@ -602,6 +828,9 @@
         handlers.delegatedProviderChanged =
             delegatedProviderChanged;
 
+        handlers.delegatedFormSubmit =
+            delegatedFormSubmit;
+
         handlers.delegatedDocumentClick =
             delegatedDocumentClick;
 
@@ -668,6 +897,21 @@
                 );
 
             }
+        );
+
+
+        /* =================================================
+           REGISTER FORM SUBMIT
+           -------------------------------------------------
+           Delegasi pada document memastikan form modal
+           tetap tertangkap walaupun form dibuat /
+           dibuka setelah module diinisialisasi.
+           ================================================= */
+
+        document.addEventListener(
+            "submit",
+            delegatedFormSubmit,
+            false
         );
 
 
@@ -762,10 +1006,26 @@
     }
 
 
-    /* =====================================================
-       UNBIND
-       ===================================================== */
+    /* =========================================================
+       FUNGSI:
+       unbind()
 
+       FILE YANG DITANGANI:
+       admin-control/models/functions/model-form-events.js
+
+       POSISI DALAM ALUR:
+       Models Reset → Lepas Listener → Siap Initialize Ulang
+
+       TANGGUNG JAWAB:
+       - Melepaskan seluruh listener yang dipasang bind().
+       - Melepaskan submit handler agar tidak terjadi duplicate submit.
+       - Mengembalikan state event module ke kondisi unbound.
+
+       TIDAK MENANGANI:
+       - Menghapus model.
+       - Menutup modal.
+       - Query / mutation Supabase.
+       ========================================================= */
     function unbind() {
 
         if (
@@ -875,6 +1135,23 @@
 
             }
         );
+
+
+        /* =================================================
+           REMOVE FORM SUBMIT
+           ================================================= */
+
+        if (
+            handlers.delegatedFormSubmit
+        ) {
+
+            document.removeEventListener(
+                "submit",
+                handlers.delegatedFormSubmit,
+                false
+            );
+
+        }
 
 
         /* =================================================
