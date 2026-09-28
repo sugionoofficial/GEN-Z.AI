@@ -2258,58 +2258,82 @@
        ===================================================== */
 
     async function createFromForm(
-        event = null,
-        options = {}
+    event = null,
+    options = {}
+) {
+
+    if (
+        event &&
+        typeof event.preventDefault ===
+            "function"
     ) {
 
-        if (
-            event &&
-            typeof event.preventDefault ===
-                "function"
-        ) {
+        event.preventDefault();
 
-            event.preventDefault();
-
-        }
+    }
 
 
-        const createModule =
-            getCreate();
+    const coordinator =
+        getCoordinator();
 
 
-        if (
-            createModule &&
-            typeof createModule.createFromForm ===
-                "function"
-        ) {
+    if (
+        coordinator &&
+        typeof coordinator.createFromForm ===
+            "function"
+    ) {
 
-            return createModule.createFromForm(
-                event,
-                {
-                    ...options,
+        return await coordinator.createFromForm(
+            event,
+            {
+                ...options,
 
-                    root:
-                        options.root ||
-                        state.root
-                }
-            );
-
-        }
-
-
-        const data =
-            collect(
-                options.root ||
-                state.root
-            );
-
-
-        return create(
-            data,
-            options
+                root:
+                    options.root ||
+                    state.root
+            }
         );
 
     }
+
+
+    const createModule =
+        getCreate();
+
+
+    if (
+        createModule &&
+        typeof createModule.createFromForm ===
+            "function"
+    ) {
+
+        return await createModule.createFromForm(
+            event,
+            {
+                ...options,
+
+                root:
+                    options.root ||
+                    state.root
+            }
+        );
+
+    }
+
+
+    const data =
+        collect(
+            options.root ||
+            state.root
+        );
+
+
+    return await create(
+        data,
+        options
+    );
+
+}
 
 
     /* =====================================================
