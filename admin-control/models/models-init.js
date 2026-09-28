@@ -776,7 +776,56 @@
             )
         ) {
 
-            return await search.initialize();
+            const result =
+                await search.initialize();
+
+
+            /*
+             * =================================================
+             * WAIT FOR THE COMPLETE MODEL SEARCH CATALOG
+             * =================================================
+             *
+             * GENZModelsSearch.initialize() menyiapkan event
+             * lalu memuat catalog secara asynchronous.
+             *
+             * Catalog tersebut terdiri dari:
+             *
+             * 1. Models dari Supabase
+             * 2. Models dari MODEL_REGISTRY
+             *
+             * Jangan lanjut ke final synchronization sebelum
+             * catalog Search selesai dibangun. Kalau tidak,
+             * syncFinalState() dapat mengembalikan Search
+             * ke Models Supabase saja dan menghapus Registry
+             * dari catalog.
+             */
+
+            if (
+                hasFunction(
+                    search,
+                    "ensureCatalog"
+                )
+            ) {
+
+                try {
+
+                    await search.ensureCatalog();
+
+                } catch (
+                    error
+                ) {
+
+                    console.warn(
+                        "[GEN-Z.AI] Search catalog belum dapat disiapkan:",
+                        error
+                    );
+
+                }
+
+            }
+
+
+            return result;
 
         }
 
@@ -1354,7 +1403,85 @@
 
 
         /*
+         * =================================================
+         * SEARCH CATALOG
+         * =================================================
+         *
+         * GENZModelsSearch mempunyai catalog yang lebih
+         * lengkap daripada hasil initializeData(), kerana
+         * Search juga menggabungkan MODEL_REGISTRY.
+         *
+         * Oleh sebab itu Search tidak boleh di-overwrite
+         * menggunakan finalModels yang hanya berasal dari
+         * Data layer / Supabase.
+         *
+         * Prioritas:
+         *
+         * 1. Catalog milik GENZModelsSearch
+         * 2. finalModels sebagai fallback
+         */
+
+        const search =
+            getSearchModule();
+
+
+        let searchModels =
+            null;
+
+
+        if (
+            search &&
+            hasFunction(
+                search,
+                "getModels"
+            )
+        ) {
+
+            try {
+
+                const catalog =
+                    search.getModels();
+
+
+                if (
+                    Array.isArray(
+                        catalog
+                    ) &&
+                    catalog.length
+                ) {
+
+                    searchModels =
+                        catalog;
+
+                }
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI] Gagal membaca Search catalog:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        const effectiveSearchModels =
+            Array.isArray(
+                searchModels
+            )
+                ? searchModels
+                : finalModels;
+
+
+        /*
          * Pricing sync.
+         *
+         * Pricing mengikuti final model state yang
+         * dikelola Data layer.
          */
 
         syncPriceWithModels(
@@ -1364,15 +1491,22 @@
 
         /*
          * Search.
+         *
+         * Jangan lagi menimpa Registry catalog dengan
+         * Models Supabase saja.
          */
 
         syncSearchWithModels(
-            finalModels
+            effectiveSearchModels
         );
 
 
         /*
          * Table.
+         *
+         * Tabel Admin Models tetap menggunakan Models
+         * yang berasal dari Data layer. Registry hanya
+         * menjadi catalog untuk pemilihan model baru.
          */
 
         syncTableWithModels(
