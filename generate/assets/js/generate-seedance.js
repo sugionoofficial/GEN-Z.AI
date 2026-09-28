@@ -2026,11 +2026,39 @@ function bindSeedanceEvents() {
 /* =========================================================
    READ MEDIA SOURCE
 ========================================================= */
+function validateReferenceFileCount(
+    files,
+    maxFiles,
+    label
+) {
+
+    if (
+        !Number.isInteger(maxFiles) ||
+        maxFiles <= 0
+    ) {
+        return;
+    }
+
+    const count =
+        Array.isArray(files)
+            ? files.length
+            : 0;
+
+    if (count > maxFiles) {
+
+        throw new Error(
+            `${label} maksimal ${maxFiles} file. ` +
+            `Anda memilih ${count} file.`
+        );
+    }
+}
 
 async function collectMediaSource(
     name,
     type,
-    multiple = false
+    multiple = false,
+    maxFiles = null,
+    label = "File"
 ) {
 
     const id =
