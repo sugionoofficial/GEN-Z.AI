@@ -13,25 +13,20 @@
  * - UPDATE model melalui /api/admin-models
  * - DELETE model melalui /api/admin-models
  *
- * KEAMANAN
- * - Browser TIDAK melakukan INSERT langsung ke Supabase.
- * - Browser TIDAK melakukan UPDATE langsung ke Supabase.
- * - Browser TIDAK melakukan DELETE langsung ke Supabase.
- * - Semua perubahan model melewati:
+ * Browser tidak melakukan mutation langsung ke Supabase.
  *
- *      /api/admin-models
+ * Semua mutation:
  *
- * - API melakukan verifikasi:
- *      ADMIN / OWNER
+ * Browser
+ *   ↓
+ * /api/admin-models
+ *   ↓
+ * verify ADMIN / OWNER
+ *   ↓
+ * Service Role
+ *   ↓
+ * Supabase models
  *
- * - API menggunakan Supabase Service Role
- *   secara server-side.
- *
- * SOURCE OF TRUTH
- * - Supabase table: models
- *
- * RELATION
- * - models.provider_id -> providers.id
  * =========================================================
  */
 
@@ -42,26 +37,11 @@
 
     /* =====================================================
        CONSTANT
-    ===================================================== */
+       ===================================================== */
 
     const MODEL_TABLE =
         "models";
 
-
-    /*
-     * Endpoint HARUS absolute dari root.
-     *
-     * Jangan menggunakan:
-     *
-     *     ../api/admin-models
-     *
-     * karena halaman Models dapat berada pada beberapa
-     * level directory berbeda.
-     *
-     * Endpoint repository:
-     *
-     *     /api/admin-models
-     */
 
     const ADMIN_MODELS_API =
         "/api/admin-models";
@@ -69,7 +49,7 @@
 
     /* =====================================================
        STATE
-    ===================================================== */
+       ===================================================== */
 
     let initialized =
         false;
@@ -77,7 +57,7 @@
 
     /* =====================================================
        SUPABASE
-    ===================================================== */
+       ===================================================== */
 
     function getSupabaseClient() {
 
@@ -149,7 +129,252 @@
 
 
     /* =====================================================
-       AUTH SESSION
+       ERROR NORMALIZER
+       -----------------------------------------------------
+       Ini penting.
+       Jangan pernah membiarkan object masuk ke:
+       
+           new Error(object)
+       
+       karena hasil akhirnya:
+       
+           [object Object]
+       ===================================================== */
+
+    function normalizeErrorMessage(
+        error,
+        fallback = "Terjadi kesalahan."
+    ) {
+
+        if (
+            error === null ||
+            error === undefined
+        ) {
+
+            return fallback;
+
+        }
+
+
+        /*
+         * Error native.
+         */
+
+        if (
+            error instanceof Error
+        ) {
+
+            if (
+                typeof error.message ===
+                    "string" &&
+                error.message.trim()
+            ) {
+
+                return error.message.trim();
+
+            }
+
+        }
+
+
+        /*
+         * String langsung.
+         */
+
+        if (
+            typeof error ===
+                "string"
+        ) {
+
+            const text =
+                error.trim();
+
+            return text ||
+                fallback;
+
+        }
+
+
+        /*
+         * Object.
+         */
+
+        if (
+            typeof error ===
+                "object"
+        ) {
+
+            const candidates = [
+
+                error.message,
+
+                error.error,
+
+                error.error_description,
+
+                error.details,
+
+                error.hint,
+
+                error.msg,
+
+                error.description
+
+            ];
+
+
+            for (
+                const candidate
+                of candidates
+            ) {
+
+                if (
+                    typeof candidate ===
+                        "string" &&
+                    candidate.trim()
+                ) {
+
+                    return candidate.trim();
+
+                }
+
+
+                /*
+                 * Nested object.
+                 */
+
+                if (
+                    candidate &&
+                    typeof candidate ===
+                        "object"
+                ) {
+
+                    const nested =
+                        normalizeErrorMessage(
+                            candidate,
+                            ""
+                        );
+
+
+                    if (
+                        nested
+                    ) {
+
+                        return nested;
+
+                    }
+
+                }
+
+            }
+
+
+            /*
+             * Supabase error terkadang
+             * mempunyai:
+             *
+             * {
+             *   code,
+             *   details,
+             *   hint,
+             *   message
+             * }
+             *
+             * Jika message tidak ada,
+             * coba stringify dengan aman.
+             */
+
+            try {
+
+                const serialized =
+                    JSON.stringify(
+                        error
+                    );
+
+
+                if (
+                    serialized &&
+                    serialized !== "{}"
+                ) {
+
+                    return serialized;
+
+                }
+
+            } catch (
+                _
+            ) {
+
+                /*
+                 * Ignore.
+                 */
+
+            }
+
+        }
+
+
+        /*
+         * Jangan pernah mengembalikan
+         * "[object Object]".
+         */
+
+        return fallback;
+
+    }
+
+
+    function createNormalizedError(
+        error,
+        fallback,
+        code = "MODEL_API_FAILED"
+    ) {
+
+        const message =
+            normalizeErrorMessage(
+                error,
+                fallback
+            );
+
+
+        const normalized =
+            new Error(
+                message
+            );
+
+
+        normalized.code =
+            error?.code ||
+            code;
+
+
+        normalized.status =
+            error?.status;
+
+
+        normalized.details =
+            error?.details;
+
+
+        normalized.hint =
+            error?.hint;
+
+
+        normalized.response =
+            error?.response;
+
+
+        normalized.cause =
+            error;
+
+
+        return normalized;
+
+    }
+
+
+    /* =====================================================
+       ACCESS TOKEN
        ===================================================== */
 
     async function getAccessToken() {
@@ -159,6 +384,7 @@
 
 
         let sessionResult;
+
 
         try {
 
@@ -171,45 +397,32 @@
             error
         ) {
 
-            const wrapped =
-                new Error(
-                    error?.message ||
-                    "Gagal mengambil session Supabase."
-                );
+            throw createNormalizedError(
 
-            wrapped.code =
-                "MODEL_API_SESSION_ERROR";
+                error,
 
-            wrapped.cause =
-                error;
+                "Gagal mengambil session Supabase.",
 
-            throw wrapped;
+                "MODEL_API_SESSION_ERROR"
+
+            );
 
         }
 
 
-        const sessionError =
-            sessionResult?.error;
-
-
         if (
-            sessionError
+            sessionResult?.error
         ) {
 
-            const error =
-                new Error(
-                    sessionError.message ||
-                    "Gagal mengambil session Supabase."
-                );
+            throw createNormalizedError(
 
-            error.code =
-                sessionError.code ||
-                "MODEL_API_SESSION_ERROR";
+                sessionResult.error,
 
-            error.supabase =
-                sessionError;
+                "Gagal mengambil session Supabase.",
 
-            throw error;
+                "MODEL_API_SESSION_ERROR"
+
+            );
 
         }
 
@@ -231,8 +444,10 @@
                     "Sesi login tidak ditemukan. Silakan login kembali."
                 );
 
+
             error.code =
                 "MODEL_API_AUTH_REQUIRED";
+
 
             throw error;
 
@@ -307,21 +522,6 @@
             params.toString();
 
 
-        /*
-         * Endpoint menggunakan absolute root path.
-         *
-         * Contoh:
-         *
-         * POST
-         * /api/admin-models
-         *
-         * PATCH
-         * /api/admin-models
-         *
-         * DELETE
-         * /api/admin-models?id=...
-         */
-
         const url =
             queryString
                 ? `${ADMIN_MODELS_API}?${queryString}`
@@ -347,11 +547,6 @@
 
         };
 
-
-        /*
-         * Body hanya untuk method yang
-         * memang mengirim payload.
-         */
 
         if (
             body !== null &&
@@ -409,7 +604,7 @@
 
             if (
                 error?.name ===
-                "AbortError"
+                    "AbortError"
             ) {
 
                 const timeoutError =
@@ -417,27 +612,25 @@
                         "Admin Models API timeout setelah 15 detik."
                     );
 
+
                 timeoutError.code =
                     "MODEL_API_TIMEOUT";
+
 
                 throw timeoutError;
 
             }
 
 
-            const wrapped =
-                new Error(
-                    error?.message ||
-                    "Gagal menghubungi Admin Models API."
-                );
+            throw createNormalizedError(
 
-            wrapped.code =
-                "MODEL_API_REQUEST_FAILED";
+                error,
 
-            wrapped.cause =
-                error;
+                "Gagal menghubungi Admin Models API.",
 
-            throw wrapped;
+                "MODEL_API_REQUEST_FAILED"
+
+            );
 
         } finally {
 
@@ -449,9 +642,7 @@
 
 
         /*
-         * API seharusnya selalu mengembalikan
-         * JSON. Tetap dibuat aman apabila response
-         * bukan JSON.
+         * Baca response JSON.
          */
 
         let result = {};
@@ -460,11 +651,10 @@
         try {
 
             result =
-                await response
-                    .json();
+                await response.json();
 
         } catch (
-            _
+            error
         ) {
 
             result = {};
@@ -480,41 +670,50 @@
             !response.ok
         ) {
 
-            const error =
-                new Error(
-                    result?.error ||
-                    result?.message ||
-                    `Admin Models API gagal (${response.status}).`
+            const apiError =
+                (
+                    result &&
+                    typeof result ===
+                        "object"
+                )
+                    ? result
+                    : {
+                        message:
+                            String(
+                                result ||
+                                ""
+                            )
+                    };
+
+
+            const normalized =
+                createNormalizedError(
+
+                    apiError,
+
+                    `Admin Models API gagal (${response.status}).`,
+
+                    apiError.code ||
+                    `MODEL_API_HTTP_${response.status}`
+
                 );
 
 
-            error.code =
-                result?.code ||
-                `MODEL_API_HTTP_${response.status}`;
-
-
-            error.status =
+            normalized.status =
                 response.status;
 
 
-            error.response =
+            normalized.response =
                 result;
 
 
-            throw error;
+            throw normalized;
 
         }
 
 
         /*
-         * API dapat mengembalikan:
-         *
-         * {
-         *     success: false,
-         *     error: "..."
-         * }
-         *
-         * walaupun HTTP status 200.
+         * API ERROR dengan HTTP 200.
          */
 
         if (
@@ -522,24 +721,28 @@
                 false
         ) {
 
-            const error =
-                new Error(
-                    result.error ||
-                    result.message ||
-                    "Admin Models API gagal."
+            const normalized =
+                createNormalizedError(
+
+                    result,
+
+                    "Admin Models API gagal.",
+
+                    result.code ||
+                    "MODEL_API_FAILED"
+
                 );
 
 
-            error.code =
-                result.code ||
-                "MODEL_API_FAILED";
+            normalized.status =
+                response.status;
 
 
-            error.response =
+            normalized.response =
                 result;
 
 
-            throw error;
+            throw normalized;
 
         }
 
@@ -653,14 +856,12 @@
         ) {
 
             return value
-
                 .map(
                     item =>
                         normalizeText(
                             item
                         )
                 )
-
                 .filter(
                     Boolean
                 );
@@ -681,7 +882,7 @@
 
         if (
             typeof value ===
-            "string"
+                "string"
         ) {
 
             const text =
@@ -699,8 +900,6 @@
 
             /*
              * PostgreSQL ARRAY
-             *
-             * {16:9,9:16}
              */
 
             if (
@@ -713,16 +912,13 @@
             ) {
 
                 return text
-
                     .slice(
                         1,
                         -1
                     )
-
                     .split(
                         ","
                     )
-
                     .map(
                         item =>
                             item
@@ -732,7 +928,6 @@
                                     "$1"
                                 )
                     )
-
                     .filter(
                         Boolean
                     );
@@ -768,14 +963,12 @@
                     ) {
 
                         return parsed
-
                             .map(
                                 item =>
                                     normalizeText(
                                         item
                                     )
                             )
-
                             .filter(
                                 Boolean
                             );
@@ -784,33 +977,23 @@
 
                 } catch (
                     _
-                ) {
-
-                    /*
-                     * Fallback ke
-                     * comma-separated.
-                     */
-
-                }
+                ) {}
 
             }
 
 
             /*
-             * Comma-separated.
+             * Comma separated.
              */
 
             return text
-
                 .split(
                     ","
                 )
-
                 .map(
                     item =>
                         item.trim()
                 )
-
                 .filter(
                     Boolean
                 );
@@ -841,16 +1024,9 @@
         }
 
 
-        /*
-         * Support:
-         *
-         * remove("uuid")
-         * update("uuid", data)
-         */
-
         if (
             typeof model !==
-            "object"
+                "object"
         ) {
 
             return normalizeId(
@@ -859,10 +1035,6 @@
 
         }
 
-
-        /*
-         * Database primary key.
-         */
 
         return normalizeId(
 
@@ -1125,10 +1297,6 @@
         const payload = {};
 
 
-        /*
-         * Provider.
-         */
-
         if (
             hasOwn(
                 source,
@@ -1151,10 +1319,6 @@
 
         }
 
-
-        /*
-         * Model ID.
-         */
 
         if (
             hasOwn(
@@ -1179,10 +1343,6 @@
         }
 
 
-        /*
-         * Model name.
-         */
-
         if (
             hasOwn(
                 source,
@@ -1206,10 +1366,6 @@
         }
 
 
-        /*
-         * Description.
-         */
-
         if (
             hasOwn(
                 source,
@@ -1225,10 +1381,6 @@
         }
 
 
-        /*
-         * Status.
-         */
-
         if (
             hasOwn(
                 source,
@@ -1243,10 +1395,6 @@
 
         }
 
-
-        /*
-         * Discount.
-         */
 
         if (
             hasOwn(
@@ -1273,10 +1421,6 @@
         }
 
 
-        /*
-         * Credit 480p.
-         */
-
         if (
             hasOwn(
                 source,
@@ -1301,10 +1445,6 @@
 
         }
 
-
-        /*
-         * Credit 720p.
-         */
 
         if (
             hasOwn(
@@ -1331,10 +1471,6 @@
         }
 
 
-        /*
-         * Credit 1080p.
-         */
-
         if (
             hasOwn(
                 source,
@@ -1359,10 +1495,6 @@
 
         }
 
-
-        /*
-         * Minimum duration.
-         */
 
         if (
             hasOwn(
@@ -1389,10 +1521,6 @@
         }
 
 
-        /*
-         * Maximum duration.
-         */
-
         if (
             hasOwn(
                 source,
@@ -1418,10 +1546,6 @@
         }
 
 
-        /*
-         * Ratios.
-         */
-
         if (
             hasOwn(
                 source,
@@ -1444,10 +1568,6 @@
 
         }
 
-
-        /*
-         * Resolutions.
-         */
 
         if (
             hasOwn(
@@ -1763,17 +1883,7 @@
 
     /* =====================================================
        CREATE
-       -----------------------------------------------------
-       Browser
-           ↓
-       /api/admin-models
-           ↓
-       verify ADMIN / OWNER
-           ↓
-       Service Role
-           ↓
-       models
-    ===================================================== */
+       ===================================================== */
 
     async function create(
         data
@@ -1797,7 +1907,9 @@
 
             const error =
                 new Error(
-                    errors.join(" ")
+                    errors.join(
+                        " "
+                    )
                 );
 
 
@@ -1829,31 +1941,16 @@
             error
         ) {
 
-            const wrapped =
-                new Error(
-                    error?.message ||
-                    "Gagal membuat model."
-                );
+            throw createNormalizedError(
 
+                error,
 
-            wrapped.code =
+                "Gagal membuat model.",
+
                 error?.code ||
-                "MODEL_CREATE_FAILED";
+                "MODEL_CREATE_FAILED"
 
-
-            wrapped.status =
-                error?.status;
-
-
-            wrapped.response =
-                error?.response;
-
-
-            wrapped.cause =
-                error;
-
-
-            throw wrapped;
+            );
 
         }
 
@@ -1908,15 +2005,7 @@
 
     /* =====================================================
        UPDATE
-       -----------------------------------------------------
-       Mendukung:
- *
-       update(modelObject)
- *
-       atau:
- *
-       update(databaseId, payload)
-    ===================================================== */
+       ===================================================== */
 
     async function update(
         modelOrId,
@@ -1933,10 +2022,6 @@
             data;
 
 
-        /*
-         * update(modelObject)
-         */
-
         if (
             !source &&
             modelOrId &&
@@ -1949,10 +2034,6 @@
 
         }
 
-
-        /*
-         * update(id, payload)
-         */
 
         if (
             !databaseId &&
@@ -1988,7 +2069,9 @@
 
             const error =
                 new Error(
-                    errors.join(" ")
+                    errors.join(
+                        " "
+                    )
                 );
 
 
@@ -2026,14 +2109,6 @@
         }
 
 
-        /*
-         * API menerima id di body.
-         *
-         * API juga mendukung req.query.id,
-         * tetapi body dibuat eksplisit supaya
-         * PATCH konsisten.
-         */
-
         const requestBody = {
 
             ...payload,
@@ -2059,31 +2134,16 @@
             error
         ) {
 
-            const wrapped =
-                new Error(
-                    error?.message ||
-                    "Gagal memperbarui model."
-                );
+            throw createNormalizedError(
 
+                error,
 
-            wrapped.code =
+                "Gagal memperbarui model.",
+
                 error?.code ||
-                "MODEL_UPDATE_FAILED";
+                "MODEL_UPDATE_FAILED"
 
-
-            wrapped.status =
-                error?.status;
-
-
-            wrapped.response =
-                error?.response;
-
-
-            wrapped.cause =
-                error;
-
-
-            throw wrapped;
+            );
 
         }
 
@@ -2138,15 +2198,7 @@
 
     /* =====================================================
        DELETE
-       -----------------------------------------------------
-       Mendukung:
- *
-       remove("database-id")
- *
-       atau:
- *
-       remove(modelObject)
-    ===================================================== */
+       ===================================================== */
 
     async function remove(
         modelOrId
@@ -2203,31 +2255,16 @@
             error
         ) {
 
-            const wrapped =
-                new Error(
-                    error?.message ||
-                    "Gagal menghapus model."
-                );
+            throw createNormalizedError(
 
+                error,
 
-            wrapped.code =
+                "Gagal menghapus model.",
+
                 error?.code ||
-                "MODEL_DELETE_FAILED";
+                "MODEL_DELETE_FAILED"
 
-
-            wrapped.status =
-                error?.status;
-
-
-            wrapped.response =
-                error?.response;
-
-
-            wrapped.cause =
-                error;
-
-
-            throw wrapped;
+            );
 
         }
 
@@ -2259,7 +2296,7 @@
 
     /* =====================================================
        DELETE BY ID
-    ===================================================== */
+       ===================================================== */
 
     async function removeById(
         modelId
@@ -2274,10 +2311,7 @@
 
     /* =====================================================
        INITIALIZE
-       -----------------------------------------------------
-       CRUD tidak melakukan query saat initialize.
-       Hanya menandai module siap digunakan.
-    ===================================================== */
+       ===================================================== */
 
     function initialize() {
 
@@ -2313,7 +2347,7 @@
 
 
     /* =====================================================
-       API
+       PUBLIC API
        ===================================================== */
 
     const API =
@@ -2329,7 +2363,13 @@
 
             getSupabaseClient,
 
+            requireSupabase,
+
             getAccessToken,
+
+            normalizeErrorMessage,
+
+            createNormalizedError,
 
             requestAdminModelsAPI,
 
