@@ -24,6 +24,13 @@
    - GENZModelsData
    - Supabase models
    - Supabase providers
+   - Repository Model Registry
+
+   CATATAN:
+   - Supabase Models diprioritaskan jika model_id sama
+   - Registry Model digunakan sebagai catalog model yang
+     tersedia tetapi belum tentu sudah tersimpan di Supabase
+   - Registry tidak membuat row baru di Supabase
    ========================================================= */
 
 (function () {
@@ -365,6 +372,10 @@
 
     }
 
+
+    /* =====================================================
+       NORMALIZE MODELS
+    ===================================================== */
 
     function normalizeModels(
         list
@@ -720,238 +731,232 @@
     ===================================================== */
 
     function providerMatches(
-    model,
-    selectedProvider = null
-) {
-
-    const selected =
-        selectedProvider ||
-        getSelectedProvider();
-
-
-    if (
-        !selected
+        model,
+        selectedProvider = null
     ) {
 
-        return true;
-
-    }
-
-
-    const selectedId =
-        normalizeString(
-            selected.id
-        );
+        const selected =
+            selectedProvider ||
+            getSelectedProvider();
 
 
-    const selectedUuid =
-        normalizeString(
-            selected.uuid
-        );
+        if (
+            !selected
+        ) {
+
+            return true;
+
+        }
 
 
-    const selectedCode =
-        normalizeString(
-            selected.providerId
-        );
+        const selectedId =
+            normalizeString(
+                selected.id
+            );
 
 
-    const selectedName =
-        normalizeString(
-            selected.name ||
-            selected.text
-        );
+        const selectedUuid =
+            normalizeString(
+                selected.uuid
+            );
 
 
-    /*
-     * Provider belum dipilih.
-     */
-    if (
-        !selectedId &&
-        !selectedUuid &&
-        !selectedCode &&
-        !selectedName
-    ) {
-
-        return true;
-
-    }
+        const selectedCode =
+            normalizeString(
+                selected.providerId
+            );
 
 
-    /*
-     * =================================================
-     * MODEL PROVIDER IDENTIFIERS
-     * =================================================
-     */
-
-    const modelIds =
-        getModelProviderUuids(
-            model
-        );
+        const selectedName =
+            normalizeString(
+                selected.name ||
+                selected.text
+            );
 
 
-    const modelCodes =
-        getModelProviderCodes(
-            model
-        );
+        /*
+         * Provider belum dipilih.
+         */
+        if (
+            !selectedId &&
+            !selectedUuid &&
+            !selectedCode &&
+            !selectedName
+        ) {
+
+            return true;
+
+        }
 
 
-    const modelProviderName =
-        normalizeString(
-            model?.provider_name ||
-            model?.providerName ||
-            model?.provider?.provider_name ||
-            model?.provider?.providerName ||
-            model?.provider?.name ||
-            ""
-        );
+        /*
+         * =================================================
+         * MODEL PROVIDER IDENTIFIERS
+         * =================================================
+         */
+
+        const modelIds =
+            getModelProviderUuids(
+                model
+            );
 
 
-    /*
-     * =================================================
-     * MATCH PROVIDER ID
-     * =================================================
-     */
+        const modelCodes =
+            getModelProviderCodes(
+                model
+            );
 
-    if (
-        selectedId &&
-        (
-            modelIds.includes(
-                selectedId
-            ) ||
-            modelCodes.includes(
-                selectedId
+
+        const modelProviderName =
+            normalizeString(
+                model?.provider_name ||
+                model?.providerName ||
+                model?.provider?.provider_name ||
+                model?.provider?.providerName ||
+                model?.provider?.name ||
+                ""
+            );
+
+
+        /*
+         * =================================================
+         * MATCH PROVIDER ID
+         * =================================================
+         */
+
+        if (
+            selectedId &&
+            (
+                modelIds.includes(
+                    selectedId
+                ) ||
+                modelCodes.includes(
+                    selectedId
+                )
             )
-        )
-    ) {
+        ) {
 
-        return true;
+            return true;
 
-    }
+        }
 
 
-    /*
-     * =================================================
-     * MATCH PROVIDER UUID
-     * =================================================
-     */
+        /*
+         * =================================================
+         * MATCH PROVIDER UUID
+         * =================================================
+         */
 
-    if (
-        selectedUuid &&
-        (
-            modelIds.includes(
-                selectedUuid
-            ) ||
-            modelCodes.includes(
-                selectedUuid
+        if (
+            selectedUuid &&
+            (
+                modelIds.includes(
+                    selectedUuid
+                ) ||
+                modelCodes.includes(
+                    selectedUuid
+                )
             )
-        )
-    ) {
+        ) {
 
-        return true;
+            return true;
 
-    }
-
-
-    /*
-     * =================================================
-     * MATCH PROVIDER CODE
-     * =================================================
-     *
-     * Contoh:
-     *
-     * Provider:
-     *   KIE.AI
-     *
-     * Code:
-     *   kie_ai
-     *
-     * Seedance:
-     *   provider_code = kie_ai
-     */
-
-    if (
-        selectedCode &&
-        (
-            modelCodes.includes(
-                selectedCode
-            ) ||
-            modelProviderName ===
-                selectedCode
-        )
-    ) {
-
-        return true;
-
-    }
+        }
 
 
-    /*
-     * =================================================
-     * MATCH PROVIDER NAME
-     * =================================================
-     *
-     * Ini yang menangani:
-     *
-     * selected provider:
-     *   KIE.AI
-     *
-     * registry model:
-     *   provider_name = KIE.AI
-     */
+        /*
+         * =================================================
+         * MATCH PROVIDER CODE
+         * =================================================
+         */
 
-    if (
-        selectedName &&
-        modelProviderName &&
-        (
-            modelProviderName ===
-                selectedName ||
-            modelProviderName.includes(
-                selectedName
-            ) ||
-            selectedName.includes(
-                modelProviderName
+        if (
+            selectedCode &&
+            (
+                modelCodes.includes(
+                    selectedCode
+                ) ||
+                modelProviderName ===
+                    selectedCode
             )
-        )
-    ) {
+        ) {
 
-        return true;
+            return true;
+
+        }
+
+
+        /*
+         * =================================================
+         * MATCH PROVIDER NAME
+         * =================================================
+         */
+
+        if (
+            selectedName &&
+            modelProviderName &&
+            (
+                modelProviderName ===
+                    selectedName ||
+                modelProviderName.includes(
+                    selectedName
+                ) ||
+                selectedName.includes(
+                    modelProviderName
+                )
+            )
+        ) {
+
+            return true;
+
+        }
+
+
+        /*
+         * =================================================
+         * SPECIAL KIE PROVIDER FALLBACK
+         * =================================================
+         *
+         * Provider option dapat menyimpan:
+         *
+         *   KIE.AI
+         *
+         * sedangkan registry:
+         *
+         *   kie_ai
+         */
+
+        if (
+            (
+                selectedName ===
+                    "kie.ai" ||
+                selectedName ===
+                    "kie ai"
+            ) &&
+            (
+                modelCodes.includes(
+                    "kie_ai"
+                ) ||
+                modelCodes.includes(
+                    "kie"
+                ) ||
+                modelCodes.includes(
+                    "kie.ai"
+                )
+            )
+        ) {
+
+            return true;
+
+        }
+
+
+        return false;
 
     }
 
 
-    /*
-     * =================================================
-     * SPECIAL PROVIDER CODE FALLBACK
-     * =================================================
-     *
-     * Untuk registry model yang mempunyai:
-     *
-     * provider_code = kie_ai
-     *
-     * tetapi option Provider hanya menyimpan
-     * nama "KIE.AI".
-     */
-
-    if (
-        selectedName ===
-            "kie.ai" &&
-        modelCodes.includes(
-            "kie_ai"
-        )
-    ) {
-
-        return true;
-
-    }
-
-
-    return false;
-
-}
-
-
-        /* =====================================================
+    /* =====================================================
        DATA CATALOG
        -----------------------------------------------------
        Catalog Model ID untuk form Tambah Model terdiri dari:
@@ -1029,14 +1034,9 @@
 
                 try {
 
-                    /*
-                     * =================================================
-                     * REGISTERED MODELS
-                     * =================================================
-                     *
-                     * Ini tetap mengambil model dari
-                     * Supabase.
-                     */
+                    /* =============================================
+                       REGISTERED MODELS
+                       ============================================= */
 
                     const loaded =
                         await data.loadModels({
@@ -1051,167 +1051,212 @@
                         });
 
 
-                    /*
-                     * =================================================
-                     * REGISTRY MODELS
-                     * =================================================
-                     *
-                     * Registry berisi model yang tersedia
-                     * di repository tetapi belum tentu
-                     * sudah didaftarkan ke Supabase.
-                     *
-                     * Contoh:
-                     *
-                     * bytedance/seedance-2-5
-                     */
+                    /* =============================================
+                       REGISTRY PROVIDERS
+                       ============================================= */
+
+                    let registryProviders = [];
+
+
+                    if (
+                        typeof data.loadProviders ===
+                            "function"
+                    ) {
+
+                        try {
+
+                            registryProviders =
+                                await data.loadProviders({
+
+                                    force:
+                                        force,
+
+                                    includeInactive:
+                                        true
+
+                                });
+
+                        }
+                        catch (
+                            providerError
+                        ) {
+
+                            console.warn(
+                                "[GEN-Z.AI] Provider registry tidak dapat dimuat:",
+                                providerError
+                            );
+
+                            registryProviders =
+                                [];
+
+                        }
+
+                    }
+
+
+                    /* =============================================
+                       REGISTRY MODELS
+                       ============================================= */
 
                     let registryModels = [];
 
 
-/*
- * =================================================
- * LOAD PROVIDERS
- * =================================================
- *
- * Registry model membutuhkan data Provider asli
- * agar:
- *
- *   kie_ai
- *
- * dapat dihubungkan ke:
- *
- *   providers.id
- *
- * tanpa membuat Provider palsu.
- */
+                    if (
+                        typeof data.loadRegistryModels ===
+                            "function"
+                    ) {
 
-let registryProviders = [];
+                        try {
+
+                            registryModels =
+                                data.loadRegistryModels({
+
+                                    providers:
+                                        registryProviders
+
+                                });
 
 
-if (
-    typeof data.loadProviders ===
-        "function"
-) {
+                        }
+                        catch (
+                            registryError
+                        ) {
 
-    try {
+                            console.warn(
+                                "[GEN-Z.AI] Registry model tidak dapat dimuat:",
+                                registryError
+                            );
 
-        registryProviders =
-            await data.loadProviders({
+                            registryModels =
+                                [];
 
-                force:
-                    force,
+                        }
 
-                includeInactive:
-                    true
-
-            });
-
-    }
-    catch (providerError) {
-
-        console.warn(
-            "[GEN-Z.AI] Provider registry tidak dapat dimuat:",
-            providerError
-        );
-
-        registryProviders =
-            [];
-
-    }
-
-}
+                    }
 
 
-/*
- * =================================================
- * LOAD REGISTRY MODELS
- * =================================================
- */
+                    /* =============================================
+                       DEBUG REGISTRY
+                       ============================================= */
 
-if (
-    typeof data.loadRegistryModels ===
-        "function"
-) {
+                    console.info(
+                        "[GEN-Z.AI] Registry model catalog:",
+                        registryModels.map(
+                            function (
+                                model
+                            ) {
 
-    try {
+                                return {
 
-        registryModels =
-            data.loadRegistryModels({
+                                    model_id:
+                                        model?.model_id,
 
-                providers:
-                    registryProviders
+                                    model_name:
+                                        model?.model_name,
 
-            });
+                                    provider_id:
+                                        model?.provider_id,
 
-    }
-    catch (registryError) {
+                                    provider_code:
+                                        model?.provider_code,
 
-        console.warn(
-            "[GEN-Z.AI] Registry model tidak dapat dimuat:",
-            registryError
-        );
+                                    provider_name:
+                                        model?.provider_name,
 
-        registryModels =
-            [];
+                                    status:
+                                        model?.status
 
-    }
+                                };
 
-}
+                            }
+                        )
+                    );
 
 
-                    /*
-                     * =================================================
-                     * MERGE
-                     * =================================================
-                     *
-                     * Model Supabase diletakkan lebih dahulu.
-                     *
-                     * normalizeModels() di models-search.js
-                     * melakukan dedupe berdasarkan model_id.
-                     *
-                     * Jadi:
-                     *
-                     * Supabase:
-                     *   bytedance/seedance-2-5
-                     *
-                     * Registry:
-                     *   bytedance/seedance-2-5
-                     *
-                     * hasil akhirnya hanya satu.
-                     *
-                     * Data Supabase tetap menjadi prioritas.
-                     */
+                    /* =============================================
+                       MERGE
+                       =============================================
+                       PENTING:
 
-                    const catalog =
-                        [
+                       Supabase diletakkan lebih dahulu.
 
-                            ...(
-                                Array.isArray(
-                                    loaded
-                                )
-                                    ? loaded
-                                    : []
-                            ),
+                       Registry diletakkan setelahnya.
 
-                            ...(
-                                Array.isArray(
-                                    registryModels
-                                )
-                                    ? registryModels
-                                    : []
+                       normalizeModels() melakukan dedupe
+                       berdasarkan model_id.
+
+                       Karena Supabase berada lebih dahulu,
+                       model Supabase menang jika model_id sama.
+                    */
+
+                    const catalog = [
+
+                        ...(
+                            Array.isArray(
+                                loaded
                             )
+                                ? loaded
+                                : []
+                        ),
 
-                        ];
+                        ...(
+                            Array.isArray(
+                                registryModels
+                            )
+                                ? registryModels
+                                : []
+                        )
+
+                    ];
 
 
-                    /*
-                     * =================================================
-                     * SET CATALOG
-                     * =================================================
-                     */
+                    /* =============================================
+                       SET CATALOG
+                       ============================================= */
 
                     setModels(
                         catalog
+                    );
+
+
+                    /* =============================================
+                       DEBUG FINAL CATALOG
+                       ============================================= */
+
+                    console.info(
+                        "[GEN-Z.AI] Final Model Search catalog:",
+                        models.map(
+                            function (
+                                model
+                            ) {
+
+                                return {
+
+                                    model_id:
+                                        model?.model_id,
+
+                                    model_name:
+                                        model?.model_name,
+
+                                    provider_id:
+                                        model?.provider_id,
+
+                                    provider_code:
+                                        model?.provider_code,
+
+                                    provider_name:
+                                        model?.provider_name,
+
+                                    registry:
+                                        model?.registry === true,
+
+                                    source:
+                                        model?.source
+
+                                };
+
+                            }
+                        )
                     );
 
 
@@ -1250,6 +1295,10 @@ if (
     }
 
 
+    /* =====================================================
+       REFRESH CATALOG
+    ===================================================== */
+
     async function refreshCatalog(
         options = {}
     ) {
@@ -1271,142 +1320,143 @@ if (
     ===================================================== */
 
     function setModels(
-    list
-) {
-
-    /*
-     * =================================================
-     * BASE CATALOG
-     * =================================================
-     *
-     * Model dari Supabase tetap menjadi source utama
-     * untuk model yang sudah terdaftar.
-     */
-
-    const baseModels =
-        Array.isArray(
-            list
-        )
-            ? [
-                ...list
-            ]
-            : [];
-
-
-    /*
-     * =================================================
-     * MERGE
-     * =================================================
-     *
-     * Supabase diletakkan lebih dahulu.
-     *
-     * normalizeModels() melakukan dedupe
-     * berdasarkan model_id.
-     *
-     * Jadi jika Seedance sudah terdaftar:
-     *
-     * Supabase:
-     *   bytedance/seedance-2-5
-     *
-     * Registry:
-     *   bytedance/seedance-2-5
-     *
-     * hasil hanya satu dan Supabase menang.
-     */
-
-    const catalog = [
-
-        ...baseModels,
-    ];
-
-
-    /*
-     * =================================================
-     * NORMALIZE CATALOG
-     * =================================================
-     */
-
-    const normalized =
-        normalizeModels(
-            catalog
-        );
-
-
-    models =
-        normalized;
-
-
-    /*
-     * =================================================
-     * MARK READY
-     * =================================================
-     */
-
-    catalogLoaded =
-        true;
-
-
-    /*
-     * =================================================
-     * SYNC SELECTED MODEL
-     * =================================================
-     */
-
-    if (
-        selectedModel
+        list
     ) {
 
-        const selectedId =
-            normalizeString(
-                selectedModel.model_id
+        /*
+         * =================================================
+         * BASE CATALOG
+         * =================================================
+         *
+         * list di sini sudah merupakan hasil merge:
+         *
+         * Supabase Models
+         * +
+         * Registry Models
+         *
+         * Jangan membuang registry lagi.
+         */
+
+        const catalog =
+            Array.isArray(
+                list
+            )
+                ? [
+                    ...list
+                ]
+                : [];
+
+
+        /*
+         * =================================================
+         * NORMALIZE + DEDUPE
+         * =================================================
+         *
+         * normalizeModels() mempertahankan item pertama.
+         *
+         * Karena ensureCatalog() meletakkan Supabase
+         * sebelum Registry, maka:
+         *
+         * Supabase:
+         *   bytedance/seedance-2-5
+         *
+         * Registry:
+         *   bytedance/seedance-2-5
+         *
+         * hasil:
+         *
+         *   Supabase menang.
+         *
+         * Jika model belum ada di Supabase:
+         *
+         *   Registry tetap masuk.
+         */
+
+        const normalized =
+            normalizeModels(
+                catalog
             );
 
 
-        selectedModel =
-            models.find(
+        models =
+            normalized;
+
+
+        /*
+         * =================================================
+         * MARK READY
+         * =================================================
+         */
+
+        catalogLoaded =
+            true;
+
+
+        /*
+         * =================================================
+         * SYNC SELECTED MODEL
+         * =================================================
+         */
+
+        if (
+            selectedModel
+        ) {
+
+            const selectedId =
+                normalizeString(
+                    selectedModel.model_id
+                );
+
+
+            selectedModel =
+                models.find(
+                    function (
+                        model
+                    ) {
+
+                        return (
+                            normalizeString(
+                                model.model_id
+                            ) ===
+                            selectedId
+                        );
+
+                    }
+                ) || null;
+
+        }
+
+
+        /*
+         * =================================================
+         * DEBUG
+         * =================================================
+         */
+
+        console.info(
+            "[GEN-Z.AI] Model Search catalog:",
+            models.map(
                 function (
                     model
                 ) {
 
-                    return (
-                        normalizeString(
-                            model.model_id
-                        ) ===
-                        selectedId
-                    );
+                    return model.model_id;
 
                 }
-            ) || null;
+            )
+        );
+
+
+        return [
+            ...models
+        ];
 
     }
 
 
-    /*
-     * =================================================
-     * DEBUG
-     * =================================================
-     */
-
-    console.info(
-        "[GEN-Z.AI] Model Search catalog:",
-        models.map(
-            function (
-                model
-            ) {
-
-                return model.model_id;
-
-            }
-        )
-    );
-
-
-    return [
-        ...models
-    ];
-
-}
-
+    /* =====================================================
+       GET MODELS
+    ===================================================== */
 
     function getModels() {
 
@@ -1678,6 +1728,10 @@ if (
     }
 
 
+    /* =====================================================
+       SORT
+    ===================================================== */
+
     function sortModels(
         a,
         b
@@ -1738,7 +1792,8 @@ if (
 
             return result !== false;
 
-        } catch (
+        }
+        catch (
             error
         ) {
 
@@ -1754,6 +1809,10 @@ if (
 
     }
 
+
+    /* =====================================================
+       RENDER AFTER CATALOG
+    ===================================================== */
 
     async function renderAfterCatalog(
         keyword = ""
@@ -2110,6 +2169,10 @@ if (
     }
 
 
+    /* =====================================================
+       ACTIVE RESULT
+    ===================================================== */
+
     function setActiveResult(
         items,
         index
@@ -2165,7 +2228,8 @@ if (
                     "nearest"
             });
 
-        } catch (_) {
+        }
+        catch (_) {
 
             /* ignore */
 
@@ -2309,7 +2373,8 @@ if (
 
             return true;
 
-        } catch (
+        }
+        catch (
             error
         ) {
 
@@ -2415,7 +2480,8 @@ if (
 
                 selector.clearSelected();
 
-            } catch (
+            }
+            catch (
                 error
             ) {
 
@@ -2540,7 +2606,8 @@ if (
                     false
                 );
 
-            } catch (
+            }
+            catch (
                 error
             ) {
 
@@ -2600,7 +2667,8 @@ if (
                     false
                 );
 
-            } catch (
+            }
+            catch (
                 error
             ) {
 
@@ -2741,7 +2809,8 @@ if (
 
                 dropdown.bindPositionEvents();
 
-            } catch (
+            }
+            catch (
                 error
             ) {
 
@@ -2834,7 +2903,8 @@ if (
 
                 events.unbind();
 
-            } catch (
+            }
+            catch (
                 error
             ) {
 
