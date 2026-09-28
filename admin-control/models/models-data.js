@@ -488,6 +488,7 @@ function normalizeProviderIdentity(
         provider.uuid ??
         provider.provider_uuid ??
         provider.providerUuid ??
+        provider.databaseId ??
         null;
 
 
@@ -498,6 +499,7 @@ function normalizeProviderIdentity(
         provider.providerCode ??
         provider.provider ??
         provider.code ??
+        provider.providerCode ??
         "";
 
 
@@ -507,6 +509,7 @@ function normalizeProviderIdentity(
         provider.name ??
         provider.display_name ??
         provider.displayName ??
+        provider.providerName ??
         providerCode ??
         databaseId ??
         "";
