@@ -230,23 +230,21 @@
         }
 
 
-                /* =====================================================
+        /* =====================================================
            DYNAMIC FORM
            -----------------------------------------------------
-           Layout responsif untuk parameter model.
-
-           - Field besar tetap full width.
-           - Parameter pendek dapat berdampingan.
-           - Seedance tidak lagi memanjang ke bawah.
+           Seedance / dynamic model parameters
+           Layout 2 kolom pada desktop.
         ====================================================== */
 
         #dynamicFields {
+
             position: relative;
 
-            display: grid;
+            display: grid !important;
 
             grid-template-columns:
-                repeat(2, minmax(0, 1fr));
+                repeat(2, minmax(0, 1fr)) !important;
 
             gap: 18px 20px;
 
@@ -254,71 +252,69 @@
         }
 
 
-        /*
-         * Semua field dynamic boleh mengecil
-         * mengikuti kolom grid.
-         */
+        /* =====================================================
+           ACTUAL DYNAMIC FIELD
+           -----------------------------------------------------
+           generate-form.js menggunakan:
+           .generate-field
+        ====================================================== */
 
-        #dynamicFields .form-group,
-        #dynamicFields .field,
-        #dynamicFields .form-field {
+        #dynamicFields > .generate-field {
 
-            width: 100%;
+            width: auto !important;
+
             min-width: 0;
 
             box-sizing: border-box;
+
+            margin: 0;
         }
 
 
         /*
-         * Field yang secara visual membutuhkan
-         * ruang penuh.
-         *
-         * Prompt, textarea, image upload, preview,
-         * dan elemen besar tetap satu baris.
+         * Field yang berisi textarea / prompt
+         * tetap memenuhi seluruh baris.
          */
 
-        #dynamicFields
-        .generate-textarea-field,
-        #dynamicFields
-        .generate-image-field,
-        #dynamicFields
-        .generate-upload-field,
-        #dynamicFields
-        .generate-prompt-field {
+        #dynamicFields > .generate-field:has(textarea) {
 
             grid-column: 1 / -1;
         }
 
 
         /*
-         * Textarea generik juga dibuat full width.
+         * Image input juga full width.
          */
 
-        #dynamicFields textarea {
+        #dynamicFields
+        > .generate-field:has(.generate-image-input) {
 
-            width: 100%;
-            box-sizing: border-box;
+            grid-column: 1 / -1;
         }
 
 
         /*
-         * Select / input mengikuti lebar kolom.
+         * Semua input mengikuti lebar kolom.
          */
 
-        #dynamicFields select,
-        #dynamicFields input[type="text"],
-        #dynamicFields input[type="number"],
-        #dynamicFields input[type="url"] {
+        #dynamicFields
+        > .generate-field
+        input,
+        #dynamicFields
+        > .generate-field
+        select,
+        #dynamicFields
+        > .generate-field
+        textarea {
 
-            width: 100%;
             max-width: 100%;
+
             box-sizing: border-box;
         }
 
 
         /* =====================================================
-           OPTION / RADIO GROUP
+           OPTION GROUP
         ====================================================== */
 
         .generate-option-group {
@@ -330,6 +326,8 @@
             align-items: stretch;
 
             gap: 10px;
+
+            width: 100%;
         }
 
 
@@ -350,6 +348,7 @@
             position: absolute;
 
             width: 1px;
+
             height: 1px;
 
             opacity: 0;
@@ -366,18 +365,14 @@
 
             border:
                 1px solid
-                rgba(255, 255, 255, 0.18);
+                rgba(255, 255, 255, 0.22);
 
             border-radius: 10px;
 
             background:
-                rgba(255, 255, 255, 0.045);
+                rgba(255, 255, 255, 0.055);
 
-            /*
-             * Sebelumnya terlalu redup.
-             */
-
-            color: #ffffff;
+            color: #ffffff !important;
 
             text-align: center;
 
@@ -396,30 +391,22 @@
         }
 
 
-        /*
-         * Hover
-         */
-
         .generate-option:hover
         .generate-option-label {
 
             border-color:
-                rgba(255, 55, 85, 0.65);
+                rgba(255, 55, 85, 0.70);
 
             background:
-                rgba(255, 35, 70, 0.08);
+                rgba(255, 35, 70, 0.10);
 
-            color: #ffffff;
+            color: #ffffff !important;
 
             box-shadow:
                 0 0 8px
-                rgba(255, 35, 70, 0.16);
+                rgba(255, 35, 70, 0.18);
         }
 
-
-        /*
-         * OPTION AKTIF
-         */
 
         .generate-option
         input:checked
@@ -431,7 +418,7 @@
             background:
                 rgba(255, 30, 65, 0.18);
 
-            color: #ffffff;
+            color: #ffffff !important;
 
             box-shadow:
                 0 0 8px
@@ -441,10 +428,6 @@
                 rgba(255, 30, 65, 0.08);
         }
 
-
-        /*
-         * Focus keyboard
-         */
 
         .generate-option
         input:focus-visible
@@ -458,14 +441,28 @@
         }
 
 
-        /*
-         * Boolean option.
-         */
+        /* =====================================================
+           FIELD LABEL
+        ====================================================== */
 
         #dynamicFields
-        .generate-option-group {
+        .generate-field-label {
 
-            width: 100%;
+            color: #ffffff;
+
+            font-weight: 600;
+        }
+
+
+        /* =====================================================
+           FIELD DESCRIPTION
+        ====================================================== */
+
+        #dynamicFields
+        .generate-field-description {
+
+            color:
+                rgba(255, 255, 255, 0.62);
         }
 
 
@@ -478,29 +475,24 @@
             #dynamicFields {
 
                 grid-template-columns:
-                    minmax(0, 1fr);
+                    minmax(0, 1fr) !important;
 
                 gap: 16px;
             }
 
 
             #dynamicFields
-            .generate-textarea-field,
+            > .generate-field:has(textarea),
             #dynamicFields
-            .generate-image-field,
-            #dynamicFields
-            .generate-upload-field,
-            #dynamicFields
-            .generate-prompt-field {
+            > .generate-field:has(.generate-image-input) {
 
                 grid-column: auto;
             }
-
         }
 
 
         /* =====================================================
-           VERY SMALL SCREEN
+           SMALL MOBILE
         ====================================================== */
 
         @media (max-width: 480px) {
@@ -522,12 +514,12 @@
             .generate-option-label {
 
                 width: 100%;
+
                 min-width: 0;
 
                 padding:
                     10px 12px;
             }
-
         }
 
 
