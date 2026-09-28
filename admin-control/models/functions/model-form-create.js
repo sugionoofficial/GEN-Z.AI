@@ -150,7 +150,10 @@
     function hasOwn(object, key) {
         return Boolean(
             object &&
-            Object.prototype.hasOwnProperty.call(object, key)
+            Object.prototype.hasOwnProperty.call(
+                object,
+                key
+            )
         );
     }
 
@@ -184,11 +187,14 @@
                 text.endsWith("]")
             ) {
                 try {
-                    const parsed = JSON.parse(text);
+                    const parsed =
+                        JSON.parse(text);
 
                     if (Array.isArray(parsed)) {
                         return parsed
-                            .map(item => normalizeText(item))
+                            .map(item =>
+                                normalizeText(item)
+                            )
                             .filter(Boolean);
                     }
                 } catch (_) {
@@ -202,11 +208,14 @@
                 .filter(Boolean);
         }
 
-        return [normalizeText(value)].filter(Boolean);
+        return [
+            normalizeText(value)
+        ].filter(Boolean);
     }
 
     function normalizeStatus(value) {
-        const status = normalizeText(value).toLowerCase();
+        const status =
+            normalizeText(value).toLowerCase();
 
         if (VALID_STATUS.has(status)) {
             return status;
@@ -238,18 +247,23 @@
         return (
             document.getElementById("modelForm") ||
             document.getElementById("modelsForm") ||
-            document.querySelector("form[data-model-form]") ||
+            document.querySelector(
+                "form[data-model-form]"
+            ) ||
             document
         );
     }
 
     function queryFirst(root, selectors) {
-        const container = getRoot(root);
+        const container =
+            getRoot(root);
 
         for (const selector of selectors) {
             try {
                 const element =
-                    container.querySelector(selector);
+                    container.querySelector(
+                        selector
+                    );
 
                 if (element) {
                     return element;
@@ -355,8 +369,9 @@
         const byId =
             list.find(provider => {
                 return (
-                    normalizeId(provider?.id) ===
-                    target
+                    normalizeId(
+                        provider?.id
+                    ) === target
                 );
             });
 
@@ -412,63 +427,197 @@
         }
 
         return (
-            normalizeText(provider.code) ||
-            normalizeText(provider.provider_code) ||
-            normalizeText(provider.provider_id) ||
+            normalizeText(
+                provider.code
+            ) ||
+            normalizeText(
+                provider.provider_code
+            ) ||
+            normalizeText(
+                provider.provider_id
+            ) ||
             ""
         );
     }
 
+    /*
+     * Provider active validation.
+     *
+     * PENTING:
+     *
+     * Schema providers pada project ini tidak selalu memiliki
+     * kolom status / active flag.
+     *
+     * Maka:
+     *
+     * 1. status aktif       -> valid
+     * 2. status inactive    -> ditolak
+     * 3. is_active true     -> valid
+     * 4. is_active false    -> ditolak
+     * 5. active true        -> valid
+     * 6. active false       -> ditolak
+     * 7. enabled true       -> valid
+     * 8. enabled false      -> ditolak
+     * 9. field tidak ada    -> valid
+     * 10. status "unknown"  -> dianggap tidak ada flag
+     *
+     * Jangan menganggap fallback "unknown" sebagai inactive.
+     */
     function isProviderActive(provider) {
         if (!provider) {
             return false;
         }
 
-        const status =
-            normalizeText(
-                provider.status
-            ).toLowerCase();
+        /*
+         * Helper lokal:
+         * membedakan field yang memang ada dari field
+         * yang hanya undefined karena tidak tersedia.
+         */
+        const hasOwnField =
+            key =>
+                Object.prototype.hasOwnProperty.call(
+                    provider,
+                    key
+                );
+
+        /* -----------------------------------------------------
+           STATUS / STATE
+           ----------------------------------------------------- */
+
+        const statusKeys = [
+            "status",
+            "state"
+        ];
+
+        for (const key of statusKeys) {
+            if (!hasOwnField(key)) {
+                continue;
+            }
+
+            const value =
+                normalizeText(
+                    provider[key]
+                ).toLowerCase();
+
+            /*
+             * Tidak ada active flag yang nyata.
+             *
+             * Nilai "unknown" sering muncul dari normalizer
+             * ketika schema asli tidak memiliki kolom status.
+             */
+            if (
+                !value ||
+                value === "unknown" ||
+                value === "undefined" ||
+                value === "null"
+            ) {
+                continue;
+            }
+
+            /*
+             * Explicit inactive.
+             */
+            if (
+                value === "inactive" ||
+                value === "disabled" ||
+                value === "false" ||
+                value === "0" ||
+                value === "off"
+            ) {
+                return false;
+            }
+
+            /*
+             * Explicit active.
+             */
+            if (
+                value === "active" ||
+                value === "enabled" ||
+                value === "true" ||
+                value === "1" ||
+                value === "on"
+            ) {
+                return true;
+            }
+        }
+
+        /* -----------------------------------------------------
+           BOOLEAN / NUMERIC FLAGS
+           ----------------------------------------------------- */
+
+        const flagKeys = [
+            "is_active",
+            "active",
+            "enabled"
+        ];
+
+        for (const key of flagKeys) {
+            if (!hasOwnField(key)) {
+                continue;
+            }
+
+            const raw =
+                provider[key];
+
+            /*
+             * null / undefined / empty string
+             * dianggap tidak tersedia.
+             */
+            if (
+                raw === null ||
+                raw === undefined ||
+                (
+                    typeof raw === "string" &&
+                    raw.trim() === ""
+                )
+            ) {
+                continue;
+            }
+
+            /*
+             * Explicit inactive.
+             */
+            if (
+                raw === false ||
+                raw === 0 ||
+                (
+                    typeof raw === "string" &&
+                    (
+                        raw.trim().toLowerCase() ===
+                            "false" ||
+                        raw.trim() === "0"
+                    )
+                )
+            ) {
+                return false;
+            }
+
+            /*
+             * Explicit active.
+             */
+            if (
+                raw === true ||
+                raw === 1 ||
+                (
+                    typeof raw === "string" &&
+                    (
+                        raw.trim().toLowerCase() ===
+                            "true" ||
+                        raw.trim() === "1"
+                    )
+                )
+            ) {
+                return true;
+            }
+        }
 
         /*
-         * Status adalah sumber utama.
+         * Tidak ada active flag yang benar-benar tersedia.
+         *
+         * Provider sudah ditemukan dari daftar providers,
+         * sehingga valid untuk digunakan pada Create Model.
          */
-        if (status) {
-            return status === "active";
-        }
-
-        /*
-         * Compatibility dengan schema lama.
-         * Tidak mengharuskan kolom tertentu ada.
-         */
-        if (
-            provider.is_active !== undefined
-        ) {
-            return Boolean(
-                provider.is_active
-            );
-        }
-
-        if (
-            provider.active !== undefined
-        ) {
-            return Boolean(
-                provider.active
-            );
-        }
-
-        if (
-            provider.enabled !== undefined
-        ) {
-            return Boolean(
-                provider.enabled
-            );
-        }
-
-        /*
-         * Jika tidak ada status sama sekali,
-         * jangan mengarang provider aktif.
-         */
-        return false;
+        return true;
     }
 
     /* =========================================================
@@ -498,8 +647,45 @@
 
         return (
             list.find(model => {
+
+                /*
+                 * MODEL REGISTRY BUKAN DATA DATABASE.
+                 *
+                 * models-form.js menggabungkan persisted models
+                 * dengan MODEL_REGISTRY supaya model seperti
+                 * Seedance dapat dipilih ketika Create Model.
+                 *
+                 * Karena itu entry registry tidak boleh
+                 * dianggap duplicate.
+                 */
+                if (
+                    model?.registry === true
+                ) {
+                    return false;
+                }
+
+                /*
+                 * Defensive check:
+                 *
+                 * Beberapa catalog / registry entry dapat
+                 * menggunakan source untuk menandai asal data.
+                 */
+                const source =
+                    normalizeText(
+                        model?.source
+                    ).toLowerCase();
+
+                if (
+                    source === "model-folder" ||
+                    source === "registry"
+                ) {
+                    return false;
+                }
+
                 const currentId =
-                    normalizeId(model?.id);
+                    normalizeId(
+                        model?.id
+                    );
 
                 const currentModelId =
                     normalizeId(
@@ -507,9 +693,15 @@
                         model?.modelId
                     ).toLowerCase();
 
+                /*
+                 * Edit mode:
+                 * record yang sedang diedit bukan duplicate
+                 * dirinya sendiri.
+                 */
                 if (
                     targetExcludeId &&
-                    currentId === targetExcludeId
+                    currentId ===
+                        targetExcludeId
                 ) {
                     return false;
                 }
@@ -517,7 +709,7 @@
                 return (
                     currentModelId &&
                     currentModelId ===
-                    targetModelId
+                        targetModelId
                 );
             }) || null
         );
@@ -737,11 +929,17 @@
             );
 
         return {
-            provider_id: providerId,
+            provider_id:
+                providerId,
 
-            model_id: modelId,
-            model_name: modelName,
-            description: description,
+            model_id:
+                modelId,
+
+            model_name:
+                modelName,
+
+            description:
+                description,
 
             discount_percent:
                 discountPercent,
@@ -1507,7 +1705,8 @@
             );
 
         return {
-            data: normalized,
+            data:
+                normalized,
 
             valid:
                 validation.valid,
@@ -1534,7 +1733,9 @@
         if (!prepared.valid) {
             const error =
                 new Error(
-                    prepared.errors.join(" ")
+                    prepared.errors.join(
+                        " "
+                    )
                 );
 
             error.code =
@@ -1799,6 +2000,7 @@
 
         return {
             ...prepared,
+
             formData:
                 data
         };
