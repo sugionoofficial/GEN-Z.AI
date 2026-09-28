@@ -345,6 +345,13 @@
             "[name='providerId']"
         ],
 
+        providerName: [
+            "#providerName",
+            "#provider_name",
+            "[name='provider_name']",
+            "[name='providerName']"
+        ],
+
         modelId: [
             "#modelCodeSearch",
             "#modelId",
@@ -987,6 +994,40 @@
        PROVIDER OPTIONS
        ========================================================= */
 
+    /*
+     * =========================================================
+     * FUNGSI:
+     * updateProviderOptions()
+     *
+     * FILE YANG DITANGANI:
+     * admin-control/models/functions/model-form-layout.js
+     *
+     * POSISI DALAM ALUR:
+     * Provider Data
+     *      ↓
+     * Provider Dropdown
+     *      ↓
+     * Form Tambah/Edit Model
+     *
+     * TANGGUNG JAWAB:
+     * - Mengisi dropdown Provider.
+     * - Menjadikan providers.id sebagai value internal.
+     * - Menampilkan providers.provider_id pada field Provider ID.
+     * - Menyimpan provider code dan provider name pada dataset option.
+     * - Memulihkan provider yang memang diberikan oleh caller.
+     *
+     * TIDAK MENANGANI:
+     * - INSERT Model ke Supabase.
+     * - UPDATE Model.
+     * - Query Provider.
+     * - Pembuatan Provider baru.
+     *
+     * BUG YANG DIPERBAIKI:
+     * Sebelumnya option.textContent menggunakan providerName.
+     * Akibatnya field "Provider ID" menampilkan "GEN-Z.AI",
+     * padahal yang benar adalah providers.provider_id, misalnya "kie".
+     * =========================================================
+     */
     function updateProviderOptions(
         root,
         providers,
@@ -1007,27 +1048,14 @@
             return false;
         }
 
-        /*
-         * CREATE:
-         *
-         * Jangan otomatis memilih provider.
-         *
-         * Ini penting agar GEN-Z.AI lama dari DOM /
-         * browser state tidak terpilih lagi.
-         */
         const isCreate =
             options.mode === "create" ||
             options.create === true;
 
-        const explicitSelected =
+        const selected =
             normalizeId(
                 selectedProviderId
             );
-
-        const selected =
-            isCreate
-                ? explicitSelected
-                : explicitSelected;
 
         const fragment =
             document.createDocumentFragment();
@@ -1037,14 +1065,15 @@
                 "option"
             );
 
-        placeholder.value = "";
+        placeholder.value =
+            "";
+
         placeholder.textContent =
             "Pilih provider...";
-        placeholder.disabled = false;
 
-        /*
-         * CREATE harus mulai dari placeholder.
-         */
+        placeholder.disabled =
+            false;
+
         placeholder.selected =
             !selected;
 
@@ -1053,125 +1082,220 @@
         );
 
         const list =
-            Array.isArray(providers)
+            Array.isArray(
+                providers
+            )
                 ? providers
                 : [];
 
         const used =
             new Set();
 
-        list.forEach(provider => {
-
-            const identifiers =
-                getProviderIdentifiers(
-                    provider
-                );
-
-            /*
-             * Value database:
-             *
-             * provider.id diprioritaskan.
-             *
-             * Jangan mengganti UUID database
-             * dengan provider code.
-             */
-            const id =
-                normalizeId(
-                    provider?.id ??
-                    provider?.uuid
-                );
-
-            /*
-             * Provider tanpa id database
-             * tidak boleh dibuat menjadi data palsu.
-             */
-            if (!id) {
-                return;
-            }
-
-            if (
-                used.has(id)
+        list.forEach(
+            function (
+                provider
             ) {
-                return;
-            }
 
-            used.add(id);
+                const identifiers =
+                    getProviderIdentifiers(
+                        provider
+                    );
 
-            const providerCode =
-                normalizeText(
-                    provider?.provider_id ??
-                    provider?.providerId ??
-                    provider?.provider_code ??
-                    provider?.providerCode ??
-                    provider?.code
-                );
+                const id =
+                    normalizeId(
+                        provider?.id ??
+                        provider?.uuid
+                    );
 
-            const providerName =
-                getProviderName(
-                    provider
-                ) ||
-                providerCode ||
-                id;
+                if (
+                    !id
+                ) {
+                    return;
+                }
 
-            const option =
-                document.createElement(
-                    "option"
-                );
-
-            option.value =
-                id;
-
-            option.dataset.providerUuid =
-                id;
-
-            option.dataset.providerId =
-                providerCode;
-
-            option.dataset.providerCode =
-                providerCode;
-
-            option.dataset.providerName =
-                providerName;
-
-            option.textContent =
-                providerName;
-
-            /*
-             * Hanya pilih provider jika benar-benar
-             * dikirim oleh caller.
-             */
-            if (
-                selected &&
-                (
-                    id === selected ||
-                    identifiers.includes(
-                        selected.toLowerCase()
+                if (
+                    used.has(
+                        id
                     )
-                )
-            ) {
-                option.selected =
-                    true;
-            }
+                ) {
+                    return;
+                }
 
-            fragment.appendChild(
-                option
-            );
-        });
+                used.add(
+                    id
+                );
+
+                /*
+                 * PROVIDER ID / CODE
+                 *
+                 * Contoh:
+                 * kie
+                 *
+                 * Nilai ini khusus untuk tampilan
+                 * Provider ID.
+                 */
+                const providerCode =
+                    normalizeText(
+                        provider?.provider_id ??
+                        provider?.providerId ??
+                        provider?.provider_code ??
+                        provider?.providerCode ??
+                        provider?.code
+                    );
+
+                /*
+                 * PROVIDER NAME
+                 *
+                 * Contoh:
+                 * GEN-Z.AI
+                 */
+                const providerName =
+                    getProviderName(
+                        provider
+                    ) ||
+                    providerCode ||
+                    id;
+
+                const option =
+                    document.createElement(
+                        "option"
+                    );
+
+                /*
+                 * DATABASE VALUE:
+                 *
+                 * models.provider_id
+                 * =
+                 * providers.id
+                 */
+                option.value =
+                    id;
+
+                option.dataset.providerUuid =
+                    id;
+
+                option.dataset.providerId =
+                    providerCode;
+
+                option.dataset.providerCode =
+                    providerCode;
+
+                option.dataset.providerName =
+                    providerName;
+
+                /*
+                 * DISPLAY VALUE:
+                 *
+                 * Field ini bernama Provider ID,
+                 * jadi tampilkan provider_id.
+                 *
+                 * Jangan tampilkan provider_name.
+                 */
+                option.textContent =
+                    providerCode ||
+                    providerName ||
+                    id;
+
+                if (
+                    provider.status !==
+                    undefined
+                ) {
+
+                    option.dataset.status =
+                        normalizeText(
+                            provider.status
+                        );
+
+                }
+
+                if (
+                    Object.prototype.hasOwnProperty.call(
+                        provider,
+                        "is_active"
+                    )
+                ) {
+
+                    option.dataset.isActive =
+                        String(
+                            provider.is_active
+                        );
+
+                }
+
+                if (
+                    selected &&
+                    (
+                        id ===
+                            selected ||
+                        identifiers.includes(
+                            selected.toLowerCase()
+                        )
+                    )
+                ) {
+
+                    option.selected =
+                        true;
+
+                }
+
+                fragment.appendChild(
+                    option
+                );
+
+            }
+        );
 
         select.replaceChildren(
             fragment
         );
 
+        if (
+            selected
+        ) {
+
+            const matchingOption =
+                Array.from(
+                    select.options
+                ).find(
+                    function (
+                        option
+                    ) {
+
+                        return (
+                            normalizeText(
+                                option.value
+                            ).toLowerCase() ===
+                            selected.toLowerCase()
+                        );
+
+                    }
+                );
+
+            if (
+                matchingOption
+            ) {
+
+                select.value =
+                    matchingOption.value;
+
+            }
+
+        }
+
         /*
-         * Pastikan CREATE tidak kembali ke provider
-         * lama walaupun browser mempertahankan state.
+         * CREATE tanpa provider harus tetap kosong.
          */
         if (
             isCreate &&
             !selected
         ) {
-            select.value = "";
-            select.selectedIndex = 0;
+
+            select.value =
+                "";
+
+            select.selectedIndex =
+                0;
+
         }
 
         return true;
@@ -1790,6 +1914,41 @@
        RENDER MODEL FORM
        ========================================================= */
 
+    /*
+     * =========================================================
+     * FUNGSI:
+     * renderModelForm()
+     *
+     * FILE YANG DITANGANI:
+     * admin-control/models/functions/model-form-layout.js
+     *
+     * POSISI DALAM ALUR:
+     * Form Open
+     *      ↓
+     * Provider Resolution
+     *      ↓
+     * Provider ID + Provider Name
+     *      ↓
+     * Model Fields
+     *
+     * TANGGUNG JAWAB:
+     * - Menyiapkan Provider dropdown.
+     * - Menyinkronkan Provider Name dengan Provider yang dipilih.
+     * - Mengisi field Model dari model yang tersedia.
+     * - Menyiapkan capability, credit, duration dan status.
+     *
+     * TIDAK MENANGANI:
+     * - INSERT Supabase.
+     * - UPDATE Supabase.
+     * - Pencarian Registry.
+     *
+     * BUG YANG DIPERBAIKI:
+     * Provider Name adalah field required pada HTML.
+     * Sebelumnya field ini tidak otomatis diisi ketika
+     * Provider terpilih, sehingga submit dapat tertahan
+     * walaupun Provider ID sudah benar.
+     * =========================================================
+     */
     function renderModelForm(
         root,
         model = null,
@@ -1851,6 +2010,50 @@
             providers,
             providerId,
             options
+        );
+
+        /*
+         * =========================================================
+         * SINKRONISASI PROVIDER NAME
+         *
+         * FILE YANG DITANGANI:
+         * admin-control/models/functions/model-form-layout.js
+         *
+         * POSISI DALAM ALUR:
+         * Provider ID
+         *      ↓
+         * Resolve providers.id
+         *      ↓
+         * Provider Object
+         *      ↓
+         * #providerName
+         *
+         * TANGGUNG JAWAB:
+         * - Mengisi Provider Name berdasarkan Provider
+         *   yang benar-benar terpilih.
+         * - Menjamin input #providerName yang required
+         *   tidak tertinggal kosong.
+         *
+         * TIDAK MENANGANI:
+         * - Database INSERT.
+         * - Database UPDATE.
+         * - Provider creation.
+         * =========================================================
+         */
+        const selectedProvider =
+            resolveProvider(
+                providers,
+                providerId
+            );
+
+        setValue(
+            form,
+            FIELD.providerName,
+            selectedProvider
+                ? getProviderName(
+                    selectedProvider
+                )
+                : ""
         );
 
         updateProviderStatus(
@@ -2016,6 +2219,12 @@
                     providerField.selectedIndex =
                         0;
                 }
+
+                setValue(
+                    form,
+                    FIELD.providerName,
+                    ""
+                );
             }
 
             /*
@@ -2079,6 +2288,45 @@
        SELECTED MODEL
        ========================================================= */
 
+    /*
+     * =========================================================
+     * FUNGSI:
+     * updateSelectedModelFields()
+     *
+     * FILE YANG DITANGANI:
+     * admin-control/models/functions/model-form-layout.js
+     *
+     * POSISI DALAM ALUR:
+     * Model Registry
+     *      ↓
+     * Model Selection
+     *      ↓
+     * Resolve Provider
+     *      ↓
+     * Provider ID + Provider Name
+     *      ↓
+     * Field Model
+     *
+     * TANGGUNG JAWAB:
+     * - Resolve Provider berdasarkan model yang dipilih.
+     * - Menetapkan providers.id ke select Provider.
+     * - Mengisi Provider Name sesuai Provider tersebut.
+     * - Mengisi field Model Name, Description, Credit,
+     *   Duration, Capability dan Status.
+     *
+     * TIDAK MENANGANI:
+     * - Search Model.
+     * - INSERT Supabase.
+     * - CREATE Provider.
+     *
+     * BUG YANG DIPERBAIKI:
+     * Sebelumnya Provider hanya disinkronkan ketika select
+     * masih kosong. Saat Model Search sudah lebih dahulu
+     * memilih Provider, #providerName tidak ikut diperbarui.
+     * Karena #providerName adalah required, submit dapat
+     * terhenti sebelum callback CRUD dijalankan.
+     * =========================================================
+     */
     function updateSelectedModelFields(
         root,
         models,
@@ -2115,51 +2363,76 @@
                 selected
             );
 
-        /*
-         * Jika model ditemukan dari provider tertentu,
-         * sinkronkan provider hanya jika provider field
-         * masih kosong.
-         *
-         * Jangan mengubah provider secara paksa.
-         */
         const providerField =
             queryFirst(
                 form,
                 FIELD.provider
             );
 
+        const providers =
+            window.__GENZ_MODEL_FORM_PROVIDERS__ ||
+            [];
+
+        /*
+         * Provider dapat berasal dari:
+         *
+         * 1. Provider yang sudah ada pada select.
+         * 2. providers.id pada model.
+         * 3. provider code pada model.
+         */
+        const providerTarget =
+            normalizeId(
+                providerField?.value ||
+                data.provider_id ||
+                data.provider_code
+            );
+
+        const provider =
+            resolveProvider(
+                providers,
+                providerTarget
+            );
+
+        /*
+         * Jika Provider berhasil di-resolve,
+         * selalu pastikan select menyimpan providers.id.
+         *
+         * Ini adalah nilai yang nantinya dikirim sebagai:
+         *
+         * models.provider_id
+         */
         if (
             providerField &&
-            !providerField.value
+            provider?.id
         ) {
-            const providerTarget =
-                data.provider_id ||
-                data.provider_code;
 
-            const providers =
-                window.__GENZ_MODEL_FORM_PROVIDERS__ ||
-                [];
-
-            const provider =
-                resolveProvider(
-                    providers,
-                    providerTarget
+            providerField.value =
+                normalizeId(
+                    provider.id
                 );
 
-            if (provider?.id) {
-                providerField.value =
-                    provider.id;
-
-                providerField.dispatchEvent(
-                    new Event(
-                        "change",
-                        {
-                            bubbles: true
-                        }
-                    )
-                );
-            }
         }
+
+        /*
+         * Provider Name berasal dari Provider yang sama.
+         *
+         * Jangan memakai:
+         *
+         * model.provider_name
+         *
+         * sebagai source utama untuk field ini karena
+         * field Provider Name adalah informasi Provider
+         * database, bukan identitas model registry.
+         */
+        setValue(
+            form,
+            FIELD.providerName,
+            provider
+                ? getProviderName(
+                    provider
+                )
+                : data.provider_name
+        );
 
         setValue(
             form,
@@ -2250,6 +2523,41 @@
        PROVIDER CHANGE
        ========================================================= */
 
+    /*
+     * =========================================================
+     * FUNGSI:
+     * handleProviderChange()
+     *
+     * FILE YANG DITANGANI:
+     * admin-control/models/functions/model-form-layout.js
+     *
+     * POSISI DALAM ALUR:
+     * Provider Dropdown
+     *      ↓
+     * Resolve Provider
+     *      ↓
+     * Provider Name
+     *      ↓
+     * Filter Model Registry
+     *
+     * TANGGUNG JAWAB:
+     * - Membaca providers.id dari dropdown.
+     * - Resolve Provider object yang dipilih.
+     * - Mengisi Provider Name yang benar.
+     * - Memfilter Model berdasarkan Provider.
+     * - Menghapus Model lama jika tidak cocok dengan Provider baru.
+     *
+     * TIDAK MENANGANI:
+     * - Query Supabase langsung.
+     * - INSERT Model.
+     * - CREATE Provider.
+     *
+     * BUG YANG DIPERBAIKI:
+     * Sebelumnya perubahan Provider hanya memfilter Model.
+     * Provider Name tidak ikut diperbarui, sehingga input
+     * #providerName required dapat membuat submit gagal.
+     * =========================================================
+     */
     function handleProviderChange(
         root,
         models = [],
@@ -2267,10 +2575,35 @@
                 )
             );
 
-        window.__GENZ_MODEL_FORM_PROVIDERS__ =
-            Array.isArray(providers)
+        const currentProviders =
+            Array.isArray(
+                providers
+            )
                 ? providers
                 : [];
+
+        window.__GENZ_MODEL_FORM_PROVIDERS__ =
+            currentProviders;
+
+        const provider =
+            resolveProvider(
+                currentProviders,
+                providerId
+            );
+
+        /*
+         * Provider Name harus mengikuti Provider
+         * yang benar-benar dipilih.
+         */
+        setValue(
+            form,
+            FIELD.providerName,
+            provider
+                ? getProviderName(
+                    provider
+                )
+                : ""
+        );
 
         updateModelIdOptions(
             form,
@@ -2280,7 +2613,7 @@
 
         updateProviderStatus(
             form,
-            providers
+            currentProviders
         );
 
         const currentModelId =
@@ -2293,44 +2626,50 @@
             );
 
         /*
-         * Provider baru dipilih.
-         *
-         * Jika model lama bukan bagian dari provider baru,
-         * bersihkan field model.
+         * Belum ada Model terpilih.
+         * Provider Name sudah disinkronkan.
          */
-        if (currentModelId) {
+        if (
+            !currentModelId
+        ) {
 
-            const currentModel =
-                findModel(
-                    models,
-                    currentModelId
-                );
+            return providerId;
 
-            if (!currentModel) {
-                clearDependentModelFields(
-                    form
-                );
+        }
 
-                return providerId;
-            }
+        const currentModel =
+            findModel(
+                models,
+                currentModelId
+            );
 
-            const provider =
-                resolveProvider(
-                    providers,
-                    providerId
-                );
+        if (
+            !currentModel
+        ) {
 
-            if (
-                !providerMatchesModel(
-                    currentModel,
-                    providerId,
-                    provider
-                )
-            ) {
-                clearDependentModelFields(
-                    form
-                );
-            }
+            clearDependentModelFields(
+                form
+            );
+
+            return providerId;
+        }
+
+        /*
+         * Model lama harus berasal dari Provider baru.
+         * Kalau tidak, bersihkan seluruh field Model dependent.
+         */
+        if (
+            !providerMatchesModel(
+                currentModel,
+                providerId,
+                provider
+            )
+        ) {
+
+            clearDependentModelFields(
+                form
+            );
+
         }
 
         return providerId;
@@ -2549,6 +2888,35 @@
        COLLECT FORM DATA
        ========================================================= */
 
+    /*
+     * =========================================================
+     * FUNGSI:
+     * collectModelFormData()
+     *
+     * FILE YANG DITANGANI:
+     * admin-control/models/functions/model-form-layout.js
+     *
+     * POSISI DALAM ALUR:
+     * DOM Form
+     *      ↓
+     * Normalized Create Data
+     *
+     * TANGGUNG JAWAB:
+     * - Membaca provider_id dari select.
+     * - Membaca Model ID, Model Name dan field lainnya.
+     * - Membaca capability.
+     * - Menyediakan payload form untuk module Create.
+     *
+     * CATATAN:
+     * provider_id yang dikumpulkan adalah value select,
+     * yaitu providers.id / UUID database.
+     *
+     * TIDAK MENANGANI:
+     * - INSERT database.
+     * - Provider Name sebagai FK.
+     * - Pembuatan provider.
+     * =========================================================
+     */
     function collectModelFormData(
         root
     ) {
@@ -3367,7 +3735,7 @@
 
 /* =========================================================
    ES MODULE EXPORTS
-   ========================================================= */
+========================================================= */
 
 const MODEL_FORM_LAYOUT_API =
     window.GENZModelFormLayout || {};
