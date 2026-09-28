@@ -49,15 +49,6 @@ const INTERNAL_PARAMETERS =
     ]);
 
 
-/*
- * Parameter yang tidak boleh menjadi kontrol client.
- *
- * nsfw_checker sengaja tidak pernah dirender dan tidak
- * pernah dikirim dari browser.
- *
- * Nilai final nsfw_checker ditentukan server/API.
- */
-
 const SERVER_CONTROLLED_PARAMETERS =
     new Set([
         "nsfw_checker"
@@ -87,9 +78,6 @@ const MAX_IMAGE_SIZE =
  *
  * Parameter lain yang diberikan model
  * tetap akan dirender.
- *
- * Parameter internal dan server-controlled
- * tidak dimasukkan.
  */
 
 const PARAMETER_ORDER = [
@@ -101,6 +89,26 @@ const PARAMETER_ORDER = [
     "duration",
     "resolution"
 ];
+
+
+/*
+ * Parameter yang secara visual sebaiknya
+ * menggunakan satu baris penuh.
+ *
+ * Prompt dan gambar biasanya membutuhkan
+ * ruang horizontal penuh.
+ *
+ * Parameter lain dapat berdampingan.
+ */
+
+const FULL_WIDTH_PARAMETERS =
+    new Set([
+        "image_urls",
+        "image_url",
+        "prompt",
+        "negative_prompt",
+        "description"
+    ]);
 
 
 /* =========================================================
@@ -189,11 +197,6 @@ function getParameterDefinitions(
 
     }
 
-
-    /*
-     * Semua kemungkinan struktur parameter
-     * yang berasal dari konfigurasi model.
-     */
 
     const candidates = [
 
@@ -288,10 +291,6 @@ function getParameterDefinitions(
     }
 
 
-    /*
-     * Nested API response.
-     */
-
     const nestedCandidates = [
 
         model.data?.parameters,
@@ -371,10 +370,6 @@ function normalizeParameterDefinitions(
     }
 
 
-    /*
-     * JSON STRING
-     */
-
     if (
         typeof value ===
         "string"
@@ -413,17 +408,6 @@ function normalizeParameterDefinitions(
 
     }
 
-
-    /*
-     * ARRAY
-     *
-     * [
-     *   {
-     *      name: "prompt",
-     *      type: "string"
-     *   }
-     * ]
-     */
 
     if (
         Array.isArray(value)
@@ -489,10 +473,6 @@ function normalizeParameterDefinitions(
     }
 
 
-    /*
-     * OBJECT
-     */
-
     if (
         typeof value !==
         "object"
@@ -502,10 +482,6 @@ function normalizeParameterDefinitions(
 
     }
 
-
-    /*
-     * Nested parameters.
-     */
 
     if (
         value.parameters
@@ -529,10 +505,6 @@ function normalizeParameterDefinitions(
 
     }
 
-
-    /*
-     * JSON Schema properties.
-     */
 
     if (
         value.properties &&
@@ -559,10 +531,6 @@ function normalizeParameterDefinitions(
     }
 
 
-    /*
-     * input_schema.properties
-     */
-
     if (
         value.input_schema
     ) {
@@ -586,10 +554,6 @@ function normalizeParameterDefinitions(
     }
 
 
-    /*
-     * schema.properties
-     */
-
     if (
         value.schema
     ) {
@@ -612,10 +576,6 @@ function normalizeParameterDefinitions(
 
     }
 
-
-    /*
-     * Plain parameter object.
-     */
 
     const result =
         {};
@@ -643,10 +603,6 @@ function normalizeParameterDefinitions(
 
             }
 
-
-            /*
-             * Metadata bukan parameter.
-             */
 
             if (
                 key ===
@@ -678,10 +634,6 @@ function normalizeParameterDefinitions(
 
             }
 
-
-            /*
-             * Primitive definition.
-             */
 
             if (
                 typeof definition ===
@@ -844,11 +796,6 @@ function isServerControlledParameter(
 }
 
 
-/*
- * Parameter yang tidak boleh dirender
- * atau dikirim client.
- */
-
 function isClientForbiddenParameter(
     name
 ) {
@@ -981,6 +928,12 @@ function getOrderedParameterNames(
 
 /* =========================================================
    FIELD
+   ---------------------------------------------------------
+   PERBAIKAN LAYOUT:
+   - Tidak lagi width: 100% untuk semua field
+   - Field biasa memakai 1 kolom
+   - Prompt / image memakai full width
+   - Grid dikontrol oleh #dynamicFields
 ========================================================= */
 
 function createField(
@@ -1002,8 +955,44 @@ function createField(
         name;
 
 
-    wrapper.style.width =
-        "100%";
+    /*
+     * PENTING:
+     * Sebelumnya:
+     *
+     * wrapper.style.width = "100%";
+     *
+     * Ini menyebabkan semua field mengambil
+     * satu baris penuh walaupun parent adalah grid.
+     *
+     * Sekarang field memakai ukuran grid.
+     */
+
+    wrapper.style.setProperty(
+        "width",
+        "auto",
+        "important"
+    );
+
+
+    wrapper.style.setProperty(
+        "min-width",
+        "0",
+        "important"
+    );
+
+
+    wrapper.style.setProperty(
+        "max-width",
+        "100%",
+        "important"
+    );
+
+
+    wrapper.style.setProperty(
+        "box-sizing",
+        "border-box",
+        "important"
+    );
 
 
     wrapper.style.visibility =
@@ -1012,6 +1001,36 @@ function createField(
 
     wrapper.style.opacity =
         "1";
+
+
+    /*
+     * Prompt / image membutuhkan satu baris penuh.
+     */
+
+    if (
+        FULL_WIDTH_PARAMETERS.has(
+            String(
+                name ||
+                ""
+            ).toLowerCase()
+        )
+    ) {
+
+        wrapper.style.setProperty(
+            "grid-column",
+            "1 / -1",
+            "important"
+        );
+
+    } else {
+
+        wrapper.style.setProperty(
+            "grid-column",
+            "span 1",
+            "important"
+        );
+
+    }
 
 
     const label =
@@ -1174,10 +1193,6 @@ function normalizeArray(
     }
 
 
-    /*
-     * JSON ARRAY
-     */
-
     if (
         text.startsWith("[") &&
         text.endsWith("]")
@@ -1212,10 +1227,6 @@ function normalizeArray(
     }
 
 
-    /*
-     * PostgreSQL ARRAY
-     */
-
     if (
         text.startsWith("{") &&
         text.endsWith("}")
@@ -1240,10 +1251,6 @@ function normalizeArray(
 
     }
 
-
-    /*
-     * CSV
-     */
 
     return text
         .split(",")
@@ -1280,13 +1287,7 @@ function createFieldId(
 
 /* =========================================================
    IMAGE FIELD
-   ---------------------------------------------------------
-   Mode:
-   - URL    → input URL tampil
-   - Upload → input file + preview kecil
-   - Struktur .generate-image-input tetap dipertahankan
-     agar collector/validation lama tetap bekerja
- ========================================================= */
+========================================================= */
 
 function createImageField(
     definition = {},
@@ -1296,17 +1297,17 @@ function createImageField(
     const wrapper =
         document.createElement("div");
 
+
     wrapper.className =
         "generate-image-input";
 
-    wrapper.style.width =
-        "100%";
 
+    wrapper.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
 
-    /*
-     * Parameter name disimpan agar struktur
-     * tetap siap digunakan module lain.
-     */
 
     if (
         parameterName
@@ -1318,21 +1319,21 @@ function createImageField(
     }
 
 
-    /* =====================================================
-       MODE SELECTOR
-     ===================================================== */
-
     const modeSelector =
         document.createElement("div");
+
 
     modeSelector.className =
         "generate-image-mode-selector";
 
+
     modeSelector.style.display =
         "flex";
 
+
     modeSelector.style.gap =
         "8px";
+
 
     modeSelector.style.marginBottom =
         "10px";
@@ -1341,14 +1342,18 @@ function createImageField(
     const urlButton =
         document.createElement("button");
 
+
     urlButton.type =
         "button";
+
 
     urlButton.textContent =
         "Gunakan URL";
 
+
     urlButton.className =
         "generate-image-mode-button active";
+
 
     urlButton.style.cursor =
         "pointer";
@@ -1357,14 +1362,18 @@ function createImageField(
     const uploadButton =
         document.createElement("button");
 
+
     uploadButton.type =
         "button";
+
 
     uploadButton.textContent =
         "Upload Gambar";
 
+
     uploadButton.className =
         "generate-image-mode-button";
+
 
     uploadButton.style.cursor =
         "pointer";
@@ -1374,17 +1383,15 @@ function createImageField(
         urlButton
     );
 
+
     modeSelector.appendChild(
         uploadButton
     );
 
 
-    /* =====================================================
-       URL INPUT
-     ===================================================== */
-
     const urlContainer =
         document.createElement("div");
+
 
     urlContainer.className =
         "generate-image-url-container";
@@ -1393,20 +1400,28 @@ function createImageField(
     const urlInput =
         document.createElement("input");
 
+
     urlInput.type =
         "url";
+
 
     urlInput.className =
         "generate-image-url";
 
+
     urlInput.placeholder =
         "Masukkan URL gambar";
+
 
     urlInput.autocomplete =
         "off";
 
-    urlInput.style.width =
-        "100%";
+
+    urlInput.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
 
 
     urlContainer.appendChild(
@@ -1414,34 +1429,30 @@ function createImageField(
     );
 
 
-    /* =====================================================
-       UPLOAD INPUT
-     ===================================================== */
-
     const uploadContainer =
         document.createElement("div");
 
+
     uploadContainer.className =
         "generate-image-upload-container";
+
 
     uploadContainer.style.display =
         "none";
 
 
-    /*
-     * Tetap gunakan class
-     * generate-image-file.
-     */
-
     const fileInput =
         document.createElement("input");
+
 
     fileInput.type =
         "file";
 
+
     fileInput.accept =
         definition.accept ||
         "image/*";
+
 
     fileInput.multiple =
         Boolean(
@@ -1452,6 +1463,7 @@ function createImageField(
             ) > 1
         );
 
+
     fileInput.className =
         "generate-image-file";
 
@@ -1461,35 +1473,33 @@ function createImageField(
     );
 
 
-    /* =====================================================
-       PREVIEW
-     ===================================================== */
-
     const preview =
         document.createElement("div");
+
 
     preview.className =
         "generate-image-preview";
 
+
     preview.style.display =
         "none";
+
 
     preview.style.flexWrap =
         "wrap";
 
+
     preview.style.gap =
         "8px";
+
 
     preview.style.marginTop =
         "10px";
 
+
     preview.style.maxWidth =
         "360px";
 
-
-    /* =====================================================
-       RENDER PREVIEW
-     ===================================================== */
 
     function renderPreview(
         files
@@ -1497,6 +1507,7 @@ function createImageField(
 
         preview.innerHTML =
             "";
+
 
         const selectedFiles =
             Array.from(
@@ -1517,6 +1528,7 @@ function createImageField(
 
             preview.style.display =
                 "none";
+
 
             return;
 
@@ -1542,39 +1554,42 @@ function createImageField(
                                 "img"
                             );
 
+
                         image.src =
                             event.target.result;
+
 
                         image.alt =
                             "Preview gambar";
 
 
-                        /*
-                         * Preview kecil.
-                         *
-                         * Tidak mengubah file asli.
-                         */
-
                         image.style.width =
                             "160px";
+
 
                         image.style.height =
                             "160px";
 
+
                         image.style.maxWidth =
                             "160px";
+
 
                         image.style.maxHeight =
                             "160px";
 
+
                         image.style.objectFit =
                             "cover";
+
 
                         image.style.display =
                             "block";
 
+
                         image.style.borderRadius =
                             "10px";
+
 
                         image.style.border =
                             "1px solid rgba(255,255,255,.12)";
@@ -1597,10 +1612,6 @@ function createImageField(
     }
 
 
-    /* =====================================================
-       MODE SWITCH
-     ===================================================== */
-
     function setMode(
         mode
     ) {
@@ -1616,6 +1627,7 @@ function createImageField(
             urlContainer.style.display =
                 "none";
 
+
             uploadContainer.style.display =
                 "block";
 
@@ -1623,6 +1635,7 @@ function createImageField(
             urlButton.classList.remove(
                 "active"
             );
+
 
             uploadButton.classList.add(
                 "active"
@@ -1650,8 +1663,10 @@ function createImageField(
             urlContainer.style.display =
                 "block";
 
+
             uploadContainer.style.display =
                 "none";
+
 
             preview.style.display =
                 "none";
@@ -1660,6 +1675,7 @@ function createImageField(
             uploadButton.classList.remove(
                 "active"
             );
+
 
             urlButton.classList.add(
                 "active"
@@ -1676,16 +1692,13 @@ function createImageField(
     }
 
 
-    /* =====================================================
-       EVENTS
-     ===================================================== */
-
     urlButton.addEventListener(
         "click",
         event => {
 
             event.preventDefault();
             event.stopPropagation();
+
 
             setMode(
                 "url"
@@ -1701,6 +1714,7 @@ function createImageField(
 
             event.preventDefault();
             event.stopPropagation();
+
 
             setMode(
                 "upload"
@@ -1722,11 +1736,6 @@ function createImageField(
     );
 
 
-    /*
-     * URL input jangan dianggap sebagai
-     * tombol submit.
-     */
-
     urlInput.addEventListener(
         "keydown",
         event => {
@@ -1744,34 +1753,23 @@ function createImageField(
     );
 
 
-    /* =====================================================
-       PUBLIC REFERENCES
-       -----------------------------------------------------
-       Dipasang pada wrapper supaya collector/module lain
-       tetap bisa menemukan input yang benar.
-     ===================================================== */
-
     wrapper._imageMode =
         () =>
             wrapper.dataset.imageMode ||
             "url";
 
+
     wrapper._urlInput =
         urlInput;
+
 
     wrapper._fileInput =
         fileInput;
 
+
     wrapper._preview =
         preview;
 
-
-    /*
-     * Method kompatibilitas.
-     *
-     * Collector lama dapat membaca mode URL/upload
-     * tanpa mengubah struktur DOM.
-     */
 
     wrapper.getInputMode =
         () =>
@@ -1788,20 +1786,6 @@ function createImageField(
         () =>
             fileInput;
 
-
-    /*
-     * Upload URL sebenarnya harus berasal dari
-     * proses upload/storage yang menangani file.
-     *
-     * Jangan mengarang URL file di client.
-     *
-     * Untuk kompatibilitas, return nilai yang tersedia
-     * pada wrapper jika module upload lain memasangnya.
-     */
-
-    /* =====================================================
-       UPLOAD STATE
-     ===================================================== */
 
     wrapper.getUploadedUrl =
         () =>
@@ -1859,16 +1843,21 @@ function createImageField(
             fileInput.value =
                 "";
 
+
             urlInput.value =
                 "";
+
 
             preview.innerHTML =
                 "";
 
+
             preview.style.display =
                 "none";
 
+
             delete wrapper.dataset.uploadedUrl;
+
 
             setMode(
                 "url"
@@ -1877,32 +1866,25 @@ function createImageField(
         };
 
 
-    /* =====================================================
-       ASSEMBLE
-     ===================================================== */
-
     wrapper.appendChild(
         modeSelector
     );
+
 
     wrapper.appendChild(
         urlContainer
     );
 
+
     wrapper.appendChild(
         uploadContainer
     );
+
 
     wrapper.appendChild(
         preview
     );
 
-
-    /* =====================================================
-       DEFAULT
-       -----------------------------------------------------
-       URL aktif saat pertama kali field dibuat.
-     ===================================================== */
 
     setMode(
         "url"
@@ -2865,21 +2847,12 @@ function createFieldInput(
             .toLowerCase();
 
 
-    /*
-     * IMAGE
-     */
-
     if (
         name ===
             "image_urls" ||
         name ===
             "image_url"
     ) {
-
-        /*
-         * FIX:
-         * Sebelumnya definition dan name tertukar.
-         */
 
         return createImageField(
             definition,
@@ -2888,10 +2861,6 @@ function createFieldInput(
 
     }
 
-
-    /*
-     * ENUM
-     */
 
     if (
         Array.isArray(
@@ -2908,10 +2877,6 @@ function createFieldInput(
     }
 
 
-    /*
-     * OPTIONS
-     */
-
     if (
         Array.isArray(
             definition?.options
@@ -2927,10 +2892,6 @@ function createFieldInput(
     }
 
 
-    /*
-     * BOOLEAN
-     */
-
     if (
         type ===
         "boolean"
@@ -2943,10 +2904,6 @@ function createFieldInput(
 
     }
 
-
-    /*
-     * DURATION
-     */
 
     if (
         name ===
@@ -2967,10 +2924,6 @@ function createFieldInput(
     }
 
 
-    /*
-     * NUMBER
-     */
-
     if (
         type ===
             "number" ||
@@ -2985,10 +2938,6 @@ function createFieldInput(
 
     }
 
-
-    /*
-     * TEXTAREA
-     */
 
     const maxLength =
         Number(
@@ -3020,10 +2969,6 @@ function createFieldInput(
 
     }
 
-
-    /*
-     * DEFAULT TEXT
-     */
 
     return createTextField(
         definition,
@@ -3078,11 +3023,6 @@ function renderParameter(
 
     }
 
-
-    /*
-     * Duration sudah mempunyai
-     * title sendiri.
-     */
 
     if (
         name !==
@@ -3148,17 +3088,9 @@ export function renderGenerateForm(
     }
 
 
-    /*
-     * CLEAR
-     */
-
     container.innerHTML =
         "";
 
-
-    /*
-     * PARAMETERS
-     */
 
     const definitions =
         getParameterDefinitions(
@@ -3185,10 +3117,6 @@ export function renderGenerateForm(
         names
     );
 
-
-    /*
-     * EMPTY
-     */
 
     if (
         names.length ===
@@ -3223,10 +3151,6 @@ export function renderGenerateForm(
 
     }
 
-
-    /*
-     * RENDER
-     */
 
     let renderedCount =
         0;
@@ -3304,6 +3228,9 @@ export function renderGenerateForm(
 
 /* =========================================================
    FORCE CONTAINER VISIBLE
+   ---------------------------------------------------------
+   PERBAIKAN UTAMA:
+   #dynamicFields dipastikan menjadi GRID 2 kolom.
 ========================================================= */
 
 function forceContainerVisible(
@@ -3328,9 +3255,65 @@ function forceContainerVisible(
     );
 
 
+    /*
+     * Grid dua kolom desktop.
+     *
+     * !important diperlukan karena sebelumnya
+     * layout dapat ditimpa CSS lain.
+     */
+
     container.style.setProperty(
         "display",
         "grid",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "grid-template-columns",
+        "repeat(2, minmax(0, 1fr))",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "grid-auto-flow",
+        "row",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "align-items",
+        "start",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "column-gap",
+        "20px",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "row-gap",
+        "18px",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "box-sizing",
+        "border-box",
         "important"
     );
 
@@ -3368,6 +3351,34 @@ function forceContainerVisible(
         "visible",
         "important"
     );
+
+
+    /*
+     * Mobile:
+     * satu kolom agar tidak terlalu sempit.
+     */
+
+    const mobile =
+        typeof window !==
+            "undefined" &&
+        typeof window.matchMedia ===
+            "function" &&
+        window.matchMedia(
+            "(max-width: 768px)"
+        ).matches;
+
+
+    if (
+        mobile
+    ) {
+
+        container.style.setProperty(
+            "grid-template-columns",
+            "minmax(0, 1fr)",
+            "important"
+        );
+
+    }
 
 }
 
@@ -3439,10 +3450,6 @@ function readFieldValue(
     }
 
 
-    /*
-     * IMAGE
-     */
-
     const imageInput =
         field.querySelector(
             ".generate-image-input"
@@ -3504,10 +3511,6 @@ function readFieldValue(
     }
 
 
-    /*
-     * RADIO
-     */
-
     const radio =
         field.querySelector(
             'input[type="radio"]:checked'
@@ -3523,10 +3526,6 @@ function readFieldValue(
     }
 
 
-    /*
-     * CHECKBOX
-     */
-
     const checkbox =
         field.querySelector(
             'input[type="checkbox"]'
@@ -3541,10 +3540,6 @@ function readFieldValue(
 
     }
 
-
-    /*
-     * NORMAL
-     */
 
     const input =
         field.querySelector(
@@ -3585,10 +3580,6 @@ function normalizeParameterValue(
             .toLowerCase();
 
 
-    /*
-     * IMAGE
-     */
-
     if (
         name ===
             "image_urls" ||
@@ -3603,10 +3594,6 @@ function normalizeParameterValue(
     }
 
 
-    /*
-     * BOOLEAN
-     */
-
     if (
         type ===
         "boolean"
@@ -3618,10 +3605,6 @@ function normalizeParameterValue(
 
     }
 
-
-    /*
-     * NUMBER
-     */
 
     if (
         type ===
@@ -3665,11 +3648,9 @@ function normalizeParameterValue(
 
 }
 
+
 /* =========================================================
    IMAGE UPLOAD
-   ---------------------------------------------------------
-   Upload file gambar ke Supabase Storage lalu mengambil
-   public URL yang dapat dibaca oleh provider/KIE.
 ========================================================= */
 
 function createImageStoragePath(
@@ -3969,12 +3950,6 @@ async function resolveImageParameterValue(
             );
 
 
-    /*
-     * =====================================================
-     * URL MODE
-     * =====================================================
-     */
-
     if (
         mode !==
         "upload"
@@ -4014,12 +3989,6 @@ async function resolveImageParameterValue(
     }
 
 
-    /*
-     * =====================================================
-     * UPLOAD MODE
-     * =====================================================
-     */
-
     const existingUrl =
         typeof imageInput.getUploadedUrl ===
         "function"
@@ -4031,11 +4000,6 @@ async function resolveImageParameterValue(
                 ""
             ).trim();
 
-
-    /*
-     * Jika module lain sudah mengupload file,
-     * gunakan URL tersebut.
-     */
 
     if (
         existingUrl
@@ -4134,12 +4098,6 @@ async function resolveImageParameterValue(
         uploadedUrls.length
     ) {
 
-        /*
-         * Simpan URL supaya jika collector dipanggil
-         * kembali pada lifecycle yang sama, file tidak
-         * langsung dianggap kosong.
-         */
-
         imageInput.dataset.uploadedUrl =
             uploadedUrls[0];
 
@@ -4180,12 +4138,6 @@ export async function getFormParameters(
         of names
     ) {
 
-        /*
-         * Safety:
-         * parameter internal dan server-controlled
-         * tidak pernah ikut dikirim.
-         */
-
         if (
             isClientForbiddenParameter(
                 name
@@ -4215,12 +4167,6 @@ export async function getFormParameters(
         const definition =
             definitions[name];
 
-
-        /*
-         * =====================================================
-         * IMAGE
-         * =====================================================
-         */
 
         if (
             name ===
@@ -4310,11 +4256,6 @@ export async function getFormParameters(
                 );
 
 
-            /*
-             * Pertahankan nama parameter asli
-             * dari konfigurasi model.
-             */
-
             if (
                 name ===
                 "image_url"
@@ -4336,21 +4277,11 @@ export async function getFormParameters(
         }
 
 
-        /*
-         * =====================================================
-         * NORMAL FIELD
-         * =====================================================
-         */
-
         const value =
             readFieldValue(
                 field
             );
 
-
-        /*
-         * BOOLEAN
-         */
 
         if (
             String(
@@ -4372,10 +4303,6 @@ export async function getFormParameters(
 
         }
 
-
-        /*
-         * EMPTY
-         */
 
         if (
             value ===
@@ -4401,22 +4328,10 @@ export async function getFormParameters(
     }
 
 
-    /*
-     * Final safety.
-     */
-
     delete parameters.task_id;
     delete parameters.index;
     delete parameters.nsfw_checker;
 
-
-    /*
-     * Diagnostic.
-     *
-     * Jangan hanya mencetak object.
-     * Cetak juga informasi image supaya kita langsung
-     * tahu apakah reference image benar-benar masuk.
-     */
 
     console.debug(
         "[GEN-Z.AI][Generate Form] FORM PARAMETERS:",
@@ -4511,10 +4426,6 @@ export function setFieldValue(
     }
 
 
-    /*
-     * IMAGE
-     */
-
     if (
         name ===
             "image_urls" ||
@@ -4561,10 +4472,6 @@ export function setFieldValue(
 
     }
 
-
-    /*
-     * RADIO
-     */
 
     const radios =
         field.querySelectorAll(
@@ -4622,10 +4529,6 @@ export function setFieldValue(
     }
 
 
-    /*
-     * CHECKBOX
-     */
-
     const checkbox =
         field.querySelector(
             'input[type="checkbox"]'
@@ -4646,10 +4549,6 @@ export function setFieldValue(
 
     }
 
-
-    /*
-     * SELECT / INPUT / TEXTAREA
-     */
 
     const input =
         field.querySelector(
@@ -4696,10 +4595,6 @@ export async function resetDynamicFields(
 
     }
 
-
-    /*
-     * Hapus upload terlebih dahulu.
-     */
 
     const uploads =
         container.querySelectorAll(
