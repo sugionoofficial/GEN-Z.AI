@@ -4738,6 +4738,15 @@ export function setFieldValue(
 
 /* =========================================================
    RESET
+   ---------------------------------------------------------
+   PERBAIKAN:
+   - Seedance tidak boleh di-render ulang saat Reset
+   - Struktur/layout Seedance dipertahankan
+   - Semua input dikembalikan ke nilai default
+   - File upload dibersihkan
+   - Preview dibersihkan
+   - Toggle dikembalikan ke default
+   - Model lain tetap menggunakan render ulang normal
 ========================================================= */
 
 export async function resetDynamicFields(
@@ -4756,6 +4765,484 @@ export async function resetDynamicFields(
 
     }
 
+
+    /*
+     * =====================================================
+     * SEEDANCE
+     * =====================================================
+     *
+     * Seedance mempunyai renderer dan layout khusus.
+     *
+     * JANGAN memanggil:
+     *
+     *     renderGenerateForm()
+     *
+     * karena itu akan menghapus:
+     *
+     *     .seedance-form
+     *
+     * lalu menggantinya dengan generic form renderer.
+     *
+     * Kita reset langsung elemen yang sudah ada.
+     */
+
+    const seedanceForm =
+        container.querySelector(
+            ".seedance-form"
+        );
+
+
+    if (
+        seedanceForm
+    ) {
+
+        console.debug(
+            "[GEN-Z.AI][Generate Form] Reset Seedance tanpa render ulang."
+        );
+
+
+        /*
+         * -------------------------------------------------
+         * INPUT TEXT / TEXTAREA
+         * -------------------------------------------------
+         */
+
+        seedanceForm
+            .querySelectorAll(
+                "input:not([type='file']):not([type='radio']):not([type='checkbox']), textarea"
+            )
+            .forEach(
+                input => {
+
+                    if (
+                        "defaultValue" in
+                        input
+                    ) {
+
+                        input.value =
+                            input.defaultValue;
+
+                    } else {
+
+                        input.value =
+                            "";
+
+                    }
+
+
+                    input.dispatchEvent(
+                        new Event(
+                            "input",
+                            {
+                                bubbles:
+                                    true
+                            }
+                        )
+                    );
+
+
+                    input.dispatchEvent(
+                        new Event(
+                            "change",
+                            {
+                                bubbles:
+                                    true
+                            }
+                        )
+                    );
+
+                }
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * SELECT
+         * -------------------------------------------------
+         */
+
+        seedanceForm
+            .querySelectorAll(
+                "select"
+            )
+            .forEach(
+                select => {
+
+                    /*
+                     * Kembalikan ke option pertama
+                     * jika tidak ada selected default.
+                     */
+
+                    const defaultOption =
+                        select.querySelector(
+                            "option[selected]"
+                        );
+
+
+                    if (
+                        defaultOption
+                    ) {
+
+                        select.value =
+                            defaultOption.value;
+
+                    } else if (
+                        select.options.length
+                    ) {
+
+                        select.selectedIndex =
+                            0;
+
+                    }
+
+
+                    select.dispatchEvent(
+                        new Event(
+                            "change",
+                            {
+                                bubbles:
+                                    true
+                            }
+                        )
+                    );
+
+                }
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * RADIO
+         * -------------------------------------------------
+         */
+
+        seedanceForm
+            .querySelectorAll(
+                "input[type='radio']"
+            )
+            .forEach(
+                radio => {
+
+                    radio.checked =
+                        radio.defaultChecked;
+
+                }
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * CHECKBOX / TOGGLE
+         * -------------------------------------------------
+         */
+
+        seedanceForm
+            .querySelectorAll(
+                "input[type='checkbox']"
+            )
+            .forEach(
+                checkbox => {
+
+                    checkbox.checked =
+                        checkbox.defaultChecked;
+
+
+                    checkbox.dispatchEvent(
+                        new Event(
+                            "change",
+                            {
+                                bubbles:
+                                    true
+                            }
+                        )
+                    );
+
+                }
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * FILE INPUT
+         * -------------------------------------------------
+         */
+
+        seedanceForm
+            .querySelectorAll(
+                "input[type='file']"
+            )
+            .forEach(
+                fileInput => {
+
+                    try {
+
+                        fileInput.value =
+                            "";
+
+                    } catch (
+                        error
+                    ) {
+
+                        console.warn(
+                            "[GEN-Z.AI][Generate Form] Reset file input gagal:",
+                            error
+                        );
+
+                    }
+
+                }
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * UPLOAD COMPONENT
+         * -------------------------------------------------
+         *
+         * Jika renderer Seedance mempunyai method
+         * clearUploadedFile(), gunakan method tersebut
+         * supaya state internal renderer ikut dibersihkan.
+         */
+
+        const uploads =
+            seedanceForm.querySelectorAll(
+                ".generate-image-input"
+            );
+
+
+        for (
+            const upload
+            of uploads
+        ) {
+
+            if (
+                typeof upload.clearUploadedFile ===
+                "function"
+            ) {
+
+                try {
+
+                    await upload.clearUploadedFile();
+
+                } catch (
+                    error
+                ) {
+
+                    console.warn(
+                        "[GEN-Z.AI][Generate Form] Reset upload Seedance gagal:",
+                        error
+                    );
+
+                }
+
+            }
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * PREVIEW / SELECTED FILES
+         * -------------------------------------------------
+         */
+
+        seedanceForm
+            .querySelectorAll(
+                ".seedance-preview, " +
+                ".seedance-file-preview, " +
+                ".seedance-selected-files, " +
+                ".seedance-media-preview"
+            )
+            .forEach(
+                preview => {
+
+                    preview.innerHTML =
+                        "";
+
+
+                    preview.style.display =
+                        "none";
+
+                }
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * UPLOADED URL / DATASET
+         * -------------------------------------------------
+         */
+
+        seedanceForm
+            .querySelectorAll(
+                "[data-uploaded-url]"
+            )
+            .forEach(
+                element => {
+
+                    delete element.dataset.uploadedUrl;
+
+                }
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * TEXT COUNTER
+         * -------------------------------------------------
+         */
+
+        seedanceForm
+            .querySelectorAll(
+                "[data-counter], " +
+                ".seedance-counter, " +
+                ".char-counter"
+            )
+            .forEach(
+                counter => {
+
+                    /*
+                     * Jangan menghapus struktur counter.
+                     * Hanya reset angka jika memang
+                     * menggunakan pola angka.
+                     */
+
+                    const text =
+                        String(
+                            counter.textContent ||
+                            ""
+                        );
+
+
+                    if (
+                        /^\s*\d+\s*\/\s*\d+\s*$/.test(
+                            text
+                        )
+                    ) {
+
+                        const match =
+                            text.match(
+                                /\/\s*(\d+)/
+                            );
+
+
+                        counter.textContent =
+                            match
+                                ? `0 / ${match[1]}`
+                                : "0";
+
+                    }
+
+                }
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * TOGGLE VISUAL STATE
+         * -------------------------------------------------
+         *
+         * Beberapa renderer Seedance memakai class
+         * untuk menampilkan Aktif / Nonaktif.
+         *
+         * Setelah checkbox dikembalikan ke default,
+         * kirim event supaya renderer memperbarui
+         * visualnya sendiri.
+         */
+
+        seedanceForm
+            .querySelectorAll(
+                "input[type='checkbox']"
+            )
+            .forEach(
+                checkbox => {
+
+                    checkbox.dispatchEvent(
+                        new Event(
+                            "input",
+                            {
+                                bubbles:
+                                    true
+                            }
+                        )
+                    );
+
+
+                    checkbox.dispatchEvent(
+                        new Event(
+                            "change",
+                            {
+                                bubbles:
+                                    true
+                            }
+                        )
+                    );
+
+                }
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * PASTIKAN LAYOUT TETAP HIDUP
+         * -------------------------------------------------
+         */
+
+        container.hidden =
+            false;
+
+
+        container.removeAttribute(
+            "hidden"
+        );
+
+
+        container.style.setProperty(
+            "visibility",
+            "visible",
+            "important"
+        );
+
+
+        container.style.setProperty(
+            "opacity",
+            "1",
+            "important"
+        );
+
+
+        /*
+         * PENTING:
+         *
+         * Tidak ada:
+         *
+         *     container.innerHTML = "";
+         *
+         * Tidak ada:
+         *
+         *     renderGenerateForm();
+         *
+         * Jadi .seedance-form tetap berada
+         * di tempatnya.
+         */
+
+        console.debug(
+            "[GEN-Z.AI][Generate Form] Reset Seedance selesai. Layout dipertahankan."
+        );
+
+
+        return;
+
+    }
+
+
+    /*
+     * =====================================================
+     * MODEL NON-SEEDANCE
+     * =====================================================
+     *
+     * Perilaku model lama tetap dipertahankan.
+     */
 
     const uploads =
         container.querySelectorAll(
