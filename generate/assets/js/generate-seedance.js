@@ -476,8 +476,11 @@ function createMediaSourceField(
                 <input
                     type="file"
                     id="${fileInputId}"
-                    class="seedance-file-input"
-                    accept="${escapeHtml(accept)}"
+                    class="seedance-file-input ${
+    isReference
+        ? "seedance-hidden-native-input"
+        : ""
+}"
                     ${multipleAttr}
                     ${requiredAttr}
                     ${maxFilesAttr}
