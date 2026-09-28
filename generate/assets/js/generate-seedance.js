@@ -849,6 +849,14 @@ function injectStyles() {
 
         }
 
+        .seedance-form {
+    align-items: start;
+}
+
+.seedance-field {
+    justify-self: stretch;
+}
+
 
         /* =====================================================
            FIELD
