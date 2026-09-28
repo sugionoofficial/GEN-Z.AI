@@ -5,13 +5,13 @@
    Model:
    bytedance/seedance-2-5
 
-   Khusus Seedance 2.5:
+   Fitur:
+   - Prompt
    - First Frame
    - Last Frame
    - Reference Images
    - Reference Videos
    - Reference Audio
-   - Prompt
    - Resolution
    - Aspect Ratio
    - Duration
@@ -20,6 +20,11 @@
    - Return Last Frame
    - Web Search
 
+   Reference:
+   - Images  : max 30
+   - Videos  : max 10
+   - Audio   : max 10
+
    IMPORTANT:
    - nsfw_checker TIDAK dikirim dari browser.
    - Credit TIDAK dihitung di sini.
@@ -27,7 +32,6 @@
        credit_480p
        credit_720p
        credit_1080p
-   - Grok tidak menggunakan module ini.
 ========================================================= */
 
 "use strict";
@@ -111,11 +115,31 @@ const MAX_REFERENCE_AUDIO_FILES =
     10;
 
 
-const MAX_REFERENCE_VIDEO_DURATION =
-    30;
+/* =========================================================
+   INTERNAL FILE STATE
+   ---------------------------------------------------------
+   Native input.files akan berubah setiap kali user memilih
+   file baru.
 
-const MAX_REFERENCE_AUDIO_DURATION =
-    30;
+   Karena itu Reference Images / Videos / Audio menggunakan
+   state internal agar:
+
+   + Tambah file
+   + Tambah file lagi
+   + Hapus file tertentu
+
+   tidak saling menimpa.
+========================================================= */
+
+const selectedReferenceFiles = {
+
+    referenceImages: [],
+
+    referenceVideos: [],
+
+    referenceAudio: []
+
+};
 
 
 /* =========================================================
@@ -174,15 +198,17 @@ function getDynamicFields() {
     }
 
 
-    const element =
+    const byId =
         document.getElementById(
             "dynamicFields"
         );
 
 
-    if (element) {
+    if (
+        byId
+    ) {
 
-        return element;
+        return byId;
 
     }
 
@@ -230,7 +256,7 @@ function escapeHtml(
 
 
 /* =========================================================
-   FIELD ID
+   INPUT ID
 ========================================================= */
 
 function fieldId(
@@ -246,7 +272,7 @@ function fieldId(
 
 
 /* =========================================================
-   FIELD WRAPPER
+   COMMON FIELD
 ========================================================= */
 
 function createFieldWrapper(
@@ -257,31 +283,26 @@ function createFieldWrapper(
 ) {
 
     return `
+
         <section
             class="seedance-field ${escapeHtml(extraClass)}"
         >
 
-            <div
-                class="seedance-field-header"
-            >
+            <div class="seedance-field-header">
 
                 <div>
 
-                    <div
-                        class="seedance-field-title"
-                    >
+                    <div class="seedance-field-title">
                         ${escapeHtml(title)}
                     </div>
 
                     ${
                         description
                             ? `
-                                <div
-                                    class="seedance-field-description"
-                                >
+                                <div class="seedance-field-description">
                                     ${escapeHtml(description)}
                                 </div>
-                            `
+                              `
                             : ""
                     }
 
@@ -292,6 +313,7 @@ function createFieldWrapper(
             ${content}
 
         </section>
+
     `;
 
 }
@@ -308,17 +330,11 @@ function createMediaSourceField(
     const {
 
         name,
-
         title,
-
         description,
-
         type,
-
         multiple = false,
-
         required = false,
-
         maxFiles = null
 
     } = options;
@@ -353,6 +369,41 @@ function createMediaSourceField(
             : "";
 
 
+    const modeName =
+        `${id}-mode`;
+
+
+    const urlInputId =
+        `${id}-url`;
+
+
+    const fileInputId =
+        `${id}-file`;
+
+
+    const isReference =
+        multiple &&
+        (
+            name === "referenceImages" ||
+            name === "referenceVideos" ||
+            name === "referenceAudio"
+        );
+
+
+    const addButton =
+        isReference
+            ? `
+                <button
+                    type="button"
+                    class="seedance-add-file-button"
+                    data-seedance-add="${escapeHtml(name)}"
+                >
+                    + Tambah
+                </button>
+              `
+            : "";
+
+
     return createFieldWrapper(
 
         title,
@@ -363,12 +414,10 @@ function createMediaSourceField(
 
         <div
             class="seedance-media-source"
-            data-source-id="${id}"
+            data-seedance-media="${escapeHtml(name)}"
         >
 
-            <div
-                class="seedance-source-tabs"
-            >
+            <div class="seedance-source-tabs">
 
                 <button
                     type="button"
@@ -393,7 +442,7 @@ function createMediaSourceField(
 
             <input
                 type="hidden"
-                id="${id}-mode"
+                id="${modeName}"
                 class="seedance-source-mode"
                 value="upload"
             />
@@ -401,18 +450,42 @@ function createMediaSourceField(
 
             <div
                 class="seedance-source-panel"
-                data-panel="${id}-upload"
                 data-mode="upload"
             >
 
+                <div class="seedance-upload-toolbar">
+
+                    ${addButton}
+
+                    ${
+                        isReference
+                            ? `
+                                <span
+                                    class="seedance-file-limit"
+                                    data-limit-for="${escapeHtml(name)}"
+                                >
+                                    0 / ${maxFiles}
+                                </span>
+                              `
+                            : ""
+                    }
+
+                </div>
+
+
                 <input
                     type="file"
-                    id="${id}-file"
+                    id="${fileInputId}"
                     class="seedance-file-input"
                     accept="${escapeHtml(accept)}"
                     ${multipleAttr}
                     ${requiredAttr}
                     ${maxFilesAttr}
+                    ${
+                        isReference
+                            ? `data-reference-name="${escapeHtml(name)}"`
+                            : ""
+                    }
                 />
 
 
@@ -424,18 +497,12 @@ function createMediaSourceField(
                             ? (
                                 Number.isInteger(maxFiles) &&
                                 maxFiles > 0
-                                    ? `Pilih hingga ${maxFiles} file.`
+                                    ? `Maksimal ${maxFiles} file. Gunakan + Tambah untuk menambahkan file secara bertahap.`
                                     : "Pilih satu atau beberapa file."
                               )
                             : "Pilih satu file."
                     }
                 </div>
-
-
-                <div
-                    id="${id}-file-error"
-                    class="seedance-file-error"
-                ></div>
 
 
                 <div
@@ -448,15 +515,14 @@ function createMediaSourceField(
 
             <div
                 class="seedance-source-panel"
-                data-panel="${id}-url"
                 data-mode="url"
                 hidden
             >
 
                 <textarea
-                    id="${id}-url"
-                    class="seedance-url-input seedance-textarea"
-                    rows="${multiple ? 4 : 2}"
+                    id="${urlInputId}"
+                    class="seedance-url-input"
+                    rows="${multiple ? 4 : 1}"
                     placeholder="${
                         multiple
                             ? "Satu URL per baris..."
@@ -468,12 +534,10 @@ function createMediaSourceField(
                 ${
                     multiple
                         ? `
-                            <div
-                                class="seedance-file-help"
-                            >
+                            <div class="seedance-file-help">
                                 Satu URL per baris.
                             </div>
-                        `
+                          `
                         : ""
                 }
 
@@ -507,25 +571,25 @@ function renderPrompt() {
         "Instruksi video untuk Seedance 2.5.",
 
         `
+
         <textarea
-            id="${FIELD_IDS.prompt}"
-            class="seedance-textarea seedance-prompt-input"
+            id="${fieldId("prompt")}"
+            class="seedance-prompt-input"
             rows="7"
             maxlength="30000"
             placeholder="Deskripsikan video yang ingin dibuat..."
         ></textarea>
 
+        <div class="seedance-counter">
 
-        <div
-            class="seedance-prompt-counter"
-        >
-            <span
-                id="seedancePromptCounter"
-            >
+            <span id="seedancePromptCounter">
                 0
             </span>
+
             / 30000
+
         </div>
+
         `
 
     );
@@ -552,6 +616,7 @@ function renderSelect(
         options
             .map(
                 option => `
+
                     <option
                         value="${escapeHtml(option.value)}"
                         ${
@@ -562,6 +627,7 @@ function renderSelect(
                     >
                         ${escapeHtml(option.label)}
                     </option>
+
                 `
             )
             .join("");
@@ -574,12 +640,16 @@ function renderSelect(
         description,
 
         `
+
         <select
             id="${id}"
             class="seedance-select"
         >
+
             ${html}
+
         </select>
+
         `
 
     );
@@ -600,34 +670,30 @@ function renderDuration() {
         "Durasi video dalam detik.",
 
         `
-        <div
-            class="seedance-duration-row"
-        >
+
+        <div class="seedance-duration-row">
 
             <input
-                id="${FIELD_IDS.duration}"
+                id="${fieldId("duration")}"
                 type="range"
                 min="${MIN_DURATION}"
                 max="${MAX_DURATION}"
                 step="1"
-                value="${MIN_DURATION}"
+                value="5"
                 class="seedance-duration-range"
             />
-
 
             <div
                 id="seedanceDurationValue"
                 class="seedance-duration-value"
             >
-                ${MIN_DURATION} detik
+                5 detik
             </div>
 
         </div>
 
 
-        <div
-            class="seedance-duration-scale"
-        >
+        <div class="seedance-duration-scale">
 
             <span>
                 ${MIN_DURATION}s
@@ -638,6 +704,7 @@ function renderDuration() {
             </span>
 
         </div>
+
         `
 
     );
@@ -667,34 +734,33 @@ function renderCheckbox(
         description,
 
         `
-        <div
-            class="seedance-toggle-row"
+
+        <label
+            class="seedance-toggle"
         >
 
-            <label
-                class="seedance-toggle"
-            >
-
-                <input
-                    id="${id}"
-                    type="checkbox"
-                    ${
-                        checked
-                            ? "checked"
-                            : ""
-                    }
-                />
-
-
-                <span
-                    class="seedance-toggle-track"
-                ></span>
-
-            </label>
-
+            <input
+                id="${id}"
+                type="checkbox"
+                ${
+                    checked
+                        ? "checked"
+                        : ""
+                }
+            />
 
             <span
-                class="seedance-toggle-status"
+                class="seedance-toggle-track"
+            >
+
+                <span
+                    class="seedance-toggle-thumb"
+                ></span>
+
+            </span>
+
+            <span
+                class="seedance-toggle-label"
             >
                 ${
                     checked
@@ -703,7 +769,8 @@ function renderCheckbox(
                 }
             </span>
 
-        </div>
+        </label>
+
         `
 
     );
@@ -712,7 +779,443 @@ function renderCheckbox(
 
 
 /* =========================================================
-   RENDER SEEDANCE FORM
+   STYLES
+========================================================= */
+
+function injectStyles() {
+
+    const styleId =
+        "seedance-generate-styles";
+
+
+    if (
+        document.getElementById(
+            styleId
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    const style =
+        document.createElement(
+            "style"
+        );
+
+
+    style.id =
+        styleId;
+
+
+    style.textContent = `
+
+        .seedance-field {
+            margin-bottom: 22px;
+            padding: 18px;
+            border: 1px solid rgba(255,45,80,.20);
+            border-radius: 16px;
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,.045),
+                    rgba(0,0,0,.25)
+                );
+            box-shadow:
+                0 0 22px rgba(255,35,70,.055);
+        }
+
+
+        .seedance-field-header {
+            margin-bottom: 14px;
+        }
+
+
+        .seedance-field-title {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+
+        .seedance-field-description {
+            margin-top: 5px;
+            color: rgba(255,255,255,.48);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+
+        .seedance-source-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+
+        .seedance-source-tab {
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 9px;
+            padding: 8px 14px;
+            background: rgba(255,255,255,.045);
+            color: rgba(255,255,255,.62);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+
+        .seedance-source-tab.is-active {
+            border-color: rgba(255,35,70,.65);
+            background: rgba(255,35,70,.12);
+            color: #fff;
+        }
+
+
+        .seedance-upload-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+
+        .seedance-add-file-button {
+            border: 1px solid rgba(255,35,70,.55);
+            border-radius: 9px;
+            padding: 8px 13px;
+            background: rgba(255,35,70,.10);
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 800;
+            transition:
+                background .18s ease,
+                border-color .18s ease,
+                transform .18s ease;
+        }
+
+
+        .seedance-add-file-button:hover {
+            background: rgba(255,35,70,.20);
+            border-color: rgba(255,35,70,.85);
+            transform: translateY(-1px);
+        }
+
+
+        .seedance-file-limit {
+            margin-left: auto;
+            color: rgba(255,255,255,.45);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+
+        .seedance-file-input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 11px;
+            border: 1px solid rgba(255,255,255,.11);
+            border-radius: 11px;
+            background: rgba(0,0,0,.32);
+            color: #fff;
+            font-size: 12px;
+            outline: none;
+        }
+
+
+        .seedance-file-help {
+            margin-top: 7px;
+            color: rgba(255,255,255,.38);
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+
+        .seedance-selected-files {
+            display: grid;
+            gap: 7px;
+            margin-top: 12px;
+        }
+
+
+        .seedance-selected-file {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            padding: 9px 10px;
+            border: 1px solid rgba(255,255,255,.07);
+            border-radius: 9px;
+            background: rgba(255,255,255,.025);
+        }
+
+
+        .seedance-selected-file-index {
+            flex: 0 0 26px;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 7px;
+            background: rgba(255,35,70,.10);
+            color: rgba(255,255,255,.75);
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+
+        .seedance-selected-file-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+
+        .seedance-selected-file-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: rgba(255,255,255,.78);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+
+        .seedance-selected-file-size {
+            margin-top: 2px;
+            color: rgba(255,255,255,.35);
+            font-size: 10px;
+        }
+
+
+        .seedance-remove-file-button {
+            flex: 0 0 auto;
+            border: 1px solid rgba(255,70,90,.25);
+            border-radius: 7px;
+            padding: 6px 9px;
+            background: rgba(255,35,70,.07);
+            color: rgba(255,150,160,.9);
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+
+        .seedance-remove-file-button:hover {
+            border-color: rgba(255,70,90,.65);
+            background: rgba(255,35,70,.16);
+            color: #fff;
+        }
+
+
+        .seedance-file-input.seedance-hidden-native-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+
+        .seedance-url-input,
+        .seedance-prompt-input,
+        .seedance-select {
+            box-sizing: border-box;
+            width: 100%;
+            border: 1px solid rgba(255,255,255,.11);
+            border-radius: 11px;
+            background: rgba(0,0,0,.32);
+            color: #fff;
+            outline: none;
+        }
+
+
+        .seedance-url-input,
+        .seedance-prompt-input {
+            padding: 12px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+
+        .seedance-select {
+            min-height: 44px;
+            padding: 0 12px;
+        }
+
+
+        .seedance-media-preview {
+            display: grid;
+            grid-template-columns:
+                repeat(
+                    auto-fill,
+                    minmax(
+                        150px,
+                        1fr
+                    )
+                );
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+
+        .seedance-preview-media {
+            display: block;
+            width: 100%;
+            max-height: 260px;
+            object-fit: contain;
+            border-radius: 10px;
+            background: #000;
+        }
+
+
+        .seedance-prompt-input:focus,
+        .seedance-url-input:focus,
+        .seedance-select:focus,
+        .seedance-file-input:focus {
+            border-color: rgba(255,35,70,.65);
+            box-shadow:
+                0 0 0 3px rgba(255,35,70,.08);
+        }
+
+
+        .seedance-counter {
+            margin-top: 6px;
+            text-align: right;
+            color: rgba(255,255,255,.34);
+            font-size: 10px;
+        }
+
+
+        .seedance-duration-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+
+        .seedance-duration-range {
+            flex: 1;
+            accent-color: #ff2346;
+        }
+
+
+        .seedance-duration-value {
+            min-width: 75px;
+            text-align: right;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+
+        .seedance-duration-scale {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 7px;
+            color: rgba(255,255,255,.3);
+            font-size: 10px;
+        }
+
+
+        .seedance-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+
+        .seedance-toggle input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+
+        .seedance-toggle-track {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            border-radius: 20px;
+            background: rgba(255,255,255,.12);
+            transition: .2s;
+        }
+
+
+        .seedance-toggle-thumb {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.7);
+            transition: .2s;
+        }
+
+
+        .seedance-toggle input:checked
+        + .seedance-toggle-track {
+            background: rgba(255,35,70,.72);
+        }
+
+
+        .seedance-toggle input:checked
+        + .seedance-toggle-track
+        .seedance-toggle-thumb {
+            transform: translateX(20px);
+            background: #fff;
+        }
+
+
+        .seedance-toggle-label {
+            color: rgba(255,255,255,.72);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+
+        @media (max-width: 640px) {
+
+            .seedance-field {
+                padding: 15px;
+                border-radius: 14px;
+            }
+
+
+            .seedance-duration-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+
+            .seedance-duration-value {
+                text-align: left;
+            }
+
+
+            .seedance-selected-file {
+                align-items: flex-start;
+            }
+
+        }
+
+    `;
+
+
+    document.head.appendChild(
+        style
+    );
+
+}
+
+
+/* =========================================================
+   RENDER FORM
 ========================================================= */
 
 function renderSeedanceForm(
@@ -732,7 +1235,7 @@ function renderSeedanceForm(
         getDynamicFields();
 
 
-    renderSeedanceStyles();
+    injectStyles();
 
 
     container.innerHTML = `
@@ -751,7 +1254,7 @@ function renderSeedanceForm(
                     "firstFrame",
 
                 title:
-                    "First Frame",
+                    "Frame Awal",
 
                 description:
                     "Opsional. Upload gambar atau masukkan URL gambar.",
@@ -768,7 +1271,7 @@ function renderSeedanceForm(
                     "lastFrame",
 
                 title:
-                    "Last Frame",
+                    "Frame Akhir",
 
                 description:
                     "Opsional. Menentukan frame akhir video.",
@@ -1044,6 +1547,9 @@ function renderSeedanceForm(
     `;
 
 
+    resetReferenceFileState();
+
+
     bindSeedanceEvents();
 
 
@@ -1053,372 +1559,20 @@ function renderSeedanceForm(
 
 
 /* =========================================================
-   STYLES
+   RESET REFERENCE STATE
 ========================================================= */
 
-function renderSeedanceStyles() {
-
-    if (
-        document.getElementById(
-            "seedance-generate-styles"
-        )
-    ) {
-        return;
-    }
-
-
-    const style =
-        document.createElement(
-            "style"
-        );
-
-
-    style.id =
-        "seedance-generate-styles";
-
-
-    style.textContent = `
-
-        .seedance-form {
-            display: grid;
-            gap: 16px;
-        }
-
-
-        .seedance-field {
-            display: grid;
-            gap: 8px;
-        }
-
-
-        .seedance-field-title {
-            color: rgba(255,255,255,.88);
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-
-        .seedance-field-description {
-            margin-top: 3px;
-            color: rgba(255,255,255,.42);
-            font-size: 11px;
-            line-height: 1.5;
-        }
-
-
-        .seedance-input,
-        .seedance-textarea,
-        .seedance-select {
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid rgba(255,255,255,.08);
-            border-radius: 10px;
-            background: rgba(255,255,255,.035);
-            color: rgba(255,255,255,.88);
-            outline: none;
-        }
-
-
-        .seedance-select {
-            min-height: 42px;
-            padding: 0 12px;
-        }
-
-
-        .seedance-textarea {
-            min-height: 90px;
-            padding: 11px 12px;
-            resize: vertical;
-        }
-
-
-        .seedance-textarea:focus,
-        .seedance-select:focus {
-            border-color: rgba(255,255,255,.2);
-            background: rgba(255,255,255,.05);
-            box-shadow:
-                0 0 0 2px
-                rgba(255,255,255,.025);
-        }
-
-
-        .seedance-file-input {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 10px;
-            border: 1px dashed rgba(255,255,255,.12);
-            border-radius: 10px;
-            background: rgba(255,255,255,.025);
-            color: rgba(255,255,255,.58);
-            cursor: pointer;
-        }
-
-
-        .seedance-source-tabs {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            margin-bottom: 10px;
-        }
-
-
-        .seedance-source-tab {
-            border: 1px solid rgba(255,255,255,.08);
-            border-radius: 8px;
-            background: rgba(255,255,255,.025);
-            color: rgba(255,255,255,.5);
-            padding: 7px 11px;
-            font-size: 11px;
-            cursor: pointer;
-        }
-
-
-        .seedance-source-tab.is-active {
-            color: rgba(255,255,255,.95);
-            border-color: rgba(255,255,255,.18);
-            background: rgba(255,255,255,.07);
-        }
-
-
-        .seedance-source-panel {
-            display: grid;
-            gap: 10px;
-        }
-
-
-        .seedance-source-panel[hidden] {
-            display: none;
-        }
-
-
-        .seedance-file-help {
-            color: rgba(255,255,255,.36);
-            font-size: 10px;
-            line-height: 1.5;
-        }
-
-
-        .seedance-selected-files {
-            display: grid;
-            gap: 6px;
-            max-height: 420px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            margin-top: 5px;
-        }
-
-
-        .seedance-selected-files-summary {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            padding: 7px 9px;
-            border: 1px solid rgba(255,255,255,.07);
-            border-radius: 8px;
-            background: rgba(18,18,18,.96);
-            color: rgba(255,255,255,.5);
-            font-size: 10px;
-        }
-
-
-        .seedance-selected-file {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            min-width: 0;
-            box-sizing: border-box;
-            padding: 9px 10px;
-            border: 1px solid rgba(255,255,255,.07);
-            border-radius: 9px;
-            background: rgba(255,255,255,.025);
-        }
-
-
-        .seedance-selected-file-name {
-            min-width: 0;
-            flex: 1 1 auto;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            color: rgba(255,255,255,.72);
-            font-size: 11px;
-        }
-
-
-        .seedance-selected-file-size {
-            flex: 0 0 auto;
-            color: rgba(255,255,255,.35);
-            font-size: 10px;
-            white-space: nowrap;
-        }
-
-
-        .seedance-file-error {
-            display: none;
-            padding: 8px 10px;
-            border: 1px solid rgba(255,70,70,.22);
-            border-radius: 8px;
-            background: rgba(255,50,50,.05);
-            color: rgba(255,120,120,.9);
-            font-size: 10px;
-            line-height: 1.45;
-        }
-
-
-        .seedance-file-error.active {
-            display: block;
-        }
-
-
-        .seedance-media-preview {
-            display: grid;
-            grid-template-columns:
-                repeat(
-                    auto-fill,
-                    minmax(120px, 1fr)
-                );
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-
-        .seedance-preview-media {
-            display: block;
-            width: 100%;
-            max-width: 100%;
-            max-height: 220px;
-            object-fit: contain;
-            border-radius: 9px;
-        }
-
-
-        .seedance-prompt-counter {
-            text-align: right;
-            color: rgba(255,255,255,.32);
-            font-size: 10px;
-        }
-
-
-        .seedance-duration-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-
-        .seedance-duration-range {
-            flex: 1 1 auto;
-            width: 100%;
-        }
-
-
-        .seedance-duration-value {
-            min-width: 58px;
-            text-align: center;
-            color: rgba(255,255,255,.65);
-            font-size: 12px;
-        }
-
-
-        .seedance-duration-scale {
-            display: flex;
-            justify-content: space-between;
-            color: rgba(255,255,255,.3);
-            font-size: 9px;
-        }
-
-
-        .seedance-toggle-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            min-height: 42px;
-            padding: 10px 12px;
-            box-sizing: border-box;
-            border: 1px solid rgba(255,255,255,.07);
-            border-radius: 10px;
-            background: rgba(255,255,255,.025);
-        }
-
-
-        .seedance-toggle {
-            position: relative;
-            width: 42px;
-            height: 22px;
-            flex: 0 0 auto;
-        }
-
-
-        .seedance-toggle input {
-            position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-
-        .seedance-toggle-track {
-            position: absolute;
-            inset: 0;
-            border-radius: 999px;
-            background: rgba(255,255,255,.1);
-            cursor: pointer;
-        }
-
-
-        .seedance-toggle-track::after {
-            content: "";
-            position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: rgba(255,255,255,.7);
-            transition:
-                transform .18s ease;
-        }
-
-
-        .seedance-toggle input:checked
-        + .seedance-toggle-track {
-            background: rgba(255,255,255,.24);
-        }
-
-
-        .seedance-toggle input:checked
-        + .seedance-toggle-track::after {
-            transform:
-                translateX(20px);
-            background: #fff;
-        }
-
-
-        .seedance-toggle-status {
-            color: rgba(255,255,255,.55);
-            font-size: 11px;
-        }
-
-
-        @media (max-width: 700px) {
-
-            .seedance-media-preview {
-                grid-template-columns:
-                    repeat(
-                        auto-fill,
-                        minmax(100px, 1fr)
-                    );
-            }
+function resetReferenceFileState() {
+
+    Object.keys(
+        selectedReferenceFiles
+    ).forEach(
+        name => {
+
+            selectedReferenceFiles[name] =
+                [];
 
         }
-
-    `;
-
-
-    document.head.appendChild(
-        style
     );
 
 }
@@ -1430,256 +1584,323 @@ function renderSeedanceStyles() {
 
 function bindSourceTabs() {
 
-    const tabs =
-        document.querySelectorAll(
+    document
+        .querySelectorAll(
             ".seedance-source-tab"
-        );
+        )
+        .forEach(
+            button => {
 
+                if (
+                    button.dataset.seedanceBound ===
+                    "true"
+                ) {
 
-    tabs.forEach(
-        tab => {
-
-            if (
-                tab.dataset
-                    .seedanceTabBound ===
-                "true"
-            ) {
-                return;
-            }
-
-
-            tab.dataset
-                .seedanceTabBound =
-                "true";
-
-
-            tab.addEventListener(
-                "click",
-                () => {
-
-                    const mode =
-                        String(
-                            tab.dataset.mode ||
-                            "upload"
-                        );
-
-
-                    const wrapper =
-                        tab.closest(
-                            ".seedance-media-source"
-                        );
-
-
-                    if (!wrapper) {
-                        return;
-                    }
-
-
-                    const sourceId =
-                        wrapper.dataset.sourceId;
-
-
-                    wrapper
-                        .querySelectorAll(
-                            ".seedance-source-tab"
-                        )
-                        .forEach(
-                            item => {
-
-                                item.classList.toggle(
-                                    "is-active",
-                                    item === tab
-                                );
-
-                            }
-                        );
-
-
-                    const modeInput =
-                        document.getElementById(
-                            `${sourceId}-mode`
-                        );
-
-
-                    if (modeInput) {
-
-                        modeInput.value =
-                            mode;
-
-                    }
-
-
-                    wrapper
-                        .querySelectorAll(
-                            ".seedance-source-panel"
-                        )
-                        .forEach(
-                            panel => {
-
-                                panel.hidden =
-                                    panel.dataset.mode !==
-                                    mode;
-
-                            }
-                        );
+                    return;
 
                 }
-            );
 
-        }
-    );
+
+                button.dataset.seedanceBound =
+                    "true";
+
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        const sourceId =
+                            button.dataset
+                                .seedanceSource;
+
+
+                        const mode =
+                            button.dataset
+                                .mode ||
+                            "upload";
+
+
+                        const wrapper =
+                            button.closest(
+                                ".seedance-media-source"
+                            );
+
+
+                        if (
+                            !wrapper
+                        ) {
+
+                            return;
+
+                        }
+
+
+                        const hidden =
+                            document.getElementById(
+                                `${sourceId}-mode`
+                            );
+
+
+                        if (
+                            hidden
+                        ) {
+
+                            hidden.value =
+                                mode;
+
+                        }
+
+
+                        wrapper
+                            .querySelectorAll(
+                                ".seedance-source-tab"
+                            )
+                            .forEach(
+                                tab => {
+
+                                    tab.classList.toggle(
+                                        "is-active",
+                                        tab === button
+                                    );
+
+                                }
+                            );
+
+
+                        wrapper
+                            .querySelectorAll(
+                                ".seedance-source-panel"
+                            )
+                            .forEach(
+                                panel => {
+
+                                    panel.hidden =
+                                        panel.dataset.mode !==
+                                        mode;
+
+                                }
+                            );
+
+                    }
+                );
+
+            }
+        );
 
 }
 
 
 /* =========================================================
-   FILE HELPERS
+   ADD BUTTON
 ========================================================= */
 
-function getFileInputBaseId(
-    input
-) {
+function bindAddButtons() {
 
-    return String(
-        input?.id || ""
-    ).replace(
-        /-file$/,
-        ""
-    );
+    document
+        .querySelectorAll(
+            "[data-seedance-add]"
+        )
+        .forEach(
+            button => {
 
-}
+                if (
+                    button.dataset.seedanceBound ===
+                    "true"
+                ) {
+
+                    return;
+
+                }
 
 
-function getFileInputMaxFiles(
-    input
-) {
+                button.dataset.seedanceBound =
+                    "true";
 
-    const value =
-        Number(
-            input?.dataset?.maxFiles || ""
+
+                button.addEventListener(
+                    "click",
+                    event => {
+
+                        event.preventDefault();
+
+
+                        const name =
+                            button.dataset
+                                .seedanceAdd;
+
+
+                        const input =
+                            document.getElementById(
+                                `${fieldId(name)}-file`
+                            );
+
+
+                        if (
+                            !input
+                        ) {
+
+                            return;
+
+                        }
+
+
+                        const maxFiles =
+                            getMaxFilesForReference(
+                                name
+                            );
+
+
+                        const currentCount =
+                            selectedReferenceFiles[
+                                name
+                            ]?.length || 0;
+
+
+                        if (
+                            currentCount >=
+                            maxFiles
+                        ) {
+
+                            showSeedanceFileMessage(
+                                `${getReferenceLabel(name)} maksimal ${maxFiles} file.`
+                            );
+
+                            return;
+
+                        }
+
+
+                        input.click();
+
+                    }
+                );
+
+            }
         );
-
-
-    return (
-        Number.isInteger(value) &&
-        value > 0
-    )
-        ? value
-        : null;
-
-}
-
-
-function getFileInputLabel(
-    input
-) {
-
-    const wrapper =
-        input?.closest(
-            ".seedance-field"
-        );
-
-
-    const title =
-        wrapper?.querySelector(
-            ".seedance-field-title"
-        );
-
-
-    return (
-        String(
-            title?.textContent || ""
-        ).trim() ||
-        "File"
-    );
 
 }
 
 
 /* =========================================================
-   FILE ERROR
+   GET MAX FILES
 ========================================================= */
 
-function showFileInputError(
-    input,
-    message
+function getMaxFilesForReference(
+    name
 ) {
 
-    const baseId =
-        getFileInputBaseId(input);
+    if (
+        name === "referenceImages"
+    ) {
 
+        return MAX_REFERENCE_IMAGE_FILES;
 
-    const element =
-        document.getElementById(
-            `${baseId}-file-error`
-        );
-
-
-    if (!element) {
-        return;
     }
-
-
-    element.textContent =
-        String(
-            message || ""
-        );
-
-
-    element.classList.toggle(
-        "active",
-        Boolean(message)
-    );
-
-}
-
-
-function clearFileInputError(
-    input
-) {
-
-    showFileInputError(
-        input,
-        ""
-    );
-
-}
-
-
-/* =========================================================
-   SELECTED FILE DISPLAY
-========================================================= */
-
-function displaySelectedFiles(
-    input
-) {
-
-    const baseId =
-        getFileInputBaseId(input);
-
-
-    const container =
-        document.getElementById(
-            `${baseId}-files`
-        );
-
-
-    if (!container) {
-        return;
-    }
-
-
-    container.innerHTML = "";
-
-
-    const files =
-        Array.from(
-            input?.files || []
-        );
 
 
     if (
-        files.length === 0
+        name === "referenceVideos"
+    ) {
+
+        return MAX_REFERENCE_VIDEO_FILES;
+
+    }
+
+
+    if (
+        name === "referenceAudio"
+    ) {
+
+        return MAX_REFERENCE_AUDIO_FILES;
+
+    }
+
+
+    return 1;
+
+}
+
+
+/* =========================================================
+   LABEL
+========================================================= */
+
+function getReferenceLabel(
+    name
+) {
+
+    if (
+        name === "referenceImages"
+    ) {
+
+        return "Reference Images";
+
+    }
+
+
+    if (
+        name === "referenceVideos"
+    ) {
+
+        return "Reference Videos";
+
+    }
+
+
+    if (
+        name === "referenceAudio"
+    ) {
+
+        return "Reference Audio";
+
+    }
+
+
+    return "File";
+
+}
+
+
+/* =========================================================
+   FILE KEY
+========================================================= */
+
+function getFileKey(
+    file
+) {
+
+    return [
+
+        file?.name || "",
+
+        file?.size || 0,
+
+        file?.lastModified || 0,
+
+        file?.type || ""
+
+    ].join(
+        "::"
+    );
+
+}
+
+
+/* =========================================================
+   ADD FILES TO STATE
+========================================================= */
+
+function addReferenceFiles(
+    name,
+    files
+) {
+
+    const list =
+        selectedReferenceFiles[name];
+
+
+    if (
+        !Array.isArray(list)
     ) {
 
         return;
@@ -1688,34 +1909,168 @@ function displaySelectedFiles(
 
 
     const maxFiles =
-        getFileInputMaxFiles(
-            input
+        getMaxFilesForReference(
+            name
         );
 
 
-    const summary =
-        document.createElement(
-            "div"
+    const existingKeys =
+        new Set(
+            list.map(
+                file =>
+                    getFileKey(file)
+            )
         );
 
 
-    summary.className =
-        "seedance-selected-files-summary";
+    for (
+        const file of files
+    ) {
+
+        if (
+            list.length >=
+            maxFiles
+        ) {
+
+            break;
+
+        }
 
 
-    summary.textContent =
-        maxFiles
-            ? `${files.length} file dipilih dari maksimal ${maxFiles}`
-            : `${files.length} file dipilih`;
+        const key =
+            getFileKey(file);
 
 
-    container.appendChild(
-        summary
+        if (
+            existingKeys.has(key)
+        ) {
+
+            continue;
+
+        }
+
+
+        list.push(file);
+
+
+        existingKeys.add(key);
+
+    }
+
+
+    renderReferenceFileList(
+        name
     );
 
 
+    updateReferenceLimit(
+        name
+    );
+
+
+    renderReferencePreview(
+        name
+    );
+
+}
+
+
+/* =========================================================
+   REMOVE FILE
+========================================================= */
+
+function removeReferenceFile(
+    name,
+    index
+) {
+
+    const list =
+        selectedReferenceFiles[name];
+
+
+    if (
+        !Array.isArray(list)
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        index < 0 ||
+        index >= list.length
+    ) {
+
+        return;
+
+    }
+
+
+    list.splice(
+        index,
+        1
+    );
+
+
+    renderReferenceFileList(
+        name
+    );
+
+
+    updateReferenceLimit(
+        name
+    );
+
+
+    renderReferencePreview(
+        name
+    );
+
+}
+
+
+/* =========================================================
+   RENDER REFERENCE LIST
+========================================================= */
+
+function renderReferenceFileList(
+    name
+) {
+
+    const id =
+        fieldId(name);
+
+
+    const container =
+        document.getElementById(
+            `${id}-files`
+        );
+
+
+    if (
+        !container
+    ) {
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        "";
+
+
+    const files =
+        selectedReferenceFiles[name] ||
+        [];
+
+
     files.forEach(
-        file => {
+        (
+            file,
+            index
+        ) => {
 
             const row =
                 document.createElement(
@@ -1727,43 +2082,110 @@ function displaySelectedFiles(
                 "seedance-selected-file";
 
 
-            const name =
+            const number =
                 document.createElement(
-                    "span"
+                    "div"
                 );
 
 
-            name.className =
+            number.className =
+                "seedance-selected-file-index";
+
+
+            number.textContent =
+                String(
+                    index + 1
+                );
+
+
+            const info =
+                document.createElement(
+                    "div"
+                );
+
+
+            info.className =
+                "seedance-selected-file-info";
+
+
+            const fileName =
+                document.createElement(
+                    "div"
+                );
+
+
+            fileName.className =
                 "seedance-selected-file-name";
 
 
-            name.textContent =
+            fileName.textContent =
                 file.name;
 
 
-            name.title =
-                file.name;
-
-
-            const size =
+            const fileSize =
                 document.createElement(
-                    "span"
+                    "div"
                 );
 
 
-            size.className =
+            fileSize.className =
                 "seedance-selected-file-size";
 
 
-            size.textContent =
+            fileSize.textContent =
                 mediaModule.formatFileSize(
                     file.size
                 );
 
 
+            info.append(
+                fileName,
+                fileSize
+            );
+
+
+            const remove =
+                document.createElement(
+                    "button"
+                );
+
+
+            remove.type =
+                "button";
+
+
+            remove.className =
+                "seedance-remove-file-button";
+
+
+            remove.textContent =
+                "× Hapus";
+
+
+            remove.dataset.index =
+                String(index);
+
+
+            remove.addEventListener(
+                "click",
+                event => {
+
+                    event.preventDefault();
+
+
+                    removeReferenceFile(
+                        name,
+                        index
+                    );
+
+                }
+            );
+
+
             row.append(
-                name,
-                size
+                number,
+                info,
+                remove
             );
 
 
@@ -1778,41 +2200,21 @@ function displaySelectedFiles(
 
 
 /* =========================================================
-   FILE PREVIEW
+   UPDATE LIMIT COUNTER
 ========================================================= */
 
-async function renderFilePreview(
-    input
+function updateReferenceLimit(
+    name
 ) {
 
-    const baseId =
-        getFileInputBaseId(
-            input
-        );
-
-
-    const preview =
-        document.getElementById(
-            `${baseId}-preview`
-        );
-
-
-    if (!preview) {
-        return;
-    }
-
-
-    preview.innerHTML = "";
-
-
-    const files =
-        Array.from(
-            input?.files || []
+    const limit =
+        document.querySelector(
+            `[data-limit-for="${name}"]`
         );
 
 
     if (
-        files.length === 0
+        !limit
     ) {
 
         return;
@@ -1820,41 +2222,32 @@ async function renderFilePreview(
     }
 
 
-    for (
-        const file of files
+    const maxFiles =
+        getMaxFilesForReference(
+            name
+        );
+
+
+    const count =
+        selectedReferenceFiles[name]
+            ?.length || 0;
+
+
+    limit.textContent =
+        `${count} / ${maxFiles}`;
+
+
+    if (
+        count >= maxFiles
     ) {
 
-        try {
+        limit.style.color =
+            "rgba(255,120,130,.95)";
 
-            const element =
-                await mediaModule
-                    .createPreviewElement(
-                        file,
-                        {
-                            className:
-                                "seedance-preview-media"
-                        }
-                    );
+    } else {
 
-
-            if (element) {
-
-                preview.appendChild(
-                    element
-                );
-
-            }
-
-        } catch (
-            error
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] Seedance preview gagal:",
-                error
-            );
-
-        }
+        limit.style.color =
+            "rgba(255,255,255,.45)";
 
     }
 
@@ -1862,7 +2255,210 @@ async function renderFilePreview(
 
 
 /* =========================================================
-   INPUT TYPE
+   FILE INPUTS
+========================================================= */
+
+function bindFileInputs() {
+
+    document
+        .querySelectorAll(
+            ".seedance-file-input"
+        )
+        .forEach(
+            input => {
+
+                if (
+                    input.dataset.seedanceBound ===
+                    "true"
+                ) {
+
+                    return;
+
+                }
+
+
+                input.dataset.seedanceBound =
+                    "true";
+
+
+                input.addEventListener(
+                    "change",
+                    () => {
+
+                        const referenceName =
+                            input.dataset
+                                .referenceName;
+
+
+                        const files =
+                            Array.from(
+                                input.files || []
+                            );
+
+
+                        if (
+                            referenceName
+                        ) {
+
+                            addReferenceFiles(
+                                referenceName,
+                                files
+                            );
+
+
+                            /*
+                             * Reset native input.
+                             *
+                             * File sebenarnya sudah masuk
+                             * ke internal state.
+                             *
+                             * Dengan reset ini user bisa
+                             * memilih file yang sama lagi
+                             * jika sebelumnya dihapus.
+                             */
+                            input.value =
+                                "";
+
+                            return;
+
+                        }
+
+
+                        displaySingleFile(
+                            input
+                        );
+
+
+                        renderFilePreview(
+                            input
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   SINGLE FILE DISPLAY
+========================================================= */
+
+function displaySingleFile(
+    input
+) {
+
+    const baseId =
+        input.id.replace(
+            /-file$/,
+            ""
+        );
+
+
+    const container =
+        document.getElementById(
+            `${baseId}-files`
+        );
+
+
+    if (
+        !container
+    ) {
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        "";
+
+
+    const file =
+        input.files?.[0];
+
+
+    if (
+        !file
+    ) {
+
+        return;
+
+    }
+
+
+    const row =
+        document.createElement(
+            "div"
+        );
+
+
+    row.className =
+        "seedance-selected-file";
+
+
+    const info =
+        document.createElement(
+            "div"
+        );
+
+
+    info.className =
+        "seedance-selected-file-info";
+
+
+    const name =
+        document.createElement(
+            "div"
+        );
+
+
+    name.className =
+        "seedance-selected-file-name";
+
+
+    name.textContent =
+        file.name;
+
+
+    const size =
+        document.createElement(
+            "div"
+        );
+
+
+    size.className =
+        "seedance-selected-file-size";
+
+
+    size.textContent =
+        mediaModule.formatFileSize(
+            file.size
+        );
+
+
+    info.append(
+        name,
+        size
+    );
+
+
+    row.append(
+        info
+    );
+
+
+    container.appendChild(
+        row
+    );
+
+}
+
+
+/* =========================================================
+   EXPECTED TYPE
 ========================================================= */
 
 function getExpectedTypeFromInput(
@@ -1872,7 +2468,7 @@ function getExpectedTypeFromInput(
     const accept =
         String(
             input?.accept || ""
-        ).toLowerCase();
+        );
 
 
     if (
@@ -1914,142 +2510,158 @@ function getExpectedTypeFromInput(
 
 
 /* =========================================================
-   FILE INPUT EVENTS
+   REFERENCE PREVIEW
 ========================================================= */
 
-function bindFileInputs() {
+function renderReferencePreview(
+    name
+) {
 
-    const inputs =
-        document.querySelectorAll(
-            ".seedance-file-input"
+    const id =
+        fieldId(name);
+
+
+    const preview =
+        document.getElementById(
+            `${id}-preview`
         );
 
 
-    inputs.forEach(
-        input => {
+    if (
+        !preview
+    ) {
 
-            if (
-                input.dataset
-                    .seedanceBound ===
-                "true"
-            ) {
+        return;
 
-                return;
-
-            }
+    }
 
 
-            input.dataset
-                .seedanceBound =
-                "true";
+    preview.innerHTML =
+        "";
 
 
-            input.addEventListener(
-                "change",
-                async () => {
-
-                    clearFileInputError(
-                        input
-                    );
+    const files =
+        selectedReferenceFiles[name] ||
+        [];
 
 
-                    const files =
-                        Array.from(
-                            input.files || []
-                        );
+    files.forEach(
+        file => {
 
+            try {
 
-                    const maxFiles =
-                        getFileInputMaxFiles(
-                            input
-                        );
-
-
-                    const label =
-                        getFileInputLabel(
-                            input
-                        );
-
-
-                    try {
-
-                        validateReferenceFileCount(
-                            files,
-                            maxFiles,
-                            label
-                        );
-
-
-                        const expectedType =
-                            getExpectedTypeFromInput(
-                                input
-                            );
-
-
-                        if (
-                            expectedType ===
-                                "video" ||
-                            expectedType ===
-                                "audio"
-                        ) {
-
-                            await mediaModule
-                                .validateTotalDuration(
-                                    files,
-                                    expectedType
-                                );
-
+                const element =
+                    mediaModule.createPreviewElement(
+                        file,
+                        {
+                            className:
+                                "seedance-preview-media"
                         }
-
-
-                        await mediaModule
-                            .validateTotalSize(
-                                files,
-                                expectedType
-                            );
-
-
-                    } catch (
-                        error
-                    ) {
-
-                        input.value =
-                            "";
-
-
-                        displaySelectedFiles(
-                            input
-                        );
-
-
-                        await renderFilePreview(
-                            input
-                        );
-
-
-                        showFileInputError(
-                            input,
-                            error?.message ||
-                                "File tidak valid."
-                        );
-
-
-                        return;
-
-                    }
-
-
-                    displaySelectedFiles(
-                        input
                     );
 
 
-                    await renderFilePreview(
-                        input
+                if (
+                    element
+                ) {
+
+                    preview.appendChild(
+                        element
                     );
 
                 }
-            );
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[Seedance] Preview gagal:",
+                    error
+                );
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   SINGLE FILE PREVIEW
+========================================================= */
+
+function renderFilePreview(
+    input
+) {
+
+    const baseId =
+        input.id.replace(
+            /-file$/,
+            ""
+        );
+
+
+    const preview =
+        document.getElementById(
+            `${baseId}-preview`
+        );
+
+
+    if (
+        !preview
+    ) {
+
+        return;
+
+    }
+
+
+    preview.innerHTML =
+        "";
+
+
+    const files =
+        Array.from(
+            input.files || []
+        );
+
+
+    files.forEach(
+        file => {
+
+            try {
+
+                const element =
+                    mediaModule.createPreviewElement(
+                        file,
+                        {
+                            className:
+                                "seedance-preview-media"
+                        }
+                    );
+
+
+                if (
+                    element
+                ) {
+
+                    preview.appendChild(
+                        element
+                    );
+
+                }
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[Seedance] Preview gagal:",
+                    error
+                );
+
+            }
 
         }
     );
@@ -2063,29 +2675,160 @@ function bindFileInputs() {
 
 function bindUrlInputs() {
 
-    const inputs =
-        document.querySelectorAll(
+    document
+        .querySelectorAll(
             ".seedance-url-input"
+        )
+        .forEach(
+            input => {
+
+                if (
+                    input.dataset.seedanceBound ===
+                    "true"
+                ) {
+
+                    return;
+
+                }
+
+
+                input.dataset.seedanceBound =
+                    "true";
+
+
+                input.addEventListener(
+                    "input",
+                    () => {
+
+                        renderUrlPreview(
+                            input
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   URL TYPE
+========================================================= */
+
+function getExpectedTypeFromUrlInput(
+    input
+) {
+
+    const wrapper =
+        input.closest(
+            ".seedance-media-source"
         );
 
 
-    inputs.forEach(
-        input => {
+    if (
+        !wrapper
+    ) {
 
-            if (
-                input.dataset
-                    .seedanceUrlBound ===
-                "true"
-            ) {
+        return null;
 
-                return;
+    }
+
+
+    const fileInput =
+        wrapper.querySelector(
+            ".seedance-file-input"
+        );
+
+
+    return getExpectedTypeFromInput(
+        fileInput
+    );
+
+}
+
+
+/* =========================================================
+   URL PREVIEW
+========================================================= */
+
+function renderUrlPreview(
+    input
+) {
+
+    const baseId =
+        input.id.replace(
+            /-url$/,
+            ""
+        );
+
+
+    const preview =
+        document.getElementById(
+            `${baseId}-preview`
+        );
+
+
+    if (
+        !preview
+    ) {
+
+        return;
+
+    }
+
+
+    preview.innerHTML =
+        "";
+
+
+    const urls =
+        mediaModule.normalizeUrlList(
+            input.value
+        );
+
+
+    const type =
+        getExpectedTypeFromUrlInput(
+            input
+        );
+
+
+    urls.forEach(
+        url => {
+
+            try {
+
+                const element =
+                    mediaModule
+                        .createUrlPreviewElement(
+                            url,
+                            type,
+                            {
+                                className:
+                                    "seedance-preview-media"
+                            }
+                        );
+
+
+                if (
+                    element
+                ) {
+
+                    preview.appendChild(
+                        element
+                    );
+
+                }
+
+            } catch {
+
+                /*
+                 * URL divalidasi saat collection.
+                 */
 
             }
-
-
-            input.dataset
-                .seedanceUrlBound =
-                "true";
 
         }
     );
@@ -2099,9 +2842,9 @@ function bindUrlInputs() {
 
 function bindPromptCounter() {
 
-    const textarea =
+    const input =
         document.getElementById(
-            FIELD_IDS.prompt
+            fieldId("prompt")
         );
 
 
@@ -2112,7 +2855,7 @@ function bindPromptCounter() {
 
 
     if (
-        !textarea ||
+        !input ||
         !counter
     ) {
 
@@ -2122,14 +2865,13 @@ function bindPromptCounter() {
 
 
     if (
-        textarea.dataset
-            .seedanceCounterBound ===
+        input.dataset.seedanceCounterBound ===
         "true"
     ) {
 
         counter.textContent =
             String(
-                textarea.value.length
+                input.value.length
             );
 
         return;
@@ -2137,8 +2879,7 @@ function bindPromptCounter() {
     }
 
 
-    textarea.dataset
-        .seedanceCounterBound =
+    input.dataset.seedanceCounterBound =
         "true";
 
 
@@ -2147,13 +2888,13 @@ function bindPromptCounter() {
 
             counter.textContent =
                 String(
-                    textarea.value.length
+                    input.value.length
                 );
 
         };
 
 
-    textarea.addEventListener(
+    input.addEventListener(
         "input",
         update
     );
@@ -2172,7 +2913,7 @@ function bindDuration() {
 
     const input =
         document.getElementById(
-            FIELD_IDS.duration
+            fieldId("duration")
         );
 
 
@@ -2182,15 +2923,9 @@ function bindDuration() {
         );
 
 
-    if (!input) {
-        return;
-    }
-
-
     if (
-        input.dataset
-            .seedanceDurationBound ===
-        "true"
+        !input ||
+        !output
     ) {
 
         return;
@@ -2198,50 +2933,28 @@ function bindDuration() {
     }
 
 
-    input.dataset
-        .seedanceDurationBound =
+    if (
+        input.dataset.seedanceDurationBound ===
+        "true"
+    ) {
+
+        output.textContent =
+            `${input.value} detik`;
+
+        return;
+
+    }
+
+
+    input.dataset.seedanceDurationBound =
         "true";
 
 
     const update =
         () => {
 
-            let value =
-                Number(
-                    input.value
-                );
-
-
-            if (
-                !Number.isFinite(value)
-            ) {
-
-                value =
-                    MIN_DURATION;
-
-            }
-
-
-            value =
-                Math.min(
-                    MAX_DURATION,
-                    Math.max(
-                        MIN_DURATION,
-                        value
-                    )
-                );
-
-
-            input.value =
-                String(value);
-
-
-            if (output) {
-
-                output.textContent =
-                    `${value} detik`;
-
-            }
+            output.textContent =
+                `${input.value} detik`;
 
         };
 
@@ -2252,36 +2965,34 @@ function bindDuration() {
     );
 
 
-    input.addEventListener(
-        "change",
-        update
-    );
-
-
     update();
 
 }
 
 
 /* =========================================================
-   TOGGLE LABEL
+   TOGGLE LABELS
 ========================================================= */
 
 function bindToggleLabels() {
 
-    const toggles =
-        document.querySelectorAll(
-            ".seedance-toggle input"
-        );
+    [
 
+        "generateAudio",
+        "returnLastFrame",
+        "webSearch"
 
-    toggles.forEach(
-        input => {
+    ].forEach(
+        name => {
+
+            const input =
+                document.getElementById(
+                    fieldId(name)
+                );
+
 
             if (
-                input.dataset
-                    .seedanceToggleBound ===
-                "true"
+                !input
             ) {
 
                 return;
@@ -2289,45 +3000,53 @@ function bindToggleLabels() {
             }
 
 
-            input.dataset
-                .seedanceToggleBound =
-                "true";
+            const label =
+                input
+                    .closest(
+                        ".seedance-toggle"
+                    )
+                    ?.querySelector(
+                        ".seedance-toggle-label"
+                    );
 
 
-            const update =
-                () => {
+            if (
+                !label
+            ) {
 
-                    const row =
-                        input.closest(
-                            ".seedance-toggle-row"
-                        );
+                return;
 
-
-                    const status =
-                        row?.querySelector(
-                            ".seedance-toggle-status"
-                        );
+            }
 
 
-                    if (status) {
+            if (
+                input.dataset.seedanceToggleBound !==
+                "true"
+            ) {
 
-                        status.textContent =
+                input.dataset.seedanceToggleBound =
+                    "true";
+
+
+                input.addEventListener(
+                    "change",
+                    () => {
+
+                        label.textContent =
                             input.checked
                                 ? "Aktif"
                                 : "Nonaktif";
 
                     }
+                );
 
-                };
-
-
-            input.addEventListener(
-                "change",
-                update
-            );
+            }
 
 
-            update();
+            label.textContent =
+                input.checked
+                    ? "Aktif"
+                    : "Nonaktif";
 
         }
     );
@@ -2336,12 +3055,14 @@ function bindToggleLabels() {
 
 
 /* =========================================================
-   EVENT BINDING
+   BIND EVENTS
 ========================================================= */
 
 function bindSeedanceEvents() {
 
     bindSourceTabs();
+
+    bindAddButtons();
 
     bindFileInputs();
 
@@ -2353,11 +3074,44 @@ function bindSeedanceEvents() {
 
     bindToggleLabels();
 
+    updateReferenceLimit(
+        "referenceImages"
+    );
+
+    updateReferenceLimit(
+        "referenceVideos"
+    );
+
+    updateReferenceLimit(
+        "referenceAudio"
+    );
+
 }
 
 
 /* =========================================================
-   FILE COUNT VALIDATION
+   MESSAGE
+========================================================= */
+
+function showSeedanceFileMessage(
+    message
+) {
+
+    console.warn(
+        `[Seedance] ${message}`
+    );
+
+    /*
+     * Jangan menggunakan alert().
+     * Alert native browser membuat UX buruk
+     * dan dapat mengganggu proses Generate.
+     */
+
+}
+
+
+/* =========================================================
+   VALIDATE REFERENCE FILE COUNT
 ========================================================= */
 
 function validateReferenceFileCount(
@@ -2397,7 +3151,7 @@ function validateReferenceFileCount(
 
 
 /* =========================================================
-   MEDIA SOURCE COLLECTION
+   COLLECT MEDIA SOURCE
 ========================================================= */
 
 async function collectMediaSource(
@@ -2425,9 +3179,89 @@ async function collectMediaSource(
         );
 
 
+    /*
+     * =====================================================
+     * UPLOAD MODE
+     * =====================================================
+     */
+
     if (
         mode === "upload"
     ) {
+
+        /*
+         * Reference multiple menggunakan
+         * internal state.
+         */
+
+        if (
+            multiple
+        ) {
+
+            const files =
+                Array.isArray(
+                    selectedReferenceFiles[name]
+                )
+                    ? selectedReferenceFiles[name]
+                    : [];
+
+
+            if (
+                files.length === 0
+            ) {
+
+                return [];
+
+            }
+
+
+            validateReferenceFileCount(
+                files,
+                maxFiles,
+                label
+            );
+
+
+            await mediaModule.validateTotalSize(
+                files,
+                type
+            );
+
+
+            if (
+                type === "video" ||
+                type === "audio"
+            ) {
+
+                await mediaModule.validateTotalDuration(
+                    files,
+                    type
+                );
+
+            }
+
+
+            const uploaded =
+                await mediaModule.uploadFiles(
+                    files,
+                    {
+                        expectedType:
+                            type
+                    }
+                );
+
+
+            return uploaded.map(
+                item =>
+                    item.url
+            );
+
+        }
+
+
+        /*
+         * First Frame / Last Frame
+         */
 
         const input =
             document.getElementById(
@@ -2445,70 +3279,19 @@ async function collectMediaSource(
             files.length === 0
         ) {
 
-            return multiple
-                ? []
-                : "";
-
-        }
-
-
-        if (multiple) {
-
-            validateReferenceFileCount(
-                files,
-                maxFiles,
-                label
-            );
-
-
-            await mediaModule
-                .validateTotalSize(
-                    files,
-                    type
-                );
-
-
-            if (
-                type === "video" ||
-                type === "audio"
-            ) {
-
-                await mediaModule
-                    .validateTotalDuration(
-                        files,
-                        type
-                    );
-
-            }
-
-
-            const uploaded =
-                await mediaModule
-                    .uploadFiles(
-                        files,
-                        {
-                            expectedType:
-                                type
-                        }
-                    );
-
-
-            return uploaded.map(
-                item => item.url
-            );
+            return "";
 
         }
 
 
         const uploaded =
-            await mediaModule
-                .uploadFile(
-                    files[0],
-                    {
-                        expectedType:
-                            type
-                    }
-                );
+            await mediaModule.uploadFile(
+                files[0],
+                {
+                    expectedType:
+                        type
+                }
+            );
 
 
         return uploaded.url;
@@ -2516,137 +3299,136 @@ async function collectMediaSource(
     }
 
 
+    /*
+     * =====================================================
+     * URL MODE
+     * =====================================================
+     */
+
     const urlInput =
         document.getElementById(
             `${id}-url`
         );
 
 
-    if (multiple) {
+    if (
+        multiple
+    ) {
 
-        return mediaModule
-            .normalizeUrlList(
-                urlInput?.value ||
-                ""
+        const urls =
+            mediaModule.normalizeUrlList(
+                urlInput?.value || ""
             );
+
+
+        validateReferenceFileCount(
+            urls,
+            maxFiles,
+            label
+        );
+
+
+        return urls;
 
     }
 
 
     return mediaModule.normalizeUrl(
-        urlInput?.value ||
-        ""
+        urlInput?.value || ""
     );
 
 }
 
 
 /* =========================================================
-   SEEDANCE PARAMETERS
+   COLLECT PARAMETERS
 ========================================================= */
 
 async function getSeedanceParameters() {
 
-    const promptElement =
-        document.getElementById(
-            FIELD_IDS.prompt
+    if (
+        !isSeedanceModel()
+    ) {
+
+        throw new Error(
+            "Model aktif bukan Seedance 2.5."
         );
 
-
-    const resolutionElement =
-        document.getElementById(
-            FIELD_IDS.resolution
-        );
-
-
-    const aspectRatioElement =
-        document.getElementById(
-            FIELD_IDS.aspectRatio
-        );
-
-
-    const durationElement =
-        document.getElementById(
-            FIELD_IDS.duration
-        );
-
-
-    const outputFormatElement =
-        document.getElementById(
-            FIELD_IDS.outputFormat
-        );
-
-
-    const generateAudioElement =
-        document.getElementById(
-            FIELD_IDS.generateAudio
-        );
-
-
-    const returnLastFrameElement =
-        document.getElementById(
-            FIELD_IDS.returnLastFrame
-        );
-
-
-    const webSearchElement =
-        document.getElementById(
-            FIELD_IDS.webSearch
-        );
+    }
 
 
     const prompt =
         String(
-            promptElement?.value ||
+            document.getElementById(
+                fieldId("prompt")
+            )?.value ||
             ""
         ).trim();
 
 
     const resolution =
         String(
-            resolutionElement?.value ||
+            document.getElementById(
+                fieldId("resolution")
+            )?.value ||
             "720p"
         ).trim();
 
 
     const aspectRatio =
         String(
-            aspectRatioElement?.value ||
+            document.getElementById(
+                fieldId("aspectRatio")
+            )?.value ||
             "adaptive"
         ).trim();
 
 
     const duration =
         Number(
-            durationElement?.value ||
-            MIN_DURATION
+            document.getElementById(
+                fieldId("duration")
+            )?.value ||
+            5
         );
 
 
     const outputFormat =
         String(
-            outputFormatElement?.value ||
+            document.getElementById(
+                fieldId("outputFormat")
+            )?.value ||
             "mp4"
         ).trim();
 
 
     const generateAudio =
         Boolean(
-            generateAudioElement?.checked
+            document.getElementById(
+                fieldId("generateAudio")
+            )?.checked
         );
 
 
     const returnLastFrame =
         Boolean(
-            returnLastFrameElement?.checked
+            document.getElementById(
+                fieldId("returnLastFrame")
+            )?.checked
         );
 
 
     const webSearch =
         Boolean(
-            webSearchElement?.checked
+            document.getElementById(
+                fieldId("webSearch")
+            )?.checked
         );
 
+
+    /*
+     * First Frame
+     */
 
     const firstFrameUrl =
         await collectMediaSource(
@@ -2656,6 +3438,10 @@ async function getSeedanceParameters() {
         );
 
 
+    /*
+     * Last Frame
+     */
+
     const lastFrameUrl =
         await collectMediaSource(
             "lastFrame",
@@ -2663,6 +3449,10 @@ async function getSeedanceParameters() {
             false
         );
 
+
+    /*
+     * Reference Images
+     */
 
     const referenceImageUrls =
         await collectMediaSource(
@@ -2674,6 +3464,10 @@ async function getSeedanceParameters() {
         );
 
 
+    /*
+     * Reference Videos
+     */
+
     const referenceVideoUrls =
         await collectMediaSource(
             "referenceVideos",
@@ -2683,6 +3477,10 @@ async function getSeedanceParameters() {
             "Reference Videos"
         );
 
+
+    /*
+     * Reference Audio
+     */
 
     const referenceAudioUrls =
         await collectMediaSource(
@@ -2694,10 +3492,18 @@ async function getSeedanceParameters() {
         );
 
 
-    const parameters = {};
+    const parameters =
+        {};
 
 
-    if (prompt) {
+    /*
+     * Prompt optional.
+     * Jangan kirim string kosong.
+     */
+
+    if (
+        prompt
+    ) {
 
         parameters.prompt =
             prompt;
@@ -2705,7 +3511,9 @@ async function getSeedanceParameters() {
     }
 
 
-    if (firstFrameUrl) {
+    if (
+        firstFrameUrl
+    ) {
 
         parameters.first_frame_url =
             firstFrameUrl;
@@ -2713,7 +3521,9 @@ async function getSeedanceParameters() {
     }
 
 
-    if (lastFrameUrl) {
+    if (
+        lastFrameUrl
+    ) {
 
         parameters.last_frame_url =
             lastFrameUrl;
@@ -2725,7 +3535,7 @@ async function getSeedanceParameters() {
         Array.isArray(
             referenceImageUrls
         ) &&
-        referenceImageUrls.length > 0
+        referenceImageUrls.length
     ) {
 
         parameters.reference_image_urls =
@@ -2738,7 +3548,7 @@ async function getSeedanceParameters() {
         Array.isArray(
             referenceVideoUrls
         ) &&
-        referenceVideoUrls.length > 0
+        referenceVideoUrls.length
     ) {
 
         parameters.reference_video_urls =
@@ -2751,7 +3561,7 @@ async function getSeedanceParameters() {
         Array.isArray(
             referenceAudioUrls
         ) &&
-        referenceAudioUrls.length > 0
+        referenceAudioUrls.length
     ) {
 
         parameters.reference_audio_urls =
@@ -2788,13 +3598,17 @@ async function getSeedanceParameters() {
         webSearch;
 
 
+    /*
+     * NSFW CHECKER TIDAK DIKIRIM.
+     */
+
     return parameters;
 
 }
 
 
 /* =========================================================
-   PARAMETER VALIDATION
+   VALIDATE PARAMETERS
 ========================================================= */
 
 function validateSeedanceParameters(
@@ -2807,46 +3621,39 @@ function validateSeedanceParameters(
     ) {
 
         throw new Error(
-            "Parameter Seedance tidak valid."
+            "Parameter Seedance kosong."
         );
 
     }
 
 
     if (
-        parameters.prompt !==
-        undefined
+        parameters.prompt &&
+        String(
+            parameters.prompt
+        ).length > 30000
     ) {
 
-        if (
-            String(
-                parameters.prompt
-            ).length > 30000
-        ) {
-
-            throw new Error(
-                "Prompt maksimal 30000 karakter."
-            );
-
-        }
+        throw new Error(
+            "Prompt maksimal 30000 karakter."
+        );
 
     }
 
 
-    const allowedResolutions = [
-        "480p",
-        "720p",
-        "1080p"
-    ];
+    const allowedResolution =
+        new Set([
+
+            "480p",
+            "720p",
+            "1080p"
+
+        ]);
 
 
     if (
-        parameters.resolution !==
-        undefined &&
-        !allowedResolutions.includes(
-            String(
-                parameters.resolution
-            )
+        !allowedResolution.has(
+            parameters.resolution
         )
     ) {
 
@@ -2857,24 +3664,23 @@ function validateSeedanceParameters(
     }
 
 
-    const allowedAspectRatios = [
-        "adaptive",
-        "16:9",
-        "9:16",
-        "4:3",
-        "3:4",
-        "1:1",
-        "21:9"
-    ];
+    const allowedAspectRatio =
+        new Set([
+
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+
+        ]);
 
 
     if (
-        parameters.aspect_ratio !==
-        undefined &&
-        !allowedAspectRatios.includes(
-            String(
-                parameters.aspect_ratio
-            )
+        !allowedAspectRatio.has(
+            parameters.aspect_ratio
         )
     ) {
 
@@ -2885,74 +3691,86 @@ function validateSeedanceParameters(
     }
 
 
-    if (
-        parameters.duration !==
-        undefined
-    ) {
-
-        const duration =
-            Number(
-                parameters.duration
-            );
-
-
-        if (
-            !Number.isFinite(duration) ||
-            duration < MIN_DURATION ||
-            duration > MAX_DURATION
-        ) {
-
-            throw new Error(
-                `Duration harus antara ` +
-                `${MIN_DURATION} dan ` +
-                `${MAX_DURATION} detik.`
-            );
-
-        }
-
-    }
-
-
-    const allowedOutputFormats = [
-        "mp4",
-        "mov"
-    ];
+    const duration =
+        Number(
+            parameters.duration
+        );
 
 
     if (
-        parameters.output_format !==
-        undefined &&
-        !allowedOutputFormats.includes(
-            String(
-                parameters.output_format
-            )
-        )
+        !Number.isFinite(duration) ||
+        duration < MIN_DURATION ||
+        duration > MAX_DURATION
     ) {
 
         throw new Error(
-            "Output format Seedance tidak valid."
+            `Duration harus antara ${MIN_DURATION} dan ${MAX_DURATION} detik.`
         );
 
     }
 
 
     if (
-        parameters.reference_image_urls !==
-        undefined
+        parameters.output_format !==
+            "mp4" &&
+        parameters.output_format !==
+            "mov"
     ) {
 
-        if (
-            !Array.isArray(
-                parameters.reference_image_urls
-            )
-        ) {
+        throw new Error(
+            "Output format harus MP4 atau MOV."
+        );
 
-            throw new Error(
-                "Reference Images harus berupa array."
-            );
+    }
 
-        }
 
+    if (
+        parameters.reference_image_urls &&
+        !Array.isArray(
+            parameters.reference_image_urls
+        )
+    ) {
+
+        throw new Error(
+            "Reference image harus berupa array URL."
+        );
+
+    }
+
+
+    if (
+        parameters.reference_video_urls &&
+        !Array.isArray(
+            parameters.reference_video_urls
+        )
+    ) {
+
+        throw new Error(
+            "Reference video harus berupa array URL."
+        );
+
+    }
+
+
+    if (
+        parameters.reference_audio_urls &&
+        !Array.isArray(
+            parameters.reference_audio_urls
+        )
+    ) {
+
+        throw new Error(
+            "Reference audio harus berupa array URL."
+        );
+
+    }
+
+
+    if (
+        Array.isArray(
+            parameters.reference_image_urls
+        )
+    ) {
 
         validateReferenceFileCount(
             parameters.reference_image_urls,
@@ -2964,22 +3782,10 @@ function validateSeedanceParameters(
 
 
     if (
-        parameters.reference_video_urls !==
-        undefined
+        Array.isArray(
+            parameters.reference_video_urls
+        )
     ) {
-
-        if (
-            !Array.isArray(
-                parameters.reference_video_urls
-            )
-        ) {
-
-            throw new Error(
-                "Reference Videos harus berupa array."
-            );
-
-        }
-
 
         validateReferenceFileCount(
             parameters.reference_video_urls,
@@ -2991,22 +3797,10 @@ function validateSeedanceParameters(
 
 
     if (
-        parameters.reference_audio_urls !==
-        undefined
+        Array.isArray(
+            parameters.reference_audio_urls
+        )
     ) {
-
-        if (
-            !Array.isArray(
-                parameters.reference_audio_urls
-            )
-        ) {
-
-            throw new Error(
-                "Reference Audio harus berupa array."
-            );
-
-        }
-
 
         validateReferenceFileCount(
             parameters.reference_audio_urls,
@@ -3028,55 +3822,191 @@ function validateSeedanceParameters(
 
 function resetSeedanceForm() {
 
-    const prompt =
-        document.getElementById(
-            FIELD_IDS.prompt
-        );
+    const container =
+        getDynamicFields?.();
 
 
-    if (prompt) {
+    if (
+        !container
+    ) {
 
-        prompt.value = "";
+        return;
 
     }
 
 
+    if (
+        !container.querySelector(
+            ".seedance-form"
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    /*
+     * Reset internal reference state.
+     */
+
+    resetReferenceFileState();
+
+
+    /*
+     * Prompt
+     */
+
+    const prompt =
+        document.getElementById(
+            fieldId("prompt")
+        );
+
+
+    if (
+        prompt
+    ) {
+
+        prompt.value =
+            "";
+
+    }
+
+
+    /*
+     * Duration
+     */
+
+    const duration =
+        document.getElementById(
+            fieldId("duration")
+        );
+
+
+    if (
+        duration
+    ) {
+
+        duration.value =
+            "5";
+
+    }
+
+
+    /*
+     * Resolution
+     */
+
+    const resolution =
+        document.getElementById(
+            fieldId("resolution")
+        );
+
+
+    if (
+        resolution
+    ) {
+
+        resolution.value =
+            "720p";
+
+    }
+
+
+    /*
+     * Aspect ratio
+     */
+
+    const aspectRatio =
+        document.getElementById(
+            fieldId("aspectRatio")
+        );
+
+
+    if (
+        aspectRatio
+    ) {
+
+        aspectRatio.value =
+            "adaptive";
+
+    }
+
+
+    /*
+     * Output format
+     */
+
+    const outputFormat =
+        document.getElementById(
+            fieldId("outputFormat")
+        );
+
+
+    if (
+        outputFormat
+    ) {
+
+        outputFormat.value =
+            "mp4";
+
+    }
+
+
+    /*
+     * Toggle
+     */
+
     [
-        "firstFrame",
-        "lastFrame",
-        "referenceImages",
-        "referenceVideos",
-        "referenceAudio"
+
+        "generateAudio",
+        "returnLastFrame",
+        "webSearch"
+
     ].forEach(
         name => {
 
             const input =
                 document.getElementById(
-                    `${fieldId(name)}-file`
+                    fieldId(name)
                 );
 
 
-            if (input) {
+            if (
+                input
+            ) {
 
-                input.value = "";
-
-                displaySelectedFiles(
-                    input
-                );
-
-                renderFilePreview(
-                    input
-                );
-
-                clearFileInputError(
-                    input
-                );
+                input.checked =
+                    name ===
+                    "generateAudio";
 
             }
 
         }
     );
 
+
+    /*
+     * Native inputs.
+     */
+
+    document
+        .querySelectorAll(
+            ".seedance-file-input"
+        )
+        .forEach(
+            input => {
+
+                input.value =
+                    "";
+
+            }
+        );
+
+
+    /*
+     * URL.
+     */
 
     document
         .querySelectorAll(
@@ -3085,110 +4015,56 @@ function resetSeedanceForm() {
         .forEach(
             input => {
 
-                input.value = "";
+                input.value =
+                    "";
 
             }
         );
 
 
-    const resolution =
-        document.getElementById(
-            FIELD_IDS.resolution
+    /*
+     * Clear lists and previews.
+     */
+
+    document
+        .querySelectorAll(
+            ".seedance-selected-files"
+        )
+        .forEach(
+            element => {
+
+                element.innerHTML =
+                    "";
+
+            }
         );
 
 
-    if (resolution) {
+    document
+        .querySelectorAll(
+            ".seedance-media-preview"
+        )
+        .forEach(
+            element => {
 
-        resolution.value =
-            "720p";
+                element.innerHTML =
+                    "";
 
-    }
-
-
-    const aspectRatio =
-        document.getElementById(
-            FIELD_IDS.aspectRatio
+            }
         );
 
 
-    if (aspectRatio) {
+    updateReferenceLimit(
+        "referenceImages"
+    );
 
-        aspectRatio.value =
-            "adaptive";
+    updateReferenceLimit(
+        "referenceVideos"
+    );
 
-    }
-
-
-    const duration =
-        document.getElementById(
-            FIELD_IDS.duration
-        );
-
-
-    if (duration) {
-
-        duration.value =
-            String(
-                MIN_DURATION
-            );
-
-    }
-
-
-    const outputFormat =
-        document.getElementById(
-            FIELD_IDS.outputFormat
-        );
-
-
-    if (outputFormat) {
-
-        outputFormat.value =
-            "mp4";
-
-    }
-
-
-    const generateAudio =
-        document.getElementById(
-            FIELD_IDS.generateAudio
-        );
-
-
-    if (generateAudio) {
-
-        generateAudio.checked =
-            true;
-
-    }
-
-
-    const returnLastFrame =
-        document.getElementById(
-            FIELD_IDS.returnLastFrame
-        );
-
-
-    if (returnLastFrame) {
-
-        returnLastFrame.checked =
-            false;
-
-    }
-
-
-    const webSearch =
-        document.getElementById(
-            FIELD_IDS.webSearch
-        );
-
-
-    if (webSearch) {
-
-        webSearch.checked =
-            false;
-
-    }
+    updateReferenceLimit(
+        "referenceAudio"
+    );
 
 
     bindPromptCounter();
@@ -3201,20 +4077,7 @@ function resetSeedanceForm() {
 
 
 /* =========================================================
-   MODULE INIT
-========================================================= */
-
-function initSeedanceModule() {
-
-    renderSeedanceStyles();
-
-    bindSeedanceEvents();
-
-}
-
-
-/* =========================================================
-   PUBLIC MODULE
+   PUBLIC API
 ========================================================= */
 
 const seedanceModule = {
@@ -3229,16 +4092,10 @@ const seedanceModule = {
 
     validateSeedanceParameters,
 
-    resetSeedanceForm,
-
-    initSeedanceModule
+    resetSeedanceForm
 
 };
 
-
-/* =========================================================
-   EXPORT
-========================================================= */
 
 export default Object.freeze(
     seedanceModule
@@ -3257,8 +4114,6 @@ export {
 
     validateSeedanceParameters,
 
-    resetSeedanceForm,
-
-    initSeedanceModule
+    resetSeedanceForm
 
 };
