@@ -788,287 +788,608 @@ function injectStyles() {
         "seedance-generate-styles";
 
 
-    if (
+    let style =
         document.getElementById(
             styleId
-        )
-    ) {
+        );
 
-        return;
+
+    /*
+     * IMPORTANT
+     * Jangan return jika style sudah ada.
+     *
+     * Module bisa dirender ulang tanpa reload halaman.
+     * Karena itu CSS harus selalu diperbarui.
+     */
+
+    if (!style) {
+
+        style =
+            document.createElement(
+                "style"
+            );
+
+        style.id =
+            styleId;
+
+        document.head.appendChild(
+            style
+        );
 
     }
 
 
-    const style =
-        document.createElement(
-            "style"
-        );
-
-
-    style.id =
-        styleId;
-
-
     style.textContent = `
 
+        /* =====================================================
+           ROOT
+        ===================================================== */
+
+        .seedance-form {
+
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+
+            box-sizing: border-box;
+
+            overflow-x: hidden;
+
+        }
+
+
+        .seedance-form *,
+        .seedance-form *::before,
+        .seedance-form *::after {
+
+            box-sizing: border-box;
+
+        }
+
+
+        /* =====================================================
+           FIELD
+        ===================================================== */
+
         .seedance-field {
-            margin-bottom: 22px;
-            padding: 18px;
-            border: 1px solid rgba(255,45,80,.20);
-            border-radius: 16px;
+
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+
+            margin: 0 0 18px 0;
+            padding: 16px;
+
+            border:
+                1px solid
+                rgba(255,45,80,.20);
+
+            border-radius: 14px;
+
             background:
                 linear-gradient(
                     145deg,
                     rgba(255,255,255,.045),
                     rgba(0,0,0,.25)
                 );
+
             box-shadow:
-                0 0 22px rgba(255,35,70,.055);
+                0 0 22px
+                rgba(255,35,70,.055);
+
         }
 
 
         .seedance-field-header {
-            margin-bottom: 14px;
+
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+
+            margin-bottom: 12px;
+
+        }
+
+
+        .seedance-field-header > div {
+
+            min-width: 0;
+
         }
 
 
         .seedance-field-title {
+
             color: #fff;
+
             font-size: 14px;
             font-weight: 800;
+
+            line-height: 1.35;
+
         }
 
 
         .seedance-field-description {
+
             margin-top: 5px;
-            color: rgba(255,255,255,.48);
+
+            color:
+                rgba(255,255,255,.48);
+
             font-size: 12px;
-            line-height: 1.5;
+
+            line-height: 1.45;
+
         }
 
 
+        /* =====================================================
+           SOURCE TABS
+        ===================================================== */
+
         .seedance-source-tabs {
+
             display: flex;
-            gap: 8px;
-            margin-bottom: 12px;
+
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+
+            gap: 7px;
+
+            margin-bottom: 10px;
+
         }
 
 
         .seedance-source-tab {
-            border: 1px solid rgba(255,255,255,.12);
+
+            flex: 1 1 0;
+
+            min-width: 0;
+
+            height: 36px;
+
+            padding:
+                0 10px;
+
+            border:
+                1px solid
+                rgba(255,255,255,.12);
+
             border-radius: 9px;
-            padding: 8px 14px;
-            background: rgba(255,255,255,.045);
-            color: rgba(255,255,255,.62);
+
+            background:
+                rgba(255,255,255,.045);
+
+            color:
+                rgba(255,255,255,.62);
+
             cursor: pointer;
+
             font-size: 12px;
             font-weight: 700;
+
+            white-space: nowrap;
+
         }
 
 
         .seedance-source-tab.is-active {
-            border-color: rgba(255,35,70,.65);
-            background: rgba(255,35,70,.12);
+
+            border-color:
+                rgba(255,35,70,.65);
+
+            background:
+                rgba(255,35,70,.12);
+
             color: #fff;
+
         }
 
 
+        /* =====================================================
+           UPLOAD TOOLBAR
+        ===================================================== */
+
         .seedance-upload-toolbar {
+
             display: flex;
+
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+
             align-items: center;
+
             justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 10px;
+
+            gap: 8px;
+
+            margin-bottom: 9px;
+
+            flex-wrap: nowrap;
+
         }
 
 
         .seedance-add-file-button {
-            border: 1px solid rgba(255,35,70,.55);
-            border-radius: 9px;
-            padding: 8px 13px;
-            background: rgba(255,35,70,.10);
+
+            flex: 0 0 auto;
+
+            height: 34px;
+
+            padding:
+                0 11px;
+
+            border:
+                1px solid
+                rgba(255,35,70,.55);
+
+            border-radius: 8px;
+
+            background:
+                rgba(255,35,70,.10);
+
             color: #fff;
+
             cursor: pointer;
-            font-size: 12px;
+
+            font-size: 11px;
             font-weight: 800;
-            transition:
-                background .18s ease,
-                border-color .18s ease,
-                transform .18s ease;
+
+            white-space: nowrap;
+
         }
 
 
         .seedance-add-file-button:hover {
-            background: rgba(255,35,70,.20);
-            border-color: rgba(255,35,70,.85);
-            transform: translateY(-1px);
+
+            background:
+                rgba(255,35,70,.20);
+
+            border-color:
+                rgba(255,35,70,.85);
+
         }
 
 
         .seedance-file-limit {
+
+            flex: 0 0 auto;
+
             margin-left: auto;
-            color: rgba(255,255,255,.45);
-            font-size: 11px;
+
+            color:
+                rgba(255,255,255,.45);
+
+            font-size: 10px;
+
             font-weight: 700;
+
+            white-space: nowrap;
+
         }
 
+
+        /* =====================================================
+           NATIVE FILE INPUT
+        ===================================================== */
 
         .seedance-file-input {
-            box-sizing: border-box;
+
+            display: block;
+
             width: 100%;
-            padding: 11px;
-            border: 1px solid rgba(255,255,255,.11);
-            border-radius: 11px;
-            background: rgba(0,0,0,.32);
+            max-width: 100%;
+            min-width: 0;
+
+            height: 40px;
+
+            padding:
+                8px;
+
+            border:
+                1px solid
+                rgba(255,255,255,.11);
+
+            border-radius: 9px;
+
+            background:
+                rgba(0,0,0,.32);
+
             color: #fff;
-            font-size: 12px;
+
+            font-size: 11px;
+
             outline: none;
+
         }
 
+
+        /*
+         * Reference file input sengaja disembunyikan.
+         *
+         * Tombol + Tambah akan membuka input ini
+         * melalui input.click().
+         */
+
+        .seedance-file-input.seedance-hidden-native-input {
+
+            position: absolute;
+
+            width: 1px;
+            height: 1px;
+
+            padding: 0;
+            margin: -1px;
+
+            opacity: 0;
+
+            overflow: hidden;
+
+            clip:
+                rect(0,0,0,0);
+
+            white-space: nowrap;
+
+            border: 0;
+
+        }
+
+
+        /* =====================================================
+           FILE HELP
+        ===================================================== */
 
         .seedance-file-help {
-            margin-top: 7px;
-            color: rgba(255,255,255,.38);
-            font-size: 11px;
-            line-height: 1.45;
+
+            margin-top: 6px;
+
+            color:
+                rgba(255,255,255,.38);
+
+            font-size: 10px;
+
+            line-height: 1.4;
+
         }
 
 
+        /* =====================================================
+           SELECTED FILES
+        ===================================================== */
+
         .seedance-selected-files {
+
             display: grid;
-            gap: 7px;
-            margin-top: 12px;
+
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+
+            gap: 6px;
+
+            margin-top: 10px;
+
         }
 
 
         .seedance-selected-file {
+
             display: flex;
-            align-items: center;
-            gap: 10px;
+
+            width: 100%;
+            max-width: 100%;
             min-width: 0;
-            padding: 9px 10px;
-            border: 1px solid rgba(255,255,255,.07);
-            border-radius: 9px;
-            background: rgba(255,255,255,.025);
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding:
+                7px 8px;
+
+            border:
+                1px solid
+                rgba(255,255,255,.07);
+
+            border-radius: 8px;
+
+            background:
+                rgba(255,255,255,.025);
+
         }
 
 
         .seedance-selected-file-index {
-            flex: 0 0 26px;
-            width: 26px;
-            height: 26px;
+
+            flex:
+                0 0 24px;
+
+            width: 24px;
+            height: 24px;
+
             display: flex;
+
             align-items: center;
             justify-content: center;
-            border-radius: 7px;
-            background: rgba(255,35,70,.10);
-            color: rgba(255,255,255,.75);
-            font-size: 10px;
+
+            border-radius: 6px;
+
+            background:
+                rgba(255,35,70,.10);
+
+            color:
+                rgba(255,255,255,.75);
+
+            font-size: 9px;
             font-weight: 800;
+
         }
 
 
         .seedance-selected-file-info {
+
+            flex:
+                1 1 auto;
+
+            width: 0;
+
+            max-width: 100%;
             min-width: 0;
-            flex: 1;
+
+            overflow: hidden;
+
         }
 
 
         .seedance-selected-file-name {
+
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+
             overflow: hidden;
+
             text-overflow: ellipsis;
+
             white-space: nowrap;
-            color: rgba(255,255,255,.78);
-            font-size: 11px;
+
+            color:
+                rgba(255,255,255,.78);
+
+            font-size: 10px;
             font-weight: 700;
+
+            line-height: 1.3;
+
         }
 
 
         .seedance-selected-file-size {
+
             margin-top: 2px;
-            color: rgba(255,255,255,.35);
-            font-size: 10px;
+
+            color:
+                rgba(255,255,255,.35);
+
+            font-size: 9px;
+
+            line-height: 1.2;
+
         }
 
 
         .seedance-remove-file-button {
-            flex: 0 0 auto;
-            border: 1px solid rgba(255,70,90,.25);
+
+            flex:
+                0 0 auto;
+
+            height: 29px;
+
+            padding:
+                0 8px;
+
+            border:
+                1px solid
+                rgba(255,70,90,.25);
+
             border-radius: 7px;
-            padding: 6px 9px;
-            background: rgba(255,35,70,.07);
-            color: rgba(255,150,160,.9);
+
+            background:
+                rgba(255,35,70,.07);
+
+            color:
+                rgba(255,150,160,.9);
+
             cursor: pointer;
-            font-size: 11px;
+
+            font-size: 9px;
             font-weight: 800;
+
+            white-space: nowrap;
+
         }
 
 
         .seedance-remove-file-button:hover {
-            border-color: rgba(255,70,90,.65);
-            background: rgba(255,35,70,.16);
+
+            border-color:
+                rgba(255,70,90,.65);
+
+            background:
+                rgba(255,35,70,.16);
+
             color: #fff;
+
         }
 
 
-        .seedance-file-input.seedance-hidden-native-input {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            opacity: 0;
-            pointer-events: none;
-        }
-
+        /* =====================================================
+           URL / PROMPT / SELECT
+        ===================================================== */
 
         .seedance-url-input,
         .seedance-prompt-input,
         .seedance-select {
-            box-sizing: border-box;
+
+            display: block;
+
             width: 100%;
-            border: 1px solid rgba(255,255,255,.11);
-            border-radius: 11px;
-            background: rgba(0,0,0,.32);
+            max-width: 100%;
+            min-width: 0;
+
+            border:
+                1px solid
+                rgba(255,255,255,.11);
+
+            border-radius: 9px;
+
+            background:
+                rgba(0,0,0,.32);
+
             color: #fff;
+
             outline: none;
+
         }
 
 
         .seedance-url-input,
         .seedance-prompt-input {
-            padding: 12px;
+
+            padding: 11px;
+
             resize: vertical;
-            line-height: 1.5;
+
+            line-height: 1.45;
+
+        }
+
+
+        .seedance-prompt-input {
+
+            min-height: 130px;
+
+        }
+
+
+        .seedance-url-input {
+
+            min-height: 72px;
+
         }
 
 
         .seedance-select {
-            min-height: 44px;
-            padding: 0 12px;
-        }
 
+            min-height: 42px;
 
-        .seedance-media-preview {
-            display: grid;
-            grid-template-columns:
-                repeat(
-                    auto-fill,
-                    minmax(
-                        150px,
-                        1fr
-                    )
-                );
-            gap: 10px;
-            margin-top: 12px;
-        }
+            padding:
+                0 11px;
 
-
-        .seedance-preview-media {
-            display: block;
-            width: 100%;
-            max-height: 260px;
-            object-fit: contain;
-            border-radius: 10px;
-            background: #000;
         }
 
 
@@ -1076,808 +1397,742 @@ function injectStyles() {
         .seedance-url-input:focus,
         .seedance-select:focus,
         .seedance-file-input:focus {
-            border-color: rgba(255,35,70,.65);
+
+            border-color:
+                rgba(255,35,70,.65);
+
             box-shadow:
-                0 0 0 3px rgba(255,35,70,.08);
+                0 0 0 3px
+                rgba(255,35,70,.08);
+
         }
 
+
+        /* =====================================================
+           PREVIEW
+        ===================================================== */
+
+        .seedance-media-preview {
+
+            display: grid;
+
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+
+            grid-template-columns:
+                repeat(
+                    auto-fill,
+                    minmax(
+                        140px,
+                        1fr
+                    )
+                );
+
+            gap: 8px;
+
+            margin-top: 10px;
+
+        }
+
+
+        .seedance-preview-media {
+
+            display: block;
+
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+
+            max-height: 240px;
+
+            object-fit: contain;
+
+            border-radius: 8px;
+
+            background: #000;
+
+        }
+
+
+        /* =====================================================
+           COUNTER
+        ===================================================== */
 
         .seedance-counter {
-            margin-top: 6px;
+
+            margin-top: 5px;
+
             text-align: right;
-            color: rgba(255,255,255,.34);
-            font-size: 10px;
+
+            color:
+                rgba(255,255,255,.34);
+
+            font-size: 9px;
+
         }
 
 
+        /* =====================================================
+           DURATION
+        ===================================================== */
+
         .seedance-duration-row {
+
             display: flex;
+
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+
             align-items: center;
-            gap: 15px;
+
+            gap: 10px;
+
         }
 
 
         .seedance-duration-range {
-            flex: 1;
-            accent-color: #ff2346;
+
+            flex:
+                1 1 auto;
+
+            min-width: 0;
+
+            width: 100%;
+
+            accent-color:
+                #ff2346;
+
         }
 
 
         .seedance-duration-value {
-            min-width: 75px;
+
+            flex:
+                0 0 auto;
+
+            min-width: 65px;
+
             text-align: right;
+
             color: #fff;
-            font-size: 13px;
+
+            font-size: 12px;
+
             font-weight: 800;
+
         }
 
 
         .seedance-duration-scale {
+
             display: flex;
+
             justify-content: space-between;
-            margin-top: 7px;
-            color: rgba(255,255,255,.3);
-            font-size: 10px;
+
+            margin-top: 6px;
+
+            color:
+                rgba(255,255,255,.3);
+
+            font-size: 9px;
+
         }
 
 
+        /* =====================================================
+           TOGGLE
+        ===================================================== */
+
         .seedance-toggle {
+
             display: inline-flex;
+
+            max-width: 100%;
+
             align-items: center;
-            gap: 10px;
+
+            gap: 8px;
+
             cursor: pointer;
+
         }
 
 
         .seedance-toggle input {
+
             position: absolute;
+
             opacity: 0;
+
             pointer-events: none;
+
         }
 
 
         .seedance-toggle-track {
+
             position: relative;
-            width: 44px;
-            height: 24px;
+
+            flex:
+                0 0 auto;
+
+            width: 42px;
+            height: 23px;
+
             border-radius: 20px;
-            background: rgba(255,255,255,.12);
+
+            background:
+                rgba(255,255,255,.12);
+
             transition: .2s;
+
         }
 
 
         .seedance-toggle-thumb {
+
             position: absolute;
+
             top: 3px;
             left: 3px;
-            width: 18px;
-            height: 18px;
+
+            width: 17px;
+            height: 17px;
+
             border-radius: 50%;
-            background: rgba(255,255,255,.7);
+
+            background:
+                rgba(255,255,255,.7);
+
             transition: .2s;
+
         }
 
 
         .seedance-toggle input:checked
         + .seedance-toggle-track {
-            background: rgba(255,35,70,.72);
+
+            background:
+                rgba(255,35,70,.72);
+
         }
 
 
         .seedance-toggle input:checked
         + .seedance-toggle-track
         .seedance-toggle-thumb {
-            transform: translateX(20px);
+
+            transform:
+                translateX(19px);
+
             background: #fff;
+
         }
 
 
         .seedance-toggle-label {
-            color: rgba(255,255,255,.72);
-            font-size: 12px;
+
+            color:
+                rgba(255,255,255,.72);
+
+            font-size: 11px;
+
             font-weight: 700;
+
         }
 
 
+        /* =====================================================
+           MOBILE
+        ===================================================== */
+
         @media (max-width: 640px) {
 
-    /* =====================================================
-       SEEDANCE MOBILE ROOT
-    ===================================================== */
+            .seedance-form {
 
-    .seedance-form {
-        display: block;
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        box-sizing: border-box !important;
-        overflow: hidden !important;
-    }
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
 
+                overflow-x: hidden;
 
-    .seedance-form *,
-    .seedance-form *::before,
-    .seedance-form *::after {
-        box-sizing: border-box;
-    }
+            }
 
 
-    .seedance-field {
-        display: block;
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+            .seedance-field {
 
-        margin: 0 0 14px 0 !important;
-        padding: 13px !important;
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
 
-        border-radius: 13px;
+                margin-bottom: 12px;
 
-        overflow: hidden;
-    }
+                padding: 11px;
 
+                border-radius: 11px;
 
-    /* =====================================================
-       FIELD HEADER
-    ===================================================== */
+            }
 
-    .seedance-field-header {
-        display: block;
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
 
-        margin-bottom: 11px;
-    }
+            .seedance-field-header {
 
+                margin-bottom: 9px;
 
-    .seedance-field-header > div {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-    }
+            }
 
 
-    .seedance-field-title {
-        width: 100%;
-        max-width: 100%;
+            .seedance-field-title {
 
-        font-size: 13px;
-        line-height: 1.35;
+                font-size: 12px;
 
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
+            }
 
 
-    .seedance-field-description {
-        width: 100%;
-        max-width: 100%;
+            .seedance-field-description {
 
-        margin-top: 5px;
+                margin-top: 3px;
 
-        font-size: 10px;
-        line-height: 1.45;
+                font-size: 9px;
 
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
+                line-height: 1.35;
 
+            }
 
-    /* =====================================================
-       MEDIA SOURCE
-    ===================================================== */
 
-    .seedance-media-source {
-        display: block;
+            /*
+             * Upload / URL tetap satu baris.
+             */
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+            .seedance-source-tabs {
 
-        overflow: hidden;
-    }
+                display: flex;
 
+                width: 100%;
 
-    /* =====================================================
-       SOURCE TABS
-    ===================================================== */
+                gap: 5px;
 
-    .seedance-source-tabs {
-        display: grid;
+                margin-bottom: 8px;
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+            }
 
-        grid-template-columns:
-            repeat(
-                2,
-                minmax(0, 1fr)
-            );
 
-        gap: 6px;
+            .seedance-source-tab {
 
-        margin-bottom: 12px;
-    }
+                flex:
+                    1 1 0;
 
+                width: auto;
 
-    .seedance-source-tab {
-        display: block;
+                height: 32px;
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+                padding:
+                    0 7px;
 
-        padding: 9px 8px;
+                font-size: 10px;
 
-        border-radius: 9px;
+            }
 
-        font-size: 11px;
 
-        text-align: center;
+            /*
+             * Tombol + dan counter tetap satu baris.
+             */
 
-        white-space: nowrap;
+            .seedance-upload-toolbar {
 
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+                display: flex;
 
+                width: 100%;
 
-    /* =====================================================
-       UPLOAD TOOLBAR
-    ===================================================== */
+                align-items: center;
 
-    .seedance-upload-toolbar {
-        display: flex;
+                justify-content: space-between;
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+                gap: 6px;
 
-        align-items: center;
-        justify-content: space-between;
+                flex-wrap: nowrap;
 
-        gap: 8px;
+                margin-bottom: 7px;
 
-        margin-bottom: 10px;
+            }
 
-        flex-wrap: wrap;
-    }
 
+            .seedance-add-file-button {
 
-    .seedance-add-file-button {
-        flex: 0 1 auto;
+                flex:
+                    0 0 auto;
 
-        max-width: 100%;
-        min-width: 0;
+                height: 31px;
 
-        min-height: 36px;
+                padding:
+                    0 9px;
 
-        padding: 8px 11px;
+                font-size: 10px;
 
-        font-size: 11px;
+            }
 
-        white-space: nowrap;
-    }
 
+            .seedance-file-limit {
 
-    .seedance-file-limit {
-        flex: 0 0 auto;
+                flex:
+                    0 0 auto;
 
-        max-width: 100%;
+                margin-left: auto;
 
-        margin-left: auto;
+                font-size: 9px;
 
-        font-size: 10px;
+            }
 
-        white-space: nowrap;
-    }
 
+            /*
+             * First / Last Frame tetap punya
+             * native file input.
+             */
 
-    /* =====================================================
-       FILE INPUT
-    ===================================================== */
+            .seedance-file-input {
 
-    .seedance-file-input {
-        display: block;
+                width: 100%;
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+                height: 36px;
 
-        padding: 9px;
+                padding: 7px;
 
-        font-size: 11px;
+                font-size: 10px;
 
-        overflow: hidden;
-    }
+            }
 
 
-    /* =====================================================
-       FILE HELP
-    ===================================================== */
+            /*
+             * Reference list compact.
+             */
 
-    .seedance-file-help {
-        width: 100%;
-        max-width: 100%;
+            .seedance-selected-files {
 
-        font-size: 10px;
-        line-height: 1.45;
+                gap: 5px;
 
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
+                margin-top: 7px;
 
+            }
 
-    /* =====================================================
-       SELECTED FILE LIST
-    ===================================================== */
 
-    .seedance-selected-files {
-        display: grid;
+            .seedance-selected-file {
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+                gap: 6px;
 
-        grid-template-columns:
-            minmax(0, 1fr);
+                padding:
+                    6px 7px;
 
-        gap: 6px;
+            }
 
-        margin-top: 12px;
 
-        overflow: hidden;
-    }
+            .seedance-selected-file-index {
 
+                flex-basis: 21px;
 
-    .seedance-selected-file {
-        display: flex;
+                width: 21px;
+                height: 21px;
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+                border-radius: 5px;
 
-        align-items: center;
+                font-size: 8px;
 
-        gap: 7px;
+            }
 
-        padding: 8px;
 
-        overflow: hidden;
-    }
+            .seedance-selected-file-name {
 
+                font-size: 9px;
 
-    .seedance-selected-file-index {
-        flex: 0 0 23px;
+            }
 
-        width: 23px;
-        min-width: 23px;
-        max-width: 23px;
 
-        height: 23px;
+            .seedance-selected-file-size {
 
-        font-size: 9px;
-    }
+                font-size: 8px;
 
+            }
 
-    .seedance-selected-file-info {
-        flex: 1 1 auto;
 
-        width: 0;
-        max-width: 100%;
-        min-width: 0;
+            .seedance-remove-file-button {
 
-        overflow: hidden;
-    }
+                height: 26px;
 
+                padding:
+                    0 6px;
 
-    .seedance-selected-file-name {
-        display: block;
+                font-size: 8px;
 
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
+            }
 
-        overflow: hidden;
 
-        text-overflow: ellipsis;
+            .seedance-file-help {
 
-        white-space: nowrap;
+                font-size: 9px;
 
-        font-size: 10px;
-        line-height: 1.3;
-    }
+            }
 
 
-    .seedance-selected-file-size {
-        max-width: 100%;
+            /*
+             * Prompt jangan terlalu tinggi.
+             */
 
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+            .seedance-prompt-input {
 
-        font-size: 9px;
-        line-height: 1.3;
-    }
+                min-height: 105px;
 
+            }
 
-    .seedance-remove-file-button {
-        flex: 0 0 auto;
 
-        max-width: 90px;
+            .seedance-url-input {
 
-        min-height: 30px;
+                min-height: 60px;
 
-        padding: 6px 8px;
+            }
 
-        font-size: 9px;
 
-        white-space: nowrap;
-    }
+            .seedance-url-input,
+            .seedance-prompt-input,
+            .seedance-select {
 
+                font-size: 11px;
 
-    /* =====================================================
-       URL + PROMPT
-    ===================================================== */
+            }
 
-    .seedance-url-input,
-    .seedance-prompt-input {
-        display: block;
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+            .seedance-select {
 
-        font-size: 12px;
+                min-height: 38px;
 
-        overflow-x: hidden;
-    }
+            }
 
 
-    .seedance-prompt-input {
-        min-height: 130px;
-    }
+            /*
+             * Preview 2 kolom.
+             */
 
+            .seedance-media-preview {
 
-    .seedance-url-input {
-        min-height: 80px;
-    }
+                grid-template-columns:
+                    repeat(
+                        2,
+                        minmax(
+                            0,
+                            1fr
+                        )
+                    );
 
+                gap: 5px;
 
-    /* =====================================================
-       SELECT
-    ===================================================== */
+                margin-top: 7px;
 
-    .seedance-select {
-        display: block;
+            }
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
 
-        min-height: 42px;
+            .seedance-preview-media {
 
-        font-size: 12px;
-    }
+                max-height: 150px;
 
+                border-radius: 6px;
 
-    /* =====================================================
-       PREVIEW
-    ===================================================== */
+            }
 
-    .seedance-media-preview {
-        display: grid;
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+            /*
+             * Duration tetap horizontal.
+             */
 
-        grid-template-columns:
-            repeat(
-                2,
-                minmax(0, 1fr)
-            );
+            .seedance-duration-row {
 
-        gap: 7px;
+                display: flex;
 
-        margin-top: 12px;
+                width: 100%;
 
-        overflow: hidden;
-    }
+                gap: 7px;
 
+            }
 
-    .seedance-preview-media {
-        display: block;
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+            .seedance-duration-range {
 
-        height: auto;
+                flex:
+                    1 1 auto;
 
-        max-height: 180px;
+                min-width: 0;
 
-        object-fit: contain;
+            }
 
-        border-radius: 8px;
-    }
 
+            .seedance-duration-value {
 
-    /* =====================================================
-       DURATION
-    ===================================================== */
+                flex:
+                    0 0 auto;
 
-    .seedance-duration-row {
-        display: flex;
+                min-width: 55px;
 
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+                font-size: 10px;
 
-        align-items: center;
+            }
 
-        gap: 9px;
-    }
 
+            .seedance-duration-scale {
 
-    .seedance-duration-range {
-        flex: 1 1 auto;
+                margin-top: 4px;
 
-        width: 100%;
-        min-width: 0;
+                font-size: 8px;
 
-        max-width: 100%;
-    }
+            }
 
 
-    .seedance-duration-value {
-        flex: 0 0 auto;
+            .seedance-toggle {
 
-        min-width: 62px;
+                gap: 7px;
 
-        font-size: 11px;
+            }
 
-        text-align: right;
 
-        white-space: nowrap;
-    }
+            .seedance-toggle-track {
 
+                width: 39px;
+                height: 22px;
 
-    .seedance-duration-scale {
-        display: flex;
+            }
 
-        width: 100%;
-        max-width: 100%;
 
-        justify-content: space-between;
+            .seedance-toggle-thumb {
 
-        font-size: 9px;
-    }
+                width: 16px;
+                height: 16px;
 
+            }
 
-    /* =====================================================
-       TOGGLE
-    ===================================================== */
 
-    .seedance-toggle {
-        display: inline-flex;
+            .seedance-toggle input:checked
+            + .seedance-toggle-track
+            .seedance-toggle-thumb {
 
-        max-width: 100%;
-        min-width: 0;
+                transform:
+                    translateX(17px);
 
-        align-items: center;
+            }
 
-        gap: 8px;
 
-        overflow: hidden;
-    }
+            .seedance-toggle-label {
 
+                font-size: 10px;
 
-    .seedance-toggle-track {
-        flex: 0 0 44px;
-    }
+            }
 
 
-    .seedance-toggle-label {
-        min-width: 0;
-        max-width: 100%;
+            .seedance-counter {
 
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+                font-size: 8px;
 
-        font-size: 11px;
-    }
+            }
 
+        }
 
-    /* =====================================================
-       PROMPT COUNTER
-    ===================================================== */
 
-    .seedance-counter {
-        width: 100%;
-        max-width: 100%;
+        /* =====================================================
+           VERY SMALL PHONE
+        ===================================================== */
 
-        font-size: 9px;
-    }
+        @media (max-width: 380px) {
 
-}
+            .seedance-field {
 
+                padding: 9px;
 
-/* =========================================================
-   VERY SMALL PHONES
-========================================================= */
+                margin-bottom: 10px;
 
-@media (max-width: 380px) {
+            }
 
-    .seedance-field {
-        padding: 11px !important;
-        border-radius: 11px;
-    }
 
+            .seedance-source-tab {
 
-    .seedance-source-tabs {
-        gap: 5px;
-    }
+                height: 30px;
 
+                font-size: 9px;
 
-    .seedance-source-tab {
-        padding: 8px 5px;
-        font-size: 10px;
-    }
+            }
 
 
-    .seedance-upload-toolbar {
-        align-items: stretch;
-    }
+            .seedance-add-file-button {
 
+                height: 29px;
 
-    .seedance-add-file-button {
-        flex: 1 1 auto;
+                padding:
+                    0 8px;
 
-        min-width: 0;
-        max-width: 100%;
-    }
+                font-size: 9px;
 
+            }
 
-    .seedance-file-limit {
-        margin-left: 0;
 
-        align-self: center;
-    }
+            .seedance-file-limit {
 
+                font-size: 8px;
 
-    .seedance-selected-file {
-        gap: 5px;
-        padding: 7px;
-    }
+            }
 
 
-    .seedance-selected-file-index {
-        flex-basis: 21px;
+            .seedance-selected-file {
 
-        width: 21px;
-        min-width: 21px;
-        max-width: 21px;
+                gap: 5px;
 
-        height: 21px;
-    }
+                padding:
+                    5px 6px;
 
+            }
 
-    .seedance-remove-file-button {
-        max-width: 75px;
 
-        padding: 5px 6px;
+            .seedance-selected-file-index {
 
-        font-size: 8px;
-    }
+                flex-basis: 20px;
 
+                width: 20px;
+                height: 20px;
 
-    .seedance-media-preview {
-        grid-template-columns:
-            repeat(
-                2,
-                minmax(0, 1fr)
-            );
+            }
 
-        gap: 5px;
-    }
 
+            .seedance-remove-file-button {
 
-    .seedance-duration-row {
-        gap: 7px;
-    }
+                height: 24px;
 
+                padding:
+                    0 5px;
 
-    .seedance-duration-value {
-        min-width: 57px;
+                font-size: 7px;
 
-        font-size: 10px;
-    }
+            }
 
-}
 
+            .seedance-media-preview {
 
-/* =========================================================
-   VERY SMALL PHONES
-   ========================================================= */
+                gap: 4px;
 
-@media (max-width: 380px) {
+            }
 
-    .seedance-field {
-        padding: 11px;
-        border-radius: 11px;
-    }
 
+            .seedance-preview-media {
 
-    .seedance-upload-toolbar {
-        align-items: stretch;
-    }
+                max-height: 125px;
 
+            }
 
-    .seedance-add-file-button {
-        flex: 1 1 auto;
-        min-width: 0;
-    }
 
+            .seedance-duration-value {
 
-    .seedance-file-limit {
-        flex: 0 0 auto;
-        margin-left: 0;
-        align-self: center;
-    }
+                min-width: 50px;
 
+                font-size: 9px;
 
-    .seedance-selected-file {
-        gap: 5px;
-        padding: 7px;
-    }
+            }
 
-
-    .seedance-selected-file-index {
-        flex-basis: 21px;
-        width: 21px;
-        height: 21px;
-    }
-
-
-    .seedance-remove-file-button {
-        padding: 5px 6px;
-        font-size: 8px;
-    }
-
-
-    .seedance-media-preview {
-        grid-template-columns:
-            repeat(
-                2,
-                minmax(0, 1fr)
-            );
-    }
-
-
-    .seedance-duration-row {
-        gap: 7px;
-    }
-
-
-    .seedance-duration-value {
-        min-width: 57px;
-        font-size: 10px;
-    }
-
-}
+        }
 
     `;
-
-
-    document.head.appendChild(
-        style
-    );
 
 }
 
