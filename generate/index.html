@@ -522,6 +522,261 @@
             }
         }
 
+                /* =====================================================
+           SEEDANCE 2.5 - PARAMETER GRID
+           -----------------------------------------------------
+           Atur posisi parameter berdasarkan data-parameter
+           yang dibuat oleh generate-form.js.
+
+           Tidak mengubah JavaScript / API / submit.
+        ====================================================== */
+
+        #dynamicFields {
+
+            display: grid !important;
+
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr)) !important;
+
+            grid-auto-flow: row;
+
+            gap: 18px 20px;
+
+            align-items: start;
+        }
+
+
+        /* =====================================================
+           SEMUA FIELD SEEDANCE
+        ====================================================== */
+
+        #dynamicFields > .generate-field {
+
+            width: auto !important;
+
+            min-width: 0 !important;
+
+            max-width: none !important;
+
+            margin: 0 !important;
+
+            grid-column: auto;
+        }
+
+
+        /* =====================================================
+           PROMPT
+           -----------------------------------------------------
+           Prompt tetap full width.
+        ====================================================== */
+
+        #dynamicFields
+        > .generate-field[data-parameter="prompt"] {
+
+            grid-column: 1 / -1 !important;
+        }
+
+
+        /* =====================================================
+           FRAME
+           -----------------------------------------------------
+           First Frame | Last Frame
+        ====================================================== */
+
+        #dynamicFields
+        > .generate-field[data-parameter="first_frame_url"] {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields
+        > .generate-field[data-parameter="last_frame_url"] {
+
+            grid-column: 2 !important;
+        }
+
+
+        /* =====================================================
+           REFERENCE
+           -----------------------------------------------------
+           Reference Image | Reference Video
+           Reference Audio dapat turun ke baris berikutnya.
+        ====================================================== */
+
+        #dynamicFields
+        > .generate-field[data-parameter="reference_image_urls"] {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields
+        > .generate-field[data-parameter="reference_video_urls"] {
+
+            grid-column: 2 !important;
+        }
+
+
+        #dynamicFields
+        > .generate-field[data-parameter="reference_audio_urls"] {
+
+            grid-column: 1 / -1 !important;
+        }
+
+
+        /* =====================================================
+           GENERATION SETTINGS
+           -----------------------------------------------------
+           Resolution | Aspect Ratio
+        ====================================================== */
+
+        #dynamicFields
+        > .generate-field[data-parameter="resolution"] {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields
+        > .generate-field[data-parameter="aspect_ratio"] {
+
+            grid-column: 2 !important;
+        }
+
+
+        /* =====================================================
+           OUTPUT SETTINGS
+           -----------------------------------------------------
+           Duration | Output Format
+        ====================================================== */
+
+        #dynamicFields
+        > .generate-field[data-parameter="duration"] {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields
+        > .generate-field[data-parameter="output_format"] {
+
+            grid-column: 2 !important;
+        }
+
+
+        /* =====================================================
+           BOOLEAN SETTINGS
+           -----------------------------------------------------
+           Generate Audio | Return Last Frame
+        ====================================================== */
+
+        #dynamicFields
+        > .generate-field[data-parameter="generate_audio"] {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields
+        > .generate-field[data-parameter="return_last_frame"] {
+
+            grid-column: 2 !important;
+        }
+
+
+        /* =====================================================
+           BOOLEAN SETTINGS 2
+           -----------------------------------------------------
+           Web Search | NSFW Checker
+        ====================================================== */
+
+        #dynamicFields
+        > .generate-field[data-parameter="web_search"] {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields
+        > .generate-field[data-parameter="nsfw_checker"] {
+
+            grid-column: 2 !important;
+        }
+
+
+        /* =====================================================
+           OPTION TEXT
+           -----------------------------------------------------
+           Resolution / Aspect Ratio / Output Format
+           dibuat jelas, tidak transparan.
+        ====================================================== */
+
+        #dynamicFields
+        .generate-option-label {
+
+            color: #ffffff !important;
+
+            opacity: 1 !important;
+
+            font-weight: 600 !important;
+
+            text-shadow:
+                0 0 6px
+                rgba(255, 255, 255, 0.08);
+        }
+
+
+        #dynamicFields
+        .generate-option {
+
+            opacity: 1 !important;
+        }
+
+
+        /* =====================================================
+           SELECT
+        ====================================================== */
+
+        #dynamicFields
+        select {
+
+            color: #ffffff !important;
+
+            opacity: 1 !important;
+        }
+
+
+        #dynamicFields
+        select option {
+
+            color: #ffffff;
+
+            background: #181818;
+        }
+
+
+        /* =====================================================
+           MOBILE
+        ====================================================== */
+
+        @media (max-width: 768px) {
+
+            #dynamicFields {
+
+                grid-template-columns:
+                    minmax(0, 1fr) !important;
+            }
+
+
+            #dynamicFields
+            > .generate-field[data-parameter] {
+
+                grid-column: 1 !important;
+            }
+
+        }
+
 
         /* =====================================================
            DURATION
