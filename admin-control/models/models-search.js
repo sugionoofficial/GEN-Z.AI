@@ -46,7 +46,52 @@
 
     let initialized = false;
 
+    /*
+     * =====================================================
+     * STATUS SUPABASE CATALOG
+     * =====================================================
+     *
+     * Menandakan bahwa data catalog utama dari Data layer
+     * sudah pernah dimuat ke Models Search.
+     *
+     * PENTING:
+     * Status ini TIDAK berarti Registry sudah dimuat.
+     *
+     * File yang ditangani:
+     * admin-control/models/models-search.js
+     *
+     * Posisi dalam alur:
+     * Data layer / Supabase -> Models Search
+     * =====================================================
+     */
     let catalogLoaded = false;
+
+
+    /*
+     * =====================================================
+     * STATUS REGISTRY CATALOG
+     * =====================================================
+     *
+     * Menandakan bahwa Model Registry sudah berhasil
+     * diproses oleh ensureCatalog().
+     *
+     * Ini sengaja dipisahkan dari catalogLoaded karena
+     * models-ui.js dapat memanggil setModels() dengan
+     * Models Supabase saja sebelum Registry selesai dimuat.
+     *
+     * Tanpa flag terpisah, setModels() dapat membuat
+     * catalogLoaded = true lalu ensureCatalog() berhenti
+     * terlalu cepat.
+     *
+     * File yang ditangani:
+     * admin-control/models/models-search.js
+     *
+     * Posisi dalam alur:
+     * Model Registry -> Models Search Catalog
+     * =====================================================
+     */
+    let registryCatalogLoaded = false;
+
 
     let loadingPromise = null;
 
@@ -971,6 +1016,43 @@
        ke tabel Admin Models.
     ===================================================== */
 
+    /*
+     * =========================================================
+     * FUNGSI:
+     * ensureCatalog()
+     *
+     * FILE YANG DITANGANI:
+     * admin-control/models/models-search.js
+     *
+     * POSISI DALAM ALUR:
+     * Models Data -> Supabase Models
+     *               +
+     * Repository Registry -> Model Search Catalog
+     *               ->
+     * Search Model ID pada Form Tambah Model
+     *
+     * TANGGUNG JAWAB:
+     * - Memastikan Models Supabase tersedia.
+     * - Memastikan Model Registry juga sudah diproses.
+     * - Menggabungkan kedua sumber catalog.
+     * - Memprioritaskan Model Supabase jika model_id sama.
+     * - Menjaga Registry tetap tersedia untuk model yang
+     *   belum tersimpan di Supabase.
+     * - Mengelola request async yang sedang berjalan.
+     *
+     * TIDAK MENANGANI:
+     * - Query Supabase secara langsung.
+     * - Rendering dropdown.
+     * - Penyimpanan model baru.
+     * - CRUD Model.
+     *
+     * BUG YANG DIPERBAIKI:
+     * Sebelumnya catalogLoaded = true sudah cukup untuk
+     * menghentikan proses, walaupun Registry belum pernah
+     * dimuat. Ini menyebabkan Seedance 2.5 dan model
+     * registry KIE lainnya tidak pernah masuk Search Catalog.
+     * =========================================================
+     */
     async function ensureCatalog(
         options = {}
     ) {
@@ -980,10 +1062,19 @@
 
 
         /*
-         * Catalog sudah tersedia.
+         * Catalog hanya boleh dianggap benar-benar siap
+         * apabila:
+         *
+         * 1. Supabase catalog sudah tersedia
+         * 2. Registry catalog juga sudah diproses
+         *
+         * Sebelumnya pengecekan hanya menggunakan
+         * catalogLoaded sehingga setModels() dari models-ui.js
+         * dapat menghentikan proses Registry terlalu dini.
          */
         if (
             catalogLoaded &&
+            registryCatalogLoaded &&
             !force
         ) {
 
@@ -1214,8 +1305,20 @@
                        SET CATALOG
                        ============================================= */
 
+                    /*
+                     * Tandai bahwa pemanggilan ini berasal dari
+                     * proses Registry Catalog yang lengkap.
+                     *
+                     * setModels() akan mempertahankan Registry
+                     * apabila setelahnya models-ui.js melakukan
+                     * sinkronisasi Models Supabase.
+                     */
                     setModels(
-                        catalog
+                        catalog,
+                        {
+                            registryCatalog:
+                                true
+                        }
                     );
 
 
@@ -1315,29 +1418,62 @@
     }
 
 
-    /* =====================================================
-       SET CATALOG
-    ===================================================== */
-
+    /*
+     * =========================================================
+     * FUNGSI:
+     * setModels()
+     *
+     * FILE YANG DITANGANI:
+     * admin-control/models/models-search.js
+     *
+     * POSISI DALAM ALUR:
+     * Models UI / Models Init
+     *        ->
+     * GENZModelsSearch.setModels()
+     *        ->
+     * Search Catalog
+     *        ->
+     * Model ID Search pada Form
+     *
+     * TANGGUNG JAWAB:
+     * - Menerima daftar model dari module lain.
+     * - Normalisasi dan deduplikasi model.
+     * - Menjaga model Registry yang sudah dimuat.
+     * - Memberi prioritas pada Model Supabase apabila
+     *   model_id yang sama muncul di dua sumber.
+     * - Menandai status catalog Supabase sebagai loaded.
+     * - Menandai status Registry hanya bila pemanggilan
+     *   memang berasal dari ensureCatalog().
+     *
+     * TIDAK MENANGANI:
+     * - Pengambilan data Supabase.
+     * - Pengambilan file Registry.
+     * - Filtering keyword.
+     * - Provider CRUD.
+     *
+     * BUG YANG DIPERBAIKI:
+     * models-ui.js dapat memanggil setModels() dengan
+     * state.models yang hanya berisi Models Supabase.
+     * Pemanggilan tersebut sebelumnya menghapus seluruh
+     * model Registry yang sudah dimuat sebelumnya.
+     *
+     * Perbaikan:
+     * Registry model yang sudah ada dipertahankan apabila
+     * pemanggilan biasa hanya membawa Models Supabase.
+     * =========================================================
+     */
     function setModels(
-        list
+        list,
+        options = {}
     ) {
 
         /*
-         * =================================================
-         * BASE CATALOG
-         * =================================================
+         * Ambil catalog yang diberikan oleh caller.
          *
-         * list di sini sudah merupakan hasil merge:
-         *
-         * Supabase Models
-         * +
-         * Registry Models
-         *
-         * Jangan membuang registry lagi.
+         * Pemanggilan biasa dari models-ui.js biasanya hanya
+         * membawa Models Supabase.
          */
-
-        const catalog =
+        const incoming =
             Array.isArray(
                 list
             )
@@ -1349,29 +1485,73 @@
 
         /*
          * =================================================
+         * PERTAHANKAN REGISTRY YANG SUDAH ADA
+         * =================================================
+         *
+         * Jika Registry sudah pernah dimuat sebelumnya,
+         * jangan biarkan sinkronisasi dari models-ui.js
+         * menghapusnya.
+         *
+         * Model Registry ditandai oleh:
+         *
+         *   model.registry === true
+         *
+         * Model yang sama tetap akan dideduplikasi oleh
+         * normalizeModels().
+         */
+        const existingRegistry =
+            models.filter(
+                function (
+                    model
+                ) {
+
+                    return (
+                        model &&
+                        model.registry === true
+                    );
+
+                }
+            );
+
+
+        /*
+         * Supabase / incoming tetap ditempatkan lebih dahulu.
+         *
+         * Ini menjaga source of truth:
+         *
+         * jika model_id sama antara Supabase dan Registry,
+         * data Supabase menang.
+         */
+        const catalog = [
+
+            ...incoming,
+
+            ...existingRegistry
+
+        ];
+
+
+        /*
+         * =================================================
          * NORMALIZE + DEDUPE
          * =================================================
          *
          * normalizeModels() mempertahankan item pertama.
          *
-         * Karena ensureCatalog() meletakkan Supabase
-         * sebelum Registry, maka:
+         * Contoh:
          *
-         * Supabase:
-         *   bytedance/seedance-2-5
+         * Incoming:
+         *   bytedance/seedance-2-5 dari Supabase
          *
-         * Registry:
-         *   bytedance/seedance-2-5
+         * Existing Registry:
+         *   bytedance/seedance-2-5 dari Registry
          *
-         * hasil:
-         *
-         *   Supabase menang.
+         * Maka Supabase tetap menang.
          *
          * Jika model belum ada di Supabase:
          *
          *   Registry tetap masuk.
          */
-
         const normalized =
             normalizeModels(
                 catalog
@@ -1384,12 +1564,44 @@
 
         /*
          * =================================================
-         * MARK READY
+         * MARK BASE CATALOG READY
          * =================================================
+         *
+         * setModels() memang selalu berarti setidaknya ada
+         * satu sumber catalog yang sudah diterima.
+         *
+         * Tetapi ini TIDAK lagi digunakan sendirian untuk
+         * memutuskan bahwa Registry sudah siap.
          */
-
         catalogLoaded =
             true;
+
+
+        /*
+         * =================================================
+         * MARK REGISTRY CATALOG READY
+         * =================================================
+         *
+         * Hanya ensureCatalog() yang boleh mengatakan bahwa
+         * Registry sudah diproses.
+         *
+         * Dengan begitu:
+         *
+         * setModels(state.models)
+         *
+         * dari models-ui.js tidak akan membuat
+         * registryCatalogLoaded menjadi true secara palsu.
+         */
+        if (
+            options.registryCatalog === true
+        ) {
+
+            registryCatalogLoaded =
+                Array.isArray(
+                    list
+                );
+
+        }
 
 
         /*
@@ -2883,10 +3095,43 @@
     }
 
 
-    /* =====================================================
-       DESTROY
-    ===================================================== */
-
+    /*
+     * =========================================================
+     * FUNGSI:
+     * destroy()
+     *
+     * FILE YANG DITANGANI:
+     * admin-control/models/models-search.js
+     *
+     * POSISI DALAM ALUR:
+     * Models Search Lifecycle
+     *        ->
+     * Event cleanup
+     *        ->
+     * Catalog reset
+     *        ->
+     * Re-initialize
+     *
+     * TANGGUNG JAWAB:
+     * - Melepaskan event handler Model Search.
+     * - Menyembunyikan dropdown.
+     * - Mengosongkan catalog model.
+     * - Mengosongkan selected model.
+     * - Mereset status Supabase catalog.
+     * - Mereset status Registry catalog.
+     * - Membatalkan referensi loading state.
+     *
+     * TIDAK MENANGANI:
+     * - Menghapus row model dari Supabase.
+     * - Menghapus file Registry.
+     * - Menghapus Provider.
+     *
+     * BUG YANG DIPERBAIKI:
+     * Status registryCatalogLoaded harus ikut direset.
+     * Kalau tidak, lifecycle berikutnya dapat menganggap
+     * Registry sudah siap padahal catalog sudah dikosongkan.
+     * =========================================================
+     */
     function destroy() {
 
         const events =
@@ -2930,6 +3175,10 @@
 
 
         catalogLoaded =
+            false;
+
+
+        registryCatalogLoaded =
             false;
 
 
