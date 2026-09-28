@@ -1181,28 +1181,365 @@ function injectStyles() {
 
         @media (max-width: 640px) {
 
-            .seedance-field {
-                padding: 15px;
-                border-radius: 14px;
-            }
+    .seedance-field {
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 14px;
+        padding: 13px;
+        border-radius: 13px;
+    }
 
 
-            .seedance-duration-row {
-                flex-direction: column;
-                align-items: stretch;
-            }
+    .seedance-field-header {
+        width: 100%;
+        margin-bottom: 11px;
+    }
 
 
-            .seedance-duration-value {
-                text-align: left;
-            }
+    .seedance-field-title {
+        font-size: 13px;
+        line-height: 1.35;
+    }
 
 
-            .seedance-selected-file {
-                align-items: flex-start;
-            }
+    .seedance-field-description {
+        font-size: 10px;
+        line-height: 1.45;
+    }
 
-        }
+
+    /* =========================================
+       SOURCE TABS
+    ========================================= */
+
+    .seedance-source-tabs {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+
+    .seedance-source-tab {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 9px 8px;
+        font-size: 11px;
+        text-align: center;
+    }
+
+
+    /* =========================================
+       ADD BUTTON + COUNTER
+    ========================================= */
+
+    .seedance-upload-toolbar {
+        width: 100%;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+
+    .seedance-add-file-button {
+        flex: 0 0 auto;
+        min-height: 36px;
+        padding: 8px 11px;
+        font-size: 11px;
+    }
+
+
+    .seedance-file-limit {
+        flex: 0 0 auto;
+        margin-left: auto;
+        font-size: 10px;
+        white-space: nowrap;
+    }
+
+
+    /* =========================================
+       FILE INPUT
+    ========================================= */
+
+    .seedance-file-input {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 9px;
+        font-size: 11px;
+    }
+
+
+    /* =========================================
+       SELECTED FILE
+    ========================================= */
+
+    .seedance-selected-files {
+        width: 100%;
+        min-width: 0;
+        display: grid;
+        gap: 6px;
+    }
+
+
+    .seedance-selected-file {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px;
+    }
+
+
+    .seedance-selected-file-index {
+        flex: 0 0 23px;
+        width: 23px;
+        height: 23px;
+        font-size: 9px;
+    }
+
+
+    .seedance-selected-file-info {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+
+    .seedance-selected-file-name {
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 10px;
+        line-height: 1.3;
+    }
+
+
+    .seedance-selected-file-size {
+        font-size: 9px;
+        line-height: 1.3;
+    }
+
+
+    .seedance-remove-file-button {
+        flex: 0 0 auto;
+        min-height: 30px;
+        padding: 6px 8px;
+        white-space: nowrap;
+        font-size: 9px;
+    }
+
+
+    /* =========================================
+       URL / PROMPT
+    ========================================= */
+
+    .seedance-url-input,
+    .seedance-prompt-input {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        font-size: 12px;
+    }
+
+
+    .seedance-prompt-input {
+        min-height: 130px;
+    }
+
+
+    .seedance-url-input {
+        min-height: 80px;
+    }
+
+
+    /* =========================================
+       SELECT
+    ========================================= */
+
+    .seedance-select {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        min-height: 42px;
+        box-sizing: border-box;
+        font-size: 12px;
+    }
+
+
+    /* =========================================
+       PREVIEW
+    ========================================= */
+
+    .seedance-media-preview {
+        width: 100%;
+        min-width: 0;
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+        gap: 7px;
+    }
+
+
+    .seedance-preview-media {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        max-height: 180px;
+        object-fit: contain;
+        border-radius: 8px;
+    }
+
+
+    /* =========================================
+       DURATION
+    ========================================= */
+
+    .seedance-duration-row {
+        width: 100%;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+
+    .seedance-duration-range {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 100%;
+    }
+
+
+    .seedance-duration-value {
+        flex: 0 0 auto;
+        min-width: 62px;
+        font-size: 11px;
+        text-align: right;
+    }
+
+
+    .seedance-duration-scale {
+        font-size: 9px;
+    }
+
+
+    /* =========================================
+       TOGGLE
+    ========================================= */
+
+    .seedance-toggle {
+        max-width: 100%;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+
+    .seedance-toggle-track {
+        flex: 0 0 auto;
+    }
+
+
+    .seedance-toggle-label {
+        min-width: 0;
+        font-size: 11px;
+    }
+
+
+    /* =========================================
+       COUNTER
+    ========================================= */
+
+    .seedance-counter {
+        font-size: 9px;
+    }
+
+}
+
+
+/* =========================================================
+   VERY SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 380px) {
+
+    .seedance-field {
+        padding: 11px;
+        border-radius: 11px;
+    }
+
+
+    .seedance-upload-toolbar {
+        align-items: stretch;
+    }
+
+
+    .seedance-add-file-button {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+
+    .seedance-file-limit {
+        flex: 0 0 auto;
+        margin-left: 0;
+        align-self: center;
+    }
+
+
+    .seedance-selected-file {
+        gap: 5px;
+        padding: 7px;
+    }
+
+
+    .seedance-selected-file-index {
+        flex-basis: 21px;
+        width: 21px;
+        height: 21px;
+    }
+
+
+    .seedance-remove-file-button {
+        padding: 5px 6px;
+        font-size: 8px;
+    }
+
+
+    .seedance-media-preview {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+    }
+
+
+    .seedance-duration-row {
+        gap: 7px;
+    }
+
+
+    .seedance-duration-value {
+        min-width: 57px;
+        font-size: 10px;
+    }
+
+}
 
     `;
 
