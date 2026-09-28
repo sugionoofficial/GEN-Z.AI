@@ -1059,63 +1059,51 @@ function renderSeedanceForm(
 
 
             ${createMediaSourceField({
-
-                name:
-                    "referenceImages",
-
-                title:
-                    "Reference Images",
-
-                description:
-                    "Opsional. Gunakan beberapa gambar sebagai referensi.",
-
-                type:
-                    "image",
-
-                multiple:
-                    true
-
-            })}
+    name:
+        "referenceImages",
+    title:
+        "Reference Images",
+    description:
+        "Opsional. Maksimal 30 gambar referensi.",
+    type:
+        "image",
+    multiple:
+        true,
+    maxFiles:
+        MAX_REFERENCE_IMAGE_FILES
+})}
 
 
             ${createMediaSourceField({
-
-                name:
-                    "referenceVideos",
-
-                title:
-                    "Reference Videos",
-
-                description:
-                    "Opsional. Total durasi seluruh video referensi maksimal 30 detik.",
-
-                type:
-                    "video",
-
-                multiple:
-                    true
-
-            })}
+    name:
+        "referenceVideos",
+    title:
+        "Reference Videos",
+    description:
+        "Opsional. Maksimal 10 video referensi. Total durasi maksimal 30 detik.",
+    type:
+        "video",
+    multiple:
+        true,
+    maxFiles:
+        MAX_REFERENCE_VIDEO_FILES
+})}
 
 
             ${createMediaSourceField({
-
-                name:
-                    "referenceAudio",
-
-                title:
-                    "Reference Audio",
-
-                description:
-                    "Opsional. Total durasi seluruh audio referensi maksimal 30 detik.",
-
-                type:
-                    "audio",
-
-                multiple:
-                    true
-
-            })}
+    name:
+        "referenceAudio",
+    title:
+        "Reference Audio",
+    description:
+        "Opsional. Maksimal 10 audio referensi. Total durasi maksimal 30 detik.",
+    type:
+        "audio",
+    multiple:
+        true,
+    maxFiles:
+        MAX_REFERENCE_AUDIO_FILES
+})}
 
 
             ${renderSelect(
