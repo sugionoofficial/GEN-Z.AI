@@ -1364,10 +1364,25 @@
 
         /* =========================================================
    SEEDANCE 2.5
-   NEON ORANGE FIELD BLOCK
+   FINAL FIELD HEIGHT FIX
    ---------------------------------------------------------
-   Setiap parameter Seedance menjadi blok tersendiri.
-   Border neon orange + spacing + glow.
+   Setiap field mengikuti tinggi kontennya sendiri.
+   Tidak boleh stretch mengikuti field lain dalam row.
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form {
+
+    grid-auto-rows: max-content !important;
+
+    align-items: start !important;
+
+    align-content: start !important;
+}
+
+
+/* =========================================================
+   SEEDANCE FIELD
 ========================================================= */
 
 #dynamicFields:has(> .seedance-form)
@@ -1377,14 +1392,24 @@
     position: relative !important;
 
     width: 100% !important;
+
     min-width: 0 !important;
+
     max-width: none !important;
+
+    height: max-content !important;
+
+    min-height: 0 !important;
 
     margin: 0 !important;
 
     padding: 18px !important;
 
     box-sizing: border-box !important;
+
+    align-self: start !important;
+
+    justify-self: stretch !important;
 
     border:
         1px solid
@@ -1408,8 +1433,6 @@
 
         inset 0 0 18px
         rgba(255, 145, 0, 0.035) !important;
-
-    align-self: start !important;
 
     transition:
         border-color 0.2s ease,
@@ -1473,310 +1496,51 @@
 
 
 /* =========================================================
-   LABEL SEEDANCE
+   SEMUA FIELD INTERNAL
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+> * {
+
+    box-sizing: border-box;
+}
+
+
+/* =========================================================
+   TOGGLE FIELD
    ---------------------------------------------------------
-   Beri jarak agar tulisan tidak menempel ke input.
+   Tidak lagi dipaksa 112px / 120px.
 ========================================================= */
 
 #dynamicFields:has(> .seedance-form)
 > .seedance-form
-> .seedance-field
-label {
-
-    display: block !important;
-
-    margin-bottom: 10px !important;
-
-    color:
-        #ffffff !important;
-
-    font-size: 12px !important;
-
-    font-weight: 700 !important;
-
-    line-height: 1.45 !important;
-
-    letter-spacing: 0.03em;
-}
-
-
-/* =========================================================
-   LABEL / TITLE YANG BUKAN <label>
-========================================================= */
+> .seedance-field:has(#seedanceGenerateAudio),
 
 #dynamicFields:has(> .seedance-form)
 > .seedance-form
-> .seedance-field
-.seedance-field-label,
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-.seedance-label {
-
-    display: block !important;
-
-    margin-bottom: 10px !important;
-
-    color:
-        #ffffff !important;
-
-    font-weight: 700 !important;
-
-    line-height: 1.45 !important;
-}
-
-
-/* =========================================================
-   DESCRIPTION / HELP TEXT
-========================================================= */
+> .seedance-field:has(#seedanceReturnLastFrame),
 
 #dynamicFields:has(> .seedance-form)
 > .seedance-form
-> .seedance-field
-.seedance-field-description,
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-.seedance-description,
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-small {
+> .seedance-field:has(#seedanceWebSearch) {
 
-    display: block !important;
+    display: flex !important;
 
-    margin-top: 8px !important;
+    flex-direction: column !important;
 
-    color:
-        rgba(255, 255, 255, 0.58) !important;
+    align-items: stretch !important;
 
-    font-size: 11px !important;
+    justify-content: flex-start !important;
 
-    line-height: 1.5 !important;
-}
+    height: max-content !important;
 
+    min-height: 0 !important;
 
-/* =========================================================
-   TEXTAREA
-========================================================= */
+    align-self: start !important;
 
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-textarea {
-
-    width: 100% !important;
-
-    box-sizing: border-box !important;
-
-    border-radius: 10px !important;
-
-    border:
-        1px solid
-        rgba(255, 255, 255, 0.18) !important;
-
-    background:
-        rgba(255, 255, 255, 0.045) !important;
-
-    color:
-        #ffffff !important;
-
-    padding: 12px 13px !important;
-
-    outline: none !important;
-
-    transition:
-        border-color 0.2s ease,
-        box-shadow 0.2s ease,
-        background 0.2s ease;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-textarea:focus {
-
-    border-color:
-        rgba(255, 145, 0, 0.85) !important;
-
-    background:
-        rgba(255, 145, 0, 0.045) !important;
-
-    box-shadow:
-        0 0 0 2px
-        rgba(255, 145, 0, 0.10),
-
-        0 0 12px
-        rgba(255, 145, 0, 0.16) !important;
-}
-
-
-/* =========================================================
-   FILE INPUT / MEDIA AREA
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-input[type="file"] {
-
-    width: 100% !important;
-
-    box-sizing: border-box !important;
-
-    color:
-        rgba(255, 255, 255, 0.78) !important;
-}
-
-
-/* =========================================================
-   URL INPUT
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-input[type="url"],
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-input[type="text"] {
-
-    width: 100% !important;
-
-    box-sizing: border-box !important;
-}
-
-
-/* =========================================================
-   SELECT
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-.seedance-select {
-
-    width: 100% !important;
-
-    min-height: 44px !important;
-
-    box-sizing: border-box !important;
-
-    border:
-        1px solid
-        rgba(255, 255, 255, 0.20) !important;
-
-    border-radius: 10px !important;
-
-    background:
-        rgba(255, 255, 255, 0.055) !important;
-
-    color:
-        #ffffff !important;
-
-    padding:
-        0 40px 0 13px !important;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-.seedance-select:focus {
-
-    border-color:
-        rgba(255, 145, 0, 0.95) !important;
-
-    box-shadow:
-        0 0 0 2px
-        rgba(255, 145, 0, 0.10),
-
-        0 0 14px
-        rgba(255, 145, 0, 0.20) !important;
-}
-
-
-/* =========================================================
-   MEDIA SOURCE TABS
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-.seedance-source-tab {
-
-    border:
-        1px solid
-        rgba(255, 255, 255, 0.18) !important;
-
-    background:
-        rgba(255, 255, 255, 0.045) !important;
-
-    color:
-        rgba(255, 255, 255, 0.72) !important;
-
-    border-radius: 8px !important;
-
-    transition:
-        border-color 0.18s ease,
-        background 0.18s ease,
-        color 0.18s ease;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-.seedance-source-tab:hover {
-
-    border-color:
-        rgba(255, 145, 0, 0.65) !important;
-
-    background:
-        rgba(255, 145, 0, 0.08) !important;
-
-    color:
-        #ffffff !important;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-.seedance-source-tab.is-active {
-
-    border-color:
-        rgba(255, 145, 0, 0.95) !important;
-
-    background:
-        rgba(255, 145, 0, 0.16) !important;
-
-    color:
-        #ffffff !important;
-
-    box-shadow:
-        0 0 8px
-        rgba(255, 145, 0, 0.18);
-}
-
-
-/* =========================================================
-   SELECTED FILE / MEDIA
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-.seedance-selected-files {
-
-    margin-top: 10px !important;
-}
-
-
-/* =========================================================
-   MEDIA PREVIEW
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-.seedance-media-preview {
-
-    margin-top: 10px !important;
-
-    border-radius: 10px;
+    overflow: visible !important;
 }
 
 
@@ -1785,101 +1549,297 @@ input[type="text"] {
 ========================================================= */
 
 #dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceGenerateAudio)
+.seedance-toggle,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReturnLastFrame)
+.seedance-toggle,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-field:has(#seedanceWebSearch)
 .seedance-toggle {
+
+    display: flex !important;
+
+    flex: 0 0 auto !important;
+
+    align-items: center !important;
+
+    justify-content: flex-start !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    min-height: 38px !important;
+
+    height: auto !important;
+
+    margin: 0 !important;
+
+    padding: 0 !important;
+
+    box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   TOGGLE INPUT
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceGenerateAudio)
+.seedance-toggle input,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReturnLastFrame)
+.seedance-toggle input,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-field:has(#seedanceWebSearch)
+.seedance-toggle input {
+
+    flex: 0 0 auto !important;
+
+    position: relative !important;
+
+    width: auto !important;
+
+    height: auto !important;
+
+    margin: 0 !important;
+}
+
+
+/* =========================================================
+   TOGGLE LABEL
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceGenerateAudio)
+.seedance-toggle-label,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReturnLastFrame)
+.seedance-toggle-label,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-field:has(#seedanceWebSearch)
+.seedance-toggle-label {
 
     display: inline-flex !important;
 
     align-items: center !important;
 
-    gap: 10px !important;
-
-    min-height: 38px;
-
-    cursor: pointer;
-}
-
-
-/* =========================================================
-   DURATION
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-.seedance-duration-row {
-
-    display: flex !important;
-
-    align-items: center !important;
-
-    gap: 12px !important;
-
-    width: 100% !important;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-.seedance-duration-range {
-
-    flex: 1 1 auto !important;
+    width: auto !important;
 
     min-width: 0 !important;
-}
 
+    margin: 0 !important;
 
-#dynamicFields:has(> .seedance-form)
-.seedance-duration-value {
+    padding: 0 !important;
 
-    min-width: 70px !important;
-
-    padding:
-        7px 10px !important;
-
-    border:
-        1px solid
-        rgba(255, 145, 0, 0.55) !important;
-
-    border-radius: 8px !important;
-
-    background:
-        rgba(255, 145, 0, 0.08) !important;
-
-    color:
-        #ffffff !important;
-
-    font-weight: 700 !important;
-
-    text-align: center !important;
+    line-height: 1.4 !important;
 }
 
 
 /* =========================================================
-   PROMPT COUNTER
+   DESCRIPTION TOGGLE
 ========================================================= */
 
 #dynamicFields:has(> .seedance-form)
-.seedance-counter {
+> .seedance-form
+> .seedance-field:has(#seedanceGenerateAudio)
+.seedance-field-description,
 
-    margin-top: 7px !important;
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReturnLastFrame)
+.seedance-field-description,
 
-    color:
-        rgba(255, 255, 255, 0.42) !important;
+#dynamicFields:has(> .seedance-form)
+> .seedance-field:has(#seedanceWebSearch)
+.seedance-field-description {
 
-    font-size: 11px !important;
+    display: block !important;
 
-    text-align: right;
+    width: 100% !important;
+
+    height: auto !important;
+
+    min-height: 0 !important;
+
+    margin-top: 8px !important;
+
+    margin-bottom: 0 !important;
+
+    box-sizing: border-box !important;
+
+    overflow: visible !important;
+}
+
+
+/* =========================================================
+   WEB SEARCH
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceWebSearch) {
+
+    grid-column: 1 / -1 !important;
+
+    grid-row: auto !important;
+
+    order: 999 !important;
+
+    height: max-content !important;
+
+    min-height: 0 !important;
+
+    align-self: start !important;
+
+    justify-self: stretch !important;
+}
+
+
+/* =========================================================
+   GRID POSITION
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceGenerateAudio) {
+
+    grid-column: 1 !important;
+
+    grid-row: auto !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReturnLastFrame) {
+
+    grid-column: 2 !important;
+
+    grid-row: auto !important;
 }
 
 
 /* =========================================================
    MOBILE
+   ---------------------------------------------------------
+   Satu kolom dan setiap blok tetap mengikuti isi sendiri.
 ========================================================= */
 
 @media (max-width: 768px) {
 
     #dynamicFields:has(> .seedance-form)
+    > .seedance-form {
+
+        grid-template-columns:
+            minmax(0, 1fr) !important;
+
+        grid-auto-rows:
+            max-content !important;
+
+        align-items:
+            start !important;
+
+        align-content:
+            start !important;
+
+        gap:
+            16px !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
     > .seedance-form
     > .seedance-field {
 
+        grid-column: 1 !important;
+
+        grid-row: auto !important;
+
+        width: 100% !important;
+
+        height: max-content !important;
+
+        min-height: 0 !important;
+
+        align-self: start !important;
+
+        justify-self: stretch !important;
+
         padding: 15px !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(#seedanceGenerateAudio),
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(#seedanceReturnLastFrame),
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(#seedanceWebSearch) {
+
+        grid-column: 1 !important;
+
+        grid-row: auto !important;
+
+        height: max-content !important;
+
+        min-height: 0 !important;
+
+        align-self: start !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(#seedanceWebSearch) {
+
+        order: 999 !important;
+    }
+
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 480px) {
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form {
+
+        gap: 12px !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field {
+
+        padding: 13px !important;
+
+        height: max-content !important;
+
+        min-height: 0 !important;
     }
 
 }
