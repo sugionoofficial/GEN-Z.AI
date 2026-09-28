@@ -231,25 +231,118 @@
 
 
         /* =====================================================
-           DYNAMIC FORM
-           -----------------------------------------------------
-           Seedance / dynamic model parameters
-           Layout 2 kolom pada desktop.
-        ====================================================== */
+   DYNAMIC FORM
+   -----------------------------------------------------
+   Seedance / dynamic model parameters
+   Layout 2 kolom pada desktop.
+====================================================== */
 
-        #dynamicFields {
+#dynamicFields {
 
-            position: relative;
+    position: relative;
 
-            display: grid !important;
+    width: 100%;
 
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr)) !important;
+    box-sizing: border-box;
+}
 
-            gap: 18px 20px;
 
-            width: 100%;
-        }
+/* =====================================================
+   CONTAINER FORM SEEDANCE
+   -----------------------------------------------------
+   Container pertama yang dibuat oleh renderer Seedance
+   dijadikan grid 2 kolom.
+====================================================== */
+
+#dynamicFields > :first-child {
+
+    display: grid !important;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr)) !important;
+
+    gap: 18px 20px !important;
+
+    width: 100% !important;
+
+    box-sizing: border-box !important;
+
+    align-items: start !important;
+}
+
+
+/* =====================================================
+   FIELD SEEDANCE
+====================================================== */
+
+#dynamicFields > :first-child > * {
+
+    width: auto !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    margin: 0 !important;
+
+    box-sizing: border-box !important;
+
+    align-self: start !important;
+}
+
+
+/* =====================================================
+   PROMPT
+   Full width
+====================================================== */
+
+#dynamicFields > :first-child > *:has(
+    textarea
+) {
+
+    grid-column: 1 / -1 !important;
+}
+
+
+/* =====================================================
+   RESOLUTION + ASPECT RATIO
+   Side by side
+====================================================== */
+
+#dynamicFields > :first-child > *:has(
+    #seedanceResolution
+) {
+
+    grid-column: 1 !important;
+}
+
+
+#dynamicFields > :first-child > *:has(
+    #seedanceAspectRatio
+) {
+
+    grid-column: 2 !important;
+}
+
+
+/* =====================================================
+   MOBILE
+====================================================== */
+
+@media (max-width: 768px) {
+
+    #dynamicFields > :first-child {
+
+        grid-template-columns:
+            minmax(0, 1fr) !important;
+    }
+
+
+    #dynamicFields > :first-child > * {
+
+        grid-column: 1 !important;
+    }
+}
 
 
         /* =====================================================
