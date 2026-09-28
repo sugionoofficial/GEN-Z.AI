@@ -483,6 +483,15 @@ function normalizeProviderIdentity(
     }
 
 
+    /*
+     * DATABASE UUID
+     *
+     * Sumber utama:
+     * providers.id
+     *
+     * databaseId juga didukung karena
+     * normalizer internal menggunakan nama tersebut.
+     */
     const databaseId =
         provider.id ??
         provider.uuid ??
@@ -492,6 +501,12 @@ function normalizeProviderIdentity(
         null;
 
 
+    /*
+     * PROVIDER CODE
+     *
+     * Sumber:
+     * providers.provider_id
+     */
     const providerCode =
         provider.provider_id ??
         provider.providerId ??
@@ -499,22 +514,26 @@ function normalizeProviderIdentity(
         provider.providerCode ??
         provider.provider ??
         provider.code ??
-        provider.providerCode ??
         "";
 
 
+    /*
+     * PROVIDER NAME
+     */
     const providerName =
         provider.provider_name ??
         provider.providerName ??
         provider.name ??
         provider.display_name ??
         provider.displayName ??
-        provider.providerName ??
         providerCode ??
         databaseId ??
         "";
 
 
+    /*
+     * STATUS
+     */
     const status =
         provider.status ??
         provider.state ??
