@@ -99,7 +99,7 @@ const FIELD_IDS = {
 ========================================================= */
 
 const MIN_DURATION =
-    1;
+    5;
 
 const MAX_DURATION =
     30;
@@ -111,6 +111,16 @@ const MAX_DURATION =
  * reference video total <= 30 sec
  * reference audio total <= 30 sec
  */
+const MAX_REFERENCE_IMAGE_FILES =
+    30;
+
+const MAX_REFERENCE_VIDEO_FILES =
+    10;
+
+const MAX_REFERENCE_AUDIO_FILES =
+    10;
+
+
 const MAX_REFERENCE_VIDEO_DURATION =
     30;
 
@@ -301,19 +311,21 @@ function createMediaSourceField(
 
     const {
 
-        name,
+    name,
 
-        title,
+    title,
 
-        description,
+    description,
 
-        type,
+    type,
 
-        multiple = false,
+    multiple = false,
 
-        required = false
+    required = false,
 
-    } = options;
+    maxFiles = null
+
+} = options;
 
 
     const id =
@@ -327,15 +339,20 @@ function createMediaSourceField(
 
 
     const multipleAttr =
-        multiple
-            ? "multiple"
-            : "";
+    multiple
+        ? "multiple"
+        : "";
 
+const requiredAttr =
+    required
+        ? "required"
+        : "";
 
-    const requiredAttr =
-        required
-            ? "required"
-            : "";
+const maxFilesAttr =
+    Number.isInteger(maxFiles) &&
+    maxFiles > 0
+        ? `data-max-files="${maxFiles}"`
+        : "";
 
 
     const modeName =
@@ -396,22 +413,28 @@ function createMediaSourceField(
             >
 
                 <input
-                    type="file"
-                    id="${fileInputId}"
-                    class="seedance-file-input"
-                    accept="${escapeHtml(accept)}"
-                    ${multipleAttr}
-                    ${requiredAttr}
-                />
+    type="file"
+    id="${fileInputId}"
+    class="seedance-file-input"
+    accept="${escapeHtml(accept)}"
+    ${multipleAttr}
+    ${requiredAttr}
+    ${maxFilesAttr}
+/>
 
                 <div
                     class="seedance-file-help"
                 >
                     ${
-                        multiple
-                            ? "Pilih satu atau beberapa file."
-                            : "Pilih satu file."
-                    }
+    multiple
+        ? (
+            Number.isInteger(maxFiles) &&
+            maxFiles > 0
+                ? `Pilih hingga ${maxFiles} file.`
+                : "Pilih satu atau beberapa file."
+          )
+        : "Pilih satu file."
+}
                 </div>
 
                 <div
