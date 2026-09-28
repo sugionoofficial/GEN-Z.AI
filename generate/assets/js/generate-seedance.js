@@ -1181,150 +1181,325 @@ function injectStyles() {
 
         @media (max-width: 640px) {
 
-    .seedance-field {
-        width: 100%;
-        box-sizing: border-box;
-        margin-bottom: 14px;
-        padding: 13px;
-        border-radius: 13px;
+    /* =====================================================
+       SEEDANCE MOBILE ROOT
+    ===================================================== */
+
+    .seedance-form {
+        display: block;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
     }
 
 
+    .seedance-form *,
+    .seedance-form *::before,
+    .seedance-form *::after {
+        box-sizing: border-box;
+    }
+
+
+    .seedance-field {
+        display: block;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
+        margin: 0 0 14px 0 !important;
+        padding: 13px !important;
+
+        border-radius: 13px;
+
+        overflow: hidden;
+    }
+
+
+    /* =====================================================
+       FIELD HEADER
+    ===================================================== */
+
     .seedance-field-header {
+        display: block;
         width: 100%;
+        max-width: 100%;
+        min-width: 0;
+
         margin-bottom: 11px;
     }
 
 
+    .seedance-field-header > div {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+
     .seedance-field-title {
+        width: 100%;
+        max-width: 100%;
+
         font-size: 13px;
         line-height: 1.35;
+
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
 
     .seedance-field-description {
+        width: 100%;
+        max-width: 100%;
+
+        margin-top: 5px;
+
         font-size: 10px;
         line-height: 1.45;
+
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
 
-    /* =========================================
+    /* =====================================================
+       MEDIA SOURCE
+    ===================================================== */
+
+    .seedance-media-source {
+        display: block;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
+        overflow: hidden;
+    }
+
+
+    /* =====================================================
        SOURCE TABS
-    ========================================= */
+    ===================================================== */
 
     .seedance-source-tabs {
-        width: 100%;
         display: grid;
-        grid-template-columns: 1fr 1fr;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+
         gap: 6px;
+
+        margin-bottom: 12px;
     }
 
 
     .seedance-source-tab {
-        width: 100%;
-        min-width: 0;
-        box-sizing: border-box;
+        display: block;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
         padding: 9px 8px;
+
+        border-radius: 9px;
+
         font-size: 11px;
+
         text-align: center;
+
+        white-space: nowrap;
+
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
 
-    /* =========================================
-       ADD BUTTON + COUNTER
-    ========================================= */
+    /* =====================================================
+       UPLOAD TOOLBAR
+    ===================================================== */
 
     .seedance-upload-toolbar {
-        width: 100%;
-        min-width: 0;
         display: flex;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
         align-items: center;
         justify-content: space-between;
+
         gap: 8px;
+
+        margin-bottom: 10px;
+
         flex-wrap: wrap;
     }
 
 
     .seedance-add-file-button {
-        flex: 0 0 auto;
+        flex: 0 1 auto;
+
+        max-width: 100%;
+        min-width: 0;
+
         min-height: 36px;
+
         padding: 8px 11px;
+
         font-size: 11px;
+
+        white-space: nowrap;
     }
 
 
     .seedance-file-limit {
         flex: 0 0 auto;
+
+        max-width: 100%;
+
         margin-left: auto;
+
         font-size: 10px;
+
         white-space: nowrap;
     }
 
 
-    /* =========================================
+    /* =====================================================
        FILE INPUT
-    ========================================= */
+    ===================================================== */
 
     .seedance-file-input {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        box-sizing: border-box;
+        display: block;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
         padding: 9px;
+
         font-size: 11px;
+
+        overflow: hidden;
     }
 
 
-    /* =========================================
-       SELECTED FILE
-    ========================================= */
+    /* =====================================================
+       FILE HELP
+    ===================================================== */
+
+    .seedance-file-help {
+        width: 100%;
+        max-width: 100%;
+
+        font-size: 10px;
+        line-height: 1.45;
+
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+
+    /* =====================================================
+       SELECTED FILE LIST
+    ===================================================== */
 
     .seedance-selected-files {
-        width: 100%;
-        min-width: 0;
         display: grid;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
+        grid-template-columns:
+            minmax(0, 1fr);
+
         gap: 6px;
+
+        margin-top: 12px;
+
+        overflow: hidden;
     }
 
 
     .seedance-selected-file {
-        width: 100%;
-        min-width: 0;
-        box-sizing: border-box;
         display: flex;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
         align-items: center;
+
         gap: 7px;
+
         padding: 8px;
+
+        overflow: hidden;
     }
 
 
     .seedance-selected-file-index {
         flex: 0 0 23px;
+
         width: 23px;
+        min-width: 23px;
+        max-width: 23px;
+
         height: 23px;
+
         font-size: 9px;
     }
 
 
     .seedance-selected-file-info {
         flex: 1 1 auto;
+
+        width: 0;
+        max-width: 100%;
         min-width: 0;
+
         overflow: hidden;
     }
 
 
     .seedance-selected-file-name {
+        display: block;
+
         width: 100%;
+        max-width: 100%;
         min-width: 0;
+
         overflow: hidden;
+
         text-overflow: ellipsis;
+
         white-space: nowrap;
+
         font-size: 10px;
         line-height: 1.3;
     }
 
 
     .seedance-selected-file-size {
+        max-width: 100%;
+
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
         font-size: 9px;
         line-height: 1.3;
     }
@@ -1332,24 +1507,34 @@ function injectStyles() {
 
     .seedance-remove-file-button {
         flex: 0 0 auto;
+
+        max-width: 90px;
+
         min-height: 30px;
+
         padding: 6px 8px;
-        white-space: nowrap;
+
         font-size: 9px;
+
+        white-space: nowrap;
     }
 
 
-    /* =========================================
-       URL / PROMPT
-    ========================================= */
+    /* =====================================================
+       URL + PROMPT
+    ===================================================== */
 
     .seedance-url-input,
     .seedance-prompt-input {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        box-sizing: border-box;
+        display: block;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
         font-size: 12px;
+
+        overflow-x: hidden;
     }
 
 
@@ -1363,109 +1548,255 @@ function injectStyles() {
     }
 
 
-    /* =========================================
+    /* =====================================================
        SELECT
-    ========================================= */
+    ===================================================== */
 
     .seedance-select {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
+        display: block;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
         min-height: 42px;
-        box-sizing: border-box;
+
         font-size: 12px;
     }
 
 
-    /* =========================================
+    /* =====================================================
        PREVIEW
-    ========================================= */
+    ===================================================== */
 
     .seedance-media-preview {
-        width: 100%;
-        min-width: 0;
+        display: grid;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
         grid-template-columns:
             repeat(
                 2,
                 minmax(0, 1fr)
             );
+
         gap: 7px;
+
+        margin-top: 12px;
+
+        overflow: hidden;
     }
 
 
     .seedance-preview-media {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
+        display: block;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
+        height: auto;
+
         max-height: 180px;
+
         object-fit: contain;
+
         border-radius: 8px;
     }
 
 
-    /* =========================================
+    /* =====================================================
        DURATION
-    ========================================= */
+    ===================================================== */
 
     .seedance-duration-row {
-        width: 100%;
-        min-width: 0;
         display: flex;
+
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
         align-items: center;
+
         gap: 9px;
     }
 
 
     .seedance-duration-range {
         flex: 1 1 auto;
-        min-width: 0;
+
         width: 100%;
+        min-width: 0;
+
+        max-width: 100%;
     }
 
 
     .seedance-duration-value {
         flex: 0 0 auto;
+
         min-width: 62px;
+
         font-size: 11px;
+
         text-align: right;
+
+        white-space: nowrap;
     }
 
 
     .seedance-duration-scale {
+        display: flex;
+
+        width: 100%;
+        max-width: 100%;
+
+        justify-content: space-between;
+
         font-size: 9px;
     }
 
 
-    /* =========================================
+    /* =====================================================
        TOGGLE
-    ========================================= */
+    ===================================================== */
 
     .seedance-toggle {
+        display: inline-flex;
+
         max-width: 100%;
         min-width: 0;
-        display: inline-flex;
+
         align-items: center;
+
         gap: 8px;
+
+        overflow: hidden;
     }
 
 
     .seedance-toggle-track {
-        flex: 0 0 auto;
+        flex: 0 0 44px;
     }
 
 
     .seedance-toggle-label {
         min-width: 0;
+        max-width: 100%;
+
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
         font-size: 11px;
     }
 
 
-    /* =========================================
-       COUNTER
-    ========================================= */
+    /* =====================================================
+       PROMPT COUNTER
+    ===================================================== */
 
     .seedance-counter {
+        width: 100%;
+        max-width: 100%;
+
         font-size: 9px;
+    }
+
+}
+
+
+/* =========================================================
+   VERY SMALL PHONES
+========================================================= */
+
+@media (max-width: 380px) {
+
+    .seedance-field {
+        padding: 11px !important;
+        border-radius: 11px;
+    }
+
+
+    .seedance-source-tabs {
+        gap: 5px;
+    }
+
+
+    .seedance-source-tab {
+        padding: 8px 5px;
+        font-size: 10px;
+    }
+
+
+    .seedance-upload-toolbar {
+        align-items: stretch;
+    }
+
+
+    .seedance-add-file-button {
+        flex: 1 1 auto;
+
+        min-width: 0;
+        max-width: 100%;
+    }
+
+
+    .seedance-file-limit {
+        margin-left: 0;
+
+        align-self: center;
+    }
+
+
+    .seedance-selected-file {
+        gap: 5px;
+        padding: 7px;
+    }
+
+
+    .seedance-selected-file-index {
+        flex-basis: 21px;
+
+        width: 21px;
+        min-width: 21px;
+        max-width: 21px;
+
+        height: 21px;
+    }
+
+
+    .seedance-remove-file-button {
+        max-width: 75px;
+
+        padding: 5px 6px;
+
+        font-size: 8px;
+    }
+
+
+    .seedance-media-preview {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+
+        gap: 5px;
+    }
+
+
+    .seedance-duration-row {
+        gap: 7px;
+    }
+
+
+    .seedance-duration-value {
+        min-width: 57px;
+
+        font-size: 10px;
     }
 
 }
