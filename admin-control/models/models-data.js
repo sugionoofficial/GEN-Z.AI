@@ -492,6 +492,7 @@ function normalizeProviderIdentity(
      * databaseId juga didukung karena
      * normalizer internal menggunakan nama tersebut.
      */
+
     const databaseId =
         provider.id ??
         provider.uuid ??
@@ -507,6 +508,7 @@ function normalizeProviderIdentity(
      * Sumber:
      * providers.provider_id
      */
+
     const providerCode =
         provider.provider_id ??
         provider.providerId ??
@@ -520,6 +522,7 @@ function normalizeProviderIdentity(
     /*
      * PROVIDER NAME
      */
+
     const providerName =
         provider.provider_name ??
         provider.providerName ??
@@ -534,6 +537,7 @@ function normalizeProviderIdentity(
     /*
      * STATUS
      */
+
     const status =
         provider.status ??
         provider.state ??
@@ -707,11 +711,6 @@ function providerMatchesCode(
 
     /*
      * KIE ALIAS
-     *
-     * kie
-     * kie_ai
-     * kie.ai
-     * kie a.i.
      */
 
     if (
@@ -1403,20 +1402,6 @@ function findRegistryProvider(
      * =====================================================
      * CANONICAL PROVIDER REQUEST
      * =====================================================
-     *
-     * Semua alias KIE dianggap provider code:
-     *
-     *     kie
-     *
-     * sehingga:
-     *
-     *     kie
-     *     kie_ai
-     *     kie.ai
-     *     kie a.i.
-     *
-     * semuanya mencari provider Supabase dengan
-     * provider_id = kie / alias KIE.
      */
 
     const requestedCodes = [
@@ -1576,11 +1561,6 @@ function findRegistryProvider(
      * =====================================================
      * 4. EXPLICIT KIE FALLBACK
      * =====================================================
-     *
-     * Hanya menggunakan provider yang benar-benar
-     * sudah ada di Supabase/model cache.
-     *
-     * Tidak membuat provider baru.
      */
 
     if (
@@ -1971,61 +1951,63 @@ function normalizeRegistryModel(
      */
 
     const providerUuid =
-    providerIdentity?.databaseId ??
-    null;
+        providerIdentity?.databaseId ??
+        null;
 
 
-/*
- * =====================================================
- * RESOLVED PROVIDER IDENTITY
- * =====================================================
- *
- * Jika provider ditemukan di Supabase:
- *
- *   provider_id     = providers.id
- *   provider_code   = providers.provider_id
- *   provider_name   = providers.provider_name
- *
- * Registry tidak boleh mengambil alih identitas tersebut.
- */
+    /*
+     * =====================================================
+     * RESOLVED PROVIDER IDENTITY
+     * =====================================================
+     *
+     * Jika provider ditemukan di Supabase:
+     *
+     *   provider_id     = providers.id
+     *   provider_code   = providers.provider_id
+     *   provider_name   = providers.provider_name
+     *
+     * Registry tidak boleh mengambil alih identitas tersebut.
+     */
 
-const resolvedProviderCode =
-    provider
-        ? (
-            providerIdentity?.providerCode ||
-            ""
-        )
-        : (
-            providerCode ||
-            ""
-        );
-
-
-const resolvedProviderName =
-    provider
-        ? (
-            providerIdentity?.providerName ||
-            ""
-        )
-        : (
-            providerName ||
-            providerCode ||
-            ""
-        );
+    const resolvedProviderCode =
+        provider
+            ? (
+                providerIdentity?.providerCode ||
+                ""
+            )
+            : (
+                providerCode ||
+                ""
+            );
 
 
-const resolvedProviderStatus =
-    provider
-        ? (
-            providerIdentity?.status ||
-            "unknown"
-        )
-        : "unknown";
+    const resolvedProviderName =
+        provider
+            ? (
+                providerIdentity?.providerName ||
+                ""
+            )
+            : (
+                providerName ||
+                providerCode ||
+                ""
+            );
 
+
+    /*
+     * HANYA SATU deklarasi resolvedProviderStatus.
+     *
+     * Error sebelumnya berasal dari deklarasi kedua
+     * dengan nama identifier yang sama.
+     */
 
     const resolvedProviderStatus =
-        providerIdentity?.status ||
-        "unknown";
+        provider
+            ? (
+                providerIdentity?.status ||
+                "unknown"
+            )
+            : "unknown";
 
 
     const providerData =
