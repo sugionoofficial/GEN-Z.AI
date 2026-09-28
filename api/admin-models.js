@@ -73,6 +73,17 @@ import {
     verifyAdmin
 } from "./admin-models/auth.js";
 
+import {
+    MODEL_FIELDS,
+    PROVIDER_FIELDS,
+    KIE_MODEL_FIELDS,
+    KIE_WORKFLOW_FIELDS,
+    KIE_PRICING_FIELDS,
+    parseNumber,
+    cleanModel,
+    validateModel
+} from "./admin-models/validation.js";
+
     // ====================================
     // VERIFY SUPABASE USER
     // ====================================
