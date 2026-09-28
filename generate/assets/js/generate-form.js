@@ -3229,8 +3229,12 @@ export function renderGenerateForm(
 /* =========================================================
    FORCE CONTAINER VISIBLE
    ---------------------------------------------------------
-   PERBAIKAN UTAMA:
-   #dynamicFields dipastikan menjadi GRID 2 kolom.
+   PERBAIKAN LAYOUT:
+   - Desktop = 2 kolom
+   - Mobile = 1 kolom
+   - Field biasa = 1 kolom
+   - Prompt / image = full width
+   - Memaksa direct child grid agar tidak kembali vertikal
 ========================================================= */
 
 function forceContainerVisible(
@@ -3256,10 +3260,9 @@ function forceContainerVisible(
 
 
     /*
-     * Grid dua kolom desktop.
-     *
-     * !important diperlukan karena sebelumnya
-     * layout dapat ditimpa CSS lain.
+     * =====================================================
+     * CONTAINER
+     * =====================================================
      */
 
     container.style.setProperty(
@@ -3354,8 +3357,9 @@ function forceContainerVisible(
 
 
     /*
-     * Mobile:
-     * satu kolom agar tidak terlalu sempit.
+     * =====================================================
+     * MOBILE
+     * =====================================================
      */
 
     const mobile =
@@ -3379,6 +3383,151 @@ function forceContainerVisible(
         );
 
     }
+
+
+    /*
+     * =====================================================
+     * FIELD CHILDREN
+     * =====================================================
+     */
+
+    const fields =
+        container.querySelectorAll(
+            ".generate-field"
+        );
+
+
+    fields.forEach(
+        field => {
+
+            if (
+                !field
+            ) {
+
+                return;
+
+            }
+
+
+            const parameter =
+                String(
+                    field.dataset.parameter ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            /*
+             * Pastikan field benar-benar
+             * menjadi item grid.
+             */
+
+            field.style.setProperty(
+                "display",
+                "block",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "width",
+                "auto",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "min-width",
+                "0",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "max-width",
+                "100%",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "box-sizing",
+                "border-box",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "align-self",
+                "start",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "visibility",
+                "visible",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "opacity",
+                "1",
+                "important"
+            );
+
+
+            /*
+             * Prompt / image full width.
+             */
+
+            const fullWidth =
+                parameter ===
+                    "prompt" ||
+                parameter ===
+                    "negative_prompt" ||
+                parameter ===
+                    "description" ||
+                parameter ===
+                    "image_urls" ||
+                parameter ===
+                    "image_url";
+
+
+            if (
+                mobile
+            ) {
+
+                field.style.setProperty(
+                    "grid-column",
+                    "1 / -1",
+                    "important"
+                );
+
+            } else if (
+                fullWidth
+            ) {
+
+                field.style.setProperty(
+                    "grid-column",
+                    "1 / -1",
+                    "important"
+                );
+
+            } else {
+
+                field.style.setProperty(
+                    "grid-column",
+                    "span 1",
+                    "important"
+                );
+
+            }
+
+        }
+    );
 
 }
 
