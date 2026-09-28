@@ -230,90 +230,304 @@
         }
 
 
-        /* =====================================================
+                /* =====================================================
            DYNAMIC FORM
+           -----------------------------------------------------
+           Layout responsif untuk parameter model.
+
+           - Field besar tetap full width.
+           - Parameter pendek dapat berdampingan.
+           - Seedance tidak lagi memanjang ke bawah.
         ====================================================== */
 
         #dynamicFields {
             position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
 
+            display: grid;
 
-        #dynamicFields .form-group,
-        #dynamicFields .field,
-        #dynamicFields .form-field {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+
+            gap: 18px 20px;
+
             width: 100%;
         }
 
 
+        /*
+         * Semua field dynamic boleh mengecil
+         * mengikuti kolom grid.
+         */
+
+        #dynamicFields .form-group,
+        #dynamicFields .field,
+        #dynamicFields .form-field {
+
+            width: 100%;
+            min-width: 0;
+
+            box-sizing: border-box;
+        }
+
+
+        /*
+         * Field yang secara visual membutuhkan
+         * ruang penuh.
+         *
+         * Prompt, textarea, image upload, preview,
+         * dan elemen besar tetap satu baris.
+         */
+
+        #dynamicFields
+        .generate-textarea-field,
+        #dynamicFields
+        .generate-image-field,
+        #dynamicFields
+        .generate-upload-field,
+        #dynamicFields
+        .generate-prompt-field {
+
+            grid-column: 1 / -1;
+        }
+
+
+        /*
+         * Textarea generik juga dibuat full width.
+         */
+
+        #dynamicFields textarea {
+
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+
+        /*
+         * Select / input mengikuti lebar kolom.
+         */
+
+        #dynamicFields select,
+        #dynamicFields input[type="text"],
+        #dynamicFields input[type="number"],
+        #dynamicFields input[type="url"] {
+
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+
         /* =====================================================
-           CHECKBOX STYLE
+           OPTION / RADIO GROUP
         ====================================================== */
 
         .generate-option-group {
+
             display: flex;
+
             flex-wrap: wrap;
+
+            align-items: stretch;
+
             gap: 10px;
         }
 
 
         .generate-option {
+
             position: relative;
+
             display: inline-flex;
+
             align-items: center;
+
             cursor: pointer;
         }
 
 
         .generate-option input {
+
             position: absolute;
+
             width: 1px;
             height: 1px;
+
             opacity: 0;
+
             pointer-events: none;
         }
 
 
         .generate-option-label {
+
             min-width: 76px;
+
             padding: 11px 15px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
+
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.18);
+
             border-radius: 10px;
-            background: rgba(255, 255, 255, 0.035);
-            color: rgba(255, 255, 255, 0.72);
+
+            background:
+                rgba(255, 255, 255, 0.045);
+
+            /*
+             * Sebelumnya terlalu redup.
+             */
+
+            color: #ffffff;
+
             text-align: center;
+
             font-size: 13px;
+
             font-weight: 600;
+
+            line-height: 1.2;
+
             transition:
                 border-color 0.18s ease,
                 background 0.18s ease,
                 color 0.18s ease,
-                box-shadow 0.18s ease;
+                box-shadow 0.18s ease,
+                transform 0.18s ease;
         }
 
 
-        .generate-option:hover .generate-option-label {
-            border-color: rgba(255, 55, 85, 0.55);
-            color: #ffffff;
-        }
+        /*
+         * Hover
+         */
 
+        .generate-option:hover
+        .generate-option-label {
 
-        .generate-option input:checked + .generate-option-label {
-            border-color: rgba(255, 35, 70, 0.95);
-            background: rgba(255, 30, 65, 0.13);
+            border-color:
+                rgba(255, 55, 85, 0.65);
+
+            background:
+                rgba(255, 35, 70, 0.08);
+
             color: #ffffff;
+
             box-shadow:
-                0 0 7px rgba(255, 30, 65, 0.28),
-                inset 0 0 12px rgba(255, 30, 65, 0.06);
+                0 0 8px
+                rgba(255, 35, 70, 0.16);
         }
 
 
-        .generate-option input:focus-visible + .generate-option-label {
-            outline: 2px solid rgba(255, 80, 105, 0.8);
+        /*
+         * OPTION AKTIF
+         */
+
+        .generate-option
+        input:checked
+        + .generate-option-label {
+
+            border-color:
+                rgba(255, 35, 70, 0.98);
+
+            background:
+                rgba(255, 30, 65, 0.18);
+
+            color: #ffffff;
+
+            box-shadow:
+                0 0 8px
+                rgba(255, 30, 65, 0.32),
+
+                inset 0 0 14px
+                rgba(255, 30, 65, 0.08);
+        }
+
+
+        /*
+         * Focus keyboard
+         */
+
+        .generate-option
+        input:focus-visible
+        + .generate-option-label {
+
+            outline:
+                2px solid
+                rgba(255, 80, 105, 0.85);
+
             outline-offset: 2px;
+        }
+
+
+        /*
+         * Boolean option.
+         */
+
+        #dynamicFields
+        .generate-option-group {
+
+            width: 100%;
+        }
+
+
+        /* =====================================================
+           MOBILE
+        ====================================================== */
+
+        @media (max-width: 768px) {
+
+            #dynamicFields {
+
+                grid-template-columns:
+                    minmax(0, 1fr);
+
+                gap: 16px;
+            }
+
+
+            #dynamicFields
+            .generate-textarea-field,
+            #dynamicFields
+            .generate-image-field,
+            #dynamicFields
+            .generate-upload-field,
+            #dynamicFields
+            .generate-prompt-field {
+
+                grid-column: auto;
+            }
+
+        }
+
+
+        /* =====================================================
+           VERY SMALL SCREEN
+        ====================================================== */
+
+        @media (max-width: 480px) {
+
+            .generate-option-group {
+
+                gap: 8px;
+            }
+
+
+            .generate-option {
+
+                flex:
+                    1 1
+                    calc(50% - 8px);
+            }
+
+
+            .generate-option-label {
+
+                width: 100%;
+                min-width: 0;
+
+                padding:
+                    10px 12px;
+            }
+
         }
 
 
