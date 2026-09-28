@@ -26,6 +26,15 @@
 
    JANGAN menukar kedua field tersebut.
 
+   TAMPILAN FORM:
+   ---------------------------------------------------------
+   Provider ID   → providers.provider_id
+   Provider Name → providers.provider_name
+
+   NILAI INTERNAL SELECT:
+   ---------------------------------------------------------
+   select.value → providers.id
+
    Module ini:
    - TIDAK query Supabase
    - TIDAK query KIE
@@ -299,8 +308,6 @@
              */
 
             status:
-
-
                 status,
 
 
@@ -652,6 +659,7 @@
        -----------------------------------------------------
        IMPORTANT:
        option.value = providers.id
+       option.textContent = providers.provider_id
        ===================================================== */
 
     function render(
@@ -811,27 +819,46 @@
 
                 /*
                  * =================================================
-                 * INI BAGIAN PALING PENTING
+                 * DATABASE VALUE
                  * =================================================
                  *
-                 * models.provider_id -> providers.id
+                 * models.provider_id
+                 * tetap menggunakan:
                  *
-                 * Jadi value HARUS database UUID.
+                 * providers.id
+                 *
+                 * JANGAN ubah menjadi providerCode.
                  */
 
                 option.value =
                     databaseId;
 
 
-                const providerName =
-                    normalizeString(
-                        provider.provider_name
-                    ) ||
-                    normalizeString(
-                        provider.provider_id
-                    ) ||
-                    databaseId;
-
+                /*
+                 * =================================================
+                 * DISPLAY VALUE
+                 * =================================================
+                 *
+                 * Field ini adalah:
+                 *
+                 * Provider ID
+                 *
+                 * sehingga yang ditampilkan harus:
+                 *
+                 * providers.provider_id
+                 *
+                 * Contoh:
+                 *
+                 * kie
+                 *
+                 * BUKAN:
+                 *
+                 * GEN-Z.AI
+                 *
+                 * dan BUKAN:
+                 *
+                 * GEN-Z.AI (kie)
+                 */
 
                 const providerCode =
                     normalizeString(
@@ -839,22 +866,16 @@
                     );
 
 
+                const providerName =
+                    normalizeString(
+                        provider.provider_name
+                    );
+
+
                 option.textContent =
-                    providerCode &&
-                    providerName !== providerCode
-
-                        ?
-
-                        (
-                            providerName +
-                            " (" +
-                            providerCode +
-                            ")"
-                        )
-
-                        :
-
-                        providerName;
+                    providerCode ||
+                    providerName ||
+                    databaseId;
 
 
                 /*
@@ -865,9 +886,17 @@
                     databaseId;
 
 
+                /*
+                 * Provider code.
+                 */
+
                 option.dataset.providerId =
                     providerCode;
 
+
+                /*
+                 * Provider name.
+                 */
 
                 option.dataset.providerName =
                     providerName;
@@ -977,6 +1006,29 @@
         console.info(
             "[GEN-Z.AI] Provider dropdown rendered:",
             source.length
+        );
+
+
+        console.info(
+            "[GEN-Z.AI] Provider dropdown values:",
+            source.map(
+                function (provider) {
+
+                    return {
+
+                        database_id:
+                            provider.id,
+
+                        provider_id:
+                            provider.provider_id,
+
+                        provider_name:
+                            provider.provider_name
+
+                    };
+
+                }
+            )
         );
 
 
