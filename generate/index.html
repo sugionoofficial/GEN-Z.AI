@@ -231,164 +231,47 @@
 
 
         /* =====================================================
-   DYNAMIC FORM
-   -----------------------------------------------------
-   Seedance / dynamic model parameters
-   Layout 2 kolom pada desktop.
-====================================================== */
+           DYNAMIC FORM
+           -----------------------------------------------------
+           Layout utama ditangani berdasarkan struktur
+           Seedance yang sebenarnya.
 
-#dynamicFields {
+           Parent #dynamicFields hanya menjadi container.
+           Seedance sendiri yang menjadi grid.
+        ====================================================== */
 
-    position: relative;
-
-    width: 100%;
-
-    box-sizing: border-box;
-}
-
-
-/* =====================================================
-   CONTAINER FORM SEEDANCE
-   -----------------------------------------------------
-   Container pertama yang dibuat oleh renderer Seedance
-   dijadikan grid 2 kolom.
-====================================================== */
-
-#dynamicFields > :first-child {
-
-    display: grid !important;
-
-    grid-template-columns:
-        repeat(2, minmax(0, 1fr)) !important;
-
-    gap: 18px 20px !important;
-
-    width: 100% !important;
-
-    box-sizing: border-box !important;
-
-    align-items: start !important;
-}
-
-
-/* =====================================================
-   FIELD SEEDANCE
-====================================================== */
-
-#dynamicFields > :first-child > * {
-
-    width: auto !important;
-
-    min-width: 0 !important;
-
-    max-width: none !important;
-
-    margin: 0 !important;
-
-    box-sizing: border-box !important;
-
-    align-self: start !important;
-}
-
-
-/* =====================================================
-   PROMPT
-   Full width
-====================================================== */
-
-#dynamicFields > :first-child > *:has(
-    textarea
-) {
-
-    grid-column: 1 / -1 !important;
-}
-
-
-/* =====================================================
-   RESOLUTION + ASPECT RATIO
-   Side by side
-====================================================== */
-
-#dynamicFields > :first-child > *:has(
-    #seedanceResolution
-) {
-
-    grid-column: 1 !important;
-}
-
-
-#dynamicFields > :first-child > *:has(
-    #seedanceAspectRatio
-) {
-
-    grid-column: 2 !important;
-}
-
-
-/* =====================================================
-   MOBILE
-====================================================== */
-
-@media (max-width: 768px) {
-
-    #dynamicFields > :first-child {
-
-        grid-template-columns:
-            minmax(0, 1fr) !important;
-    }
-
-
-    #dynamicFields > :first-child > * {
-
-        grid-column: 1 !important;
-    }
-}
+        #dynamicFields {
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+        }
 
 
         /* =====================================================
-           ACTUAL DYNAMIC FIELD
+           NORMAL DYNAMIC FORM
            -----------------------------------------------------
-           generate-form.js menggunakan:
-           .generate-field
+           Untuk model selain Seedance.
         ====================================================== */
 
         #dynamicFields > .generate-field {
-
             width: auto !important;
-
-            min-width: 0;
-
-            box-sizing: border-box;
-
-            margin: 0;
+            min-width: 0 !important;
+            max-width: none !important;
+            box-sizing: border-box !important;
+            margin: 0 !important;
         }
 
 
-        /*
-         * Field yang berisi textarea / prompt
-         * tetap memenuhi seluruh baris.
-         */
-
         #dynamicFields > .generate-field:has(textarea) {
-
             grid-column: 1 / -1;
         }
 
-
-        /*
-         * Image input juga full width.
-         */
 
         #dynamicFields
         > .generate-field:has(.generate-image-input) {
-
             grid-column: 1 / -1;
         }
 
-
-        /*
-         * Semua input mengikuti lebar kolom.
-         */
 
         #dynamicFields
         > .generate-field
@@ -401,13 +284,371 @@
         textarea {
 
             max-width: 100%;
-
             box-sizing: border-box;
         }
 
 
         /* =====================================================
-           OPTION GROUP
+           SEEDANCE ROOT
+           -----------------------------------------------------
+           Sangat penting:
+           #dynamicFields sendiri tidak boleh menjadi
+           grid 2 kolom ketika Seedance sedang aktif.
+
+           Jika parent juga menjadi grid, .seedance-form
+           hanya bisa mengambil satu kolom parent.
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form) {
+
+            display: block !important;
+
+            width: 100% !important;
+
+            max-width: 100% !important;
+
+            box-sizing: border-box !important;
+        }
+
+
+        /* =====================================================
+           SEEDANCE FORM
+           -----------------------------------------------------
+           Form Seedance menjadi grid utama.
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form {
+
+            display: grid !important;
+
+            grid-template-columns:
+                minmax(0, 1fr)
+                minmax(0, 1fr) !important;
+
+            grid-auto-flow: row;
+
+            gap: 18px 20px !important;
+
+            width: 100% !important;
+
+            max-width: 100% !important;
+
+            margin: 0 !important;
+
+            padding: 0 !important;
+
+            box-sizing: border-box !important;
+
+            align-items: start !important;
+
+            grid-column: 1 / -1 !important;
+        }
+
+
+        /* =====================================================
+           SEEDANCE FIELD
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field {
+
+            width: 100% !important;
+
+            min-width: 0 !important;
+
+            max-width: none !important;
+
+            margin: 0 !important;
+
+            padding: 0 !important;
+
+            box-sizing: border-box !important;
+
+            align-self: start !important;
+
+            grid-column: auto;
+        }
+
+
+        /* =====================================================
+           SEEDANCE PROMPT
+           -----------------------------------------------------
+           Full width
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedancePrompt) {
+
+            grid-column: 1 / -1 !important;
+        }
+
+
+        /* =====================================================
+           FRAME
+           -----------------------------------------------------
+           Frame Awal | Frame Akhir
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceFirstFrame-file) {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceLastFrame-file) {
+
+            grid-column: 2 !important;
+        }
+
+
+        /* =====================================================
+           REFERENCE MEDIA
+           -----------------------------------------------------
+           Reference Images | Reference Videos
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceReferenceImages-file) {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceReferenceVideos-file) {
+
+            grid-column: 2 !important;
+        }
+
+
+        /* =====================================================
+           REFERENCE AUDIO
+           -----------------------------------------------------
+           Full width
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceReferenceAudio-file) {
+
+            grid-column: 1 / -1 !important;
+        }
+
+
+        /* =====================================================
+           RESOLUTION + ASPECT RATIO
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceResolution) {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceAspectRatio) {
+
+            grid-column: 2 !important;
+        }
+
+
+        /* =====================================================
+           DURATION + OUTPUT FORMAT
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceDuration) {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceOutputFormat) {
+
+            grid-column: 2 !important;
+        }
+
+
+        /* =====================================================
+           GENERATE AUDIO + RETURN LAST FRAME
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceGenerateAudio) {
+
+            grid-column: 1 !important;
+        }
+
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceReturnLastFrame) {
+
+            grid-column: 2 !important;
+        }
+
+
+        /* =====================================================
+           WEB SEARCH
+           -----------------------------------------------------
+           Full width
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        > .seedance-form
+        > .seedance-field:has(#seedanceWebSearch) {
+
+            grid-column: 1 / -1 !important;
+        }
+
+
+        /* =====================================================
+           SEEDANCE SELECT
+           -----------------------------------------------------
+           Resolution / Aspect Ratio / Output Format
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        .seedance-select {
+
+            display: block !important;
+
+            width: 100% !important;
+
+            min-width: 0 !important;
+
+            min-height: 46px !important;
+
+            box-sizing: border-box !important;
+
+            padding:
+                0 42px 0 14px !important;
+
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.25) !important;
+
+            border-radius: 10px !important;
+
+            background:
+                rgba(255, 255, 255, 0.065) !important;
+
+            color: #ffffff !important;
+
+            font-size: 13px !important;
+
+            font-weight: 700 !important;
+
+            opacity: 1 !important;
+
+            cursor: pointer;
+
+            outline: none;
+        }
+
+
+        /* Select saat hover */
+
+        #dynamicFields:has(> .seedance-form)
+        .seedance-select:hover {
+
+            border-color:
+                rgba(255, 55, 85, 0.75) !important;
+
+            background:
+                rgba(255, 35, 70, 0.10) !important;
+        }
+
+
+        /* Select saat fokus */
+
+        #dynamicFields:has(> .seedance-form)
+        .seedance-select:focus {
+
+            border-color:
+                rgba(255, 35, 70, 0.98) !important;
+
+            background:
+                rgba(255, 30, 65, 0.13) !important;
+
+            box-shadow:
+                0 0 0 2px
+                rgba(255, 35, 70, 0.12),
+
+                0 0 14px
+                rgba(255, 35, 70, 0.22) !important;
+        }
+
+
+        /*
+         * Nilai terpilih terlihat jelas pada
+         * control select.
+         */
+
+        #dynamicFields:has(> .seedance-form)
+        .seedance-select {
+
+            text-shadow:
+                0 0 7px
+                rgba(255, 255, 255, 0.12);
+        }
+
+
+        /*
+         * Styling option dropdown.
+         */
+
+        #dynamicFields:has(> .seedance-form)
+        .seedance-select option {
+
+            background: #111318 !important;
+
+            color: #ffffff !important;
+        }
+
+
+        #dynamicFields:has(> .seedance-form)
+        .seedance-select option:checked {
+
+            background:
+                #ff2346 !important;
+
+            color:
+                #ffffff !important;
+        }
+
+
+        /* =====================================================
+           SEEDANCE LABEL
+        ====================================================== */
+
+        #dynamicFields:has(> .seedance-form)
+        .seedance-field label,
+        #dynamicFields:has(> .seedance-form)
+        .seedance-field .seedance-label {
+
+            color: #ffffff;
+        }
+
+
+        /* =====================================================
+           GENERIC OPTION GROUP
         ====================================================== */
 
         .generate-option-group {
@@ -560,322 +801,6 @@
 
 
         /* =====================================================
-           MOBILE
-        ====================================================== */
-
-        @media (max-width: 768px) {
-
-            #dynamicFields {
-
-                grid-template-columns:
-                    minmax(0, 1fr) !important;
-
-                gap: 16px;
-            }
-
-
-            #dynamicFields
-            > .generate-field:has(textarea),
-            #dynamicFields
-            > .generate-field:has(.generate-image-input) {
-
-                grid-column: auto;
-            }
-        }
-
-
-        /* =====================================================
-           SMALL MOBILE
-        ====================================================== */
-
-        @media (max-width: 480px) {
-
-            .generate-option-group {
-
-                gap: 8px;
-            }
-
-
-            .generate-option {
-
-                flex:
-                    1 1
-                    calc(50% - 8px);
-            }
-
-
-            .generate-option-label {
-
-                width: 100%;
-
-                min-width: 0;
-
-                padding:
-                    10px 12px;
-            }
-        }
-
-                /* =====================================================
-           SEEDANCE 2.5 - PARAMETER GRID
-           -----------------------------------------------------
-           Atur posisi parameter berdasarkan data-parameter
-           yang dibuat oleh generate-form.js.
-
-           Tidak mengubah JavaScript / API / submit.
-        ====================================================== */
-
-        #dynamicFields {
-
-            display: grid !important;
-
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr)) !important;
-
-            grid-auto-flow: row;
-
-            gap: 18px 20px;
-
-            align-items: start;
-        }
-
-
-        /* =====================================================
-   SEMUA FIELD SEEDANCE
-====================================================== */
-
-#dynamicFields > .generate-field {
-
-    width: auto !important;
-
-    min-width: 0 !important;
-
-    max-width: none !important;
-
-    margin: 0 !important;
-
-    box-sizing: border-box !important;
-
-    grid-column: span 1 !important;
-
-    align-self: start !important;
-}
-
-
-        /* =====================================================
-           PROMPT
-           -----------------------------------------------------
-           Prompt tetap full width.
-        ====================================================== */
-
-        #dynamicFields
-        > .generate-field[data-parameter="prompt"] {
-
-            grid-column: 1 / -1 !important;
-        }
-
-
-        /* =====================================================
-           FRAME
-           -----------------------------------------------------
-           First Frame | Last Frame
-        ====================================================== */
-
-        #dynamicFields
-        > .generate-field[data-parameter="first_frame_url"] {
-
-            grid-column: 1 !important;
-        }
-
-
-        #dynamicFields
-        > .generate-field[data-parameter="last_frame_url"] {
-
-            grid-column: 2 !important;
-        }
-
-
-        /* =====================================================
-           REFERENCE
-           -----------------------------------------------------
-           Reference Image | Reference Video
-           Reference Audio dapat turun ke baris berikutnya.
-        ====================================================== */
-
-        #dynamicFields
-        > .generate-field[data-parameter="reference_image_urls"] {
-
-            grid-column: 1 !important;
-        }
-
-
-        #dynamicFields
-        > .generate-field[data-parameter="reference_video_urls"] {
-
-            grid-column: 2 !important;
-        }
-
-
-        #dynamicFields
-        > .generate-field[data-parameter="reference_audio_urls"] {
-
-            grid-column: 1 / -1 !important;
-        }
-
-
-        /* =====================================================
-           GENERATION SETTINGS
-           -----------------------------------------------------
-           Resolution | Aspect Ratio
-        ====================================================== */
-
-        #dynamicFields
-        > .generate-field[data-parameter="resolution"] {
-
-            grid-column: 1 !important;
-        }
-
-
-        #dynamicFields
-        > .generate-field[data-parameter="aspect_ratio"] {
-
-            grid-column: 2 !important;
-        }
-
-
-        /* =====================================================
-           OUTPUT SETTINGS
-           -----------------------------------------------------
-           Duration | Output Format
-        ====================================================== */
-
-        #dynamicFields
-        > .generate-field[data-parameter="duration"] {
-
-            grid-column: 1 !important;
-        }
-
-
-        #dynamicFields
-        > .generate-field[data-parameter="output_format"] {
-
-            grid-column: 2 !important;
-        }
-
-
-        /* =====================================================
-           BOOLEAN SETTINGS
-           -----------------------------------------------------
-           Generate Audio | Return Last Frame
-        ====================================================== */
-
-        #dynamicFields
-        > .generate-field[data-parameter="generate_audio"] {
-
-            grid-column: 1 !important;
-        }
-
-
-        #dynamicFields
-        > .generate-field[data-parameter="return_last_frame"] {
-
-            grid-column: 2 !important;
-        }
-
-
-        /* =====================================================
-           BOOLEAN SETTINGS 2
-           -----------------------------------------------------
-           Web Search | NSFW Checker
-        ====================================================== */
-
-        #dynamicFields
-        > .generate-field[data-parameter="web_search"] {
-
-            grid-column: 1 !important;
-        }
-
-
-        #dynamicFields
-        > .generate-field[data-parameter="nsfw_checker"] {
-
-            grid-column: 2 !important;
-        }
-
-
-        /* =====================================================
-           OPTION TEXT
-           -----------------------------------------------------
-           Resolution / Aspect Ratio / Output Format
-           dibuat jelas, tidak transparan.
-        ====================================================== */
-
-        #dynamicFields
-        .generate-option-label {
-
-            color: #ffffff !important;
-
-            opacity: 1 !important;
-
-            font-weight: 600 !important;
-
-            text-shadow:
-                0 0 6px
-                rgba(255, 255, 255, 0.08);
-        }
-
-
-        #dynamicFields
-        .generate-option {
-
-            opacity: 1 !important;
-        }
-
-
-        /* =====================================================
-           SELECT
-        ====================================================== */
-
-        #dynamicFields
-        select {
-
-            color: #ffffff !important;
-
-            opacity: 1 !important;
-        }
-
-
-        #dynamicFields
-        select option {
-
-            color: #ffffff;
-
-            background: #181818;
-        }
-
-
-        /* =====================================================
-           MOBILE
-        ====================================================== */
-
-        @media (max-width: 768px) {
-
-            #dynamicFields {
-
-                grid-template-columns:
-                    minmax(0, 1fr) !important;
-            }
-
-
-            #dynamicFields
-            > .generate-field[data-parameter] {
-
-                grid-column: 1 !important;
-            }
-
-        }
-
-
-        /* =====================================================
            DURATION
         ====================================================== */
 
@@ -896,9 +821,12 @@
         .generate-duration-value {
             min-width: 70px;
             padding: 6px 10px;
-            border: 1px solid rgba(255, 35, 70, 0.45);
+            border:
+                1px solid
+                rgba(255, 35, 70, 0.45);
             border-radius: 8px;
-            background: rgba(255, 30, 65, 0.08);
+            background:
+                rgba(255, 30, 65, 0.08);
             color: #ffffff;
             font-size: 13px;
             font-weight: 700;
@@ -954,7 +882,8 @@
             display: flex;
             justify-content: space-between;
             margin-top: 8px;
-            color: rgba(255, 255, 255, 0.38);
+            color:
+                rgba(255, 255, 255, 0.38);
             font-size: 11px;
         }
 
@@ -969,10 +898,14 @@
             gap: 6px;
             margin-left: 7px;
             padding: 4px 8px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.16);
             border-radius: 7px;
-            background: rgba(255, 255, 255, 0.055);
-            color: rgba(255, 255, 255, 0.84);
+            background:
+                rgba(255, 255, 255, 0.055);
+            color:
+                rgba(255, 255, 255, 0.84);
             font-size: 11px;
             font-weight: 700;
             white-space: nowrap;
@@ -995,7 +928,9 @@
             gap: 14px;
             margin-top: 26px;
             padding-top: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            border-top:
+                1px solid
+                rgba(255, 255, 255, 0.07);
         }
 
 
@@ -1015,88 +950,45 @@
         }
 
 
-        /* =====================================================
-           MOBILE
-        ====================================================== */
-
-        @media (max-width: 640px) {
-
-            .generate-neon-block {
-                padding: 18px;
-                border-radius: 16px;
-            }
-
-
-            .generate-option {
-                flex: 1 1 calc(50% - 10px);
-            }
-
-
-            .generate-option-label {
-                width: 100%;
-            }
-
-
-            .generate-actions {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-
-            .generate-actions-right {
-                justify-content: flex-end;
-            }
-
-        }
-
-
         /* =========================================================
            HIDE DUPLICATE GENERATE LOADING
-           ---------------------------------------------------------
-           Indikator "Memproses..." di sebelah kiri tombol Generate
-           tidak diperlukan.
-
-           Status proses tetap ditampilkan pada tombol Generate
-           di sebelah kanan, misalnya:
-           "PROSES PREMIUM"
-
-           JavaScript loading tetap dipertahankan agar tidak
-           mengganggu fungsi generate/polling.
         ========================================================= */
 
         #loading {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
+
             width: 0 !important;
             min-width: 0 !important;
             max-width: 0 !important;
+
             margin: 0 !important;
             padding: 0 !important;
+
             overflow: hidden !important;
             pointer-events: none !important;
         }
 
 
-        /* =========================================================
-           REMOVE DUPLICATE PROCESS INDICATOR
-           ---------------------------------------------------------
-           Hanya indikator kiri "Memproses..." yang dihilangkan.
-           Status proses pada #generateButton TETAP BERFUNGSI.
-        ========================================================= */
-
         #loading,
         #loading.loading,
         .generate-actions-right > #loading {
+
             display: none !important;
+
             visibility: hidden !important;
+
             opacity: 0 !important;
 
             position: absolute !important;
+
             width: 0 !important;
             height: 0 !important;
+
             min-width: 0 !important;
             min-height: 0 !important;
+
             max-width: 0 !important;
             max-height: 0 !important;
 
@@ -1104,14 +996,14 @@
             padding: 0 !important;
 
             overflow: hidden !important;
+
             clip: rect(0 0 0 0) !important;
+
             clip-path: inset(100%) !important;
 
             pointer-events: none !important;
         }
 
-
-        /* Jangan biarkan elemen loading membuat jarak di area tombol */
 
         .generate-actions-right {
             gap: 0 !important;
@@ -1124,20 +1016,16 @@
 
 
         /* =========================================================
-           GEN-Z.AI
-           MOBILE PROCESS SPINNER FIX
-           ---------------------------------------------------------
-           Memastikan animasi PROSES tetap berputar di HP.
-           Tidak mengubah JavaScript atau alur Generate.
+           GENERATE BUTTON SPINNER
         ========================================================= */
-
-        /* Spinner pada tombol Generate */
 
         #generateButton .spinner,
         #generateButton .btn-spinner,
         #generateButton .loading-spinner,
         #generateButton [class*="spinner"] {
+
             display: inline-block !important;
+
             width: 16px !important;
             height: 16px !important;
 
@@ -1146,32 +1034,55 @@
 
             margin-right: 7px !important;
 
-            border: 2px solid currentColor !important;
-            border-top-color: transparent !important;
+            border:
+                2px solid
+                currentColor !important;
+
+            border-top-color:
+                transparent !important;
 
             border-radius: 50% !important;
 
-            animation-name: genzMobileSpinner !important;
-            animation-duration: 0.75s !important;
-            animation-timing-function: linear !important;
-            animation-iteration-count: infinite !important;
+            animation-name:
+                genzMobileSpinner !important;
 
-            -webkit-animation-name: genzMobileSpinner !important;
-            -webkit-animation-duration: 0.75s !important;
-            -webkit-animation-timing-function: linear !important;
-            -webkit-animation-iteration-count: infinite !important;
+            animation-duration:
+                0.75s !important;
 
-            transform-origin: center center !important;
-            -webkit-transform-origin: center center !important;
+            animation-timing-function:
+                linear !important;
 
-            will-change: transform !important;
-            -webkit-will-change: transform !important;
+            animation-iteration-count:
+                infinite !important;
 
-            flex: 0 0 16px !important;
+            -webkit-animation-name:
+                genzMobileSpinner !important;
+
+            -webkit-animation-duration:
+                0.75s !important;
+
+            -webkit-animation-timing-function:
+                linear !important;
+
+            -webkit-animation-iteration-count:
+                infinite !important;
+
+            transform-origin:
+                center center !important;
+
+            -webkit-transform-origin:
+                center center !important;
+
+            will-change:
+                transform !important;
+
+            -webkit-will-change:
+                transform !important;
+
+            flex:
+                0 0 16px !important;
         }
 
-
-        /* Animasi utama */
 
         @keyframes genzMobileSpinner {
 
@@ -1186,8 +1097,6 @@
         }
 
 
-        /* Safari / iPhone / iPad */
-
         @-webkit-keyframes genzMobileSpinner {
 
             from {
@@ -1201,51 +1110,31 @@
         }
 
 
-        /* Pastikan motion tidak dimatikan oleh aturan mobile */
-
         @media (prefers-reduced-motion: reduce) {
 
             #generateButton .spinner,
             #generateButton .btn-spinner,
             #generateButton .loading-spinner,
             #generateButton [class*="spinner"] {
-                animation-name: genzMobileSpinner !important;
-                animation-duration: 0.75s !important;
-                animation-iteration-count: infinite !important;
 
-                -webkit-animation-name: genzMobileSpinner !important;
-                -webkit-animation-duration: 0.75s !important;
-                -webkit-animation-iteration-count: infinite !important;
+                animation-name:
+                    genzMobileSpinner !important;
+
+                animation-duration:
+                    0.75s !important;
+
+                animation-iteration-count:
+                    infinite !important;
+
+                -webkit-animation-name:
+                    genzMobileSpinner !important;
+
+                -webkit-animation-duration:
+                    0.75s !important;
+
+                -webkit-animation-iteration-count:
+                    infinite !important;
             }
-
-        }
-
-
-        /* Mobile */
-
-        @media (max-width: 768px) {
-
-            #generateButton .spinner,
-            #generateButton .btn-spinner,
-            #generateButton .loading-spinner,
-            #generateButton [class*="spinner"] {
-                width: 16px !important;
-                height: 16px !important;
-
-                min-width: 16px !important;
-                min-height: 16px !important;
-
-                animation-name: genzMobileSpinner !important;
-                animation-duration: 0.75s !important;
-                animation-timing-function: linear !important;
-                animation-iteration-count: infinite !important;
-
-                -webkit-animation-name: genzMobileSpinner !important;
-                -webkit-animation-duration: 0.75s !important;
-                -webkit-animation-timing-function: linear !important;
-                -webkit-animation-iteration-count: infinite !important;
-            }
-
         }
 
 
@@ -1265,10 +1154,14 @@
 
             padding: 12px 16px;
 
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.08);
+
             border-radius: 14px;
 
-            background: rgba(255, 255, 255, 0.025);
+            background:
+                rgba(255, 255, 255, 0.025);
 
             box-sizing: border-box;
         }
@@ -1303,25 +1196,29 @@
 
         /* =========================================================
            GENERATE STATUS - CANCELLED
-           ---------------------------------------------------------
-           Cancellation bukan kegagalan.
-
-           Status ini hanya dipakai ketika generation_history
-           sudah berstatus cancelled.
         ========================================================= */
 
         .genz-status-cancelled {
-            border-color: rgba(245, 158, 11, 0.78) !important;
+
+            border-color:
+                rgba(245, 158, 11, 0.78) !important;
+
             background:
                 linear-gradient(
                     145deg,
                     rgba(245, 158, 11, 0.07),
                     rgba(8, 8, 14, 0.96)
                 ) !important;
+
             box-shadow:
-                0 0 8px rgba(245, 158, 11, 0.22),
-                0 0 24px rgba(245, 158, 11, 0.08),
-                inset 0 0 18px rgba(245, 158, 11, 0.025) !important;
+                0 0 8px
+                rgba(245, 158, 11, 0.22),
+
+                0 0 24px
+                rgba(245, 158, 11, 0.08),
+
+                inset 0 0 18px
+                rgba(245, 158, 11, 0.025) !important;
         }
 
 
@@ -1331,12 +1228,15 @@
 
 
         .genz-generate-status-message.cancelled {
-            color: rgba(245, 158, 11, 0.88) !important;
+            color:
+                rgba(245, 158, 11, 0.88) !important;
         }
 
 
         .genz-status-cancelled-icon {
+
             display: inline-flex;
+
             align-items: center;
             justify-content: center;
 
@@ -1346,7 +1246,10 @@
             min-width: 28px;
             min-height: 28px;
 
-            border: 2px solid #f59e0b;
+            border:
+                2px solid
+                #f59e0b;
+
             border-radius: 50%;
 
             color: #f59e0b;
@@ -1358,17 +1261,96 @@
             box-sizing: border-box;
 
             box-shadow:
-                0 0 8px rgba(245, 158, 11, 0.30);
+                0 0 8px
+                rgba(245, 158, 11, 0.30);
         }
 
 
-        /* =========================================================
-           CANCELLED MOBILE
-        ========================================================= */
+        /* =====================================================
+           MOBILE
+        ====================================================== */
 
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
+
+            #dynamicFields:has(> .seedance-form)
+            > .seedance-form {
+
+                grid-template-columns:
+                    minmax(0, 1fr) !important;
+
+                gap: 16px !important;
+            }
+
+
+            #dynamicFields:has(> .seedance-form)
+            > .seedance-form
+            > .seedance-field {
+
+                grid-column: 1 !important;
+            }
+
+
+            #dynamicFields:has(> .seedance-form)
+            > .seedance-form
+            > .seedance-field:has(#seedancePrompt),
+            #dynamicFields:has(> .seedance-form)
+            > .seedance-form
+            > .seedance-field:has(#seedanceReferenceAudio-file),
+            #dynamicFields:has(> .seedance-form)
+            > .seedance-form
+            > .seedance-field:has(#seedanceWebSearch) {
+
+                grid-column: 1 !important;
+            }
+
+
+            .generate-neon-block {
+                padding: 18px;
+                border-radius: 16px;
+            }
+
+
+            .generate-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+
+            .generate-actions-right {
+                justify-content: flex-end;
+            }
+
+        }
+
+
+        /* =====================================================
+           SMALL MOBILE
+        ====================================================== */
+
+        @media (max-width: 480px) {
+
+            .generate-option-group {
+                gap: 8px;
+            }
+
+
+            .generate-option {
+                flex:
+                    1 1
+                    calc(50% - 8px);
+            }
+
+
+            .generate-option-label {
+                width: 100%;
+                min-width: 0;
+                padding:
+                    10px 12px;
+            }
+
 
             .genz-status-cancelled-icon {
+
                 width: 26px;
                 height: 26px;
 
@@ -1394,20 +1376,6 @@
 
     <!-- =====================================================
          EARLY AUTH BADGE BRIDGE
-         -----------------------------------------------------
-         Badge account TIDAK menunggu generate-app.js.
-
-         Source:
-         profiles.role
-         profiles.credits
-
-         Tujuan:
-         - OWNER selalu bisa dirender
-         - Credit akun selalu bisa dirender
-         - Tidak bergantung model
-         - Tidak bergantung form
-         - Tidak bergantung UI module
-         - Tidak mengubah model credit
     ====================================================== -->
 
     <script>
@@ -1425,20 +1393,12 @@
             150;
 
 
-        /* =====================================================
-           ELEMENT
-        ====================================================== */
-
         function getElement(id) {
 
             return document.getElementById(id);
 
         }
 
-
-        /* =====================================================
-           CREDIT FORMAT
-        ====================================================== */
 
         function formatCredit(value) {
 
@@ -1476,10 +1436,6 @@
         }
 
 
-        /* =====================================================
-           ROLE NORMALIZATION
-        ====================================================== */
-
         function normalizeRole(value) {
 
             return String(
@@ -1491,10 +1447,6 @@
         }
 
 
-        /* =====================================================
-           NAVIGATION PROFILE
-        ====================================================== */
-
         function getNavigationProfile() {
 
             return (
@@ -1505,10 +1457,6 @@
 
         }
 
-
-        /* =====================================================
-           RENDER ROLE
-        ====================================================== */
 
         function renderRole(profile) {
 
@@ -1584,15 +1532,6 @@
         }
 
 
-        /* =====================================================
-           RENDER ACCOUNT CREDIT
-           -----------------------------------------------------
-           INI ADALAH CREDIT AKUN.
-
-           SOURCE:
-           profiles.credits
-        ====================================================== */
-
         function renderAccountCredit(profile) {
 
             const element =
@@ -1652,10 +1591,6 @@
         }
 
 
-        /* =====================================================
-           RENDER AUTH
-        ====================================================== */
-
         function renderAuth(profile) {
 
             if (
@@ -1710,10 +1645,6 @@
         }
 
 
-        /* =====================================================
-           SUPABASE CLIENT
-        ====================================================== */
-
         function getSupabaseClient() {
 
             const candidates = [
@@ -1748,10 +1679,6 @@
 
         }
 
-
-        /* =====================================================
-           DIRECT SUPABASE PROFILE FALLBACK
-        ====================================================== */
 
         async function loadProfileDirectly() {
 
@@ -1799,11 +1726,6 @@
                         )
                         .maybeSingle();
 
-
-                /*
-                 * Fallback apabila kolom status
-                 * tidak tersedia pada schema.
-                 */
 
                 if (
                     result?.error
@@ -1871,10 +1793,6 @@
                 }
 
 
-                /*
-                 * Sinkronkan profile ke global state.
-                 */
-
                 window.GENZ_CURRENT_USER =
                     user;
 
@@ -1907,16 +1825,7 @@
         }
 
 
-        /* =====================================================
-           HYDRATE
-        ====================================================== */
-
         async function hydrate() {
-
-            /*
-             * PRIORITAS 1:
-             * Navigation shared profile.
-             */
 
             let profile =
                 getNavigationProfile();
@@ -1931,11 +1840,6 @@
 
             }
 
-
-            /*
-             * PRIORITAS 2:
-             * Tunggu shared navigation.
-             */
 
             if (
                 window.GENZNavigationReady &&
@@ -1983,11 +1887,6 @@
             }
 
 
-            /*
-             * PRIORITAS 3:
-             * Query profile langsung.
-             */
-
             profile =
                 await loadProfileDirectly();
 
@@ -2002,13 +1901,6 @@
 
         }
 
-
-        /* =====================================================
-           SAFETY SYNC
-           -----------------------------------------------------
-           Menangani race condition jika navigation.js
-           mengisi profile setelah Generate mulai.
-        ====================================================== */
 
         function startSafetySync() {
 
@@ -2052,10 +1944,6 @@
         }
 
 
-        /* =====================================================
-           BOOT
-        ====================================================== */
-
         function boot() {
 
             hydrate()
@@ -2075,11 +1963,6 @@
 
         }
 
-
-        /*
-         * Script berada di HEAD.
-         * DOM badge belum tentu sudah tersedia.
-         */
 
         if (
             document.readyState ===
@@ -2126,7 +2009,6 @@
     <div class="app">
 
         <main class="main">
-
 
             <!-- =================================================
                  TOPBAR
@@ -2263,7 +2145,6 @@
 
             <section class="content">
 
-
                 <!-- =================================================
                      STATUS
                 ================================================== -->
@@ -2322,7 +2203,6 @@
                     class="generate-neon-block"
                     aria-labelledby="generateCardTitle"
                 >
-
 
                     <!-- =============================================
                          HEADER
@@ -2488,16 +2368,6 @@
                                     </span>
 
 
-                                    <!-- =================================
-                                         MODEL USAGE CREDIT
-                                         ---------------------------------
-                                         BUKAN saldo akun.
-
-                                         Source akan berasal dari:
-                                         model.credit_final
-                                         / pricing.credit_final
-                                    ================================== -->
-
                                     <span
                                         id="generateCreditCost"
                                         class="generate-button-credit"
@@ -2593,6 +2463,7 @@
         </main>
 
     </div>
+
 
     <!-- =========================================================
          GENERATE APPLICATION
