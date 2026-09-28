@@ -2199,6 +2199,266 @@ small {
 
 }
 
+        /* =========================================================
+   SEEDANCE 2.5
+   WEB SEARCH FINAL LAYOUT FIX
+   ---------------------------------------------------------
+   Web Search harus:
+   - berada di bawah Generate Audio / Return Last Frame
+   - full width
+   - tidak tertimpa field lain
+   - tinggi mengikuti seluruh isi
+========================================================= */
+
+
+/* ---------------------------------------------------------
+   WEB SEARCH FIELD
+   --------------------------------------------------------- */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceWebSearch),
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(
+    input[name="webSearch"],
+    input[id*="WebSearch" i],
+    input[id*="web-search" i]
+) {
+
+    grid-column: 1 / -1 !important;
+
+    grid-row: auto !important;
+
+    position: relative !important;
+
+    display: flex !important;
+
+    flex-direction: column !important;
+
+    align-items: stretch !important;
+
+    justify-content: flex-start !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    min-height: 120px !important;
+
+    height: auto !important;
+
+    margin: 0 !important;
+
+    padding: 18px !important;
+
+    box-sizing: border-box !important;
+
+    overflow: visible !important;
+
+    align-self: stretch !important;
+}
+
+
+/* ---------------------------------------------------------
+   WEB SEARCH TOGGLE
+--------------------------------------------------------- */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceWebSearch)
+.seedance-toggle,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(
+    input[name="webSearch"],
+    input[id*="WebSearch" i],
+    input[id*="web-search" i]
+)
+.seedance-toggle {
+
+    display: flex !important;
+
+    flex-direction: row !important;
+
+    align-items: center !important;
+
+    justify-content: flex-start !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    min-height: 42px !important;
+
+    height: auto !important;
+
+    margin: 0 !important;
+
+    padding: 0 !important;
+
+    box-sizing: border-box !important;
+
+    position: relative !important;
+
+    overflow: visible !important;
+}
+
+
+/* ---------------------------------------------------------
+   WEB SEARCH DESCRIPTION
+--------------------------------------------------------- */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceWebSearch)
+small,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(
+    input[name="webSearch"],
+    input[id*="WebSearch" i],
+    input[id*="web-search" i]
+)
+small {
+
+    display: block !important;
+
+    position: relative !important;
+
+    width: 100% !important;
+
+    height: auto !important;
+
+    min-height: 18px !important;
+
+    margin-top: 8px !important;
+
+    margin-bottom: 0 !important;
+
+    padding: 0 !important;
+
+    box-sizing: border-box !important;
+
+    overflow: visible !important;
+}
+
+
+/* ---------------------------------------------------------
+   WEB SEARCH LABEL
+--------------------------------------------------------- */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceWebSearch)
+label,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(
+    input[name="webSearch"],
+    input[id*="WebSearch" i],
+    input[id*="web-search" i]
+)
+label {
+
+    position: relative !important;
+
+    display: block !important;
+
+    width: 100% !important;
+
+    margin-bottom: 10px !important;
+
+    box-sizing: border-box !important;
+}
+
+
+/* ---------------------------------------------------------
+   WEB SEARCH GRID ORDER
+   ---------------------------------------------------------
+   Paksa Web Search menjadi item terakhir.
+--------------------------------------------------------- */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceWebSearch) {
+
+    order: 999 !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(
+    input[name="webSearch"],
+    input[id*="WebSearch" i],
+    input[id*="web-search" i]
+) {
+
+    order: 999 !important;
+}
+
+
+/* ---------------------------------------------------------
+   PASTIKAN FIELD SEBELUM WEB SEARCH TIDAK MENGAMBIL
+   BARIS WEB SEARCH
+--------------------------------------------------------- */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceGenerateAudio) {
+
+    grid-column: 1 !important;
+
+    grid-row: auto !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReturnLastFrame) {
+
+    grid-column: 2 !important;
+
+    grid-row: auto !important;
+}
+
+
+/* ---------------------------------------------------------
+   MOBILE
+--------------------------------------------------------- */
+
+@media (max-width: 768px) {
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(#seedanceWebSearch),
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(
+        input[name="webSearch"],
+        input[id*="WebSearch" i],
+        input[id*="web-search" i]
+    ) {
+
+        grid-column: 1 !important;
+
+        grid-row: auto !important;
+
+        order: 999 !important;
+
+        min-height: 112px !important;
+    }
+
+}
+
     </style>
 
 
