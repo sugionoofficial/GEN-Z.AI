@@ -3329,6 +3329,50 @@ select {
 
 }
 
+         /* =========================================================
+    SEEDANCE - FORCE ALL FIELDS FULL WIDTH
+    ---------------------------------------------------------
+    Semua field Seedance mengikuti lebar penuh form.
+ ========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field {
+
+    grid-column: 1 / -1 !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+
+    box-sizing: border-box !important;
+
+    justify-self: stretch !important;
+    align-self: start !important;
+}
+
+
+/* Prompt */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedancePrompt) {
+
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+}
+
+
+/* Reference Audio */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReferenceAudio-file) {
+
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+}
+
     </style>
 
 
