@@ -333,7 +333,8 @@ function createMediaSourceField(
         type,
         multiple = false,
         required = false,
-        maxFiles = null
+        maxFiles = null,
+        extraClass = ""
 
     } = options;
 
@@ -591,7 +592,9 @@ function renderPrompt() {
 
         </div>
 
-        `
+        `,
+
+        "seedance-field-full"
 
     );
 
@@ -606,7 +609,8 @@ function renderSelect(
     name,
     title,
     description,
-    options
+    options,
+    extraClass = ""
 ) {
 
     const id =
@@ -651,7 +655,9 @@ function renderSelect(
 
         </select>
 
-        `
+        `,
+
+       extraClass
 
     );
 
@@ -706,7 +712,9 @@ function renderDuration() {
 
         </div>
 
-        `
+        `,
+
+       "seedance-field-half"
 
     );
 
@@ -721,7 +729,8 @@ function renderCheckbox(
     name,
     title,
     description,
-    checked = false
+    checked = false,
+    extraClass = ""
 ) {
 
     const id =
@@ -772,7 +781,9 @@ function renderCheckbox(
 
         </label>
 
-        `
+        `,
+
+       extraClass
 
     );
 
@@ -830,7 +841,10 @@ function renderSeedanceForm(
                     "Opsional. Upload gambar atau masukkan URL gambar.",
 
                 type:
-                    "image"
+                    "image",
+
+               extraClass:
+    "seedance-field-half"
 
             })}
 
@@ -847,7 +861,10 @@ function renderSeedanceForm(
                     "Opsional. Menentukan frame akhir video.",
 
                 type:
-                    "image"
+                    "image",
+
+               extraClass:
+    "seedance-field-half"
 
             })}
 
@@ -870,7 +887,10 @@ function renderSeedanceForm(
                     true,
 
                 maxFiles:
-                    MAX_REFERENCE_IMAGE_FILES
+                    MAX_REFERENCE_IMAGE_FILES,
+
+               extraClass:
+    "seedance-field-half"
 
             })}
 
@@ -893,7 +913,10 @@ function renderSeedanceForm(
                     true,
 
                 maxFiles:
-                    MAX_REFERENCE_VIDEO_FILES
+                    MAX_REFERENCE_VIDEO_FILES,
+
+               extraClass:
+    "seedance-field-half"
 
             })}
 
@@ -916,7 +939,10 @@ function renderSeedanceForm(
                     true,
 
                 maxFiles:
-                    MAX_REFERENCE_AUDIO_FILES
+                    MAX_REFERENCE_AUDIO_FILES,
+
+               extraClass:
+    "seedance-field-half"
 
             })}
 
@@ -958,7 +984,9 @@ function renderSeedanceForm(
                             "1080p"
                     }
 
-                ]
+                ],
+
+               "seedance-field-half"
 
             )}
 
@@ -1032,7 +1060,9 @@ function renderSeedanceForm(
                             "21:9"
                     }
 
-                ]
+                ],
+
+               "seedance-field-half"
 
             )}
 
@@ -1082,7 +1112,9 @@ function renderSeedanceForm(
 
                 "Aktifkan audio hasil generate.",
 
-                true
+                true,
+
+               "seedance-field-half"
 
             )}
 
@@ -1095,7 +1127,9 @@ function renderSeedanceForm(
 
                 "Kembalikan frame terakhir sebagai bagian dari hasil.",
 
-                false
+                false,
+
+                "seedance-field-half"
 
             )}
 
@@ -1108,7 +1142,9 @@ function renderSeedanceForm(
 
                 "Izinkan Seedance menggunakan pencarian web.",
 
-                false
+                false,
+
+                "seedance-field-full"
 
             )}
 
