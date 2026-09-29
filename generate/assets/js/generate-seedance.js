@@ -43,7 +43,14 @@ import {
     getSupabaseClient
 } from "./generate-state.js";
 
-import mediaModule from "./generate-media.js";
+
+import mediaModule
+    from "./generate-media.js";
+
+
+import {
+    injectSeedanceStyles
+} from "./generate-seedance-styles.js";
 
 
 /* =========================================================
@@ -101,6 +108,7 @@ const FIELD_IDS = {
 const MIN_DURATION =
     5;
 
+
 const MAX_DURATION =
     30;
 
@@ -108,8 +116,10 @@ const MAX_DURATION =
 const MAX_REFERENCE_IMAGE_FILES =
     30;
 
+
 const MAX_REFERENCE_VIDEO_FILES =
     10;
+
 
 const MAX_REFERENCE_AUDIO_FILES =
     10;
@@ -117,18 +127,6 @@ const MAX_REFERENCE_AUDIO_FILES =
 
 /* =========================================================
    INTERNAL FILE STATE
-   ---------------------------------------------------------
-   Native input.files akan berubah setiap kali user memilih
-   file baru.
-
-   Karena itu Reference Images / Videos / Audio menggunakan
-   state internal agar:
-
-   + Tambah file
-   + Tambah file lagi
-   + Hapus file tertentu
-
-   tidak saling menimpa.
 ========================================================= */
 
 const selectedReferenceFiles = {
@@ -782,1377 +780,6 @@ function renderCheckbox(
 
 
 /* =========================================================
-   STYLES
-========================================================= */
-
-function injectStyles() {
-
-    const styleId =
-        "seedance-generate-styles";
-
-
-    let style =
-        document.getElementById(
-            styleId
-        );
-
-
-    /*
-     * IMPORTANT
-     * Jangan return jika style sudah ada.
-     *
-     * Module bisa dirender ulang tanpa reload halaman.
-     * Karena itu CSS harus selalu diperbarui.
-     */
-
-    if (!style) {
-
-        style =
-            document.createElement(
-                "style"
-            );
-
-        style.id =
-            styleId;
-
-        document.head.appendChild(
-            style
-        );
-
-    }
-
-
-    style.textContent = `
-
-        /* =====================================================
-           ROOT
-        ===================================================== */
-
-        .seedance-form {
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            box-sizing: border-box;
-
-            overflow-x: hidden;
-
-        }
-
-
-        .seedance-form *,
-        .seedance-form *::before,
-        .seedance-form *::after {
-
-            box-sizing: border-box;
-
-        }
-
-        .seedance-form {
-    align-items: start;
-}
-
-.seedance-field {
-    justify-self: stretch;
-}
-
-
-        /* =====================================================
-           FIELD
-        ===================================================== */
-
-        .seedance-field {
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            align-self: start;
-            height: max-content;
-            box-sizing: border-box;
-            
-            margin: 0 0 18px 0;
-            padding: 16px;
-
-            border:
-                1px solid
-                rgba(255,45,80,.20);
-
-            border-radius: 14px;
-
-            background:
-                linear-gradient(
-                    145deg,
-                    rgba(255,255,255,.045),
-                    rgba(0,0,0,.25)
-                );
-
-            box-shadow:
-                0 0 22px
-                rgba(255,35,70,.055);
-
-        }
-
-
-        .seedance-field-header {
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            margin-bottom: 12px;
-
-        }
-
-
-        .seedance-field-header > div {
-
-            min-width: 0;
-
-        }
-
-
-        .seedance-field-title {
-
-            color: #fff;
-
-            font-size: 14px;
-            font-weight: 800;
-
-            line-height: 1.35;
-
-        }
-
-
-        .seedance-field-description {
-
-            margin-top: 5px;
-
-            color:
-                rgba(255,255,255,.48);
-
-            font-size: 12px;
-
-            line-height: 1.45;
-
-        }
-
-
-        /* =====================================================
-           SOURCE TABS
-        ===================================================== */
-
-        .seedance-source-tabs {
-
-            display: flex;
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            gap: 7px;
-
-            margin-bottom: 10px;
-
-        }
-
-
-        .seedance-source-tab {
-
-            flex: 1 1 0;
-
-            min-width: 0;
-
-            height: 36px;
-
-            padding:
-                0 10px;
-
-            border:
-                1px solid
-                rgba(255,255,255,.12);
-
-            border-radius: 9px;
-
-            background:
-                rgba(255,255,255,.045);
-
-            color:
-                rgba(255,255,255,.62);
-
-            cursor: pointer;
-
-            font-size: 12px;
-            font-weight: 700;
-
-            white-space: nowrap;
-
-        }
-
-
-        .seedance-source-tab.is-active {
-
-            border-color:
-                rgba(255,35,70,.65);
-
-            background:
-                rgba(255,35,70,.12);
-
-            color: #fff;
-
-        }
-
-
-        /* =====================================================
-           UPLOAD TOOLBAR
-        ===================================================== */
-
-        .seedance-upload-toolbar {
-
-            display: flex;
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            align-items: center;
-
-            justify-content: space-between;
-
-            gap: 8px;
-
-            margin-bottom: 9px;
-
-            flex-wrap: nowrap;
-
-        }
-
-
-        .seedance-add-file-button {
-
-            flex: 0 0 auto;
-
-            height: 34px;
-
-            padding:
-                0 11px;
-
-            border:
-                1px solid
-                rgba(255,35,70,.55);
-
-            border-radius: 8px;
-
-            background:
-                rgba(255,35,70,.10);
-
-            color: #fff;
-
-            cursor: pointer;
-
-            font-size: 11px;
-            font-weight: 800;
-
-            white-space: nowrap;
-
-        }
-
-
-        .seedance-add-file-button:hover {
-
-            background:
-                rgba(255,35,70,.20);
-
-            border-color:
-                rgba(255,35,70,.85);
-
-        }
-
-
-        .seedance-file-limit {
-
-            flex: 0 0 auto;
-
-            margin-left: auto;
-
-            color:
-                rgba(255,255,255,.45);
-
-            font-size: 10px;
-
-            font-weight: 700;
-
-            white-space: nowrap;
-
-        }
-
-
-        /* =====================================================
-           NATIVE FILE INPUT
-        ===================================================== */
-
-        .seedance-file-input {
-
-            display: block;
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            height: 40px;
-
-            padding:
-                8px;
-
-            border:
-                1px solid
-                rgba(255,255,255,.11);
-
-            border-radius: 9px;
-
-            background:
-                rgba(0,0,0,.32);
-
-            color: #fff;
-
-            font-size: 11px;
-
-            outline: none;
-
-        }
-
-
-        /*
-         * Reference file input sengaja disembunyikan.
-         *
-         * Tombol + Tambah akan membuka input ini
-         * melalui input.click().
-         */
-
-        .seedance-file-input.seedance-hidden-native-input {
-
-            position: absolute;
-
-            width: 1px;
-            height: 1px;
-
-            padding: 0;
-            margin: -1px;
-
-            opacity: 0;
-
-            overflow: hidden;
-
-            clip:
-                rect(0,0,0,0);
-
-            white-space: nowrap;
-
-            border: 0;
-
-        }
-
-
-        /* =====================================================
-           FILE HELP
-        ===================================================== */
-
-        .seedance-file-help {
-
-            margin-top: 6px;
-
-            color:
-                rgba(255,255,255,.38);
-
-            font-size: 10px;
-
-            line-height: 1.4;
-
-        }
-
-
-        /* =====================================================
-           SELECTED FILES
-        ===================================================== */
-
-        .seedance-selected-files {
-
-            display: grid;
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            gap: 6px;
-
-            margin-top: 10px;
-
-        }
-
-
-        .seedance-selected-file {
-
-            display: flex;
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            align-items: center;
-
-            gap: 8px;
-
-            padding:
-                7px 8px;
-
-            border:
-                1px solid
-                rgba(255,255,255,.07);
-
-            border-radius: 8px;
-
-            background:
-                rgba(255,255,255,.025);
-
-        }
-
-
-        .seedance-selected-file-index {
-
-            flex:
-                0 0 24px;
-
-            width: 24px;
-            height: 24px;
-
-            display: flex;
-
-            align-items: center;
-            justify-content: center;
-
-            border-radius: 6px;
-
-            background:
-                rgba(255,35,70,.10);
-
-            color:
-                rgba(255,255,255,.75);
-
-            font-size: 9px;
-            font-weight: 800;
-
-        }
-
-
-        .seedance-selected-file-info {
-
-            flex:
-                1 1 auto;
-
-            width: 0;
-
-            max-width: 100%;
-            min-width: 0;
-
-            overflow: hidden;
-
-        }
-
-
-        .seedance-selected-file-name {
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            overflow: hidden;
-
-            text-overflow: ellipsis;
-
-            white-space: nowrap;
-
-            color:
-                rgba(255,255,255,.78);
-
-            font-size: 10px;
-            font-weight: 700;
-
-            line-height: 1.3;
-
-        }
-
-
-        .seedance-selected-file-size {
-
-            margin-top: 2px;
-
-            color:
-                rgba(255,255,255,.35);
-
-            font-size: 9px;
-
-            line-height: 1.2;
-
-        }
-
-
-        .seedance-remove-file-button {
-
-            flex:
-                0 0 auto;
-
-            height: 29px;
-
-            padding:
-                0 8px;
-
-            border:
-                1px solid
-                rgba(255,70,90,.25);
-
-            border-radius: 7px;
-
-            background:
-                rgba(255,35,70,.07);
-
-            color:
-                rgba(255,150,160,.9);
-
-            cursor: pointer;
-
-            font-size: 9px;
-            font-weight: 800;
-
-            white-space: nowrap;
-
-        }
-
-
-        .seedance-remove-file-button:hover {
-
-            border-color:
-                rgba(255,70,90,.65);
-
-            background:
-                rgba(255,35,70,.16);
-
-            color: #fff;
-
-        }
-
-
-        /* =====================================================
-           URL / PROMPT / SELECT
-        ===================================================== */
-
-        .seedance-url-input,
-        .seedance-prompt-input,
-        .seedance-select {
-
-            display: block;
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            border:
-                1px solid
-                rgba(255,255,255,.11);
-
-            border-radius: 9px;
-
-            background:
-                rgba(0,0,0,.32);
-
-            color: #fff;
-
-            outline: none;
-
-        }
-
-
-        .seedance-url-input,
-        .seedance-prompt-input {
-
-            padding: 11px;
-
-            resize: vertical;
-
-            line-height: 1.45;
-
-        }
-
-
-        .seedance-prompt-input {
-
-            min-height: 130px;
-
-        }
-
-
-        .seedance-url-input {
-
-            min-height: 72px;
-
-        }
-
-
-        .seedance-select {
-
-            min-height: 42px;
-
-            padding:
-                0 11px;
-
-        }
-
-
-        .seedance-prompt-input:focus,
-        .seedance-url-input:focus,
-        .seedance-select:focus,
-        .seedance-file-input:focus {
-
-            border-color:
-                rgba(255,35,70,.65);
-
-            box-shadow:
-                0 0 0 3px
-                rgba(255,35,70,.08);
-
-        }
-
-
-        /* =====================================================
-           PREVIEW
-        ===================================================== */
-
-        .seedance-media-preview {
-
-            display: grid;
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            grid-template-columns:
-                repeat(
-                    auto-fill,
-                    minmax(
-                        140px,
-                        1fr
-                    )
-                );
-
-            gap: 8px;
-
-            margin-top: 10px;
-
-        }
-
-
-        .seedance-preview-media {
-
-            display: block;
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            max-height: 240px;
-
-            object-fit: contain;
-
-            border-radius: 8px;
-
-            background: #000;
-
-        }
-
-
-        /* =====================================================
-           COUNTER
-        ===================================================== */
-
-        .seedance-counter {
-
-            margin-top: 5px;
-
-            text-align: right;
-
-            color:
-                rgba(255,255,255,.34);
-
-            font-size: 9px;
-
-        }
-
-
-        /* =====================================================
-           DURATION
-        ===================================================== */
-
-        .seedance-duration-row {
-
-            display: flex;
-
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-
-            align-items: center;
-
-            gap: 10px;
-
-        }
-
-
-        .seedance-duration-range {
-
-            flex:
-                1 1 auto;
-
-            min-width: 0;
-
-            width: 100%;
-
-            accent-color:
-                #ff2346;
-
-        }
-
-
-        .seedance-duration-value {
-
-            flex:
-                0 0 auto;
-
-            min-width: 65px;
-
-            text-align: right;
-
-            color: #fff;
-
-            font-size: 12px;
-
-            font-weight: 800;
-
-        }
-
-
-        .seedance-duration-scale {
-
-            display: flex;
-
-            justify-content: space-between;
-
-            margin-top: 6px;
-
-            color:
-                rgba(255,255,255,.3);
-
-            font-size: 9px;
-
-        }
-
-
-        /* =====================================================
-           TOGGLE
-        ===================================================== */
-
-        .seedance-toggle {
-
-            display: inline-flex;
-
-            max-width: 100%;
-
-            align-items: center;
-
-            gap: 8px;
-
-            cursor: pointer;
-
-        }
-
-
-        .seedance-toggle input {
-
-            position: absolute;
-
-            opacity: 0;
-
-            pointer-events: none;
-
-        }
-
-
-        .seedance-toggle-track {
-
-            position: relative;
-
-            flex:
-                0 0 auto;
-
-            width: 42px;
-            height: 23px;
-
-            border-radius: 20px;
-
-            background:
-                rgba(255,255,255,.12);
-
-            transition: .2s;
-
-        }
-
-
-        .seedance-toggle-thumb {
-
-            position: absolute;
-
-            top: 3px;
-            left: 3px;
-
-            width: 17px;
-            height: 17px;
-
-            border-radius: 50%;
-
-            background:
-                rgba(255,255,255,.7);
-
-            transition: .2s;
-
-        }
-
-
-        .seedance-toggle input:checked
-        + .seedance-toggle-track {
-
-            background:
-                rgba(255,35,70,.72);
-
-        }
-
-
-        .seedance-toggle input:checked
-        + .seedance-toggle-track
-        .seedance-toggle-thumb {
-
-            transform:
-                translateX(19px);
-
-            background: #fff;
-
-        }
-
-
-        .seedance-toggle-label {
-
-            color:
-                rgba(255,255,255,.72);
-
-            font-size: 11px;
-
-            font-weight: 700;
-
-        }
-
-
-        /* =====================================================
-           MOBILE
-        ===================================================== */
-
-        @media (max-width: 640px) {
-
-            .seedance-form {
-
-                width: 100%;
-                max-width: 100%;
-                min-width: 0;
-
-                overflow-x: hidden;
-
-            }
-
-
-            .seedance-field {
-
-                width: 100%;
-                max-width: 100%;
-                min-width: 0;
-
-                margin-bottom: 12px;
-
-                padding: 11px;
-
-                border-radius: 11px;
-
-            }
-
-
-            .seedance-field-header {
-
-                margin-bottom: 9px;
-
-            }
-
-
-            .seedance-field-title {
-
-                font-size: 12px;
-
-            }
-
-
-            .seedance-field-description {
-
-                margin-top: 3px;
-
-                font-size: 9px;
-
-                line-height: 1.35;
-
-            }
-
-
-            /*
-             * Upload / URL tetap satu baris.
-             */
-
-            .seedance-source-tabs {
-
-                display: flex;
-
-                width: 100%;
-
-                gap: 5px;
-
-                margin-bottom: 8px;
-
-            }
-
-
-            .seedance-source-tab {
-
-                flex:
-                    1 1 0;
-
-                width: auto;
-
-                height: 32px;
-
-                padding:
-                    0 7px;
-
-                font-size: 10px;
-
-            }
-
-
-            /*
-             * Tombol + dan counter tetap satu baris.
-             */
-
-            .seedance-upload-toolbar {
-
-                display: flex;
-
-                width: 100%;
-
-                align-items: center;
-
-                justify-content: space-between;
-
-                gap: 6px;
-
-                flex-wrap: nowrap;
-
-                margin-bottom: 7px;
-
-            }
-
-
-            .seedance-add-file-button {
-
-                flex:
-                    0 0 auto;
-
-                height: 31px;
-
-                padding:
-                    0 9px;
-
-                font-size: 10px;
-
-            }
-
-
-            .seedance-file-limit {
-
-                flex:
-                    0 0 auto;
-
-                margin-left: auto;
-
-                font-size: 9px;
-
-            }
-
-
-            /*
-             * First / Last Frame tetap punya
-             * native file input.
-             */
-
-            .seedance-file-input {
-
-                width: 100%;
-
-                height: 36px;
-
-                padding: 7px;
-
-                font-size: 10px;
-
-            }
-
-
-            /*
-             * Reference list compact.
-             */
-
-            .seedance-selected-files {
-
-                gap: 5px;
-
-                margin-top: 7px;
-
-            }
-
-
-            .seedance-selected-file {
-
-                gap: 6px;
-
-                padding:
-                    6px 7px;
-
-            }
-
-
-            .seedance-selected-file-index {
-
-                flex-basis: 21px;
-
-                width: 21px;
-                height: 21px;
-
-                border-radius: 5px;
-
-                font-size: 8px;
-
-            }
-
-
-            .seedance-selected-file-name {
-
-                font-size: 9px;
-
-            }
-
-
-            .seedance-selected-file-size {
-
-                font-size: 8px;
-
-            }
-
-
-            .seedance-remove-file-button {
-
-                height: 26px;
-
-                padding:
-                    0 6px;
-
-                font-size: 8px;
-
-            }
-
-
-            .seedance-file-help {
-
-                font-size: 9px;
-
-            }
-
-
-            /*
-             * Prompt jangan terlalu tinggi.
-             */
-
-            .seedance-prompt-input {
-
-                min-height: 105px;
-
-            }
-
-
-            .seedance-url-input {
-
-                min-height: 60px;
-
-            }
-
-
-            .seedance-url-input,
-            .seedance-prompt-input,
-            .seedance-select {
-
-                font-size: 11px;
-
-            }
-
-
-            .seedance-select {
-
-                min-height: 38px;
-
-            }
-
-
-            /*
-             * Preview 2 kolom.
-             */
-
-            .seedance-media-preview {
-
-                grid-template-columns:
-                    repeat(
-                        2,
-                        minmax(
-                            0,
-                            1fr
-                        )
-                    );
-
-                gap: 5px;
-
-                margin-top: 7px;
-
-            }
-
-
-            .seedance-preview-media {
-
-                max-height: 150px;
-
-                border-radius: 6px;
-
-            }
-
-
-            /*
-             * Duration tetap horizontal.
-             */
-
-            .seedance-duration-row {
-
-                display: flex;
-
-                width: 100%;
-
-                gap: 7px;
-
-            }
-
-
-            .seedance-duration-range {
-
-                flex:
-                    1 1 auto;
-
-                min-width: 0;
-
-            }
-
-
-            .seedance-duration-value {
-
-                flex:
-                    0 0 auto;
-
-                min-width: 55px;
-
-                font-size: 10px;
-
-            }
-
-
-            .seedance-duration-scale {
-
-                margin-top: 4px;
-
-                font-size: 8px;
-
-            }
-
-
-            .seedance-toggle {
-
-                gap: 7px;
-
-            }
-
-
-            .seedance-toggle-track {
-
-                width: 39px;
-                height: 22px;
-
-            }
-
-
-            .seedance-toggle-thumb {
-
-                width: 16px;
-                height: 16px;
-
-            }
-
-
-            .seedance-toggle input:checked
-            + .seedance-toggle-track
-            .seedance-toggle-thumb {
-
-                transform:
-                    translateX(17px);
-
-            }
-
-
-            .seedance-toggle-label {
-
-                font-size: 10px;
-
-            }
-
-
-            .seedance-counter {
-
-                font-size: 8px;
-
-            }
-
-        }
-
-
-        /* =====================================================
-           VERY SMALL PHONE
-        ===================================================== */
-
-        @media (max-width: 380px) {
-
-            .seedance-field {
-
-                padding: 9px;
-
-                margin-bottom: 10px;
-
-            }
-
-
-            .seedance-source-tab {
-
-                height: 30px;
-
-                font-size: 9px;
-
-            }
-
-
-            .seedance-add-file-button {
-
-                height: 29px;
-
-                padding:
-                    0 8px;
-
-                font-size: 9px;
-
-            }
-
-
-            .seedance-file-limit {
-
-                font-size: 8px;
-
-            }
-
-
-            .seedance-selected-file {
-
-                gap: 5px;
-
-                padding:
-                    5px 6px;
-
-            }
-
-
-            .seedance-selected-file-index {
-
-                flex-basis: 20px;
-
-                width: 20px;
-                height: 20px;
-
-            }
-
-
-            .seedance-remove-file-button {
-
-                height: 24px;
-
-                padding:
-                    0 5px;
-
-                font-size: 7px;
-
-            }
-
-
-            .seedance-media-preview {
-
-                gap: 4px;
-
-            }
-
-
-            .seedance-preview-media {
-
-                max-height: 125px;
-
-            }
-
-
-            .seedance-duration-value {
-
-                min-width: 50px;
-
-                font-size: 9px;
-
-            }
-
-        }
-
-    `;
-
-}
-
-
-/* =========================================================
    RENDER FORM
 ========================================================= */
 
@@ -2173,7 +800,12 @@ function renderSeedanceForm(
         getDynamicFields();
 
 
-    injectStyles();
+    /*
+     * CSS Seedance sekarang berada
+     * di file generate-seedance-styles.js.
+     */
+
+    injectSeedanceStyles();
 
 
     container.innerHTML = `
@@ -3244,16 +1876,6 @@ function bindFileInputs() {
                             );
 
 
-                            /*
-                             * Reset native input.
-                             *
-                             * File sebenarnya sudah masuk
-                             * ke internal state.
-                             *
-                             * Dengan reset ini user bisa
-                             * memilih file yang sama lagi
-                             * jika sebelumnya dihapus.
-                             */
                             input.value =
                                 "";
 
@@ -4039,12 +2661,6 @@ function showSeedanceFileMessage(
         `[Seedance] ${message}`
     );
 
-    /*
-     * Jangan menggunakan alert().
-     * Alert native browser membuat UX buruk
-     * dan dapat mengganggu proses Generate.
-     */
-
 }
 
 
@@ -4117,20 +2733,9 @@ async function collectMediaSource(
         );
 
 
-    /*
-     * =====================================================
-     * UPLOAD MODE
-     * =====================================================
-     */
-
     if (
         mode === "upload"
     ) {
-
-        /*
-         * Reference multiple menggunakan
-         * internal state.
-         */
 
         if (
             multiple
@@ -4197,10 +2802,6 @@ async function collectMediaSource(
         }
 
 
-        /*
-         * First Frame / Last Frame
-         */
-
         const input =
             document.getElementById(
                 `${id}-file`
@@ -4236,12 +2837,6 @@ async function collectMediaSource(
 
     }
 
-
-    /*
-     * =====================================================
-     * URL MODE
-     * =====================================================
-     */
 
     const urlInput =
         document.getElementById(
@@ -4364,10 +2959,6 @@ async function getSeedanceParameters() {
         );
 
 
-    /*
-     * First Frame
-     */
-
     const firstFrameUrl =
         await collectMediaSource(
             "firstFrame",
@@ -4376,10 +2967,6 @@ async function getSeedanceParameters() {
         );
 
 
-    /*
-     * Last Frame
-     */
-
     const lastFrameUrl =
         await collectMediaSource(
             "lastFrame",
@@ -4387,10 +2974,6 @@ async function getSeedanceParameters() {
             false
         );
 
-
-    /*
-     * Reference Images
-     */
 
     const referenceImageUrls =
         await collectMediaSource(
@@ -4402,10 +2985,6 @@ async function getSeedanceParameters() {
         );
 
 
-    /*
-     * Reference Videos
-     */
-
     const referenceVideoUrls =
         await collectMediaSource(
             "referenceVideos",
@@ -4415,10 +2994,6 @@ async function getSeedanceParameters() {
             "Reference Videos"
         );
 
-
-    /*
-     * Reference Audio
-     */
 
     const referenceAudioUrls =
         await collectMediaSource(
@@ -4433,11 +3008,6 @@ async function getSeedanceParameters() {
     const parameters =
         {};
 
-
-    /*
-     * Prompt optional.
-     * Jangan kirim string kosong.
-     */
 
     if (
         prompt
@@ -4784,16 +3354,8 @@ function resetSeedanceForm() {
     }
 
 
-    /*
-     * Reset internal reference state.
-     */
-
     resetReferenceFileState();
 
-
-    /*
-     * Prompt
-     */
 
     const prompt =
         document.getElementById(
@@ -4811,10 +3373,6 @@ function resetSeedanceForm() {
     }
 
 
-    /*
-     * Duration
-     */
-
     const duration =
         document.getElementById(
             fieldId("duration")
@@ -4830,10 +3388,6 @@ function resetSeedanceForm() {
 
     }
 
-
-    /*
-     * Resolution
-     */
 
     const resolution =
         document.getElementById(
@@ -4851,10 +3405,6 @@ function resetSeedanceForm() {
     }
 
 
-    /*
-     * Aspect ratio
-     */
-
     const aspectRatio =
         document.getElementById(
             fieldId("aspectRatio")
@@ -4871,10 +3421,6 @@ function resetSeedanceForm() {
     }
 
 
-    /*
-     * Output format
-     */
-
     const outputFormat =
         document.getElementById(
             fieldId("outputFormat")
@@ -4890,10 +3436,6 @@ function resetSeedanceForm() {
 
     }
 
-
-    /*
-     * Toggle
-     */
 
     [
 
@@ -4924,10 +3466,6 @@ function resetSeedanceForm() {
     );
 
 
-    /*
-     * Native inputs.
-     */
-
     document
         .querySelectorAll(
             ".seedance-file-input"
@@ -4942,10 +3480,6 @@ function resetSeedanceForm() {
         );
 
 
-    /*
-     * URL.
-     */
-
     document
         .querySelectorAll(
             ".seedance-url-input"
@@ -4959,10 +3493,6 @@ function resetSeedanceForm() {
             }
         );
 
-
-    /*
-     * Clear lists and previews.
-     */
 
     document
         .querySelectorAll(
@@ -4996,9 +3526,11 @@ function resetSeedanceForm() {
         "referenceImages"
     );
 
+
     updateReferenceLimit(
         "referenceVideos"
     );
+
 
     updateReferenceLimit(
         "referenceAudio"
