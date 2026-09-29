@@ -318,58 +318,49 @@
         ====================================================== */
 
         #dynamicFields:has(> .seedance-form)
-        > .seedance-form {
+> .seedance-form {
+    display: grid !important;
 
-            display: grid !important;
+    grid-template-columns:
+        minmax(0, 1fr) !important;
 
-            grid-template-columns:
-                minmax(0, 1fr)
-                minmax(0, 1fr) !important;
+    grid-auto-flow: row !important;
+    grid-auto-rows: max-content !important;
 
-            grid-auto-flow: row;
+    gap: 18px !important;
 
-            gap: 18px 20px !important;
+    width: 100% !important;
+    max-width: 100% !important;
 
-            width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
 
-            max-width: 100% !important;
+    box-sizing: border-box !important;
 
-            margin: 0 !important;
-
-            padding: 0 !important;
-
-            box-sizing: border-box !important;
-
-            align-items: start !important;
-
-            grid-column: 1 / -1 !important;
-        }
-
+    align-items: start !important;
+    align-content: start !important;
+}
 
         /* =====================================================
            SEEDANCE FIELD
         ====================================================== */
 
         #dynamicFields:has(> .seedance-form)
-        > .seedance-form
-        > .seedance-field {
+> .seedance-form
+> .seedance-field {
+    grid-column: 1 !important;
 
-            width: 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
 
-            min-width: 0 !important;
+    margin: 0 !important;
+    padding: 18px !important;
 
-            max-width: none !important;
+    box-sizing: border-box !important;
 
-            margin: 0 !important;
-
-            padding: 0 !important;
-
-            box-sizing: border-box !important;
-
-            align-self: start !important;
-
-            grid-column: auto;
-        }
+    align-self: start !important;
+}
 
 
         /* =====================================================
