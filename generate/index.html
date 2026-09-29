@@ -2783,6 +2783,561 @@ textarea {
         box-sizing: border-box !important;
     }
 }
+        /* =========================================================
+   SEEDANCE 2.5
+   ROOT LAYOUT ISOLATION
+   ---------------------------------------------------------
+   #dynamicFields tidak boleh membawa layout .form-grid
+   ketika Seedance aktif.
+========================================================= */
+
+#dynamicFields:has(> .seedance-form) {
+
+    display: block !important;
+
+    position: relative !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    height: auto !important;
+
+    min-height: 0 !important;
+
+    max-height: none !important;
+
+    margin: 0 !important;
+
+    padding: 0 !important;
+
+    box-sizing: border-box !important;
+
+    grid-template-columns: none !important;
+
+    grid-template-rows: none !important;
+
+    grid-auto-flow: initial !important;
+
+    grid-auto-columns: initial !important;
+
+    grid-auto-rows: initial !important;
+
+    gap: 0 !important;
+
+    align-items: initial !important;
+
+    align-content: initial !important;
+
+    justify-items: initial !important;
+
+    justify-content: initial !important;
+
+    overflow: visible !important;
+
+    flex: none !important;
+}
+
+
+/* =========================================================
+   SEEDANCE ROOT
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form {
+
+    display: grid !important;
+
+    position: relative !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    height: auto !important;
+
+    min-height: 0 !important;
+
+    margin: 0 !important;
+
+    padding: 0 !important;
+
+    box-sizing: border-box !important;
+
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr) !important;
+
+    grid-auto-columns: minmax(0, 1fr) !important;
+
+    grid-auto-rows: max-content !important;
+
+    grid-auto-flow: row !important;
+
+    column-gap: 20px !important;
+
+    row-gap: 18px !important;
+
+    align-items: start !important;
+
+    align-content: start !important;
+
+    justify-items: stretch !important;
+
+    justify-content: stretch !important;
+
+    overflow: visible !important;
+
+    flex: none !important;
+}
+
+
+/* =========================================================
+   SEMUA FIELD SEEDANCE
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field {
+
+    display: block !important;
+
+    position: relative !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    height: auto !important;
+
+    min-height: 0 !important;
+
+    max-height: none !important;
+
+    margin: 0 !important;
+
+    padding: 18px !important;
+
+    box-sizing: border-box !important;
+
+    align-self: start !important;
+
+    justify-self: stretch !important;
+
+    float: none !important;
+
+    clear: none !important;
+
+    overflow: visible !important;
+}
+
+
+/* =========================================================
+   FIELD INTERNAL ROOT
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+> * {
+
+    box-sizing: border-box !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+}
+
+
+/* =========================================================
+   FIELD HEADER
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+> .seedance-field-header {
+
+    display: block !important;
+
+    position: relative !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    height: auto !important;
+
+    margin: 0 0 12px 0 !important;
+
+    padding: 0 !important;
+
+    box-sizing: border-box !important;
+
+    grid-template-columns: none !important;
+
+    grid-template-rows: none !important;
+
+    flex: none !important;
+}
+
+
+/* =========================================================
+   HEADER INNER DIV
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+> .seedance-field-header
+> div {
+
+    display: block !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    height: auto !important;
+
+    margin: 0 !important;
+
+    padding: 0 !important;
+
+    box-sizing: border-box !important;
+
+    grid-template-columns: none !important;
+
+    grid-template-rows: none !important;
+
+    flex: none !important;
+}
+
+
+/* =========================================================
+   TITLE
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+.seedance-field-title {
+
+    display: block !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   DESCRIPTION
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+.seedance-field-description {
+
+    display: block !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    height: auto !important;
+
+    box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   FIELD CONTENT
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+> .seedance-media-source,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+> .seedance-source-panel,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+> .seedance-duration-field {
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   SEMUA INPUT
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+input:not([type="checkbox"]):not([type="radio"]),
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+textarea,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+select {
+
+    display: block !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   MEDIA SOURCE
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+.seedance-media-source {
+
+    display: block !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   SOURCE PANEL
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+.seedance-source-panel:not([hidden]) {
+
+    display: block !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    box-sizing: border-box !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+.seedance-source-panel[hidden] {
+
+    display: none !important;
+}
+
+
+/* =========================================================
+   SOURCE TABS
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+.seedance-source-tabs {
+
+    display: flex !important;
+
+    flex-direction: row !important;
+
+    align-items: center !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   UPLOAD TOOLBAR
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+.seedance-upload-toolbar {
+
+    display: flex !important;
+
+    flex-direction: row !important;
+
+    align-items: center !important;
+
+    justify-content: space-between !important;
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   PREVIEW / FILE LIST
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+.seedance-file-list,
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+.seedance-preview {
+
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
+
+    box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form {
+
+        display: grid !important;
+
+        grid-template-columns:
+            minmax(0, 1fr) !important;
+
+        width: 100% !important;
+
+        min-width: 0 !important;
+
+        max-width: none !important;
+
+        gap: 16px !important;
+
+        align-items: start !important;
+
+        align-content: start !important;
+
+        justify-items: stretch !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field {
+
+        grid-column: 1 !important;
+
+        width: 100% !important;
+
+        min-width: 0 !important;
+
+        max-width: none !important;
+
+        height: auto !important;
+
+        min-height: 0 !important;
+
+        padding: 15px !important;
+
+        margin: 0 !important;
+
+        display: block !important;
+
+        align-self: start !important;
+
+        justify-self: stretch !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field
+    > div,
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field
+    > section,
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field
+    > label {
+
+        width: 100% !important;
+
+        min-width: 0 !important;
+
+        max-width: none !important;
+
+        box-sizing: border-box !important;
+    }
+
+}
 
     </style>
 
@@ -3720,7 +4275,7 @@ textarea {
 
                         <div
                             id="dynamicFields"
-                            class="form-grid"
+                            class="dynamic-fields"
                         ></div>
 
 
