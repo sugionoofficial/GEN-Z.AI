@@ -2093,15 +2093,18 @@ small {
 /* =========================================================
    GRID ROW HEIGHT
    ---------------------------------------------------------
-   Biarkan setiap row mengikuti field tertinggi.
+   Setiap field mengikuti tinggi kontennya sendiri.
+   Tidak melakukan vertical stretch antar field.
 ========================================================= */
 
 #dynamicFields:has(> .seedance-form)
 > .seedance-form {
 
-    grid-auto-rows: auto !important;
+    grid-auto-rows: max-content !important;
 
-    align-items: stretch !important;
+    align-items: start !important;
+
+    align-content: start !important;
 }
 
 
