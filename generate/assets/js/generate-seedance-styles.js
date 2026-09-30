@@ -66,6 +66,9 @@ function injectSeedanceStyles() {
            -----------------------------------------------------
            Seedance menggunakan grid 2 kolom.
            Field tertentu dapat menggunakan full width.
+
+           PENTING:
+           Grid 2 kolom berlaku pada desktop DAN mobile.
         ===================================================== */
 
         .seedance-form {
@@ -259,6 +262,8 @@ function injectSeedanceStyles() {
 
         /* =====================================================
            HALF WIDTH
+           -----------------------------------------------------
+           Tetap 1 kolom dari grid 2 kolom.
         ===================================================== */
 
         .seedance-form
@@ -288,6 +293,8 @@ function injectSeedanceStyles() {
            Prompt
            Reference Audio
            Web Search
+
+           Field mengambil kedua kolom.
         ===================================================== */
 
         .seedance-form
@@ -304,6 +311,89 @@ function injectSeedanceStyles() {
 
             max-width:
                 none !important;
+
+            justify-self:
+                stretch !important;
+
+        }
+
+
+        /* =====================================================
+           FORCE PROMPT FULL WIDTH
+           -----------------------------------------------------
+           Pengaman apabila class dari renderer berubah.
+        ===================================================== */
+
+        .seedance-form
+        > .seedance-field:has(#seedancePrompt) {
+
+            grid-column:
+                1 / -1 !important;
+
+            width:
+                100% !important;
+
+            max-width:
+                none !important;
+
+            min-width:
+                0 !important;
+
+            justify-self:
+                stretch !important;
+
+        }
+
+
+        /* =====================================================
+           FORCE REFERENCE AUDIO FULL WIDTH
+           -----------------------------------------------------
+           Pengaman apabila class dari renderer berubah.
+        ===================================================== */
+
+        .seedance-form
+        > .seedance-field:has(
+            [data-seedance-media="referenceAudio"]
+        ) {
+
+            grid-column:
+                1 / -1 !important;
+
+            width:
+                100% !important;
+
+            max-width:
+                none !important;
+
+            min-width:
+                0 !important;
+
+            justify-self:
+                stretch !important;
+
+        }
+
+
+        /* =====================================================
+           FORCE WEB SEARCH FULL WIDTH
+           -----------------------------------------------------
+           Pengaman apabila class dari renderer berubah.
+        ===================================================== */
+
+        .seedance-form
+        > .seedance-field:has(#seedanceWebSearch) {
+
+            grid-column:
+                1 / -1 !important;
+
+            width:
+                100% !important;
+
+            max-width:
+                none !important;
+
+            min-width:
+                0 !important;
 
             justify-self:
                 stretch !important;
@@ -1786,14 +1876,20 @@ function injectSeedanceStyles() {
         /* =====================================================
            MOBILE
            -----------------------------------------------------
-           Desktop:
-             2 kolom
+           PENTING:
+           HP TETAP 2 KOLOM.
 
-           Mobile:
-             1 kolom
+           Full-width:
+             - Prompt
+             - Reference Audio
+             - Web Search
 
-           Full/half class tidak boleh mempertahankan
-           2 kolom pada layar kecil.
+           Half-width:
+             - Frame Awal / Frame Akhir
+             - Reference Images / Reference Videos
+             - Resolution / Aspect Ratio
+             - Duration / Output Format
+             - Generate Audio / Return Last Frame
         ===================================================== */
 
         @media (max-width: 640px) {
@@ -1804,6 +1900,7 @@ function injectSeedanceStyles() {
                     grid !important;
 
                 grid-template-columns:
+                    minmax(0, 1fr)
                     minmax(0, 1fr) !important;
 
                 grid-auto-flow:
@@ -1813,7 +1910,7 @@ function injectSeedanceStyles() {
                     max-content !important;
 
                 column-gap:
-                    0 !important;
+                    8px !important;
 
                 row-gap:
                     12px !important;
@@ -1822,7 +1919,7 @@ function injectSeedanceStyles() {
                     100% !important;
 
                 max-width:
-                    none !important;
+                    100% !important;
 
                 min-width:
                     0 !important;
@@ -1845,21 +1942,21 @@ function injectSeedanceStyles() {
             }
 
 
+            /* ================================================
+               MOBILE HALF
+            ================================================= */
+
             .seedance-form
-            > .seedance-field,
-            .seedance-form
-            > .seedance-field.seedance-field-half,
-            .seedance-form
-            > .seedance-field.seedance-field-full {
+            > .seedance-field.seedance-field-half {
 
                 grid-column:
-                    1 / -1 !important;
+                    span 1 !important;
 
                 width:
                     100% !important;
 
                 max-width:
-                    none !important;
+                    100% !important;
 
                 min-width:
                     0 !important;
@@ -1887,6 +1984,111 @@ function injectSeedanceStyles() {
 
                 border-radius:
                     11px;
+
+            }
+
+
+            /* ================================================
+               MOBILE FULL
+            ================================================= */
+
+            .seedance-form
+            > .seedance-field.seedance-field-full {
+
+                grid-column:
+                    1 / -1 !important;
+
+                width:
+                    100% !important;
+
+                max-width:
+                    100% !important;
+
+                min-width:
+                    0 !important;
+
+                height:
+                    auto !important;
+
+                min-height:
+                    0 !important;
+
+                margin:
+                    0 !important;
+
+                padding:
+                    11px !important;
+
+                align-self:
+                    stretch !important;
+
+                justify-self:
+                    stretch !important;
+
+                overflow:
+                    visible !important;
+
+                border-radius:
+                    11px;
+
+            }
+
+
+            /* ================================================
+               MOBILE PROMPT
+            ================================================= */
+
+            .seedance-form
+            > .seedance-field:has(#seedancePrompt) {
+
+                grid-column:
+                    1 / -1 !important;
+
+                width:
+                    100% !important;
+
+                max-width:
+                    100% !important;
+
+            }
+
+
+            /* ================================================
+               MOBILE REFERENCE AUDIO
+            ================================================= */
+
+            .seedance-form
+            > .seedance-field:has(
+                [data-seedance-media="referenceAudio"]
+            ) {
+
+                grid-column:
+                    1 / -1 !important;
+
+                width:
+                    100% !important;
+
+                max-width:
+                    100% !important;
+
+            }
+
+
+            /* ================================================
+               MOBILE WEB SEARCH
+            ================================================= */
+
+            .seedance-form
+            > .seedance-field:has(#seedanceWebSearch) {
+
+                grid-column:
+                    1 / -1 !important;
+
+                width:
+                    100% !important;
+
+                max-width:
+                    100% !important;
 
             }
 
@@ -2373,6 +2575,9 @@ function injectSeedanceStyles() {
 
         /* =====================================================
            VERY SMALL PHONE
+           -----------------------------------------------------
+           Tetap 2 kolom.
+           Jangan kembali ke 1 kolom.
         ===================================================== */
 
         @media (max-width: 380px) {
@@ -2383,13 +2588,76 @@ function injectSeedanceStyles() {
                     100% !important;
 
                 max-width:
-                    none !important;
+                    100% !important;
 
                 min-width:
                     0 !important;
 
                 grid-template-columns:
+                    minmax(0, 1fr)
                     minmax(0, 1fr) !important;
+
+                column-gap:
+                    6px !important;
+
+            }
+
+
+            .seedance-form
+            > .seedance-field.seedance-field-half {
+
+                grid-column:
+                    span 1 !important;
+
+                width:
+                    100% !important;
+
+                max-width:
+                    100% !important;
+
+            }
+
+
+            .seedance-form
+            > .seedance-field.seedance-field-full {
+
+                grid-column:
+                    1 / -1 !important;
+
+                width:
+                    100% !important;
+
+                max-width:
+                    100% !important;
+
+            }
+
+
+            .seedance-form
+            > .seedance-field:has(#seedancePrompt) {
+
+                grid-column:
+                    1 / -1 !important;
+
+            }
+
+
+            .seedance-form
+            > .seedance-field:has(
+                [data-seedance-media="referenceAudio"]
+            ) {
+
+                grid-column:
+                    1 / -1 !important;
+
+            }
+
+
+            .seedance-form
+            > .seedance-field:has(#seedanceWebSearch) {
+
+                grid-column:
+                    1 / -1 !important;
 
             }
 
