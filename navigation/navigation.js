@@ -1004,6 +1004,12 @@
                 icon: "♻️ "
             },
 
+           {
+    label: "AI Metadata Cleaner",
+    href: "/metadata-cleaner/index.html",
+    icon: "🛡️ "
+},
+
             {
                 label: "Top-Up",
                 href: "/user/topup.html",
@@ -1039,6 +1045,12 @@
                 icon: "♻️ "
             },
 
+           {
+    label: "AI Metadata Cleaner",
+    href: "/metadata-cleaner/index.html",
+    icon: "🛡️ "
+},
+
             {
                 label: "Admin Panel",
                 href: "/admin-control/admin-panel.html",
@@ -1067,6 +1079,12 @@
                 href: "/history/index.html",
                 icon: "♻️ "
             },
+
+           {
+    label: "AI Metadata Cleaner",
+    href: "/metadata-cleaner/index.html",
+    icon: "🛡️ "
+},
 
             {
                 label: "Admin Panel",
