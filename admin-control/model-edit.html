@@ -2660,27 +2660,29 @@ function getAvailableResolutions(model) {
      * ---------------------------------------------------------
      * Daftar ini adalah KEMAMPUAN TEKNIS model.
      *
-     * Jangan menggunakan supported_resolutions sebagai sumber
-     * utama karena field tersebut adalah daftar resolusi AKTIF
-     * dari database.
+     * IMPORTANT:
+     * parameters.js GEN-Z.AI menggunakan OBJECT:
      *
-     * Contoh:
+     * parameters = {
      *
-     * Registry:
-     *   480p
-     *   720p
-     *   1080p
+     *     prompt: {...},
      *
-     * Database:
-     *   720p
+     *     resolution: {
+     *         type: "string",
+     *         enum: [
+     *             "480p",
+     *             "720p",
+     *             "1080p"
+     *         ]
+     *     }
      *
-     * Edit Model tetap harus menampilkan:
+     * }
      *
-     *   ☑ 480p
-     *   ☑ 720p
-     *   ☐ 1080p
+     * Jadi JANGAN hanya menganggap parameters
+     * sebagai Array.
      *
-     * sesuai konfigurasi aktif database.
+     * supported_resolutions tetap merupakan
+     * daftar RESOLUTION AKTIF dari database.
      * =========================================================
      */
 
@@ -2690,59 +2692,58 @@ function getAvailableResolutions(model) {
         {};
 
 
+    const parameters =
+        registry?.parameters;
+
+
     /*
      * =========================================================
      * PRIORITAS 1
      * ---------------------------------------------------------
-     * Ambil dari parameters.resolution.
+     * parameters.js native object
      *
-     * Ini adalah sumber teknis registry yang sebenarnya.
+     * parameters.resolution.enum
      * =========================================================
      */
 
-    const parameters =
-        Array.isArray(
-            registry?.parameters
-        )
-            ? registry.parameters
-            : [];
-
-
-    const resolutionParameter =
-        parameters.find(
-            parameter =>
-                parameter &&
-                String(
-                    parameter.name ||
-                    parameter.key ||
-                    parameter.id ||
-                    ""
-                )
-                    .trim()
-                    .toLowerCase() ===
-                "resolution"
-        );
-
-
-    const parameterValues =
-        Array.isArray(
-            resolutionParameter?.enum
-        )
-            ? resolutionParameter.enum
-            : Array.isArray(
-                resolutionParameter?.options
-            )
-                ? resolutionParameter.options
-                : [];
-
-
     if (
-        parameterValues.length
+        parameters &&
+        typeof parameters === "object" &&
+        !Array.isArray(parameters)
     ) {
 
-        return sortResolutions(
-            parameterValues
-        );
+        const resolutionParameter =
+            parameters.resolution;
+
+
+        if (
+            resolutionParameter &&
+            typeof resolutionParameter === "object"
+        ) {
+
+            const parameterValues =
+                Array.isArray(
+                    resolutionParameter.enum
+                )
+                    ? resolutionParameter.enum
+                    : Array.isArray(
+                        resolutionParameter.options
+                    )
+                        ? resolutionParameter.options
+                        : [];
+
+
+            if (
+                parameterValues.length
+            ) {
+
+                return sortResolutions(
+                    parameterValues
+                );
+
+            }
+
+        }
 
     }
 
@@ -2751,10 +2752,68 @@ function getAvailableResolutions(model) {
      * =========================================================
      * PRIORITAS 2
      * ---------------------------------------------------------
+     * Dukungan jika registry lama menggunakan
+     * parameters dalam bentuk ARRAY.
+     * =========================================================
+     */
+
+    if (
+        Array.isArray(parameters)
+    ) {
+
+        const resolutionParameter =
+            parameters.find(
+                parameter =>
+                    parameter &&
+                    String(
+                        parameter.name ||
+                        parameter.key ||
+                        parameter.id ||
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    "resolution"
+            );
+
+
+        const parameterValues =
+            Array.isArray(
+                resolutionParameter?.enum
+            )
+                ? resolutionParameter.enum
+                : Array.isArray(
+                    resolutionParameter?.options
+                )
+                    ? resolutionParameter.options
+                    : [];
+
+
+        if (
+            parameterValues.length
+        ) {
+
+            return sortResolutions(
+                parameterValues
+            );
+
+        }
+
+    }
+
+
+    /*
+     * =========================================================
+     * PRIORITAS 3
+     * ---------------------------------------------------------
      * Fallback ke registry supported_resolutions.
      *
-     * Ini hanya digunakan jika metadata parameters tidak
-     * menyediakan resolution enum/options.
+     * CATATAN:
+     * Pada model yang sudah memiliki database aktif,
+     * field ini bisa berisi hanya resolution aktif.
+     *
+     * Karena itu fallback ini hanya dipakai jika
+     * parameters.js tidak menyediakan metadata resolution.
      * =========================================================
      */
 
@@ -2777,9 +2836,9 @@ function getAvailableResolutions(model) {
 
     /*
      * =========================================================
-     * PRIORITAS 3
+     * PRIORITAS 4
      * ---------------------------------------------------------
-     * Fallback camelCase jika ada registry lama.
+     * Dukungan registry camelCase lama.
      * =========================================================
      */
 
