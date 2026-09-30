@@ -1103,6 +1103,137 @@ function applySeedanceGridLayout(
 
 }
 
+/* =========================================================
+   ACTIVE RESOLUTIONS
+   ---------------------------------------------------------
+   Source:
+   model.supported_resolutions
+
+   Admin Edit Model menentukan resolution mana
+   yang boleh ditampilkan di Generate.
+========================================================= */
+
+function normalizeActiveResolutions(
+    model
+) {
+
+    const raw =
+        model?.supported_resolutions ??
+        model?.supportedResolutions;
+
+    if (
+        Array.isArray(raw)
+    ) {
+
+        return Array.from(
+            new Set(
+                raw
+                    .map(
+                        value =>
+                            String(
+                                value ?? ""
+                            ).trim()
+                    )
+                    .filter(Boolean)
+            )
+        );
+
+    }
+
+    if (
+        typeof raw === "string"
+    ) {
+
+        const text =
+            raw.trim();
+
+        if (!text) {
+            return [];
+        }
+
+        try {
+
+            const parsed =
+                JSON.parse(text);
+
+            if (
+                Array.isArray(parsed)
+            ) {
+
+                return Array.from(
+                    new Set(
+                        parsed
+                            .map(
+                                value =>
+                                    String(
+                                        value ?? ""
+                                    ).trim()
+                            )
+                            .filter(Boolean)
+                    )
+                );
+
+            }
+
+        } catch (_) {
+            /* fallback */
+        }
+
+        return Array.from(
+            new Set(
+                text
+                    .split(",")
+                    .map(
+                        value =>
+                            value.trim()
+                    )
+                    .filter(Boolean)
+            )
+        );
+
+    }
+
+    return [];
+}
+
+
+function getSeedanceResolutions(
+    model
+) {
+
+    const active =
+        normalizeActiveResolutions(
+            model
+        );
+
+    /*
+     * supported_resolutions dari model-config
+     * adalah konfigurasi aktif.
+     *
+     * Jangan fallback ke daftar statis apabila
+     * field memang tersedia tetapi kosong.
+     */
+
+    if (
+        model &&
+        Object.prototype.hasOwnProperty.call(
+            model,
+            "supported_resolutions"
+        )
+    ) {
+
+        return active;
+
+    }
+
+    return [
+        "480p",
+        "720p",
+        "1080p"
+    ];
+
+}
+
 
 /* =========================================================
    RENDER FORM
@@ -1263,46 +1394,41 @@ function renderSeedanceForm(
 
             ${renderSelect(
 
-                "resolution",
+    "resolution",
 
-                "Resolution",
+    "Resolution",
 
-                "Resolusi output Seedance.",
+    "Resolusi output Seedance.",
 
-                [
+    (() => {
 
-                    {
-                        value:
-                            "480p",
+        const resolutions =
+            getSeedanceResolutions(
+                model
+            );
 
-                        label:
-                            "480p"
-                    },
+        const first =
+            resolutions[0] ||
+            "";
 
-                    {
-                        value:
-                            "720p",
+        return resolutions.map(
+            resolution => ({
+                value:
+                    resolution,
 
-                        label:
-                            "720p",
+                label:
+                    resolution,
 
-                        selected:
-                            true
-                    },
+                selected:
+                    resolution === first
+            })
+        );
 
-                    {
-                        value:
-                            "1080p",
+    })(),
 
-                        label:
-                            "1080p"
-                    }
+    "seedance-field-half"
 
-                ],
-
-                "seedance-field-half"
-
-            )}
+)}
 
 
             ${renderSelect(
