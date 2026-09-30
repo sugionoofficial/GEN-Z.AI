@@ -2632,10 +2632,11 @@ function canvasToBlob(
    Uses FFmpeg WASM locally.
 
    Strategy:
-   - copy video/audio streams
-   - remux container
-   - strip metadata
-   - avoid video re-encoding
+   - preserve all media streams
+   - remove global/container metadata
+   - remove chapters
+   - copy streams without video/audio re-encoding
+   - use faststart only for MP4/MOV containers
 ========================================================= */
 
 async function cleanVideo(file) {
@@ -2660,81 +2661,144 @@ async function cleanVideo(file) {
         );
 
 
-    await ffmpeg.writeFile(
-        inputName,
-        inputData
-    );
+    try {
+
+        await ffmpeg.writeFile(
+            inputName,
+            inputData
+        );
 
 
-    const result =
-        await ffmpeg.exec([
+        /*
+         * Base remux arguments.
+         *
+         * -map 0
+         *     Preserve every input stream.
+         *
+         * -map_metadata -1
+         *     Remove container/global metadata.
+         *
+         * -map_chapters -1
+         *     Remove chapter metadata.
+         *
+         * -c copy
+         *     Do not re-encode video/audio.
+         */
+
+        const ffmpegArguments = [
+
             "-i",
             inputName,
-
-            "-map_metadata",
-            "-1",
 
             "-map",
             "0",
 
+            "-map_metadata",
+            "-1",
+
+            "-map_chapters",
+            "-1",
+
             "-c",
-            "copy",
-
-            "-movflags",
-            "+faststart",
-
-            outputName
-        ]);
+            "copy"
+        ];
 
 
-    if (
-        result !== 0
-    ) {
+        /*
+         * +faststart is intended for ISO-BMFF
+         * containers such as MP4/MOV.
+         *
+         * Do not apply it blindly to WebM, MKV,
+         * AVI, OGV, etc.
+         */
 
-        throw new Error(
-            "FFmpeg gagal melakukan remux video."
-        );
-    }
-
-
-    const outputData =
-        await ffmpeg.readFile(
-            outputName
-        );
-
-
-    await safeDeleteFFmpegFile(
-        ffmpeg,
-        inputName
-    );
-
-
-    await safeDeleteFFmpegFile(
-        ffmpeg,
-        outputName
-    );
-
-
-    return {
-
-        blob:
-            new Blob(
-                [
-                    outputData.buffer
-                ],
-                {
-                    type:
-                        getCleanVideoMimeType(
-                            file
-                        )
-                }
-            ),
-
-        type:
-            getCleanVideoMimeType(
+        if (
+            isMovLikeVideo(
                 file
             )
-    };
+        ) {
+
+            ffmpegArguments.push(
+                "-movflags",
+                "+faststart"
+            );
+        }
+
+
+        ffmpegArguments.push(
+            outputName
+        );
+
+
+        const result =
+            await ffmpeg.exec(
+                ffmpegArguments
+            );
+
+
+        if (
+            result !== 0
+        ) {
+
+            throw new Error(
+                "FFmpeg gagal melakukan remux video."
+            );
+        }
+
+
+        const outputData =
+            await ffmpeg.readFile(
+                outputName
+            );
+
+
+        if (
+            !outputData ||
+            !outputData.length
+        ) {
+
+            throw new Error(
+                "FFmpeg tidak menghasilkan file video."
+            );
+        }
+
+
+        const outputType =
+            getCleanVideoMimeType(
+                file
+            );
+
+
+        return {
+
+            blob:
+                new Blob(
+                    [
+                        outputData
+                    ],
+                    {
+                        type:
+                            outputType
+                    }
+                ),
+
+            type:
+                outputType
+        };
+
+    } finally {
+
+        await safeDeleteFFmpegFile(
+            ffmpeg,
+            inputName
+        );
+
+
+        await safeDeleteFFmpegFile(
+            ffmpeg,
+            outputName
+        );
+    }
 }
 
 
