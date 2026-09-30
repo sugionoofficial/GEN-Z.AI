@@ -311,34 +311,57 @@
         }
 
 
-        /* =====================================================
-           SEEDANCE FORM
-           -----------------------------------------------------
-           Form Seedance menjadi grid utama.
-        ====================================================== */
+        /* =========================================================
+   SEEDANCE 2.5
+   FINAL GRID LAYOUT
+   ---------------------------------------------------------
+   Desktop + HP:
+   - 2 kolom
+   - Prompt full
+   - Frame Awal | Frame Akhir
+   - Reference Images | Reference Videos
+   - Reference Audio full
+   - Resolution | Aspect Ratio
+   - Duration | Output Format
+   - Generate Audio | Return Last Frame
+   - Web Search full
+========================================================= */
 
-        #dynamicFields:has(> .seedance-form)
+#dynamicFields:has(> .seedance-form)
 > .seedance-form {
+
     display: grid !important;
 
     grid-template-columns:
-        minmax(0, 1fr) !important;
+        repeat(2, minmax(0, 1fr)) !important;
 
     grid-auto-flow: row !important;
+
     grid-auto-rows: max-content !important;
 
-    gap: 18px !important;
+    column-gap: 18px !important;
+
+    row-gap: 18px !important;
 
     width: 100% !important;
-    max-width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: none !important;
 
     margin: 0 !important;
+
     padding: 0 !important;
 
     box-sizing: border-box !important;
 
     align-items: start !important;
+
     align-content: start !important;
+
+    justify-items: stretch !important;
+
+    justify-content: stretch !important;
 }
 
         /* =====================================================
@@ -3327,50 +3350,6 @@ select {
         box-sizing: border-box !important;
     }
 
-}
-
-         /* =========================================================
-    SEEDANCE - FORCE ALL FIELDS FULL WIDTH
-    ---------------------------------------------------------
-    Semua field Seedance mengikuti lebar penuh form.
- ========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field {
-
-    grid-column: 1 / -1 !important;
-
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: none !important;
-
-    box-sizing: border-box !important;
-
-    justify-self: stretch !important;
-    align-self: start !important;
-}
-
-
-/* Prompt */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedancePrompt) {
-
-    grid-column: 1 / -1 !important;
-    width: 100% !important;
-}
-
-
-/* Reference Audio */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceReferenceAudio-file) {
-
-    grid-column: 1 / -1 !important;
-    width: 100% !important;
 }
 
     </style>
