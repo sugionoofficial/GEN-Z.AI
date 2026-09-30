@@ -1022,9 +1022,22 @@ function loadExifReader() {
 
 /* =========================================================
    VIDEO METADATA
+   ---------------------------------------------------------
+   Urutan pembacaan:
+
+   1. Informasi file
+   2. Informasi media dari browser
+   3. Container extension
+   4. FFprobe sebagai sumber metadata utama
+   5. MP4 container scan HANYA jika FFprobe gagal
+
+   Semua proses dilakukan lokal di browser.
+   File asli tidak diubah.
 ========================================================= */
 
-async function readVideoMetadata(file) {
+async function readVideoMetadata(
+    file
+) {
 
     const result = [];
 
@@ -1034,32 +1047,59 @@ async function readVideoMetadata(file) {
     ----------------------------------------------------- */
 
     result.push({
-        field: "File Name",
-        value: file.name,
-        source: "File"
+
+        field:
+            "File Name",
+
+        value:
+            file.name,
+
+        source:
+            "File"
     });
 
 
     result.push({
-        field: "File Type",
-        value: file.type || "Unknown",
-        source: "File"
+
+        field:
+            "File Type",
+
+        value:
+            file.type ||
+            "Unknown",
+
+        source:
+            "File"
     });
 
 
     result.push({
-        field: "File Size",
-        value: formatBytes(file.size),
-        source: "File"
+
+        field:
+            "File Size",
+
+        value:
+            formatBytes(
+                file.size
+            ),
+
+        source:
+            "File"
     });
 
 
     result.push({
-        field: "Last Modified",
-        value: new Date(
-            file.lastModified
-        ).toISOString(),
-        source: "File"
+
+        field:
+            "Last Modified",
+
+        value:
+            new Date(
+                file.lastModified
+            ).toISOString(),
+
+        source:
+            "File"
     });
 
 
@@ -1073,7 +1113,9 @@ async function readVideoMetadata(file) {
         );
 
 
-    if (mediaInfo) {
+    if (
+        mediaInfo
+    ) {
 
         appendObjectMetadata(
             result,
@@ -1094,24 +1136,32 @@ async function readVideoMetadata(file) {
 
 
     result.push({
-        field: "Container Extension",
+
+        field:
+            "Container Extension",
+
         value:
             extension
                 ? extension.toUpperCase()
                 : "UNKNOWN",
-        source: "Container"
+
+        source:
+            "Container"
     });
 
 
     /* -----------------------------------------------------
        FFPROBE
        -----------------------------------------------------
-       FFmpeg is loaded only when the user presses CHECK
-       on a video.
+       FFprobe menjadi sumber metadata utama untuk video.
 
-       The original file is copied into the browser
-       virtual filesystem and never uploaded.
+       Kita simpan status keberhasilan agar fallback
+       MP4 tidak dijalankan jika FFprobe sudah berhasil.
     ----------------------------------------------------- */
+
+    let ffprobeSucceeded =
+        false;
+
 
     try {
 
@@ -1121,10 +1171,20 @@ async function readVideoMetadata(file) {
             );
 
 
-        appendFFprobeMetadata(
-            result,
-            ffprobeMetadata
-        );
+        if (
+            ffprobeMetadata &&
+            typeof ffprobeMetadata === "object"
+        ) {
+
+            appendFFprobeMetadata(
+                result,
+                ffprobeMetadata
+            );
+
+
+            ffprobeSucceeded =
+                true;
+        }
 
     } catch (error) {
 
@@ -1132,13 +1192,30 @@ async function readVideoMetadata(file) {
             "[GEN-Z.AI] FFprobe metadata unavailable:",
             error
         );
+    }
 
+
+    /* -----------------------------------------------------
+       FFPROBE STATUS
+       -----------------------------------------------------
+       Hanya tambahkan informasi kegagalan jika FFprobe
+       benar-benar tidak berhasil.
+    ----------------------------------------------------- */
+
+    if (
+        !ffprobeSucceeded
+    ) {
 
         result.push({
-            field: "FFprobe",
+
+            field:
+                "FFprobe",
+
             value:
                 "Metadata FFprobe tidak tersedia pada sesi ini.",
-            source: "FFprobe"
+
+            source:
+                "FFprobe"
         });
     }
 
@@ -1146,11 +1223,20 @@ async function readVideoMetadata(file) {
     /* -----------------------------------------------------
        FALLBACK MP4 CONTAINER SCAN
        -----------------------------------------------------
-       This remains useful if FFprobe cannot read the file.
+       Fallback hanya digunakan jika:
+
+       - FFprobe gagal
+       - file kemungkinan MP4/MOV
+
+       Jadi metadata MP4 tidak lagi dibaca dua kali
+       ketika FFprobe sudah berhasil.
     ----------------------------------------------------- */
 
     if (
-        isLikelyMp4(file)
+        !ffprobeSucceeded &&
+        isLikelyMp4(
+            file
+        )
     ) {
 
         try {
@@ -1161,11 +1247,17 @@ async function readVideoMetadata(file) {
                 );
 
 
-            appendObjectMetadata(
-                result,
-                mp4Metadata,
-                "MP4 Container"
-            );
+            if (
+                mp4Metadata &&
+                typeof mp4Metadata === "object"
+            ) {
+
+                appendObjectMetadata(
+                    result,
+                    mp4Metadata,
+                    "MP4 Container"
+                );
+            }
 
         } catch (error) {
 
