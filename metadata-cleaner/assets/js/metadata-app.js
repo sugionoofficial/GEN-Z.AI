@@ -47,6 +47,14 @@ import {
     setStatus
 } from "./metadata-status.js";
 
+import {
+    readImageMetadata
+} from "./metadata-image.js";
+
+import {
+    readVideoMetadata
+} from "./metadata-video.js";
+
 
 
 
