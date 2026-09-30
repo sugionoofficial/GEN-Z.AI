@@ -2769,10 +2769,46 @@ function renderActiveResolutionSelector(
 
     }
 
+
+    /*
+     * =========================================================
+     * AVAILABLE
+     * ---------------------------------------------------------
+     * SELALU berasal dari registry.
+     *
+     * Jangan menggunakan model.supported_resolutions
+     * sebagai daftar available karena field tersebut hanya
+     * menyimpan resolution yang AKTIF di database.
+     * =========================================================
+     */
+
     const available =
         getAvailableResolutions(
-            model
+            currentRegistryModel
         );
+
+
+    /*
+     * =========================================================
+     * ACTIVE
+     * ---------------------------------------------------------
+     * Berasal dari database model.
+     *
+     * Contoh:
+     *
+     * Registry:
+     * [480p, 720p, 1080p]
+     *
+     * Database:
+     * [720p]
+     *
+     * Maka:
+     *
+     * ☐ 480p
+     * ☑ 720p
+     * ☐ 1080p
+     * =========================================================
+     */
 
     const active =
         new Set(
@@ -2781,10 +2817,14 @@ function renderActiveResolutionSelector(
             )
         );
 
+
     activeResolutionSelector.innerHTML =
         "";
 
-    if (!available.length) {
+
+    if (
+        !available.length
+    ) {
 
         activeResolutionSelector.innerHTML = `
             <div class="readonly-value">
@@ -2796,35 +2836,52 @@ function renderActiveResolutionSelector(
 
     }
 
+
     available.forEach(
         resolution => {
 
+            const value =
+                String(
+                    resolution ?? ""
+                ).trim();
+
+
+            if (!value) {
+                return;
+            }
+
+
             const id =
-                `activeResolution_${resolution
-                    .replace(
+                `activeResolution_${
+                    value.replace(
                         /[^a-zA-Z0-9_-]/g,
                         "_"
-                    )}`;
+                    )
+                }`;
+
 
             const checked =
                 active.has(
-                    resolution
+                    value
                 );
 
-            const label =
+
+            const wrapper =
                 document.createElement(
                     "div"
                 );
 
-            label.className =
+
+            wrapper.className =
                 "resolution-option";
 
-            label.innerHTML = `
+
+            wrapper.innerHTML = `
                 <input
                     type="checkbox"
                     id="${id}"
-                    value="${resolution}"
-                    data-active-resolution="${resolution}"
+                    value="${value}"
+                    data-active-resolution="${value}"
                     ${checked ? "checked" : ""}
                 >
 
@@ -2847,7 +2904,7 @@ function renderActiveResolutionSelector(
                         <span
                             class="resolution-option-name"
                         >
-                            ${resolution}
+                            ${value}
                         </span>
 
                         <span
@@ -2865,12 +2922,20 @@ function renderActiveResolutionSelector(
                 </label>
             `;
 
+
             activeResolutionSelector.appendChild(
-                label
+                wrapper
             );
 
         }
     );
+
+
+    /*
+     * =========================================================
+     * CHECKBOX STATUS
+     * =========================================================
+     */
 
     activeResolutionSelector
         .querySelectorAll(
@@ -2889,7 +2954,10 @@ function renderActiveResolutionSelector(
                                     ".resolution-option-status"
                                 );
 
-                        if (status) {
+
+                        if (
+                            status
+                        ) {
 
                             status.textContent =
                                 input.checked
