@@ -701,6 +701,9 @@ function renderSelect(
 
         <select
             id="${id}"
+            name="${escapeHtml(name)}"
+            data-parameter="${escapeHtml(name)}"
+            data-key="${escapeHtml(name)}"
             class="seedance-select"
         >
 
