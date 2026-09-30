@@ -1067,56 +1067,55 @@
     ===================================================== */
 
     function getPromptDisplay(
-        item
-    ) {
+    item
+) {
 
-        const prompt =
-            getPrompt(
-                item
-            );
+    const prompt =
+        getPrompt(
+            item
+        );
 
-        if (!prompt) {
+    if (!prompt) {
 
-            return `
+        return `
+            <div class="history-prompt-wrap">
+
                 <span
                     class="history-prompt-empty"
                     title="-"
                 >
                     -
                 </span>
-            `;
-        }
+
+            </div>
+        `;
+    }
 
 
-        const safePrompt =
-            escapeHtml(
-                prompt
-            );
+    const safePrompt =
+        escapeHtml(
+            prompt
+        );
 
 
-        const historyId =
-            String(
-                item?.id ||
-                ""
-            ).trim();
+    const historyId =
+        String(
+            item?.id ||
+            ""
+        ).trim();
 
 
-        const safeHistoryId =
-            escapeHtml(
-                historyId
-            );
+    const safeHistoryId =
+        escapeHtml(
+            historyId
+        );
 
 
-        /*
-         * PENTING:
-         *
-         * Prompt TIDAK dipotong dengan substring().
-         *
-         * Seluruh prompt tetap berada di DOM.
-         * CSS yang membatasi tampilan menjadi satu
-         * baris dan memberikan ellipsis.
-         */
-        return `
+    return `
+        <div
+            class="history-prompt-wrap"
+        >
+
             <button
                 type="button"
                 class="history-prompt"
@@ -1132,8 +1131,22 @@
                 >${safePrompt}</span>
 
             </button>
-        `;
-    }
+
+
+            <button
+                type="button"
+                class="history-prompt-copy"
+                data-action="copy-prompt"
+                data-history-id="${safeHistoryId}"
+                title="Copy prompt"
+                aria-label="Copy prompt"
+            >
+                COPY
+            </button>
+
+        </div>
+    `;
+}
 
 
     App.getPromptDisplay =
