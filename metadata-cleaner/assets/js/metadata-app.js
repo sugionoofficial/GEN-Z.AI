@@ -2846,6 +2846,10 @@ function renderMetadata() {
 
 /* =========================================================
    CLEAN
+   ---------------------------------------------------------
+   Membuat file hasil baru secara lokal.
+
+   File asli tidak pernah dimodifikasi.
 ========================================================= */
 
 async function cleanMetadata() {
@@ -2859,10 +2863,77 @@ async function cleanMetadata() {
     }
 
 
-    state.cleaning = true;
+    /*
+     * Simpan referensi file yang sedang diproses.
+     *
+     * Ini penting apabila user mengganti file
+     * ketika proses cleaning masih berjalan.
+     */
+
+    const sourceFile =
+        state.file;
+
+
+    state.cleaning =
+        true;
+
 
     elements.cleanButton.disabled =
         true;
+
+
+    elements.downloadButton.disabled =
+        true;
+
+
+    /*
+     * Hapus hasil cleaning sebelumnya sebelum
+     * memulai proses baru.
+     */
+
+    state.cleanedBlob =
+        null;
+
+
+    if (
+        state.cleanedURL
+    ) {
+
+        URL.revokeObjectURL(
+            state.cleanedURL
+        );
+
+        state.cleanedURL =
+            null;
+    }
+
+
+    hideElement(
+        elements.cleanResult
+    );
+
+
+    if (
+        elements.cleanImagePreview
+    ) {
+
+        elements.cleanImagePreview.src =
+            "";
+    }
+
+
+    if (
+        elements.cleanVideoPreview
+    ) {
+
+        elements.cleanVideoPreview.pause();
+
+        elements.cleanVideoPreview.removeAttribute(
+            "src"
+        );
+
+        elements.cleanVideoPreview.load();
+    }
 
 
     setPreviewStatus(
@@ -2881,21 +2952,53 @@ async function cleanMetadata() {
 
             result =
                 await cleanImage(
-                    state.file
+                    sourceFile
                 );
 
         } else {
 
             result =
                 await cleanVideo(
-                    state.file
+                    sourceFile
                 );
+        }
+
+
+        /*
+         * User mungkin sudah memilih file baru
+         * ketika proses asynchronous masih berjalan.
+         *
+         * Jangan pernah menempelkan hasil file lama
+         * ke file baru.
+         */
+
+        if (
+            state.file !== sourceFile
+        ) {
+
+            return;
+        }
+
+
+        if (
+            !result ||
+            !result.blob
+        ) {
+
+            throw new Error(
+                "File hasil cleaning tidak tersedia."
+            );
         }
 
 
         state.cleanedBlob =
             result.blob;
 
+
+        /*
+         * Pastikan object URL lama benar-benar
+         * sudah dilepas sebelum membuat yang baru.
+         */
 
         if (
             state.cleanedURL
@@ -2904,6 +3007,9 @@ async function cleanMetadata() {
             URL.revokeObjectURL(
                 state.cleanedURL
             );
+
+            state.cleanedURL =
+                null;
         }
 
 
@@ -2933,10 +3039,50 @@ async function cleanMetadata() {
 
     } catch (error) {
 
+        /*
+         * Jika user sudah mengganti file,
+         * jangan menimpa status file baru
+         * dengan error dari proses lama.
+         */
+
+        if (
+            state.file !== sourceFile
+        ) {
+
+            return;
+        }
+
+
         console.error(
             "[GEN-Z.AI] Metadata cleaning failed:",
             error
         );
+
+
+        state.cleanedBlob =
+            null;
+
+
+        if (
+            state.cleanedURL
+        ) {
+
+            URL.revokeObjectURL(
+                state.cleanedURL
+            );
+
+            state.cleanedURL =
+                null;
+        }
+
+
+        hideElement(
+            elements.cleanResult
+        );
+
+
+        elements.downloadButton.disabled =
+            true;
 
 
         setPreviewStatus(
@@ -2945,10 +3091,22 @@ async function cleanMetadata() {
 
     } finally {
 
-        state.cleaning = false;
+        /*
+         * Hanya ubah state tombol jika proses ini
+         * masih merupakan file yang aktif.
+         */
 
-        elements.cleanButton.disabled =
-            false;
+        if (
+            state.file === sourceFile
+        ) {
+
+            state.cleaning =
+                false;
+
+
+            elements.cleanButton.disabled =
+                false;
+        }
     }
 }
 
