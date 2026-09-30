@@ -52,8 +52,6 @@ import {
     injectSeedanceStyles
 } from "./generate-seedance-styles.js";
 
-import mediaModule from "./generate-media.js";
-
 import {
     injectSeedanceStyles
 } from "./generate-seedance-styles.js";
