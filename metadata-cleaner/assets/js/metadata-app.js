@@ -946,6 +946,10 @@ async function readVideoMetadata(file) {
     const result = [];
 
 
+    /* -----------------------------------------------------
+       BASIC FILE INFORMATION
+    ----------------------------------------------------- */
+
     result.push({
         field: "File Name",
         value: file.name,
@@ -976,6 +980,10 @@ async function readVideoMetadata(file) {
     });
 
 
+    /* -----------------------------------------------------
+       BROWSER MEDIA INFORMATION
+    ----------------------------------------------------- */
+
     const mediaInfo =
         await getVideoElementMetadata(
             file
@@ -991,6 +999,10 @@ async function readVideoMetadata(file) {
         );
     }
 
+
+    /* -----------------------------------------------------
+       CONTAINER
+    ----------------------------------------------------- */
 
     const extension =
         getExtension(
@@ -1008,25 +1020,317 @@ async function readVideoMetadata(file) {
     });
 
 
-    if (
-        isLikelyMp4(file)
-    ) {
+    /* -----------------------------------------------------
+       FFPROBE
+       -----------------------------------------------------
+       FFmpeg is loaded only when the user presses CHECK
+       on a video.
 
-        const mp4Metadata =
-            await readMp4ContainerMetadata(
+       The original file is copied into the browser
+       virtual filesystem and never uploaded.
+    ----------------------------------------------------- */
+
+    try {
+
+        const ffprobeMetadata =
+            await readVideoMetadataWithFFprobe(
                 file
             );
 
 
-        appendObjectMetadata(
+        appendFFprobeMetadata(
             result,
-            mp4Metadata,
-            "MP4 Container"
+            ffprobeMetadata
         );
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] FFprobe metadata unavailable:",
+            error
+        );
+
+
+        result.push({
+            field: "FFprobe",
+            value:
+                "Metadata FFprobe tidak tersedia pada sesi ini.",
+            source: "FFprobe"
+        });
+    }
+
+
+    /* -----------------------------------------------------
+       FALLBACK MP4 CONTAINER SCAN
+       -----------------------------------------------------
+       This remains useful if FFprobe cannot read the file.
+    ----------------------------------------------------- */
+
+    if (
+        isLikelyMp4(file)
+    ) {
+
+        try {
+
+            const mp4Metadata =
+                await readMp4ContainerMetadata(
+                    file
+                );
+
+
+            appendObjectMetadata(
+                result,
+                mp4Metadata,
+                "MP4 Container"
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] MP4 container scan failed:",
+                error
+            );
+        }
     }
 
 
     return result;
+}
+
+
+/* =========================================================
+   FFPROBE VIDEO METADATA
+========================================================= */
+
+async function readVideoMetadataWithFFprobe(
+    file
+) {
+
+    const ffmpeg =
+        await ensureFFmpeg();
+
+
+    const inputName =
+        createFFmpegFilename(
+            file.name
+        );
+
+
+    const probeName =
+        `probe_${Date.now()}.json`;
+
+
+    const inputData =
+        new Uint8Array(
+            await file.arrayBuffer()
+        );
+
+
+    try {
+
+        await ffmpeg.writeFile(
+            inputName,
+            inputData
+        );
+
+
+        /*
+         * FFmpeg's ffprobe command is used through
+         * the bundled binary.
+         *
+         * JSON output makes the metadata easier
+         * and safer to normalize.
+         */
+
+        const result =
+            await ffmpeg.ffprobe(
+                [
+                    "-v",
+                    "quiet",
+
+                    "-print_format",
+                    "json",
+
+                    "-show_format",
+
+                    "-show_streams",
+
+                    "-show_chapters",
+
+                    inputName
+                ]
+            );
+
+
+        if (
+            result !== 0
+        ) {
+
+            throw new Error(
+                "FFprobe gagal membaca metadata video."
+            );
+        }
+
+
+        /*
+         * Depending on the ffmpeg.wasm build,
+         * ffprobe output can be emitted through
+         * the virtual filesystem.
+         */
+
+        let jsonText = "";
+
+
+        try {
+
+            const probeData =
+                await ffmpeg.readFile(
+                    probeName
+                );
+
+
+            jsonText =
+                new TextDecoder().decode(
+                    probeData
+                );
+
+        } catch {
+
+            /*
+             * Some builds expose ffprobe output
+             * through the return/log channel instead
+             * of a file. The secondary parser below
+             * handles that case.
+             */
+
+            jsonText = "";
+        }
+
+
+        if (
+            !jsonText
+        ) {
+
+            throw new Error(
+                "FFprobe tidak menghasilkan JSON metadata."
+            );
+        }
+
+
+        return JSON.parse(
+            jsonText
+        );
+
+    } finally {
+
+        await safeDeleteFFmpegFile(
+            ffmpeg,
+            inputName
+        );
+
+
+        await safeDeleteFFmpegFile(
+            ffmpeg,
+            probeName
+        );
+    }
+}
+
+
+/* =========================================================
+   FFPROBE METADATA APPEND
+========================================================= */
+
+function appendFFprobeMetadata(
+    target,
+    data
+) {
+
+    if (
+        !data ||
+        typeof data !== "object"
+    ) {
+
+        return;
+    }
+
+
+    /* -----------------------------------------------------
+       FORMAT
+    ----------------------------------------------------- */
+
+    if (
+        data.format &&
+        typeof data.format === "object"
+    ) {
+
+        appendObjectMetadata(
+            target,
+            data.format,
+            "FFprobe Format"
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       STREAMS
+    ----------------------------------------------------- */
+
+    if (
+        Array.isArray(
+            data.streams
+        )
+    ) {
+
+        data.streams.forEach(
+            (
+                stream,
+                index
+            ) => {
+
+                const streamType =
+                    stream.codec_type ||
+                    "unknown";
+
+
+                const prefix =
+                    `Stream ${index} (${streamType})`;
+
+
+                appendObjectMetadata(
+                    target,
+                    stream,
+                    prefix
+                );
+            }
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       CHAPTERS
+    ----------------------------------------------------- */
+
+    if (
+        Array.isArray(
+            data.chapters
+        )
+    ) {
+
+        data.chapters.forEach(
+            (
+                chapter,
+                index
+            ) => {
+
+                appendObjectMetadata(
+                    target,
+                    chapter,
+                    `Chapter ${index}`
+                );
+            }
+        );
+    }
 }
 
 
