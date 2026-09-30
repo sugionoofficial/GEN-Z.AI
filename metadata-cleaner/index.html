@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#020204"
+    >
+
+    <meta
+        name="color-scheme"
+        content="dark"
+    >
+
+    <title>
+        GEN-Z.AI | AI Metadata Cleaner
+    </title>
+
+
+    <!-- =====================================================
+         GLOBAL CONFIG
+    ====================================================== -->
+
+    <script
+        src="../assets/js/config.js"
+    ></script>
+
+
+    <!-- =====================================================
+         GLOBAL PREMIUM CSS
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="../assets/css/genz-premium.css"
+    >
+
+
+    <!-- =====================================================
+         PAGE CSS
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="./assets/css/metadata-cleaner.css"
+    >
+
+</head>
+
+
+<body>
+
+
+    <!-- =====================================================
+         SHARED NAVIGATION
+    ====================================================== -->
+
+    <div
+        id="genz-navigation"
+    ></div>
+
+
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
+
+    <main
+        class="metadata-cleaner-page"
+    >
+
+        <div
+            class="metadata-cleaner-container"
+        >
+
+
+            <!-- =================================================
+                 HEADER
+            ================================================== -->
+
+            <section
+                class="metadata-hero"
+            >
+
+                <div
+                    class="metadata-hero-badge"
+                >
+                    AI MEDIA SECURITY
+                </div>
+
+
+                <h1>
+                    AI Metadata Cleaner
+                </h1>
+
+
+                <p>
+                    Periksa metadata foto dan video,
+                    lihat indikator yang terdeteksi,
+                    lalu bersihkan metadata langsung
+                    di browser.
+                </p>
+
+
+                <div
+                    class="metadata-local-badge"
+                >
+                    <span
+                        class="metadata-local-dot"
+                    ></span>
+
+                    PROCESSING LOCAL
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 WORKSPACE
+            ================================================== -->
+
+            <section
+                class="metadata-workspace"
+            >
+
+
+                <!-- =============================================
+                     UPLOAD
+                ============================================== -->
+
+                <div
+                    class="metadata-panel metadata-upload-panel"
+                >
+
+                    <div
+                        class="metadata-panel-header"
+                    >
+
+                        <div>
+
+                            <h2>
+                                Media
+                            </h2>
+
+                            <p>
+                                Pilih foto atau video
+                                dari perangkat Anda.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <label
+                        for="metadata-file-input"
+                        class="metadata-dropzone"
+                        id="metadata-dropzone"
+                    >
+
+                        <input
+                            type="file"
+                            id="metadata-file-input"
+                            accept="image/*,video/*"
+                            hidden
+                        >
+
+
+                        <div
+                            class="metadata-dropzone-icon"
+                        >
+                            ⬆
+                        </div>
+
+
+                        <div
+                            class="metadata-dropzone-title"
+                        >
+                            PILIH MEDIA
+                        </div>
+
+
+                        <div
+                            class="metadata-dropzone-description"
+                        >
+                            Foto atau video
+                        </div>
+
+
+                        <div
+                            class="metadata-dropzone-formats"
+                        >
+                            IMAGE · VIDEO
+                        </div>
+
+                    </label>
+
+
+                    <!-- =========================================
+                         FILE INFO
+                    ========================================== -->
+
+                    <div
+                        class="metadata-file-info hidden"
+                        id="metadata-file-info"
+                    >
+
+                        <div
+                            class="metadata-file-info-main"
+                        >
+
+                            <div
+                                class="metadata-file-type"
+                                id="metadata-file-type"
+                            >
+                                MEDIA
+                            </div>
+
+
+                            <div
+                                class="metadata-file-name"
+                                id="metadata-file-name"
+                            >
+                                -
+                            </div>
+
+
+                            <div
+                                class="metadata-file-size"
+                                id="metadata-file-size"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <button
+                            type="button"
+                            class="metadata-button metadata-button-secondary"
+                            id="metadata-change-button"
+                        >
+                            GANTI
+                        </button>
+
+                    </div>
+
+
+                </div>
+
+
+                <!-- =============================================
+                     PREVIEW
+                ============================================== -->
+
+                <div
+                    class="metadata-panel metadata-preview-panel"
+                >
+
+                    <div
+                        class="metadata-panel-header"
+                    >
+
+                        <div>
+
+                            <h2>
+                                Preview
+                            </h2>
+
+                            <p>
+                                Preview tidak mengubah
+                                file asli.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        class="metadata-preview-stage"
+                        id="metadata-preview-stage"
+                    >
+
+                        <div
+                            class="metadata-preview-empty"
+                            id="metadata-preview-empty"
+                        >
+
+                            <div
+                                class="metadata-preview-empty-icon"
+                            >
+                                ◈
+                            </div>
+
+                            <div
+                                class="metadata-preview-empty-title"
+                            >
+                                BELUM ADA MEDIA
+                            </div>
+
+                            <div
+                                class="metadata-preview-empty-text"
+                            >
+                                Pilih foto atau video
+                                untuk memulai.
+                            </div>
+
+                        </div>
+
+
+                        <img
+                            id="metadata-image-preview"
+                            class="metadata-media-preview hidden"
+                            alt="Media preview"
+                        >
+
+
+                        <video
+                            id="metadata-video-preview"
+                            class="metadata-media-preview hidden"
+                            controls
+                            playsinline
+                            preload="metadata"
+                        ></video>
+
+
+                        <!-- =====================================
+                             AI DETECT OVERLAY
+                        ====================================== -->
+
+                        <div
+                            id="metadata-ai-detect-overlay"
+                            class="metadata-ai-detect-overlay hidden"
+                            aria-hidden="true"
+                        >
+
+                            <div
+                                class="metadata-ai-detect-stamp"
+                            >
+
+                                <span>
+                                    AI DETECT
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         PREVIEW STATUS
+                    ========================================== -->
+
+                    <div
+                        class="metadata-preview-status"
+                        id="metadata-preview-status"
+                    >
+                        BELUM ADA MEDIA
+                    </div>
+
+                </div>
+
+
+                <!-- =============================================
+                     CHECK
+                ============================================== -->
+
+                <div
+                    class="metadata-panel metadata-check-panel"
+                >
+
+                    <div
+                        class="metadata-action-row"
+                    >
+
+                        <button
+                            type="button"
+                            id="metadata-check-button"
+                            class="metadata-button metadata-button-primary"
+                            disabled
+                        >
+                            CHECK
+                        </button>
+
+                    </div>
+
+
+                    <div
+                        class="metadata-status-box"
+                        id="metadata-detection-status"
+                    >
+
+                        <div
+                            class="metadata-status-indicator"
+                            id="metadata-status-indicator"
+                        ></div>
+
+
+                        <div
+                            class="metadata-status-content"
+                        >
+
+                            <div
+                                class="metadata-status-title"
+                                id="metadata-status-title"
+                            >
+                                BELUM DIPERIKSA
+                            </div>
+
+
+                            <div
+                                class="metadata-status-description"
+                                id="metadata-status-description"
+                            >
+                                Tekan CHECK untuk membaca
+                                metadata media.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =============================================
+                     METADATA
+                ============================================== -->
+
+                <div
+                    class="metadata-panel metadata-data-panel"
+                >
+
+                    <div
+                        class="metadata-panel-header"
+                    >
+
+                        <div>
+
+                            <h2>
+                                Metadata
+                            </h2>
+
+                            <p>
+                                Data yang berhasil dibaca
+                                dari file.
+                            </p>
+
+                        </div>
+
+
+                        <div
+                            class="metadata-count"
+                            id="metadata-count"
+                        >
+                            0
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        class="metadata-table-wrap"
+                    >
+
+                        <table
+                            class="metadata-table"
+                        >
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>
+                                        FIELD
+                                    </th>
+
+                                    <th>
+                                        VALUE
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody
+                                id="metadata-table-body"
+                            >
+
+                                <tr>
+
+                                    <td
+                                        colspan="2"
+                                        class="metadata-empty-cell"
+                                    >
+                                        Belum ada metadata
+                                        yang dibaca.
+                                    </td>
+
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =============================================
+                     CLEAN
+                ============================================== -->
+
+                <div
+                    class="metadata-panel metadata-clean-panel"
+                >
+
+                    <div
+                        class="metadata-panel-header"
+                    >
+
+                        <div>
+
+                            <h2>
+                                Clean Metadata
+                            </h2>
+
+                            <p>
+                                Buat salinan media baru
+                                tanpa metadata yang diproses
+                                oleh cleaner.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        class="metadata-clean-warning"
+                    >
+
+                        <span
+                            class="metadata-clean-warning-icon"
+                        >
+                            !
+                        </span>
+
+                        <span>
+                            File asli tidak diubah.
+                            Hasil cleaning dibuat sebagai
+                            file baru di browser.
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        class="metadata-action-row"
+                    >
+
+                        <button
+                            type="button"
+                            id="metadata-clean-button"
+                            class="metadata-button metadata-button-primary"
+                            disabled
+                        >
+                            BERSIHKAN METADATA
+                        </button>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         CLEANED RESULT
+                    ========================================== -->
+
+                    <div
+                        class="metadata-clean-result hidden"
+                        id="metadata-clean-result"
+                    >
+
+                        <div
+                            class="metadata-clean-result-header"
+                        >
+
+                            <div>
+
+                                <div
+                                    class="metadata-clean-result-title"
+                                >
+                                    HASIL CLEANING
+                                </div>
+
+                                <div
+                                    class="metadata-clean-result-subtitle"
+                                >
+                                    Salinan baru telah dibuat
+                                    di browser.
+                                </div>
+
+                            </div>
+
+
+                            <div
+                                class="metadata-clean-result-status"
+                            >
+                                CLEANED
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            class="metadata-clean-preview"
+                        >
+
+                            <img
+                                id="metadata-clean-image-preview"
+                                class="metadata-media-preview hidden"
+                                alt="Cleaned image preview"
+                            >
+
+
+                            <video
+                                id="metadata-clean-video-preview"
+                                class="metadata-media-preview hidden"
+                                controls
+                                playsinline
+                                preload="metadata"
+                            ></video>
+
+                        </div>
+
+
+                        <div
+                            class="metadata-action-row metadata-download-row"
+                        >
+
+                            <button
+                                type="button"
+                                id="metadata-download-button"
+                                class="metadata-button metadata-button-download"
+                                disabled
+                            >
+                                DOWNLOAD
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+            </section>
+
+
+            <!-- =================================================
+                 DISCLAIMER
+            ================================================== -->
+
+            <section
+                class="metadata-disclaimer"
+            >
+
+                <div
+                    class="metadata-disclaimer-title"
+                >
+                    METADATA-BASED DETECTION
+                </div>
+
+
+                <p>
+                    AI DETECT pada halaman ini hanya
+                    menunjukkan indikator yang ditemukan
+                    pada metadata file. Tidak adanya
+                    indikator metadata bukan bukti bahwa
+                    media bukan hasil AI. Metadata dapat
+                    dihapus, diubah, atau memang tidak
+                    tersedia sejak awal.
+                </p>
+
+            </section>
+
+
+        </div>
+
+    </main>
+
+
+    <!-- =====================================================
+         APPLICATION
+    ====================================================== -->
+
+    <script
+        type="module"
+        src="./assets/js/metadata-app.js"
+    ></script>
+
+
+    <!-- =====================================================
+         SHARED NAVIGATION
+    ====================================================== -->
+
+    <script
+        src="/navigation/navigation.js"
+    ></script>
+
+
+</body>
+
+</html>
