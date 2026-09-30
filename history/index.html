@@ -2413,6 +2413,148 @@ table td:nth-child(9) {
 
 }
 
+    /* =========================================================
+   HISTORY PROMPT WRAPPER
+========================================================= */
+
+.history-prompt-wrap {
+    display:flex;
+    align-items:center;
+    gap:7px;
+    width:100%;
+    min-width:0;
+}
+
+
+/* =========================================================
+   PROMPT BUTTON
+========================================================= */
+
+.history-prompt-wrap .history-prompt {
+    flex:1 1 auto;
+    width:auto;
+    min-width:0;
+    max-width:none;
+}
+
+
+/* =========================================================
+   COPY PROMPT BUTTON
+========================================================= */
+
+.history-prompt-copy {
+
+    flex:0 0 auto;
+
+    height:18px;
+    min-height:18px;
+    max-height:18px;
+
+    margin:0;
+    padding:0 6px;
+
+    border:1px solid rgba(
+        255,
+        35,
+        70,
+        0.35
+    );
+
+    border-radius:4px;
+
+    outline:none;
+
+    background:rgba(
+        255,
+        35,
+        70,
+        0.06
+    );
+
+    color:#ff526b;
+
+    font-family:inherit;
+    font-size:7px;
+    font-weight:700;
+    line-height:16px;
+
+    letter-spacing:.4px;
+
+    cursor:pointer;
+
+    white-space:nowrap;
+
+    transition:
+        background .15s ease,
+        border-color .15s ease,
+        color .15s ease,
+        box-shadow .15s ease;
+}
+
+
+.history-prompt-copy:hover {
+
+    background:rgba(
+        255,
+        35,
+        70,
+        0.14
+    );
+
+    border-color:rgba(
+        255,
+        35,
+        70,
+        0.7
+    );
+
+    color:#ff7a8d;
+
+    box-shadow:
+        0 0 8px rgba(
+            255,
+            35,
+            70,
+            0.18
+        );
+
+}
+
+
+.history-prompt-copy:focus-visible {
+
+    outline:2px solid rgba(
+        255,
+        35,
+        70,
+        0.35
+    );
+
+    outline-offset:2px;
+
+}
+
+
+.history-prompt-copy.copied {
+
+    border-color:rgba(
+        80,
+        255,
+        160,
+        0.55
+    );
+
+    background:rgba(
+        80,
+        255,
+        160,
+        0.08
+    );
+
+    color:#7dffb0;
+
+}
+
 
 .history-prompt-empty {
 
