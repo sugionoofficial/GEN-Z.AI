@@ -269,36 +269,101 @@ function getParameterDefinitions(
     ) {
 
         const normalized =
-            normalizeParameterDefinitions(
-                candidate
-            );
+    normalizeParameterDefinitions(
+        candidate
+    );
 
+
+if (
+    Object.keys(
+        normalized
+    ).length > 0
+) {
+
+    /* =====================================================
+       ACTIVE RESOLUTION OVERRIDE
+       -----------------------------------------------------
+       Parameter registry berisi daftar teknis model.
+
+       Jika database mempunyai:
+           supported_resolutions
+
+       maka daftar tersebut menjadi source of truth
+       untuk pilihan resolution di Generate.
+
+       Penting:
+       - Cek property dengan hasOwnProperty
+       - Jangan menggunakan || karena [] adalah nilai valid
+       - Jangan mengubah parameters asli
+    ===================================================== */
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            model,
+            "supported_resolutions"
+        )
+    ) {
+
+        const activeResolutions =
+            Array.isArray(
+                model.supported_resolutions
+            )
+                ? model.supported_resolutions
+                    .map(
+                        value =>
+                            String(
+                                value
+                            ).trim()
+                    )
+                    .filter(
+                        Boolean
+                    )
+                : [];
 
         if (
-            Object.keys(
-                normalized
-            ).length > 0
+            normalized.resolution &&
+            typeof normalized.resolution ===
+                "object"
         ) {
 
-            console.debug(
-                "[GEN-Z.AI][Generate Form] Parameter source ditemukan:",
-                {
-                    model:
-                        model.model_id ||
-                        model.id ||
-                        "-",
+            normalized.resolution = {
 
-                    keys:
-                        Object.keys(
-                            normalized
-                        )
-                }
-            );
+                ...normalized.resolution,
 
+                enum:
+                    activeResolutions
 
-            return normalized;
+            };
 
         }
+
+    }
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] Parameter source ditemukan:",
+        {
+            model:
+                model.model_id ||
+                model.id ||
+                "-",
+
+            keys:
+                Object.keys(
+                    normalized
+                ),
+
+            resolution:
+                normalized.resolution?.enum ||
+                []
+
+        }
+    );
+
+
+    return normalized;
+
+}
 
     }
 
