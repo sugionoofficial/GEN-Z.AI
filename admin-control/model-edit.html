@@ -2655,14 +2655,33 @@ function sortResolutions(values) {
 function getAvailableResolutions(model) {
 
     /*
+     * =========================================================
      * AVAILABLE RESOLUTIONS
      * ---------------------------------------------------------
-     * Sumber utama harus registry/technical model.
+     * Daftar ini adalah KEMAMPUAN TEKNIS model.
      *
-     * supported_resolutions dari database BUKAN daftar
-     * kemampuan teknis model.
+     * Jangan menggunakan supported_resolutions sebagai sumber
+     * utama karena field tersebut adalah daftar resolusi AKTIF
+     * dari database.
      *
-     * Database hanya menentukan mana yang AKTIF.
+     * Contoh:
+     *
+     * Registry:
+     *   480p
+     *   720p
+     *   1080p
+     *
+     * Database:
+     *   720p
+     *
+     * Edit Model tetap harus menampilkan:
+     *
+     *   ☑ 480p
+     *   ☑ 720p
+     *   ☐ 1080p
+     *
+     * sesuai konfigurasi aktif database.
+     * =========================================================
      */
 
     const registry =
@@ -2670,10 +2689,80 @@ function getAvailableResolutions(model) {
         model ||
         {};
 
+
+    /*
+     * =========================================================
+     * PRIORITAS 1
+     * ---------------------------------------------------------
+     * Ambil dari parameters.resolution.
+     *
+     * Ini adalah sumber teknis registry yang sebenarnya.
+     * =========================================================
+     */
+
+    const parameters =
+        Array.isArray(
+            registry?.parameters
+        )
+            ? registry.parameters
+            : [];
+
+
+    const resolutionParameter =
+        parameters.find(
+            parameter =>
+                parameter &&
+                String(
+                    parameter.name ||
+                    parameter.key ||
+                    parameter.id ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase() ===
+                "resolution"
+        );
+
+
+    const parameterValues =
+        Array.isArray(
+            resolutionParameter?.enum
+        )
+            ? resolutionParameter.enum
+            : Array.isArray(
+                resolutionParameter?.options
+            )
+                ? resolutionParameter.options
+                : [];
+
+
+    if (
+        parameterValues.length
+    ) {
+
+        return sortResolutions(
+            parameterValues
+        );
+
+    }
+
+
+    /*
+     * =========================================================
+     * PRIORITAS 2
+     * ---------------------------------------------------------
+     * Fallback ke registry supported_resolutions.
+     *
+     * Ini hanya digunakan jika metadata parameters tidak
+     * menyediakan resolution enum/options.
+     * =========================================================
+     */
+
     const registryValues =
         normalizeResolutionArray(
             registry?.supported_resolutions
         );
+
 
     if (
         registryValues.length
@@ -2687,41 +2776,37 @@ function getAvailableResolutions(model) {
 
 
     /*
-     * Fallback ke parameter registry.
+     * =========================================================
+     * PRIORITAS 3
+     * ---------------------------------------------------------
+     * Fallback camelCase jika ada registry lama.
+     * =========================================================
      */
 
-    const parameters =
-        Array.isArray(
-            registry?.parameters
-        )
-            ? registry.parameters
-            : [];
-
-
-    const definition =
-        parameters.find(
-            parameter =>
-                parameter &&
-                parameter.name ===
-                    "resolution"
+    const camelCaseValues =
+        normalizeResolutionArray(
+            registry?.supportedResolutions
         );
 
 
-    const parameterValues =
-        Array.isArray(
-            definition?.enum
-        )
-            ? definition.enum
-            : Array.isArray(
-                definition?.options
-            )
-                ? definition.options
-                : [];
+    if (
+        camelCaseValues.length
+    ) {
+
+        return sortResolutions(
+            camelCaseValues
+        );
+
+    }
 
 
-    return sortResolutions(
-        parameterValues
-    );
+    /*
+     * =========================================================
+     * TIDAK ADA DATA
+     * =========================================================
+     */
+
+    return [];
 
 }
 
