@@ -1331,6 +1331,184 @@
         }
 
         /* =====================================================
+   ACTIVE RESOLUTION SELECTOR
+====================================================== */
+
+.resolution-selector {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+
+    gap: 12px;
+
+    margin-top: 5px;
+}
+
+.resolution-option {
+    position: relative;
+
+    min-width: 0;
+}
+
+.resolution-option input {
+    position: absolute;
+
+    width: 1px;
+    height: 1px;
+
+    opacity: 0;
+
+    pointer-events: none;
+}
+
+.resolution-option-label {
+    min-height: 58px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 11px;
+
+    padding:
+        0 14px;
+
+    border:
+        1px solid rgba(255,255,255,.09);
+
+    border-radius: 12px;
+
+    color:
+        rgba(255,255,255,.55);
+
+    background:
+        rgba(0,0,0,.24);
+
+    cursor: pointer;
+
+    transition:
+        border-color .18s ease,
+        background .18s ease,
+        box-shadow .18s ease,
+        color .18s ease;
+}
+
+.resolution-option-label:hover {
+    border-color:
+        rgba(255,23,68,.30);
+
+    background:
+        rgba(255,23,68,.035);
+
+    color: #fff;
+}
+
+.resolution-option-check {
+    width: 20px;
+    height: 20px;
+
+    flex-shrink: 0;
+
+    display: grid;
+    place-items: center;
+
+    border:
+        1px solid rgba(255,255,255,.18);
+
+    border-radius: 6px;
+
+    background:
+        rgba(0,0,0,.30);
+
+    color: transparent;
+
+    font-size: 12px;
+    font-weight: 950;
+
+    transition:
+        .18s ease;
+}
+
+.resolution-option input:checked
++ .resolution-option-label {
+    border-color:
+        rgba(255,23,68,.50);
+
+    color: #fff;
+
+    background:
+        rgba(255,23,68,.075);
+
+    box-shadow:
+        0 0 22px rgba(255,23,68,.08);
+}
+
+.resolution-option input:checked
++ .resolution-option-label
+.resolution-option-check {
+    border-color:
+        var(--red);
+
+    background:
+        var(--red);
+
+    color: #fff;
+
+    box-shadow:
+        0 0 15px rgba(255,23,68,.35);
+}
+
+.resolution-option input:focus-visible
++ .resolution-option-label {
+    border-color:
+        rgba(255,23,68,.65);
+
+    box-shadow:
+        0 0 0 3px rgba(255,23,68,.08);
+}
+
+.resolution-option-text {
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+}
+
+.resolution-option-name {
+    color: inherit;
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.resolution-option-status {
+    color:
+        rgba(255,255,255,.30);
+
+    font-size: 9px;
+}
+
+.resolution-selector-help {
+    margin-top: 8px;
+
+    color:
+        rgba(255,255,255,.30);
+
+    font-size: 9px;
+
+    line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+
+    .resolution-selector {
+        grid-template-columns:
+            1fr;
+    }
+
+}
+
+        /* =====================================================
            ACTIONS
         ====================================================== */
 
@@ -2064,6 +2242,24 @@
                         digunakan sebagai referensi penetapan credit.
                     </p>
 
+                    <div class="field full">
+
+    <label>
+        Resolution Aktif
+    </label>
+
+    <div
+        id="activeResolutionSelector"
+        class="resolution-selector"
+    ></div>
+
+    <div class="resolution-selector-help">
+        Hanya resolution yang dicentang yang akan
+        tersedia pada halaman Generate.
+    </div>
+
+</div>
+
                     <div class="form-grid">
 
                         <div class="field">
@@ -2324,11 +2520,388 @@
     const durationValue = document.getElementById("durationValue");
     const ratioValue = document.getElementById("ratioValue");
     const resolutionValue = document.getElementById("resolutionValue");
+    const activeResolutionSelector =
+    document.getElementById(
+        "activeResolutionSelector"
+    );
 
     let currentModel = null;
     let currentModelId = "";
     let currentDatabaseModel = null;
     let saving = false;
+
+    const RESOLUTION_ORDER = [
+    "480p",
+    "720p",
+    "1080p"
+];
+
+function normalizeResolutionArray(value) {
+
+    if (Array.isArray(value)) {
+
+        return Array.from(
+            new Set(
+                value
+                    .map(item =>
+                        String(item ?? "").trim()
+                    )
+                    .filter(Boolean)
+            )
+        );
+
+    }
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return [];
+
+    }
+
+    if (typeof value === "string") {
+
+        const text =
+            value.trim();
+
+        if (!text) {
+            return [];
+        }
+
+        if (
+            text.startsWith("[") &&
+            text.endsWith("]")
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(text);
+
+                if (Array.isArray(parsed)) {
+
+                    return Array.from(
+                        new Set(
+                            parsed
+                                .map(item =>
+                                    String(item ?? "").trim()
+                                )
+                                .filter(Boolean)
+                        )
+                    );
+
+                }
+
+            } catch (_) {
+                /* fallback ke comma separated */
+            }
+
+        }
+
+        return Array.from(
+            new Set(
+                text
+                    .split(",")
+                    .map(item => item.trim())
+                    .filter(Boolean)
+            )
+        );
+
+    }
+
+    return [];
+
+}
+
+function sortResolutions(values) {
+
+    const normalized =
+        normalizeResolutionArray(
+            values
+        );
+
+    return normalized.sort(
+        (a, b) => {
+
+            const ai =
+                RESOLUTION_ORDER.indexOf(a);
+
+            const bi =
+                RESOLUTION_ORDER.indexOf(b);
+
+            if (ai === -1 && bi === -1) {
+                return a.localeCompare(b);
+            }
+
+            if (ai === -1) {
+                return 1;
+            }
+
+            if (bi === -1) {
+                return -1;
+            }
+
+            return ai - bi;
+
+        }
+    );
+
+}
+
+function getAvailableResolutions(model) {
+
+    const values =
+        normalizeResolutionArray(
+            model?.supported_resolutions
+        );
+
+    if (values.length) {
+
+        return sortResolutions(
+            values
+        );
+
+    }
+
+    const parameters =
+        Array.isArray(
+            model?.parameters
+        )
+            ? model.parameters
+            : [];
+
+    const definition =
+        parameters.find(
+            parameter =>
+                parameter &&
+                parameter.name ===
+                    "resolution"
+        );
+
+    const parameterValues =
+        Array.isArray(
+            definition?.enum
+        )
+            ? definition.enum
+            : Array.isArray(
+                definition?.options
+            )
+                ? definition.options
+                : [];
+
+    return sortResolutions(
+        parameterValues
+    );
+
+}
+
+function getActiveResolutions(model) {
+
+    if (
+        model &&
+        Object.prototype.hasOwnProperty.call(
+            model,
+            "supported_resolutions"
+        )
+    ) {
+
+        const value =
+            model.supported_resolutions;
+
+        if (
+            value !== null &&
+            value !== undefined
+        ) {
+
+            return sortResolutions(
+                value
+            );
+
+        }
+
+    }
+
+    return getAvailableResolutions(
+        model
+    );
+
+}
+
+function renderActiveResolutionSelector(
+    model
+) {
+
+    if (
+        !activeResolutionSelector
+    ) {
+
+        return;
+
+    }
+
+    const available =
+        getAvailableResolutions(
+            model
+        );
+
+    const active =
+        new Set(
+            getActiveResolutions(
+                model
+            )
+        );
+
+    activeResolutionSelector.innerHTML =
+        "";
+
+    if (!available.length) {
+
+        activeResolutionSelector.innerHTML = `
+            <div class="readonly-value">
+                Resolution tidak tersedia dari registry.
+            </div>
+        `;
+
+        return;
+
+    }
+
+    available.forEach(
+        resolution => {
+
+            const id =
+                `activeResolution_${resolution
+                    .replace(
+                        /[^a-zA-Z0-9_-]/g,
+                        "_"
+                    )}`;
+
+            const checked =
+                active.has(
+                    resolution
+                );
+
+            const label =
+                document.createElement(
+                    "div"
+                );
+
+            label.className =
+                "resolution-option";
+
+            label.innerHTML = `
+                <input
+                    type="checkbox"
+                    id="${id}"
+                    value="${resolution}"
+                    data-active-resolution="${resolution}"
+                    ${checked ? "checked" : ""}
+                >
+
+                <label
+                    class="resolution-option-label"
+                    for="${id}"
+                >
+
+                    <span
+                        class="resolution-option-check"
+                        aria-hidden="true"
+                    >
+                        ✓
+                    </span>
+
+                    <span
+                        class="resolution-option-text"
+                    >
+
+                        <span
+                            class="resolution-option-name"
+                        >
+                            ${resolution}
+                        </span>
+
+                        <span
+                            class="resolution-option-status"
+                        >
+                            ${
+                                checked
+                                    ? "Aktif di Generate"
+                                    : "Tidak aktif"
+                            }
+                        </span>
+
+                    </span>
+
+                </label>
+            `;
+
+            activeResolutionSelector.appendChild(
+                label
+            );
+
+        }
+    );
+
+    activeResolutionSelector
+        .querySelectorAll(
+            "input[data-active-resolution]"
+        )
+        .forEach(
+            input => {
+
+                input.addEventListener(
+                    "change",
+                    () => {
+
+                        const status =
+                            input.parentElement
+                                ?.querySelector(
+                                    ".resolution-option-status"
+                                );
+
+                        if (status) {
+
+                            status.textContent =
+                                input.checked
+                                    ? "Aktif di Generate"
+                                    : "Tidak aktif";
+
+                        }
+
+                    }
+                );
+
+            }
+        );
+
+}
+
+function getSelectedActiveResolutions() {
+
+    if (
+        !activeResolutionSelector
+    ) {
+
+        return [];
+
+    }
+
+    return sortResolutions(
+        Array.from(
+            activeResolutionSelector
+                .querySelectorAll(
+                    "input[data-active-resolution]:checked"
+                )
+        ).map(
+            input =>
+                input.value
+        )
+    );
+
+}
 
     function showAlert(message, type = "error") {
         alertBox.textContent = message;
@@ -2546,9 +3119,16 @@
 
         credit480p.value = model?.credit_480p ?? model?.credit480p ?? "";
         credit720p.value = model?.credit_720p ?? model?.credit720p ?? "";
-        credit1080p.value = model?.credit_1080p ?? model?.credit1080p ?? "";
+        credit1080p.value =
+    model?.credit_1080p ??
+    model?.credit1080p ??
+    "";
 
-        updatePricePreview();
+renderActiveResolutionSelector(
+    model
+);
+
+updatePricePreview();
     }
 
     async function getAccessToken() {
@@ -2643,7 +3223,17 @@
             discount_percent: admin.discount_percent ?? 0,
             credit_480p: admin.credit_480p ?? null,
             credit_720p: admin.credit_720p ?? null,
-            credit_1080p: admin.credit_1080p ?? null
+            credit_1080p: admin.credit_1080p ?? null,
+            credit_1080p:
+    admin.credit_1080p ?? null,
+
+supported_resolutions:
+    Object.prototype.hasOwnProperty.call(
+        admin,
+        "supported_resolutions"
+    )
+        ? admin.supported_resolutions
+        : registry.supported_resolutions
         };
     }
 
@@ -2727,17 +3317,22 @@
         const credit720pValue = Math.max(0, numberValue(credit720p.value));
         const credit1080pValue = Math.max(0, numberValue(credit1080p.value));
 
-        const payload = {
-            id: currentDatabaseModel.id,
-            model_id: modelIdValue,
-            model_name: name,
-            description: description.value.trim(),
-            discount_percent: discountPercent,
-            status: statusToggle.checked ? "active" : "inactive",
-            credit_480p: credit480pValue,
-            credit_720p: credit720pValue,
-            credit_1080p: credit1080pValue
-        };
+        const activeResolutions =
+    getSelectedActiveResolutions();
+
+const payload = {
+    id: currentDatabaseModel.id,
+    model_id: modelIdValue,
+    model_name: name,
+    description: description.value.trim(),
+    discount_percent: discountPercent,
+    status: statusToggle.checked ? "active" : "inactive",
+    credit_480p: credit480pValue,
+    credit_720p: credit720pValue,
+    credit_1080p: credit1080pValue,
+    supported_resolutions:
+        activeResolutions
+};
 
         saving = true;
         saveButton.disabled = true;
@@ -2764,12 +3359,34 @@
             ];
 
             if (
-                savedCredits[0] !== credit480pValue ||
-                savedCredits[1] !== credit720pValue ||
-                savedCredits[2] !== credit1080pValue
-            ) {
-                throw new Error("Credit model tidak sesuai dengan nilai yang dikirim ke Admin Models.");
-            }
+    savedCredits[0] !== credit480pValue ||
+    savedCredits[1] !== credit720pValue ||
+    savedCredits[2] !== credit1080pValue
+) {
+    throw new Error(
+        "Credit model tidak sesuai dengan nilai yang dikirim ke Admin Models."
+    );
+}
+
+
+const savedResolutions =
+    sortResolutions(
+        verified?.supported_resolutions
+    );
+
+const expectedResolutions =
+    sortResolutions(
+        activeResolutions
+    );
+
+if (
+    JSON.stringify(savedResolutions) !==
+    JSON.stringify(expectedResolutions)
+) {
+    throw new Error(
+        "Resolution aktif tidak sesuai dengan nilai yang dikirim ke Admin Models."
+    );
+}
 
             currentDatabaseModel = { ...currentDatabaseModel, ...verified };
             currentModel = {
