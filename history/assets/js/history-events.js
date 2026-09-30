@@ -1125,42 +1125,86 @@ function handleHistoryBodyClick(
 
 
     /* =====================================================
-       MODAL BACKDROP
-    ===================================================== */
+   MODAL BACKDROP / COPY PROMPT
+===================================================== */
 
-    function handleModalClick(
-        event
+function handleModalClick(
+    event
+) {
+
+    const elements =
+        getElements();
+
+
+    if (
+        !elements.detailModal
     ) {
 
-        const elements =
-            getElements();
+        return;
+
+    }
+
+
+    /* =================================================
+       COPY PROMPT
+    ================================================= */
+
+    const copyButton =
+        event.target?.closest?.(
+            "[data-action='copy-prompt']"
+        );
+
+
+    if (
+        copyButton
+    ) {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+
+        const historyId =
+            copyButton.dataset
+                .historyId;
 
 
         if (
-            !elements.detailModal
+            typeof App.copyHistoryPrompt ===
+            "function"
         ) {
 
-            return;
-
-        }
-
-
-        /*
-         * Hanya klik backdrop yang
-         * menutup modal.
-         */
-        if (
-            event.target ===
-            elements.detailModal
-        ) {
-
-            safeCall(
-                "closeDetailModal"
+            App.copyHistoryPrompt(
+                historyId,
+                copyButton
             );
 
         }
 
+
+        return;
+
     }
+
+
+    /* =================================================
+       MODAL BACKDROP
+       -------------------------------------------------
+       Hanya klik area backdrop yang
+       menutup modal.
+    ================================================= */
+
+    if (
+        event.target ===
+        elements.detailModal
+    ) {
+
+        safeCall(
+            "closeDetailModal"
+        );
+
+    }
+
+}
 
 
     /* =====================================================
