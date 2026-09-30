@@ -1515,21 +1515,31 @@ function buildModelConfig(
 
 
     const databaseResolutions =
-        normalizeArray(
-            databaseModel?.supported_resolutions
-        );
+    normalizeArray(
+        databaseModel?.supported_resolutions
+    );
 
 
-    const finalRatios =
-        databaseRatios.length
-            ? databaseRatios
-            : folderRatios;
+const hasDatabaseResolutions =
+    databaseModel &&
+    Object.prototype.hasOwnProperty.call(
+        databaseModel,
+        "supported_resolutions"
+    ) &&
+    databaseModel.supported_resolutions !== null &&
+    databaseModel.supported_resolutions !== undefined;
 
 
-    const finalResolutions =
-        databaseResolutions.length
-            ? databaseResolutions
-            : folderResolutions;
+const finalRatios =
+    databaseRatios.length
+        ? databaseRatios
+        : folderRatios;
+
+
+const finalResolutions =
+    hasDatabaseResolutions
+        ? databaseResolutions
+        : folderResolutions;
 
 
     /* =====================================================
