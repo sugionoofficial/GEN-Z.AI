@@ -830,167 +830,243 @@
 
 
     /* =====================================================
-       CLICK EVENT DELEGATION
-    ===================================================== */
+   CLICK EVENT DELEGATION
+===================================================== */
 
-    function handleHistoryBodyClick(
-        event
+function handleHistoryBodyClick(
+    event
+) {
+
+    const target =
+        event.target;
+
+
+    if (!target) {
+
+        return;
+
+    }
+
+
+    /* =================================================
+       COPY PROMPT
+    ================================================= */
+
+    const copyButton =
+        target.closest(
+            "[data-action='copy-prompt']"
+        );
+
+
+    if (
+        copyButton
     ) {
 
-        const target =
-            event.target;
+        event.preventDefault();
+        event.stopPropagation();
 
 
-        if (!target) {
-
-            return;
-
-        }
-
-
-        /* =================================================
-           DETAIL BUTTON
-        ================================================= */
-
-        const detailButton =
-            target.closest(
-                "[data-action='detail']"
-            );
+        const historyId =
+            copyButton.dataset
+                .historyId;
 
 
         if (
-            detailButton
+            typeof App.copyHistoryPrompt ===
+            "function"
         ) {
 
-            event.preventDefault();
-            event.stopPropagation();
-
-
-            const id =
-                detailButton.dataset
-                    .historyId;
-
-
-            openDetail(
-                id
+            App.copyHistoryPrompt(
+                historyId,
+                copyButton
             );
-
-
-            return;
 
         }
 
 
-        /* =================================================
-           VIDEO THUMBNAIL
-        ================================================= */
+        return;
 
-        const thumbnail =
-            target.closest(
-                ".video-ready"
-            );
+    }
 
 
-        if (
-            !thumbnail
-        ) {
+    /* =================================================
+       DETAIL BUTTON
+    ================================================= */
 
-            return;
+    const detailButton =
+        target.closest(
+            "[data-action='detail']"
+        );
 
-        }
 
+    if (
+        detailButton
+    ) {
 
         event.preventDefault();
+        event.stopPropagation();
 
 
-        const video =
-            thumbnail.querySelector(
-                "video"
-            );
+        const id =
+            detailButton.dataset
+                .historyId;
 
 
-        if (
-            video
-        ) {
+        openDetail(
+            id
+        );
 
-            try {
+
+        return;
+
+    }
+
+
+    /* =================================================
+       PROMPT
+       -------------------------------------------------
+       Klik area prompt tetap membuka detail prompt.
+    ================================================= */
+
+    const promptButton =
+        target.closest(
+            "[data-action='prompt']"
+        );
+
+
+    if (
+        promptButton
+    ) {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+
+        const id =
+            promptButton.dataset
+                .historyId;
+
+
+        openDetail(
+            id
+        );
+
+
+        return;
+
+    }
+
+
+    /* =================================================
+       VIDEO THUMBNAIL
+    ================================================= */
+
+    const thumbnail =
+        target.closest(
+            ".video-ready"
+        );
+
+
+    if (
+        !thumbnail
+    ) {
+
+        return;
+
+    }
+
+
+    event.preventDefault();
+
+
+    const video =
+        thumbnail.querySelector(
+            "video"
+        );
+
+
+    if (
+        video
+    ) {
+
+        try {
+
+            if (
+                video.paused
+            ) {
+
+                const playPromise =
+                    video.play();
+
 
                 if (
-                    video.paused
+                    playPromise &&
+                    typeof playPromise.catch ===
+                        "function"
                 ) {
 
-                    const playPromise =
-                        video.play();
+                    playPromise.catch(
+                        function () {
 
+                            /*
+                             * Autoplay/browser
+                             * restriction.
+                             * Fallback di bawah
+                             * tetap tersedia.
+                             */
 
-                    if (
-                        playPromise &&
-                        typeof playPromise.catch ===
-                        "function"
-                    ) {
-
-                        playPromise.catch(
-                            function () {
-
-                                /*
-                                 * Autoplay/browser
-                                 * restriction.
-                                 * Fallback di bawah
-                                 * tetap tersedia.
-                                 */
-
-                            }
-                        );
-
-                    }
-
-
-                    thumbnail.classList.add(
-                        "video-active"
+                        }
                     );
-
-
-                    return;
 
                 }
 
 
-                video.pause();
-
-
-                thumbnail.classList.remove(
+                thumbnail.classList.add(
                     "video-active"
                 );
 
 
                 return;
 
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI History] Inline video playback failed:",
-                    error
-                );
-
             }
+
+
+            video.pause();
+
+
+            thumbnail.classList.remove(
+                "video-active"
+            );
+
+
+            return;
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI History] Inline video playback failed:",
+                error
+            );
 
         }
 
-
-        /*
-         * Jika inline video tidak bisa
-         * dimainkan, gunakan URL.
-         */
-        const url =
-            thumbnail.dataset
-                .videoUrl;
-
-
-        openVideo(
-            url
-        );
-
     }
+
+
+    /*
+     * Jika inline video tidak bisa
+     * dimainkan, gunakan URL.
+     */
+    const url =
+        thumbnail.dataset
+            .videoUrl;
+
+
+    openVideo(
+        url
+    );
+
+}
 
 
     /* =====================================================
