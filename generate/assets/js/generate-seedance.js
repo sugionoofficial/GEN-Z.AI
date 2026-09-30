@@ -942,7 +942,7 @@ function renderSeedanceForm(
                     MAX_REFERENCE_AUDIO_FILES,
 
                extraClass:
-    "seedance-field-half"
+                  "seedance-field-full"
 
             })}
 
