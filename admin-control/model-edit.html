@@ -2526,9 +2526,10 @@
     );
 
     let currentModel = null;
-    let currentModelId = "";
-    let currentDatabaseModel = null;
-    let saving = false;
+let currentModelId = "";
+let currentDatabaseModel = null;
+let currentRegistryModel = null;
+let saving = false;
 
     const RESOLUTION_ORDER = [
     "480p",
@@ -2653,25 +2654,49 @@ function sortResolutions(values) {
 
 function getAvailableResolutions(model) {
 
-    const values =
+    /*
+     * AVAILABLE RESOLUTIONS
+     * ---------------------------------------------------------
+     * Sumber utama harus registry/technical model.
+     *
+     * supported_resolutions dari database BUKAN daftar
+     * kemampuan teknis model.
+     *
+     * Database hanya menentukan mana yang AKTIF.
+     */
+
+    const registry =
+        currentRegistryModel ||
+        model ||
+        {};
+
+    const registryValues =
         normalizeResolutionArray(
-            model?.supported_resolutions
+            registry?.supported_resolutions
         );
 
-    if (values.length) {
+    if (
+        registryValues.length
+    ) {
 
         return sortResolutions(
-            values
+            registryValues
         );
 
     }
 
+
+    /*
+     * Fallback ke parameter registry.
+     */
+
     const parameters =
         Array.isArray(
-            model?.parameters
+            registry?.parameters
         )
-            ? model.parameters
+            ? registry.parameters
             : [];
+
 
     const definition =
         parameters.find(
@@ -2680,6 +2705,7 @@ function getAvailableResolutions(model) {
                 parameter.name ===
                     "resolution"
         );
+
 
     const parameterValues =
         Array.isArray(
@@ -2691,6 +2717,7 @@ function getAvailableResolutions(model) {
             )
                 ? definition.options
                 : [];
+
 
     return sortResolutions(
         parameterValues
@@ -3261,11 +3288,25 @@ supported_resolutions:
 
         try {
             const [adminResult, registryResult] = await Promise.all([
-                requestAdminModels("GET"),
-                loadRegistryModel(requestedId)
-            ]);
+    requestAdminModels("GET"),
+    loadRegistryModel(requestedId)
+]);
 
-            const adminModels = extractAdminModels(adminResult);
+/*
+ * Simpan model registry secara terpisah.
+ *
+ * Ini penting karena:
+ * - registry = seluruh resolution yang didukung
+ * - database = resolution yang sedang diaktifkan Owner
+ */
+
+currentRegistryModel =
+    registryResult || null;
+
+const adminModels =
+    extractAdminModels(
+        adminResult
+    );
             const adminModel = findAdminModel(adminModels, requestedId);
 
             if (!adminModel) {
@@ -3319,6 +3360,17 @@ supported_resolutions:
 
         const activeResolutions =
     getSelectedActiveResolutions();
+        if (
+    activeResolutions.length === 0
+) {
+
+    showAlert(
+        "Pilih minimal satu resolution untuk diaktifkan di Generate.",
+        "error"
+    );
+
+    return;
+}
 
 const payload = {
     id: currentDatabaseModel.id,
