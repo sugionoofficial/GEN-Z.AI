@@ -3153,16 +3153,91 @@ function getCleanVideoMimeType(
     file
 ) {
 
+    const extension =
+        getExtension(
+            file.name
+        ).toLowerCase();
+
+
     if (
-        file.type ===
-        "video/webm"
+        extension === "webm" ||
+        file.type === "video/webm"
     ) {
 
         return "video/webm";
     }
 
 
+    if (
+        extension === "mov" ||
+        file.type === "video/quicktime"
+    ) {
+
+        return "video/quicktime";
+    }
+
+
+    if (
+        extension === "mkv" ||
+        file.type === "video/x-matroska"
+    ) {
+
+        return "video/x-matroska";
+    }
+
+
+    if (
+        extension === "avi" ||
+        file.type === "video/x-msvideo"
+    ) {
+
+        return "video/x-msvideo";
+    }
+
+
+    if (
+        extension === "ogv" ||
+        file.type === "video/ogg"
+    ) {
+
+        return "video/ogg";
+    }
+
+
+    if (
+        extension === "mpeg" ||
+        extension === "mpg"
+    ) {
+
+        return "video/mpeg";
+    }
+
+
     return "video/mp4";
+}
+
+
+/* =========================================================
+   MOV / MP4 CONTAINER CHECK
+========================================================= */
+
+function isMovLikeVideo(
+    file
+) {
+
+    const extension =
+        getExtension(
+            file.name
+        ).toLowerCase();
+
+
+    return (
+        extension === "mp4" ||
+        extension === "m4v" ||
+        extension === "mov" ||
+        file.type === "video/mp4" ||
+        file.type === "video/quicktime"
+    );
 }
 
 
