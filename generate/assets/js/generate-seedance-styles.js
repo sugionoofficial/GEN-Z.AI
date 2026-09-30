@@ -38,8 +38,6 @@ function injectSeedanceStyles() {
 
 
     /*
-     * Jangan return jika style sudah ada.
-     *
      * Seedance dapat dirender ulang tanpa reload halaman.
      * Karena itu CSS selalu diperbarui.
      */
@@ -66,39 +64,66 @@ function injectSeedanceStyles() {
         /* =====================================================
            ROOT FORM
            -----------------------------------------------------
-           Reset terhadap kemungkinan global grid/flex.
+           Seedance menggunakan grid 2 kolom.
+           Field tertentu dapat menggunakan full width.
         ===================================================== */
 
         .seedance-form {
 
-            display: block !important;
+            display:
+                grid !important;
 
-            width: 100% !important;
-            max-width: none !important;
-            min-width: 0 !important;
+            grid-template-columns:
+                minmax(0, 1fr)
+                minmax(0, 1fr) !important;
 
-            height: auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
+            grid-auto-flow:
+                row !important;
 
-            margin: 0 !important;
-            padding: 0 !important;
+            grid-auto-rows:
+                max-content !important;
 
-            box-sizing: border-box !important;
+            column-gap:
+                20px !important;
 
-            overflow: visible !important;
+            row-gap:
+                18px !important;
 
-            /*
-             * Jika #dynamicFields adalah CSS Grid,
-             * Seedance harus mengambil seluruh kolom.
-             */
+            width:
+                100% !important;
 
-            grid-column: 1 / -1 !important;
-            grid-row: auto !important;
+            max-width:
+                100% !important;
 
-            /*
-             * Jika parent menggunakan flex.
-             */
+            min-width:
+                0 !important;
+
+            height:
+                auto !important;
+
+            min-height:
+                0 !important;
+
+            max-height:
+                none !important;
+
+            margin:
+                0 !important;
+
+            padding:
+                0 !important;
+
+            box-sizing:
+                border-box !important;
+
+            overflow:
+                visible !important;
+
+            grid-column:
+                1 / -1 !important;
+
+            grid-row:
+                auto !important;
 
             flex:
                 0 0 100% !important;
@@ -110,10 +135,16 @@ function injectSeedanceStyles() {
                 stretch !important;
 
             align-items:
-                initial !important;
+                stretch !important;
 
             justify-items:
-                initial !important;
+                stretch !important;
+
+            align-content:
+                start !important;
+
+            justify-content:
+                stretch !important;
 
         }
 
@@ -128,15 +159,17 @@ function injectSeedanceStyles() {
         }
 
 
-        /*
-         * Jangan biarkan generic selector seperti:
-         *
-         * section { display:grid }
-         * div { display:flex }
-         * > * { ... }
-         *
-         * mengubah struktur internal Seedance.
-         */
+        /* =====================================================
+           SEEDANCE FIELD
+           -----------------------------------------------------
+           Jangan lagi memaksa semua field menjadi full-width.
+           Posisi ditentukan oleh:
+           - seedance-field-half
+           - seedance-field-full
+
+           Fallback:
+           field biasa tetap berada dalam satu kolom.
+        ===================================================== */
 
         .seedance-form > .seedance-field {
 
@@ -165,7 +198,7 @@ function injectSeedanceStyles() {
                 none !important;
 
             margin:
-                0 0 18px 0 !important;
+                0 !important;
 
             padding:
                 16px !important;
@@ -173,12 +206,8 @@ function injectSeedanceStyles() {
             box-sizing:
                 border-box !important;
 
-            /*
-             * Neutralize grid.
-             */
-
             grid-column:
-                1 / -1 !important;
+                auto !important;
 
             grid-row:
                 auto !important;
@@ -188,10 +217,6 @@ function injectSeedanceStyles() {
 
             grid-template-rows:
                 none !important;
-
-            /*
-             * Neutralize flex.
-             */
 
             flex:
                 0 0 auto !important;
@@ -207,10 +232,6 @@ function injectSeedanceStyles() {
 
             justify-items:
                 initial !important;
-
-            /*
-             * Pastikan isi tidak terpotong.
-             */
 
             overflow:
                 visible !important;
@@ -232,6 +253,85 @@ function injectSeedanceStyles() {
             box-shadow:
                 0 0 22px
                 rgba(255,35,70,.055);
+
+        }
+
+
+        /* =====================================================
+           HALF WIDTH
+        ===================================================== */
+
+        .seedance-form
+        > .seedance-field.seedance-field-half {
+
+            grid-column:
+                span 1 !important;
+
+            width:
+                100% !important;
+
+            min-width:
+                0 !important;
+
+            max-width:
+                none !important;
+
+            justify-self:
+                stretch !important;
+
+        }
+
+
+        /* =====================================================
+           FULL WIDTH
+           -----------------------------------------------------
+           Prompt
+           Reference Audio
+           Web Search
+        ===================================================== */
+
+        .seedance-form
+        > .seedance-field.seedance-field-full {
+
+            grid-column:
+                1 / -1 !important;
+
+            width:
+                100% !important;
+
+            min-width:
+                0 !important;
+
+            max-width:
+                none !important;
+
+            justify-self:
+                stretch !important;
+
+        }
+
+
+        /* =====================================================
+           FALLBACK
+           -----------------------------------------------------
+           Jika field belum memiliki class half/full,
+           tetap gunakan satu grid cell.
+        ===================================================== */
+
+        .seedance-form
+        > .seedance-field:not(.seedance-field-half):not(.seedance-field-full) {
+
+            grid-column:
+                auto !important;
+
+            width:
+                100% !important;
+
+            min-width:
+                0 !important;
+
+            max-width:
+                none !important;
 
         }
 
@@ -1685,6 +1785,15 @@ function injectSeedanceStyles() {
 
         /* =====================================================
            MOBILE
+           -----------------------------------------------------
+           Desktop:
+             2 kolom
+
+           Mobile:
+             1 kolom
+
+           Full/half class tidak boleh mempertahankan
+           2 kolom pada layar kecil.
         ===================================================== */
 
         @media (max-width: 640px) {
@@ -1692,7 +1801,22 @@ function injectSeedanceStyles() {
             .seedance-form {
 
                 display:
-                    block !important;
+                    grid !important;
+
+                grid-template-columns:
+                    minmax(0, 1fr) !important;
+
+                grid-auto-flow:
+                    row !important;
+
+                grid-auto-rows:
+                    max-content !important;
+
+                column-gap:
+                    0 !important;
+
+                row-gap:
+                    12px !important;
 
                 width:
                     100% !important;
@@ -1721,10 +1845,15 @@ function injectSeedanceStyles() {
             }
 
 
-            .seedance-form > .seedance-field {
+            .seedance-form
+            > .seedance-field,
+            .seedance-form
+            > .seedance-field.seedance-field-half,
+            .seedance-form
+            > .seedance-field.seedance-field-full {
 
-                display:
-                    block !important;
+                grid-column:
+                    1 / -1 !important;
 
                 width:
                     100% !important;
@@ -1742,31 +1871,16 @@ function injectSeedanceStyles() {
                     0 !important;
 
                 margin:
-                    0 0 12px 0 !important;
+                    0 !important;
 
                 padding:
                     11px !important;
-
-                grid-column:
-                    1 / -1 !important;
-
-                grid-template-columns:
-                    none !important;
-
-                flex:
-                    0 0 auto !important;
 
                 align-self:
                     stretch !important;
 
                 justify-self:
                     stretch !important;
-
-                align-items:
-                    initial !important;
-
-                justify-items:
-                    initial !important;
 
                 overflow:
                     visible !important;
@@ -2273,6 +2387,9 @@ function injectSeedanceStyles() {
 
                 min-width:
                     0 !important;
+
+                grid-template-columns:
+                    minmax(0, 1fr) !important;
 
             }
 
