@@ -32,6 +32,21 @@ import {
     bindMetadataEvents
 } from "./metadata-events.js";
 
+import {
+    normalizeMetadata,
+    appendObjectMetadata
+} from "./metadata-normalizer.js";
+
+import {
+    detectAIIndicators
+} from "./metadata-detector.js";
+
+import {
+    renderDetectionResult,
+    renderMetadata,
+    setStatus
+} from "./metadata-status.js";
+
 
 
 
