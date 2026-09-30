@@ -631,7 +631,6 @@ function renderPrompt() {
         "Instruksi video untuk Seedance 2.5.",
 
         `
-
         <textarea
             id="${fieldId("prompt")}"
             class="seedance-prompt-input"
@@ -641,15 +640,11 @@ function renderPrompt() {
         ></textarea>
 
         <div class="seedance-counter">
-
             <span id="seedancePromptCounter">
                 0
             </span>
-
             / 30000
-
         </div>
-
         `,
 
         "seedance-field-full"
