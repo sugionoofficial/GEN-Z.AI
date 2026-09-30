@@ -1152,6 +1152,211 @@
     App.getPromptDisplay =
         getPromptDisplay;
 
+   /* =====================================================
+   COPY PROMPT
+===================================================== */
+
+function findHistoryItem(
+    historyId
+) {
+
+    const id =
+        String(
+            historyId || ""
+        ).trim();
+
+    if (!id) {
+        return null;
+    }
+
+
+    const data =
+        getHistoryData();
+
+
+    return (
+        data.find(
+            function (item) {
+
+                return (
+                    String(
+                        item?.id ||
+                        ""
+                    ).trim() === id
+                );
+
+            }
+        ) ||
+        null
+    );
+
+}
+
+
+async function copyPrompt(
+    historyId,
+    button
+) {
+
+    const item =
+        findHistoryItem(
+            historyId
+        );
+
+
+    if (!item) {
+
+        console.warn(
+            "[GEN-Z.AI History] " +
+            "Project history tidak ditemukan:",
+            historyId
+        );
+
+        return;
+
+    }
+
+
+    const prompt =
+        getPrompt(
+            item
+        );
+
+
+    if (!prompt) {
+
+        return;
+
+    }
+
+
+    const value =
+        String(
+            prompt
+        );
+
+
+    try {
+
+        if (
+            navigator.clipboard &&
+            typeof navigator.clipboard.writeText ===
+                "function"
+        ) {
+
+            await navigator.clipboard.writeText(
+                value
+            );
+
+        } else {
+
+            const textarea =
+                document.createElement(
+                    "textarea"
+                );
+
+
+            textarea.value =
+                value;
+
+
+            textarea.setAttribute(
+                "readonly",
+                ""
+            );
+
+
+            textarea.style.position =
+                "fixed";
+
+            textarea.style.left =
+                "-9999px";
+
+            textarea.style.top =
+                "0";
+
+
+            document.body.appendChild(
+                textarea
+            );
+
+
+            textarea.focus();
+            textarea.select();
+
+
+            const copied =
+                document.execCommand(
+                    "copy"
+                );
+
+
+            textarea.remove();
+
+
+            if (!copied) {
+
+                throw new Error(
+                    "Clipboard fallback gagal."
+                );
+
+            }
+
+        }
+
+
+        if (button) {
+
+            const originalText =
+                button.textContent;
+
+
+            button.textContent =
+                "COPIED";
+
+
+            button.classList.add(
+                "copied"
+            );
+
+
+            window.setTimeout(
+                function () {
+
+                    if (
+                        button.isConnected
+                    ) {
+
+                        button.textContent =
+                            originalText;
+
+                        button.classList.remove(
+                            "copied"
+                        );
+
+                    }
+
+                },
+                1200
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI History] Copy prompt gagal:",
+            error
+        );
+
+    }
+
+}
+
+
+App.copyHistoryPrompt =
+    copyPrompt;
+
 
     /* =====================================================
        STATUS DISPLAY
