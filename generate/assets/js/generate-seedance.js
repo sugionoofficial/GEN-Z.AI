@@ -846,12 +846,15 @@ function renderCheckbox(
 /* =========================================================
    APPLY HARD LAYOUT
    ---------------------------------------------------------
-   Dipanggil setelah innerHTML selesai.
+   Layout Seedance dipaksa langsung melalui inline style
+   dengan !important agar tidak kalah oleh CSS global,
+   termasuk media query mobile.
 
-   Tujuannya memastikan struktur benar-benar:
-   2 kolom pada desktop
-   2 kolom pada HP
-   full-width tetap 100%
+   TARGET:
+   - Desktop : 2 kolom
+   - Tablet  : 2 kolom
+   - Mobile  : 2 kolom
+   - Full    : 1 field mengambil 2 kolom
 ========================================================= */
 
 function applySeedanceGridLayout(
@@ -873,67 +876,227 @@ function applySeedanceGridLayout(
     }
 
 
-    form.style.display =
-        "grid";
+    /*
+     * -----------------------------------------------------
+     * FORM GRID
+     * -----------------------------------------------------
+     */
+
+    form.style.setProperty(
+        "display",
+        "grid",
+        "important"
+    );
 
 
-    form.style.gridTemplateColumns =
-        "repeat(2, minmax(0, 1fr))";
+    form.style.setProperty(
+        "grid-template-columns",
+        "repeat(2, minmax(0, 1fr))",
+        "important"
+    );
 
 
-    form.style.columnGap =
-        "20px";
+    form.style.setProperty(
+        "column-gap",
+        "20px",
+        "important"
+    );
 
 
-    form.style.rowGap =
-        "20px";
+    form.style.setProperty(
+        "row-gap",
+        "20px",
+        "important"
+    );
 
 
-    form.style.width =
-        "100%";
+    form.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
 
 
-    form.style.minWidth =
-        "0";
+    form.style.setProperty(
+        "min-width",
+        "0",
+        "important"
+    );
 
 
-    form.style.boxSizing =
-        "border-box";
+    form.style.setProperty(
+        "box-sizing",
+        "border-box",
+        "important"
+    );
 
 
-    form
-        .querySelectorAll(
-            ":scope > .seedance-field"
+    /*
+     * -----------------------------------------------------
+     * FIELD GRID
+     * -----------------------------------------------------
+     *
+     * Hanya field langsung di dalam .seedance-form
+     * yang diproses.
+     */
+
+    const fields =
+        Array.from(
+            form.children
         )
-        .forEach(
-            field => {
-
-                field.style.minWidth =
-                    "0";
-
-
-                const layout =
-                    field.dataset
-                        .seedanceLayout;
+            .filter(
+                element =>
+                    element.classList.contains(
+                        "seedance-field"
+                    )
+            );
 
 
-                if (
-                    layout === "full"
-                ) {
+    fields.forEach(
+        field => {
 
-                    field.style.gridColumn =
-                        "1 / -1";
+            field.style.setProperty(
+                "min-width",
+                "0",
+                "important"
+            );
 
 
-                } else {
+            field.style.setProperty(
+                "width",
+                "100%",
+                "important"
+            );
 
-                    field.style.gridColumn =
-                        "span 1";
 
-                }
+            field.style.setProperty(
+                "max-width",
+                "100%",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "box-sizing",
+                "border-box",
+                "important"
+            );
+
+
+            const layout =
+                field.dataset
+                    .seedanceLayout;
+
+
+            if (
+                layout === "full"
+            ) {
+
+                field.style.setProperty(
+                    "grid-column",
+                    "1 / -1",
+                    "important"
+                );
+
+
+            } else {
+
+                field.style.setProperty(
+                    "grid-column",
+                    "span 1",
+                    "important"
+                );
 
             }
-        );
+
+        }
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * RE-APPLY SATU FRAME SETELAH BROWSER MELAKUKAN
+     * STYLE RECALCULATION.
+     *
+     * Ini penting jika ada CSS/global layout yang baru
+     * diterapkan setelah innerHTML selesai.
+     * -----------------------------------------------------
+     */
+
+    requestAnimationFrame(
+        () => {
+
+            if (
+                !form.isConnected
+            ) {
+
+                return;
+
+            }
+
+
+            form.style.setProperty(
+                "display",
+                "grid",
+                "important"
+            );
+
+
+            form.style.setProperty(
+                "grid-template-columns",
+                "repeat(2, minmax(0, 1fr))",
+                "important"
+            );
+
+
+            form.style.setProperty(
+                "column-gap",
+                "20px",
+                "important"
+            );
+
+
+            form.style.setProperty(
+                "row-gap",
+                "20px",
+                "important"
+            );
+
+
+            fields.forEach(
+                field => {
+
+                    const layout =
+                        field.dataset
+                            .seedanceLayout;
+
+
+                    if (
+                        layout === "full"
+                    ) {
+
+                        field.style.setProperty(
+                            "grid-column",
+                            "1 / -1",
+                            "important"
+                        );
+
+
+                    } else {
+
+                        field.style.setProperty(
+                            "grid-column",
+                            "span 1",
+                            "important"
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+    );
 
 }
 
