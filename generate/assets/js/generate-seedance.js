@@ -3387,13 +3387,17 @@ async function getSeedanceParameters() {
         ).trim();
 
 
-    const resolution =
-        String(
-            document.getElementById(
-                fieldId("resolution")
-            )?.value ||
-            "720p"
-        ).trim();
+    const resolutionElement =
+    document.getElementById(
+        fieldId("resolution")
+    );
+
+
+const resolution =
+    String(
+        resolutionElement?.value ||
+        ""
+    ).trim();
 
 
     const aspectRatio =
@@ -3637,27 +3641,61 @@ function validateSeedanceParameters(
     }
 
 
-    const allowedResolution =
-        new Set([
+    /* =========================================================
+   ACTIVE RESOLUTION VALIDATION
+   ---------------------------------------------------------
+   Technical resolutions:
+   - 480p
+   - 720p
+   - 1080p
 
-            "480p",
-            "720p",
-            "1080p"
+   Active resolutions:
+   - berasal dari model.supported_resolutions
+   - ditentukan melalui Admin Edit Model
 
-        ]);
+   Generate hanya boleh menggunakan resolution
+   yang sedang aktif.
+========================================================= */
+
+const currentModel =
+    getCurrentModel();
 
 
-    if (
-        !allowedResolution.has(
-            parameters.resolution
-        )
-    ) {
+const activeResolutions =
+    getSeedanceResolutions(
+        currentModel
+    );
 
-        throw new Error(
-            "Resolution Seedance tidak valid."
-        );
 
-    }
+if (
+    !activeResolutions.length
+) {
+
+    throw new Error(
+        "Tidak ada resolution yang aktif untuk model Seedance."
+    );
+
+}
+
+
+const normalizedResolution =
+    String(
+        parameters.resolution ||
+        ""
+    ).trim();
+
+
+if (
+    !activeResolutions.includes(
+        normalizedResolution
+    )
+) {
+
+    throw new Error(
+        `Resolution ${normalizedResolution || "(kosong)"} tidak aktif untuk model Seedance.`
+    );
+
+}
 
 
     const allowedAspectRatio =
@@ -3884,13 +3922,36 @@ function resetSeedanceForm() {
 
 
     if (
-        resolution
-    ) {
+    resolution
+) {
 
-        resolution.value =
-            "720p";
+    const currentModel =
+        getCurrentModel();
 
-    }
+
+    const activeResolutions =
+        getSeedanceResolutions(
+            currentModel
+        );
+
+
+    /*
+     * Gunakan resolution aktif pertama
+     * sebagai default.
+     *
+     * Jangan pernah memaksa 720p karena
+     * 720p bisa saja tidak diaktifkan Owner.
+     */
+
+    const defaultResolution =
+        activeResolutions[0] ||
+        "";
+
+
+    resolution.value =
+        defaultResolution;
+
+}
 
 
     const aspectRatio =
