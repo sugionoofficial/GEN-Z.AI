@@ -18,6 +18,20 @@
    - Original file remains untouched
 ========================================================= */
 
+import {
+    APP,
+    state
+} from "./metadata-state.js";
+
+import {
+    elements,
+    cacheElements
+} from "./metadata-dom.js";
+
+import {
+    bindMetadataEvents
+} from "./metadata-events.js";
+
 
 /* =========================================================
    CONSTANTS
