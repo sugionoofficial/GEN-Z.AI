@@ -3912,7 +3912,17 @@ function createCleanedFilename(
 
 
 /* =========================================================
-   RESET
+   RESET FOR NEW FILE
+   ---------------------------------------------------------
+   Membersihkan seluruh state hasil file sebelumnya.
+
+   - revoke original object URL
+   - revoke cleaned object URL
+   - hapus hasil cleaning
+   - hapus metadata
+   - hapus AI DETECT
+   - nonaktifkan DOWNLOAD
+   - reset status pemeriksaan
 ========================================================= */
 
 function resetForNewFile() {
@@ -3920,15 +3930,41 @@ function resetForNewFile() {
     state.checked =
         false;
 
+
     state.metadata =
         [];
+
 
     state.aiIndicators =
         [];
 
+
     state.cleanedBlob =
         null;
 
+
+    /*
+     * File sebelumnya tidak boleh meninggalkan
+     * object URL di memory.
+     */
+
+    if (
+        state.originalURL
+    ) {
+
+        URL.revokeObjectURL(
+            state.originalURL
+        );
+
+        state.originalURL =
+            null;
+    }
+
+
+    /*
+     * Hasil cleaning sebelumnya juga harus
+     * dilepas sebelum file baru diproses.
+     */
 
     if (
         state.cleanedURL
@@ -3943,21 +3979,70 @@ function resetForNewFile() {
     }
 
 
+    /*
+     * Hentikan referensi preview hasil lama.
+     */
+
+    if (
+        elements.cleanImagePreview
+    ) {
+
+        elements.cleanImagePreview.src =
+            "";
+    }
+
+
+    if (
+        elements.cleanVideoPreview
+    ) {
+
+        elements.cleanVideoPreview.pause();
+
+        elements.cleanVideoPreview.removeAttribute(
+            "src"
+        );
+
+        elements.cleanVideoPreview.load();
+    }
+
+
+    /*
+     * Sembunyikan hasil cleaning lama.
+     */
+
     hideElement(
         elements.cleanResult
     );
 
 
+    /*
+     * DOWNLOAD hanya boleh aktif jika
+     * cleanedBlob + cleanedURL benar-benar ada.
+     */
+
     elements.downloadButton.disabled =
         true;
 
 
+    /*
+     * Bersihkan tabel metadata.
+     */
+
     renderMetadata();
+
+
+    /*
+     * Hilangkan AI DETECT dari file sebelumnya.
+     */
 
     hideElement(
         elements.aiOverlay
     );
 
+
+    /*
+     * Reset indikator status.
+     */
 
     elements.statusIndicator.classList.remove(
         "is-detected",
