@@ -271,6 +271,15 @@ function fieldId(
 
 /* =========================================================
    COMMON FIELD
+   ---------------------------------------------------------
+   IMPORTANT:
+   Layout sekarang ditegaskan langsung pada DOM.
+
+   half = 1 kolom
+   full = 2 kolom
+
+   Ini menjadi fallback kuat apabila CSS global
+   menimpa aturan grid Seedance.
 ========================================================= */
 
 function createFieldWrapper(
@@ -280,10 +289,59 @@ function createFieldWrapper(
     extraClass = ""
 ) {
 
+    const className =
+        String(extraClass || "")
+            .trim();
+
+
+    const isFull =
+        className
+            .split(/\s+/)
+            .includes(
+                "seedance-field-full"
+            );
+
+
+    const isHalf =
+        className
+            .split(/\s+/)
+            .includes(
+                "seedance-field-half"
+            );
+
+
+    let layoutStyle =
+        "min-width:0;";
+
+
+    if (
+        isFull
+    ) {
+
+        layoutStyle +=
+            "grid-column:1 / -1;";
+
+
+    } else if (
+        isHalf
+    ) {
+
+        layoutStyle +=
+            "grid-column:span 1;";
+
+    }
+
+
     return `
 
         <section
-            class="seedance-field ${escapeHtml(extraClass)}"
+            class="seedance-field ${escapeHtml(className)}"
+            data-seedance-layout="${
+                isFull
+                    ? "full"
+                    : "half"
+            }"
+            style="${layoutStyle}"
         >
 
             <div class="seedance-field-header">
@@ -476,10 +534,11 @@ function createMediaSourceField(
                     type="file"
                     id="${fileInputId}"
                     class="seedance-file-input ${
-    isReference
-        ? "seedance-hidden-native-input"
-        : ""
-}"
+                        isReference
+                            ? "seedance-hidden-native-input"
+                            : ""
+                    }"
+                    accept="${escapeHtml(accept)}"
                     ${multipleAttr}
                     ${requiredAttr}
                     ${maxFilesAttr}
@@ -553,7 +612,9 @@ function createMediaSourceField(
 
         </div>
 
-        `
+        `,
+
+        extraClass
 
     );
 
@@ -657,7 +718,7 @@ function renderSelect(
 
         `,
 
-       extraClass
+        extraClass
 
     );
 
@@ -714,7 +775,7 @@ function renderDuration() {
 
         `,
 
-       "seedance-field-half"
+        "seedance-field-half"
 
     );
 
@@ -783,9 +844,104 @@ function renderCheckbox(
 
         `,
 
-       extraClass
+        extraClass
 
     );
+
+}
+
+
+/* =========================================================
+   APPLY HARD LAYOUT
+   ---------------------------------------------------------
+   Dipanggil setelah innerHTML selesai.
+
+   Tujuannya memastikan struktur benar-benar:
+   2 kolom pada desktop
+   2 kolom pada HP
+   full-width tetap 100%
+========================================================= */
+
+function applySeedanceGridLayout(
+    container
+) {
+
+    const form =
+        container?.querySelector(
+            ".seedance-form"
+        );
+
+
+    if (
+        !form
+    ) {
+
+        return;
+
+    }
+
+
+    form.style.display =
+        "grid";
+
+
+    form.style.gridTemplateColumns =
+        "repeat(2, minmax(0, 1fr))";
+
+
+    form.style.columnGap =
+        "20px";
+
+
+    form.style.rowGap =
+        "20px";
+
+
+    form.style.width =
+        "100%";
+
+
+    form.style.minWidth =
+        "0";
+
+
+    form.style.boxSizing =
+        "border-box";
+
+
+    form
+        .querySelectorAll(
+            ":scope > .seedance-field"
+        )
+        .forEach(
+            field => {
+
+                field.style.minWidth =
+                    "0";
+
+
+                const layout =
+                    field.dataset
+                        .seedanceLayout;
+
+
+                if (
+                    layout === "full"
+                ) {
+
+                    field.style.gridColumn =
+                        "1 / -1";
+
+
+                } else {
+
+                    field.style.gridColumn =
+                        "span 1";
+
+                }
+
+            }
+        );
 
 }
 
@@ -812,7 +968,7 @@ function renderSeedanceForm(
 
 
     /*
-     * CSS Seedance sekarang berada
+     * CSS Seedance berada
      * di file generate-seedance-styles.js.
      */
 
@@ -843,8 +999,8 @@ function renderSeedanceForm(
                 type:
                     "image",
 
-               extraClass:
-    "seedance-field-half"
+                extraClass:
+                    "seedance-field-half"
 
             })}
 
@@ -863,8 +1019,8 @@ function renderSeedanceForm(
                 type:
                     "image",
 
-               extraClass:
-    "seedance-field-half"
+                extraClass:
+                    "seedance-field-half"
 
             })}
 
@@ -889,8 +1045,8 @@ function renderSeedanceForm(
                 maxFiles:
                     MAX_REFERENCE_IMAGE_FILES,
 
-               extraClass:
-    "seedance-field-half"
+                extraClass:
+                    "seedance-field-half"
 
             })}
 
@@ -915,8 +1071,8 @@ function renderSeedanceForm(
                 maxFiles:
                     MAX_REFERENCE_VIDEO_FILES,
 
-               extraClass:
-    "seedance-field-half"
+                extraClass:
+                    "seedance-field-half"
 
             })}
 
@@ -941,8 +1097,8 @@ function renderSeedanceForm(
                 maxFiles:
                     MAX_REFERENCE_AUDIO_FILES,
 
-               extraClass:
-                  "seedance-field-full"
+                extraClass:
+                    "seedance-field-full"
 
             })}
 
@@ -986,7 +1142,7 @@ function renderSeedanceForm(
 
                 ],
 
-               "seedance-field-half"
+                "seedance-field-half"
 
             )}
 
@@ -1062,7 +1218,7 @@ function renderSeedanceForm(
 
                 ],
 
-               "seedance-field-half"
+                "seedance-field-half"
 
             )}
 
@@ -1099,7 +1255,9 @@ function renderSeedanceForm(
                             "MOV"
                     }
 
-                ]
+                ],
+
+                "seedance-field-half"
 
             )}
 
@@ -1114,7 +1272,7 @@ function renderSeedanceForm(
 
                 true,
 
-               "seedance-field-half"
+                "seedance-field-half"
 
             )}
 
@@ -1151,6 +1309,16 @@ function renderSeedanceForm(
         </div>
 
     `;
+
+
+    /*
+     * PENTING:
+     * Terapkan layout setelah DOM selesai dibuat.
+     */
+
+    applySeedanceGridLayout(
+        container
+    );
 
 
     resetReferenceFileState();
