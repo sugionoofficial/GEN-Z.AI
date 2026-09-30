@@ -1135,11 +1135,11 @@ async function readVideoMetadataWithFFprobe(
 
 
         /*
-         * FFmpeg's ffprobe command is used through
-         * the bundled binary.
+         * FFprobe dijalankan melalui ffmpeg.wasm.
          *
-         * JSON output makes the metadata easier
-         * and safer to normalize.
+         * Output JSON HARUS ditulis ke virtual
+         * filesystem menggunakan -o agar dapat
+         * dibaca kembali dengan ffmpeg.readFile().
          */
 
         const result =
@@ -1157,7 +1157,10 @@ async function readVideoMetadataWithFFprobe(
 
                     "-show_chapters",
 
-                    inputName
+                    inputName,
+
+                    "-o",
+                    probeName
                 ]
             );
 
@@ -1173,42 +1176,32 @@ async function readVideoMetadataWithFFprobe(
 
 
         /*
-         * Depending on the ffmpeg.wasm build,
-         * ffprobe output can be emitted through
-         * the virtual filesystem.
+         * Baca JSON hasil FFprobe dari virtual
+         * filesystem.
+         *
+         * ffmpeg.wasm mendukung encoding utf8,
+         * sehingga tidak perlu melakukan decode
+         * Uint8Array secara manual.
          */
 
-        let jsonText = "";
+        const probeData =
+            await ffmpeg.readFile(
+                probeName,
+                "utf8"
+            );
 
 
-        try {
-
-            const probeData =
-                await ffmpeg.readFile(
-                    probeName
-                );
-
-
-            jsonText =
-                new TextDecoder().decode(
+        const jsonText =
+            typeof probeData === "string"
+                ? probeData
+                : new TextDecoder().decode(
                     probeData
                 );
 
-        } catch {
-
-            /*
-             * Some builds expose ffprobe output
-             * through the return/log channel instead
-             * of a file. The secondary parser below
-             * handles that case.
-             */
-
-            jsonText = "";
-        }
-
 
         if (
-            !jsonText
+            !jsonText ||
+            !jsonText.trim()
         ) {
 
             throw new Error(
