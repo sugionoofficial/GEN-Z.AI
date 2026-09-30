@@ -27,10 +27,10 @@ const APP = Object.freeze({
 
     FFMPEG_VERSION: "0.12.15",
 
-    FFMPEG_CORE_VERSION: "0.12.15",
+FFMPEG_CORE_VERSION: "0.12.10",
 
-    FFMPEG_BASE_URL:
-        "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.15/dist/umd",
+FFMPEG_BASE_URL:
+    "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd",
 
     FFMPEG_PACKAGE_URL:
         "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.js",
