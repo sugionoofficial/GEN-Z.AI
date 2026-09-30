@@ -756,40 +756,79 @@
 
 
     /* =====================================================
-       PROMPT
-    ===================================================== */
+   PROMPT
+   -----------------------------------------------------
+   Detail prompt:
+   - Menampilkan prompt asli
+   - Tidak truncate
+   - Memiliki tombol COPY
+===================================================== */
 
-    function renderPrompt(
-        item
-    ) {
+function renderPrompt(
+    item
+) {
 
-        const prompt =
-            getPrompt(
-                item
-            );
+    const prompt =
+        getPrompt(
+            item
+        );
 
 
-        return `
-            <div class="detail-row">
+    const historyId =
+        String(
+            item?.id ||
+            ""
+        ).trim();
 
-                <div class="detail-label">
-                    Prompt
-                </div>
 
-                <div class="detail-value">
-                    ${
-                        prompt
-                            ? escapeHtml(
-                                prompt
-                            )
-                            : "-"
-                    }
-                </div>
+    const safeHistoryId =
+        escapeHtml(
+            historyId
+        );
+
+
+    return `
+        <div class="detail-row detail-prompt-row">
+
+            <div class="detail-label">
+                Prompt
+            </div>
+
+            <div class="detail-value detail-prompt-value">
+
+                ${
+                    prompt
+                        ? `
+                            <div class="detail-prompt-content">
+
+                                <div class="detail-prompt-text">
+                                    ${escapeHtml(
+                                        prompt
+                                    )}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="history-prompt-copy detail-prompt-copy"
+                                    data-action="copy-prompt"
+                                    data-history-id="${safeHistoryId}"
+                                    title="Copy prompt"
+                                    aria-label="Copy prompt"
+                                >
+                                    COPY
+                                </button>
+
+                            </div>
+                        `
+                        : "-"
+                }
 
             </div>
-        `;
 
-    }
+        </div>
+    `;
+
+}
 
 
     /* =====================================================
