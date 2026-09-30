@@ -3158,163 +3158,138 @@ function injectSeedanceStyles() {
 
 
         /* =====================================================
-           FINAL MOBILE LOCK
-        ===================================================== */
+   FINAL SEEDANCE GRID LOCK
+   -----------------------------------------------------
+   Desktop  : 2 kolom
+   HP       : tetap 2 kolom
+   half     : 1 kolom
+   full     : 2 kolom penuh
+===================================================== */
 
-        @media (max-width: 640px) {
+.seedance-form {
 
-            .seedance-form {
+    display:
+        grid !important;
 
-                grid-template-columns:
-                    minmax(0,1fr)
-                    minmax(0,1fr) !important;
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr) !important;
 
-            }
+    grid-auto-flow:
+        row !important;
 
+    width:
+        100% !important;
 
-            .seedance-form
-            > .seedance-field:has(
-                #seedancePrompt
-            ) {
+    max-width:
+        none !important;
 
-                grid-column:
-                    1 / -1 !important;
+    min-width:
+        0 !important;
 
-            }
+    box-sizing:
+        border-box !important;
 
-
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceFirstFrame
-            ) {
-
-                grid-column:
-                    1 !important;
-
-            }
-
-
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceLastFrame
-            ) {
-
-                grid-column:
-                    2 !important;
-
-            }
+}
 
 
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceReferenceImages
-            ) {
+/* =====================================================
+   DEFAULT FIELD
+===================================================== */
 
-                grid-column:
-                    1 !important;
+.seedance-form
+> .seedance-field {
 
-            }
+    min-width:
+        0 !important;
 
+    width:
+        100% !important;
 
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceReferenceVideos
-            ) {
+    max-width:
+        none !important;
 
-                grid-column:
-                    2 !important;
+    box-sizing:
+        border-box !important;
 
-            }
-
-
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceReferenceAudio
-            ) {
-
-                grid-column:
-                    1 / -1 !important;
-
-            }
+}
 
 
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceResolution
-            ) {
+/* =====================================================
+   HALF FIELD
+   -----------------------------------------------------
+   Frame Awal       | Frame Akhir
+   Ref Images       | Ref Videos
+   Resolution       | Aspect Ratio
+   Duration         | Output Format
+   Generate Audio   | Return Last Frame
+===================================================== */
 
-                grid-column:
-                    1 !important;
+.seedance-form
+> .seedance-field.seedance-field-half {
 
-            }
+    grid-column:
+        span 1 !important;
 
-
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceAspectRatio
-            ) {
-
-                grid-column:
-                    2 !important;
-
-            }
+}
 
 
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceDuration
-            ) {
+/* =====================================================
+   FULL FIELD
+   -----------------------------------------------------
+   Prompt
+   Reference Audio
+   Web Search
+===================================================== */
 
-                grid-column:
-                    1 !important;
+.seedance-form
+> .seedance-field.seedance-field-full {
 
-            }
+    grid-column:
+        1 / -1 !important;
 
-
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceOutputFormat
-            ) {
-
-                grid-column:
-                    2 !important;
-
-            }
+}
 
 
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceGenerateAudio
-            ) {
+/* =====================================================
+   FINAL MOBILE LOCK
+   -----------------------------------------------------
+   HP TETAP 2 KOLOM.
+   Jangan pernah mengubah menjadi 1 kolom.
+===================================================== */
 
-                grid-column:
-                    1 !important;
+@media (max-width: 640px) {
 
-            }
+    .seedance-form {
 
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr) !important;
 
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceReturnLastFrame
-            ) {
+        grid-auto-flow:
+            row !important;
 
-                grid-column:
-                    2 !important;
-
-            }
+    }
 
 
-            .seedance-form
-            > .seedance-field:has(
-                #seedanceWebSearch
-            ) {
+    .seedance-form
+    > .seedance-field.seedance-field-half {
 
-                grid-column:
-                    1 / -1 !important;
+        grid-column:
+            span 1 !important;
 
-            }
+    }
 
-        }
+
+    .seedance-form
+    > .seedance-field.seedance-field-full {
+
+        grid-column:
+            1 / -1 !important;
+
+    }
+
+}
 
 
         /* =====================================================
