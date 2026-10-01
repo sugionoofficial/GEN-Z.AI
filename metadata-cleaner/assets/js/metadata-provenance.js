@@ -6,32 +6,41 @@
    metadata-cleaner/assets/js/metadata-provenance.js
 
    Fungsi:
-   - Memeriksa kemungkinan keberadaan C2PA
-   - Memeriksa Content Credentials signature
-   - Memeriksa C2PA Manifest Store signature
+   - Memeriksa C2PA
+   - Memeriksa Content Credentials
+   - Memeriksa C2PA Manifest Store
+   - Mendukung IMAGE + VIDEO
+   - Mendukung JPEG / PNG / WebP / MP4 / MOV
+   - Mendeteksi digitalSourceType
+   - Mendeteksi trainedAlgorithmicMedia
+   - Mendeteksi c2pa.created
+   - Mendeteksi softwareAgent
+   - Mendeteksi c2pa.ai-disclosure
    - Tidak mengubah file
    - Tidak menghapus metadata
-   - Tidak melakukan AI visual detection
+   - Tidak melakukan visual AI detection
 
-   Catatan penting:
+   CATATAN:
    ---------------------------------------------------------
-   Modul browser ini melakukan SIGNATURE INSPECTION.
+   DETECTED
+       Struktur / metadata C2PA ditemukan.
 
-   Hasil:
-   - NOT_DETECTED
-       Tidak ditemukan signature C2PA yang dikenal.
+   AI DETECTED
+       Ditemukan sinyal AI provenance eksplisit,
+       misalnya:
+       - trainedAlgorithmicMedia
+       - trainedAlgorithmicData
+       - c2pa.ai-disclosure
+       - c2pa.created
+       - AI-specific provenance declaration
 
-   - DETECTED
-       Ditemukan signature/struktur yang mengindikasikan
-       keberadaan C2PA/JUMBF.
+   NOT VERIFIED
+       File terdeteksi memiliki provenance,
+       tetapi modul browser ini belum melakukan
+       cryptographic signature verification.
 
-   - UNSUPPORTED
-       Format belum didukung oleh inspector ini.
-
-   Modul ini TIDAK mengklaim melakukan cryptographic
-   verification terhadap manifest.
-
-   Untuk verification penuh diperlukan C2PA validator.
+   Modul ini TIDAK mengklaim bahwa signature valid
+   hanya karena struktur C2PA ditemukan.
 ========================================================= */
 
 
@@ -48,11 +57,7 @@ const MAX_INSPECT_BYTES =
 
    Representasi ASCII:
    63327061-0011-0010-8000-00AA00389B71
-
-   C2PA specification menggunakan UUID ini
-   untuk mengidentifikasi C2PA Manifest Store.
 */
-
 
 const C2PA_UUID_HEX =
     "6332706100110010800000AA00389B71";
@@ -64,6 +69,10 @@ const C2PA_UUID_BYTES =
     );
 
 
+/*
+   Common C2PA / JUMBF labels.
+*/
+
 const C2PA_LABEL =
     "c2pa";
 
@@ -74,6 +83,27 @@ const JUMBF_LABEL =
 
 const CONTENT_CREDENTIALS_LABEL =
     "content credentials";
+
+
+const C2PA_CREATED_LABEL =
+    "c2pa.created";
+
+
+const C2PA_AI_DISCLOSURE_LABEL =
+    "c2pa.ai-disclosure";
+
+
+/*
+   IPTC digitalSourceType value used by
+   C2PA for Generative AI / trained algorithmic media.
+*/
+
+const TRAINED_ALGORITHMIC_MEDIA =
+    "trainedalgorithmicmedia";
+
+
+const TRAINED_ALGORITHMIC_DATA =
+    "trainedalgorithmicdata";
 
 
 /* =========================================================
@@ -129,7 +159,8 @@ function bytesToAscii(
     bytes
 ) {
 
-    let output = "";
+    let output =
+        "";
 
 
     for (
@@ -141,14 +172,6 @@ function bytesToAscii(
         const value =
             bytes[index];
 
-
-        /*
-           Printable ASCII only.
-
-           Non-printable byte dibuat sebagai
-           separator supaya signature tidak
-           terputus menjadi karakter aneh.
-        */
 
         if (
             value >= 32 &&
@@ -202,7 +225,8 @@ function containsAscii(
 
 
     if (
-        target.length > bytes.length
+        target.length >
+        bytes.length
     ) {
 
         return false;
@@ -213,7 +237,9 @@ function containsAscii(
     outer:
     for (
         let index = 0;
-        index <= bytes.length - target.length;
+        index <=
+            bytes.length -
+            target.length;
         index++
     ) {
 
@@ -226,7 +252,8 @@ function containsAscii(
             if (
                 bytes[
                     index + offset
-                ] !== target[offset]
+                ] !==
+                target[offset]
             ) {
 
                 continue outer;
@@ -242,6 +269,41 @@ function containsAscii(
 
 
     return false;
+
+}
+
+
+/* =========================================================
+   CASE-INSENSITIVE ASCII SEARCH
+========================================================= */
+
+function containsAsciiInsensitive(
+    bytes,
+    needle
+) {
+
+    if (
+        !bytes ||
+        !needle
+    ) {
+
+        return false;
+
+    }
+
+
+    const ascii =
+        bytesToAscii(
+            bytes
+        )
+        .toLowerCase();
+
+
+    return ascii.includes(
+        String(
+            needle
+        ).toLowerCase()
+    );
 
 }
 
@@ -267,7 +329,8 @@ function containsBytes(
 
 
     if (
-        target.length > bytes.length
+        target.length >
+        bytes.length
     ) {
 
         return false;
@@ -278,7 +341,9 @@ function containsBytes(
     outer:
     for (
         let index = 0;
-        index <= bytes.length - target.length;
+        index <=
+            bytes.length -
+            target.length;
         index++
     ) {
 
@@ -291,7 +356,8 @@ function containsBytes(
             if (
                 bytes[
                     index + offset
-                ] !== target[offset]
+                ] !==
+                target[offset]
             ) {
 
                 continue outer;
@@ -382,6 +448,51 @@ function detectFormat(
 
 
     /*
+       ISO BMFF / MP4 / MOV
+
+       MP4/MOV biasanya memiliki:
+       - ftyp
+       - moov
+       - mdat
+
+       C2PA pada video dapat disimpan
+       melalui ISO BMFF/JUMBF structures.
+    */
+
+    if (
+        isIsoBmff(
+            bytes
+        )
+    ) {
+
+        const extension =
+            getExtension(
+                file?.name
+            );
+
+
+        const mime =
+            String(
+                file?.type || ""
+            ).toLowerCase();
+
+
+        if (
+            mime === "video/quicktime" ||
+            extension === "mov"
+        ) {
+
+            return "mov";
+
+        }
+
+
+        return "mp4";
+
+    }
+
+
+    /*
        Fallback berdasarkan MIME.
     */
 
@@ -419,7 +530,155 @@ function detectFormat(
     }
 
 
+    if (
+        mime === "video/mp4"
+    ) {
+
+        return "mp4";
+
+    }
+
+
+    if (
+        mime === "video/quicktime"
+    ) {
+
+        return "mov";
+
+    }
+
+
     return "unknown";
+
+}
+
+
+/* =========================================================
+   ISO BMFF DETECTION
+========================================================= */
+
+function isIsoBmff(
+    bytes
+) {
+
+    if (
+        !bytes ||
+        bytes.length < 12
+    ) {
+
+        return false;
+
+    }
+
+
+    /*
+       Standard BMFF first box:
+
+       size: 4 bytes
+       type: 4 bytes
+
+       Example:
+       00 00 00 xx
+       66 74 79 70
+
+       = "ftyp"
+    */
+
+    if (
+        readAscii(
+            bytes,
+            4,
+            4
+        ) === "ftyp"
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+       Some files may not begin with
+       the expected ftyp location.
+       Scan the first part for a valid
+       ftyp box signature.
+    */
+
+    const limit =
+        Math.min(
+            bytes.length - 4,
+            1024
+        );
+
+
+    for (
+        let index = 0;
+        index <= limit;
+        index++
+    ) {
+
+        if (
+            readAscii(
+                bytes,
+                index,
+                4
+            ) === "ftyp"
+        ) {
+
+            return true;
+
+        }
+
+    }
+
+
+    return false;
+
+}
+
+
+/* =========================================================
+   READ ASCII FROM BYTE ARRAY
+========================================================= */
+
+function readAscii(
+    bytes,
+    start,
+    length
+) {
+
+    if (
+        !bytes ||
+        start < 0 ||
+        length <= 0 ||
+        start + length >
+            bytes.length
+    ) {
+
+        return "";
+
+    }
+
+
+    let output =
+        "";
+
+
+    for (
+        let index = start;
+        index < start + length;
+        index++
+    ) {
+
+        output +=
+            String.fromCharCode(
+                bytes[index]
+            );
+
+    }
+
+
+    return output;
 
 }
 
@@ -436,12 +695,7 @@ function inspectJPEG(
 
 
     /*
-       C2PA JPEG menggunakan APP11
-       untuk penyimpanan Manifest Store.
-
-       Cari marker APP11:
-
-           FF EB
+       C2PA JPEG menggunakan APP11.
     */
 
     let app11Found =
@@ -450,7 +704,8 @@ function inspectJPEG(
 
     for (
         let index = 0;
-        index < bytes.length - 1;
+        index <
+            bytes.length - 1;
         index++
     ) {
 
@@ -461,14 +716,6 @@ function inspectJPEG(
 
             app11Found =
                 true;
-
-
-            /*
-               Jangan berhenti.
-
-               C2PA manifest dapat terdiri
-               dari beberapa APP11 segment.
-            */
 
         }
 
@@ -486,12 +733,8 @@ function inspectJPEG(
     }
 
 
-    /*
-       C2PA label.
-    */
-
     if (
-        containsAscii(
+        containsAsciiInsensitive(
             bytes,
             C2PA_LABEL
         )
@@ -504,12 +747,8 @@ function inspectJPEG(
     }
 
 
-    /*
-       JUMBF label.
-    */
-
     if (
-        containsAscii(
+        containsAsciiInsensitive(
             bytes,
             JUMBF_LABEL
         )
@@ -521,10 +760,6 @@ function inspectJPEG(
 
     }
 
-
-    /*
-       C2PA Manifest Store UUID.
-    */
 
     if (
         containsBytes(
@@ -542,14 +777,18 @@ function inspectJPEG(
 
     return {
 
-        format: "jpeg",
-
-        app11: app11Found,
+        format:
+            "jpeg",
 
         detected:
             findings.length > 0,
 
-        findings
+        findings,
+
+        ai:
+            inspectAIProvenance(
+                bytes
+            )
 
     };
 
@@ -567,21 +806,8 @@ function inspectPNG(
     const findings = [];
 
 
-    /*
-       PNG dapat membawa JUMBF/C2PA
-       sebagai chunk.
-
-       Inspector ini sengaja tidak menganggap
-       keberadaan sembarang iTXt/tEXt sebagai
-       bukti C2PA.
-
-       Kita hanya mencari signature yang
-       berkaitan dengan C2PA/JUMBF.
-    */
-
-
     if (
-        containsAscii(
+        containsAsciiInsensitive(
             bytes,
             C2PA_LABEL
         )
@@ -595,7 +821,7 @@ function inspectPNG(
 
 
     if (
-        containsAscii(
+        containsAsciiInsensitive(
             bytes,
             JUMBF_LABEL
         )
@@ -624,12 +850,18 @@ function inspectPNG(
 
     return {
 
-        format: "png",
+        format:
+            "png",
 
         detected:
             findings.length > 0,
 
-        findings
+        findings,
+
+        ai:
+            inspectAIProvenance(
+                bytes
+            )
 
     };
 
@@ -647,16 +879,8 @@ function inspectWEBP(
     const findings = [];
 
 
-    /*
-       WebP menggunakan RIFF.
-
-       C2PA dapat menggunakan struktur
-       JUMBF dalam container yang sesuai.
-    */
-
-
     if (
-        containsAscii(
+        containsAsciiInsensitive(
             bytes,
             C2PA_LABEL
         )
@@ -670,7 +894,7 @@ function inspectWEBP(
 
 
     if (
-        containsAscii(
+        containsAsciiInsensitive(
             bytes,
             JUMBF_LABEL
         )
@@ -699,14 +923,551 @@ function inspectWEBP(
 
     return {
 
-        format: "webp",
+        format:
+            "webp",
 
         detected:
             findings.length > 0,
 
-        findings
+        findings,
+
+        ai:
+            inspectAIProvenance(
+                bytes
+            )
 
     };
+
+}
+
+
+/* =========================================================
+   MP4 / MOV INSPECTION
+========================================================= */
+
+function inspectMP4(
+    bytes,
+    format
+) {
+
+    const findings = [];
+
+
+    /*
+       ISO BMFF confirmation.
+    */
+
+    if (
+        isIsoBmff(
+            bytes
+        )
+    ) {
+
+        findings.push(
+            "ISO BMFF"
+        );
+
+    }
+
+
+    /*
+       C2PA Manifest Store UUID.
+
+       This is the strongest structural
+       signal we can inspect locally
+       without cryptographic validation.
+    */
+
+    const c2paUuidFound =
+        containsBytes(
+            bytes,
+            C2PA_UUID_BYTES
+        );
+
+
+    if (
+        c2paUuidFound
+    ) {
+
+        findings.push(
+            "C2PA Manifest Store UUID"
+        );
+
+    }
+
+
+    /*
+       C2PA label.
+    */
+
+    const c2paFound =
+        containsAsciiInsensitive(
+            bytes,
+            C2PA_LABEL
+        );
+
+
+    if (
+        c2paFound
+    ) {
+
+        findings.push(
+            "c2pa label"
+        );
+
+    }
+
+
+    /*
+       JUMBF.
+    */
+
+    const jumbfFound =
+        containsAsciiInsensitive(
+            bytes,
+            JUMBF_LABEL
+        );
+
+
+    if (
+        jumbfFound
+    ) {
+
+        findings.push(
+            "JUMBF signature"
+        );
+
+    }
+
+
+    /*
+       Content Credentials.
+    */
+
+    const contentCredentialsFound =
+        containsAsciiInsensitive(
+            bytes,
+            CONTENT_CREDENTIALS_LABEL
+        );
+
+
+    if (
+        contentCredentialsFound
+    ) {
+
+        findings.push(
+            "Content Credentials"
+        );
+
+    }
+
+
+    /*
+       c2pa.created.
+    */
+
+    const createdFound =
+        containsAsciiInsensitive(
+            bytes,
+            C2PA_CREATED_LABEL
+        );
+
+
+    if (
+        createdFound
+    ) {
+
+        findings.push(
+            "c2pa.created"
+        );
+
+    }
+
+
+    /*
+       c2pa.ai-disclosure.
+    */
+
+    const aiDisclosureFound =
+        containsAsciiInsensitive(
+            bytes,
+            C2PA_AI_DISCLOSURE_LABEL
+        );
+
+
+    if (
+        aiDisclosureFound
+    ) {
+
+        findings.push(
+            "c2pa.ai-disclosure"
+        );
+
+    }
+
+
+    /*
+       AI provenance inspection.
+    */
+
+    const ai =
+        inspectAIProvenance(
+            bytes
+        );
+
+
+    if (
+        ai.digitalSourceType
+    ) {
+
+        findings.push(
+            `digitalSourceType: ${ai.digitalSourceType}`
+        );
+
+    }
+
+
+    if (
+        ai.softwareAgent
+    ) {
+
+        findings.push(
+            `softwareAgent: ${ai.softwareAgent}`
+        );
+
+    }
+
+
+    if (
+        ai.aiDisclosure
+    ) {
+
+        findings.push(
+            "AI Disclosure"
+        );
+
+    }
+
+
+    /*
+       A C2PA video can be detected by:
+       - UUID
+       - c2pa
+       - JUMBF
+       - c2pa.created
+       - Content Credentials
+    */
+
+    const detected =
+        (
+            c2paUuidFound ||
+            c2paFound ||
+            jumbfFound ||
+            contentCredentialsFound ||
+            createdFound ||
+            aiDisclosureFound
+        );
+
+
+    return {
+
+        format,
+
+        detected,
+
+        findings,
+
+        ai
+
+    };
+
+}
+
+
+/* =========================================================
+   AI PROVENANCE INSPECTION
+========================================================= */
+
+function inspectAIProvenance(
+    bytes
+) {
+
+    const ascii =
+        bytesToAscii(
+            bytes
+        );
+
+
+    const normalized =
+        ascii
+            .replace(
+                /\0+/g,
+                " "
+            )
+            .replace(
+                /\s+/g,
+                " "
+            )
+            .trim();
+
+
+    const lower =
+        normalized.toLowerCase();
+
+
+    /*
+       digitalSourceType
+       -----------------------------------------------
+
+       Search for the complete known URI first.
+    */
+
+    let digitalSourceType =
+        null;
+
+
+    if (
+        lower.includes(
+            "trainedalgorithmicmedia"
+        )
+    ) {
+
+        digitalSourceType =
+            "trainedAlgorithmicMedia";
+
+    }
+    else if (
+        lower.includes(
+            "trainedalgorithmicdata"
+        )
+    ) {
+
+        digitalSourceType =
+            "trainedAlgorithmicData";
+
+    }
+    else {
+
+        const sourceTypeMatch =
+            normalized.match(
+                /digitalSourceType.{0,300}?([a-zA-Z][a-zA-Z0-9_-]*(?:Media|Data))/i
+            );
+
+
+        if (
+            sourceTypeMatch &&
+            sourceTypeMatch[1]
+        ) {
+
+            digitalSourceType =
+                sourceTypeMatch[1];
+
+        }
+
+    }
+
+
+    /*
+       softwareAgent
+
+       C2PA v2 uses a richer softwareAgent
+       structure. We intentionally inspect
+       the nearby ASCII representation instead
+       of assuming one fixed binary encoding.
+    */
+
+    let softwareAgent =
+        null;
+
+
+    const softwareAgentMatch =
+        normalized.match(
+            /softwareAgent.{0,220}/i
+        );
+
+
+    if (
+        softwareAgentMatch &&
+        softwareAgentMatch[0]
+    ) {
+
+        softwareAgent =
+            cleanProvenanceValue(
+                softwareAgentMatch[0]
+            );
+
+    }
+
+
+    /*
+       Known AI generator names may occur
+       independently of the softwareAgent label.
+    */
+
+    if (
+        !softwareAgent
+    ) {
+
+        const knownGeneratorMatch =
+            normalized.match(
+                /\b(Grok(?:\s+Imagine)?|Sora|Midjourney|Runway|Kling|Seedance|Veo|Gemini|Adobe Firefly|Stable Diffusion|Flux)\b/i
+            );
+
+
+        if (
+            knownGeneratorMatch &&
+            knownGeneratorMatch[1]
+        ) {
+
+            softwareAgent =
+                knownGeneratorMatch[1];
+
+        }
+
+    }
+
+
+    /*
+       AI Disclosure.
+
+       We do not parse the entire assertion
+       as a trusted structured object here.
+       We only report that an AI disclosure
+       signal exists.
+    */
+
+    const aiDisclosure =
+        (
+            lower.includes(
+                "c2pa.ai-disclosure"
+            ) ||
+            lower.includes(
+                "ai-disclosure"
+            )
+        )
+            ? "c2pa.ai-disclosure"
+            : null;
+
+
+    /*
+       Explicit AI source declaration.
+    */
+
+    const trainedAlgorithmic =
+        (
+            lower.includes(
+                TRAINED_ALGORITHMIC_MEDIA
+            ) ||
+            lower.includes(
+                TRAINED_ALGORITHMIC_DATA
+            )
+        );
+
+
+    /*
+       c2pa.created alone indicates a
+       provenance creation action, but not
+       necessarily AI.
+
+       Therefore it becomes AI evidence only
+       when combined with an AI-specific
+       digitalSourceType or AI disclosure.
+    */
+
+    const aiDetected =
+        (
+            trainedAlgorithmic ||
+            Boolean(
+                aiDisclosure
+            )
+        );
+
+
+    return {
+
+        aiDetected,
+
+        digitalSourceType,
+
+        softwareAgent,
+
+        aiDisclosure
+
+    };
+
+}
+
+
+/* =========================================================
+   CLEAN PROVENANCE VALUE
+========================================================= */
+
+function cleanProvenanceValue(
+    value
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return null;
+
+    }
+
+
+    const text =
+        String(
+            value
+        )
+        .replace(
+            /\0+/g,
+            " "
+        )
+        .replace(
+            /\s+/g,
+            " "
+        )
+        .trim();
+
+
+    if (
+        !text
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+       Do not return an enormous binary-derived
+       metadata string.
+
+       Keep the useful portion.
+    */
+
+    const maxLength =
+        180;
+
+
+    if (
+        text.length >
+        maxLength
+    ) {
+
+        return (
+            text.slice(
+                0,
+                maxLength
+            ) +
+            "..."
+        );
+
+    }
+
+
+    return text;
 
 }
 
@@ -731,7 +1492,8 @@ async function readInspectionBytes(
 
 
     if (
-        typeof file.arrayBuffer !== "function"
+        typeof file.arrayBuffer !==
+        "function"
     ) {
 
         throw new Error(
@@ -779,9 +1541,46 @@ function createResult(
         );
 
 
+    const ai =
+        details?.ai &&
+        typeof details.ai ===
+            "object"
+
+            ? details.ai
+
+            : {
+
+                aiDetected:
+                    false,
+
+                digitalSourceType:
+                    null,
+
+                softwareAgent:
+                    null,
+
+                aiDisclosure:
+                    null
+
+            };
+
+
+    const findings =
+        Array.isArray(
+            details?.findings
+        )
+            ? [
+                ...new Set(
+                    details.findings
+                )
+            ]
+            : [];
+
+
     return {
 
-        checked: true,
+        checked:
+            true,
 
         supported:
             format !== "unknown",
@@ -790,12 +1589,23 @@ function createResult(
 
         detected,
 
+        /*
+           AI provenance is separate from
+           generic provenance.
+        */
+
+        aiDetected:
+            Boolean(
+                ai.aiDetected
+            ),
+
         status:
             detected
                 ? "DETECTED"
                 : "NOT_DETECTED",
 
-        verified: false,
+        verified:
+            false,
 
         verificationStatus:
             "NOT_VERIFIED",
@@ -804,7 +1614,8 @@ function createResult(
 
             detected,
 
-            verified: false,
+            verified:
+                false,
 
             manifestCount:
                 detected
@@ -817,25 +1628,91 @@ function createResult(
 
             detected,
 
-            verified: false
+            verified:
+                false
 
         },
 
-        findings:
-            Array.isArray(
-                details?.findings
-            )
-                ? [
-                    ...new Set(
-                        details.findings
-                    )
-                ]
-                : [],
+        findings,
+
+        digitalSourceType:
+            ai.digitalSourceType,
+
+        aiDisclosure:
+            ai.aiDisclosure,
+
+        softwareAgent:
+            ai.softwareAgent
+
+    };
+
+}
+
+
+/* =========================================================
+   EMPTY RESULT
+========================================================= */
+
+function createEmptyResult() {
+
+    return {
+
+        checked:
+            false,
+
+        supported:
+            false,
+
+        format:
+            "unknown",
+
+        detected:
+            false,
+
+        aiDetected:
+            false,
+
+        status:
+            "NO_FILE",
+
+        verified:
+            false,
+
+        verificationStatus:
+            "NOT_VERIFIED",
+
+        c2pa: {
+
+            detected:
+                false,
+
+            verified:
+                false,
+
+            manifestCount:
+                0
+
+        },
+
+        contentCredentials: {
+
+            detected:
+                false,
+
+            verified:
+                false
+
+        },
+
+        findings: [],
 
         digitalSourceType:
             null,
 
         aiDisclosure:
+            null,
+
+        softwareAgent:
             null
 
     };
@@ -855,48 +1732,7 @@ async function inspectProvenance(
         !file
     ) {
 
-        return {
-
-            checked: false,
-
-            supported: false,
-
-            format: "unknown",
-
-            detected: false,
-
-            status: "NO_FILE",
-
-            verified: false,
-
-            verificationStatus:
-                "NOT_VERIFIED",
-
-            c2pa: {
-
-                detected: false,
-
-                verified: false,
-
-                manifestCount: 0
-
-            },
-
-            contentCredentials: {
-
-                detected: false,
-
-                verified: false
-
-            },
-
-            findings: [],
-
-            digitalSourceType: null,
-
-            aiDisclosure: null
-
-        };
+        return createEmptyResult();
 
     }
 
@@ -914,25 +1750,35 @@ async function inspectProvenance(
         );
 
 
-    /*
-       Video belum diperiksa oleh
-       inspector ini.
-
-       Jangan menganggap video tanpa
-       signature sebagai "clean".
-    */
-
     if (
-        format === "unknown"
+        format ===
+        "unknown"
     ) {
 
         return createResult(
             format,
             {
 
-                detected: false,
+                detected:
+                    false,
 
-                findings: []
+                findings: [],
+
+                ai: {
+
+                    aiDetected:
+                        false,
+
+                    digitalSourceType:
+                        null,
+
+                    softwareAgent:
+                        null,
+
+                    aiDisclosure:
+                        null
+
+                }
 
             }
         );
@@ -977,13 +1823,43 @@ async function inspectProvenance(
             break;
 
 
+        case "mp4":
+
+        case "mov":
+
+            details =
+                inspectMP4(
+                    bytes,
+                    format
+                );
+
+            break;
+
+
         default:
 
             details = {
 
-                detected: false,
+                detected:
+                    false,
 
-                findings: []
+                findings: [],
+
+                ai: {
+
+                    aiDetected:
+                        false,
+
+                    digitalSourceType:
+                        null,
+
+                    softwareAgent:
+                        null,
+
+                    aiDisclosure:
+                        null
+
+                }
 
             };
 
@@ -1014,6 +1890,18 @@ function hasProvenance(
 }
 
 
+function hasAIProvenance(
+    result
+) {
+
+    return Boolean(
+        result &&
+        result.aiDetected === true
+    );
+
+}
+
+
 function isProvenanceVerified(
     result
 ) {
@@ -1036,6 +1924,8 @@ export {
 
     hasProvenance,
 
+    hasAIProvenance,
+
     isProvenanceVerified
 
 };
@@ -1054,6 +1944,8 @@ window.GENZMetadataProvenance =
             inspectProvenance,
 
         hasProvenance,
+
+        hasAIProvenance,
 
         isVerified:
             isProvenanceVerified
