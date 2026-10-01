@@ -173,13 +173,11 @@
                     <!-- =========================================
                          DROPZONE
                          -------------------------------------------------
-                         Bukan <label> lagi.
+                         Native file input menutupi seluruh area
+                         dropzone secara transparan.
 
-                         Native file input tetap menjadi sumber
-                         upload utama.
-
-                         JavaScript membuka file picker secara
-                         eksplisit melalui openFilePicker().
+                         Browser menangani file picker secara native.
+                         Tidak bergantung pada click() JavaScript.
                     ========================================== -->
 
                     <div
@@ -190,13 +188,22 @@
                         aria-label="Pilih media"
                     >
 
+                        <!-- =====================================
+                             NATIVE FILE INPUT
+                             ===================================== -->
+
                         <input
                             type="file"
                             id="metadata-file-input"
                             accept="image/*,video/*"
-                            hidden
+                            class="metadata-native-file-input"
+                            aria-label="Pilih foto atau video"
                         >
 
+
+                        <!-- =====================================
+                             VISUAL DROPZONE
+                             ===================================== -->
 
                         <div
                             class="metadata-dropzone-icon"
@@ -281,9 +288,9 @@
                 </div>
 
 
-                <!-- =============================================
+                <!-- =================================================
                      PREVIEW
-                ============================================== -->
+                ================================================== -->
 
                 <div
                     class="metadata-panel metadata-preview-panel"
@@ -325,11 +332,13 @@
                                 ◈
                             </div>
 
+
                             <div
                                 class="metadata-preview-empty-title"
                             >
                                 BELUM ADA MEDIA
                             </div>
+
 
                             <div
                                 class="metadata-preview-empty-text"
@@ -396,9 +405,9 @@
                 </div>
 
 
-                <!-- =============================================
+                <!-- =================================================
                      CHECK
-                ============================================== -->
+                ================================================== -->
 
                 <div
                     class="metadata-panel metadata-check-panel"
@@ -628,6 +637,7 @@
                                 >
                                     HASIL CLEANING
                                 </div>
+
 
                                 <div
                                     class="metadata-clean-result-subtitle"
