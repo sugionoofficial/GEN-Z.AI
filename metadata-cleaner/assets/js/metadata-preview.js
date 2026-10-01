@@ -9,16 +9,13 @@
    - Preview image asli
    - Preview video asli
    - Preview hasil cleaning
-   - Menyesuaikan preview-stage dengan rasio media asli
-   - Menjaga media tidak terdistorsi
+   - Menyesuaikan rasio media
    - Mengelola Object URL
-   - Menampilkan / menyembunyikan elemen preview
-
-   RULE:
-   - Tidak menggunakan rasio 16:9 secara paksa
-   - Tidak menggunakan tinggi tetap
-   - Tidak menggunakan min-height untuk media aktif
-   - Rasio mengikuti ukuran media sebenarnya
+   - Mencegah createObjectURL() menerima string
+   - Mendukung:
+       1. Blob
+       2. File
+       3. Object URL string
 ========================================================= */
 
 
@@ -66,15 +63,9 @@ export function showElement(
     );
 
 
-    /*
-       Jika elemen sebelumnya menggunakan
-       display:none melalui CSS/class,
-       gunakan block/flex sesuai jenis elemen.
-    */
-
     if (
-        element.tagName === "VIDEO" ||
-        element.tagName === "IMG"
+        element.tagName === "IMG" ||
+        element.tagName === "VIDEO"
     ) {
 
         element.style.display =
@@ -109,7 +100,7 @@ export function hideElement(
 
 
 /* =========================================================
-   GET PREVIEW STAGE
+   DOM LOOKUP
 ========================================================= */
 
 function getPreviewStage() {
@@ -123,10 +114,6 @@ function getPreviewStage() {
 
 }
 
-
-/* =========================================================
-   GET ORIGINAL MEDIA ELEMENT
-========================================================= */
 
 function getOriginalImage() {
 
@@ -152,10 +139,6 @@ function getOriginalVideo() {
 }
 
 
-/* =========================================================
-   GET CLEAN MEDIA ELEMENT
-========================================================= */
-
 function getCleanImage() {
 
     return (
@@ -180,11 +163,204 @@ function getCleanVideo() {
 }
 
 
+function getPreviewEmpty() {
+
+    return (
+        elements?.previewEmpty ||
+        document.getElementById(
+            "metadata-preview-empty"
+        )
+    );
+
+}
+
+
 /* =========================================================
-   RESET STAGE
+   SAFE OBJECT URL CHECK
+========================================================= */
+
+function isObjectUrl(
+    value
+) {
+
+    return (
+        typeof value === "string" &&
+        (
+            value.startsWith("blob:") ||
+            value.startsWith("data:")
+        )
+    );
+
+}
+
+
+/* =========================================================
+   SAFE BLOB CHECK
+========================================================= */
+
+function isBlob(
+    value
+) {
+
+    return (
+        value instanceof Blob
+    );
+
+}
+
+
+/* =========================================================
+   CREATE PREVIEW URL
    ---------------------------------------------------------
-   Menghapus semua ukuran paksa yang pernah diberikan
-   kepada preview stage.
+   IMPORTANT:
+
+   String:
+       gunakan langsung
+
+   Blob/File:
+       baru buat Object URL
+
+   Object lain:
+       JANGAN dikirim ke URL.createObjectURL()
+========================================================= */
+
+function createPreviewUrl(
+    source
+) {
+
+    if (
+        typeof source === "string"
+    ) {
+
+        if (
+            isObjectUrl(
+                source
+            )
+        ) {
+
+            return {
+                url: source,
+                owned: false
+            };
+
+        }
+
+
+        console.error(
+            "[GEN-Z.AI] Preview source string bukan Object URL:",
+            source
+        );
+
+
+        return null;
+
+    }
+
+
+    if (
+        isBlob(
+            source
+        )
+    ) {
+
+        try {
+
+            const url =
+                URL.createObjectURL(
+                    source
+                );
+
+
+            return {
+                url,
+                owned: true
+            };
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] createObjectURL gagal:",
+                error,
+                source
+            );
+
+
+            return null;
+
+        }
+
+    }
+
+
+    console.error(
+        "[GEN-Z.AI] Preview source harus Blob/File atau Object URL.",
+        source
+    );
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   SAFE REVOKE
+========================================================= */
+
+function revokeUrl(
+    url
+) {
+
+    if (
+        !isObjectUrl(
+            url
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    /*
+       data: URL tidak perlu direvoke.
+    */
+
+    if (
+        url.startsWith(
+            "data:"
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    try {
+
+        URL.revokeObjectURL(
+            url
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Gagal revoke Object URL:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   RESET PREVIEW STAGE
 ========================================================= */
 
 function resetPreviewStage() {
@@ -256,25 +432,16 @@ function resetPreviewStage() {
         "padding-right"
     );
 
+
+    delete stage.dataset.previewWidth;
+    delete stage.dataset.previewHeight;
+    delete stage.dataset.previewRatio;
+
 }
 
 
 /* =========================================================
-   APPLY EXACT MEDIA RATIO
-   ---------------------------------------------------------
-   Contoh:
-
-   1080 × 1920
-   → 9:16
-
-   1920 × 1080
-   → 16:9
-
-   1080 × 1080
-   → 1:1
-
-   4000 × 3000
-   → 4:3
+   APPLY MEDIA RATIO
 ========================================================= */
 
 function applyMediaRatio(
@@ -295,28 +462,21 @@ function applyMediaRatio(
     }
 
 
-    let width =
+    const width =
         Number(
             media.naturalWidth ||
             media.videoWidth ||
-            media.width ||
             0
         );
 
 
-    let height =
+    const height =
         Number(
             media.naturalHeight ||
             media.videoHeight ||
-            media.height ||
             0
         );
 
-
-    /*
-       Untuk image/video yang belum memberikan
-       intrinsic dimensions, jangan membuat rasio palsu.
-    */
 
     if (
         !Number.isFinite(width) ||
@@ -345,16 +505,11 @@ function applyMediaRatio(
 
 
     /*
-       Hapus tinggi paksa lebih dahulu.
+       Hapus constraint lama.
     */
 
     stage.style.removeProperty(
         "height"
-    );
-
-
-    stage.style.removeProperty(
-        "min-height"
     );
 
 
@@ -364,42 +519,24 @@ function applyMediaRatio(
 
 
     /*
-       Stage mengikuti rasio asli media.
+       Preview mengikuti lebar container.
     */
 
     stage.style.width =
         "100%";
 
 
-    stage.style.aspectRatio =
-        `${width} / ${height}`;
-
-
-    /*
-       Jangan membiarkan CSS lama memberi
-       minimum height yang merusak rasio.
-    */
-
     stage.style.minHeight =
         "0";
 
-
-    stage.style.maxHeight =
-        "none";
-
-
-    /*
-       Pastikan browser menghitung tinggi berdasarkan
-       width + aspect-ratio.
-    */
 
     stage.style.height =
         "auto";
 
 
-    /*
-       Simpan informasi aktual untuk debugging.
-    */
+    stage.style.aspectRatio =
+        `${width} / ${height}`;
+
 
     stage.dataset.previewWidth =
         String(
@@ -425,9 +562,7 @@ function applyMediaRatio(
 
 
 /* =========================================================
-   MEDIA BASE STYLE
-   ---------------------------------------------------------
-   Media mengikuti kotak preview tetapi tidak distorsi.
+   APPLY MEDIA STYLE
 ========================================================= */
 
 function applyMediaStyle(
@@ -471,20 +606,20 @@ function applyMediaStyle(
         "0";
 
 
-    media.style.objectFit =
-        "contain";
-
-
-    media.style.objectPosition =
-        "center";
-
-
     media.style.margin =
         "0";
 
 
     media.style.padding =
         "0";
+
+
+    media.style.objectFit =
+        "contain";
+
+
+    media.style.objectPosition =
+        "center";
 
 
     media.style.boxSizing =
@@ -494,7 +629,7 @@ function applyMediaStyle(
 
 
 /* =========================================================
-   IMAGE LOAD
+   IMAGE LOADED
 ========================================================= */
 
 function handleImageLoaded(
@@ -526,7 +661,7 @@ function handleImageLoaded(
    VIDEO METADATA LOADED
 ========================================================= */
 
-function handleVideoMetadataLoaded(
+function handleVideoLoaded(
     video
 ) {
 
@@ -552,7 +687,7 @@ function handleVideoMetadataLoaded(
 
 
 /* =========================================================
-   RENDER ORIGINAL IMAGE
+   RENDER IMAGE PREVIEW
 ========================================================= */
 
 export function renderImagePreview(
@@ -568,10 +703,7 @@ export function renderImagePreview(
 
 
     const empty =
-        elements?.previewEmpty ||
-        document.getElementById(
-            "metadata-preview-empty"
-        );
+        getPreviewEmpty();
 
 
     if (
@@ -582,7 +714,7 @@ export function renderImagePreview(
             "[GEN-Z.AI] metadata-image-preview tidak ditemukan."
         );
 
-        return;
+        return false;
 
     }
 
@@ -599,7 +731,20 @@ export function renderImagePreview(
         );
 
 
-        video.load?.();
+        try {
+
+            video.load();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal reset video:",
+                error
+            );
+
+        }
 
 
         hideElement(
@@ -620,11 +765,6 @@ export function renderImagePreview(
     }
 
 
-    /*
-       Reset stage dahulu agar tidak membawa
-       rasio file sebelumnya.
-    */
-
     resetPreviewStage();
 
 
@@ -642,7 +782,7 @@ export function renderImagePreview(
         function (error) {
 
             console.error(
-                "[GEN-Z.AI] Gagal memuat image preview:",
+                "[GEN-Z.AI] Image preview gagal dimuat:",
                 error
             );
 
@@ -665,15 +805,9 @@ export function renderImagePreview(
     );
 
 
-    /*
-       Jika browser sudah memiliki intrinsic dimensions,
-       langsung terapkan.
-    */
-
     if (
         image.complete &&
-        image.naturalWidth > 0 &&
-        image.naturalHeight > 0
+        image.naturalWidth > 0
     ) {
 
         handleImageLoaded(
@@ -682,11 +816,14 @@ export function renderImagePreview(
 
     }
 
+
+    return true;
+
 }
 
 
 /* =========================================================
-   RENDER ORIGINAL VIDEO
+   RENDER VIDEO PREVIEW
 ========================================================= */
 
 export function renderVideoPreview(
@@ -702,10 +839,7 @@ export function renderVideoPreview(
 
 
     const empty =
-        elements?.previewEmpty ||
-        document.getElementById(
-            "metadata-preview-empty"
-        );
+        getPreviewEmpty();
 
 
     if (
@@ -716,7 +850,7 @@ export function renderVideoPreview(
             "[GEN-Z.AI] metadata-video-preview tidak ditemukan."
         );
 
-        return;
+        return false;
 
     }
 
@@ -759,7 +893,7 @@ export function renderVideoPreview(
     video.onloadedmetadata =
         function () {
 
-            handleVideoMetadataLoaded(
+            handleVideoLoaded(
                 video
             );
 
@@ -770,7 +904,7 @@ export function renderVideoPreview(
         function (error) {
 
             console.error(
-                "[GEN-Z.AI] Gagal memuat video preview:",
+                "[GEN-Z.AI] Video preview gagal dimuat:",
                 error
             );
 
@@ -785,7 +919,20 @@ export function renderVideoPreview(
     );
 
 
-    video.load();
+    try {
+
+        video.load();
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Gagal reset video:",
+            error
+        );
+
+    }
 
 
     video.src =
@@ -794,7 +941,20 @@ export function renderVideoPreview(
         );
 
 
-    video.load();
+    try {
+
+        video.load();
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Gagal load video:",
+            error
+        );
+
+    }
 
 
     showElement(
@@ -802,20 +962,19 @@ export function renderVideoPreview(
     );
 
 
-    /*
-       Fallback jika metadata sudah tersedia.
-    */
-
     if (
         video.videoWidth > 0 &&
         video.videoHeight > 0
     ) {
 
-        handleVideoMetadataLoaded(
+        handleVideoLoaded(
             video
         );
 
     }
+
+
+    return true;
 
 }
 
@@ -834,67 +993,59 @@ export function renderOriginalPreview(
 
         clearOriginalPreview();
 
-        return;
+        return false;
 
     }
 
 
-    /*
-       Jangan membuat URL baru jika file tidak valid.
-    */
-
     if (
-        !(
-            file instanceof File ||
-            file instanceof Blob
+        !isBlob(
+            file
         )
     ) {
 
         console.error(
-            "[GEN-Z.AI] File preview tidak valid."
+            "[GEN-Z.AI] File original bukan Blob/File:",
+            file
         );
 
-        return;
+        return false;
 
     }
 
 
     /*
-       Hapus URL preview lama.
+       Hapus URL lama.
     */
 
     if (
         state.originalPreviewUrl
     ) {
 
-        try {
-
-            URL.revokeObjectURL(
-                state.originalPreviewUrl
-            );
-
-        } catch (
-            error
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] Gagal revoke original preview URL:",
-                error
-            );
-
-        }
+        revokeUrl(
+            state.originalPreviewUrl
+        );
 
     }
 
 
-    const url =
-        URL.createObjectURL(
+    const preview =
+        createPreviewUrl(
             file
         );
 
 
+    if (
+        !preview
+    ) {
+
+        return false;
+
+    }
+
+
     state.originalPreviewUrl =
-        url;
+        preview.url;
 
 
     const type =
@@ -909,36 +1060,36 @@ export function renderOriginalPreview(
         )
     ) {
 
-        renderImagePreview(
-            url
+        return renderImagePreview(
+            preview.url
         );
 
     }
 
 
-    else if (
+    if (
         type.startsWith(
             "video/"
         )
     ) {
 
-        renderVideoPreview(
-            url
+        return renderVideoPreview(
+            preview.url
         );
 
     }
 
 
-    else {
+    console.error(
+        "[GEN-Z.AI] Format preview tidak didukung:",
+        file.type
+    );
 
-        console.warn(
-            "[GEN-Z.AI] Format preview tidak didukung:",
-            file.type
-        );
 
-        clearOriginalPreview();
+    clearOriginalPreview();
 
-    }
+
+    return false;
 
 }
 
@@ -984,7 +1135,20 @@ function renderCleanedImage(
         );
 
 
-        video.load?.();
+        try {
+
+            video.load();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal reset cleaned video:",
+                error
+            );
+
+        }
 
 
         hideElement(
@@ -1008,7 +1172,7 @@ function renderCleanedImage(
         function (error) {
 
             console.error(
-                "[GEN-Z.AI] Gagal memuat cleaned image:",
+                "[GEN-Z.AI] Cleaned image gagal dimuat:",
                 error
             );
 
@@ -1100,7 +1264,7 @@ function renderCleanedVideo(
         function (error) {
 
             console.error(
-                "[GEN-Z.AI] Gagal memuat cleaned video:",
+                "[GEN-Z.AI] Cleaned video gagal dimuat:",
                 error
             );
 
@@ -1115,7 +1279,20 @@ function renderCleanedVideo(
     );
 
 
-    video.load();
+    try {
+
+        video.load();
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Gagal reset cleaned video:",
+            error
+        );
+
+    }
 
 
     video.src =
@@ -1124,7 +1301,20 @@ function renderCleanedVideo(
         );
 
 
-    video.load();
+    try {
+
+        video.load();
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Gagal load cleaned video:",
+            error
+        );
+
+    }
 
 
     showElement(
@@ -1140,40 +1330,30 @@ function renderCleanedVideo(
 /* =========================================================
    RENDER CLEANED PREVIEW
    ---------------------------------------------------------
-   Menerima:
+   Dapat menerima:
 
-   1. Blob
-   2. File
+   Blob:
+       renderCleanedPreview(blob)
 
-   Fungsi ini membuat Object URL sendiri.
+   Object URL:
+       renderCleanedPreview("blob:...")
+
+   Keduanya aman.
+
+   Tidak pernah memanggil createObjectURL()
+   terhadap string.
 ========================================================= */
 
 export function renderCleanedPreview(
-    blob
+    source
 ) {
 
     if (
-        !blob
+        !source
     ) {
 
         console.error(
-            "[GEN-Z.AI] Cleaned preview gagal: Blob kosong."
-        );
-
-        return false;
-
-    }
-
-
-    if (
-        !(
-            blob instanceof Blob
-        )
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] Cleaned preview membutuhkan Blob/File.",
-            blob
+            "[GEN-Z.AI] Cleaned preview source kosong."
         );
 
         return false;
@@ -1182,91 +1362,192 @@ export function renderCleanedPreview(
 
 
     /*
-       Hapus preview cleaned lama.
+       Hapus cleaned preview sebelumnya.
+
+       clearCleanedPreview() akan melepaskan URL
+       yang memang dimiliki state.
     */
 
     clearCleanedPreview();
 
 
     /*
-       Buat URL baru.
+       Tentukan apakah source:
+       - Blob/File
+       - Object URL
     */
 
-    const url =
-        URL.createObjectURL(
-            blob
+    const preview =
+        createPreviewUrl(
+            source
         );
 
 
-    state.cleanedPreviewUrl =
-        url;
+    if (
+        !preview
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] Cleaned preview tidak dapat dibuat."
+        );
+
+        return false;
+
+    }
 
 
     /*
-       Jika state utama menggunakan cleanedURL,
-       sinkronkan.
+       Simpan URL agar download module dan lifecycle
+       dapat menggunakannya.
     */
 
+    state.cleanedPreviewUrl =
+        preview.url;
+
+
     state.cleanedURL =
-        url;
+        preview.url;
 
 
-    const type =
-        String(
-            blob.type || ""
-        ).toLowerCase();
+    /*
+       Jika Blob, type berasal dari Blob.
+       Jika URL string, type tidak diketahui dari URL.
+
+       Untuk string, coba tentukan dari state.fileType.
+    */
+
+    let type =
+        "";
 
 
     if (
+        isBlob(
+            source
+        )
+    ) {
+
+        type =
+            String(
+                source.type || ""
+            ).toLowerCase();
+
+    }
+
+
+    if (
+        !type
+    ) {
+
+        type =
+            String(
+                state.fileType || ""
+            ).toLowerCase();
+
+    }
+
+
+    /*
+       IMAGE
+    */
+
+    if (
+        type === "image" ||
         type.startsWith(
             "image/"
         )
     ) {
 
         return renderCleanedImage(
-            url
+            preview.url
         );
 
     }
 
 
+    /*
+       VIDEO
+    */
+
     if (
+        type === "video" ||
         type.startsWith(
             "video/"
         )
     ) {
 
         return renderCleanedVideo(
-            url
+            preview.url
+        );
+
+    }
+
+
+    /*
+       Jika type Blob kosong tetapi source merupakan
+       URL blob, coba gunakan file aktif.
+    */
+
+    const activeType =
+        String(
+            state.file?.type || ""
+        ).toLowerCase();
+
+
+    if (
+        activeType.startsWith(
+            "image/"
+        )
+    ) {
+
+        return renderCleanedImage(
+            preview.url
+        );
+
+    }
+
+
+    if (
+        activeType.startsWith(
+            "video/"
+        )
+    ) {
+
+        return renderCleanedVideo(
+            preview.url
         );
 
     }
 
 
     console.error(
-        "[GEN-Z.AI] Format cleaned preview tidak didukung:",
-        blob.type
+        "[GEN-Z.AI] Jenis cleaned preview tidak dapat ditentukan.",
+        {
+            sourceType:
+                typeof source,
+
+            blobType:
+                source?.type || null,
+
+            stateFileType:
+                state.fileType || null,
+
+            activeFileType:
+                state.file?.type || null
+        }
     );
 
 
     /*
-       Jika tipe Blob tidak dikenal,
-       bersihkan URL agar tidak bocor.
+       Jangan biarkan URL menggantung jika
+       format tidak dapat ditentukan.
     */
 
-    try {
-
-        URL.revokeObjectURL(
-            url
-        );
-
-    } catch (
-        error
+    if (
+        preview.owned
     ) {
 
-        console.warn(
-            "[GEN-Z.AI] Gagal revoke unsupported cleaned URL:",
-            error
+        revokeUrl(
+            preview.url
         );
 
     }
@@ -1300,10 +1581,7 @@ export function clearOriginalPreview() {
 
 
     const empty =
-        elements?.previewEmpty ||
-        document.getElementById(
-            "metadata-preview-empty"
-        );
+        getPreviewEmpty();
 
 
     if (
@@ -1406,22 +1684,9 @@ export function clearOriginalPreview() {
         state.originalPreviewUrl
     ) {
 
-        try {
-
-            URL.revokeObjectURL(
-                state.originalPreviewUrl
-            );
-
-        } catch (
-            error
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] Gagal revoke original preview URL:",
-                error
-            );
-
-        }
+        revokeUrl(
+            state.originalPreviewUrl
+        );
 
     }
 
@@ -1449,11 +1714,6 @@ export function clearCleanedPreview() {
         getCleanVideo();
 
 
-    /*
-       Jangan revoke URL dua kali jika kedua state
-       menunjuk URL yang sama.
-    */
-
     const cleanedUrl =
         state.cleanedURL;
 
@@ -1462,26 +1722,17 @@ export function clearCleanedPreview() {
         state.cleanedPreviewUrl;
 
 
+    /*
+       Jangan revoke URL dua kali.
+    */
+
     if (
         cleanedUrl
     ) {
 
-        try {
-
-            URL.revokeObjectURL(
-                cleanedUrl
-            );
-
-        } catch (
-            error
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] Gagal revoke cleaned URL:",
-                error
-            );
-
-        }
+        revokeUrl(
+            cleanedUrl
+        );
 
     }
 
@@ -1491,22 +1742,9 @@ export function clearCleanedPreview() {
         previewUrl !== cleanedUrl
     ) {
 
-        try {
-
-            URL.revokeObjectURL(
-                previewUrl
-            );
-
-        } catch (
-            error
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] Gagal revoke cleaned preview URL:",
-                error
-            );
-
-        }
+        revokeUrl(
+            previewUrl
+        );
 
     }
 
@@ -1663,10 +1901,7 @@ export function resetPreview() {
 
 
 /* =========================================================
-   RESIZE HANDLER
-   ---------------------------------------------------------
-   Ketika viewport berubah, rasio tetap mengikuti
-   intrinsic dimensions media.
+   REFRESH ACTIVE RATIO
 ========================================================= */
 
 function refreshActivePreviewRatio() {
@@ -1710,6 +1945,10 @@ function refreshActivePreviewRatio() {
 
 }
 
+
+/* =========================================================
+   RESIZE
+========================================================= */
 
 let resizeTimer =
     null;
