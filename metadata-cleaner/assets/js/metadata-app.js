@@ -133,6 +133,10 @@ import {
     calculateAspectRatio
 } from "./metadata-utils.js";
 
+import {
+    revokeObjectURL
+} from "./metadata-file.js";
+
 /* =========================================================
    CONSTANTS
 ========================================================= */
