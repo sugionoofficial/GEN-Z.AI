@@ -9,7 +9,9 @@
    - Mengirim image ke backend Sightengine
    - Tidak menyimpan credential Sightengine
    - Menormalisasi response backend
-   - Mempertahankan generator scores
+   - Mempertahankan seluruh generator scores
+   - Mempertahankan score 0%
+   - Menormalisasi Face Manipulation / Deepfake
    - Mempertahankan request metadata
    - Mempertahankan media metadata
    - Menghasilkan object detection siap digunakan UI
@@ -18,8 +20,8 @@
    Backend:
    POST /api/sightengine-detect
 
-   Model:
-   genai
+   Model backend:
+   genai + deepfake
 
    Catatan:
    - Sightengine hanya digunakan untuk IMAGE.
@@ -65,8 +67,10 @@ function isObject(
 /* =========================================================
    SCORE NORMALIZATION
    ---------------------------------------------------------
-   Sightengine:
+   Sightengine score:
        0.0 - 1.0
+
+   Nilai 0 tetap valid.
 ========================================================= */
 
 function normalizeScore(
@@ -118,6 +122,8 @@ function normalizeScore(
    ---------------------------------------------------------
    Frontend confidence:
        0 - 100
+
+   Nilai 0 tetap valid.
 ========================================================= */
 
 function normalizePercentage(
@@ -190,6 +196,101 @@ function scoreToPercentage(
     return Math.round(
         normalized * 100
     );
+
+}
+
+
+/* =========================================================
+   GENERIC SCORE EXTRACTION
+   ---------------------------------------------------------
+   Mendukung beberapa bentuk response agar frontend
+   tidak bergantung pada satu nama field saja.
+========================================================= */
+
+function getFirstValidScore(
+    object,
+    keys
+) {
+
+    if (
+        !isObject(
+            object
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    for (
+        const key of keys
+    ) {
+
+        const score =
+            normalizeScore(
+                object[key]
+            );
+
+
+        if (
+            score !== null
+        ) {
+
+            return score;
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   GENERIC PERCENTAGE EXTRACTION
+========================================================= */
+
+function getFirstValidPercentage(
+    object,
+    keys
+) {
+
+    if (
+        !isObject(
+            object
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    for (
+        const key of keys
+    ) {
+
+        const percentage =
+            normalizePercentage(
+                object[key]
+            );
+
+
+        if (
+            percentage !== null
+        ) {
+
+            return percentage;
+
+        }
+
+    }
+
+
+    return null;
 
 }
 
@@ -450,6 +551,11 @@ function normalizeGeneratorName(
 
 /* =========================================================
    GENERATOR NORMALIZATION
+   ---------------------------------------------------------
+   Penting:
+   - Score 0 tetap dipertahankan.
+   - Generator tidak dibuang hanya karena score kecil.
+   - Confidence otomatis dibuat dari score jika tidak ada.
 ========================================================= */
 
 function normalizeGenerators(
@@ -506,8 +612,13 @@ function normalizeGenerators(
 
 
                 let confidence =
-                    normalizePercentage(
-                        generator.confidence
+                    getFirstValidPercentage(
+                        generator,
+                        [
+                            "confidence",
+                            "percentage",
+                            "probability_percent"
+                        ]
                     );
 
 
@@ -515,6 +626,9 @@ function normalizeGenerators(
                  * Jika backend tidak mengirim
                  * confidence tetapi score tersedia,
                  * hitung dari score.
+                 *
+                 * Score 0 menghasilkan confidence 0,
+                 * bukan null.
                  */
 
                 if (
@@ -619,8 +733,13 @@ function normalizeDetectedGenerator(
 
 
     let confidence =
-        normalizePercentage(
-            generator.confidence
+        getFirstValidPercentage(
+            generator,
+            [
+                "confidence",
+                "percentage",
+                "probability_percent"
+            ]
         );
 
 
@@ -644,6 +763,123 @@ function normalizeDetectedGenerator(
         score,
 
         confidence
+
+    };
+
+}
+
+
+/* =========================================================
+   FACE MANIPULATION / DEEPFAKE NORMALIZATION
+   ---------------------------------------------------------
+   Backend versi baru dapat mengirim:
+
+       face_manipulation
+       face_manipulation_confidence
+       is_face_manipulated
+
+   serta alias:
+
+       deepfake
+       deepfake_confidence
+
+   Semua dipertahankan supaya renderer memiliki
+   satu struktur yang konsisten.
+========================================================= */
+
+function normalizeFaceManipulation(
+    backendDetection
+) {
+
+    if (
+        !isObject(
+            backendDetection
+        )
+    ) {
+
+        return {
+
+            score: null,
+
+            confidence: null,
+
+            isManipulated: false
+
+        };
+
+    }
+
+
+    const score =
+        getFirstValidScore(
+            backendDetection,
+            [
+                "face_manipulation",
+                "deepfake"
+            ]
+        );
+
+
+    let confidence =
+        getFirstValidPercentage(
+            backendDetection,
+            [
+                "face_manipulation_confidence",
+                "deepfake_confidence"
+            ]
+        );
+
+
+    if (
+        confidence === null &&
+        score !== null
+    ) {
+
+        confidence =
+            scoreToPercentage(
+                score
+            );
+
+    }
+
+
+    let isManipulated =
+        false;
+
+
+    if (
+        typeof backendDetection.is_face_manipulated ===
+        "boolean"
+    ) {
+
+        isManipulated =
+            backendDetection.is_face_manipulated;
+
+    } else if (
+        typeof backendDetection.is_deepfake ===
+        "boolean"
+    ) {
+
+        isManipulated =
+            backendDetection.is_deepfake;
+
+    } else if (
+        score !== null
+    ) {
+
+        isManipulated =
+            score >= 0.5;
+
+    }
+
+
+    return {
+
+        score,
+
+        confidence,
+
+        isManipulated
 
     };
 
@@ -814,18 +1050,27 @@ function normalizeDetection(
     ===================================================== */
 
     const aiGenerated =
-        normalizeScore(
-            backendDetection.ai_generated
+        getFirstValidScore(
+            backendDetection,
+            [
+                "ai_generated",
+                "genai"
+            ]
         );
 
 
     /* =====================================================
-       CONFIDENCE
+       AI CONFIDENCE
     ===================================================== */
 
     let confidence =
-        normalizePercentage(
-            backendDetection.confidence
+        getFirstValidPercentage(
+            backendDetection,
+            [
+                "confidence",
+                "ai_generated_confidence",
+                "genai_confidence"
+            ]
         );
 
 
@@ -840,6 +1085,16 @@ function normalizeDetection(
             );
 
     }
+
+
+    /* =====================================================
+       FACE MANIPULATION
+    ===================================================== */
+
+    const faceManipulation =
+        normalizeFaceManipulation(
+            backendDetection
+        );
 
 
     /* =====================================================
@@ -884,6 +1139,10 @@ function normalizeDetection(
 
     /* =====================================================
        FINAL OBJECT
+       -----------------------------------------------------
+       Field lama dipertahankan.
+       Field baru ditambahkan tanpa menghapus
+       struktur sebelumnya.
     ===================================================== */
 
     return {
@@ -894,6 +1153,10 @@ function normalizeDetection(
                 : SIGHTENGINE_PROVIDER,
 
         model,
+
+        /* -------------------------------------------------
+           GENAI
+        ------------------------------------------------- */
 
         ai_generated:
             aiGenerated,
@@ -907,10 +1170,51 @@ function normalizeDetection(
                 : aiGenerated !== null &&
                   aiGenerated >= 0.5,
 
+
+        /* -------------------------------------------------
+           FACE MANIPULATION
+        ------------------------------------------------- */
+
+        face_manipulation:
+            faceManipulation.score,
+
+        face_manipulation_confidence:
+            faceManipulation.confidence,
+
+        is_face_manipulated:
+            faceManipulation.isManipulated,
+
+
+        /* -------------------------------------------------
+           DEEPFAKE ALIAS
+           -------------------------------------------------
+           Dipertahankan supaya UI dapat menampilkan
+           Deepfake secara terpisah dari GenAI.
+        ------------------------------------------------- */
+
+        deepfake:
+            faceManipulation.score,
+
+        deepfake_confidence:
+            faceManipulation.confidence,
+
+        is_deepfake:
+            faceManipulation.isManipulated,
+
+
+        /* -------------------------------------------------
+           GENERATORS
+        ------------------------------------------------- */
+
         generators,
 
         detected_generator:
             detectedGenerator,
+
+
+        /* -------------------------------------------------
+           REQUEST / MEDIA
+        ------------------------------------------------- */
 
         request,
 
@@ -935,6 +1239,11 @@ function createEmptyDetection() {
         model:
             null,
 
+
+        /* -------------------------------------------------
+           GENAI
+        ------------------------------------------------- */
+
         ai_generated:
             null,
 
@@ -944,11 +1253,49 @@ function createEmptyDetection() {
         is_ai_generated:
             false,
 
+
+        /* -------------------------------------------------
+           FACE MANIPULATION
+        ------------------------------------------------- */
+
+        face_manipulation:
+            null,
+
+        face_manipulation_confidence:
+            null,
+
+        is_face_manipulated:
+            false,
+
+
+        /* -------------------------------------------------
+           DEEPFAKE
+        ------------------------------------------------- */
+
+        deepfake:
+            null,
+
+        deepfake_confidence:
+            null,
+
+        is_deepfake:
+            false,
+
+
+        /* -------------------------------------------------
+           GENERATORS
+        ------------------------------------------------- */
+
         generators:
             [],
 
         detected_generator:
             null,
+
+
+        /* -------------------------------------------------
+           REQUEST / MEDIA
+        ------------------------------------------------- */
 
         request:
             null,
@@ -1180,13 +1527,129 @@ export function formatSightengineGenerator(
 
         return (
             `${name} ` +
-            `(${score * 100}%)`
+            `(${Math.round(score * 100)}%)`
         );
 
     }
 
 
     return name;
+
+}
+
+
+/* =========================================================
+   PUBLIC FACE MANIPULATION FORMATTER
+========================================================= */
+
+export function formatSightengineFaceManipulation(
+    detection
+) {
+
+    if (
+        !isObject(
+            detection
+        )
+    ) {
+
+        return "";
+
+    }
+
+
+    const confidence =
+        normalizePercentage(
+            detection.face_manipulation_confidence
+        );
+
+
+    if (
+        confidence !== null
+    ) {
+
+        return (
+            `${confidence}%`
+        );
+
+    }
+
+
+    const score =
+        normalizeScore(
+            detection.face_manipulation
+        );
+
+
+    if (
+        score !== null
+    ) {
+
+        return (
+            `${Math.round(score * 100)}%`
+        );
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
+   PUBLIC DEEPFAKE FORMATTER
+========================================================= */
+
+export function formatSightengineDeepfake(
+    detection
+) {
+
+    if (
+        !isObject(
+            detection
+        )
+    ) {
+
+        return "";
+
+    }
+
+
+    const confidence =
+        normalizePercentage(
+            detection.deepfake_confidence
+        );
+
+
+    if (
+        confidence !== null
+    ) {
+
+        return (
+            `${confidence}%`
+        );
+
+    }
+
+
+    const score =
+        normalizeScore(
+            detection.deepfake
+        );
+
+
+    if (
+        score !== null
+    ) {
+
+        return (
+            `${Math.round(score * 100)}%`
+        );
+
+    }
+
+
+    return "";
 
 }
 
@@ -1215,6 +1678,8 @@ export {
 
     normalizeRequestMetadata,
 
-    normalizeMediaMetadata
+    normalizeMediaMetadata,
+
+    normalizeFaceManipulation
 
 };
