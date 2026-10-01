@@ -9,6 +9,7 @@
    - Render detection result
    - Render status
    - Render metadata table
+   - Render hasil Sightengine pada blok Metadata
 
    AI DETECTION:
    1. Local metadata detector
@@ -23,6 +24,8 @@
      langsung dari result Sightengine.
    - Stamp visual hanya ditampilkan jika
      Sightengine benar-benar mendeteksi AI.
+   - Detail hasil Sightengine juga ditampilkan
+     pada tabel Metadata.
 ========================================================= */
 
 
@@ -81,9 +84,6 @@ export function renderDetectionResult() {
 
         /* =================================================
            SIGHTENGINE VISUAL DETECTION
-           -----------------------------------------------
-           Stamp hanya boleh muncul jika hasil Sightengine
-           benar-benar menyatakan is_ai_generated === true.
         ================================================= */
 
         if (
@@ -210,31 +210,6 @@ export function renderDetectionResult() {
 
 /* =========================================================
    OVERLAY STAMP
-   ---------------------------------------------------------
-   Stamp visual berada langsung di atas preview media.
-
-   Struktur HTML:
-
-       #metadata-ai-detect-overlay
-           .metadata-ai-detect-stamp
-               span
-                   AI DETECTION
-
-   Ketika Sightengine mendeteksi AI:
-
-       overlay.hidden = false
-       aria-hidden = false
-
-   Ketika tidak terdeteksi:
-
-       overlay.hidden = true
-       aria-hidden = true
-
-   Model selalu berasal dari:
-
-       sightengine.model
-
-   Tidak ada hardcode model.
 ========================================================= */
 
 function renderOverlayStamp(
@@ -244,10 +219,6 @@ function renderOverlayStamp(
     const overlay =
         elements.aiOverlay;
 
-
-    /* =====================================================
-       OVERLAY TIDAK ADA
-    ===================================================== */
 
     if (
         !overlay
@@ -263,12 +234,7 @@ function renderOverlayStamp(
 
 
     /* =====================================================
-       PASTIKAN OVERLAY BENAR-BENAR TERLIHAT
-       -----------------------------------------------
-       Jangan hanya mengandalkan caller.
-
-       Fungsi ini sendiri bertanggung jawab membuka
-       overlay ketika hasil Sightengine positif.
+       PASTIKAN OVERLAY TERLIHAT
     ===================================================== */
 
     overlay.classList.remove(
@@ -291,17 +257,6 @@ function renderOverlayStamp(
             ".metadata-ai-detect-stamp"
         );
 
-
-    /* =====================================================
-       FALLBACK STRUCTURE
-       -----------------------------------------------
-       Jika markup stamp tidak ada, buat ulang bagian
-       stamp di dalam overlay.
-
-       Ini tidak membuat overlay utama baru.
-       Hanya menjaga UI tetap berfungsi apabila markup
-       stamp hilang atau berubah.
-    ===================================================== */
 
     if (
         !stamp
@@ -358,16 +313,6 @@ function renderOverlayStamp(
 
     /* =====================================================
        MODEL RESULT
-       -----------------------------------------------
-       Model diambil langsung dari Sightengine.
-
-       Contoh:
-
-       genai
-       genai-v2
-       some-other-model
-
-       Tidak ada fallback.
     ===================================================== */
 
     renderOverlayModel(
@@ -378,9 +323,6 @@ function renderOverlayStamp(
 
     /* =====================================================
        FINAL VISIBILITY LOCK
-       -----------------------------------------------
-       Pastikan browser menerima overlay sebagai element
-       yang aktif setelah seluruh DOM selesai diperbarui.
     ===================================================== */
 
     overlay.hidden =
@@ -390,6 +332,7 @@ function renderOverlayStamp(
     overlay.style.visibility =
         "visible";
 
+
     overlay.style.opacity =
         "1";
 
@@ -398,12 +341,6 @@ function renderOverlayStamp(
 
 /* =========================================================
    OVERLAY MODEL LABEL
-   ---------------------------------------------------------
-   Model TIDAK di-hardcode.
-
-   Nilai berasal langsung dari:
-
-       sightengine.model
 ========================================================= */
 
 function renderOverlayModel(
@@ -420,10 +357,6 @@ function renderOverlayModel(
     }
 
 
-    /* =====================================================
-       HAPUS MODEL LAMA
-    ===================================================== */
-
     const existing =
         stamp.querySelector(
             ".metadata-ai-detect-model"
@@ -438,10 +371,6 @@ function renderOverlayModel(
 
     }
 
-
-    /* =====================================================
-       MODEL TIDAK TERSEDIA
-    ===================================================== */
 
     if (
         model === null ||
@@ -468,10 +397,6 @@ function renderOverlayModel(
     }
 
 
-    /* =====================================================
-       CREATE MODEL LABEL
-    ===================================================== */
-
     const modelLabel =
         document.createElement(
             "span"
@@ -488,7 +413,6 @@ function renderOverlayModel(
 
     stamp.appendChild(
         modelLabel
-
     );
 
 }
@@ -496,14 +420,6 @@ function renderOverlayModel(
 
 /* =========================================================
    CLEAR OVERLAY STAMP
-   ---------------------------------------------------------
-   Digunakan ketika:
-
-   - file baru dipilih
-   - Sightengine tidak mendeteksi AI
-   - Sightengine gagal
-   - belum ada hasil detection
-   - hanya metadata AI yang ditemukan
 ========================================================= */
 
 function clearOverlayStamp() {
@@ -520,10 +436,6 @@ function clearOverlayStamp() {
 
     }
 
-
-    /* =====================================================
-       HIDE OVERLAY
-    ===================================================== */
 
     overlay.classList.add(
         "hidden"
@@ -542,6 +454,7 @@ function clearOverlayStamp() {
 
     overlay.style.visibility =
         "hidden";
+
 
     overlay.style.opacity =
         "0";
@@ -739,9 +652,9 @@ function formatConfidence(
             );
 
 
-        return `${Math.round(
-            normalized * 100
-        )}%`;
+        return formatPercentage(
+            normalized
+        );
 
     }
 
@@ -822,15 +735,9 @@ function formatGenerator(
         )
     ) {
 
-        return `${name} (${Math.round(
-            Math.max(
-                0,
-                Math.min(
-                    100,
-                    confidence
-                )
-            )
-        )}%)`;
+        return `${formatPercentageFromPercent(
+            confidence
+        )}`;
 
     }
 
@@ -847,15 +754,9 @@ function formatGenerator(
         )
     ) {
 
-        return `${name} (${Math.round(
-            Math.max(
-                0,
-                Math.min(
-                    1,
-                    score
-                )
-            ) * 100
-        )}%)`;
+        return `${name} (${formatPercentage(
+            score
+        )})`;
 
     }
 
@@ -940,6 +841,19 @@ export function setStatus(
 
 /* =========================================================
    METADATA RENDER
+   ---------------------------------------------------------
+   Render metadata lokal terlebih dahulu.
+
+   Kemudian hasil Sightengine ditambahkan
+   sebagai bagian khusus pada tabel yang sama.
+
+   Struktur:
+
+       Metadata lokal
+            ↓
+       Sightengine summary
+            ↓
+       AI generators
 ========================================================= */
 
 export function renderMetadata() {
@@ -957,94 +871,847 @@ export function renderMetadata() {
         "";
 
 
+    /* =====================================================
+       LOCAL METADATA
+    ===================================================== */
+
     if (
-        !state.metadata.length
+        Array.isArray(state.metadata) &&
+        state.metadata.length
     ) {
 
-        elements.metadataTableBody.innerHTML = `
-            <tr>
-                <td
-                    colspan="2"
-                    class="metadata-empty-cell"
-                >
-                    Tidak ada metadata yang berhasil dibaca.
-                </td>
-            </tr>
-        `;
-
-
-        if (
-            elements.metadataCount
+        for (
+            const item of state.metadata
         ) {
 
-            elements.metadataCount.textContent =
-                "0";
+            appendMetadataRow(
+                item?.field,
+                item?.value
+            );
 
         }
 
+    } else {
+
+        appendMetadataRow(
+            "Metadata",
+            "Tidak ada metadata yang berhasil dibaca."
+        );
+
+    }
+
+
+    /* =====================================================
+       SIGHTENGINE RESULT
+       -----------------------------------------------------
+       Hanya image yang memiliki hasil Sightengine.
+    ===================================================== */
+
+    renderSightengineMetadata();
+
+}
+
+
+/* =========================================================
+   APPEND METADATA ROW
+========================================================= */
+
+function appendMetadataRow(
+    field,
+    value
+) {
+
+    if (
+        !elements.metadataTableBody
+    ) {
 
         return;
 
     }
 
 
-    for (
-        const item of state.metadata
+    const row =
+        document.createElement(
+            "tr"
+        );
+
+
+    const fieldCell =
+        document.createElement(
+            "td"
+        );
+
+
+    const valueCell =
+        document.createElement(
+            "td"
+        );
+
+
+    fieldCell.textContent =
+        field === null ||
+        field === undefined ||
+        String(field).trim() === ""
+            ? "-"
+            : String(field);
+
+
+    valueCell.textContent =
+        value === null ||
+        value === undefined ||
+        String(value).trim() === ""
+            ? "-"
+            : String(value);
+
+
+    row.appendChild(
+        fieldCell
+    );
+
+
+    row.appendChild(
+        valueCell
+    );
+
+
+    elements.metadataTableBody.appendChild(
+        row
+    );
+
+}
+
+
+/* =========================================================
+   SIGHTENGINE METADATA
+   ---------------------------------------------------------
+   Menampilkan hasil visual AI detection
+   pada blok Metadata.
+
+   Data berasal dari:
+
+       state.sightengineDetection
+
+   Tidak ada nilai detector yang di-hardcode.
+========================================================= */
+
+function renderSightengineMetadata() {
+
+    const sightengine =
+        state.sightengineDetection;
+
+
+    if (
+        !sightengine ||
+        typeof sightengine !== "object"
     ) {
 
-        const row =
-            document.createElement(
-                "tr"
+        updateMetadataCount();
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       SECTION HEADER
+    ===================================================== */
+
+    appendMetadataSectionRow(
+        "SIGHTENGINE AI DETECTION"
+    );
+
+
+    /* =====================================================
+       PROVIDER
+    ===================================================== */
+
+    if (
+        sightengine.provider
+    ) {
+
+        appendMetadataRow(
+            "Provider",
+            sightengine.provider
+        );
+
+    }
+
+
+    /* =====================================================
+       MODEL
+    ===================================================== */
+
+    if (
+        sightengine.model
+    ) {
+
+        appendMetadataRow(
+            "Detection Model",
+            sightengine.model
+        );
+
+    }
+
+
+    /* =====================================================
+       AI GENERATED SCORE
+    ===================================================== */
+
+    if (
+        sightengine.ai_generated !== null &&
+        sightengine.ai_generated !== undefined
+    ) {
+
+        const score =
+            Number(
+                sightengine.ai_generated
             );
 
 
-        const field =
-            document.createElement(
-                "td"
+        if (
+            Number.isFinite(
+                score
+            )
+        ) {
+
+            appendMetadataRow(
+                "AI Generated",
+                formatPercentage(
+                    score
+                )
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       CONFIDENCE
+    ===================================================== */
+
+    if (
+        sightengine.confidence !== null &&
+        sightengine.confidence !== undefined
+    ) {
+
+        const confidence =
+            Number(
+                sightengine.confidence
             );
 
 
-        const value =
-            document.createElement(
-                "td"
+        if (
+            Number.isFinite(
+                confidence
+            )
+        ) {
+
+            appendMetadataRow(
+                "Confidence",
+                `${Math.round(
+                    Math.max(
+                        0,
+                        Math.min(
+                            100,
+                            confidence
+                        )
+                    )
+                )}%`
             );
 
+        }
 
-        field.textContent =
-            item.field;
-
-
-        value.textContent =
-            item.value;
+    }
 
 
-        row.appendChild(
-            field
+    /* =====================================================
+       DETECTION STATUS
+    ===================================================== */
+
+    if (
+        typeof sightengine.is_ai_generated ===
+        "boolean"
+    ) {
+
+        appendMetadataRow(
+            "Detection Status",
+            sightengine.is_ai_generated
+                ? "AI TERDETEKSI"
+                : "TIDAK TERDETEKSI"
+        );
+
+    }
+
+
+    /* =====================================================
+       DETECTED GENERATOR
+    ===================================================== */
+
+    if (
+        sightengine.detected_generator &&
+        typeof sightengine.detected_generator === "object"
+    ) {
+
+        const generator =
+            sightengine.detected_generator;
+
+
+        const generatorName =
+            String(
+                generator.name || ""
+            ).trim();
+
+
+        if (
+            generatorName
+        ) {
+
+            const generatorScore =
+                Number(
+                    generator.score
+                );
+
+
+            const generatorConfidence =
+                Number(
+                    generator.confidence
+                );
+
+
+            let generatorValue =
+                generatorName;
+
+
+            if (
+                Number.isFinite(
+                    generatorConfidence
+                )
+            ) {
+
+                generatorValue +=
+                    ` (${formatPercentageFromPercent(
+                        generatorConfidence
+                    )})`;
+
+            } else if (
+                Number.isFinite(
+                    generatorScore
+                )
+            ) {
+
+                generatorValue +=
+                    ` (${formatPercentage(
+                        generatorScore
+                    )})`;
+
+            }
+
+
+            appendMetadataRow(
+                "Detected Generator",
+                generatorValue
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       GENERATOR SCORES
+       -----------------------------------------------------
+       Contoh response:
+
+       ai_generators: {
+           dalle: 0.001,
+           firefly: 0.001,
+           flux: 0.001
+       }
+
+       Backend sudah mengubahnya menjadi:
+
+       generators: [
+           {
+               name: "dalle",
+               score: 0.001,
+               confidence: 0
+           }
+       ]
+
+       Namun kita tetap menggunakan score jika tersedia
+       agar 0.001 dapat ditampilkan sebagai 0.1%.
+    ===================================================== */
+
+    const generators =
+        Array.isArray(
+            sightengine.generators
+        )
+            ? sightengine.generators
+            : [];
+
+
+    if (
+        generators.length
+    ) {
+
+        appendMetadataSectionRow(
+            "AI GENERATORS"
         );
 
 
-        row.appendChild(
-            value
+        for (
+            const generator
+            of generators
+        ) {
+
+            if (
+                !generator ||
+                typeof generator !== "object"
+            ) {
+
+                continue;
+
+            }
+
+
+            const name =
+                String(
+                    generator.name || ""
+                ).trim();
+
+
+            if (
+                !name
+            ) {
+
+                continue;
+
+            }
+
+
+            const score =
+                Number(
+                    generator.score
+                );
+
+
+            const confidence =
+                Number(
+                    generator.confidence
+                );
+
+
+            let value =
+                "";
+
+
+            /*
+               Prioritas score.
+
+               Sightengine score:
+               0.001 = 0.1%
+
+               Jangan menggunakan confidence 0
+               jika score asli masih tersedia.
+            */
+
+            if (
+                Number.isFinite(
+                    score
+                )
+            ) {
+
+                value =
+                    formatPercentage(
+                        score
+                    );
+
+            } else if (
+                Number.isFinite(
+                    confidence
+                )
+            ) {
+
+                value =
+                    formatPercentageFromPercent(
+                        confidence
+                    );
+
+            } else {
+
+                value =
+                    "N/A";
+
+            }
+
+
+            appendMetadataRow(
+                formatGeneratorName(
+                    name
+                ),
+                value
+            );
+
+        }
+
+    }
+
+
+    updateMetadataCount();
+
+}
+
+
+/* =========================================================
+   METADATA SECTION ROW
+   ---------------------------------------------------------
+   Header visual untuk memisahkan:
+   - metadata lokal
+   - Sightengine
+   - AI generators
+========================================================= */
+
+function appendMetadataSectionRow(
+    title
+) {
+
+    if (
+        !elements.metadataTableBody
+    ) {
+
+        return;
+
+    }
+
+
+    const row =
+        document.createElement(
+            "tr"
         );
 
 
-        elements.metadataTableBody.appendChild(
-            row
+    row.className =
+        "metadata-section-row";
+
+
+    const cell =
+        document.createElement(
+            "td"
         );
+
+
+    cell.colSpan =
+        2;
+
+
+    cell.textContent =
+        String(
+            title || ""
+        );
+
+
+    row.appendChild(
+        cell
+    );
+
+
+    elements.metadataTableBody.appendChild(
+        row
+    );
+
+}
+
+
+/* =========================================================
+   GENERATOR NAME FORMAT
+========================================================= */
+
+function formatGeneratorName(
+    name
+) {
+
+    const normalized =
+        String(
+            name || ""
+        )
+            .trim();
+
+
+    if (
+        !normalized
+    ) {
+
+        return "-";
+    }
+
+
+    const names = {
+
+        dalle:
+            "DALL·E",
+
+        firefly:
+            "Firefly",
+
+        flux:
+            "FLUX",
+
+        gan:
+            "GAN",
+
+        gpt:
+            "GPT",
+
+        higgsfield:
+            "Higgsfield",
+
+        ideogram:
+            "Ideogram",
+
+        kling:
+            "Kling",
+
+        imagen:
+            "Imagen",
+
+        midjourney:
+            "Midjourney",
+
+        qwen:
+            "Qwen",
+
+        recraft:
+            "Recraft",
+
+        reve:
+            "Reve",
+
+        seedream:
+            "Seedream",
+
+        stable_diffusion:
+            "Stable Diffusion",
+
+        wan:
+            "WAN",
+
+        z_image:
+            "Z Image",
+
+        other:
+            "Other"
+
+    };
+
+
+    return names[
+        normalized.toLowerCase()
+    ] ||
+        normalized;
+
+}
+
+
+/* =========================================================
+   PERCENTAGE FORMAT
+   ---------------------------------------------------------
+   Input:
+       0.001
+
+   Output:
+       0.1%
+
+   Input:
+       0.99
+
+   Output:
+       99%
+
+   Tidak menggunakan Math.round(score * 100)
+   karena itu akan menghilangkan score kecil
+   seperti 0.001.
+========================================================= */
+
+function formatPercentage(
+    score
+) {
+
+    const number =
+        Number(
+            score
+        );
+
+
+    if (
+        !Number.isFinite(
+            number
+        )
+    ) {
+
+        return "N/A";
+
+    }
+
+
+    const normalized =
+        Math.max(
+            0,
+            Math.min(
+                1,
+                number
+            )
+        );
+
+
+    const percentage =
+        normalized * 100;
+
+
+    if (
+        percentage === 0 ||
+        percentage === 100
+    ) {
+
+        return `${percentage}%`;
 
     }
 
 
     if (
-        elements.metadataCount
+        percentage < 1
     ) {
 
-        elements.metadataCount.textContent =
-            String(
-                state.metadata.length
-            );
+        return `${percentage.toFixed(1)}%`;
 
     }
+
+
+    if (
+        Number.isInteger(
+            percentage
+        )
+    ) {
+
+        return `${percentage}%`;
+
+    }
+
+
+    return `${percentage.toFixed(1)}%`;
+
+}
+
+
+/* =========================================================
+   PERCENTAGE FROM PERCENT
+   ---------------------------------------------------------
+   Input:
+       99
+
+   Output:
+       99%
+
+   Input:
+       0
+
+   Output:
+       0%
+========================================================= */
+
+function formatPercentageFromPercent(
+    value
+) {
+
+    const number =
+        Number(
+            value
+        );
+
+
+    if (
+        !Number.isFinite(
+            number
+        )
+    ) {
+
+        return "N/A";
+
+    }
+
+
+    const normalized =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                number
+            )
+        );
+
+
+    if (
+        Number.isInteger(
+            normalized
+        )
+    ) {
+
+        return `${normalized}%`;
+
+    }
+
+
+    return `${normalized.toFixed(1)}%`;
+
+}
+
+
+/* =========================================================
+   UPDATE METADATA COUNT
+   ---------------------------------------------------------
+   Count sekarang mencakup:
+
+   - metadata lokal
+   - Sightengine summary
+   - AI generators
+   - section headers
+
+   Section headers TIDAK dihitung sebagai data.
+========================================================= */
+
+function updateMetadataCount() {
+
+    if (
+        !elements.metadataCount ||
+        !elements.metadataTableBody
+    ) {
+
+        return;
+
+    }
+
+
+    const rows =
+        Array.from(
+            elements.metadataTableBody.querySelectorAll(
+                "tr"
+            )
+        );
+
+
+    const dataRows =
+        rows.filter(
+            row =>
+                !row.classList.contains(
+                    "metadata-section-row"
+                )
+        );
+
+
+    elements.metadataCount.textContent =
+        String(
+            dataRows.length
+        );
 
 }
 
