@@ -194,18 +194,6 @@ function init() {
 
 
     /*
-       State Sightengine sudah disediakan
-       oleh metadata-state.js.
-
-       Tidak membuat fallback object / null
-       di coordinator.
-
-       Dengan demikian metadata-app.js tidak
-       menjadi sumber kedua untuk struktur state.
-    */
-
-
-    /*
        Bind seluruh event aplikasi.
 
        Event handler berasal dari coordinator
@@ -435,16 +423,6 @@ function processSelectedFile(
 
 
     /*
-       Sightengine state sudah dibersihkan
-       oleh resetForNewFile().
-
-       Tidak boleh di-set null di sini karena
-       metadata-state.js sekarang memiliki
-       canonical empty detection object.
-    */
-
-
-    /*
        Buat object URL untuk preview
        file asli.
 
@@ -648,7 +626,6 @@ async function checkMetadata() {
         ) {
 
             return;
-
         }
 
 
@@ -864,7 +841,6 @@ async function checkMetadata() {
         ) {
 
             return;
-
         }
 
 
@@ -903,13 +879,48 @@ async function checkMetadata() {
 
 
         /*
+           Tentukan apakah hasil Sightengine
+           memiliki indikasi visual AI.
+
+           GenAI:
+               is_ai_generated
+
+           Face manipulation:
+               is_face_manipulated
+
+           Deepfake:
+               is_deepfake
+        */
+
+        const sightengineDetection =
+            state.sightengineDetection;
+
+
+        const hasSightengineAI =
+            Boolean(
+                sightengineDetection &&
+                (
+                    sightengineDetection.is_ai_generated === true ||
+                    sightengineDetection.is_face_manipulated === true ||
+                    sightengineDetection.is_deepfake === true
+                )
+            );
+
+
+        /*
            Preview status.
 
-           Sightengine menjadi sumber visual AI
-           jika berhasil memberikan hasil.
+           Prioritas:
+           1. Local metadata AI indicator
+           2. Sightengine visual AI
+           3. Sightengine error
+           4. Normal completion
         */
 
         if (
+            Array.isArray(
+                state.aiIndicators
+            ) &&
             state.aiIndicators.length
         ) {
 
@@ -918,12 +929,11 @@ async function checkMetadata() {
             );
 
         } else if (
-            state.sightengineDetection &&
-            state.sightengineDetection.is_ai_generated
+            hasSightengineAI
         ) {
 
             setPreviewStatus(
-                "AI VISUAL DETECTION MENUNJUKKAN INDIKASI IMAGE AI."
+                "AI VISUAL DETECTION MENUNJUKKAN INDIKASI MANIPULASI / IMAGE AI."
             );
 
         } else if (
@@ -957,7 +967,6 @@ async function checkMetadata() {
         ) {
 
             return;
-
         }
 
 
