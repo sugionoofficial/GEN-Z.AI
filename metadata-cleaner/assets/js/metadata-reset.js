@@ -23,14 +23,109 @@
 ========================================================= */
 
 
+/* =========================================================
+   STATE
+========================================================= */
+
 import {
-    state
+    state,
+    createEmptySightengineDetection
 } from "./metadata-state.js";
 
+
+/* =========================================================
+   DOM
+========================================================= */
 
 import {
     elements
 } from "./metadata-dom.js";
+
+
+/* =========================================================
+   RESET SIGHTENGINE STATE
+   ---------------------------------------------------------
+   Semua state Sightengine dikembalikan ke kondisi
+   sebelum detection dijalankan.
+========================================================= */
+
+function resetSightengineState() {
+
+    state.sightengineDetection =
+        createEmptySightengineDetection();
+
+
+    state.sightengineLoading =
+        false;
+
+
+    state.sightengineError =
+        null;
+
+
+    state.sightengineChecked =
+        false;
+
+}
+
+
+/* =========================================================
+   RESET DETECTION STATE
+========================================================= */
+
+function resetDetectionState() {
+
+    state.aiIndicators =
+        [];
+
+
+    state.detectionStatus =
+        "idle";
+
+
+    state.detectionMessage =
+        "";
+
+
+    resetSightengineState();
+
+}
+
+
+/* =========================================================
+   RESET CLEANING STATE
+========================================================= */
+
+function resetCleaningState() {
+
+    state.cleanedBlob =
+        null;
+
+
+    state.cleaned =
+        false;
+
+
+    state.cleaning =
+        false;
+
+
+    state.cleaningError =
+        null;
+
+
+    state.downloadReady =
+        false;
+
+
+    state.downloadUrl =
+        null;
+
+
+    state.downloadName =
+        "";
+
+}
 
 
 /* =========================================================
@@ -82,11 +177,10 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       RESET CLEANED BLOB
+       RESET CLEANING
     ===================================================== */
 
-    state.cleanedBlob =
-        null;
+    resetCleaningState();
 
 
     /* =====================================================
@@ -97,33 +191,31 @@ export function resetForNewFile() {
         [];
 
 
-    /* =====================================================
-       RESET LOCAL AI INDICATORS
-    ===================================================== */
+    state.metadataCount =
+        0;
 
-    state.aiIndicators =
+
+    state.originalMetadata =
         [];
 
 
+    state.originalMetadataCount =
+        0;
+
+
+    state.cleanedMetadata =
+        [];
+
+
+    state.cleanedMetadataCount =
+        0;
+
+
     /* =====================================================
-       RESET SIGHTENGINE DETECTION
-       -----------------------------------------------------
-       Penting:
-       Hasil visual AI detection dari file sebelumnya
-       tidak boleh terbawa ke file baru.
+       RESET DETECTION
     ===================================================== */
 
-    if (
-        Object.prototype.hasOwnProperty.call(
-            state,
-            "sightengineDetection"
-        )
-    ) {
-
-        state.sightengineDetection =
-            null;
-
-    }
+    resetDetectionState();
 
 
     /* =====================================================
@@ -135,15 +227,7 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       RESET CLEANING STATUS
-    ===================================================== */
-
-    state.cleaning =
-        false;
-
-
-    /* =====================================================
-       ORIGINAL IMAGE PREVIEW
+       RESET ORIGINAL IMAGE PREVIEW
     ===================================================== */
 
     if (
@@ -157,7 +241,7 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       ORIGINAL VIDEO PREVIEW
+       RESET ORIGINAL VIDEO PREVIEW
     ===================================================== */
 
     if (
@@ -166,9 +250,11 @@ export function resetForNewFile() {
 
         elements.videoPreview.pause();
 
+
         elements.videoPreview.removeAttribute(
             "src"
         );
+
 
         elements.videoPreview.load();
 
@@ -176,7 +262,7 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       CLEANED IMAGE PREVIEW
+       RESET CLEANED IMAGE PREVIEW
     ===================================================== */
 
     if (
@@ -190,7 +276,7 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       CLEANED VIDEO PREVIEW
+       RESET CLEANED VIDEO PREVIEW
     ===================================================== */
 
     if (
@@ -199,9 +285,11 @@ export function resetForNewFile() {
 
         elements.cleanVideoPreview.pause();
 
+
         elements.cleanVideoPreview.removeAttribute(
             "src"
         );
+
 
         elements.cleanVideoPreview.load();
 
@@ -209,21 +297,62 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       AI DETECTION OVERLAY
+       RESET AI DETECTION OVERLAY
+       -----------------------------------------------------
+       Jangan menghapus child DOM dengan textContent.
+
+       metadata-status.js bertanggung jawab membuat /
+       memperbarui stamp ketika detection baru tersedia.
+
+       Di sini kita hanya menyembunyikan overlay.
     ===================================================== */
 
     if (
         elements.aiOverlay
     ) {
 
-        elements.aiOverlay.textContent =
-            "";
+        elements.aiOverlay.classList.add(
+            "hidden"
+        );
+
+
+        elements.aiOverlay.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+
+        elements.aiOverlay.hidden =
+            true;
+
+
+        elements.aiOverlay.style.visibility =
+            "hidden";
+
+
+        elements.aiOverlay.style.opacity =
+            "0";
+
+
+        const model =
+            elements.aiOverlay.querySelector(
+                ".metadata-ai-detect-model"
+            );
+
+
+        if (
+            model
+        ) {
+
+            model.remove();
+
+        }
 
     }
 
 
     /* =====================================================
-       METADATA TABLE
+       RESET METADATA TABLE
     ===================================================== */
 
     if (
@@ -237,7 +366,7 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       METADATA COUNT
+       RESET METADATA COUNT
     ===================================================== */
 
     if (
@@ -251,7 +380,7 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       CLEAN RESULT
+       RESET CLEAN RESULT
     ===================================================== */
 
     if (
@@ -378,21 +507,6 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       RESET AI OVERLAY VISIBILITY
-    ===================================================== */
-
-    if (
-        elements.aiOverlay
-    ) {
-
-        elements.aiOverlay.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    /* =====================================================
        RESET STATUS INDICATOR
     ===================================================== */
 
@@ -496,6 +610,72 @@ export function resetApplication() {
         null;
 
 
+    state.fileName =
+        "";
+
+
+    state.fileSize =
+        0;
+
+
+    state.mediaType =
+        null;
+
+
+    state.isImage =
+        false;
+
+
+    state.isVideo =
+        false;
+
+
+    /* =====================================================
+       RESET PREVIEW STATE
+    ===================================================== */
+
+    state.previewUrl =
+        null;
+
+
+    state.previewObjectUrl =
+        null;
+
+
+    /* =====================================================
+       RESET PROCESSING STATE
+       -----------------------------------------------------
+       FFmpeg resource tidak disentuh.
+    ===================================================== */
+
+    state.processing =
+        false;
+
+
+    state.processingStage =
+        "";
+
+
+    state.processingProgress =
+        0;
+
+
+    /* =====================================================
+       RESET APPLICATION STATUS
+    ===================================================== */
+
+    state.error =
+        null;
+
+
+    state.status =
+        "idle";
+
+
+    state.statusMessage =
+        "";
+
+
     /*
        Jangan reset FFmpeg di sini.
 
@@ -588,31 +768,10 @@ export function resetApplication() {
 
 
     /* =====================================================
-       RESET LOCAL AI INDICATORS
+       RESET DETECTION STATE
     ===================================================== */
 
-    state.aiIndicators =
-        [];
-
-
-    /* =====================================================
-       RESET SIGHTENGINE DETECTION
-       -----------------------------------------------------
-       Pastikan resetApplication() juga membersihkan
-       hasil visual detection dari file sebelumnya.
-    ===================================================== */
-
-    if (
-        Object.prototype.hasOwnProperty.call(
-            state,
-            "sightengineDetection"
-        )
-    ) {
-
-        state.sightengineDetection =
-            null;
-
-    }
+    resetDetectionState();
 
 
     /* =====================================================
@@ -797,8 +956,38 @@ export function resetApplication() {
             "hidden"
         );
 
-        elements.aiOverlay.textContent =
-            "";
+
+        elements.aiOverlay.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+
+        elements.aiOverlay.hidden =
+            true;
+
+
+        elements.aiOverlay.style.visibility =
+            "hidden";
+
+
+        elements.aiOverlay.style.opacity =
+            "0";
+
+
+        const model =
+            elements.aiOverlay.querySelector(
+                ".metadata-ai-detect-model"
+            );
+
+
+        if (
+            model
+        ) {
+
+            model.remove();
+
+        }
 
     }
 
