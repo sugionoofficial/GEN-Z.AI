@@ -9,6 +9,7 @@
    - Load FFmpeg browser library
    - Initialize FFmpeg WASM
    - Wait for concurrent loading
+   - Prevent duplicate FFmpeg script loading
    - Create FFmpeg filenames
    - Cleanup virtual filesystem
 ========================================================= */
@@ -20,10 +21,23 @@ import {
 
 
 /* =========================================================
+   INTERNAL LOADING STATE
+========================================================= */
+
+let ffmpegLoadPromise = null;
+
+let ffmpegScriptPromise = null;
+
+
+/* =========================================================
    ENSURE FFMPEG
 ========================================================= */
 
 export async function ensureFFmpeg() {
+
+    /* -----------------------------------------------------
+       Already loaded
+    ----------------------------------------------------- */
 
     if (
         state.ffmpegLoaded &&
@@ -34,22 +48,68 @@ export async function ensureFFmpeg() {
     }
 
 
+    /* -----------------------------------------------------
+       Existing loading operation
+    ----------------------------------------------------- */
+
     if (
-        state.ffmpegLoading
+        ffmpegLoadPromise
     ) {
 
-        return waitForFFmpeg();
+        return ffmpegLoadPromise;
     }
 
+
+    /* -----------------------------------------------------
+       Create one shared loading promise
+    ----------------------------------------------------- */
+
+    ffmpegLoadPromise =
+        initializeFFmpeg();
+
+
+    try {
+
+        return await ffmpegLoadPromise;
+
+    } finally {
+
+        ffmpegLoadPromise =
+            null;
+    }
+}
+
+
+/* =========================================================
+   INITIALIZE FFMPEG
+========================================================= */
+
+async function initializeFFmpeg() {
 
     state.ffmpegLoading =
         true;
 
 
+    state.ffmpegLoaded =
+        false;
+
+
+    state.ffmpeg =
+        null;
+
+
     try {
+
+        /* -------------------------------------------------
+           Load browser library
+        ------------------------------------------------- */
 
         await loadFFmpegScripts();
 
+
+        /* -------------------------------------------------
+           Validate global
+        ------------------------------------------------- */
 
         if (
             typeof window.FFmpeg ===
@@ -61,6 +121,10 @@ export async function ensureFFmpeg() {
             );
         }
 
+
+        /* -------------------------------------------------
+           Resolve constructor
+        ------------------------------------------------- */
 
         const FFmpegClass =
             window.FFmpeg.FFmpeg;
@@ -77,48 +141,137 @@ export async function ensureFFmpeg() {
         }
 
 
+        /* -------------------------------------------------
+           Create instance
+        ------------------------------------------------- */
+
         const ffmpeg =
             new FFmpegClass();
 
 
-        ffmpeg.on(
-            "log",
-            ({
-                message
-            }) => {
+        /* -------------------------------------------------
+           FFmpeg log listener
+        ------------------------------------------------- */
 
-                console.debug(
-                    "[FFmpeg]",
+        if (
+            typeof ffmpeg.on ===
+            "function"
+        ) {
+
+            ffmpeg.on(
+                "log",
+                ({
                     message
-                );
-            }
-        );
+                }) => {
+
+                    console.debug(
+                        "[FFmpeg]",
+                        message
+                    );
+                }
+            );
+        }
+
+
+        /* -------------------------------------------------
+           Resolve core URLs
+        ------------------------------------------------- */
+
+        const baseURL =
+            String(
+                APP.FFMPEG_BASE_URL ||
+                ""
+            )
+            .replace(
+                /\/+$/,
+                ""
+            );
+
+
+        if (
+            !baseURL
+        ) {
+
+            throw new Error(
+                "FFmpeg core base URL tidak dikonfigurasi."
+            );
+        }
 
 
         const coreURL =
-            `${APP.FFMPEG_BASE_URL}/ffmpeg-core.js`;
+            `${baseURL}/ffmpeg-core.js`;
 
 
         const wasmURL =
-            `${APP.FFMPEG_BASE_URL}/ffmpeg-core.wasm`;
+            `${baseURL}/ffmpeg-core.wasm`;
 
 
-        await ffmpeg.load({
+        /* -------------------------------------------------
+           Convert resources to Blob URLs
+        ------------------------------------------------- */
 
-            coreURL:
-                await toBlobURL(
-                    coreURL,
-                    "text/javascript"
-                ),
+        const coreBlobURL =
+            await toBlobURL(
+                coreURL,
+                "text/javascript"
+            );
 
-            wasmURL:
-                await toBlobURL(
-                    wasmURL,
-                    "application/wasm"
-                )
 
-        });
+        const wasmBlobURL =
+            await toBlobURL(
+                wasmURL,
+                "application/wasm"
+            );
 
+
+        try {
+
+            /* ---------------------------------------------
+               Load FFmpeg WASM
+            --------------------------------------------- */
+
+            await ffmpeg.load({
+
+                coreURL:
+                    coreBlobURL,
+
+                wasmURL:
+                    wasmBlobURL
+
+            });
+
+        } catch (
+            error
+        ) {
+
+            throw new Error(
+                `FFmpeg WASM gagal diinisialisasi: ${
+                    getErrorMessage(
+                        error
+                    )
+                }`
+            );
+
+        } finally {
+
+            /* ---------------------------------------------
+               Blob URLs are no longer needed after load
+            --------------------------------------------- */
+
+            revokeObjectURL(
+                coreBlobURL
+            );
+
+
+            revokeObjectURL(
+                wasmBlobURL
+            );
+        }
+
+
+        /* -------------------------------------------------
+           Validate successful initialization
+        ------------------------------------------------- */
 
         state.ffmpeg =
             ffmpeg;
@@ -129,6 +282,26 @@ export async function ensureFFmpeg() {
 
 
         return ffmpeg;
+
+    } catch (
+        error
+    ) {
+
+        /* -------------------------------------------------
+           Keep shared state consistent after failure
+        ------------------------------------------------- */
+
+        state.ffmpeg =
+            null;
+
+
+        state.ffmpegLoaded =
+            false;
+
+
+        throw normalizeFFmpegError(
+            error
+        );
 
     } finally {
 
@@ -144,44 +317,110 @@ export async function ensureFFmpeg() {
 
 async function loadFFmpegScripts() {
 
+    /* -----------------------------------------------------
+       Already loaded
+    ----------------------------------------------------- */
+
     if (
-        state.ffmpegScriptsLoaded
+        state.ffmpegScriptsLoaded &&
+        typeof window.FFmpeg !==
+        "undefined"
     ) {
 
         return;
     }
 
 
+    /* -----------------------------------------------------
+       Existing shared script-loading operation
+    ----------------------------------------------------- */
+
+    if (
+        ffmpegScriptPromise
+    ) {
+
+        await ffmpegScriptPromise;
+
+        return;
+    }
+
+
+    /* -----------------------------------------------------
+       Check for existing script in document
+    ----------------------------------------------------- */
+
+    const existingScript =
+        document.querySelector(
+            'script[data-genz-ffmpeg="true"]'
+        );
+
+
+    if (
+        existingScript
+    ) {
+
+        if (
+            typeof window.FFmpeg !==
+            "undefined"
+        ) {
+
+            state.ffmpegScriptsLoaded =
+                true;
+
+            return;
+        }
+
+
+        ffmpegScriptPromise =
+            waitForExistingFFmpegScript(
+                existingScript
+            );
+
+    } else {
+
+        ffmpegScriptPromise =
+            createFFmpegScript();
+    }
+
+
+    try {
+
+        await ffmpegScriptPromise;
+
+
+        if (
+            typeof window.FFmpeg ===
+            "undefined"
+        ) {
+
+            throw new Error(
+                "FFmpeg script berhasil dimuat tetapi global FFmpeg tidak ditemukan."
+            );
+        }
+
+
+        state.ffmpegScriptsLoaded =
+            true;
+
+    } finally {
+
+        ffmpegScriptPromise =
+            null;
+    }
+}
+
+
+/* =========================================================
+   CREATE FFMPEG SCRIPT
+========================================================= */
+
+function createFFmpegScript() {
+
     return new Promise(
         (
             resolve,
             reject
         ) => {
-
-            const existing =
-                document.querySelector(
-                    'script[data-genz-ffmpeg="true"]'
-                );
-
-
-            if (
-                existing
-            ) {
-
-                if (
-                    typeof window.FFmpeg !==
-                    "undefined"
-                ) {
-
-                    state.ffmpegScriptsLoaded =
-                        true;
-
-                    resolve();
-
-                    return;
-                }
-            }
-
 
             const script =
                 document.createElement(
@@ -218,10 +457,6 @@ async function loadFFmpegScripts() {
                 }
 
 
-                state.ffmpegScriptsLoaded =
-                    true;
-
-
                 resolve();
             };
 
@@ -245,6 +480,256 @@ async function loadFFmpegScripts() {
 
 
 /* =========================================================
+   WAIT FOR EXISTING SCRIPT
+========================================================= */
+
+function waitForExistingFFmpegScript(
+    script
+) {
+
+    return new Promise(
+        (
+            resolve,
+            reject
+        ) => {
+
+            let settled =
+                false;
+
+
+            const cleanup =
+                () => {
+
+                    script.removeEventListener(
+                        "load",
+                        handleLoad
+                    );
+
+
+                    script.removeEventListener(
+                        "error",
+                        handleError
+                    );
+                };
+
+
+            const handleLoad =
+                () => {
+
+                    if (
+                        settled
+                    ) {
+
+                        return;
+                    }
+
+
+                    settled =
+                        true;
+
+
+                    cleanup();
+
+
+                    if (
+                        typeof window.FFmpeg ===
+                        "undefined"
+                    ) {
+
+                        reject(
+                            new Error(
+                                "FFmpeg script berhasil dimuat tetapi global FFmpeg tidak ditemukan."
+                            )
+                        );
+
+                        return;
+                    }
+
+
+                    resolve();
+                };
+
+
+            const handleError =
+                () => {
+
+                    if (
+                        settled
+                    ) {
+
+                        return;
+                    }
+
+
+                    settled =
+                        true;
+
+
+                    cleanup();
+
+
+                    reject(
+                        new Error(
+                            "FFmpeg browser library gagal dimuat."
+                        )
+                    );
+                };
+
+
+            script.addEventListener(
+                "load",
+                handleLoad,
+                {
+                    once: true
+                }
+            );
+
+
+            script.addEventListener(
+                "error",
+                handleError,
+                {
+                    once: true
+                }
+            );
+
+
+            /* -------------------------------------------------
+               Race protection:
+               script may already have completed before
+               listeners were attached.
+            ------------------------------------------------- */
+
+            if (
+                typeof window.FFmpeg !==
+                "undefined"
+            ) {
+
+                handleLoad();
+
+                return;
+            }
+
+
+            waitForGlobalFFmpeg(
+                120000
+            )
+            .then(
+                () => {
+
+                    if (
+                        settled
+                    ) {
+
+                        return;
+                    }
+
+
+                    settled =
+                        true;
+
+
+                    cleanup();
+
+
+                    resolve();
+                }
+            )
+            .catch(
+                (
+                    error
+                ) => {
+
+                    if (
+                        settled
+                    ) {
+
+                        return;
+                    }
+
+
+                    settled =
+                        true;
+
+
+                    cleanup();
+
+
+                    reject(
+                        error
+                    );
+                }
+            );
+        }
+    );
+}
+
+
+/* =========================================================
+   WAIT FOR FFMPEG GLOBAL
+========================================================= */
+
+function waitForGlobalFFmpeg(
+    timeout = 120000
+) {
+
+    return new Promise(
+        (
+            resolve,
+            reject
+        ) => {
+
+            const start =
+                Date.now();
+
+
+            const timer =
+                setInterval(
+                    () => {
+
+                        if (
+                            typeof window.FFmpeg !==
+                            "undefined"
+                        ) {
+
+                            clearInterval(
+                                timer
+                            );
+
+
+                            resolve();
+
+                            return;
+                        }
+
+
+                        if (
+                            Date.now() -
+                            start >=
+                            timeout
+                        ) {
+
+                            clearInterval(
+                                timer
+                            );
+
+
+                            reject(
+                                new Error(
+                                    "FFmpeg browser library membutuhkan waktu terlalu lama untuk dimuat."
+                                )
+                            );
+                        }
+
+                    },
+                    100
+                );
+        }
+    );
+}
+
+
+/* =========================================================
    BLOB URL HELPER
 ========================================================= */
 
@@ -253,10 +738,38 @@ async function toBlobURL(
     mimeType
 ) {
 
-    const response =
-        await fetch(
-            url
+    if (
+        !url
+    ) {
+
+        throw new Error(
+            "URL resource FFmpeg tidak tersedia."
         );
+    }
+
+
+    let response;
+
+
+    try {
+
+        response =
+            await fetch(
+                url
+            );
+
+    } catch (
+        error
+    ) {
+
+        throw new Error(
+            `Gagal mengambil FFmpeg resource: ${
+                getErrorMessage(
+                    error
+                )
+            }`
+        );
+    }
 
 
     if (
@@ -264,13 +777,31 @@ async function toBlobURL(
     ) {
 
         throw new Error(
-            `Gagal mengambil FFmpeg resource: ${response.status}`
+            `Gagal mengambil FFmpeg resource: ${response.status} ${response.statusText || ""}`.trim()
         );
     }
 
 
-    const blob =
-        await response.blob();
+    let blob;
+
+
+    try {
+
+        blob =
+            await response.blob();
+
+    } catch (
+        error
+    ) {
+
+        throw new Error(
+            `Gagal membaca FFmpeg resource: ${
+                getErrorMessage(
+                    error
+                )
+            }`
+        );
+    }
 
 
     return URL.createObjectURL(
@@ -288,67 +819,67 @@ async function toBlobURL(
 
 
 /* =========================================================
+   REVOKE OBJECT URL
+========================================================= */
+
+function revokeObjectURL(
+    url
+) {
+
+    if (
+        !url
+    ) {
+
+        return;
+    }
+
+
+    try {
+
+        URL.revokeObjectURL(
+            url
+        );
+
+    } catch {
+
+        /*
+         * Ignore object URL cleanup errors.
+         */
+    }
+}
+
+
+/* =========================================================
    FFMPEG WAIT
+   ---------------------------------------------------------
+   Compatibility helper.
+   ensureFFmpeg() now uses a shared Promise, but this
+   function remains available internally for the existing
+   architecture.
 ========================================================= */
 
 function waitForFFmpeg() {
 
-    return new Promise(
-        (
-            resolve,
-            reject
-        ) => {
+    if (
+        state.ffmpegLoaded &&
+        state.ffmpeg
+    ) {
 
-            const start =
-                Date.now();
-
-
-            const timer =
-                setInterval(
-                    () => {
-
-                        if (
-                            state.ffmpegLoaded &&
-                            state.ffmpeg
-                        ) {
-
-                            clearInterval(
-                                timer
-                            );
+        return Promise.resolve(
+            state.ffmpeg
+        );
+    }
 
 
-                            resolve(
-                                state.ffmpeg
-                            );
+    if (
+        ffmpegLoadPromise
+    ) {
+
+        return ffmpegLoadPromise;
+    }
 
 
-                            return;
-                        }
-
-
-                        if (
-                            Date.now() -
-                            start >
-                            120000
-                        ) {
-
-                            clearInterval(
-                                timer
-                            );
-
-
-                            reject(
-                                new Error(
-                                    "FFmpeg membutuhkan waktu terlalu lama untuk dimuat."
-                                )
-                            );
-                        }
-
-                    },
-                    100
-                );
-        }
-    );
+    return ensureFFmpeg();
 }
 
 
@@ -387,13 +918,20 @@ export function getCleanVideoMimeType(
 
     const extension =
         getExtension(
-            file.name
+            file?.name
+        ).toLowerCase();
+
+
+    const fileType =
+        String(
+            file?.type ||
+            ""
         ).toLowerCase();
 
 
     if (
         extension === "webm" ||
-        file.type === "video/webm"
+        fileType === "video/webm"
     ) {
 
         return "video/webm";
@@ -402,7 +940,7 @@ export function getCleanVideoMimeType(
 
     if (
         extension === "mov" ||
-        file.type === "video/quicktime"
+        fileType === "video/quicktime"
     ) {
 
         return "video/quicktime";
@@ -411,7 +949,7 @@ export function getCleanVideoMimeType(
 
     if (
         extension === "mkv" ||
-        file.type === "video/x-matroska"
+        fileType === "video/x-matroska"
     ) {
 
         return "video/x-matroska";
@@ -420,7 +958,7 @@ export function getCleanVideoMimeType(
 
     if (
         extension === "avi" ||
-        file.type === "video/x-msvideo"
+        fileType === "video/x-msvideo"
     ) {
 
         return "video/x-msvideo";
@@ -429,7 +967,7 @@ export function getCleanVideoMimeType(
 
     if (
         extension === "ogv" ||
-        file.type === "video/ogg"
+        fileType === "video/ogg"
     ) {
 
         return "video/ogg";
@@ -459,7 +997,14 @@ export function isMovLikeVideo(
 
     const extension =
         getExtension(
-            file.name
+            file?.name
+        ).toLowerCase();
+
+
+    const fileType =
+        String(
+            file?.type ||
+            ""
         ).toLowerCase();
 
 
@@ -467,8 +1012,8 @@ export function isMovLikeVideo(
         extension === "mp4" ||
         extension === "m4v" ||
         extension === "mov" ||
-        file.type === "video/mp4" ||
-        file.type === "video/quicktime"
+        fileType === "video/mp4" ||
+        fileType === "video/quicktime"
     );
 }
 
@@ -482,6 +1027,15 @@ export async function safeDeleteFFmpegFile(
     filename
 ) {
 
+    if (
+        !ffmpeg ||
+        !filename
+    ) {
+
+        return;
+    }
+
+
     try {
 
         await ffmpeg.deleteFile(
@@ -494,6 +1048,87 @@ export async function safeDeleteFFmpegFile(
          * Ignore cleanup errors.
          */
     }
+}
+
+
+/* =========================================================
+   ERROR MESSAGE
+========================================================= */
+
+function getErrorMessage(
+    error
+) {
+
+    if (
+        error instanceof Error
+    ) {
+
+        return (
+            error.message ||
+            error.name ||
+            "Unknown error"
+        );
+    }
+
+
+    if (
+        typeof error ===
+        "string"
+    ) {
+
+        return error;
+    }
+
+
+    try {
+
+        const serialized =
+            JSON.stringify(
+                error
+            );
+
+
+        if (
+            serialized &&
+            serialized !== "{}"
+        ) {
+
+            return serialized;
+        }
+
+    } catch {
+
+        /*
+         * Ignore serialization errors.
+         */
+    }
+
+
+    return "Unknown error";
+}
+
+
+/* =========================================================
+   NORMALIZE FFMPEG ERROR
+========================================================= */
+
+function normalizeFFmpegError(
+    error
+) {
+
+    if (
+        error instanceof Error
+    ) {
+
+        return error;
+    }
+
+
+    return new Error(
+        getErrorMessage(
+            error
+        )
+    );
 }
 
 
