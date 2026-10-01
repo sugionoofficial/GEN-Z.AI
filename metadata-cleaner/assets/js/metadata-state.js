@@ -1,885 +1,1194 @@
- /* =========================================================
-    GEN-Z.AI
-    METADATA STATE MODULE
-    ---------------------------------------------------------
-    File:
-    metadata-cleaner/assets/js/metadata-state.js
+/* =========================================================
+   GEN-Z.AI
+   METADATA STATE MODULE
+   ---------------------------------------------------------
+   File:
+   metadata-cleaner/assets/js/metadata-state.js
 
-    Tanggung jawab:
-    - Menyimpan state aplikasi Metadata Cleaner
-    - Menyimpan metadata lokal
-    - Menyimpan hasil Sightengine
-    - Menyimpan file aktif
-    - Menyimpan preview state
-    - Menyimpan status cleaning
-    - Tidak melakukan DOM rendering
-    - Tidak melakukan API request
- ========================================================= */
+   Tanggung jawab:
+   - Menyimpan state aplikasi Metadata Cleaner
+   - Menyimpan metadata lokal
+   - Menyimpan hasil Sightengine
+   - Menyimpan Face Manipulation / Deepfake
+   - Menyimpan file aktif
+   - Menyimpan preview state
+   - Menyimpan status cleaning
+   - Tidak melakukan DOM rendering
+   - Tidak melakukan API request
+========================================================= */
 
 
- /* =========================================================
-    INITIAL STATE
- ========================================================= */
+/* =========================================================
+   INITIAL STATE
+========================================================= */
 
- const metadataState = {
+const metadataState = {
 
-     /* -----------------------------------------------------
-        FILE
-     ----------------------------------------------------- */
+    /* -----------------------------------------------------
+       FILE
+    ----------------------------------------------------- */
 
-     file: null,
+    file:
+        null,
 
-     fileType: null,
+    fileType:
+        null,
 
-     fileName: "",
+    fileName:
+        "",
 
-     fileSize: 0,
+    fileSize:
+        0,
 
 
-     /* -----------------------------------------------------
-        MEDIA
-     ----------------------------------------------------- */
+    /* -----------------------------------------------------
+       MEDIA
+    ----------------------------------------------------- */
 
-     mediaType: null,
+    mediaType:
+        null,
 
-     isImage: false,
+    isImage:
+        false,
 
-     isVideo: false,
+    isVideo:
+        false,
 
 
-     /* -----------------------------------------------------
-        LOCAL METADATA
-     ----------------------------------------------------- */
+    /* -----------------------------------------------------
+       LOCAL METADATA
+    ----------------------------------------------------- */
 
-     metadata: [],
+    metadata:
+        [],
 
-     metadataCount: 0,
+    metadataCount:
+        0,
 
 
-     /* -----------------------------------------------------
-        ORIGINAL METADATA
-     ----------------------------------------------------- */
+    /* -----------------------------------------------------
+       ORIGINAL METADATA
+    ----------------------------------------------------- */
 
-     originalMetadata: [],
+    originalMetadata:
+        [],
 
-     originalMetadataCount: 0,
+    originalMetadataCount:
+        0,
 
 
-     /* -----------------------------------------------------
-        CLEANED METADATA
-     ----------------------------------------------------- */
+    /* -----------------------------------------------------
+       CLEANED METADATA
+    ----------------------------------------------------- */
 
-     cleanedMetadata: [],
+    cleanedMetadata:
+        [],
 
-     cleanedMetadataCount: 0,
+    cleanedMetadataCount:
+        0,
 
 
-     /* -----------------------------------------------------
-        SIGHTENGINE
-        --------------------------------------------------
-        Semua hasil dari backend disimpan utuh dalam bentuk
-        normalized object.
-     ----------------------------------------------------- */
+    /* -----------------------------------------------------
+       SIGHTENGINE
+       --------------------------------------------------
+       Semua hasil dari backend disimpan dalam normalized
+       object agar module UI tidak perlu mengetahui bentuk
+       response API mentah.
+    ----------------------------------------------------- */
 
-     sightengineDetection: {
+    sightengineDetection: {
 
-         provider:
-             null,
+        provider:
+            null,
 
-         model:
-             null,
+        model:
+            null,
 
-         ai_generated:
-             null,
+        models:
+            [],
 
-         confidence:
-             null,
 
-         is_ai_generated:
-             false,
+        /* -----------------------------------------------
+           GENAI
+        ----------------------------------------------- */
 
-         generators:
-             [],
+        ai_generated:
+            null,
 
-         detected_generator:
-             null,
+        confidence:
+            null,
 
-         request: {
+        is_ai_generated:
+            false,
 
-             id:
-                 null,
 
-             timestamp:
-                 null,
+        /* -----------------------------------------------
+           FACE MANIPULATION
+        ----------------------------------------------- */
 
-             operations:
-                 null
+        face_manipulation:
+            null,
 
-         },
+        face_manipulation_confidence:
+            null,
 
-         media: {
+        is_face_manipulated:
+            false,
 
-             id:
-                 null,
 
-             uri:
-                 null
+        /* -----------------------------------------------
+           DEEPFAKE
+        ----------------------------------------------- */
 
-         }
+        deepfake:
+            null,
 
-     },
+        deepfake_confidence:
+            null,
 
+        is_deepfake:
+            false,
 
-     /* -----------------------------------------------------
-        SIGHTENGINE STATUS
-     ----------------------------------------------------- */
 
-     sightengineLoading:
-         false,
+        /* -----------------------------------------------
+           GENERATORS
+        ----------------------------------------------- */
 
-     sightengineError:
-         null,
+        generators:
+            [],
 
-     sightengineChecked:
-         false,
+        detected_generator:
+            null,
 
 
-     /* -----------------------------------------------------
-        DETECTION STATUS
-     ----------------------------------------------------- */
+        /* -----------------------------------------------
+           REQUEST
+        ----------------------------------------------- */
 
-     detectionStatus:
-         "idle",
+        request: {
 
-     detectionMessage:
-         "",
+            id:
+                null,
 
+            timestamp:
+                null,
 
-     /* -----------------------------------------------------
-        CLEAN STATUS
-     ----------------------------------------------------- */
+            operations:
+                null
 
-     cleaning:
-         false,
+        },
 
-     cleaned:
-         false,
 
-     cleaningError:
-         null,
+        /* -----------------------------------------------
+           MEDIA
+        ----------------------------------------------- */
 
+        media: {
 
-     /* -----------------------------------------------------
-        PREVIEW
-     ----------------------------------------------------- */
+            id:
+                null,
 
-     previewUrl:
-         null,
+            uri:
+                null
 
-     previewObjectUrl:
-         null,
+        }
 
+    },
 
-     /* -----------------------------------------------------
-        PROCESSING
-     ----------------------------------------------------- */
 
-     processing:
-         false,
+    /* -----------------------------------------------------
+       SIGHTENGINE STATUS
+    ----------------------------------------------------- */
 
-     processingStage:
-         "",
+    sightengineLoading:
+        false,
 
-     processingProgress:
-         0,
+    sightengineError:
+        null,
 
+    sightengineChecked:
+        false,
 
-     /* -----------------------------------------------------
-        DOWNLOAD
-     ----------------------------------------------------- */
 
-     downloadReady:
-         false,
+    /* -----------------------------------------------------
+       DETECTION STATUS
+    ----------------------------------------------------- */
 
-     downloadUrl:
-         null,
+    detectionStatus:
+        "idle",
 
-     downloadName:
-         "",
+    detectionMessage:
+        "",
 
 
-     /* -----------------------------------------------------
-        ERROR
-     ----------------------------------------------------- */
+    /* -----------------------------------------------------
+       CLEAN STATUS
+    ----------------------------------------------------- */
 
-     error:
-         null,
+    cleaning:
+        false,
 
+    cleaned:
+        false,
 
-     /* -----------------------------------------------------
-        UI
-     ----------------------------------------------------- */
+    cleaningError:
+        null,
 
-     status:
-         "idle",
 
-     statusMessage:
-         "",
+    /* -----------------------------------------------------
+       PREVIEW
+    ----------------------------------------------------- */
 
+    previewUrl:
+        null,
 
-     /* -----------------------------------------------------
-        RESET VERSION
-     ----------------------------------------------------- */
+    previewObjectUrl:
+        null,
 
-     resetVersion:
-         0
 
- };
+    /* -----------------------------------------------------
+       PROCESSING
+    ----------------------------------------------------- */
 
+    processing:
+        false,
 
- /* =========================================================
-    DEFAULT SIGHTENGINE OBJECT FACTORY
-    ---------------------------------------------------------
-    Digunakan agar reset tidak berbagi reference array/object.
- ========================================================= */
+    processingStage:
+        "",
 
- export function createEmptySightengineDetection() {
+    processingProgress:
+        0,
 
-     return {
 
-         provider:
-             null,
+    /* -----------------------------------------------------
+       DOWNLOAD
+    ----------------------------------------------------- */
 
-         model:
-             null,
+    downloadReady:
+        false,
 
-         ai_generated:
-             null,
+    downloadUrl:
+        null,
 
-         confidence:
-             null,
+    downloadName:
+        "",
 
-         is_ai_generated:
-             false,
 
-         generators:
-             [],
+    /* -----------------------------------------------------
+       ERROR
+    ----------------------------------------------------- */
 
-         detected_generator:
-             null,
+    error:
+        null,
 
-         request: {
 
-             id:
-                 null,
+    /* -----------------------------------------------------
+       UI
+    ----------------------------------------------------- */
 
-             timestamp:
-                 null,
+    status:
+        "idle",
 
-             operations:
-                 null
+    statusMessage:
+        "",
 
-         },
 
-         media: {
+    /* -----------------------------------------------------
+       RESET VERSION
+    ----------------------------------------------------- */
 
-             id:
-                 null,
+    resetVersion:
+        0
 
-             uri:
-                 null
+};
 
-         }
 
-     };
+/* =========================================================
+   DEFAULT SIGHTENGINE OBJECT FACTORY
+   ---------------------------------------------------------
+   Selalu membuat object baru agar array / object tidak
+   berbagi reference ketika state di-reset.
+========================================================= */
 
- }
+export function createEmptySightengineDetection() {
 
+    return {
 
- /* =========================================================
-    STATE ACCESS
- ========================================================= */
+        provider:
+            null,
 
- export function getMetadataState() {
+        model:
+            null,
 
-     return metadataState;
+        models:
+            [],
 
- }
 
+        /* -----------------------------------------------
+           GENAI
+        ----------------------------------------------- */
 
- /* =========================================================
-    STATE UPDATE
- ========================================================= */
+        ai_generated:
+            null,
 
- export function setMetadataState(
-     updates = {}
- ) {
+        confidence:
+            null,
 
-     if (
-         !updates ||
-         typeof updates !== "object"
-     ) {
+        is_ai_generated:
+            false,
 
-         return metadataState;
 
-     }
+        /* -----------------------------------------------
+           FACE MANIPULATION
+        ----------------------------------------------- */
 
-     Object.assign(
-         metadataState,
-         updates
-     );
+        face_manipulation:
+            null,
 
-     return metadataState;
+        face_manipulation_confidence:
+            null,
 
- }
+        is_face_manipulated:
+            false,
 
 
- /* =========================================================
-    SIGHTENGINE STATE UPDATE
- ========================================================= */
+        /* -----------------------------------------------
+           DEEPFAKE
+        ----------------------------------------------- */
 
- export function setSightengineDetection(
-     detection = null
- ) {
+        deepfake:
+            null,
 
-     if (
-         !detection ||
-         typeof detection !== "object"
-     ) {
+        deepfake_confidence:
+            null,
 
-         metadataState.sightengineDetection =
-             createEmptySightengineDetection();
+        is_deepfake:
+            false,
 
-         metadataState.sightengineChecked =
-             false;
 
-         metadataState.sightengineError =
-             null;
+        /* -----------------------------------------------
+           GENERATORS
+        ----------------------------------------------- */
 
-         return metadataState.sightengineDetection;
+        generators:
+            [],
 
-     }
+        detected_generator:
+            null,
 
 
-     metadataState.sightengineDetection = {
+        /* -----------------------------------------------
+           REQUEST
+        ----------------------------------------------- */
 
-         provider:
-             detection.provider ??
-             null,
+        request: {
 
-         model:
-             detection.model ??
-             null,
+            id:
+                null,
 
-         ai_generated:
-             detection.ai_generated ??
-             null,
+            timestamp:
+                null,
 
-         confidence:
-             detection.confidence ??
-             null,
+            operations:
+                null
 
-         is_ai_generated:
-             detection.is_ai_generated === true,
+        },
 
-         generators:
-             Array.isArray(
-                 detection.generators
-             )
-                 ? detection.generators.map(
-                     generator => ({
-                         ...generator
-                     })
-                 )
-                 : [],
 
-         detected_generator:
-             detection.detected_generator
-                 ? {
-                     ...detection.detected_generator
-                 }
-                 : null,
+        /* -----------------------------------------------
+           MEDIA
+        ----------------------------------------------- */
 
-         request:
-             detection.request
-                 ? {
-                     id:
-                         detection.request.id ??
-                         null,
+        media: {
 
-                     timestamp:
-                         detection.request.timestamp ??
-                         null,
+            id:
+                null,
 
-                     operations:
-                         detection.request.operations ??
-                         null
-                 }
-                 : {
-                     id:
-                         null,
+            uri:
+                null
 
-                     timestamp:
-                         null,
+        }
 
-                     operations:
-                         null
-                 },
+    };
 
-         media:
-             detection.media
-                 ? {
-                     id:
-                         detection.media.id ??
-                         null,
+}
 
-                     uri:
-                         detection.media.uri ??
-                         null
-                 }
-                 : {
-                     id:
-                         null,
 
-                     uri:
-                         null
-                 }
+/* =========================================================
+   STATE ACCESS
+========================================================= */
 
-     };
+export function getMetadataState() {
 
-     metadataState.sightengineChecked =
-         true;
+    return metadataState;
 
-     metadataState.sightengineError =
-         null;
+}
 
-     return metadataState.sightengineDetection;
 
- }
+/* =========================================================
+   STATE UPDATE
+========================================================= */
 
+export function setMetadataState(
+    updates = {}
+) {
 
- /* =========================================================
-    SIGHTENGINE LOADING
- ========================================================= */
+    if (
+        !updates ||
+        typeof updates !== "object"
+    ) {
 
- export function setSightengineLoading(
-     loading
- ) {
+        return metadataState;
 
-     metadataState.sightengineLoading =
-         Boolean(
-             loading
-         );
+    }
 
- }
 
+    Object.assign(
+        metadataState,
+        updates
+    );
 
- /* =========================================================
-    SIGHTENGINE ERROR
- ========================================================= */
 
- export function setSightengineError(
-     error
- ) {
+    return metadataState;
 
-     if (
-         error instanceof Error
-     ) {
+}
 
-         metadataState.sightengineError =
-             error.message;
 
-     } else {
+/* =========================================================
+   SIGHTENGINE STATE UPDATE
+========================================================= */
 
-         metadataState.sightengineError =
-             error
-                 ? String(error)
-                 : null;
+export function setSightengineDetection(
+    detection = null
+) {
 
-     }
+    /* -----------------------------------------------------
+       EMPTY / RESET
+    ----------------------------------------------------- */
 
- }
+    if (
+        !detection ||
+        typeof detection !== "object"
+    ) {
 
+        metadataState.sightengineDetection =
+            createEmptySightengineDetection();
 
- /* =========================================================
-    METADATA SETTER
- ========================================================= */
+        metadataState.sightengineChecked =
+            false;
 
- export function setMetadata(
-     metadata = []
- ) {
+        metadataState.sightengineError =
+            null;
 
-     metadataState.metadata =
-         Array.isArray(
-             metadata
-         )
-             ? metadata
-             : [];
+        return metadataState.sightengineDetection;
 
-     metadataState.metadataCount =
-         metadataState.metadata.length;
+    }
 
-     return metadataState.metadata;
 
- }
+    /* -----------------------------------------------------
+       NORMALIZED DETECTION
+    ----------------------------------------------------- */
 
+    metadataState.sightengineDetection = {
 
- /* =========================================================
-    ORIGINAL METADATA SETTER
- ========================================================= */
+        provider:
+            detection.provider ??
+            null,
 
- export function setOriginalMetadata(
-     metadata = []
- ) {
+        model:
+            detection.model ??
+            null,
 
-     metadataState.originalMetadata =
-         Array.isArray(
-             metadata
-         )
-             ? metadata
-             : [];
+        models:
+            Array.isArray(
+                detection.models
+            )
+                ? [
+                    ...detection.models
+                ]
+                : [],
 
-     metadataState.originalMetadataCount =
-         metadataState.originalMetadata.length;
 
-     return metadataState.originalMetadata;
+        /* -----------------------------------------------
+           GENAI
+        ----------------------------------------------- */
 
- }
+        ai_generated:
+            detection.ai_generated ??
+            null,
 
+        confidence:
+            detection.confidence ??
+            null,
 
- /* =========================================================
-    CLEANED METADATA SETTER
- ========================================================= */
+        is_ai_generated:
+            detection.is_ai_generated === true,
 
- export function setCleanedMetadata(
-     metadata = []
- ) {
 
-     metadataState.cleanedMetadata =
-         Array.isArray(
-             metadata
-         )
-             ? metadata
-             : [];
+        /* -----------------------------------------------
+           FACE MANIPULATION
+        ----------------------------------------------- */
 
-     metadataState.cleanedMetadataCount =
-         metadataState.cleanedMetadata.length;
+        face_manipulation:
+            detection.face_manipulation ??
+            null,
 
-     return metadataState.cleanedMetadata;
+        face_manipulation_confidence:
+            detection.face_manipulation_confidence ??
+            null,
 
- }
+        is_face_manipulated:
+            detection.is_face_manipulated === true,
 
 
- /* =========================================================
-    FILE SETTER
- ========================================================= */
+        /* -----------------------------------------------
+           DEEPFAKE
+        ----------------------------------------------- */
 
- export function setFile(
-     file
- ) {
+        deepfake:
+            detection.deepfake ??
+            null,
 
-     metadataState.file =
-         file || null;
+        deepfake_confidence:
+            detection.deepfake_confidence ??
+            null,
 
-     if (
-         file
-     ) {
+        is_deepfake:
+            detection.is_deepfake === true,
 
-         metadataState.fileName =
-             file.name || "";
 
-         metadataState.fileSize =
-             Number(
-                 file.size
-             ) || 0;
+        /* -----------------------------------------------
+           GENERATORS
+        ----------------------------------------------- */
 
-         metadataState.fileType =
-             file.type || null;
+        generators:
+            Array.isArray(
+                detection.generators
+            )
+                ? detection.generators.map(
+                    generator => ({
+                        ...generator
+                    })
+                )
+                : [],
 
-     } else {
 
-         metadataState.fileName =
-             "";
+        detected_generator:
+            detection.detected_generator
+                ? {
+                    ...detection.detected_generator
+                }
+                : null,
 
-         metadataState.fileSize =
-             0;
 
-         metadataState.fileType =
-             null;
+        /* -----------------------------------------------
+           REQUEST
+        ----------------------------------------------- */
 
-     }
+        request:
+            detection.request
+                ? {
 
-     return metadataState.file;
+                    id:
+                        detection.request.id ??
+                        null,
 
- }
+                    timestamp:
+                        detection.request.timestamp ??
+                        null,
 
+                    operations:
+                        detection.request.operations ??
+                        null
 
- /* =========================================================
-    MEDIA TYPE
- ========================================================= */
+                }
+                : {
 
- export function setMediaType(
-     type
- ) {
+                    id:
+                        null,
 
-     const normalized =
-         typeof type === "string"
-             ? type.toLowerCase()
-             : null;
+                    timestamp:
+                        null,
 
-     metadataState.mediaType =
-         normalized;
+                    operations:
+                        null
 
-     metadataState.isImage =
-         normalized === "image";
+                },
 
-     metadataState.isVideo =
-         normalized === "video";
 
-     return normalized;
+        /* -----------------------------------------------
+           MEDIA
+        ----------------------------------------------- */
 
- }
+        media:
+            detection.media
+                ? {
 
+                    id:
+                        detection.media.id ??
+                        null,
 
- /* =========================================================
-    PREVIEW URL
- ========================================================= */
+                    uri:
+                        detection.media.uri ??
+                        null
 
- export function setPreviewUrl(
-     url
- ) {
+                }
+                : {
 
-     metadataState.previewUrl =
-         url || null;
+                    id:
+                        null,
 
-     return metadataState.previewUrl;
+                    uri:
+                        null
 
- }
+                }
 
+    };
 
- /* =========================================================
-    DETECTION STATUS
- ========================================================= */
 
- export function setDetectionStatus(
-     status,
-     message = ""
- ) {
+    /* -----------------------------------------------------
+       MARK SIGHTENGINE AS CHECKED
+    ----------------------------------------------------- */
 
-     metadataState.detectionStatus =
-         status || "idle";
+    metadataState.sightengineChecked =
+        true;
 
-     metadataState.detectionMessage =
-         message || "";
+    metadataState.sightengineError =
+        null;
 
- }
 
+    return metadataState.sightengineDetection;
 
- /* =========================================================
-    CLEANING STATUS
- ========================================================= */
+}
 
- export function setCleaningStatus(
-     cleaning,
-     message = ""
- ) {
 
-     metadataState.cleaning =
-         Boolean(
-             cleaning
-         );
+/* =========================================================
+   SIGHTENGINE LOADING
+========================================================= */
 
-     metadataState.statusMessage =
-         message || "";
+export function setSightengineLoading(
+    loading
+) {
 
- }
+    metadataState.sightengineLoading =
+        Boolean(
+            loading
+        );
 
+}
 
- /* =========================================================
-    PROCESSING STATUS
- ========================================================= */
 
- export function setProcessingStatus(
-     processing,
-     stage = "",
-     progress = 0
- ) {
+/* =========================================================
+   SIGHTENGINE ERROR
+========================================================= */
 
-     metadataState.processing =
-         Boolean(
-             processing
-         );
+export function setSightengineError(
+    error
+) {
 
-     metadataState.processingStage =
-         stage || "";
+    if (
+        error instanceof Error
+    ) {
 
-     const numericProgress =
-         Number(
-             progress
-         );
+        metadataState.sightengineError =
+            error.message;
 
-     metadataState.processingProgress =
-         Number.isFinite(
-             numericProgress
-         )
-             ? Math.max(
-                 0,
-                 Math.min(
-                     100,
-                     numericProgress
-                 )
-             )
-             : 0;
+    } else {
 
- }
+        metadataState.sightengineError =
+            error
+                ? String(
+                    error
+                )
+                : null;
 
+    }
 
- /* =========================================================
-    ERROR
- ========================================================= */
+}
 
- export function setError(
-     error
- ) {
 
-     if (
-         error instanceof Error
-     ) {
+/* =========================================================
+   METADATA SETTER
+========================================================= */
 
-         metadataState.error =
-             error.message;
+export function setMetadata(
+    metadata = []
+) {
 
-     } else {
+    metadataState.metadata =
+        Array.isArray(
+            metadata
+        )
+            ? metadata
+            : [];
 
-         metadataState.error =
-             error
-                 ? String(error)
-                 : null;
 
-     }
+    metadataState.metadataCount =
+        metadataState.metadata.length;
 
- }
 
+    return metadataState.metadata;
 
- /* =========================================================
-    RESET
- ========================================================= */
+}
 
- export function resetMetadataState() {
 
-     /*
-      * Jangan mengganti object utama metadataState.
-      * Modul lain mungkin memegang reference yang sama.
-      */
+/* =========================================================
+   ORIGINAL METADATA SETTER
+========================================================= */
 
-     metadataState.file =
-         null;
+export function setOriginalMetadata(
+    metadata = []
+) {
 
-     metadataState.fileType =
-         null;
+    metadataState.originalMetadata =
+        Array.isArray(
+            metadata
+        )
+            ? metadata
+            : [];
 
-     metadataState.fileName =
-         "";
 
-     metadataState.fileSize =
-         0;
+    metadataState.originalMetadataCount =
+        metadataState.originalMetadata.length;
 
-     metadataState.mediaType =
-         null;
 
-     metadataState.isImage =
-         false;
+    return metadataState.originalMetadata;
 
-     metadataState.isVideo =
-         false;
+}
 
-     metadataState.metadata =
-         [];
 
-     metadataState.metadataCount =
-         0;
+/* =========================================================
+   CLEANED METADATA SETTER
+========================================================= */
 
-     metadataState.originalMetadata =
-         [];
+export function setCleanedMetadata(
+    metadata = []
+) {
 
-     metadataState.originalMetadataCount =
-         0;
+    metadataState.cleanedMetadata =
+        Array.isArray(
+            metadata
+        )
+            ? metadata
+            : [];
 
-     metadataState.cleanedMetadata =
-         [];
 
-     metadataState.cleanedMetadataCount =
-         0;
+    metadataState.cleanedMetadataCount =
+        metadataState.cleanedMetadata.length;
 
-     metadataState.sightengineDetection =
-         createEmptySightengineDetection();
 
-     metadataState.sightengineLoading =
-         false;
+    return metadataState.cleanedMetadata;
 
-     metadataState.sightengineError =
-         null;
+}
 
-     metadataState.sightengineChecked =
-         false;
 
-     metadataState.detectionStatus =
-         "idle";
+/* =========================================================
+   FILE SETTER
+========================================================= */
 
-     metadataState.detectionMessage =
-         "";
+export function setFile(
+    file
+) {
 
-     metadataState.cleaning =
-         false;
+    metadataState.file =
+        file ||
+        null;
 
-     metadataState.cleaned =
-         false;
 
-     metadataState.cleaningError =
-         null;
+    if (
+        file
+    ) {
 
-     metadataState.previewUrl =
-         null;
+        metadataState.fileName =
+            file.name ||
+            "";
 
-     metadataState.previewObjectUrl =
-         null;
+        metadataState.fileSize =
+            Number(
+                file.size
+            ) ||
+            0;
 
-     metadataState.processing =
-         false;
+        metadataState.fileType =
+            file.type ||
+            null;
 
-     metadataState.processingStage =
-         "";
+    } else {
 
-     metadataState.processingProgress =
-         0;
+        metadataState.fileName =
+            "";
 
-     metadataState.downloadReady =
-         false;
+        metadataState.fileSize =
+            0;
 
-     metadataState.downloadUrl =
-         null;
+        metadataState.fileType =
+            null;
 
-     metadataState.downloadName =
-         "";
+    }
 
-     metadataState.error =
-         null;
 
-     metadataState.status =
-         "idle";
+    return metadataState.file;
 
-     metadataState.statusMessage =
-         "";
+}
 
-     metadataState.resetVersion +=
-         1;
 
-     return metadataState;
+/* =========================================================
+   MEDIA TYPE
+========================================================= */
 
- }
+export function setMediaType(
+    type
+) {
 
+    const normalized =
+        typeof type === "string"
+            ? type.toLowerCase()
+            : null;
 
- /* =========================================================
+
+    metadataState.mediaType =
+        normalized;
+
+
+    metadataState.isImage =
+        normalized === "image";
+
+
+    metadataState.isVideo =
+        normalized === "video";
+
+
+    return normalized;
+
+}
+
+
+/* =========================================================
+   PREVIEW URL
+========================================================= */
+
+export function setPreviewUrl(
+    url
+) {
+
+    metadataState.previewUrl =
+        url ||
+        null;
+
+
+    return metadataState.previewUrl;
+
+}
+
+
+/* =========================================================
+   DETECTION STATUS
+========================================================= */
+
+export function setDetectionStatus(
+    status,
+    message = ""
+) {
+
+    metadataState.detectionStatus =
+        status ||
+        "idle";
+
+
+    metadataState.detectionMessage =
+        message ||
+        "";
+
+}
+
+
+/* =========================================================
+   CLEANING STATUS
+========================================================= */
+
+export function setCleaningStatus(
+    cleaning,
+    message = ""
+) {
+
+    metadataState.cleaning =
+        Boolean(
+            cleaning
+        );
+
+
+    metadataState.statusMessage =
+        message ||
+        "";
+
+}
+
+
+/* =========================================================
+   PROCESSING STATUS
+========================================================= */
+
+export function setProcessingStatus(
+    processing,
+    stage = "",
+    progress = 0
+) {
+
+    metadataState.processing =
+        Boolean(
+            processing
+        );
+
+
+    metadataState.processingStage =
+        stage ||
+        "";
+
+
+    const numericProgress =
+        Number(
+            progress
+        );
+
+
+    metadataState.processingProgress =
+        Number.isFinite(
+            numericProgress
+        )
+            ? Math.max(
+                0,
+                Math.min(
+                    100,
+                    numericProgress
+                )
+            )
+            : 0;
+
+}
+
+
+/* =========================================================
+   ERROR
+========================================================= */
+
+export function setError(
+    error
+) {
+
+    if (
+        error instanceof Error
+    ) {
+
+        metadataState.error =
+            error.message;
+
+    } else {
+
+        metadataState.error =
+            error
+                ? String(
+                    error
+                )
+                : null;
+
+    }
+
+}
+
+
+/* =========================================================
+   RESET
+========================================================= */
+
+export function resetMetadataState() {
+
+    /*
+     * Jangan mengganti object utama metadataState.
+     * Module lain mungkin memegang reference yang sama.
+     */
+
+
+    /* -----------------------------------------------------
+       FILE
+    ----------------------------------------------------- */
+
+    metadataState.file =
+        null;
+
+    metadataState.fileType =
+        null;
+
+    metadataState.fileName =
+        "";
+
+    metadataState.fileSize =
+        0;
+
+
+    /* -----------------------------------------------------
+       MEDIA
+    ----------------------------------------------------- */
+
+    metadataState.mediaType =
+        null;
+
+    metadataState.isImage =
+        false;
+
+    metadataState.isVideo =
+        false;
+
+
+    /* -----------------------------------------------------
+       METADATA
+    ----------------------------------------------------- */
+
+    metadataState.metadata =
+        [];
+
+    metadataState.metadataCount =
+        0;
+
+
+    /* -----------------------------------------------------
+       ORIGINAL METADATA
+    ----------------------------------------------------- */
+
+    metadataState.originalMetadata =
+        [];
+
+    metadataState.originalMetadataCount =
+        0;
+
+
+    /* -----------------------------------------------------
+       CLEANED METADATA
+    ----------------------------------------------------- */
+
+    metadataState.cleanedMetadata =
+        [];
+
+    metadataState.cleanedMetadataCount =
+        0;
+
+
+    /* -----------------------------------------------------
+       SIGHTENGINE
+    ----------------------------------------------------- */
+
+    metadataState.sightengineDetection =
+        createEmptySightengineDetection();
+
+
+    metadataState.sightengineLoading =
+        false;
+
+
+    metadataState.sightengineError =
+        null;
+
+
+    metadataState.sightengineChecked =
+        false;
+
+
+    /* -----------------------------------------------------
+       DETECTION
+    ----------------------------------------------------- */
+
+    metadataState.detectionStatus =
+        "idle";
+
+    metadataState.detectionMessage =
+        "";
+
+
+    /* -----------------------------------------------------
+       CLEAN
+    ----------------------------------------------------- */
+
+    metadataState.cleaning =
+        false;
+
+    metadataState.cleaned =
+        false;
+
+    metadataState.cleaningError =
+        null;
+
+
+    /* -----------------------------------------------------
+       PREVIEW
+    ----------------------------------------------------- */
+
+    metadataState.previewUrl =
+        null;
+
+    metadataState.previewObjectUrl =
+        null;
+
+
+    /* -----------------------------------------------------
+       PROCESSING
+    ----------------------------------------------------- */
+
+    metadataState.processing =
+        false;
+
+    metadataState.processingStage =
+        "";
+
+    metadataState.processingProgress =
+        0;
+
+
+    /* -----------------------------------------------------
+       DOWNLOAD
+    ----------------------------------------------------- */
+
+    metadataState.downloadReady =
+        false;
+
+    metadataState.downloadUrl =
+        null;
+
+    metadataState.downloadName =
+        "";
+
+
+    /* -----------------------------------------------------
+       ERROR
+    ----------------------------------------------------- */
+
+    metadataState.error =
+        null;
+
+
+    /* -----------------------------------------------------
+       UI
+    ----------------------------------------------------- */
+
+    metadataState.status =
+        "idle";
+
+    metadataState.statusMessage =
+        "";
+
+
+    /* -----------------------------------------------------
+       RESET VERSION
+    ----------------------------------------------------- */
+
+    metadataState.resetVersion +=
+        1;
+
+
+    return metadataState;
+
+}
+
+
+/* =========================================================
    PUBLIC EXPORTS
 ========================================================= */
 
@@ -890,10 +1199,11 @@
    metadata-state sebagai sumber konfigurasi aplikasi.
 
    Jangan membuat state kedua.
-   APP hanya menunjuk ke metadataState yang sama.
+   APP tetap menunjuk ke metadataState yang sama.
 */
 
-export const APP = metadataState;
+export const APP =
+    metadataState;
 
 
 /*
