@@ -48,7 +48,10 @@
 ========================================================= */
 
 import {
-    state
+    state,
+    setSightengineDetection,
+    setSightengineLoading,
+    setSightengineError
 } from "./metadata-state.js";
 
 
@@ -191,23 +194,15 @@ function init() {
 
 
     /*
-       Pastikan field hasil Sightengine
-       tersedia pada state.
+       State Sightengine sudah disediakan
+       oleh metadata-state.js.
 
-       Tidak mengubah state lama.
+       Tidak membuat fallback object / null
+       di coordinator.
+
+       Dengan demikian metadata-app.js tidak
+       menjadi sumber kedua untuk struktur state.
     */
-
-    if (
-        !Object.prototype.hasOwnProperty.call(
-            state,
-            "sightengineDetection"
-        )
-    ) {
-
-        state.sightengineDetection =
-            null;
-
-    }
 
 
     /*
@@ -406,6 +401,16 @@ function processSelectedFile(
     /*
        Bersihkan file sebelumnya
        sebelum memasukkan file baru.
+
+       resetForNewFile() juga mereset:
+       - Sightengine detection
+       - Sightengine loading
+       - Sightengine error
+       - Sightengine checked
+       - metadata
+       - local AI indicators
+       - cleaning result
+       - object URLs
     */
 
     resetForNewFile();
@@ -430,12 +435,13 @@ function processSelectedFile(
 
 
     /*
-       Pastikan hasil Sightengine
-       benar-benar kosong untuk file baru.
-    */
+       Sightengine state sudah dibersihkan
+       oleh resetForNewFile().
 
-    state.sightengineDetection =
-        null;
+       Tidak boleh di-set null di sini karena
+       metadata-state.js sekarang memiliki
+       canonical empty detection object.
+    */
 
 
     /*
@@ -656,6 +662,19 @@ async function checkMetadata() {
             );
 
 
+        /*
+           Sinkronkan count lokal apabila state
+           memakai field count.
+        */
+
+        state.metadataCount =
+            Array.isArray(
+                state.metadata
+            )
+                ? state.metadata.length
+                : 0;
+
+
         /* =================================================
            LOCAL AI DETECTION
         ================================================= */
@@ -672,9 +691,32 @@ async function checkMetadata() {
            Hanya IMAGE.
         ================================================= */
 
-        state.sightengineDetection =
-            null;
+        /*
+           Reset hasil detection sebelumnya.
 
+           Menggunakan setter agar struktur state
+           tetap konsisten.
+        */
+
+        setSightengineDetection(
+            null
+        );
+
+
+        setSightengineLoading(
+            false
+        );
+
+
+        setSightengineError(
+            null
+        );
+
+
+        /*
+           Sightengine hanya dijalankan untuk image
+           yang memenuhi batas dan validasi provider.
+        */
 
         if (
             state.fileType === "image" &&
@@ -686,13 +728,20 @@ async function checkMetadata() {
             /*
                Sightengine merupakan layanan eksternal.
 
-               Jika request gagal, metadata lokal
-               tetap dianggap valid.
-
-               Jadi kegagalan provider eksternal
-               tidak menghancurkan fungsi utama
-               Metadata Cleaner.
+               Loading dicatat secara eksplisit agar
+               state mengetahui bahwa request sedang
+               berjalan.
             */
+
+            setSightengineLoading(
+                true
+            );
+
+
+            setSightengineError(
+                null
+            );
+
 
             try {
 
@@ -710,14 +759,18 @@ async function checkMetadata() {
                 /*
                    Jangan memasukkan hasil request
                    ke file baru.
+
+                   Ini penting karena request API
+                   berjalan asynchronous.
                 */
 
                 if (
                     state.file === sourceFile
                 ) {
 
-                    state.sightengineDetection =
-                        sightengineResult;
+                    setSightengineDetection(
+                        sightengineResult
+                    );
 
                 }
 
@@ -727,21 +780,31 @@ async function checkMetadata() {
 
                 /*
                    Sightengine gagal bukan berarti
-                   metadata gagal.
+                   metadata lokal gagal.
 
-                   Simpan null agar UI nantinya
-                   dapat membedakan:
-                   - tidak terdeteksi
-                   - detector gagal
-                   - memang belum dijalankan
+                   Detection dikembalikan ke empty
+                   canonical object, bukan null.
+
+                   Error disimpan terpisah sehingga
+                   UI / coordinator dapat membedakan:
+                   - belum diperiksa
+                   - sedang diperiksa
+                   - berhasil
+                   - provider gagal
                 */
 
                 if (
                     state.file === sourceFile
                 ) {
 
-                    state.sightengineDetection =
-                        null;
+                    setSightengineDetection(
+                        null
+                    );
+
+
+                    setSightengineError(
+                        sightengineError
+                    );
 
                 }
 
@@ -751,7 +814,42 @@ async function checkMetadata() {
                     sightengineError
                 );
 
+            } finally {
+
+                /*
+                   Loading hanya dihentikan apabila
+                   request masih terkait dengan file
+                   aktif.
+
+                   File baru akan sudah memiliki
+                   state loading sendiri melalui
+                   resetForNewFile().
+                */
+
+                if (
+                    state.file === sourceFile
+                ) {
+
+                    setSightengineLoading(
+                        false
+                    );
+
+                }
+
             }
+
+        } else {
+
+            /*
+               Bukan image atau tidak memenuhi
+               syarat Sightengine.
+
+               Tidak dianggap sebagai error.
+            */
+
+            setSightengineLoading(
+                false
+            );
 
         }
 
@@ -790,13 +888,6 @@ async function checkMetadata() {
 
         /* =================================================
            RENDER AI DETECTION
-           -------------------------------------------------
-           Untuk tahap ini renderDetectionResult()
-           masih menggunakan detector metadata lokal.
-
-           Tahap berikutnya akan menggabungkan:
-           - local metadata detection
-           - Sightengine visual detection
         ================================================= */
 
         renderDetectionResult();
@@ -814,9 +905,8 @@ async function checkMetadata() {
         /*
            Preview status.
 
-           Untuk sementara status lokal tetap
-           dipertahankan sampai renderer detection
-           di-update pada tahap berikutnya.
+           Sightengine menjadi sumber visual AI
+           jika berhasil memberikan hasil.
         */
 
         if (
@@ -828,11 +918,20 @@ async function checkMetadata() {
             );
 
         } else if (
-            state.sightengineDetection?.is_ai_generated
+            state.sightengineDetection &&
+            state.sightengineDetection.is_ai_generated
         ) {
 
             setPreviewStatus(
                 "AI VISUAL DETECTION MENUNJUKKAN INDIKASI IMAGE AI."
+            );
+
+        } else if (
+            state.sightengineError
+        ) {
+
+            setPreviewStatus(
+                "METADATA SELESAI. AI VISUAL DETECTION TIDAK TERSEDIA."
             );
 
         } else {
@@ -877,12 +976,33 @@ async function checkMetadata() {
             [];
 
 
+        state.metadataCount =
+            0;
+
+
         state.aiIndicators =
             [];
 
 
-        state.sightengineDetection =
-            null;
+        /*
+           Metadata gagal berarti Sightengine
+           juga tidak boleh meninggalkan hasil
+           dari proses sebelumnya.
+        */
+
+        setSightengineLoading(
+            false
+        );
+
+
+        setSightengineDetection(
+            null
+        );
+
+
+        setSightengineError(
+            null
+        );
 
 
         /*
@@ -917,6 +1037,9 @@ async function checkMetadata() {
 
            Jika metadata berhasil, state.checked
            mencegah pemeriksaan ulang.
+
+           Jika gagal, CHECK tetap dapat dicoba
+           kembali seperti perilaku sebelumnya.
         */
 
         if (
