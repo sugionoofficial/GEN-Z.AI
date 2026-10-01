@@ -268,6 +268,12 @@ const metadataState = {
     previewObjectUrl:
         null,
 
+   originalURL:
+    null,
+
+cleanedURL:
+    null,
+
 
     /* -----------------------------------------------------
        PROCESSING
@@ -1518,14 +1524,20 @@ export function resetMetadataState() {
 
 
     /* -----------------------------------------------------
-       PREVIEW
-    ----------------------------------------------------- */
+   PREVIEW
+----------------------------------------------------- */
 
-    metadataState.previewUrl =
-        null;
+metadataState.previewUrl =
+    null;
 
-    metadataState.previewObjectUrl =
-        null;
+metadataState.previewObjectUrl =
+    null;
+
+metadataState.originalURL =
+    null;
+
+metadataState.cleanedURL =
+    null;
 
 
     /* -----------------------------------------------------
