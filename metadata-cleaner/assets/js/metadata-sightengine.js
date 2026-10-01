@@ -14,6 +14,7 @@
    - Menormalisasi Face Manipulation / Deepfake
    - Mempertahankan request metadata
    - Mempertahankan media metadata
+   - Mempertahankan daftar models
    - Menghasilkan object detection siap digunakan UI
    - Menyediakan API yang digunakan metadata-app.js
 
@@ -552,20 +553,169 @@ function normalizeGeneratorName(
 /* =========================================================
    GENERATOR NORMALIZATION
    ---------------------------------------------------------
+   Mendukung dua bentuk:
+
+   1. Array hasil backend:
+
+      [
+          {
+              name: "imagen",
+              score: 0.76,
+              confidence: 76
+          }
+      ]
+
+   2. Object mentah:
+
+      {
+          imagen: 0.76,
+          flux: 0.01
+      }
+
    Penting:
    - Score 0 tetap dipertahankan.
    - Generator tidak dibuang hanya karena score kecil.
-   - Confidence otomatis dibuat dari score jika tidak ada.
+   - Confidence hanya fallback.
 ========================================================= */
 
 function normalizeGenerators(
     generators
 ) {
 
+    let source = [];
+
+
+    /* =====================================================
+       ARRAY
+    ===================================================== */
+
     if (
-        !Array.isArray(
+        Array.isArray(
             generators
         )
+    ) {
+
+        source =
+            generators
+                .map(
+                    (
+                        generator
+                    ) => {
+
+                        if (
+                            !isObject(
+                                generator
+                            )
+                        ) {
+
+                            return null;
+
+                        }
+
+
+                        const name =
+                            normalizeGeneratorName(
+                                generator.name
+                            );
+
+
+                        if (
+                            !name
+                        ) {
+
+                            return null;
+
+                        }
+
+
+                        return {
+
+                            name,
+
+                            score:
+                                generator.score,
+
+                            confidence:
+                                generator.confidence,
+
+                            percentage:
+                                generator.percentage,
+
+                            probability_percent:
+                                generator.probability_percent
+
+                        };
+
+                    }
+                )
+                .filter(
+                    Boolean
+                );
+
+    }
+
+
+    /* =====================================================
+       RAW OBJECT
+    ===================================================== */
+
+    else if (
+        isObject(
+            generators
+        )
+    ) {
+
+        source =
+            Object.entries(
+                generators
+            )
+                .map(
+                    (
+                        [
+                            name,
+                            rawScore
+                        ]
+                    ) => {
+
+                        const normalizedName =
+                            normalizeGeneratorName(
+                                name
+                            );
+
+
+                        if (
+                            !normalizedName
+                        ) {
+
+                            return null;
+
+                        }
+
+
+                        return {
+
+                            name:
+                                normalizedName,
+
+                            score:
+                                rawScore,
+
+                            confidence:
+                                null
+
+                        };
+
+                    }
+                )
+                .filter(
+                    Boolean
+                );
+
+    }
+
+
+    if (
+        source.length === 0
     ) {
 
         return [];
@@ -573,22 +723,11 @@ function normalizeGenerators(
     }
 
 
-    return generators
+    return source
         .map(
             (
                 generator
             ) => {
-
-                if (
-                    !isObject(
-                        generator
-                    )
-                ) {
-
-                    return null;
-
-                }
-
 
                 const name =
                     normalizeGeneratorName(
@@ -605,11 +744,20 @@ function normalizeGenerators(
                 }
 
 
+                /*
+                 * SCORE SELALU MENJADI SUMBER UTAMA.
+                 */
+
                 const score =
                     normalizeScore(
                         generator.score
                     );
 
+
+                /*
+                 * Confidence digunakan hanya
+                 * jika memang tersedia.
+                 */
 
                 let confidence =
                     getFirstValidPercentage(
@@ -623,12 +771,10 @@ function normalizeGenerators(
 
 
                 /*
-                 * Jika backend tidak mengirim
-                 * confidence tetapi score tersedia,
-                 * hitung dari score.
+                 * Jika confidence tidak tersedia,
+                 * turunkan dari score.
                  *
-                 * Score 0 menghasilkan confidence 0,
-                 * bukan null.
+                 * Score 0 tetap menghasilkan 0.
                  */
 
                 if (
@@ -726,6 +872,10 @@ function normalizeDetectedGenerator(
     }
 
 
+    /*
+     * Score menjadi sumber utama.
+     */
+
     const score =
         normalizeScore(
             generator.score
@@ -772,7 +922,7 @@ function normalizeDetectedGenerator(
 /* =========================================================
    FACE MANIPULATION / DEEPFAKE NORMALIZATION
    ---------------------------------------------------------
-   Backend versi baru dapat mengirim:
+   Backend dapat mengirim:
 
        face_manipulation
        face_manipulation_confidence
@@ -782,6 +932,7 @@ function normalizeDetectedGenerator(
 
        deepfake
        deepfake_confidence
+       is_deepfake
 
    Semua dipertahankan supaya renderer memiliki
    satu struktur yang konsisten.
@@ -799,11 +950,14 @@ function normalizeFaceManipulation(
 
         return {
 
-            score: null,
+            score:
+                null,
 
-            confidence: null,
+            confidence:
+                null,
 
-            isManipulated: false
+            isManipulated:
+                false
 
         };
 
@@ -888,14 +1042,6 @@ function normalizeFaceManipulation(
 
 /* =========================================================
    REQUEST METADATA
-   ---------------------------------------------------------
-   Contoh Sightengine:
-
-   {
-       id: "...",
-       timestamp: 1491402308.4762,
-       operations: 5
-   }
 ========================================================= */
 
 function normalizeRequestMetadata(
@@ -968,13 +1114,6 @@ function normalizeRequestMetadata(
 
 /* =========================================================
    MEDIA METADATA
-   ---------------------------------------------------------
-   Contoh:
-
-   {
-       id: "...",
-       uri: "..."
-   }
 ========================================================= */
 
 function normalizeMediaMetadata(
@@ -1012,6 +1151,48 @@ function normalizeMediaMetadata(
 
 
 /* =========================================================
+   MODELS NORMALIZATION
+   ---------------------------------------------------------
+   Backend:
+
+       models: [
+           "genai",
+           "deepfake"
+       ]
+
+   Jangan membuat model sendiri.
+========================================================= */
+
+function normalizeModels(
+    models
+) {
+
+    if (
+        !Array.isArray(
+            models
+        )
+    ) {
+
+        return [];
+
+    }
+
+
+    return models
+        .filter(
+            model =>
+                typeof model === "string" &&
+                model.trim()
+        )
+        .map(
+            model =>
+                model.trim()
+        );
+
+}
+
+
+/* =========================================================
    DETECTION NORMALIZATION
 ========================================================= */
 
@@ -1043,6 +1224,22 @@ function normalizeDetection(
             : typeof backendDetection.model === "string"
                 ? backendDetection.model
                 : null;
+
+
+    /*
+       Models:
+       Prioritas response.models.
+       Fallback detection.models.
+    */
+
+    const models =
+        normalizeModels(
+            Array.isArray(
+                data?.models
+            )
+                ? data.models
+                : backendDetection.models
+        );
 
 
     /* =====================================================
@@ -1099,11 +1296,26 @@ function normalizeDetection(
 
     /* =====================================================
        GENERATORS
-    ===================================================== */
+       -----------------------------------------------------
+       Prioritas:
+       1. detection.generators
+       2. detection.ai_generators
+===================================================== */
+
+    const rawGenerators =
+        Array.isArray(
+            backendDetection.generators
+        ) ||
+        isObject(
+            backendDetection.generators
+        )
+            ? backendDetection.generators
+            : backendDetection.ai_generators;
+
 
     const generators =
         normalizeGenerators(
-            backendDetection.generators
+            rawGenerators
         );
 
 
@@ -1139,10 +1351,6 @@ function normalizeDetection(
 
     /* =====================================================
        FINAL OBJECT
-       -----------------------------------------------------
-       Field lama dipertahankan.
-       Field baru ditambahkan tanpa menghapus
-       struktur sebelumnya.
     ===================================================== */
 
     return {
@@ -1152,7 +1360,12 @@ function normalizeDetection(
                 ? data.provider
                 : SIGHTENGINE_PROVIDER,
 
+
         model,
+
+
+        models,
+
 
         /* -------------------------------------------------
            GENAI
@@ -1162,6 +1375,7 @@ function normalizeDetection(
             aiGenerated,
 
         confidence,
+
 
         is_ai_generated:
             typeof backendDetection.is_ai_generated ===
@@ -1187,9 +1401,6 @@ function normalizeDetection(
 
         /* -------------------------------------------------
            DEEPFAKE ALIAS
-           -------------------------------------------------
-           Dipertahankan supaya UI dapat menampilkan
-           Deepfake secara terpisah dari GenAI.
         ------------------------------------------------- */
 
         deepfake:
@@ -1236,8 +1447,13 @@ function createEmptyDetection() {
         provider:
             SIGHTENGINE_PROVIDER,
 
+
         model:
             null,
+
+
+        models:
+            [],
 
 
         /* -------------------------------------------------
@@ -1465,6 +1681,9 @@ export function normalizeSightengineDetection(
 
 /* =========================================================
    PUBLIC GENERATOR FORMATTER
+   ---------------------------------------------------------
+   Score menjadi sumber utama.
+   Confidence hanya fallback.
 ========================================================= */
 
 export function formatSightengineGenerator(
@@ -1497,23 +1716,12 @@ export function formatSightengineGenerator(
     }
 
 
-    const confidence =
-        normalizePercentage(
-            generator.confidence
-        );
-
-
-    if (
-        confidence !== null
-    ) {
-
-        return (
-            `${name} ` +
-            `(${confidence}%)`
-        );
-
-    }
-
+    /*
+     * SCORE adalah sumber utama.
+     *
+     * Ini penting agar renderer tidak
+     * salah mengutamakan confidence.
+     */
 
     const score =
         normalizeScore(
@@ -1528,6 +1736,24 @@ export function formatSightengineGenerator(
         return (
             `${name} ` +
             `(${Math.round(score * 100)}%)`
+        );
+
+    }
+
+
+    const confidence =
+        normalizePercentage(
+            generator.confidence
+        );
+
+
+    if (
+        confidence !== null
+    ) {
+
+        return (
+            `${name} ` +
+            `(${confidence}%)`
         );
 
     }
@@ -1557,23 +1783,6 @@ export function formatSightengineFaceManipulation(
     }
 
 
-    const confidence =
-        normalizePercentage(
-            detection.face_manipulation_confidence
-        );
-
-
-    if (
-        confidence !== null
-    ) {
-
-        return (
-            `${confidence}%`
-        );
-
-    }
-
-
     const score =
         normalizeScore(
             detection.face_manipulation
@@ -1586,6 +1795,23 @@ export function formatSightengineFaceManipulation(
 
         return (
             `${Math.round(score * 100)}%`
+        );
+
+    }
+
+
+    const confidence =
+        normalizePercentage(
+            detection.face_manipulation_confidence
+        );
+
+
+    if (
+        confidence !== null
+    ) {
+
+        return (
+            `${confidence}%`
         );
 
     }
@@ -1615,23 +1841,6 @@ export function formatSightengineDeepfake(
     }
 
 
-    const confidence =
-        normalizePercentage(
-            detection.deepfake_confidence
-        );
-
-
-    if (
-        confidence !== null
-    ) {
-
-        return (
-            `${confidence}%`
-        );
-
-    }
-
-
     const score =
         normalizeScore(
             detection.deepfake
@@ -1644,6 +1853,23 @@ export function formatSightengineDeepfake(
 
         return (
             `${Math.round(score * 100)}%`
+        );
+
+    }
+
+
+    const confidence =
+        normalizePercentage(
+            detection.deepfake_confidence
+        );
+
+
+    if (
+        confidence !== null
+    ) {
+
+        return (
+            `${confidence}%`
         );
 
     }
@@ -1680,6 +1906,8 @@ export {
 
     normalizeMediaMetadata,
 
-    normalizeFaceManipulation
+    normalizeFaceManipulation,
+
+    normalizeModels
 
 };
