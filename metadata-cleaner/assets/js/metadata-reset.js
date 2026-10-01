@@ -10,6 +10,7 @@
    - Membersihkan preview
    - Membersihkan metadata
    - Membersihkan AI detection
+   - Membersihkan Sightengine detection
    - Membersihkan hasil cleaning
    - Reset seluruh aplikasi
 
@@ -97,11 +98,32 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       RESET AI INDICATORS
+       RESET LOCAL AI INDICATORS
     ===================================================== */
 
     state.aiIndicators =
         [];
+
+
+    /* =====================================================
+       RESET SIGHTENGINE DETECTION
+       -----------------------------------------------------
+       Penting:
+       Hasil visual AI detection dari file sebelumnya
+       tidak boleh terbawa ke file baru.
+    ===================================================== */
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            state,
+            "sightengineDetection"
+        )
+    ) {
+
+        state.sightengineDetection =
+            null;
+
+    }
 
 
     /* =====================================================
@@ -561,6 +583,34 @@ export function resetApplication() {
 
         elements.metadataCount.textContent =
             "0";
+
+    }
+
+
+    /* =====================================================
+       RESET LOCAL AI INDICATORS
+    ===================================================== */
+
+    state.aiIndicators =
+        [];
+
+
+    /* =====================================================
+       RESET SIGHTENGINE DETECTION
+       -----------------------------------------------------
+       Pastikan resetApplication() juga membersihkan
+       hasil visual detection dari file sebelumnya.
+    ===================================================== */
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            state,
+            "sightengineDetection"
+        )
+    ) {
+
+        state.sightengineDetection =
+            null;
 
     }
 
