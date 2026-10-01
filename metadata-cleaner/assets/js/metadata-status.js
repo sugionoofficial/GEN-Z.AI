@@ -10,7 +10,13 @@
    - Render status
    - Render metadata table
    - Render Sightengine AI Detection
+   - Render Face Manipulation
    - Render AI generator scores
+   - Group generator:
+       Diffusion
+       GAN
+       Other
+   - Render Deepfake
    - Render Sightengine request metadata
    - Render Sightengine media metadata
    - Mengatur AI DETECTION overlay
@@ -58,14 +64,103 @@ import {
 const SIGHTENGINE_SECTION_TITLE =
     "SIGHTENGINE AI DETECTION";
 
+
 const SIGHTENGINE_GENERATORS_TITLE =
     "AI GENERATORS";
+
+
+const SIGHTENGINE_DIFFUSION_TITLE =
+    "DIFFUSION";
+
+
+const SIGHTENGINE_GAN_TITLE =
+    "GAN";
+
+
+const SIGHTENGINE_OTHER_TITLE =
+    "OTHER";
+
 
 const SIGHTENGINE_REQUEST_TITLE =
     "SIGHTENGINE REQUEST";
 
+
 const SIGHTENGINE_MEDIA_TITLE =
     "SIGHTENGINE MEDIA";
+
+
+/* =========================================================
+   GENERATOR GROUPS
+   ---------------------------------------------------------
+   Mengikuti kategori generator yang digunakan oleh
+   Sightengine.
+
+   Penting:
+   - Hanya generator yang benar-benar dikirim backend
+     yang ditampilkan.
+   - Score 0% tetap ditampilkan.
+   - Tidak membuat score palsu untuk generator yang
+     tidak dikirim provider.
+========================================================= */
+
+
+/* =========================================================
+   DIFFUSION GENERATORS
+========================================================= */
+
+const DIFFUSION_GENERATORS =
+    new Set(
+        [
+            "dalle",
+            "dall_e",
+            "firefly",
+            "flux",
+            "gpt",
+            "gpt_image",
+            "gpt_image_generation",
+            "grok",
+            "higgsfield",
+            "ideogram",
+            "imagen",
+            "kling",
+            "midjourney",
+            "nano_banana",
+            "nanobanana",
+            "qwen",
+            "recraft",
+            "reve",
+            "seedream",
+            "stable_diffusion",
+            "wan",
+            "z_image"
+        ]
+    );
+
+
+/* =========================================================
+   GAN GENERATORS
+========================================================= */
+
+const GAN_GENERATORS =
+    new Set(
+        [
+            "gan",
+            "stylegan"
+        ]
+    );
+
+
+/* =========================================================
+   OTHER GENERATORS
+========================================================= */
+
+const OTHER_GENERATORS =
+    new Set(
+        [
+            "other",
+            "deepfake"
+        ]
+    );
 
 
 /* =========================================================
@@ -313,6 +408,34 @@ function formatPercentageFromPercent(
 
 
 /* =========================================================
+   GENERATOR NORMALIZED KEY
+========================================================= */
+
+function normalizeGeneratorKey(
+    name
+) {
+
+    if (
+        typeof name !== "string"
+    ) {
+
+        return "";
+
+    }
+
+
+    return name
+        .trim()
+        .toLowerCase()
+        .replace(
+            /[\s-]+/g,
+            "_"
+        );
+
+}
+
+
+/* =========================================================
    GENERATOR NAME FORMAT
 ========================================================= */
 
@@ -330,9 +453,9 @@ function formatGeneratorName(
 
 
     const normalized =
-        name
-            .trim()
-            .toLowerCase();
+        normalizeGeneratorKey(
+            name
+        );
 
 
     const names = {
@@ -355,6 +478,15 @@ function formatGeneratorName(
         gpt:
             "GPT",
 
+        gpt_image:
+            "GPT",
+
+        gpt_image_generation:
+            "GPT",
+
+        grok:
+            "Grok",
+
         higgsfield:
             "Higgsfield",
 
@@ -368,7 +500,13 @@ function formatGeneratorName(
             "Imagen",
 
         midjourney:
-            "Midjourney",
+            "MidJourney",
+
+        nano_banana:
+            "Nano Banana",
+
+        nanobanana:
+            "Nano Banana",
 
         qwen:
             "Qwen",
@@ -385,14 +523,20 @@ function formatGeneratorName(
         stable_diffusion:
             "Stable Diffusion",
 
+        stylegan:
+            "StyleGAN",
+
         wan:
             "Wan",
 
         z_image:
-            "Z Image",
+            "Z-Image",
 
         other:
-            "Other"
+            "Other",
+
+        deepfake:
+            "Deepfake"
 
     };
 
@@ -401,6 +545,77 @@ function formatGeneratorName(
         names[normalized] ||
         name
     );
+
+}
+
+
+/* =========================================================
+   GENERATOR GROUP
+   ---------------------------------------------------------
+   Return:
+       diffusion
+       gan
+       other
+
+   Generator yang tidak dikenal tidak dibuang.
+   Ia masuk OTHER agar hasil provider tidak hilang.
+========================================================= */
+
+function getGeneratorGroup(
+    generator
+) {
+
+    if (
+        !isObject(
+            generator
+        )
+    ) {
+
+        return "other";
+
+    }
+
+
+    const key =
+        normalizeGeneratorKey(
+            generator.name
+        );
+
+
+    if (
+        DIFFUSION_GENERATORS.has(
+            key
+        )
+    ) {
+
+        return "diffusion";
+
+    }
+
+
+    if (
+        GAN_GENERATORS.has(
+            key
+        )
+    ) {
+
+        return "gan";
+
+    }
+
+
+    if (
+        OTHER_GENERATORS.has(
+            key
+        )
+    ) {
+
+        return "other";
+
+    }
+
+
+    return "other";
 
 }
 
@@ -568,21 +783,6 @@ function createSectionRow(
 
 /* =========================================================
    LOCAL METADATA
-   ---------------------------------------------------------
-   Mendukung format lama:
-       {
-           field: "...",
-           value: "..."
-       }
-
-   Juga mendukung:
-       {
-           key: "...",
-           value: "..."
-       }
-
-   Agar module normalizer lama maupun baru
-   tetap kompatibel.
 ========================================================= */
 
 function renderLocalMetadata(
@@ -665,13 +865,6 @@ function renderLocalMetadata(
 
 /* =========================================================
    SIGHTENGINE RESULT AVAILABILITY
-   ---------------------------------------------------------
-   Penting:
-
-   Object kosong dari metadata-state.js bukan berarti
-   Sightengine berhasil.
-
-   sightengineChecked adalah sumber kebenaran.
 ========================================================= */
 
 function hasSightengineResult(
@@ -698,6 +891,16 @@ function hasSightengineResult(
 
 /* =========================================================
    SIGHTENGINE DETECTION
+   ---------------------------------------------------------
+   Tampilan utama:
+
+       SIGHTENGINE AI DETECTION
+
+       GenAI              99%
+       Face manipulation  60%
+
+   Detection Model dan informasi teknis tetap
+   dipertahankan untuk kompatibilitas.
 ========================================================= */
 
 function renderSightengineDetection(
@@ -737,8 +940,24 @@ function renderSightengineDetection(
         );
 
 
+    const faceManipulation =
+        normalizeScore(
+            detection.face_manipulation
+        );
+
+
+    const faceManipulationConfidence =
+        normalizePercent(
+            detection.face_manipulation_confidence
+        );
+
+
     const isAiGenerated =
         detection.is_ai_generated === true;
+
+
+    const isFaceManipulated =
+        detection.is_face_manipulated === true;
 
 
     const detectedGenerator =
@@ -754,14 +973,16 @@ function renderSightengineDetection(
 
 
     if (
-        isAiGenerated
+        isAiGenerated ||
+        isFaceManipulated
     ) {
 
         detectionStatus =
             "TERDETEKSI";
 
     } else if (
-        aiGenerated !== null
+        aiGenerated !== null ||
+        faceManipulation !== null
     ) {
 
         detectionStatus =
@@ -788,6 +1009,48 @@ function renderSightengineDetection(
         );
 
 
+    /*
+     * GenAI score
+     */
+
+    html +=
+        createMetadataRow(
+            "GenAI",
+            aiGenerated !== null
+                ? formatPercentage(
+                    aiGenerated
+                )
+                : confidence !== null
+                    ? formatPercentageFromPercent(
+                        confidence
+                    )
+                    : "N/A"
+        );
+
+
+    /*
+     * Face manipulation score
+     */
+
+    html +=
+        createMetadataRow(
+            "Face manipulation",
+            faceManipulation !== null
+                ? formatPercentage(
+                    faceManipulation
+                )
+                : faceManipulationConfidence !== null
+                    ? formatPercentageFromPercent(
+                        faceManipulationConfidence
+                    )
+                    : "N/A"
+        );
+
+
+    /*
+     * Informasi teknis tetap dipertahankan.
+     */
+
     html +=
         createMetadataRow(
             "Provider",
@@ -799,28 +1062,6 @@ function renderSightengineDetection(
         createMetadataRow(
             "Detection Model",
             model
-        );
-
-
-    html +=
-        createMetadataRow(
-            "AI Generated",
-            aiGenerated !== null
-                ? formatPercentage(
-                    aiGenerated
-                )
-                : "N/A"
-        );
-
-
-    html +=
-        createMetadataRow(
-            "Confidence",
-            confidence !== null
-                ? formatPercentageFromPercent(
-                    confidence
-                )
-                : "N/A"
         );
 
 
@@ -844,7 +1085,241 @@ function renderSightengineDetection(
 
 
 /* =========================================================
+   GENERATOR ROW
+========================================================= */
+
+function renderGeneratorRow(
+    generator
+) {
+
+    if (
+        !isObject(
+            generator
+        )
+    ) {
+
+        return "";
+
+    }
+
+
+    const name =
+        formatGeneratorName(
+            generator.name
+        );
+
+
+    if (
+        !name
+    ) {
+
+        return "";
+
+    }
+
+
+    /*
+     * Jangan pernah menggunakan truthy check
+     * terhadap score/confidence.
+     *
+     * Score 0 adalah hasil valid dan harus tampil.
+     */
+
+    let value =
+        "";
+
+
+    const confidence =
+        normalizePercent(
+            generator.confidence
+        );
+
+
+    const score =
+        normalizeScore(
+            generator.score
+        );
+
+
+    if (
+        confidence !== null
+    ) {
+
+        value =
+            formatPercentageFromPercent(
+                confidence
+            );
+
+    } else if (
+        score !== null
+    ) {
+
+        value =
+            formatPercentage(
+                score
+            );
+
+    } else {
+
+        value =
+            "N/A";
+
+    }
+
+
+    return createMetadataRow(
+        name,
+        value
+    );
+
+}
+
+
+/* =========================================================
+   GENERATOR GROUP RENDER
+========================================================= */
+
+function renderGeneratorGroup(
+    title,
+    generators
+) {
+
+    if (
+        !Array.isArray(
+            generators
+        ) ||
+        generators.length === 0
+    ) {
+
+        return "";
+
+    }
+
+
+    let html =
+        "";
+
+
+    html +=
+        createSectionRow(
+            title
+        );
+
+
+    for (
+        const generator of generators
+    ) {
+
+        html +=
+            renderGeneratorRow(
+                generator
+            );
+
+    }
+
+
+    return html;
+
+}
+
+
+/* =========================================================
+   SORT GENERATORS
+   ---------------------------------------------------------
+   Provider order tetap dihormati berdasarkan score.
+
+   Score 0 tetap masuk.
+========================================================= */
+
+function sortGenerators(
+    generators
+) {
+
+    if (
+        !Array.isArray(
+            generators
+        )
+    ) {
+
+        return [];
+
+    }
+
+
+    return [
+        ...generators
+    ]
+        .filter(
+            generator =>
+                isObject(
+                    generator
+                )
+        )
+        .sort(
+            (
+                a,
+                b
+            ) => {
+
+                const scoreA =
+                    normalizeScore(
+                        a.score
+                    );
+
+
+                const scoreB =
+                    normalizeScore(
+                        b.score
+                    );
+
+
+                const safeA =
+                    scoreA === null
+                        ? -1
+                        : scoreA;
+
+
+                const safeB =
+                    scoreB === null
+                        ? -1
+                        : scoreB;
+
+
+                return (
+                    safeB -
+                    safeA
+                );
+
+            }
+        );
+
+}
+
+
+/* =========================================================
    AI GENERATORS
+   ---------------------------------------------------------
+   Struktur:
+
+       AI GENERATORS
+
+       DIFFUSION
+       Imagen              76%
+       Nano Banana         76%
+       Wan                 8%
+       ...
+
+       GAN
+       StyleGAN            1%
+
+       OTHER
+       Other               9%
+
+   Deepfake ditambahkan pada OTHER dari field
+   face/deepfake backend.
+
+   Tidak ada generator yang dibuang hanya karena
+   score = 0.
 ========================================================= */
 
 function renderSightengineGenerators(
@@ -871,15 +1346,146 @@ function renderSightengineGenerators(
 
 
     /*
-       generators: [] adalah hasil valid.
-
-       Tidak menampilkan section kosong karena
-       tidak ada generator individual yang diberikan
-       oleh provider.
-    */
+     * Tidak ada generator individual.
+     *
+     * Jangan membuat daftar generator palsu.
+     */
 
     if (
         generators.length === 0
+    ) {
+
+        /*
+         * Deepfake tetap dapat tampil meskipun
+         * endpoint genai tidak mengembalikan
+         * generator array.
+         */
+
+        const deepfakeScore =
+            normalizeScore(
+                detection.deepfake
+            );
+
+
+        const deepfakeConfidence =
+            normalizePercent(
+                detection.deepfake_confidence
+            );
+
+
+        if (
+            deepfakeScore === null &&
+            deepfakeConfidence === null
+        ) {
+
+            return "";
+
+        }
+
+    }
+
+
+    const sortedGenerators =
+        sortGenerators(
+            generators
+        );
+
+
+    const diffusion = [];
+
+
+    const gan = [];
+
+
+    const other = [];
+
+
+    for (
+        const generator of sortedGenerators
+    ) {
+
+        const group =
+            getGeneratorGroup(
+                generator
+            );
+
+
+        if (
+            group === "diffusion"
+        ) {
+
+            diffusion.push(
+                generator
+            );
+
+        } else if (
+            group === "gan"
+        ) {
+
+            gan.push(
+                generator
+            );
+
+        } else {
+
+            other.push(
+                generator
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Deepfake berasal dari model deepfake,
+     * bukan ai_generators.
+
+     * Masukkan ke OTHER agar struktur hasil sesuai
+     * dengan kategori visual detection.
+     */
+
+    const deepfakeScore =
+        normalizeScore(
+            detection.deepfake
+        );
+
+
+    const deepfakeConfidence =
+        normalizePercent(
+            detection.deepfake_confidence
+        );
+
+
+    if (
+        deepfakeScore !== null ||
+        deepfakeConfidence !== null
+    ) {
+
+        other.push({
+
+            name:
+                "deepfake",
+
+            score:
+                deepfakeScore,
+
+            confidence:
+                deepfakeConfidence
+
+        });
+
+    }
+
+
+    /*
+     * Jangan render section utama kosong.
+     */
+
+    if (
+        diffusion.length === 0 &&
+        gan.length === 0 &&
+        other.length === 0
     ) {
 
         return "";
@@ -897,40 +1503,25 @@ function renderSightengineGenerators(
         );
 
 
-    for (
-        const generator of generators
-    ) {
-
-        if (
-            !isObject(
-                generator
-            )
-        ) {
-
-            continue;
-
-        }
+    html +=
+        renderGeneratorGroup(
+            SIGHTENGINE_DIFFUSION_TITLE,
+            diffusion
+        );
 
 
-        const name =
-            formatGeneratorName(
-                generator.name
-            );
+    html +=
+        renderGeneratorGroup(
+            SIGHTENGINE_GAN_TITLE,
+            gan
+        );
 
 
-        const value =
-            formatGeneratorDisplay(
-                generator
-            );
-
-
-        html +=
-            createMetadataRow(
-                name,
-                value
-            );
-
-    }
+    html +=
+        renderGeneratorGroup(
+            SIGHTENGINE_OTHER_TITLE,
+            other
+        );
 
 
     return html;
@@ -1201,7 +1792,10 @@ export function renderDetectionResult() {
 
     const sightengineDetected =
         sightengineAvailable &&
-        sightengine.is_ai_generated === true;
+        (
+            sightengine.is_ai_generated === true ||
+            sightengine.is_face_manipulated === true
+        );
 
 
     /* =====================================================
@@ -1296,9 +1890,6 @@ export function renderDetectionResult() {
 
     /* =====================================================
        SIGHTENGINE CHECKED
-       -----------------------------------------------------
-       Sightengine berhasil dijalankan dan memberikan
-       score yang dapat digunakan.
     ===================================================== */
 
     if (
@@ -1326,9 +1917,6 @@ export function renderDetectionResult() {
 
     /* =====================================================
        SIGHTENGINE ERROR
-       -----------------------------------------------------
-       Provider gagal, sehingga jangan menyebut image
-       "tidak terdeteksi AI" berdasarkan Sightengine.
     ===================================================== */
 
     if (
@@ -1366,9 +1954,6 @@ export function renderDetectionResult() {
 
     /* =====================================================
        NO SIGHTENGINE RESULT
-       -----------------------------------------------------
-       Untuk video atau kondisi ketika Sightengine
-       memang tidak dijalankan.
     ===================================================== */
 
     clearOverlayStamp();
@@ -1415,10 +2000,6 @@ function renderOverlayStamp(
     }
 
 
-    /* =====================================================
-       PASTIKAN TERLIHAT
-    ===================================================== */
-
     overlay.classList.remove(
         "hidden"
     );
@@ -1429,10 +2010,6 @@ function renderOverlayStamp(
         "false"
     );
 
-
-    /* =====================================================
-       FIND / CREATE STAMP
-    ===================================================== */
 
     let stamp =
         overlay.querySelector(
@@ -1460,10 +2037,6 @@ function renderOverlayStamp(
 
     }
 
-
-    /* =====================================================
-       LABEL
-    ===================================================== */
 
     let label =
         stamp.querySelector(
@@ -1493,22 +2066,11 @@ function renderOverlayStamp(
         "AI DETECTION";
 
 
-    /* =====================================================
-       MODEL
-       -----------------------------------------------------
-       Tidak hardcode.
-       Diambil langsung dari Sightengine.
-    ===================================================== */
-
     renderOverlayModel(
         stamp,
         sightengine?.model
     );
 
-
-    /* =====================================================
-       FINAL VISIBILITY
-    ===================================================== */
 
     overlay.hidden =
         false;
@@ -1694,6 +2256,12 @@ function buildCombinedDetectionDescription(
         );
 
 
+    const faceManipulation =
+        formatFaceManipulationConfidence(
+            sightengine
+        );
+
+
     const generator =
         formatGenerator(
             sightengine?.detected_generator
@@ -1705,8 +2273,12 @@ function buildCombinedDetectionDescription(
         `${metadataCount} indikator AI ditemukan pada metadata.`,
 
         confidence
-            ? `Sightengine juga mendeteksi indikasi image AI dengan confidence ${confidence}.`
-            : "Sightengine juga mendeteksi indikasi image AI.",
+            ? `Sightengine mendeteksi indikasi GenAI dengan confidence ${confidence}.`
+            : "Sightengine mendeteksi indikasi GenAI.",
+
+        faceManipulation
+            ? `Face manipulation: ${faceManipulation}.`
+            : "",
 
         generator
             ? `Generator teratas: ${generator}.`
@@ -1739,6 +2311,12 @@ function buildSightengineDescription(
         );
 
 
+    const faceManipulation =
+        formatFaceManipulationConfidence(
+            sightengine
+        );
+
+
     const generator =
         formatGenerator(
             sightengine?.detected_generator
@@ -1750,7 +2328,11 @@ function buildSightengineDescription(
         "Sightengine mendeteksi indikasi bahwa image dibuat atau dimodifikasi menggunakan AI.",
 
         confidence
-            ? `Confidence: ${confidence}.`
+            ? `GenAI confidence: ${confidence}.`
+            : "",
+
+        faceManipulation
+            ? `Face manipulation: ${faceManipulation}.`
             : "",
 
         generator
@@ -1784,27 +2366,34 @@ function buildSightengineClearDescription(
         );
 
 
-    if (
-        confidence
-    ) {
-
-        return (
-            "Sightengine tidak mendeteksi image sebagai AI " +
-            "pada threshold yang digunakan. " +
-            `Confidence AI: ${confidence}. ` +
-            "Hasil ini bukan jaminan bahwa image pasti " +
-            "dibuat oleh manusia."
+    const faceManipulation =
+        formatFaceManipulationConfidence(
+            sightengine
         );
 
-    }
+
+    const parts = [
+
+        "Sightengine tidak mendeteksi image sebagai AI pada threshold yang digunakan.",
+
+        confidence
+            ? `Confidence AI: ${confidence}.`
+            : "",
+
+        faceManipulation
+            ? `Face manipulation: ${faceManipulation}.`
+            : "",
+
+        "Hasil ini bukan jaminan bahwa image pasti dibuat oleh manusia."
+
+    ];
 
 
-    return (
-        "Sightengine tidak mendeteksi image sebagai AI " +
-        "pada threshold yang digunakan. " +
-        "Hasil ini bukan jaminan bahwa image pasti " +
-        "dibuat oleh manusia."
-    );
+    return parts
+        .filter(
+            Boolean
+        )
+        .join(" ");
 
 }
 
@@ -1868,6 +2457,64 @@ function formatConfidence(
                 )
             )
         )}%`;
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
+   FACE MANIPULATION CONFIDENCE
+========================================================= */
+
+function formatFaceManipulationConfidence(
+    detection
+) {
+
+    if (
+        !isObject(
+            detection
+        )
+    ) {
+
+        return "";
+
+    }
+
+
+    const score =
+        normalizeScore(
+            detection.face_manipulation
+        );
+
+
+    if (
+        score !== null
+    ) {
+
+        return formatPercentage(
+            score
+        );
+
+    }
+
+
+    const confidence =
+        normalizePercent(
+            detection.face_manipulation_confidence
+        );
+
+
+    if (
+        confidence !== null
+    ) {
+
+        return formatPercentageFromPercent(
+            confidence
+        );
 
     }
 
@@ -1952,14 +2599,6 @@ export function setStatus(
 
 /* =========================================================
    METADATA RENDER
-   ---------------------------------------------------------
-   Metadata lokal tetap dihitung sebagai metadata file.
-
-   Section Sightengine hanya muncul jika:
-       state.sightengineChecked === true
-
-   Dengan demikian kegagalan provider tidak menghasilkan
-   section palsu berisi N/A.
 ========================================================= */
 
 export function renderMetadata() {
@@ -2089,6 +2728,8 @@ export {
     formatGeneratorName,
 
     formatGenerator,
+
+    getGeneratorGroup,
 
     renderSightengineMetadata,
 
