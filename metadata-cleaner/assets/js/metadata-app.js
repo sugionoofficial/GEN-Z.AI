@@ -796,3 +796,233 @@ if (
 
     init();
 }
+
+/* =========================================================
+   GEN-Z.AI
+   METADATA CLEANER DEPLOY DIAGNOSTIC
+   ---------------------------------------------------------
+   Tujuan:
+   - Memastikan module benar-benar loaded
+   - Memastikan tombol CLEAN terdeteksi
+   - Memastikan event CLEAN terpancing
+   - Menangkap error global
+   - Menangkap unhandled Promise rejection
+========================================================= */
+
+(function initMetadataDeployDiagnostic() {
+
+    console.log(
+        "%c[GEN-Z.AI][METADATA] DEPLOY DIAGNOSTIC ACTIVE",
+        "font-weight:bold;font-size:14px;"
+    );
+
+    console.log(
+        "[GEN-Z.AI][METADATA] URL:",
+        window.location.href
+    );
+
+    console.log(
+        "[GEN-Z.AI][METADATA] metadata-app.js loaded:",
+        true
+    );
+
+
+    /* =====================================================
+       CHECK DOM
+    ===================================================== */
+
+    const cleanButton =
+        document.getElementById(
+            "metadata-clean-button"
+        );
+
+    const checkButton =
+        document.getElementById(
+            "metadata-check-button"
+        );
+
+    const fileInput =
+        document.getElementById(
+            "metadata-file-input"
+        );
+
+
+    console.log(
+        "[GEN-Z.AI][METADATA] DOM CHECK:",
+        {
+            cleanButton: !!cleanButton,
+            checkButton: !!checkButton,
+            fileInput: !!fileInput
+        }
+    );
+
+
+    /* =====================================================
+       CLEAN BUTTON PROBE
+    ===================================================== */
+
+    if (
+        cleanButton
+    ) {
+
+        cleanButton.addEventListener(
+            "click",
+            function metadataCleanProbe() {
+
+                console.log(
+                    "%c[GEN-Z.AI][METADATA] CLEAN BUTTON CLICK TERDETEKSI",
+                    "font-weight:bold;"
+                );
+
+                console.log(
+                    "[GEN-Z.AI][METADATA] state:",
+                    window.GENZMetadataCleaner
+                        ?.state
+                );
+
+            },
+            true
+        );
+
+    } else {
+
+        console.error(
+            "[GEN-Z.AI][METADATA] CLEAN BUTTON TIDAK DITEMUKAN!"
+        );
+
+    }
+
+
+    /* =====================================================
+       CHECK BUTTON PROBE
+    ===================================================== */
+
+    if (
+        checkButton
+    ) {
+
+        checkButton.addEventListener(
+            "click",
+            function metadataCheckProbe() {
+
+                console.log(
+                    "[GEN-Z.AI][METADATA] CHECK BUTTON CLICK TERDETEKSI"
+                );
+
+            },
+            true
+        );
+
+    }
+
+
+    /* =====================================================
+       FILE INPUT PROBE
+    ===================================================== */
+
+    if (
+        fileInput
+    ) {
+
+        fileInput.addEventListener(
+            "change",
+            function metadataFileProbe(
+                event
+            ) {
+
+                const file =
+                    event.target
+                        ?.files
+                        ?.[
+                            0
+                        ];
+
+
+                console.log(
+                    "[GEN-Z.AI][METADATA] FILE INPUT TERDETEKSI:",
+                    {
+                        name:
+                            file?.name ||
+                            null,
+
+                        type:
+                            file?.type ||
+                            null,
+
+                        size:
+                            file?.size ||
+                            0
+                    }
+                );
+
+            },
+            true
+        );
+
+    }
+
+
+    /* =====================================================
+       GLOBAL ERROR TRAP
+    ===================================================== */
+
+    window.addEventListener(
+        "error",
+        function metadataGlobalError(
+            event
+        ) {
+
+            console.error(
+                "%c[GEN-Z.AI][METADATA] GLOBAL ERROR",
+                "font-weight:bold;color:red;",
+                {
+                    message:
+                        event.message,
+
+                    filename:
+                        event.filename,
+
+                    line:
+                        event.lineno,
+
+                    column:
+                        event.colno,
+
+                    error:
+                        event.error
+                }
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       PROMISE ERROR TRAP
+    ===================================================== */
+
+    window.addEventListener(
+        "unhandledrejection",
+        function metadataUnhandledRejection(
+            event
+        ) {
+
+            console.error(
+                "%c[GEN-Z.AI][METADATA] UNHANDLED PROMISE ERROR",
+                "font-weight:bold;color:red;",
+                event.reason
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       MODULE READY MARKER
+    ===================================================== */
+
+    window.__GENZ_METADATA_DEPLOY_DIAGNOSTIC__ =
+        true;
+
+
+})();
