@@ -56,10 +56,12 @@ import {
 } from "./metadata-video.js";
 
 import {
-    ensureFFmpeg,
-    createFFmpegFilename,
-    safeDeleteFFmpegFile
-} from "./metadata-ffmpeg.js";
+    cleanImage
+} from "./metadata-cleaner-image.js";
+
+import {
+    cleanVideo
+} from "./metadata-cleaner-video.js";
 
 
 /* =========================================================
