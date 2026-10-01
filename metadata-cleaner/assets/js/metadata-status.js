@@ -1062,11 +1062,6 @@ function hasProvenanceResult(
 
 /* =========================================================
    PROVENANCE DETECTED
-   ---------------------------------------------------------
-   Provenance dianggap terdeteksi apabila:
-   - root detected === true
-   - C2PA detected === true
-   - Content Credentials detected === true
 ========================================================= */
 
 function isProvenanceDetected(
@@ -1095,19 +1090,6 @@ function isProvenanceDetected(
 
 /* =========================================================
    AI PROVENANCE SIGNAL
-   ---------------------------------------------------------
-   C2PA / Content Credentials dapat memberikan signal
-   AI melalui:
-   - digitalSourceType
-   - aiDisclosure
-   - C2PA detected
-   - Content Credentials detected
-
-   Untuk UI GEN-Z.AI, keberadaan C2PA / CC yang telah
-   terdeteksi dianggap sebagai detection signal.
-
-   IMPORTANT:
-   DETECTED != VERIFIED
 ========================================================= */
 
 function hasAIProvenanceSignal(
@@ -2534,12 +2516,6 @@ function renderAnalysisMetadata() {
 
 /* =========================================================
    PROVENANCE OVERLAY STAMP
-   ---------------------------------------------------------
-   Dipakai jika C2PA / Content Credentials menjadi
-   sumber AI detection tetapi Sightengine belum
-   memberikan visual detection.
-
-   Tidak mengarang nama model.
 ========================================================= */
 
 function renderProvenanceOverlayStamp(
@@ -2926,6 +2902,37 @@ function buildProvenanceSightengineDescription(
 
 
 /* =========================================================
+   COMBINED PROVENANCE DETECTION DESCRIPTION
+========================================================= */
+
+function buildCombinedProvenanceDetectionDescription(
+    metadataCount,
+    provenance,
+    sightengine
+) {
+
+    const provenanceText =
+        buildProvenanceDetectionDescription(
+            provenance
+        );
+
+
+    const sightengineText =
+        buildSightengineDescription(
+            sightengine
+        );
+
+
+    return (
+        `${metadataCount} indikator AI ditemukan pada metadata. ` +
+        `${provenanceText} ` +
+        `${sightengineText}`
+    );
+
+}
+
+
+/* =========================================================
    DETECTION RESULT
    ---------------------------------------------------------
    AI DETECTION menggunakan tiga sumber:
@@ -2937,7 +2944,8 @@ function buildProvenanceSightengineDescription(
    Prioritas overlay:
 
    1. Sightengine visual detection
-   2. C2PA / Content Credentials provenance
+   2. C2PA / Content Credentials
+   3. Local metadata detection
 
    Penting:
    - C2PA DETECTED tetap NOT VERIFIED jika belum
@@ -2971,12 +2979,6 @@ export function renderDetectionResult() {
             : null;
 
 
-    const provenanceDetected =
-        isProvenanceDetected(
-            provenance
-        );
-
-
     const aiProvenanceDetected =
         hasAIProvenanceSignal(
             provenance
@@ -2994,7 +2996,7 @@ export function renderDetectionResult() {
 
 
     /* =====================================================
-       SIGHTENGINE DETECTED
+       SIGHTENGINE VISUAL DETECTION
     ===================================================== */
 
     const sightengineDetected =
@@ -3007,11 +3009,33 @@ export function renderDetectionResult() {
 
 
     /* =====================================================
-       AI DETECTED
+       SIGHTENGINE HAS SCORE
        -----------------------------------------------------
-       C2PA / Content Credentials sekarang ikut menjadi
-       detection signal apabila provenance benar-benar
-       terdeteksi.
+       Score tersedia berarti Sightengine berhasil
+       memberikan nilai meskipun tidak melewati threshold
+       detection.
+    ===================================================== */
+
+    const sightengineHasScore =
+        sightengineAvailable &&
+        (
+            (
+                sightengine.ai_generated !== null &&
+                sightengine.ai_generated !== undefined
+            ) ||
+            (
+                sightengine.face_manipulation !== null &&
+                sightengine.face_manipulation !== undefined
+            ) ||
+            (
+                sightengine.deepfake !== null &&
+                sightengine.deepfake !== undefined
+            )
+        );
+
+
+    /* =====================================================
+       GLOBAL AI DETECTION
     ===================================================== */
 
     const aiDetected =
@@ -3021,7 +3045,14 @@ export function renderDetectionResult() {
 
 
     /* =====================================================
-       AI DETECTED
+       CASE 1
+       -----------------------------------------------------
+       Ada AI detection.
+
+       Overlay priority:
+       1. Sightengine
+       2. Provenance
+       3. Metadata
     ===================================================== */
 
     if (
@@ -3047,9 +3078,6 @@ export function renderDetectionResult() {
         /* =================================================
            PRIORITY 2:
            C2PA / CONTENT CREDENTIALS
-
-           Hanya dipakai apabila Sightengine tidak
-           memberikan visual detection.
         ================================================= */
 
         else if (
@@ -3063,6 +3091,22 @@ export function renderDetectionResult() {
         }
 
 
+        /* =================================================
+           PRIORITY 3:
+           LOCAL METADATA
+        ================================================= */
+
+        else if (
+            metadataDetected
+        ) {
+
+            renderOverlayStamp(
+                null
+            );
+
+        }
+
+
         else {
 
             clearOverlayStamp();
@@ -3071,7 +3115,7 @@ export function renderDetectionResult() {
 
 
         /* =================================================
-           METADATA + SIGHTENGINE + PROVENANCE
+           ALL THREE SOURCES
         ================================================= */
 
         if (
@@ -3213,52 +3257,36 @@ export function renderDetectionResult() {
 
 
         /* =================================================
-   METADATA ONLY
-   -------------------------------------------------
-   Metadata AI terdeteksi sehingga overlay tetap
-   ditampilkan pada preview meskipun tidak ada
-   hasil visual Sightengine.
-================================================= */
+           METADATA ONLY
+        ================================================= */
 
-renderOverlayStamp(
-    null
-);
+        if (
+            metadataDetected
+        ) {
 
-
-setStatus(
-    "DETECTED",
-    "AI DETECTION",
-    `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
-);
+            setStatus(
+                "DETECTED",
+                "AI DETECTION",
+                `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
+            );
 
 
-return;
+            return;
+
+        }
+
+
+        return;
+
+    }
 
 
     /* =====================================================
-       SIGHTENGINE CHECKED
+       CASE 2
        -----------------------------------------------------
-       Hasil Sightengine dianggap valid jika salah satu
-       detector memiliki score.
+       Sightengine checked dan memberikan score tetapi
+       tidak melewati threshold detection.
     ===================================================== */
-
-    const sightengineHasScore =
-        sightengineAvailable &&
-        (
-            (
-                sightengine.ai_generated !== null &&
-                sightengine.ai_generated !== undefined
-            ) ||
-            (
-                sightengine.face_manipulation !== null &&
-                sightengine.face_manipulation !== undefined
-            ) ||
-            (
-                sightengine.deepfake !== null &&
-                sightengine.deepfake !== undefined
-            )
-        );
-
 
     if (
         sightengineHasScore
@@ -3282,61 +3310,26 @@ return;
 
 
     /* =====================================================
+       CASE 3
+       -----------------------------------------------------
        SIGHTENGINE ERROR
+
+       Jika metadata/provenance tidak terdeteksi,
+       status visual detection tidak tersedia.
     ===================================================== */
 
     if (
         state.sightengineError
     ) {
 
-        if (
-    metadataDetected
-) {
-
-    renderOverlayStamp(
-        null
-    );
+        clearOverlayStamp();
 
 
-    setStatus(
-        "DETECTED",
-        "AI DETECTION",
-        `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata. AI visual detection dari Sightengine tidak tersedia.`
-    );
-
-}
-
-        else if (
-            aiProvenanceDetected
-        ) {
-
-            renderProvenanceOverlayStamp(
-                provenance
-            );
-
-
-            setStatus(
-                "DETECTED",
-                "AI DETECTION",
-                buildProvenanceDetectionDescription(
-                    provenance
-                )
-            );
-
-        }
-
-        else {
-
-            clearOverlayStamp();
-
-
-            setStatus(
-                "UNKNOWN",
-                "AI VISUAL DETECTION TIDAK TERSEDIA",
-                "Metadata lokal berhasil diperiksa, tetapi Sightengine tidak dapat memberikan hasil visual AI detection."
-            );
-
-        }
+        setStatus(
+            "UNKNOWN",
+            "AI VISUAL DETECTION TIDAK TERSEDIA",
+            "Metadata lokal berhasil diperiksa, tetapi Sightengine tidak dapat memberikan hasil visual AI detection."
+        );
 
 
         return;
@@ -3345,79 +3338,21 @@ return;
 
 
     /* =====================================================
-       NO SIGHTENGINE RESULT
+       CASE 4
+       -----------------------------------------------------
+       Tidak ada hasil Sightengine.
+
+       Metadata dan provenance sudah diperiksa dan
+       keduanya tidak memberikan detection signal.
     ===================================================== */
-
-    if (
-        aiProvenanceDetected
-    ) {
-
-        renderProvenanceOverlayStamp(
-            provenance
-        );
-
-
-        setStatus(
-            "DETECTED",
-            "AI DETECTION",
-            buildProvenanceDetectionDescription(
-                provenance
-            )
-        );
-
-
-        return;
-
-    }
-
 
     clearOverlayStamp();
 
 
     setStatus(
-        metadataDetected
-            ? "DETECTED"
-            : "CLEAR",
-
-        metadataDetected
-            ? "AI DETECTION"
-            : "TIDAK TERDETEKSI DARI METADATA",
-
-        metadataDetected
-            ? `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
-
-            : "Tidak ditemukan indikator AI yang dikenali pada metadata yang berhasil dibaca. Ini bukan bukti bahwa media bukan hasil AI."
-    );
-
-}
-
-
-/* =========================================================
-   COMBINED PROVENANCE DETECTION DESCRIPTION
-========================================================= */
-
-function buildCombinedProvenanceDetectionDescription(
-    metadataCount,
-    provenance,
-    sightengine
-) {
-
-    const provenanceText =
-        buildProvenanceDetectionDescription(
-            provenance
-        );
-
-
-    const sightengineText =
-        buildSightengineDescription(
-            sightengine
-        );
-
-
-    return (
-        `${metadataCount} indikator AI ditemukan pada metadata. ` +
-        `${provenanceText} ` +
-        `${sightengineText}`
+        "CLEAR",
+        "TIDAK TERDETEKSI DARI METADATA",
+        "Tidak ditemukan indikator AI yang dikenali pada metadata yang berhasil dibaca. Ini bukan bukti bahwa media bukan hasil AI."
     );
 
 }
@@ -3768,7 +3703,9 @@ function buildCombinedDetectionDescription(
         .filter(
             Boolean
         )
-        .join(" ");
+        .join(
+            " "
+        );
 
 }
 
@@ -3851,7 +3788,9 @@ function buildSightengineDescription(
         .filter(
             Boolean
         )
-        .join(" ");
+        .join(
+            " "
+        );
 
 }
 
@@ -3926,7 +3865,9 @@ function buildSightengineClearDescription(
         .filter(
             Boolean
         )
-        .join(" ");
+        .join(
+            " "
+        );
 
 }
 
