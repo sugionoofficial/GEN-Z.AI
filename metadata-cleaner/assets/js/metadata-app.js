@@ -9,7 +9,8 @@
    - Inisialisasi aplikasi
    - Menangani file input / drag & drop
    - Koordinasi pembacaan metadata
-   - Koordinasi AI detection
+   - Koordinasi local AI metadata detection
+   - Koordinasi Sightengine visual AI detection
    - Menghubungkan module cleaning
    - Menyediakan public API
 
@@ -29,12 +30,16 @@
    - metadata-clean.js
    - metadata-cleaner-image.js
    - metadata-cleaner-video.js
+   - metadata-sightengine.js
 
    Catatan:
    - File ini hanya menjadi coordinator.
    - Implementasi fungsi yang sudah dipindahkan
      tidak diduplikasi di sini.
-   - File asli user tidak pernah dimodifikasi.
+   - Sightengine hanya digunakan untuk IMAGE.
+   - Video tetap menggunakan detector metadata lokal.
+   - API credential Sightengine tidak pernah berada
+     di browser.
 ========================================================= */
 
 
@@ -76,12 +81,22 @@ import {
 
 
 /* =========================================================
-   DETECTOR
+   LOCAL DETECTOR
 ========================================================= */
 
 import {
     detectAIIndicators
 } from "./metadata-detector.js";
+
+
+/* =========================================================
+   SIGHTENGINE
+========================================================= */
+
+import {
+    detectSightengine,
+    canUseSightengine
+} from "./metadata-sightengine.js";
 
 
 /* =========================================================
@@ -173,6 +188,26 @@ function init() {
     */
 
     cacheElements();
+
+
+    /*
+       Pastikan field hasil Sightengine
+       tersedia pada state.
+
+       Tidak mengubah state lama.
+    */
+
+    if (
+        !Object.prototype.hasOwnProperty.call(
+            state,
+            "sightengineDetection"
+        )
+    ) {
+
+        state.sightengineDetection =
+            null;
+
+    }
 
 
     /*
@@ -395,6 +430,15 @@ function processSelectedFile(
 
 
     /*
+       Pastikan hasil Sightengine
+       benar-benar kosong untuk file baru.
+    */
+
+    state.sightengineDetection =
+        null;
+
+
+    /*
        Buat object URL untuk preview
        file asli.
 
@@ -473,13 +517,24 @@ function processSelectedFile(
    ---------------------------------------------------------
    Coordinator metadata.
 
-   Urutan:
-   1. Read metadata
-   2. Normalize
-   3. Detect AI indicators
+   IMAGE:
+   1. Read metadata lokal
+   2. Normalize metadata
+   3. Local metadata AI detection
+   4. Sightengine visual AI detection
+   5. Render metadata
+   6. Render detection
+   7. Enable cleaning
+
+   VIDEO:
+   1. Read metadata lokal
+   2. Normalize metadata
+   3. Local metadata AI detection
    4. Render metadata
    5. Render detection
    6. Enable cleaning
+
+   Sightengine TIDAK digunakan untuk video.
 ========================================================= */
 
 async function checkMetadata() {
@@ -507,6 +562,19 @@ async function checkMetadata() {
 
         return;
     }
+
+
+    /*
+       Simpan reference file.
+
+       Ini penting agar hasil asynchronous
+       dari Sightengine tidak masuk ke file
+       baru apabila user mengganti file
+       ketika request masih berjalan.
+    */
+
+    const sourceFile =
+        state.file;
 
 
     /*
@@ -544,7 +612,7 @@ async function checkMetadata() {
 
             metadata =
                 await readImageMetadata(
-                    state.file
+                    sourceFile
                 );
 
         }
@@ -558,8 +626,22 @@ async function checkMetadata() {
 
             metadata =
                 await readVideoMetadata(
-                    state.file
+                    sourceFile
                 );
+
+        }
+
+
+        /*
+           Pastikan user belum memilih file lain
+           selama metadata dibaca.
+        */
+
+        if (
+            state.file !== sourceFile
+        ) {
+
+            return;
 
         }
 
@@ -575,7 +657,7 @@ async function checkMetadata() {
 
 
         /* =================================================
-           AI DETECTION
+           LOCAL AI DETECTION
         ================================================= */
 
         state.aiIndicators =
@@ -584,8 +666,115 @@ async function checkMetadata() {
             );
 
 
+        /* =================================================
+           SIGHTENGINE
+           -------------------------------------------------
+           Hanya IMAGE.
+        ================================================= */
+
+        state.sightengineDetection =
+            null;
+
+
+        if (
+            state.fileType === "image" &&
+            canUseSightengine(
+                sourceFile
+            )
+        ) {
+
+            /*
+               Sightengine merupakan layanan eksternal.
+
+               Jika request gagal, metadata lokal
+               tetap dianggap valid.
+
+               Jadi kegagalan provider eksternal
+               tidak menghancurkan fungsi utama
+               Metadata Cleaner.
+            */
+
+            try {
+
+                setPreviewStatus(
+                    "MEMERIKSA IMAGE DENGAN AI DETECTION..."
+                );
+
+
+                const sightengineResult =
+                    await detectSightengine(
+                        sourceFile
+                    );
+
+
+                /*
+                   Jangan memasukkan hasil request
+                   ke file baru.
+                */
+
+                if (
+                    state.file === sourceFile
+                ) {
+
+                    state.sightengineDetection =
+                        sightengineResult;
+
+                }
+
+            } catch (
+                sightengineError
+            ) {
+
+                /*
+                   Sightengine gagal bukan berarti
+                   metadata gagal.
+
+                   Simpan null agar UI nantinya
+                   dapat membedakan:
+                   - tidak terdeteksi
+                   - detector gagal
+                   - memang belum dijalankan
+                */
+
+                if (
+                    state.file === sourceFile
+                ) {
+
+                    state.sightengineDetection =
+                        null;
+
+                }
+
+
+                console.error(
+                    "[GEN-Z.AI] Sightengine detection failed:",
+                    sightengineError
+                );
+
+            }
+
+        }
+
+
+        /*
+           Pastikan file masih sama sebelum
+           menyimpan hasil final.
+        */
+
+        if (
+            state.file !== sourceFile
+        ) {
+
+            return;
+
+        }
+
+
         /*
            Metadata berhasil diperiksa.
+
+           Sightengine boleh gagal tanpa
+           menggagalkan metadata lokal.
         */
 
         state.checked =
@@ -601,6 +790,13 @@ async function checkMetadata() {
 
         /* =================================================
            RENDER AI DETECTION
+           -------------------------------------------------
+           Untuk tahap ini renderDetectionResult()
+           masih menggunakan detector metadata lokal.
+
+           Tahap berikutnya akan menggabungkan:
+           - local metadata detection
+           - Sightengine visual detection
         ================================================= */
 
         renderDetectionResult();
@@ -617,21 +813,54 @@ async function checkMetadata() {
 
         /*
            Preview status.
+
+           Untuk sementara status lokal tetap
+           dipertahankan sampai renderer detection
+           di-update pada tahap berikutnya.
         */
 
-        setPreviewStatus(
-
+        if (
             state.aiIndicators.length
+        ) {
 
-                ? "INDIKATOR AI DITEMUKAN PADA METADATA."
+            setPreviewStatus(
+                "INDIKATOR AI DITEMUKAN PADA METADATA."
+            );
 
-                : "PEMERIKSAAN METADATA SELESAI."
+        } else if (
+            state.sightengineDetection?.is_ai_generated
+        ) {
 
-        );
+            setPreviewStatus(
+                "AI VISUAL DETECTION MENUNJUKKAN INDIKASI IMAGE AI."
+            );
+
+        } else {
+
+            setPreviewStatus(
+                "PEMERIKSAAN METADATA DAN AI DETECTION SELESAI."
+            );
+
+        }
 
     } catch (
         error
     ) {
+
+        /*
+           Jangan mengubah hasil file baru
+           apabila proses sebelumnya selesai
+           setelah user mengganti file.
+        */
+
+        if (
+            state.file !== sourceFile
+        ) {
+
+            return;
+
+        }
+
 
         console.error(
             "[GEN-Z.AI] Metadata check failed:",
@@ -640,7 +869,7 @@ async function checkMetadata() {
 
 
         /*
-           Jika pembacaan gagal,
+           Jika pembacaan metadata gagal,
            jangan menyimpan metadata parsial.
         */
 
@@ -650,6 +879,10 @@ async function checkMetadata() {
 
         state.aiIndicators =
             [];
+
+
+        state.sightengineDetection =
+            null;
 
 
         /*
@@ -686,8 +919,14 @@ async function checkMetadata() {
            mencegah pemeriksaan ulang.
         */
 
-        elements.checkButton.disabled =
-            false;
+        if (
+            state.file === sourceFile
+        ) {
+
+            elements.checkButton.disabled =
+                false;
+
+        }
 
     }
 
