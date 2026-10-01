@@ -591,6 +591,12 @@ function updateFileInfo() {
 
 /* =========================================================
    ORIGINAL PREVIEW
+   ---------------------------------------------------------
+   - Menampilkan image langsung dari object URL.
+   - Menampilkan video dari object URL secara eksplisit.
+   - Memaksa HTMLVideoElement melakukan load ulang.
+   - Menjaga controls / playsInline / preload.
+   - Menangani error video agar preview tidak diam saja.
 ========================================================= */
 
 function renderOriginalPreview() {
@@ -615,9 +621,22 @@ function renderOriginalPreview() {
     );
 
 
+    /* =================================================
+       IMAGE
+    ================================================= */
+
     if (
         state.fileType === "image"
     ) {
+
+        if (
+            !elements.imagePreview ||
+            !state.originalURL
+        ) {
+
+            return;
+        }
+
 
         elements.imagePreview.src =
             state.originalURL;
@@ -632,13 +651,200 @@ function renderOriginalPreview() {
     }
 
 
-    elements.videoPreview.src =
+    /* =================================================
+       VIDEO
+    ================================================= */
+
+    const video =
+        elements.videoPreview;
+
+
+    if (
+        !video ||
+        !state.originalURL
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Video preview element atau object URL tidak tersedia."
+        );
+
+
+        return;
+    }
+
+
+    /* =================================================
+       RESET VIDEO ELEMENT
+    ================================================= */
+
+    try {
+
+        video.pause();
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] Video pause sebelum preview gagal:",
+            error
+        );
+    }
+
+
+    video.removeAttribute(
+        "src"
+    );
+
+
+    video.load();
+
+
+    /* =================================================
+       VIDEO CONFIGURATION
+    ================================================= */
+
+    video.controls =
+        true;
+
+
+    video.playsInline =
+        true;
+
+
+    video.preload =
+        "metadata";
+
+
+    video.muted =
+        false;
+
+
+    /* =================================================
+       SOURCE
+    ================================================= */
+
+    video.src =
         state.originalURL;
 
 
+    /*
+     * Explicit load diperlukan setelah source baru
+     * dipasang supaya browser memulai kembali lifecycle
+     * pemuatan video.
+     */
+
+    video.load();
+
+
+    /* =================================================
+       PREVIEW VISIBILITY
+    ================================================= */
+
     showElement(
-        elements.videoPreview
+        video
     );
+
+
+    /* =================================================
+       MEDIA EVENTS
+       -------------------------------------------------
+       loadedmetadata:
+       Browser sudah membaca metadata video.
+
+       loadeddata:
+       Frame pertama sudah tersedia.
+
+       error:
+       Browser gagal membaca resource / codec.
+    ================================================= */
+
+    const handleLoadedMetadata = () => {
+
+        if (
+            state.file &&
+            state.originalURL &&
+            video.src === state.originalURL
+        ) {
+
+            setPreviewStatus(
+                "VIDEO SIAP DIPUTAR."
+            );
+        }
+
+    };
+
+
+    const handleLoadedData = () => {
+
+        if (
+            state.file &&
+            state.originalURL &&
+            video.src === state.originalURL
+        ) {
+
+            showElement(
+                video
+            );
+
+            setPreviewStatus(
+                "VIDEO SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+            );
+        }
+
+    };
+
+
+    const handleVideoError = () => {
+
+        const mediaError =
+            video.error;
+
+
+        console.error(
+            "[GEN-Z.AI] Video preview gagal dimuat:",
+            {
+                code:
+                    mediaError?.code || null,
+
+                message:
+                    mediaError?.message || null,
+
+                fileName:
+                    state.file?.name || null,
+
+                fileType:
+                    state.file?.type || null,
+
+                fileSize:
+                    state.file?.size || 0,
+
+                url:
+                    state.originalURL || null
+            }
+        );
+
+
+        setPreviewStatus(
+            "VIDEO TIDAK DAPAT DIPUTAR OLEH BROWSER."
+        );
+
+    };
+
+
+    /*
+     * Hapus listener sebelumnya supaya tidak menumpuk
+     * setiap kali user memilih file baru.
+     */
+
+    video.onloadedmetadata =
+        handleLoadedMetadata;
+
+
+    video.onloadeddata =
+        handleLoadedData;
+
+
+    video.onerror =
+        handleVideoError;
 }
 
 
@@ -2456,6 +2662,9 @@ function injectPremiumCleaningStyles() {
 
 /* =========================================================
    CLEANED PREVIEW
+   ---------------------------------------------------------
+   Menampilkan hasil cleaning menggunakan object URL.
+   Video dipaksa reload setelah source diganti.
 ========================================================= */
 
 function renderCleanedPreview(
@@ -2493,39 +2702,160 @@ function renderCleanedPreview(
 
 
     if (
+        !url
+    ) {
+
+        return;
+    }
+
+
+    /* =================================================
+       CLEANED IMAGE
+    ================================================= */
+
+    if (
         state.fileType === "image"
     ) {
 
         if (
-            elements.cleanImagePreview
+            !elements.cleanImagePreview
         ) {
 
-            elements.cleanImagePreview.src =
-                url;
-
-
-            showElement(
-                elements.cleanImagePreview
-            );
+            return;
         }
+
+
+        elements.cleanImagePreview.src =
+            url;
+
+
+        showElement(
+            elements.cleanImagePreview
+        );
 
 
         return;
     }
 
 
+    /* =================================================
+       CLEANED VIDEO
+    ================================================= */
+
+    const video =
+        elements.cleanVideoPreview;
+
+
     if (
-        elements.cleanVideoPreview
+        !video
     ) {
 
-        elements.cleanVideoPreview.src =
-            url;
+        console.warn(
+            "[GEN-Z.AI] Cleaned video preview element tidak tersedia."
+        );
 
 
-        showElement(
-            elements.cleanVideoPreview
+        return;
+    }
+
+
+    try {
+
+        video.pause();
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] Cleaned video pause gagal:",
+            error
         );
     }
+
+
+    video.removeAttribute(
+        "src"
+    );
+
+
+    video.load();
+
+
+    video.controls =
+        true;
+
+
+    video.playsInline =
+        true;
+
+
+    video.preload =
+        "metadata";
+
+
+    video.muted =
+        false;
+
+
+    video.src =
+        url;
+
+
+    /*
+     * Paksa browser membaca object URL baru.
+     */
+
+    video.load();
+
+
+    showElement(
+        video
+    );
+
+
+    video.onloadedmetadata =
+        () => {
+
+            setPreviewStatus(
+                "VIDEO CLEANED SIAP DIPUTAR."
+            );
+        };
+
+
+    video.onloadeddata =
+        () => {
+
+            showElement(
+                video
+            );
+
+        };
+
+
+    video.onerror =
+        () => {
+
+            const mediaError =
+                video.error;
+
+
+            console.error(
+                "[GEN-Z.AI] Cleaned video preview gagal dimuat:",
+                {
+                    code:
+                        mediaError?.code || null,
+
+                    message:
+                        mediaError?.message || null,
+
+                    url
+                }
+            );
+
+
+            setPreviewStatus(
+                "VIDEO CLEANED TIDAK DAPAT DIPUTAR OLEH BROWSER."
+            );
+        };
 }
 
 
