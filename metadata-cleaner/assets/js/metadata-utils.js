@@ -1,29 +1,15 @@
 /* =========================================================
    GEN-Z.AI
-   AI METADATA CLEANER
+   METADATA UTILS MODULE
    ---------------------------------------------------------
    File:
    metadata-cleaner/assets/js/metadata-utils.js
 
-   Tanggung jawab:
-   - Helper umum seluruh Metadata Cleaner
+   Fungsi:
    - Format ukuran file
-   - Ekstensi file
-   - Aspect ratio
+   - Ambil extension file
+   - Hitung aspect ratio
    - Greatest common divisor
-   - Object URL helper
-   - Async helper
-   - DOM visibility helper
-   - Error message helper
-
-   Tidak menangani:
-   - State aplikasi
-   - File picker
-   - Metadata reader
-   - AI detection
-   - Cleaning
-   - Download
-   - Preview khusus
 ========================================================= */
 
 
@@ -31,7 +17,7 @@
    FORMAT BYTES
 ========================================================= */
 
-export function formatBytes(
+function formatBytes(
     bytes
 ) {
 
@@ -82,7 +68,6 @@ export function formatBytes(
             ? 0
             : 2
     )} ${units[safeIndex]}`;
-
 }
 
 
@@ -90,7 +75,7 @@ export function formatBytes(
    GET EXTENSION
 ========================================================= */
 
-export function getExtension(
+function getExtension(
     filename
 ) {
 
@@ -121,15 +106,14 @@ export function getExtension(
             dot + 1
         )
         .toLowerCase();
-
 }
 
 
 /* =========================================================
-   ASPECT RATIO
+   CALCULATE ASPECT RATIO
 ========================================================= */
 
-export function calculateAspectRatio(
+function calculateAspectRatio(
     width,
     height
 ) {
@@ -151,7 +135,6 @@ export function calculateAspectRatio(
 
 
     return `${width / divisor}:${height / divisor}`;
-
 }
 
 
@@ -159,7 +142,7 @@ export function calculateAspectRatio(
    GREATEST COMMON DIVISOR
 ========================================================= */
 
-export function greatestCommonDivisor(
+function greatestCommonDivisor(
     a,
     b
 ) {
@@ -185,7 +168,8 @@ export function greatestCommonDivisor(
 
 
         b =
-            a % b;
+            a %
+            b;
 
 
         a =
@@ -194,259 +178,6 @@ export function greatestCommonDivisor(
 
 
     return a || 1;
-
-}
-
-
-/* =========================================================
-   REVOKE OBJECT URL
-   ---------------------------------------------------------
-   Hanya revoke blob URL.
-   URL biasa tidak disentuh.
-========================================================= */
-
-export function revokeObjectURL(
-    url
-) {
-
-    if (
-        !url
-    ) {
-
-        return;
-    }
-
-
-    if (
-        typeof url !==
-        "string"
-    ) {
-
-        return;
-    }
-
-
-    if (
-        !url.startsWith(
-            "blob:"
-        )
-    ) {
-
-        return;
-    }
-
-
-    try {
-
-        URL.revokeObjectURL(
-            url
-        );
-
-    } catch (
-        error
-    ) {
-
-        console.warn(
-            "[GEN-Z.AI] revokeObjectURL gagal:",
-            error
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   WAIT
-========================================================= */
-
-export function wait(
-    milliseconds
-) {
-
-    const duration =
-        Number.isFinite(
-            Number(
-                milliseconds
-            )
-        )
-
-            ? Math.max(
-                0,
-                Number(
-                    milliseconds
-                )
-            )
-
-            : 0;
-
-
-    return new Promise(
-        resolve => {
-
-            setTimeout(
-                resolve,
-                duration
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   YIELD TO BROWSER
-========================================================= */
-
-export async function yieldToBrowser() {
-
-    await new Promise(
-        resolve => {
-
-            setTimeout(
-                resolve,
-                0
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   SHOW ELEMENT
-========================================================= */
-
-export function showElement(
-    element
-) {
-
-    if (
-        !element
-    ) {
-
-        return;
-    }
-
-
-    element.classList.remove(
-        "hidden"
-    );
-
-}
-
-
-/* =========================================================
-   HIDE ELEMENT
-========================================================= */
-
-export function hideElement(
-    element
-) {
-
-    if (
-        !element
-    ) {
-
-        return;
-    }
-
-
-    element.classList.add(
-        "hidden"
-    );
-
-}
-
-
-/* =========================================================
-   GET READABLE ERROR
-========================================================= */
-
-export function getReadableError(
-    error
-) {
-
-    if (
-        !error
-    ) {
-
-        return "Terjadi kesalahan yang tidak diketahui.";
-    }
-
-
-    if (
-        error instanceof Error
-    ) {
-
-        return (
-            error.message ||
-            "Terjadi kesalahan yang tidak diketahui."
-        );
-
-    }
-
-
-    if (
-        typeof error ===
-        "string"
-    ) {
-
-        return error;
-    }
-
-
-    /*
-     * Beberapa library/browser API dapat mengembalikan
-     * object error.
-     */
-
-    try {
-
-        if (
-            error.message
-        ) {
-
-            return String(
-                error.message
-            );
-
-        }
-
-
-        const serialized =
-            JSON.stringify(
-                error
-            );
-
-
-        if (
-            serialized &&
-            serialized !==
-                "{}"
-        ) {
-
-            return serialized;
-        }
-
-    } catch (
-        serializationError
-    ) {
-
-        console.warn(
-            "[GEN-Z.AI] Error serialization failed:",
-            serializationError
-        );
-
-    }
-
-
-    return String(
-        error
-    );
-
 }
 
 
@@ -454,7 +185,7 @@ export function getReadableError(
    PUBLIC API
 ========================================================= */
 
-export default {
+export {
 
     formatBytes,
 
@@ -462,18 +193,19 @@ export default {
 
     calculateAspectRatio,
 
-    greatestCommonDivisor,
+    greatestCommonDivisor
 
-    revokeObjectURL,
+};
 
-    wait,
 
-    yieldToBrowser,
+window.GENZMetadataUtils = {
 
-    showElement,
+    formatBytes,
 
-    hideElement,
+    getExtension,
 
-    getReadableError
+    calculateAspectRatio,
+
+    greatestCommonDivisor
 
 };
