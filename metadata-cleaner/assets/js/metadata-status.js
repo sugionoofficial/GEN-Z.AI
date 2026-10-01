@@ -19,6 +19,8 @@
      merupakan dua sumber berbeda.
    - Tidak ada detector yang dapat menjamin
      asal media secara 100%.
+   - Model pada AI DETECTION stamp selalu berasal
+     langsung dari result Sightengine.
 ========================================================= */
 
 
@@ -206,6 +208,34 @@ export function renderDetectionResult() {
 
 /* =========================================================
    OVERLAY STAMP
+   ---------------------------------------------------------
+   Struktur stamp menggunakan element yang sudah ada
+   di index.html.
+
+   Tampilan:
+
+       AI DETECTION
+       Model <hasil model Sightengine>
+
+   Contoh jika API:
+
+       model: "genai"
+
+   maka:
+
+       AI DETECTION
+       Model genai
+
+   Jika API mengembalikan:
+
+       model: "genai-v2"
+
+   maka:
+
+       AI DETECTION
+       Model genai-v2
+
+   Tidak ada fallback model.
 ========================================================= */
 
 function renderOverlayStamp(
@@ -275,13 +305,12 @@ function renderOverlayStamp(
     /* =====================================================
        MODEL RESULT
        -----------------------------------------------------
-       Contoh Sightengine:
+       Hanya tampil jika Sightengine benar-benar
+       mendeteksi AI.
 
-       model: "genai"
+       Nilai model diambil langsung dari:
 
-       Akan ditampilkan:
-
-       Model Genai
+           sightengine.model
     ===================================================== */
 
     renderOverlayModel(
@@ -296,6 +325,21 @@ function renderOverlayStamp(
 
 /* =========================================================
    OVERLAY MODEL LABEL
+   ---------------------------------------------------------
+   MODEL TIDAK DI-HARDCODE.
+
+   Nilai yang tampil berasal langsung dari:
+
+       sightengine.model
+
+   Tidak ada:
+       fallback "genai"
+
+   Tidak ada:
+       pemilihan model berdasarkan generator
+
+   Tidak ada:
+       tebakan model.
 ========================================================= */
 
 function renderOverlayModel(
@@ -312,11 +356,11 @@ function renderOverlayModel(
     }
 
 
-    /*
-       Hapus label model lama terlebih dahulu.
-
-       Ini penting ketika user mengganti image.
-    */
+    /* =====================================================
+       HAPUS MODEL LAMA
+       -----------------------------------------------------
+       Penting ketika user mengganti image.
+    ===================================================== */
 
     const existing =
         stamp.querySelector(
@@ -333,26 +377,43 @@ function renderOverlayModel(
     }
 
 
-    const normalized =
-        String(
-            model || ""
-        )
-            .trim();
-
-
-    /*
-       Jika tidak ada model result,
-       jangan tampilkan label palsu.
-    */
+    /* =====================================================
+       MODEL HARUS BERASAL DARI RESULT
+    ===================================================== */
 
     if (
-        !normalized
+        model === null ||
+        model === undefined
     ) {
 
         return;
 
     }
 
+
+    const modelValue =
+        String(
+            model
+        ).trim();
+
+
+    /*
+       Jangan tampilkan baris model jika
+       Sightengine tidak memberikan nilai model.
+    */
+
+    if (
+        !modelValue
+    ) {
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       CREATE MODEL LABEL
+    ===================================================== */
 
     const modelLabel =
         document.createElement(
@@ -364,56 +425,28 @@ function renderOverlayModel(
         "metadata-ai-detect-model";
 
 
+    /*
+       Pertahankan nilai model dari API.
+
+       Contoh:
+
+       model = "genai"
+       -> Model genai
+
+       model = "genai-v2"
+       -> Model genai-v2
+
+       model = "some-other-model"
+       -> Model some-other-model
+    */
+
     modelLabel.textContent =
-        `Model ${formatModelName(
-            normalized
-        )}`;
+        `Model ${modelValue}`;
 
 
     stamp.appendChild(
         modelLabel
     );
-
-}
-
-
-/* =========================================================
-   MODEL NAME FORMAT
-========================================================= */
-
-function formatModelName(
-    model
-) {
-
-    const value =
-        String(
-            model || ""
-        )
-            .trim();
-
-
-    if (
-        !value
-    ) {
-
-        return "";
-
-    }
-
-
-    return value
-        .split(
-            /[-_\s]+/
-        )
-        .filter(
-            Boolean
-        )
-        .map(
-            part =>
-                part.charAt(0).toUpperCase() +
-                part.slice(1).toLowerCase()
-        )
-        .join(" ");
 
 }
 
