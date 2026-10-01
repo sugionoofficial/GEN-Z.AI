@@ -8,20 +8,13 @@
    Tanggung jawab:
    - File picker
    - File input
-   - Drag & drop
+   - Drag & Drop
    - Validasi format media
    - Deteksi tipe media
    - Menyimpan file aktif ke state
    - Membuat original object URL
    - Menampilkan informasi file
-   - Memulai original preview
-
-   Tidak menangani:
-   - Pembacaan metadata
-   - AI detection
-   - Cleaning
-   - Download
-   - Reset aplikasi penuh
+   - Memastikan original preview tampil
 ========================================================= */
 
 
@@ -77,14 +70,17 @@ import {
 
 export function openFilePicker() {
 
+    const input =
+        elements?.fileInput;
+
+
     if (
-        !elements.fileInput
+        !input
     ) {
 
-        console.warn(
-            "[GEN-Z.AI] File input tidak ditemukan."
+        console.error(
+            "[GEN-Z.AI] metadata-file: #metadata-file-input tidak ditemukan."
         );
-
 
         return;
     }
@@ -92,12 +88,12 @@ export function openFilePicker() {
 
     try {
 
-        elements.fileInput.click();
+        input.click();
 
     } catch (error) {
 
         console.error(
-            "[GEN-Z.AI] File picker gagal dibuka:",
+            "[GEN-Z.AI] metadata-file: gagal membuka file picker.",
             error
         );
 
@@ -107,21 +103,44 @@ export function openFilePicker() {
 
 
 /* =========================================================
-   FILE INPUT
+   FILE INPUT CHANGE
 ========================================================= */
 
 export function handleFileInput(
     event
 ) {
 
-    const files =
-        Array.from(
-            event?.target?.files || []
-        );
+    const input =
+        event?.target;
 
 
     if (
-        !files.length
+        !input
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] metadata-file: event file input tidak memiliki target."
+        );
+
+        return;
+    }
+
+
+    const files =
+        Array.from(
+            input.files || []
+        );
+
+
+    console.info(
+        "[GEN-Z.AI] File input change:",
+        files.length,
+        files
+    );
+
+
+    if (
+        files.length === 0
     ) {
 
         return;
@@ -131,6 +150,28 @@ export function handleFileInput(
     processSelectedFile(
         files[0]
     );
+
+
+    /*
+       Reset value dilakukan setelah file diproses,
+       bukan sebelum.
+
+       Dengan demikian user dapat memilih file yang
+       sama lagi pada percobaan berikutnya.
+    */
+
+    try {
+
+        input.value = "";
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] metadata-file: gagal reset input value.",
+            error
+        );
+
+    }
 
 }
 
@@ -144,6 +185,7 @@ export function handleDragOver(
 ) {
 
     event.preventDefault();
+    event.stopPropagation();
 
 
     elements.dropzone?.classList.add(
@@ -162,6 +204,7 @@ export function handleDragLeave(
 ) {
 
     event.preventDefault();
+    event.stopPropagation();
 
 
     elements.dropzone?.classList.remove(
@@ -180,6 +223,7 @@ export function handleDrop(
 ) {
 
     event.preventDefault();
+    event.stopPropagation();
 
 
     elements.dropzone?.classList.remove(
@@ -193,8 +237,15 @@ export function handleDrop(
         );
 
 
+    console.info(
+        "[GEN-Z.AI] Drop:",
+        files.length,
+        files
+    );
+
+
     if (
-        !files.length
+        files.length === 0
     ) {
 
         return;
@@ -216,7 +267,1030 @@ export function processSelectedFile(
     file
 ) {
 
+    console.group(
+        "[GEN-Z.AI] PROCESS SELECTED FILE"
+    );
+
+
+    try {
+
+        /* =====================================================
+           VALIDASI FILE
+        ===================================================== */
+
+        if (
+            !file
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] File kosong."
+            );
+
+            return;
+        }
+
+
+        console.info(
+            "Name:",
+            file.name
+        );
+
+        console.info(
+            "Type:",
+            file.type
+        );
+
+        console.info(
+            "Size:",
+            file.size
+        );
+
+
+        /* =====================================================
+           VALIDASI FORMAT
+        ===================================================== */
+
+        if (
+            !isSupportedMedia(
+                file
+            )
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] Format media tidak didukung:",
+                file.name,
+                file.type
+            );
+
+
+            setStatus(
+                "UNKNOWN",
+                "FORMAT TIDAK DIDUKUNG",
+                "Pilih file foto atau video yang dapat diproses oleh browser."
+            );
+
+
+            setPreviewStatus(
+                "FORMAT MEDIA TIDAK DIDUKUNG."
+            );
+
+
+            return;
+        }
+
+
+        /* =====================================================
+           DETECT MEDIA TYPE
+        ===================================================== */
+
+        const mediaType =
+            detectMediaType(
+                file
+            );
+
+
+        console.info(
+            "Media type:",
+            mediaType
+        );
+
+
+        if (
+            mediaType !== "image" &&
+            mediaType !== "video"
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] Media type tidak valid:",
+                mediaType
+            );
+
+
+            return;
+        }
+
+
+        /* =====================================================
+           RESET FILE LAMA
+        ===================================================== */
+
+        resetForNewFile();
+
+
+        /* =====================================================
+           SIMPAN FILE KE STATE
+        ===================================================== */
+
+        state.file =
+            file;
+
+
+        state.fileType =
+            mediaType;
+
+
+        /*
+           Beberapa bagian aplikasi lama menggunakan
+           mediaType / isImage / isVideo.
+           Isi juga jika property tersebut tersedia.
+        */
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                state,
+                "mediaType"
+            )
+        ) {
+
+            state.mediaType =
+                mediaType;
+
+        }
+
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                state,
+                "isImage"
+            )
+        ) {
+
+            state.isImage =
+                mediaType === "image";
+
+        }
+
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                state,
+                "isVideo"
+            )
+        ) {
+
+            state.isVideo =
+                mediaType === "video";
+
+        }
+
+
+        /* =====================================================
+           CREATE OBJECT URL
+        ===================================================== */
+
+        let objectURL =
+            null;
+
+
+        try {
+
+            objectURL =
+                URL.createObjectURL(
+                    file
+                );
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI] URL.createObjectURL gagal:",
+                error
+            );
+
+        }
+
+
+        if (
+            !objectURL
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] Original Object URL tidak berhasil dibuat."
+            );
+
+
+            state.originalURL =
+                null;
+
+
+            setPreviewStatus(
+                "FILE TERPILIH, TETAPI PREVIEW URL GAGAL DIBUAT."
+            );
+
+
+            return;
+        }
+
+
+        state.originalURL =
+            objectURL;
+
+
+        /*
+           Compatibility state untuk versi state yang
+           menggunakan nama previewUrl / previewObjectUrl.
+        */
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                state,
+                "previewUrl"
+            )
+        ) {
+
+            state.previewUrl =
+                objectURL;
+
+        }
+
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                state,
+                "previewObjectUrl"
+            )
+        ) {
+
+            state.previewObjectUrl =
+                objectURL;
+
+        }
+
+
+        console.info(
+            "Original URL:",
+            objectURL
+        );
+
+
+        /* =====================================================
+           UPDATE FILE INFO
+        ===================================================== */
+
+        updateFileInfo();
+
+
+        /* =====================================================
+           FORCE PREVIEW DOM STATE
+        ===================================================== */
+
+        preparePreviewDOM(
+            mediaType
+        );
+
+
+        /* =====================================================
+           RENDER ORIGINAL PREVIEW
+        ===================================================== */
+
+        renderOriginalPreview();
+
+
+        /*
+           renderOriginalPreview() adalah renderer utama.
+           Tetapi kita juga memberikan fallback langsung
+           apabila renderer tidak berhasil mengubah DOM.
+        */
+
+        setTimeout(
+            () => {
+
+                verifyPreview(
+                    file,
+                    mediaType,
+                    objectURL
+                );
+
+            },
+            50
+        );
+
+
+        /* =====================================================
+           BUTTON STATE
+        ===================================================== */
+
+        if (
+            elements.checkButton
+        ) {
+
+            elements.checkButton.disabled =
+                false;
+
+        }
+
+
+        if (
+            elements.cleanButton
+        ) {
+
+            elements.cleanButton.disabled =
+                true;
+
+        }
+
+
+        if (
+            elements.downloadButton
+        ) {
+
+            elements.downloadButton.disabled =
+                true;
+
+        }
+
+
+        /* =====================================================
+           STATUS
+        ===================================================== */
+
+        setPreviewStatus(
+            mediaType === "image"
+                ? "IMAGE SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+                : "VIDEO SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+        );
+
+
+        setStatus(
+            "UNKNOWN",
+            "BELUM DIPERIKSA",
+            "Tekan CHECK untuk membaca metadata media."
+        );
+
+
+        console.info(
+            "[GEN-Z.AI] File berhasil diproses:",
+            file.name
+        );
+
+    } finally {
+
+        console.groupEnd();
+
+    }
+
+}
+
+
+/* =========================================================
+   PREPARE PREVIEW DOM
+   ---------------------------------------------------------
+   Ini sengaja berada di file upload sebagai safety layer.
+
+   Tujuannya memastikan CSS class "hidden" tidak tetap
+   menutupi media setelah file berhasil dipilih.
+========================================================= */
+
+function preparePreviewDOM(
+    mediaType
+) {
+
+    const stage =
+        document.getElementById(
+            "metadata-preview-stage"
+        );
+
+
+    const empty =
+        document.getElementById(
+            "metadata-preview-empty"
+        );
+
+
+    const image =
+        document.getElementById(
+            "metadata-image-preview"
+        );
+
+
+    const video =
+        document.getElementById(
+            "metadata-video-preview"
+        );
+
+
     if (
+        stage
+    ) {
+
+        stage.hidden =
+            false;
+
+        stage.removeAttribute(
+            "hidden"
+        );
+
+        stage.style.setProperty(
+            "display",
+            "flex",
+            "important"
+        );
+
+        stage.style.setProperty(
+            "visibility",
+            "visible",
+            "important"
+        );
+
+        stage.style.setProperty(
+            "opacity",
+            "1",
+            "important"
+        );
+
+    }
+
+
+    if (
+        empty
+    ) {
+
+        empty.hidden =
+            true;
+
+        empty.classList.add(
+            "hidden"
+        );
+
+        empty.style.setProperty(
+            "display",
+            "none",
+            "important"
+        );
+
+    }
+
+
+    if (
+        mediaType === "image"
+    ) {
+
+        /*
+           IMAGE tampil.
+        */
+
+        if (
+            image
+        ) {
+
+            image.hidden =
+                false;
+
+            image.removeAttribute(
+                "hidden"
+            );
+
+            image.classList.remove(
+                "hidden"
+            );
+
+            image.style.setProperty(
+                "display",
+                "block",
+                "important"
+            );
+
+            image.style.setProperty(
+                "visibility",
+                "visible",
+                "important"
+            );
+
+            image.style.setProperty(
+                "opacity",
+                "1",
+                "important"
+            );
+
+            image.style.setProperty(
+                "max-width",
+                "100%",
+                "important"
+            );
+
+            image.style.setProperty(
+                "max-height",
+                "540px",
+                "important"
+            );
+
+            image.style.setProperty(
+                "width",
+                "auto",
+                "important"
+            );
+
+            image.style.setProperty(
+                "height",
+                "auto",
+                "important"
+            );
+
+            image.style.setProperty(
+                "object-fit",
+                "contain",
+                "important"
+            );
+
+            image.style.setProperty(
+                "position",
+                "relative",
+                "important"
+            );
+
+            image.style.setProperty(
+                "z-index",
+                "2",
+                "important"
+            );
+
+        }
+
+
+        /*
+           VIDEO disembunyikan.
+        */
+
+        if (
+            video
+        ) {
+
+            video.pause?.();
+
+            video.hidden =
+                true;
+
+            video.classList.add(
+                "hidden"
+            );
+
+            video.style.setProperty(
+                "display",
+                "none",
+                "important"
+            );
+
+        }
+
+        return;
+    }
+
+
+    if (
+        mediaType === "video"
+    ) {
+
+        /*
+           IMAGE disembunyikan.
+        */
+
+        if (
+            image
+        ) {
+
+            image.hidden =
+                true;
+
+            image.classList.add(
+                "hidden"
+            );
+
+            image.style.setProperty(
+                "display",
+                "none",
+                "important"
+            );
+
+        }
+
+
+        /*
+           VIDEO tampil.
+        */
+
+        if (
+            video
+        ) {
+
+            video.hidden =
+                false;
+
+            video.removeAttribute(
+                "hidden"
+            );
+
+            video.classList.remove(
+                "hidden"
+            );
+
+            video.style.setProperty(
+                "display",
+                "block",
+                "important"
+            );
+
+            video.style.setProperty(
+                "visibility",
+                "visible",
+                "important"
+            );
+
+            video.style.setProperty(
+                "opacity",
+                "1",
+                "important"
+            );
+
+            video.style.setProperty(
+                "max-width",
+                "100%",
+                "important"
+            );
+
+            video.style.setProperty(
+                "max-height",
+                "540px",
+                "important"
+            );
+
+            video.style.setProperty(
+                "width",
+                "auto",
+                "important"
+            );
+
+            video.style.setProperty(
+                "height",
+                "auto",
+                "important"
+            );
+
+            video.style.setProperty(
+                "object-fit",
+                "contain",
+                "important"
+            );
+
+            video.style.setProperty(
+                "position",
+                "relative",
+                "important"
+            );
+
+            video.style.setProperty(
+                "z-index",
+                "2",
+                "important"
+            );
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   VERIFY PREVIEW
+   ---------------------------------------------------------
+   Jika renderer preview gagal bekerja karena masalah
+   module/cache/DOM, fungsi ini melakukan fallback langsung.
+========================================================= */
+
+function verifyPreview(
+    file,
+    mediaType,
+    objectURL
+) {
+
+    if (
+        !file ||
+        !objectURL
+    ) {
+
+        return;
+    }
+
+
+    if (
+        state.file !== file
+    ) {
+
+        return;
+    }
+
+
+    const image =
+        document.getElementById(
+            "metadata-image-preview"
+        );
+
+
+    const video =
+        document.getElementById(
+            "metadata-video-preview"
+        );
+
+
+    /* =====================================================
+       IMAGE
+    ===================================================== */
+
+    if (
+        mediaType === "image"
+    ) {
+
+        if (
+            !image
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] #metadata-image-preview tidak ditemukan."
+            );
+
+            return;
+        }
+
+
+        /*
+           Pastikan DOM tidak lagi hidden.
+        */
+
+        image.hidden =
+            false;
+
+        image.removeAttribute(
+            "hidden"
+        );
+
+        image.classList.remove(
+            "hidden"
+        );
+
+        image.style.setProperty(
+            "display",
+            "block",
+            "important"
+        );
+
+        image.style.setProperty(
+            "visibility",
+            "visible",
+            "important"
+        );
+
+        image.style.setProperty(
+            "opacity",
+            "1",
+            "important"
+        );
+
+
+        /*
+           Jika src kosong, pasang ulang.
+        */
+
+        if (
+            !image.src ||
+            image.src !== objectURL
+        ) {
+
+            try {
+
+                image.src =
+                    objectURL;
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Fallback image src gagal:",
+                    error
+                );
+
+                fallbackImageReader(
+                    image,
+                    file
+                );
+
+                return;
+            }
+
+        }
+
+
+        /*
+           Jika browser sudah berhasil decode image,
+           pastikan preview tetap terlihat.
+        */
+
+        if (
+            image.complete &&
+            image.naturalWidth > 0
+        ) {
+
+            image.style.setProperty(
+                "display",
+                "block",
+                "important"
+            );
+
+            image.style.setProperty(
+                "visibility",
+                "visible",
+                "important"
+            );
+
+            image.style.setProperty(
+                "opacity",
+                "1",
+                "important"
+            );
+
+
+            console.info(
+                "[GEN-Z.AI] Preview image terverifikasi:",
+                image.naturalWidth,
+                "x",
+                image.naturalHeight
+            );
+
+
+            return;
+        }
+
+
+        /*
+           Jika belum berhasil decode, pasang event
+           fallback.
+        */
+
+        image.onload = () => {
+
+            if (
+                state.file !== file
+            ) {
+
+                return;
+            }
+
+
+            image.hidden =
+                false;
+
+            image.classList.remove(
+                "hidden"
+            );
+
+            image.style.setProperty(
+                "display",
+                "block",
+                "important"
+            );
+
+            image.style.setProperty(
+                "visibility",
+                "visible",
+                "important"
+            );
+
+            image.style.setProperty(
+                "opacity",
+                "1",
+                "important"
+            );
+
+
+            console.info(
+                "[GEN-Z.AI] Preview image berhasil tampil."
+            );
+
+        };
+
+
+        image.onerror = () => {
+
+            if (
+                state.file !== file
+            ) {
+
+                return;
+            }
+
+
+            console.warn(
+                "[GEN-Z.AI] Object URL gagal. Menggunakan FileReader."
+            );
+
+
+            fallbackImageReader(
+                image,
+                file
+            );
+
+        };
+
+
+        return;
+    }
+
+
+    /* =====================================================
+       VIDEO
+    ===================================================== */
+
+    if (
+        mediaType === "video"
+    ) {
+
+        if (
+            !video
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] #metadata-video-preview tidak ditemukan."
+            );
+
+            return;
+        }
+
+
+        video.hidden =
+            false;
+
+        video.removeAttribute(
+            "hidden"
+        );
+
+        video.classList.remove(
+            "hidden"
+        );
+
+        video.style.setProperty(
+            "display",
+            "block",
+            "important"
+        );
+
+        video.style.setProperty(
+            "visibility",
+            "visible",
+            "important"
+        );
+
+        video.style.setProperty(
+            "opacity",
+            "1",
+            "important"
+        );
+
+
+        video.controls =
+            true;
+
+        video.playsInline =
+            true;
+
+        video.preload =
+            "metadata";
+
+
+        if (
+            video.src !== objectURL
+        ) {
+
+            try {
+
+                video.src =
+                    objectURL;
+
+                video.load();
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Fallback video src gagal:",
+                    error
+                );
+
+            }
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   IMAGE FILEREADER FALLBACK
+========================================================= */
+
+function fallbackImageReader(
+    image,
+    file
+) {
+
+    if (
+        !image ||
         !file
     ) {
 
@@ -224,146 +1298,165 @@ export function processSelectedFile(
     }
 
 
-    /* =====================================================
-       VALIDASI FORMAT
-    ===================================================== */
-
     if (
-        !isSupportedMedia(
-            file
-        )
+        state.file !== file
     ) {
-
-        setStatus(
-            "UNKNOWN",
-            "FORMAT TIDAK DIDUKUNG",
-            "Pilih file foto atau video yang dapat diproses oleh browser."
-        );
-
 
         return;
     }
 
 
-    /* =====================================================
-       RESET FILE SEBELUMNYA
-    ===================================================== */
+    if (
+        typeof FileReader ===
+        "undefined"
+    ) {
 
-    resetForNewFile();
-
-
-    /* =====================================================
-       SIMPAN FILE AKTIF
-    ===================================================== */
-
-    state.file =
-        file;
-
-
-    state.fileType =
-        detectMediaType(
-            file
+        console.error(
+            "[GEN-Z.AI] FileReader tidak tersedia."
         );
 
+        return;
+    }
 
-    /* =====================================================
-       OBJECT URL
-       -----------------------------------------------------
-       resetForNewFile() sudah merevoke URL lama.
-       Di sini kita hanya membuat URL baru.
-    ===================================================== */
 
-    state.originalURL =
-        null;
+    const reader =
+        new FileReader();
+
+
+    reader.onload = () => {
+
+        if (
+            state.file !== file
+        ) {
+
+            return;
+        }
+
+
+        const result =
+            reader.result;
+
+
+        if (
+            typeof result !== "string" ||
+            !result
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] FileReader tidak menghasilkan source image."
+            );
+
+            return;
+        }
+
+
+        image.onload = () => {
+
+            if (
+                state.file !== file
+            ) {
+
+                return;
+            }
+
+
+            image.hidden =
+                false;
+
+            image.removeAttribute(
+                "hidden"
+            );
+
+            image.classList.remove(
+                "hidden"
+            );
+
+            image.style.setProperty(
+                "display",
+                "block",
+                "important"
+            );
+
+            image.style.setProperty(
+                "visibility",
+                "visible",
+                "important"
+            );
+
+            image.style.setProperty(
+                "opacity",
+                "1",
+                "important"
+            );
+
+
+            console.info(
+                "[GEN-Z.AI] Preview image berhasil melalui FileReader."
+            );
+
+        };
+
+
+        image.onerror = () => {
+
+            console.error(
+                "[GEN-Z.AI] FileReader juga gagal membaca image:",
+                file.name
+            );
+
+        };
+
+
+        try {
+
+            image.src =
+                result;
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI] Gagal memasang FileReader source:",
+                error
+            );
+
+        }
+
+    };
+
+
+    reader.onerror = () => {
+
+        console.error(
+            "[GEN-Z.AI] FileReader error:",
+            reader.error
+        );
+
+    };
+
+
+    reader.onabort = () => {
+
+        console.warn(
+            "[GEN-Z.AI] FileReader dibatalkan."
+        );
+
+    };
 
 
     try {
 
-        state.originalURL =
-            URL.createObjectURL(
-                file
-            );
+        reader.readAsDataURL(
+            file
+        );
 
     } catch (error) {
 
         console.error(
-            "[GEN-Z.AI] Object URL creation failed:",
+            "[GEN-Z.AI] readAsDataURL gagal:",
             error
         );
 
-
-        state.originalURL =
-            null;
-
     }
-
-
-    /* =====================================================
-       FILE INFORMATION
-    ===================================================== */
-
-    updateFileInfo();
-
-
-    /* =====================================================
-       ORIGINAL PREVIEW
-    ===================================================== */
-
-    renderOriginalPreview();
-
-
-    /* =====================================================
-       BUTTON STATE
-    ===================================================== */
-
-    if (
-        elements.checkButton
-    ) {
-
-        elements.checkButton.disabled =
-            false;
-
-    }
-
-
-    if (
-        elements.cleanButton
-    ) {
-
-        elements.cleanButton.disabled =
-            true;
-
-    }
-
-
-    if (
-        elements.downloadButton
-    ) {
-
-        elements.downloadButton.disabled =
-            true;
-
-    }
-
-
-    /* =====================================================
-       PREVIEW STATUS
-    ===================================================== */
-
-    setPreviewStatus(
-        "MEDIA SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
-    );
-
-
-    /* =====================================================
-       APPLICATION STATUS
-    ===================================================== */
-
-    setStatus(
-        "UNKNOWN",
-        "BELUM DIPERIKSA",
-        "Tekan CHECK untuk membaca metadata media."
-    );
 
 }
 
@@ -384,29 +1477,40 @@ export function isSupportedMedia(
     }
 
 
-    /* =====================================================
-       MIME TYPE
-    ===================================================== */
+    /*
+       MIME utama.
+    */
 
     if (
-        file.type &&
-        (
+        typeof file.type === "string" &&
+        file.type
+    ) {
+
+        if (
             file.type.startsWith(
                 "image/"
-            ) ||
+            )
+        ) {
+
+            return true;
+        }
+
+
+        if (
             file.type.startsWith(
                 "video/"
             )
-        )
-    ) {
+        ) {
 
-        return true;
+            return true;
+        }
+
     }
 
 
-    /* =====================================================
-       EXTENSION FALLBACK
-    ===================================================== */
+    /*
+       Extension fallback.
+    */
 
     const extension =
         getExtension(
@@ -415,8 +1519,6 @@ export function isSupportedMedia(
 
 
     return [
-
-        /* IMAGE */
 
         "jpg",
         "jpeg",
@@ -427,8 +1529,6 @@ export function isSupportedMedia(
         "tif",
         "tiff",
         "avif",
-
-        /* VIDEO */
 
         "mp4",
         "mov",
@@ -449,7 +1549,7 @@ export function isSupportedMedia(
 
 
 /* =========================================================
-   MEDIA TYPE
+   DETECT MEDIA TYPE
 ========================================================= */
 
 export function detectMediaType(
@@ -457,28 +1557,42 @@ export function detectMediaType(
 ) {
 
     if (
-        file?.type?.startsWith(
-            "image/"
-        )
+        !file
     ) {
 
-        return "image";
+        return null;
     }
 
 
     if (
-        file?.type?.startsWith(
-            "video/"
-        )
+        typeof file.type === "string"
     ) {
 
-        return "video";
+        if (
+            file.type.startsWith(
+                "image/"
+            )
+        ) {
+
+            return "image";
+        }
+
+
+        if (
+            file.type.startsWith(
+                "video/"
+            )
+        ) {
+
+            return "video";
+        }
+
     }
 
 
     const extension =
         getExtension(
-            file?.name
+            file.name
         );
 
 
@@ -504,13 +1618,36 @@ export function detectMediaType(
     }
 
 
-    return "video";
+    if (
+        [
+
+            "mp4",
+            "mov",
+            "m4v",
+            "webm",
+            "mkv",
+            "avi",
+            "mpeg",
+            "mpg",
+            "3gp",
+            "ogv"
+
+        ].includes(
+            extension
+        )
+    ) {
+
+        return "video";
+    }
+
+
+    return null;
 
 }
 
 
 /* =========================================================
-   FILE INFO
+   UPDATE FILE INFO
 ========================================================= */
 
 export function updateFileInfo() {
@@ -523,14 +1660,33 @@ export function updateFileInfo() {
     }
 
 
-    elements.fileInfo?.classList.remove(
-        "hidden"
-    );
+    const fileInfo =
+        elements.fileInfo;
 
 
-    /* =====================================================
-       FILE TYPE
-    ===================================================== */
+    if (
+        fileInfo
+    ) {
+
+        fileInfo.classList.remove(
+            "hidden"
+        );
+
+        fileInfo.hidden =
+            false;
+
+        fileInfo.removeAttribute(
+            "hidden"
+        );
+
+        fileInfo.style.setProperty(
+            "display",
+            "flex",
+            "important"
+        );
+
+    }
+
 
     if (
         elements.fileType
@@ -544,10 +1700,6 @@ export function updateFileInfo() {
     }
 
 
-    /* =====================================================
-       FILE NAME
-    ===================================================== */
-
     if (
         elements.fileName
     ) {
@@ -558,10 +1710,6 @@ export function updateFileInfo() {
 
     }
 
-
-    /* =====================================================
-       FILE SIZE
-    ===================================================== */
 
     if (
         elements.fileSize
@@ -585,11 +1733,17 @@ export function formatBytes(
     bytes
 ) {
 
+    const numeric =
+        Number(
+            bytes
+        );
+
+
     if (
         !Number.isFinite(
-            bytes
+            numeric
         ) ||
-        bytes <= 0
+        numeric <= 0
     ) {
 
         return "0 B";
@@ -610,7 +1764,7 @@ export function formatBytes(
     const index =
         Math.floor(
             Math.log(
-                bytes
+                numeric
             ) /
             Math.log(
                 1024
@@ -619,14 +1773,17 @@ export function formatBytes(
 
 
     const safeIndex =
-        Math.min(
-            index,
-            units.length - 1
+        Math.max(
+            0,
+            Math.min(
+                index,
+                units.length - 1
+            )
         );
 
 
     const value =
-        bytes /
+        numeric /
         Math.pow(
             1024,
             safeIndex
@@ -683,10 +1840,6 @@ export function getExtension(
 
 /* =========================================================
    REVOKE OBJECT URL
-   ---------------------------------------------------------
-   Diekspor untuk kompatibilitas dengan modul lain yang
-   masih membutuhkan helper ini selama proses pemecahan
-   metadata-app.js.
 ========================================================= */
 
 export function revokeObjectURL(
@@ -694,7 +1847,18 @@ export function revokeObjectURL(
 ) {
 
     if (
-        !url
+        !url ||
+        typeof url !== "string"
+    ) {
+
+        return;
+    }
+
+
+    if (
+        !url.startsWith(
+            "blob:"
+        )
     ) {
 
         return;
@@ -710,7 +1874,7 @@ export function revokeObjectURL(
     } catch (error) {
 
         console.warn(
-            "[GEN-Z.AI] Object URL revoke gagal:",
+            "[GEN-Z.AI] revokeObjectURL gagal:",
             error
         );
 
@@ -720,7 +1884,7 @@ export function revokeObjectURL(
 
 
 /* =========================================================
-   PUBLIC API
+   DEFAULT EXPORT
 ========================================================= */
 
 export default {
