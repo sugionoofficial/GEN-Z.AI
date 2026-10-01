@@ -5,22 +5,14 @@
    File:
    metadata-cleaner/assets/js/metadata-clean.js
 
-   Fungsi:
-   - Membersihkan metadata image
-   - Membersihkan metadata video
-   - Menghasilkan cleaned Blob
-   - Mengirim Blob ke preview renderer
-   - Menjaga proses async agar tidak menimpa file baru
-
-   IMPORTANT:
-   - Object URL HANYA dibuat oleh metadata-preview.js
-   - Modul ini TIDAK memanggil URL.createObjectURL()
-   - File asli tidak pernah dimodifikasi
-========================================================= */
-
-
-/* =========================================================
-   STATE
+   Tanggung jawab:
+   - Menjalankan proses cleaning metadata
+   - Menampilkan loading/status
+   - Menyimpan cleaned Blob
+   - Menampilkan preview hasil
+   - Menampilkan tombol download
+   - Menangani error cleaning
+   - Tidak menghitung ulang credit
 ========================================================= */
 
 import {
@@ -28,255 +20,764 @@ import {
 } from "./metadata-state.js";
 
 
-/* =========================================================
-   DOM ELEMENTS
-========================================================= */
-
 import {
     elements
 } from "./metadata-dom.js";
 
-
-/* =========================================================
-   IMAGE CLEANER
-========================================================= */
 
 import {
     cleanImage
 } from "./metadata-cleaner-image.js";
 
 
-/* =========================================================
-   VIDEO CLEANER
-========================================================= */
-
 import {
     cleanVideo
 } from "./metadata-cleaner-video.js";
 
 
-/* =========================================================
-   PREVIEW
-========================================================= */
-
 import {
     renderCleanedPreview,
+    clearCleanedPreview,
     showElement,
     hideElement,
-    clearCleanedPreview
+    setPreviewStatus
 } from "./metadata-preview.js";
 
 
 /* =========================================================
-   CLEAN METADATA
+   LOCAL STATUS HELPERS
+========================================================= */
+
+function setCleaningStatus(
+    title,
+    description
+) {
+
+    const indicator =
+        elements?.statusIndicator ||
+        document.getElementById(
+            "metadata-status-indicator"
+        );
+
+
+    const statusTitle =
+        elements?.statusTitle ||
+        document.getElementById(
+            "metadata-status-title"
+        );
+
+
+    const statusDescription =
+        elements?.statusDescription ||
+        document.getElementById(
+            "metadata-status-description"
+        );
+
+
+    if (
+        statusTitle
+    ) {
+
+        statusTitle.textContent =
+            String(
+                title || ""
+            );
+
+    }
+
+
+    if (
+        statusDescription
+    ) {
+
+        statusDescription.textContent =
+            String(
+                description || ""
+            );
+
+    }
+
+
+    if (
+        indicator
+    ) {
+
+        indicator.classList.remove(
+            "success",
+            "error",
+            "warning",
+            "processing",
+            "active"
+        );
+
+
+        if (
+            /gagal|error/i.test(
+                String(
+                    title || ""
+                )
+            )
+        ) {
+
+            indicator.classList.add(
+                "error"
+            );
+
+        } else if (
+            /selesai|berhasil|dibersihkan/i.test(
+                String(
+                    title || ""
+                )
+            )
+        ) {
+
+            indicator.classList.add(
+                "success"
+            );
+
+        } else {
+
+            indicator.classList.add(
+                "processing"
+            );
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   DISABLE / ENABLE BUTTONS
+========================================================= */
+
+function setCleaningButtons(
+    cleaning
+) {
+
+    const cleanButton =
+        elements?.cleanButton ||
+        document.getElementById(
+            "metadata-clean-button"
+        );
+
+
+    const checkButton =
+        elements?.checkButton ||
+        document.getElementById(
+            "metadata-check-button"
+        );
+
+
+    const downloadButton =
+        elements?.downloadButton ||
+        document.getElementById(
+            "metadata-download-button"
+        );
+
+
+    if (
+        cleanButton
+    ) {
+
+        cleanButton.disabled =
+            Boolean(
+                cleaning
+            );
+
+
+        if (
+            cleaning
+        ) {
+
+            cleanButton.setAttribute(
+                "aria-busy",
+                "true"
+            );
+
+        } else {
+
+            cleanButton.removeAttribute(
+                "aria-busy"
+            );
+
+        }
+
+    }
+
+
+    if (
+        checkButton
+    ) {
+
+        checkButton.disabled =
+            Boolean(
+                cleaning
+            );
+
+    }
+
+
+    /*
+       Download hanya aktif kalau cleanedBlob
+       benar-benar tersedia.
+    */
+
+    if (
+        downloadButton &&
+        !state.cleanedBlob
+    ) {
+
+        downloadButton.disabled =
+            true;
+
+    }
+
+}
+
+
+/* =========================================================
+   LOADING UI
+   ---------------------------------------------------------
+   Menggunakan loading yang sudah ada di halaman.
+========================================================= */
+
+function setCleaningLoading(
+    active
+) {
+
+    const cleanButton =
+        elements?.cleanButton ||
+        document.getElementById(
+            "metadata-clean-button"
+        );
+
+
+    if (
+        !cleanButton
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        active
+    ) {
+
+        cleanButton.classList.add(
+            "loading",
+            "is-loading",
+            "processing"
+        );
+
+
+        cleanButton.setAttribute(
+            "aria-busy",
+            "true"
+        );
+
+
+        /*
+           Jangan menghapus isi HTML button.
+           Kalau button sudah memiliki spinner bawaan,
+           spinner tersebut tetap digunakan.
+        */
+
+        cleanButton.dataset.cleaning =
+            "true";
+
+    } else {
+
+        cleanButton.classList.remove(
+            "loading",
+            "is-loading",
+            "processing"
+        );
+
+
+        cleanButton.removeAttribute(
+            "aria-busy"
+        );
+
+
+        delete cleanButton.dataset.cleaning;
+
+    }
+
+}
+
+
+/* =========================================================
+   SHOW / HIDE CLEAN RESULT
+========================================================= */
+
+function showCleanResult() {
+
+    const result =
+        elements?.cleanResult ||
+        document.getElementById(
+            "metadata-clean-result"
+        );
+
+
+    if (
+        result
+    ) {
+
+        result.hidden =
+            false;
+
+
+        result.style.removeProperty(
+            "display"
+        );
+
+
+        /*
+           Jika CSS menggunakan flex/block,
+           biarkan CSS menentukan display.
+        */
+
+    }
+
+}
+
+
+function hideCleanResult() {
+
+    const result =
+        elements?.cleanResult ||
+        document.getElementById(
+            "metadata-clean-result"
+        );
+
+
+    if (
+        result
+    ) {
+
+        result.hidden =
+            true;
+
+
+        result.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* =========================================================
+   ENABLE DOWNLOAD
+========================================================= */
+
+function enableDownload() {
+
+    const button =
+        elements?.downloadButton ||
+        document.getElementById(
+            "metadata-download-button"
+        );
+
+
+    if (
+        !button
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Tombol download tidak ditemukan."
+        );
+
+        return false;
+
+    }
+
+
+    button.disabled =
+        false;
+
+
+    button.removeAttribute(
+        "disabled"
+    );
+
+
+    button.hidden =
+        false;
+
+
+    button.style.removeProperty(
+        "display"
+    );
+
+
+    button.classList.remove(
+        "disabled"
+    );
+
+
+    button.setAttribute(
+        "aria-disabled",
+        "false"
+    );
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   DISABLE DOWNLOAD
+========================================================= */
+
+function disableDownload() {
+
+    const button =
+        elements?.downloadButton ||
+        document.getElementById(
+            "metadata-download-button"
+        );
+
+
+    if (
+        !button
+    ) {
+
+        return;
+
+    }
+
+
+    button.disabled =
+        true;
+
+
+    button.setAttribute(
+        "disabled",
+        "disabled"
+    );
+
+
+    button.setAttribute(
+        "aria-disabled",
+        "true"
+    );
+
+}
+
+
+/* =========================================================
+   NORMALIZE CLEAN RESULT
+========================================================= */
+
+function normalizeCleanResult(
+    result
+) {
+
+    /*
+       CASE 1
+       cleanImage / cleanVideo langsung
+       mengembalikan Blob.
+    */
+
+    if (
+        result instanceof Blob
+    ) {
+
+        return result;
+
+    }
+
+
+    /*
+       CASE 2
+       Module mengembalikan:
+       {
+           blob: Blob
+       }
+    */
+
+    if (
+        result &&
+        result.blob instanceof Blob
+    ) {
+
+        return result.blob;
+
+    }
+
+
+    /*
+       CASE 3
+       Module mungkin mengembalikan:
+       {
+           file: Blob
+       }
+    */
+
+    if (
+        result &&
+        result.file instanceof Blob
+    ) {
+
+        return result.file;
+
+    }
+
+
+    /*
+       CASE 4
+       Module mungkin mengembalikan:
+       {
+           output: Blob
+       }
+    */
+
+    if (
+        result &&
+        result.output instanceof Blob
+    ) {
+
+        return result.output;
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   GET FILE TYPE
+========================================================= */
+
+function getSourceType(
+    file
+) {
+
+    const type =
+        String(
+            file?.type ||
+            state.fileType ||
+            ""
+        ).toLowerCase();
+
+
+    if (
+        type.startsWith(
+            "image/"
+        )
+    ) {
+
+        return "image";
+
+    }
+
+
+    if (
+        type.startsWith(
+            "video/"
+        )
+    ) {
+
+        return "video";
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
+   FILE STILL ACTIVE?
+========================================================= */
+
+function isSameFile(
+    file
+) {
+
+    return (
+        state.file === file
+    );
+
+}
+
+
+/* =========================================================
+   MAIN CLEAN FUNCTION
 ========================================================= */
 
 export async function cleanMetadata() {
 
-    /* =======================================================
-       VALIDASI FILE
-    ======================================================= */
+    console.log(
+        "[GEN-Z.AI][CLEAN] cleanMetadata() dipanggil."
+    );
+
+
+    /* =====================================================
+       FILE CHECK
+    ===================================================== */
 
     if (
         !state.file
     ) {
 
         console.warn(
-            "[GEN-Z.AI] Cleaning dibatalkan: tidak ada file aktif."
+            "[GEN-Z.AI][CLEAN] Tidak ada file."
         );
 
-        setPreviewStatus(
-            "PILIH FILE TERLEBIH DAHULU."
+
+        setCleaningStatus(
+            "PILIH FILE TERLEBIH DAHULU.",
+            "Silakan pilih foto atau video sebelum membersihkan metadata."
         );
 
-        return;
+
+        return false;
 
     }
 
 
-    /* =======================================================
-       CEGAH CLEANING GANDA
-    ======================================================= */
+    /* =====================================================
+       PREVENT DOUBLE PROCESS
+    ===================================================== */
 
     if (
         state.cleaning
     ) {
 
         console.warn(
-            "[GEN-Z.AI] Cleaning sedang berjalan."
+            "[GEN-Z.AI][CLEAN] Cleaning sedang berjalan."
         );
 
-        return;
+
+        return false;
 
     }
 
-
-    /* =======================================================
-       SIMPAN REFERENSI FILE
-       -------------------------------------------------------
-       Digunakan untuk menjaga keamanan proses async.
-    ======================================================= */
 
     const sourceFile =
         state.file;
 
 
-    const sourceFileType =
-        String(
-            state.fileType || ""
-        ).toLowerCase();
+    const sourceType =
+        getSourceType(
+            sourceFile
+        );
 
 
-    /* =======================================================
-       VALIDASI TYPE
-    ======================================================= */
+    console.log(
+        "[GEN-Z.AI][CLEAN] Source:",
+        {
+            name:
+                sourceFile.name,
+
+            type:
+                sourceFile.type,
+
+            size:
+                sourceFile.size,
+
+            sourceType
+        }
+    );
+
+
+    /* =====================================================
+       TYPE CHECK
+    ===================================================== */
 
     if (
-        sourceFileType !== "image" &&
-        sourceFileType !== "video"
+        sourceType !== "image" &&
+        sourceType !== "video"
     ) {
 
-        console.error(
-            "[GEN-Z.AI] Jenis file tidak valid:",
-            sourceFileType
+        setCleaningStatus(
+            "FORMAT TIDAK DIDUKUNG.",
+            "File harus berupa foto atau video."
         );
 
-        setPreviewStatus(
-            "CLEANING GAGAL: JENIS FILE TIDAK DIDUKUNG."
-        );
 
-        return;
+        return false;
 
     }
 
 
-    /* =======================================================
-       LOCK CLEANING
-    ======================================================= */
+    /* =====================================================
+       START CLEANING
+    ===================================================== */
 
     state.cleaning =
         true;
 
-
-    /* =======================================================
-       LOCK BUTTON
-    ======================================================= */
-
-    if (
-        elements.cleanButton
-    ) {
-
-        elements.cleanButton.disabled =
-            true;
-
-        elements.cleanButton.setAttribute(
-            "data-processing",
-            "true"
-        );
-
-    }
-
-
-    if (
-        elements.downloadButton
-    ) {
-
-        elements.downloadButton.disabled =
-            true;
-
-    }
-
-
-    /* =======================================================
-       HAPUS HASIL CLEANING LAMA
-    ======================================================= */
 
     state.cleanedBlob =
         null;
 
 
     /*
-       Jangan membuat Object URL di sini.
-
-       metadata-preview.js bertanggung jawab penuh
-       terhadap cleaned Object URL.
+       Bersihkan preview hasil lama.
     */
 
-    try {
-
-        clearCleanedPreview();
-
-    } catch (
-        error
-    ) {
-
-        console.warn(
-            "[GEN-Z.AI] Gagal membersihkan preview lama:",
-            error
-        );
-
-    }
+    clearCleanedPreview();
 
 
-    /* =======================================================
-       HIDE CLEAN RESULT
-    ======================================================= */
-
-    if (
-        elements.cleanResult
-    ) {
-
-        hideElement(
-            elements.cleanResult
-        );
-
-    }
+    hideCleanResult();
 
 
-    /* =======================================================
-       STATUS
-    ======================================================= */
+    disableDownload();
+
+
+    setCleaningLoading(
+        true
+    );
+
+
+    setCleaningButtons(
+        true
+    );
+
 
     setPreviewStatus(
-        "MEMBERSIHKAN METADATA SECARA LOKAL..."
+        "Membersihkan metadata..."
     );
 
 
-    console.info(
-        "[GEN-Z.AI] Cleaning dimulai.",
-        {
-            fileName:
-                sourceFile.name,
-
-            fileType:
-                sourceFileType,
-
-            fileSize:
-                sourceFile.size
-        }
+    setCleaningStatus(
+        "MEMBERSIHKAN METADATA...",
+        "File sedang diproses secara lokal. Jangan tutup halaman."
     );
 
 
-    /* =======================================================
-       PROCESS
-    ======================================================= */
+    console.log(
+        "[GEN-Z.AI][CLEAN] Cleaning dimulai:",
+        sourceType
+    );
+
 
     try {
 
-        let result =
-            null;
+        /* =================================================
+           EXECUTE CLEANER
+        ================================================= */
 
+        let result;
 
-        /* ===================================================
-           IMAGE
-        =================================================== */
 
         if (
-            sourceFileType === "image"
+            sourceType === "image"
         ) {
 
-            console.info(
-                "[GEN-Z.AI] Menjalankan cleanImage()..."
+            console.log(
+                "[GEN-Z.AI][CLEAN] Menjalankan image cleaner..."
             );
 
 
@@ -285,17 +786,10 @@ export async function cleanMetadata() {
                     sourceFile
                 );
 
-        }
+        } else {
 
-
-        /* ===================================================
-           VIDEO
-        =================================================== */
-
-        else {
-
-            console.info(
-                "[GEN-Z.AI] Menjalankan cleanVideo()..."
+            console.log(
+                "[GEN-Z.AI][CLEAN] Menjalankan video cleaner..."
             );
 
 
@@ -307,73 +801,82 @@ export async function cleanMetadata() {
         }
 
 
-        /* ===================================================
+        /* =================================================
            FILE CHANGE GUARD
-        =================================================== */
+        ================================================= */
 
         if (
-            state.file !== sourceFile
+            !isSameFile(
+                sourceFile
+            )
         ) {
 
-            console.info(
-                "[GEN-Z.AI] Hasil cleaning lama diabaikan karena file telah berubah."
+            console.warn(
+                "[GEN-Z.AI][CLEAN] File berubah selama cleaning. Hasil diabaikan."
             );
 
-            return;
+
+            return false;
 
         }
 
 
-        /* ===================================================
-           NORMALIZE RESULT
-           ---------------------------------------------------
-           Dukungan:
+        /* =================================================
+           DEBUG CLEAN RESULT
+        ================================================= */
 
-           A. Blob langsung
-
-           B. { blob: Blob }
-        =================================================== */
-
-        let cleanedBlob =
-            null;
+        console.log(
+            "[GEN-Z.AI][CLEAN] Raw cleaner result:",
+            result
+        );
 
 
-        if (
-            result instanceof Blob
-        ) {
+        console.log(
+            "[GEN-Z.AI][CLEAN] Result info:",
+            {
+                constructor:
+                    result?.constructor?.name ||
+                    null,
 
-            cleanedBlob =
-                result;
+                isBlob:
+                    result instanceof Blob,
 
-        }
+                type:
+                    result?.type ||
+                    null,
+
+                size:
+                    result?.size ||
+                    null,
+
+                hasBlob:
+                    result?.blob instanceof Blob,
+
+                hasFile:
+                    result?.file instanceof Blob,
+
+                hasOutput:
+                    result?.output instanceof Blob
+            }
+        );
 
 
-        else if (
-            result &&
-            result.blob instanceof Blob
-        ) {
+        /* =================================================
+           NORMALIZE
+        ================================================= */
 
-            cleanedBlob =
-                result.blob;
+        const cleanedBlob =
+            normalizeCleanResult(
+                result
+            );
 
-        }
-
-
-        /* ===================================================
-           VALIDASI RESULT
-        =================================================== */
 
         if (
             !cleanedBlob
         ) {
 
-            console.error(
-                "[GEN-Z.AI] Cleaner mengembalikan hasil tidak valid:",
-                result
-            );
-
             throw new Error(
-                "File hasil cleaning tidak tersedia atau bukan Blob."
+                "Cleaner tidak mengembalikan Blob hasil."
             );
 
         }
@@ -390,342 +893,253 @@ export async function cleanMetadata() {
         }
 
 
-        /* ===================================================
-           FILE CHANGE GUARD
-        =================================================== */
+        console.log(
+            "[GEN-Z.AI][CLEAN] Cleaned Blob berhasil:",
+            {
+                type:
+                    cleanedBlob.type,
 
-        if (
-            state.file !== sourceFile
-        ) {
-
-            console.info(
-                "[GEN-Z.AI] Hasil cleaning dibatalkan karena file telah berubah."
-            );
-
-            return;
-
-        }
+                size:
+                    cleanedBlob.size
+            }
+        );
 
 
-        /* ===================================================
-           SIMPAN BLOB
-        =================================================== */
+        /* =================================================
+           STORE RESULT
+        ================================================= */
 
         state.cleanedBlob =
             cleanedBlob;
 
 
-        console.info(
-            "[GEN-Z.AI] Cleaned Blob berhasil dibuat.",
-            {
-                size:
-                    cleanedBlob.size,
+        /*
+           Pastikan file type tetap diketahui.
+        */
 
-                type:
-                    cleanedBlob.type
-            }
+        if (
+            !state.fileType
+        ) {
+
+            state.fileType =
+                sourceType;
+
+        }
+
+
+        /* =================================================
+           RENDER CLEANED PREVIEW
+        ================================================= */
+
+        console.log(
+            "[GEN-Z.AI][CLEAN] Render cleaned preview..."
         );
 
 
-        /* ===================================================
-           RENDER CLEANED PREVIEW
-           ---------------------------------------------------
-           IMPORTANT:
-
-           HANYA kirim Blob.
-
-           Jangan:
-
-               URL.createObjectURL()
-
-           di sini.
-
-           metadata-preview.js akan membuat Object URL
-           dan menyimpannya ke state.cleanedURL.
-        =================================================== */
-
-        const previewResult =
+        const previewRendered =
             renderCleanedPreview(
                 cleanedBlob
             );
 
 
-        /* ===================================================
-           VALIDASI PREVIEW
-        =================================================== */
+        console.log(
+            "[GEN-Z.AI][CLEAN] Preview result:",
+            previewRendered
+        );
+
 
         if (
-            previewResult === false
+            previewRendered === false
         ) {
 
             throw new Error(
-                "Preview hasil cleaning gagal ditampilkan."
+                "Preview file hasil gagal ditampilkan."
             );
 
         }
 
 
-        /* ===================================================
-           FILE CHANGE GUARD
-        =================================================== */
+        /* =================================================
+           FILE STILL ACTIVE CHECK
+        ================================================= */
 
         if (
-            state.file !== sourceFile
-        ) {
-
-            console.info(
-                "[GEN-Z.AI] Preview cleaning lama diabaikan karena file telah berubah."
-            );
-
-            return;
-
-        }
-
-
-        /* ===================================================
-           VALIDASI CLEANED URL
-           ---------------------------------------------------
-           URL seharusnya sekarang dibuat oleh
-           metadata-preview.js.
-        =================================================== */
-
-        if (
-            !state.cleanedURL
+            !isSameFile(
+                sourceFile
+            )
         ) {
 
             console.warn(
-                "[GEN-Z.AI] Cleaned Blob tersedia tetapi cleanedURL belum tersedia."
+                "[GEN-Z.AI][CLEAN] File berubah setelah preview."
+            );
+
+
+            return false;
+
+        }
+
+
+        /* =================================================
+           SHOW RESULT
+        ================================================= */
+
+        showCleanResult();
+
+
+        /* =================================================
+           DOWNLOAD ENABLE
+        ================================================= */
+
+        const downloadReady =
+            enableDownload();
+
+
+        if (
+            !downloadReady
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][CLEAN] Download button tidak ditemukan."
             );
 
         }
 
 
-        /* ===================================================
-           SHOW CLEAN RESULT
-        =================================================== */
-
-        if (
-            elements.cleanResult
-        ) {
-
-            showElement(
-                elements.cleanResult
-            );
-
-        }
-
-
-        /* ===================================================
-           ENABLE DOWNLOAD
-        =================================================== */
-
-        if (
-            elements.downloadButton &&
-            state.cleanedBlob
-        ) {
-
-            elements.downloadButton.disabled =
-                false;
-
-        }
-
-
-        /* ===================================================
-           SUCCESS STATUS
-        =================================================== */
+        /* =================================================
+           STATUS SUCCESS
+        ================================================= */
 
         setPreviewStatus(
-            "METADATA CLEANING SELESAI. HASIL ADALAH FILE BARU."
+            "Metadata berhasil dibersihkan."
         );
 
 
-        /* ===================================================
-           SUCCESS LOG
-        =================================================== */
+        setCleaningStatus(
+            "METADATA CLEANING SELESAI.",
+            "Hasil adalah file baru yang sudah dibersihkan dari metadata."
+        );
 
-        console.info(
-            "[GEN-Z.AI] Metadata cleaning berhasil.",
+
+        console.log(
+            "%c[GEN-Z.AI][CLEAN] CLEANING SELESAI.",
+            "font-weight:bold;"
+        );
+
+
+        console.log(
+            "[GEN-Z.AI][CLEAN] Hasil siap:",
             {
-                type:
-                    sourceFileType,
+                blob:
+                    state.cleanedBlob,
 
-                originalName:
-                    sourceFile.name,
+                previewURL:
+                    state.cleanedPreviewUrl ||
+                    state.cleanedURL,
 
-                originalSize:
-                    sourceFile.size,
-
-                cleanedSize:
-                    cleanedBlob.size,
-
-                cleanedType:
-                    cleanedBlob.type,
-
-                cleanedURL:
-                    state.cleanedURL || null
+                downloadReady
             }
         );
 
+
+        return true;
 
     } catch (
         error
     ) {
 
-        /* ===================================================
-           FILE CHANGE GUARD
-        =================================================== */
+        /*
+           Jika file sudah berubah, jangan menimpa UI
+           milik file baru.
+        */
 
         if (
-            state.file !== sourceFile
+            !isSameFile(
+                sourceFile
+            )
         ) {
 
-            console.info(
-                "[GEN-Z.AI] Error cleaning file lama diabaikan karena file telah berubah."
+            console.warn(
+                "[GEN-Z.AI][CLEAN] Error berasal dari file lama. Diabaikan."
             );
 
-            return;
+
+            return false;
 
         }
 
 
-        /* ===================================================
-           LOG ERROR
-        =================================================== */
-
         console.error(
-            "[GEN-Z.AI] Metadata cleaning failed:",
+            "%c[GEN-Z.AI][CLEAN] CLEANING GAGAL",
+            "font-weight:bold;color:red;",
             error
         );
 
-
-        /* ===================================================
-           RESET STATE
-        =================================================== */
 
         state.cleanedBlob =
             null;
 
 
-        try {
-
-            clearCleanedPreview();
-
-        } catch (
-            clearError
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] Gagal membersihkan preview setelah error:",
-                clearError
-            );
-
-        }
+        clearCleanedPreview();
 
 
-        /* ===================================================
-           HIDE RESULT
-        =================================================== */
-
-        if (
-            elements.cleanResult
-        ) {
-
-            hideElement(
-                elements.cleanResult
-            );
-
-        }
+        hideCleanResult();
 
 
-        /* ===================================================
-           DISABLE DOWNLOAD
-        =================================================== */
+        disableDownload();
 
-        if (
-            elements.downloadButton
-        ) {
-
-            elements.downloadButton.disabled =
-                true;
-
-        }
-
-
-        /* ===================================================
-           ERROR STATUS
-        =================================================== */
 
         setPreviewStatus(
-            `CLEANING GAGAL: ${getReadableError(error)}`
+            "Cleaning gagal."
         );
 
-    }
+
+        setCleaningStatus(
+            "CLEANING GAGAL.",
+            getReadableError(
+                error
+            )
+        );
 
 
-    /* =======================================================
-       FINALLY
-    ======================================================= */
+        return false;
 
-    finally {
-
-        /*
-           Jangan menyentuh lifecycle file baru.
-        */
+    } finally {
 
         if (
-            state.file === sourceFile
+            isSameFile(
+                sourceFile
+            )
         ) {
 
             state.cleaning =
                 false;
 
 
+            setCleaningLoading(
+                false
+            );
+
+
+            setCleaningButtons(
+                false
+            );
+
+
+            /*
+               Jika tidak ada hasil, download tetap disabled.
+            */
+
             if (
-                elements.cleanButton
+                !state.cleanedBlob
             ) {
 
-                elements.cleanButton.disabled =
-                    false;
-
-
-                elements.cleanButton.removeAttribute(
-                    "data-processing"
-                );
+                disableDownload();
 
             }
 
         }
 
     }
-
-}
-
-
-/* =========================================================
-   PREVIEW STATUS
-========================================================= */
-
-function setPreviewStatus(
-    text
-) {
-
-    const status =
-        elements?.previewStatus;
-
-
-    if (
-        !status
-    ) {
-
-        return;
-
-    }
-
-
-    status.textContent =
-        String(
-            text ?? ""
-        );
 
 }
 
@@ -742,76 +1156,53 @@ function getReadableError(
         !error
     ) {
 
-        return "Terjadi kesalahan yang tidak diketahui.";
+        return "Terjadi kesalahan saat membersihkan metadata.";
 
     }
 
 
     if (
-        error instanceof Error
+        typeof error === "string"
     ) {
 
-        return (
-            error.message ||
-            "Terjadi kesalahan yang tidak diketahui."
+        return error;
+
+    }
+
+
+    if (
+        error.message
+    ) {
+
+        return String(
+            error.message
         );
 
     }
 
 
-    if (
-        typeof error === "object"
+    try {
+
+        return JSON.stringify(
+            error
+        );
+
+    } catch (
+        stringifyError
     ) {
 
-        if (
-            typeof error.message === "string" &&
-            error.message.trim()
-        ) {
-
-            return error.message;
-
-        }
-
-
-        if (
-            typeof error.error === "string" &&
-            error.error.trim()
-        ) {
-
-            return error.error;
-
-        }
-
-
-        if (
-            typeof error.details === "string" &&
-            error.details.trim()
-        ) {
-
-            return error.details;
-
-        }
-
-
-        try {
-
-            return JSON.stringify(
-                error
-            );
-
-        } catch (
-            stringifyError
-        ) {
-
-            return "Terjadi kesalahan yang tidak diketahui.";
-
-        }
+        return "Terjadi kesalahan yang tidak diketahui.";
 
     }
 
-
-    return String(
-        error
-    );
-
 }
+
+
+/* =========================================================
+   GLOBAL DEBUG
+========================================================= */
+
+window.GENZMetadataClean =
+    {
+        cleanMetadata
+    };
