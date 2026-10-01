@@ -50,15 +50,10 @@ function enableCheckButton() {
             "[GEN-Z.AI][EVENTS] CHECK button tidak ditemukan."
         );
 
-
         return false;
 
     }
 
-
-    /*
-       Lepaskan seluruh mekanisme disabled.
-    */
 
     button.disabled =
         false;
@@ -90,6 +85,11 @@ function enableCheckButton() {
     );
 
 
+    /*
+       Jangan mengunci tombol lewat
+       pointer-events / opacity.
+    */
+
     button.style.removeProperty(
         "pointer-events"
     );
@@ -97,11 +97,6 @@ function enableCheckButton() {
 
     button.style.removeProperty(
         "opacity"
-    );
-
-
-    button.style.removeProperty(
-        "display"
     );
 
 
@@ -223,26 +218,47 @@ async function handleFileInput(
 
 
     /*
-       Jangan disable CHECK di sini.
+       PENTING:
 
-       metadata-file.js / processSelectedFile()
-       bertanggung jawab memproses file.
+       metadata-app.js mengirim callback:
+
+           handleFileInput
+
+       Jadi events.js harus meneruskan
+       event tersebut ke metadata-file.js.
+
+       Jangan mencari:
+
+           handleFileInputProcess
+
+       karena callback tersebut memang
+       tidak pernah dikirim oleh app.
     */
+
+    const callback =
+        currentCallbacks
+            ?.handleFileInput;
+
+
+    if (
+        typeof callback !==
+        "function"
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][EVENTS] handleFileInput callback tidak tersedia."
+        );
+
+        return;
+
+    }
+
 
     try {
 
-        if (
-            typeof currentCallbacks
-                ?.handleFileInputProcess ===
-            "function"
-        ) {
-
-            await currentCallbacks
-                .handleFileInputProcess(
-                    file
-                );
-
-        }
+        await callback(
+            event
+        );
 
     } catch (
         error
@@ -253,41 +269,30 @@ async function handleFileInput(
             error
         );
 
+        return;
+
     }
 
 
     /*
-       Pastikan CHECK aktif setelah file
-       benar-benar masuk ke state.
+       metadata-file.js bertanggung jawab
+       mengaktifkan CHECK setelah file berhasil
+       diproses.
+
+       Di sini kita hanya melakukan fallback
+       berdasarkan keberadaan file input agar
+       tombol tidak tertinggal disabled.
     */
 
-    setTimeout(
-        function () {
+    if (
+        elements?.fileInput
+            ?.files
+            ?.length > 0
+    ) {
 
-            const stateFile =
-                window
-                    ?.GENZMetadataCleaner
-                    ?.state
-                    ?.file;
+        enableCheckButton();
 
-
-            /*
-               Jika API state tidak diekspos,
-               cukup lihat input file.
-            */
-
-            if (
-                stateFile ||
-                elements?.fileInput?.files?.length
-            ) {
-
-                enableCheckButton();
-
-            }
-
-        },
-        50
-    );
+    }
 
 }
 
@@ -332,8 +337,11 @@ function handleChangeFile(
 
 
     /*
-       Klik GANTI harus membuka file picker,
-       bukan mengubah state secara manual.
+       Klik GANTI hanya membuka
+       file picker.
+
+       Jangan mengubah state file
+       secara manual.
     */
 
     if (
@@ -436,29 +444,54 @@ async function handleDrop(
 
 
     if (
-        typeof callback ===
+        typeof callback !==
         "function"
     ) {
+
+        console.error(
+            "[GEN-Z.AI][EVENTS] handleDrop callback tidak tersedia."
+        );
+
+        return;
+
+    }
+
+
+    try {
 
         await callback(
             event
         );
 
+    } catch (
+        error
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][EVENTS] DROP gagal:",
+            error
+        );
+
+        return;
+
     }
 
 
     /*
-       Pastikan CHECK tidak terkunci setelah DROP.
+       Jika metadata-file.js berhasil
+       memasukkan file ke input/state,
+       pastikan CHECK tidak tertinggal disabled.
     */
 
-    setTimeout(
-        function () {
+    if (
+        elements?.fileInput
+            ?.files
+            ?.length > 0
+    ) {
 
-            enableCheckButton();
+        enableCheckButton();
 
-        },
-        100
-    );
+    }
 
 }
 
@@ -488,15 +521,22 @@ async function handleCheckClick(
         !button
     ) {
 
+        console.error(
+            "[GEN-Z.AI][EVENTS] CHECK button tidak ditemukan."
+        );
+
         return;
 
     }
 
 
     /*
-       Jika browser menganggap disabled,
-       jangan paksa event berjalan dari sini.
-       Ini biasanya berarti state file belum masuk.
+       Browser tidak akan menjalankan
+       click handler normal jika tombol
+       benar-benar disabled.
+
+       Pemeriksaan ini tetap dipertahankan
+       sebagai safety guard.
     */
 
     if (
@@ -506,7 +546,6 @@ async function handleCheckClick(
         console.warn(
             "[GEN-Z.AI][EVENTS] CHECK diklik tetapi button masih disabled."
         );
-
 
         return;
 
@@ -532,18 +571,23 @@ async function handleCheckClick(
             "[GEN-Z.AI][EVENTS] checkMetadata callback tidak tersedia."
         );
 
-
         return;
 
     }
 
 
     /*
-       Lock hanya selama CHECK berjalan.
+       Lock selama pemeriksaan berlangsung.
     */
 
     button.disabled =
         true;
+
+
+    button.setAttribute(
+        "aria-disabled",
+        "true"
+    );
 
 
     button.setAttribute(
@@ -578,7 +622,11 @@ async function handleCheckClick(
 
 
         /*
-           Jangan otomatis enable jika tidak ada file.
+           checkMetadata() sendiri menangani
+           state file dan hasil pemeriksaan.
+
+           Jika file masih tersedia di input,
+           CHECK boleh digunakan kembali.
         */
 
         const hasFile =
@@ -591,19 +639,7 @@ async function handleCheckClick(
             hasFile
         ) {
 
-            button.disabled =
-                false;
-
-
-            button.removeAttribute(
-                "disabled"
-            );
-
-
-            button.setAttribute(
-                "aria-disabled",
-                "false"
-            );
+            enableCheckButton();
 
         }
 
@@ -650,7 +686,6 @@ async function handleCleanClick(
             "[GEN-Z.AI][EVENTS] CLEAN diklik tetapi button masih disabled."
         );
 
-
         return;
 
     }
@@ -674,7 +709,6 @@ async function handleCleanClick(
         console.error(
             "[GEN-Z.AI][EVENTS] cleanMetadata callback tidak tersedia."
         );
-
 
         return;
 
@@ -742,7 +776,6 @@ async function handleDownloadClick(
             "[GEN-Z.AI][EVENTS] DOWNLOAD masih disabled."
         );
 
-
         return;
 
     }
@@ -761,7 +794,6 @@ async function handleDownloadClick(
         console.error(
             "[GEN-Z.AI][EVENTS] downloadCleanedFile callback tidak tersedia."
         );
-
 
         return;
 
@@ -989,7 +1021,8 @@ export function bindMetadataEvents(
 
 
     /*
-       Jangan enable CHECK saat halaman baru dibuka.
+       CHECK harus disabled ketika
+       halaman baru pertama kali dibuka.
     */
 
     disableCheckButton();
