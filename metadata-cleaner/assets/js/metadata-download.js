@@ -1,19 +1,14 @@
 /* =========================================================
    GEN-Z.AI
-   AI METADATA CLEANER
+   METADATA DOWNLOAD MODULE
    ---------------------------------------------------------
    File:
    metadata-cleaner/assets/js/metadata-download.js
 
    Fungsi:
    - Download file hasil cleaning
-   - Membuat nama file hasil cleaning
-
-   Catatan:
-   - Tidak melakukan proses cleaning
-   - Tidak membaca metadata
-   - Tidak membuat object URL baru
-   - Menggunakan cleanedURL yang sudah dibuat oleh app
+   - Menentukan nama file hasil
+   - Tidak mengubah state cleaning
    - Tidak mengubah file asli
 ========================================================= */
 
@@ -27,126 +22,114 @@ import {
    DOWNLOAD CLEANED FILE
 ========================================================= */
 
-export function downloadCleanedFile() {
-
-    /*
-       Pastikan hasil cleaning tersedia
-    */
+function downloadCleanedFile() {
 
     if (
-        !state.cleanedURL ||
         !state.cleanedBlob ||
-        !state.file
+        !state.cleanedURL
     ) {
 
         return;
     }
 
 
-    /*
-       Buat temporary anchor
-    */
-
-    const link =
+    const anchor =
         document.createElement(
             "a"
         );
 
 
-    link.href =
+    anchor.href =
         state.cleanedURL;
 
 
-    link.download =
+    anchor.download =
+        state.cleanedFile?.name ||
         createCleanedFilename(
-            state.file.name
+            state.file?.name ||
+            "media"
         );
 
 
-    /*
-       Beberapa browser membutuhkan
-       anchor berada di DOM
-    */
-
-    link.style.display =
+    anchor.style.display =
         "none";
 
 
     document.body.appendChild(
-        link
+        anchor
     );
 
 
-    /*
-       Trigger download
-    */
-
-    link.click();
+    anchor.click();
 
 
-    /*
-       Bersihkan temporary element
-    */
-
-    link.remove();
-
+    anchor.remove();
 }
 
 
 /* =========================================================
    CREATE CLEANED FILENAME
-   ---------------------------------------------------------
-   Mempertahankan perilaku asli metadata-app.js
 ========================================================= */
 
-export function createCleanedFilename(
+function createCleanedFilename(
     originalName
 ) {
 
-    const dot =
-        originalName.lastIndexOf(
-            "."
+    const safeName =
+        String(
+            originalName ||
+            "media"
         );
 
 
-    /*
-       File tanpa extension
-    */
+    const dot =
+        safeName.lastIndexOf(
+            "."
+        );
+
 
     if (
         dot <= 0
     ) {
 
-        return (
-            `${originalName}_cleaned`
-        );
-
+        return `${safeName}_cleaned`;
     }
 
 
-    /*
-       Pisahkan nama dan extension
-    */
-
     const base =
-        originalName.slice(
+        safeName.slice(
             0,
             dot
         );
 
 
     const extension =
-        originalName.slice(
+        safeName.slice(
             dot + 1
         );
 
 
-    /*
-       Nama hasil cleaning
-    */
-
-    return (
-        `${base}_cleaned.${extension}`
-    );
-
+    return `${base}_cleaned.${extension}`;
 }
+
+
+/* =========================================================
+   PUBLIC API
+========================================================= */
+
+export {
+
+    downloadCleanedFile,
+
+    createCleanedFilename
+
+};
+
+
+window.GENZMetadataDownload = {
+
+    downloadCleanedFile,
+
+    createCleanedFilename
+
+};
