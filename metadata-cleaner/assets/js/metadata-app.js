@@ -32,7 +32,8 @@
 
    Catatan:
    - File ini hanya menjadi coordinator.
-   - Implementasi fungsi tidak diduplikasi.
+   - Implementasi fungsi yang sudah dipindahkan
+     tidak diduplikasi di sini.
    - File asli user tidak pernah dimodifikasi.
 ========================================================= */
 
@@ -659,13 +660,9 @@ async function checkMetadata() {
 
 
         /*
-           Jangan menandai pemeriksaan sebagai
-           berhasil apabila terjadi error.
+           Pertahankan perilaku aplikasi asli.
+           Jangan mengubah state.checked di sini.
         */
-
-        state.checked =
-            false;
-
 
         setStatus(
             "UNKNOWN",
