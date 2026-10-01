@@ -10,10 +10,23 @@
    - Remux video through FFmpeg WASM
    - Preserve media streams
    - Remove global/container metadata
+   - Remove per-stream metadata
+   - Remove per-chapter metadata
+   - Remove per-program metadata
    - Remove chapters
    - Avoid video/audio re-encoding
    - Original video remains untouched
+
+   CATATAN:
+   FFmpeg mempunyai beberapa konteks metadata:
+   - global/container
+   - stream
+   - chapter
+   - program
+
+   -map_metadata -1 saja tidak cukup untuk seluruh konteks.
 ========================================================= */
+
 
 import {
     ensureFFmpeg,
@@ -28,8 +41,11 @@ import {
    CLEAN VIDEO
    ---------------------------------------------------------
    Strategy:
-   - preserve all media streams
-   - remove global/container metadata
+   - preserve every media stream
+   - remove global metadata
+   - remove per-stream metadata
+   - remove per-chapter metadata
+   - remove per-program metadata
    - remove chapters
    - copy streams without video/audio re-encoding
    - use faststart only for MP4/MOV containers
@@ -77,35 +93,119 @@ export async function cleanVideo(
         );
 
 
-        /*
-         * Base remux arguments.
-         *
-         * -map 0
-         *     Preserve every input stream.
-         *
-         * -map_metadata -1
-         *     Remove container/global metadata.
-         *
-         * -map_chapters -1
-         *     Remove chapter metadata.
-         *
-         * -c copy
-         *     Do not re-encode video/audio.
-         */
+        /* =====================================================
+           FFMPEG ARGUMENTS
+           =====================================================
+
+           -i inputName
+               Membaca file sumber.
+
+           -map 0
+               Mempertahankan seluruh media stream.
+
+           -map_metadata -1
+               Mematikan automatic global/container metadata
+               mapping.
+
+           -map_metadata:s -1
+               Mematikan automatic per-stream metadata
+               mapping.
+
+           -map_metadata:c -1
+               Mematikan automatic per-chapter metadata
+               mapping.
+
+           -map_metadata:p -1
+               Mematikan automatic per-program metadata
+               mapping.
+
+           -map_chapters -1
+               Tidak menyalin chapter.
+
+           -c copy
+               Tidak melakukan re-encode video/audio.
+
+           ===================================================== */
 
         const ffmpegArguments = [
 
             "-i",
             inputName,
 
+
+            /* -------------------------------------------------
+               PRESERVE ALL MEDIA STREAMS
+            ------------------------------------------------- */
+
             "-map",
             "0",
+
+
+            /* -------------------------------------------------
+               REMOVE GLOBAL / CONTAINER METADATA
+
+               Global metadata:
+               title
+               artist
+               comment
+               description
+               creation_time
+               encoder
+               software
+               copyright
+               location
+               dll.
+            ------------------------------------------------- */
 
             "-map_metadata",
             "-1",
 
+
+            /* -------------------------------------------------
+               REMOVE PER-STREAM METADATA
+
+               Contoh:
+               stream title
+               handler_name
+               language metadata
+               encoder tags
+               stream-specific tags
+            ------------------------------------------------- */
+
+            "-map_metadata:s",
+            "-1",
+
+
+            /* -------------------------------------------------
+               REMOVE PER-CHAPTER METADATA
+            ------------------------------------------------- */
+
+            "-map_metadata:c",
+            "-1",
+
+
+            /* -------------------------------------------------
+               REMOVE PER-PROGRAM METADATA
+            ------------------------------------------------- */
+
+            "-map_metadata:p",
+            "-1",
+
+
+            /* -------------------------------------------------
+               DO NOT COPY CHAPTERS
+            ------------------------------------------------- */
+
             "-map_chapters",
             "-1",
+
+
+            /* -------------------------------------------------
+               STREAM COPY
+
+               Video/audio tidak di-decode dan tidak di-encode
+               ulang.
+            ------------------------------------------------- */
 
             "-c",
             "copy"
@@ -113,10 +213,9 @@ export async function cleanVideo(
         ];
 
 
-        /*
-         * +faststart hanya untuk container
-         * ISO-BMFF seperti MP4/MOV.
-         */
+        /* =====================================================
+           MP4 / MOV FASTSTART
+           ===================================================== */
 
         if (
             isMovLikeVideo(
@@ -125,16 +224,26 @@ export async function cleanVideo(
         ) {
 
             ffmpegArguments.push(
+
                 "-movflags",
                 "+faststart"
+
             );
         }
 
+
+        /* =====================================================
+           OUTPUT
+           ===================================================== */
 
         ffmpegArguments.push(
             outputName
         );
 
+
+        /* =====================================================
+           EXECUTE FFMPEG
+           ===================================================== */
 
         const result =
             await ffmpeg.exec(
@@ -151,6 +260,10 @@ export async function cleanVideo(
             );
         }
 
+
+        /* =====================================================
+           READ CLEANED FILE
+           ===================================================== */
 
         const outputData =
             await ffmpeg.readFile(
@@ -169,11 +282,19 @@ export async function cleanVideo(
         }
 
 
+        /* =====================================================
+           OUTPUT MIME TYPE
+           ===================================================== */
+
         const outputType =
             getCleanVideoMimeType(
                 file
             );
 
+
+        /* =====================================================
+           RETURN NEW BLOB
+           ===================================================== */
 
         return {
 
@@ -194,6 +315,10 @@ export async function cleanVideo(
         };
 
     } finally {
+
+        /* =====================================================
+           CLEAN FFMPEG VIRTUAL FILES
+        ===================================================== */
 
         await safeDeleteFFmpegFile(
             ffmpeg,
