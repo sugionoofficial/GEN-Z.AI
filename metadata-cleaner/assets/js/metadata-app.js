@@ -123,6 +123,9 @@ import {
     cleanMetadata
 } from "./metadata-clean.js";
 
+import {
+    downloadCleanedFile
+} from "./metadata-download.js";
 
 /* =========================================================
    CONSTANTS
@@ -1960,100 +1963,6 @@ function injectPremiumCleaningStyles() {
 
 
 
-
-/* =========================================================
-   DOWNLOAD
-========================================================= */
-
-function downloadCleanedFile() {
-
-    if (
-        !state.cleanedBlob ||
-        !state.cleanedURL
-    ) {
-
-        return;
-    }
-
-
-    const anchor =
-        document.createElement(
-            "a"
-        );
-
-
-    anchor.href =
-        state.cleanedURL;
-
-
-    anchor.download =
-        state.cleanedFile?.name ||
-        createCleanedFilename(
-            state.file?.name ||
-            "media"
-        );
-
-
-    anchor.style.display =
-        "none";
-
-
-    document.body.appendChild(
-        anchor
-    );
-
-
-    anchor.click();
-
-
-    anchor.remove();
-}
-
-
-/* =========================================================
-   CLEANED FILENAME
-========================================================= */
-
-function createCleanedFilename(
-    originalName
-) {
-
-    const safeName =
-        String(
-            originalName ||
-            "media"
-        );
-
-
-    const dot =
-        safeName.lastIndexOf(
-            "."
-        );
-
-
-    if (
-        dot <= 0
-    ) {
-
-        return `${safeName}_cleaned`;
-    }
-
-
-    const base =
-        safeName.slice(
-            0,
-            dot
-        );
-
-
-    const extension =
-        safeName.slice(
-            dot + 1
-        );
-
-
-    return `${base}_cleaned.${extension}`;
-}
 
 
 /* =========================================================
