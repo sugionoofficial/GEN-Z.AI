@@ -19,28 +19,51 @@
    - Video cleaning tetap menggunakan cleanVideo()
    - Tidak menghitung ulang metadata
    - Tidak mengubah state file aktif
+   - Mendukung hasil cleaner berupa:
+       1. Blob langsung
+       2. { blob: Blob }
 ========================================================= */
 
+
+/* =========================================================
+   STATE
+========================================================= */
 
 import {
     state
 } from "./metadata-state.js";
 
 
+/* =========================================================
+   DOM ELEMENTS
+========================================================= */
+
 import {
     elements
 } from "./metadata-dom.js";
 
+
+/* =========================================================
+   IMAGE CLEANER
+========================================================= */
 
 import {
     cleanImage
 } from "./metadata-cleaner-image.js";
 
 
+/* =========================================================
+   VIDEO CLEANER
+========================================================= */
+
 import {
     cleanVideo
 } from "./metadata-cleaner-video.js";
 
+
+/* =========================================================
+   PREVIEW
+========================================================= */
 
 import {
     renderCleanedPreview,
@@ -59,42 +82,90 @@ import {
 
 export async function cleanMetadata() {
 
+    /* -------------------------------------------------------
+       VALIDASI FILE
+    ------------------------------------------------------- */
+
     if (
-        !state.file ||
-        state.cleaning
+        !state.file
     ) {
+
+        console.warn(
+            "[GEN-Z.AI] Cleaning dibatalkan: tidak ada file aktif."
+        );
 
         return;
     }
 
 
-    /*
-     * Simpan referensi file yang sedang diproses.
-     *
-     * Ini penting apabila user mengganti file
-     * ketika proses cleaning masih berjalan.
-     */
+    /* -------------------------------------------------------
+       CEGAH CLEANING GANDA
+    ------------------------------------------------------- */
+
+    if (
+        state.cleaning
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Cleaning sedang berjalan."
+        );
+
+        return;
+    }
+
+
+    /* -------------------------------------------------------
+       SIMPAN REFERENSI FILE AKTIF
+       ------------------------------------------------------
+       Sangat penting untuk proses asynchronous.
+
+       Jika user mengganti file ketika cleaning berjalan,
+       hasil file lama tidak boleh ditempel ke file baru.
+    ------------------------------------------------------- */
 
     const sourceFile =
         state.file;
 
 
+    const sourceFileType =
+        state.fileType;
+
+
+    /* -------------------------------------------------------
+       LOCK CLEANING
+    ------------------------------------------------------- */
+
     state.cleaning =
         true;
 
 
-    elements.cleanButton.disabled =
-        true;
+    /* -------------------------------------------------------
+       LOCK BUTTON
+    ------------------------------------------------------- */
+
+    if (
+        elements.cleanButton
+    ) {
+
+        elements.cleanButton.disabled =
+            true;
+
+    }
 
 
-    elements.downloadButton.disabled =
-        true;
+    if (
+        elements.downloadButton
+    ) {
+
+        elements.downloadButton.disabled =
+            true;
+
+    }
 
 
-    /*
-     * Hapus hasil cleaning sebelumnya sebelum
-     * memulai proses baru.
-     */
+    /* -------------------------------------------------------
+       HAPUS HASIL CLEANING LAMA
+    ------------------------------------------------------- */
 
     state.cleanedBlob =
         null;
@@ -104,35 +175,86 @@ export async function cleanMetadata() {
         state.cleanedURL
     ) {
 
-        URL.revokeObjectURL(
-            state.cleanedURL
-        );
+        try {
+
+            URL.revokeObjectURL(
+                state.cleanedURL
+            );
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal revoke cleaned URL:",
+                error
+            );
+
+        }
 
 
         state.cleanedURL =
             null;
+
     }
 
 
-    hideElement(
-        elements.cleanResult
-    );
+    /* -------------------------------------------------------
+       HIDE CLEAN RESULT
+    ------------------------------------------------------- */
 
+    if (
+        elements.cleanResult
+    ) {
+
+        hideElement(
+            elements.cleanResult
+        );
+
+    }
+
+
+    /* -------------------------------------------------------
+       RESET CLEAN IMAGE PREVIEW
+    ------------------------------------------------------- */
 
     if (
         elements.cleanImagePreview
     ) {
 
-        elements.cleanImagePreview.src =
-            "";
+        elements.cleanImagePreview.removeAttribute(
+            "src"
+        );
+
+        elements.cleanImagePreview.removeAttribute(
+            "srcset"
+        );
+
     }
 
+
+    /* -------------------------------------------------------
+       RESET CLEAN VIDEO PREVIEW
+    ------------------------------------------------------- */
 
     if (
         elements.cleanVideoPreview
     ) {
 
-        elements.cleanVideoPreview.pause();
+        try {
+
+            elements.cleanVideoPreview.pause();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal pause clean video:",
+                error
+            );
+
+        }
 
 
         elements.cleanVideoPreview.removeAttribute(
@@ -140,27 +262,56 @@ export async function cleanMetadata() {
         );
 
 
-        elements.cleanVideoPreview.load();
+        /*
+         * Jangan memanggil load() jika elemen video
+         * belum memiliki source sebelumnya.
+         *
+         * Tetapi jika tersedia, tetap reset agar browser
+         * benar-benar membuang media lama.
+         */
+
+        try {
+
+            elements.cleanVideoPreview.load();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal reset clean video:",
+                error
+            );
+
+        }
 
     }
 
+
+    /* -------------------------------------------------------
+       STATUS
+    ------------------------------------------------------- */
 
     setPreviewStatus(
         "MEMBERSIHKAN METADATA SECARA LOKAL..."
     );
 
 
+    /* =======================================================
+       PROCESS
+    ======================================================= */
+
     try {
 
-        let result;
+        let result = null;
 
 
-        /*
-         * Image
-         */
+        /* ---------------------------------------------------
+           IMAGE
+        --------------------------------------------------- */
 
         if (
-            state.fileType === "image"
+            sourceFileType === "image"
         ) {
 
             result =
@@ -171,11 +322,13 @@ export async function cleanMetadata() {
         }
 
 
-        /*
-         * Video
-         */
+        /* ---------------------------------------------------
+           VIDEO
+        --------------------------------------------------- */
 
-        else {
+        else if (
+            sourceFileType === "video"
+        ) {
 
             result =
                 await cleanVideo(
@@ -185,64 +338,153 @@ export async function cleanMetadata() {
         }
 
 
-        /*
-         * User mungkin sudah memilih file baru
-         * ketika proses asynchronous masih berjalan.
-         *
-         * Jangan pernah menempelkan hasil file lama
-         * ke file baru.
-         */
+        /* ---------------------------------------------------
+           UNKNOWN FILE TYPE
+        --------------------------------------------------- */
+
+        else {
+
+            throw new Error(
+                "Jenis file tidak dikenali."
+            );
+
+        }
+
+
+        /* ===================================================
+           FILE CHANGE GUARD
+           ---------------------------------------------------
+           User mungkin mengganti file ketika proses async
+           masih berjalan.
+        =================================================== */
 
         if (
             state.file !== sourceFile
         ) {
 
+            console.info(
+                "[GEN-Z.AI] Cleaning lama diabaikan karena file telah berubah."
+            );
+
             return;
+
         }
 
 
-        /*
-         * Pastikan hasil cleaning benar-benar
-         * menghasilkan Blob.
-         */
+        /* ===================================================
+           NORMALIZE CLEANER RESULT
+           ---------------------------------------------------
+           Mendukung dua bentuk:
+
+           A. Blob langsung
+              cleanImage() -> Blob
+
+           B. Object
+              cleanImage() -> { blob: Blob }
+        =================================================== */
+
+        let cleanedBlob =
+            null;
+
 
         if (
-            !result ||
-            !result.blob
+            result instanceof Blob
+        ) {
+
+            cleanedBlob =
+                result;
+
+        }
+
+
+        else if (
+            result &&
+            result.blob instanceof Blob
+        ) {
+
+            cleanedBlob =
+                result.blob;
+
+        }
+
+
+        /* ---------------------------------------------------
+           VALIDASI HASIL
+        --------------------------------------------------- */
+
+        if (
+            !cleanedBlob
         ) {
 
             throw new Error(
-                "File hasil cleaning tidak tersedia."
+                "File hasil cleaning tidak tersedia atau bukan Blob."
             );
+
         }
 
 
+        /* ===================================================
+           SECOND FILE CHANGE GUARD
+           ---------------------------------------------------
+           Perlindungan tambahan setelah normalisasi result.
+        =================================================== */
+
+        if (
+            state.file !== sourceFile
+        ) {
+
+            console.info(
+                "[GEN-Z.AI] Hasil cleaning diabaikan karena file telah berubah."
+            );
+
+            return;
+
+        }
+
+
+        /* ===================================================
+           SIMPAN CLEANED BLOB
+        =================================================== */
+
         state.cleanedBlob =
-            result.blob;
+            cleanedBlob;
 
 
-        /*
-         * Pastikan object URL lama benar-benar
-         * sudah dilepas sebelum membuat yang baru.
-         */
+        /* ===================================================
+           HAPUS CLEANED URL LAMA
+        =================================================== */
 
         if (
             state.cleanedURL
         ) {
 
-            URL.revokeObjectURL(
-                state.cleanedURL
-            );
+            try {
+
+                URL.revokeObjectURL(
+                    state.cleanedURL
+                );
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI] Gagal revoke cleaned URL lama:",
+                    error
+                );
+
+            }
 
 
             state.cleanedURL =
                 null;
+
         }
 
 
-        /*
-         * Buat Object URL hasil cleaning.
-         */
+        /* ===================================================
+           CREATE OBJECT URL
+        =================================================== */
 
         state.cleanedURL =
             URL.createObjectURL(
@@ -250,50 +492,107 @@ export async function cleanMetadata() {
             );
 
 
-        /*
-         * Tampilkan hasil cleaning.
-         */
+        /* ===================================================
+           VALIDASI OBJECT URL
+        =================================================== */
+
+        if (
+            !state.cleanedURL
+        ) {
+
+            throw new Error(
+                "Object URL hasil cleaning gagal dibuat."
+            );
+
+        }
+
+
+        /* ===================================================
+           RENDER CLEANED PREVIEW
+        =================================================== */
 
         renderCleanedPreview(
             state.cleanedURL
         );
 
 
-        showElement(
+        /* ===================================================
+           SHOW CLEAN RESULT
+        =================================================== */
+
+        if (
             elements.cleanResult
-        );
+        ) {
+
+            showElement(
+                elements.cleanResult
+            );
+
+        }
 
 
-        /*
-         * Hasil sudah tersedia,
-         * DOWNLOAD sekarang boleh digunakan.
-         */
+        /* ===================================================
+           ENABLE DOWNLOAD
+        =================================================== */
 
-        elements.downloadButton.disabled =
-            false;
+        if (
+            elements.downloadButton
+        ) {
 
+            elements.downloadButton.disabled =
+                false;
+
+        }
+
+
+        /* ===================================================
+           SUCCESS STATUS
+        =================================================== */
 
         setPreviewStatus(
             "METADATA CLEANING SELESAI. HASIL ADALAH FILE BARU."
         );
 
+
+        console.info(
+            "[GEN-Z.AI] Metadata cleaning berhasil.",
+            {
+                type: sourceFileType,
+                originalName: sourceFile.name,
+                originalSize: sourceFile.size,
+                cleanedSize: state.cleanedBlob.size,
+                cleanedType: state.cleanedBlob.type
+            }
+        );
+
+
     } catch (
         error
     ) {
 
-        /*
-         * Jika user sudah mengganti file,
-         * jangan menimpa status file baru
-         * dengan error dari proses lama.
-         */
+        /* ===================================================
+           FILE CHANGE GUARD
+           ---------------------------------------------------
+           Error dari proses file lama tidak boleh mengubah
+           UI file baru.
+        =================================================== */
 
         if (
             state.file !== sourceFile
         ) {
 
+            console.info(
+                "[GEN-Z.AI] Error cleaning lama diabaikan karena file telah berubah."
+            );
+
             return;
+
         }
 
+
+        /* ===================================================
+           LOG ERROR
+        =================================================== */
 
         console.error(
             "[GEN-Z.AI] Metadata cleaning failed:",
@@ -301,43 +600,97 @@ export async function cleanMetadata() {
         );
 
 
+        /* ===================================================
+           RESET CLEANED STATE
+        =================================================== */
+
         state.cleanedBlob =
             null;
 
+
+        /* ---------------------------------------------------
+           REVOKE CLEANED URL
+        --------------------------------------------------- */
 
         if (
             state.cleanedURL
         ) {
 
-            URL.revokeObjectURL(
-                state.cleanedURL
-            );
+            try {
+
+                URL.revokeObjectURL(
+                    state.cleanedURL
+                );
+
+            } catch (
+                revokeError
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI] Gagal revoke cleaned URL setelah error:",
+                    revokeError
+                );
+
+            }
 
 
             state.cleanedURL =
                 null;
+
         }
 
 
-        hideElement(
+        /* ===================================================
+           HIDE RESULT
+        =================================================== */
+
+        if (
             elements.cleanResult
-        );
+        ) {
+
+            hideElement(
+                elements.cleanResult
+            );
+
+        }
 
 
-        elements.downloadButton.disabled =
-            true;
+        /* ===================================================
+           DISABLE DOWNLOAD
+        =================================================== */
 
+        if (
+            elements.downloadButton
+        ) {
+
+            elements.downloadButton.disabled =
+                true;
+
+        }
+
+
+        /* ===================================================
+           ERROR STATUS
+        =================================================== */
 
         setPreviewStatus(
             `CLEANING GAGAL: ${getReadableError(error)}`
         );
 
-    } finally {
+    }
 
-        /*
-         * Hanya ubah state tombol jika proses ini
-         * masih merupakan file yang aktif.
-         */
+
+    /* =======================================================
+       FINALLY
+       -------------------------------------------------------
+       Hanya reset state jika file yang sedang diproses
+       masih merupakan file aktif.
+
+       Jika user sudah memilih file baru, file baru memiliki
+       lifecycle sendiri dan tidak boleh disentuh proses lama.
+    ======================================================= */
+
+    finally {
 
         if (
             state.file === sourceFile
@@ -347,8 +700,14 @@ export async function cleanMetadata() {
                 false;
 
 
-            elements.cleanButton.disabled =
-                false;
+            if (
+                elements.cleanButton
+            ) {
+
+                elements.cleanButton.disabled =
+                    false;
+
+            }
 
         }
 
@@ -360,9 +719,8 @@ export async function cleanMetadata() {
 /* =========================================================
    PREVIEW STATUS
    ---------------------------------------------------------
-   Dipertahankan lokal di modul ini agar coordinator
-   metadata-app.js tidak perlu membawa implementasi
-   cleaning tambahan.
+   Lokal di modul ini agar metadata-app.js tidak perlu
+   membawa implementasi cleaning tambahan.
 ========================================================= */
 
 function setPreviewStatus(
@@ -370,18 +728,24 @@ function setPreviewStatus(
 ) {
 
     if (
-        elements.previewStatus
+        !elements.previewStatus
     ) {
 
-        elements.previewStatus.textContent =
-            text;
+        return;
+
     }
+
+
+    elements.previewStatus.textContent =
+        String(
+            text ?? ""
+        );
 
 }
 
 
 /* =========================================================
-   ERROR MESSAGE
+   READABLE ERROR
 ========================================================= */
 
 function getReadableError(
@@ -393,6 +757,7 @@ function getReadableError(
     ) {
 
         return "Terjadi kesalahan yang tidak diketahui.";
+
     }
 
 
@@ -400,7 +765,62 @@ function getReadableError(
         error instanceof Error
     ) {
 
-        return error.message;
+        return (
+            error.message ||
+            "Terjadi kesalahan yang tidak diketahui."
+        );
+
+    }
+
+
+    if (
+        typeof error === "object"
+    ) {
+
+        /*
+         * Beberapa library mengembalikan:
+         *
+         * { message: "..." }
+         *
+         * atau:
+         *
+         * { error: "..." }
+         */
+
+        if (
+            typeof error.message === "string" &&
+            error.message.trim()
+        ) {
+
+            return error.message;
+
+        }
+
+
+        if (
+            typeof error.error === "string" &&
+            error.error.trim()
+        ) {
+
+            return error.error;
+
+        }
+
+
+        try {
+
+            return JSON.stringify(
+                error
+            );
+
+        } catch (
+            stringifyError
+        ) {
+
+            return "Terjadi kesalahan yang tidak diketahui.";
+
+        }
+
     }
 
 
