@@ -170,10 +170,24 @@
                     </div>
 
 
-                    <label
-                        for="metadata-file-input"
+                    <!-- =========================================
+                         DROPZONE
+                         -------------------------------------------------
+                         Bukan <label> lagi.
+
+                         Native file input tetap menjadi sumber
+                         upload utama.
+
+                         JavaScript membuka file picker secara
+                         eksplisit melalui openFilePicker().
+                    ========================================== -->
+
+                    <div
                         class="metadata-dropzone"
                         id="metadata-dropzone"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Pilih media"
                     >
 
                         <input
@@ -211,7 +225,7 @@
                             IMAGE · VIDEO
                         </div>
 
-                    </label>
+                    </div>
 
 
                     <!-- =========================================
