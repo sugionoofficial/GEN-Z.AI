@@ -16,6 +16,7 @@
    - Tidak mengubah proses metadata
    - Tidak mengubah proses cleaning
    - Tidak membuat object URL baru
+   - Menggunakan nama element yang sama dengan metadata-dom.js
 ========================================================= */
 
 
@@ -149,21 +150,21 @@ export function renderCleanedPreview(
 ) {
 
     /*
-       Bersihkan preview hasil sebelumnya
+       Bersihkan preview hasil sebelumnya.
     */
 
     hideElement(
-        elements.cleanedImagePreview
+        elements.cleanImagePreview
     );
 
 
     hideElement(
-        elements.cleanedVideoPreview
+        elements.cleanVideoPreview
     );
 
 
     /*
-       Tidak ada URL hasil cleaning
+       Tidak ada URL hasil cleaning.
     */
 
     if (
@@ -183,17 +184,17 @@ export function renderCleanedPreview(
     ) {
 
         if (
-            elements.cleanedImagePreview
+            elements.cleanImagePreview
         ) {
 
-            elements.cleanedImagePreview.src =
+            elements.cleanImagePreview.src =
                 url;
 
         }
 
 
         showElement(
-            elements.cleanedImagePreview
+            elements.cleanImagePreview
         );
 
         return;
@@ -209,17 +210,17 @@ export function renderCleanedPreview(
     ) {
 
         if (
-            elements.cleanedVideoPreview
+            elements.cleanVideoPreview
         ) {
 
-            elements.cleanedVideoPreview.src =
+            elements.cleanVideoPreview.src =
                 url;
 
         }
 
 
         showElement(
-            elements.cleanedVideoPreview
+            elements.cleanVideoPreview
         );
 
         return;
