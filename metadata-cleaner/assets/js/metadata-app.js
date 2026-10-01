@@ -29,7 +29,13 @@
      benar-benar dibaca.
    - C2PA / Content Credentials diperiksa langsung
      saat CHECK dan setelah cleaning.
+
+   REFACTOR:
+   - CHECK logic berada di metadata-check.js
+   - Provenance inspection berada di metadata-check.js
+   - Readable error helper berada di metadata-check.js
 ========================================================= */
+
 
 import {
     APP,
@@ -46,6 +52,28 @@ import {
 import {
     bindMetadataEvents
 } from "./metadata-events.js";
+
+
+/* =========================================================
+   CHECK MODULE
+   ---------------------------------------------------------
+   CHECK METADATA sekarang ditangani oleh:
+   metadata-check.js
+
+   Export:
+   - checkMetadata
+   - inspectFileProvenance
+   - getReadableError
+
+   inspectFileProvenance tetap di-import karena CLEAN
+   juga melakukan pemeriksaan provenance setelah cleaning.
+========================================================= */
+
+import {
+    checkMetadata,
+    inspectFileProvenance,
+    getReadableError
+} from "./metadata-check.js";
 
 
 import {
@@ -84,15 +112,6 @@ import {
 import {
     cleanVideo
 } from "./metadata-cleaner-video.js";
-
-
-/* =========================================================
-   C2PA / CONTENT CREDENTIALS
-========================================================= */
-
-import {
-    inspectProvenance
-} from "./metadata-provenance.js";
 
 
 /* =========================================================
@@ -629,16 +648,6 @@ function updateFileInfo() {
 
 /* =========================================================
    ORIGINAL PREVIEW
-   ---------------------------------------------------------
-   PERBAIKAN UTAMA:
-
-   - Jangan hanya mengandalkan class .hidden.
-   - Paksa display / visibility / opacity.
-   - Image memakai object URL + fallback FileReader.
-   - Video memakai object URL + source element.
-   - Video load() dipanggil setelah source berubah.
-   - Listener dipasang SEBELUM load().
-   - Preview element diberi ukuran eksplisit.
 ========================================================= */
 
 function renderOriginalPreview() {
@@ -654,10 +663,6 @@ function renderOriginalPreview() {
     const empty =
         elements.previewEmpty;
 
-
-    /*
-     * Reset semua preview terlebih dahulu.
-     */
 
     hidePreviewElement(
         image
@@ -678,10 +683,6 @@ function renderOriginalPreview() {
         elements.aiOverlay
     );
 
-
-    /*
-     * Pastikan preview stage tetap terlihat.
-     */
 
     if (
         elements.previewStage
@@ -744,10 +745,6 @@ function renderOriginalPreview() {
     }
 
 
-    /* =================================================
-       IMAGE
-    ================================================= */
-
     if (
         state.fileType === "image"
     ) {
@@ -762,10 +759,6 @@ function renderOriginalPreview() {
         return;
     }
 
-
-    /* =================================================
-       VIDEO
-    ================================================= */
 
     if (
         state.fileType === "video"
@@ -817,10 +810,6 @@ function renderOriginalImagePreview(
     }
 
 
-    /*
-     * Hapus handler lama.
-     */
-
     image.onload =
         null;
 
@@ -828,10 +817,6 @@ function renderOriginalImagePreview(
     image.onerror =
         null;
 
-
-    /*
-     * Reset src.
-     */
 
     try {
 
@@ -847,10 +832,6 @@ function renderOriginalImagePreview(
         );
     }
 
-
-    /*
-     * Paksa style visibility.
-     */
 
     forcePreviewVisible(
         image
@@ -869,10 +850,6 @@ function renderOriginalImagePreview(
     image.loading =
         "eager";
 
-
-    /*
-     * Event sukses.
-     */
 
     image.onload =
         () => {
@@ -910,10 +887,6 @@ function renderOriginalImagePreview(
         };
 
 
-    /*
-     * Event gagal.
-     */
-
     image.onerror =
         (event) => {
 
@@ -936,21 +909,12 @@ function renderOriginalImagePreview(
             );
 
 
-            /*
-             * Fallback terakhir:
-             * baca File langsung menjadi data URL.
-             */
-
             renderImageWithFileReader(
                 image,
                 file
             );
         };
 
-
-    /*
-     * Pasang object URL.
-     */
 
     try {
 
@@ -975,19 +939,10 @@ function renderOriginalImagePreview(
     }
 
 
-    /*
-     * Tampilkan langsung.
-     */
-
     forcePreviewVisible(
         image
     );
 
-
-    /*
-     * Beberapa browser dapat menyelesaikan image
-     * secara synchronous setelah src dipasang.
-     */
 
     if (
         image.complete &&
@@ -1180,10 +1135,6 @@ function renderOriginalVideoPreview(
     }
 
 
-    /*
-     * Hentikan resource sebelumnya.
-     */
-
     try {
 
         video.pause();
@@ -1196,10 +1147,6 @@ function renderOriginalVideoPreview(
         );
     }
 
-
-    /*
-     * Lepaskan source lama.
-     */
 
     video.onloadedmetadata =
         null;
@@ -1240,10 +1187,6 @@ function renderOriginalVideoPreview(
     }
 
 
-    /*
-     * Konfigurasi video.
-     */
-
     video.controls =
         true;
 
@@ -1278,20 +1221,10 @@ function renderOriginalVideoPreview(
         false;
 
 
-    /*
-     * Force visibility sebelum loading.
-     */
-
     forcePreviewVisible(
         video
     );
 
-
-    /*
-     * Pasang source melalui <source>.
-     *
-     * Browser akan memilih source yang didukung.
-     */
 
     const source =
         document.createElement(
@@ -1317,19 +1250,9 @@ function renderOriginalVideoPreview(
     );
 
 
-    /*
-     * Fallback juga dipasang di src langsung.
-     * Ini menjaga kompatibilitas dengan browser yang
-     * menangani src attribute lebih baik daripada source.
-     */
-
     video.src =
         url;
 
-
-    /*
-     * Event loadstart.
-     */
 
     video.onloadstart =
         () => {
@@ -1339,10 +1262,6 @@ function renderOriginalVideoPreview(
             );
         };
 
-
-    /*
-     * Metadata berhasil dibaca.
-     */
 
     video.onloadedmetadata =
         () => {
@@ -1392,10 +1311,6 @@ function renderOriginalVideoPreview(
         };
 
 
-    /*
-     * Frame/data tersedia.
-     */
-
     video.onloadeddata =
         () => {
 
@@ -1420,10 +1335,6 @@ function renderOriginalVideoPreview(
         };
 
 
-    /*
-     * Browser sudah bisa mulai memutar.
-     */
-
     video.oncanplay =
         () => {
 
@@ -1437,10 +1348,6 @@ function renderOriginalVideoPreview(
             }
         };
 
-
-    /*
-     * Error.
-     */
 
     video.onerror =
         () => {
@@ -1493,18 +1400,10 @@ function renderOriginalVideoPreview(
         };
 
 
-    /*
-     * Tampilkan.
-     */
-
     forcePreviewVisible(
         video
     );
 
-
-    /*
-     * load() harus dilakukan SETELAH source dipasang.
-     */
 
     try {
 
@@ -1527,320 +1426,9 @@ function renderOriginalVideoPreview(
     }
 
 
-    /*
-     * Tetap terlihat selama proses loading.
-     */
-
     forcePreviewVisible(
         video
     );
-}
-
-
-/* =========================================================
-   CHECK METADATA
-========================================================= */
-
-async function checkMetadata() {
-
-    if (
-        !state.file
-    ) {
-
-        return;
-    }
-
-
-    if (
-        state.checked
-    ) {
-
-        return;
-    }
-
-
-    const sourceFile =
-        state.file;
-
-
-    elements.checkButton.disabled =
-        true;
-
-
-    setStatus(
-        "UNKNOWN",
-        "MEMBACA METADATA...",
-        "Metadata sedang diperiksa secara lokal di browser."
-    );
-
-
-    setPreviewStatus(
-        "MEMBACA METADATA..."
-    );
-
-
-    try {
-
-        /* =================================================
-           STEP 1
-           READ NORMAL METADATA
-        ================================================= */
-
-        const metadata =
-            state.fileType === "image"
-
-                ? await readImageMetadata(
-                    sourceFile
-                )
-
-                : await readVideoMetadata(
-                    sourceFile
-                );
-
-
-        if (
-            state.file !== sourceFile
-        ) {
-
-            return;
-        }
-
-
-        state.metadata =
-            normalizeMetadata(
-                metadata
-            );
-
-
-        /* =================================================
-           STEP 2
-           DETECT AI METADATA INDICATORS
-        ================================================= */
-
-        state.aiIndicators =
-            detectAIIndicators(
-                state.metadata
-            );
-
-
-        /* =================================================
-           STEP 3
-           C2PA / CONTENT CREDENTIALS
-        ================================================= */
-
-        state.provenance =
-            await inspectFileProvenance(
-                sourceFile
-            );
-
-
-        if (
-            state.file !== sourceFile
-        ) {
-
-            return;
-        }
-
-
-        /* =================================================
-           STEP 4
-           MARK CHECKED
-        ================================================= */
-
-        state.checked =
-            true;
-
-
-        /* =================================================
-           STEP 5
-           RENDER ALL
-        ================================================= */
-
-        renderMetadata();
-
-
-        renderDetectionResult();
-
-
-        elements.cleanButton.disabled =
-            false;
-
-
-        /* =================================================
-           PREVIEW STATUS
-        ================================================= */
-
-        const hasAIIndicators =
-            Array.isArray(
-                state.aiIndicators
-            ) &&
-            state.aiIndicators.length > 0;
-
-
-        const hasProvenance =
-            Boolean(
-                state.provenance?.detected
-            );
-
-
-        if (
-            hasAIIndicators &&
-            hasProvenance
-        ) {
-
-            setPreviewStatus(
-                "INDIKATOR AI DAN CONTENT PROVENANCE DITEMUKAN."
-            );
-
-        } else if (
-            hasAIIndicators
-        ) {
-
-            setPreviewStatus(
-                "INDIKATOR AI DITEMUKAN PADA METADATA."
-            );
-
-        } else if (
-            hasProvenance
-        ) {
-
-            setPreviewStatus(
-                "CONTENT PROVENANCE / C2PA DITEMUKAN."
-            );
-
-        } else {
-
-            setPreviewStatus(
-                "PEMERIKSAAN METADATA SELESAI."
-            );
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI] Metadata check failed:",
-            error
-        );
-
-
-        state.metadata =
-            [];
-
-
-        state.aiIndicators =
-            [];
-
-
-        state.provenance =
-            null;
-
-
-        renderMetadata();
-
-
-        setStatus(
-            "UNKNOWN",
-            "METADATA TIDAK DAPAT DIBACA SEPENUHNYA",
-            getReadableError(
-                error
-            )
-        );
-
-
-        setPreviewStatus(
-            "PEMERIKSAAN SELESAI DENGAN KETERBATASAN."
-        );
-
-
-    } finally {
-
-        if (
-            state.file === sourceFile
-        ) {
-
-            elements.checkButton.disabled =
-                false;
-        }
-    }
-}
-
-
-/* =========================================================
-   INSPECT PROVENANCE
-========================================================= */
-
-async function inspectFileProvenance(
-    file
-) {
-
-    if (!file) {
-
-        return null;
-    }
-
-
-    try {
-
-        if (
-            typeof inspectProvenance ===
-            "function"
-        ) {
-
-            const result =
-                await inspectProvenance(
-                    file
-                );
-
-
-            return result || null;
-        }
-
-
-    } catch (error) {
-
-        console.warn(
-            "[GEN-Z.AI] Direct provenance inspection failed:",
-            error
-        );
-    }
-
-
-    /*
-     * Fallback global untuk deployment lama.
-     */
-
-    const provenanceAPI =
-        window.GENZMetadataProvenance;
-
-
-    if (
-        provenanceAPI &&
-        typeof provenanceAPI.inspectProvenance ===
-            "function"
-    ) {
-
-        try {
-
-            const result =
-                await provenanceAPI.inspectProvenance(
-                    file
-                );
-
-
-            return result || null;
-
-        } catch (error) {
-
-            console.warn(
-                "[GEN-Z.AI] Global provenance inspection failed:",
-                error
-            );
-        }
-    }
-
-
-    return null;
 }
 
 
@@ -2080,10 +1668,6 @@ async function cleanMetadata() {
             );
 
 
-        /*
-         * Render cleaned preview.
-         */
-
         renderCleanedPreview(
             state.cleanedURL,
             cleanedFile
@@ -2095,18 +1679,10 @@ async function cleanMetadata() {
         );
 
 
-        /*
-         * Update file information.
-         */
-
         updateCleanedFileInfo(
             cleanedFile
         );
 
-
-        /*
-         * Re-read cleaned metadata.
-         */
 
         updatePremiumCleaningLoader(
             loader,
@@ -2143,7 +1719,8 @@ async function cleanMetadata() {
 
 
         /*
-         * Provenance recheck.
+         * Provenance recheck tetap memakai wrapper
+         * dari metadata-check.js.
          */
 
         await refreshCleanedProvenance(
@@ -2154,10 +1731,6 @@ async function cleanMetadata() {
         state.checked =
             true;
 
-
-        /*
-         * Render latest metadata.
-         */
 
         updatePremiumCleaningLoader(
             loader,
@@ -2172,10 +1745,6 @@ async function cleanMetadata() {
 
         renderDetectionResult();
 
-
-        /*
-         * Download ready.
-         */
 
         elements.downloadButton.disabled =
             false;
@@ -3308,9 +2877,6 @@ function injectPremiumCleaningStyles() {
 
 /* =========================================================
    CLEANED PREVIEW
-   ---------------------------------------------------------
-   Hasil cleaning menggunakan mekanisme preview yang
-   sama dengan original preview.
 ========================================================= */
 
 function renderCleanedPreview(
@@ -3360,10 +2926,6 @@ function renderCleanedPreview(
         file ||
         state.cleanedFile;
 
-
-    /*
-     * CLEANED IMAGE
-     */
 
     if (
         state.fileType === "image"
@@ -3452,10 +3014,6 @@ function renderCleanedPreview(
         return;
     }
 
-
-    /*
-     * CLEANED VIDEO
-     */
 
     const video =
         elements.cleanVideoPreview;
@@ -4183,10 +3741,6 @@ function setPreviewStatus(
 
 /* =========================================================
    PREVIEW VISIBILITY
-   ---------------------------------------------------------
-   Ini sengaja tidak hanya menghapus .hidden.
-   Ada CSS lain yang dapat mengatur display / visibility /
-   opacity. Preview harus menang secara eksplisit.
 ========================================================= */
 
 function forcePreviewVisible(
@@ -4718,36 +4272,6 @@ function greatestCommonDivisor(
 
 
     return a || 1;
-}
-
-
-/* =========================================================
-   ERROR
-========================================================= */
-
-function getReadableError(
-    error
-) {
-
-    if (
-        !error
-    ) {
-
-        return "Terjadi kesalahan yang tidak diketahui.";
-    }
-
-
-    if (
-        error instanceof Error
-    ) {
-
-        return error.message;
-    }
-
-
-    return String(
-        error
-    );
 }
 
 
