@@ -1,6 +1,6 @@
 /* =========================================================
    GEN-Z.AI
-   AI METADATA CLEANER
+   METADATA PREVIEW MODULE
    ---------------------------------------------------------
    File:
    metadata-cleaner/assets/js/metadata-preview.js
@@ -10,1351 +10,271 @@
    - Original video preview
    - Cleaned image preview
    - Cleaned video preview
-   - Empty preview state
    - Preview status
-   - Object URL / FileReader fallback
-   - Tidak menangani upload
-   - Tidak menangani metadata
-   - Tidak menangani cleaning
+   - Object URL management
+   - Element visibility helpers
 ========================================================= */
 
-import { state } from "./metadata-state.js";
-import { elements } from "./metadata-dom.js";
+import {
+    state
+} from "./metadata-state.js";
+
+import {
+    elements
+} from "./metadata-dom.js";
 
 
 /* =========================================================
-   CONSTANTS
+   ELEMENT VISIBILITY
 ========================================================= */
 
-const PREVIEW_MAX_HEIGHT = "540px";
-
-const ORIGINAL_IMAGE_READY_STATUS =
-    "IMAGE SIAP. TEKAN CHECK UNTUK MEMBACA METADATA.";
-
-const ORIGINAL_VIDEO_READY_STATUS =
-    "VIDEO SIAP. TEKAN CHECK UNTUK MEMBACA METADATA.";
-
-
-/* =========================================================
-   BASIC DOM HELPERS
-========================================================= */
-
-function showElement(element) {
-
-    if (!element) {
-        return;
-    }
-
-    try {
-
-        element.hidden = false;
-
-        element.classList.remove(
-            "hidden",
-            "d-none"
-        );
-
-        element.style.setProperty(
-            "display",
-            "block",
-            "important"
-        );
-
-        element.style.setProperty(
-            "visibility",
-            "visible",
-            "important"
-        );
-
-        element.style.setProperty(
-            "opacity",
-            "1",
-            "important"
-        );
-
-    } catch (error) {
-
-        console.warn(
-            "[GEN-Z.AI] Failed to show preview element:",
-            error
-        );
-
-    }
-}
-
-
-function hideElement(element) {
-
-    if (!element) {
-        return;
-    }
-
-    try {
-
-        element.hidden = true;
-
-        element.classList.add("hidden");
-
-        element.style.setProperty(
-            "display",
-            "none",
-            "important"
-        );
-
-    } catch (error) {
-
-        console.warn(
-            "[GEN-Z.AI] Failed to hide preview element:",
-            error
-        );
-
-    }
-}
-
-
-/* =========================================================
-   PREVIEW VISIBILITY
-========================================================= */
-
-function showPreview(element) {
-
-    if (!element) {
-        return;
-    }
-
-    showElement(element);
-
-    try {
-
-        element.style.setProperty(
-            "max-width",
-            "100%",
-            "important"
-        );
-
-        element.style.setProperty(
-            "max-height",
-            PREVIEW_MAX_HEIGHT,
-            "important"
-        );
-
-        element.style.setProperty(
-            "width",
-            "auto",
-            "important"
-        );
-
-        element.style.setProperty(
-            "height",
-            "auto",
-            "important"
-        );
-
-        element.style.setProperty(
-            "object-fit",
-            "contain",
-            "important"
-        );
-
-        element.style.setProperty(
-            "position",
-            "relative",
-            "important"
-        );
-
-        element.style.setProperty(
-            "z-index",
-            "2",
-            "important"
-        );
-
-        element.style.setProperty(
-            "flex-shrink",
-            "0",
-            "important"
-        );
-
-    } catch (error) {
-
-        console.warn(
-            "[GEN-Z.AI] Failed to apply preview styles:",
-            error
-        );
-
-    }
-}
-
-
-function hidePreview(element) {
-
-    if (!element) {
-        return;
-    }
-
-    hideElement(element);
-}
-
-
-/* =========================================================
-   VIDEO RESET
-========================================================= */
-
-function clearVideoSources(video) {
-
-    if (!video) {
-        return;
-    }
-
-    try {
-
-        video.pause();
-
-    } catch (error) {
-        /* Ignore */
-    }
-
-    try {
-
-        video.removeAttribute("src");
-
-        while (video.firstChild) {
-            video.removeChild(video.firstChild);
-        }
-
-        video.load();
-
-    } catch (error) {
-
-        console.warn(
-            "[GEN-Z.AI] Failed to clear video source:",
-            error
-        );
-
-    }
-}
-
-
-function resetVideo(video) {
-
-    if (!video) {
-        return;
-    }
-
-    try {
-
-        video.pause();
-
-    } catch (error) {
-        /* Ignore */
-    }
-
-    try {
-
-        video.removeAttribute("src");
-
-        while (video.firstChild) {
-            video.removeChild(video.firstChild);
-        }
-
-        video.removeAttribute("poster");
-
-        video.controls = true;
-        video.playsInline = true;
-        video.preload = "metadata";
-
-        video.load();
-
-    } catch (error) {
-
-        console.warn(
-            "[GEN-Z.AI] Failed to reset video:",
-            error
-        );
-
-    }
-
-    hidePreview(video);
-}
-
-
-/* =========================================================
-   IMAGE RESET
-========================================================= */
-
-function resetImage(image) {
-
-    if (!image) {
-        return;
-    }
-
-    try {
-
-        image.removeAttribute("src");
-
-        image.alt = "";
-
-        image.onload = null;
-        image.onerror = null;
-
-    } catch (error) {
-
-        console.warn(
-            "[GEN-Z.AI] Failed to reset image:",
-            error
-        );
-
-    }
-
-    hidePreview(image);
-}
-
-
-/* =========================================================
-   EMPTY PREVIEW
-========================================================= */
-
-function showEmptyPreview() {
-
-    if (!elements.previewEmpty) {
-        return;
-    }
-
-    showElement(elements.previewEmpty);
-
-}
-
-
-function hideEmptyPreview() {
-
-    if (!elements.previewEmpty) {
-        return;
-    }
-
-    hideElement(elements.previewEmpty);
-
-}
-
-
-/* =========================================================
-   PREVIEW STATUS
-========================================================= */
-
-function setPreviewStatus(message) {
-
-    if (!elements.previewStatus) {
-        return;
-    }
-
-    elements.previewStatus.textContent =
-        message || "";
-
-    if (message) {
-
-        showElement(
-            elements.previewStatus
-        );
-
-    } else {
-
-        hideElement(
-            elements.previewStatus
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   ENSURE PREVIEW STAGE
-========================================================= */
-
-function ensurePreviewStageVisible() {
-
-    const candidates = [
-
-        elements.previewEmpty,
-        elements.imagePreview,
-        elements.videoPreview,
-        elements.previewStatus
-
-    ];
-
-    for (const element of candidates) {
-
-        if (!element) {
-            continue;
-        }
-
-        const parent = element.parentElement;
-
-        if (!parent) {
-            continue;
-        }
-
-        try {
-
-            parent.style.setProperty(
-                "visibility",
-                "visible",
-                "important"
-            );
-
-            parent.style.setProperty(
-                "opacity",
-                "1",
-                "important"
-            );
-
-        } catch (error) {
-
-            console.warn(
-                "[GEN-Z.AI] Failed to reveal preview parent:",
-                error
-            );
-
-        }
-
-    }
-
-}
-
-
-/* =========================================================
-   HIDE ORIGINAL PREVIEW
-========================================================= */
-
-function hideOriginalPreview() {
-
-    resetImage(
-        elements.imagePreview
-    );
-
-    resetVideo(
-        elements.videoPreview
-    );
-
-}
-
-
-/* =========================================================
-   HIDE CLEANED PREVIEW
-========================================================= */
-
-function hideCleanedPreview() {
-
-    resetImage(
-        elements.cleanImagePreview
-    );
-
-    resetVideo(
-        elements.cleanVideoPreview
-    );
-
-}
-
-
-/* =========================================================
-   HIDE ALL MEDIA PREVIEW
-========================================================= */
-
-function hideAllMediaPreview() {
-
-    hideOriginalPreview();
-
-    hideCleanedPreview();
-
-}
-
-
-/* =========================================================
-   ORIGINAL IMAGE PREVIEW
-========================================================= */
-
-function renderOriginalImagePreview(
-    image,
-    file,
-    url
+export function showElement(
+    element
 ) {
-
-    if (!image || !file) {
-        return;
-    }
-
-
-    resetImage(image);
-
-
-    image.alt =
-        file.name || "Uploaded image";
-
-    image.decoding =
-        "async";
-
-    image.loading =
-        "eager";
-
-
-    showPreview(image);
-
-    hideEmptyPreview();
-
-    ensurePreviewStageVisible();
-
-
-    /* -----------------------------------------------------
-       IMAGE LOAD SUCCESS
-    ----------------------------------------------------- */
-
-    image.onload = () => {
-
-        if (
-            state.file &&
-            state.file !== file
-        ) {
-            return;
-        }
-
-
-        showPreview(image);
-
-        hideEmptyPreview();
-
-        ensurePreviewStageVisible();
-
-        setPreviewStatus(
-            ORIGINAL_IMAGE_READY_STATUS
-        );
-
-        console.info(
-            "[GEN-Z.AI] Original image preview loaded:",
-            file.name
-        );
-
-    };
-
-
-    /* -----------------------------------------------------
-       IMAGE OBJECT URL FAILED
-       FALLBACK TO FILEREADER
-    ----------------------------------------------------- */
-
-    image.onerror = () => {
-
-        if (
-            state.file &&
-            state.file !== file
-        ) {
-            return;
-        }
-
-
-        console.warn(
-            "[GEN-Z.AI] Object URL image preview failed. Trying FileReader fallback."
-        );
-
-
-        renderImageWithFileReader(
-            image,
-            file
-        );
-
-    };
-
-
-    /* -----------------------------------------------------
-       SET SOURCE
-    ----------------------------------------------------- */
-
-    try {
-
-        image.src = url;
-
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI] Failed to assign image Object URL:",
-            error
-        );
-
-
-        renderImageWithFileReader(
-            image,
-            file
-        );
-
-        return;
-    }
-
-
-    /* -----------------------------------------------------
-       HANDLE ALREADY-CACHED IMAGE
-    ----------------------------------------------------- */
-
-    try {
-
-        if (
-            image.complete &&
-            image.naturalWidth > 0
-        ) {
-
-            showPreview(image);
-
-            hideEmptyPreview();
-
-            ensurePreviewStageVisible();
-
-            setPreviewStatus(
-                ORIGINAL_IMAGE_READY_STATUS
-            );
-
-        }
-
-    } catch (error) {
-
-        console.warn(
-            "[GEN-Z.AI] Failed to inspect image dimensions:",
-            error
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   FILEREADER IMAGE FALLBACK
-========================================================= */
-
-function renderImageWithFileReader(
-    image,
-    file
-) {
-
-    if (!image || !file) {
-        return;
-    }
-
 
     if (
-        state.file &&
-        state.file !== file
-    ) {
-        return;
-    }
-
-
-    if (
-        typeof FileReader === "undefined"
+        !element
     ) {
 
-        console.error(
-            "[GEN-Z.AI] FileReader is not available."
-        );
-
-        hidePreview(image);
-
-        showEmptyPreview();
-
-        setPreviewStatus(
-            "IMAGE TIDAK DAPAT DITAMPILKAN OLEH BROWSER."
-        );
-
         return;
+
     }
 
 
-    const reader =
-        new FileReader();
+    element.classList.remove(
+        "hidden",
+        "d-none"
+    );
 
 
-    reader.onload = () => {
-
-        if (
-            state.file &&
-            state.file !== file
-        ) {
-            return;
-        }
-
-
-        const result =
-            reader.result;
-
-
-        if (
-            typeof result !== "string" ||
-            !result
-        ) {
-
-            console.error(
-                "[GEN-Z.AI] FileReader returned an invalid image source."
-            );
-
-            hidePreview(image);
-
-            showEmptyPreview();
-
-            setPreviewStatus(
-                "IMAGE TIDAK DAPAT DITAMPILKAN."
-            );
-
-            return;
-        }
-
-
-        image.onload = () => {
-
-            if (
-                state.file &&
-                state.file !== file
-            ) {
-                return;
-            }
-
-
-            showPreview(image);
-
-            hideEmptyPreview();
-
-            ensurePreviewStageVisible();
-
-            setPreviewStatus(
-                ORIGINAL_IMAGE_READY_STATUS
-            );
-
-            console.info(
-                "[GEN-Z.AI] Original image preview loaded through FileReader:",
-                file.name
-            );
-
-        };
-
-
-        image.onerror = () => {
-
-            console.error(
-                "[GEN-Z.AI] FileReader image preview failed:",
-                file.name
-            );
-
-
-            hidePreview(image);
-
-            showEmptyPreview();
-
-            setPreviewStatus(
-                "IMAGE TIDAK DAPAT DITAMPILKAN OLEH BROWSER."
-            );
-
-        };
-
-
-        try {
-
-            image.src =
-                result;
-
-        } catch (error) {
-
-            console.error(
-                "[GEN-Z.AI] Failed to assign FileReader image source:",
-                error
-            );
-
-
-            hidePreview(image);
-
-            showEmptyPreview();
-
-            setPreviewStatus(
-                "IMAGE TIDAK DAPAT DITAMPILKAN."
-            );
-
-        }
-
-    };
-
-
-    reader.onerror = () => {
-
-        console.error(
-            "[GEN-Z.AI] FileReader failed:",
-            reader.error
-        );
-
-
-        hidePreview(image);
-
-        showEmptyPreview();
-
-        setPreviewStatus(
-            "IMAGE TIDAK DAPAT DITAMPILKAN."
-        );
-
-    };
-
-
-    reader.onabort = () => {
-
-        console.warn(
-            "[GEN-Z.AI] FileReader aborted."
-        );
-
-
-        hidePreview(image);
-
-        showEmptyPreview();
-
-        setPreviewStatus(
-            "PEMBACAAN IMAGE DIBATALKAN."
-        );
-
-    };
-
-
-    try {
-
-        reader.readAsDataURL(file);
-
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI] Failed to read image file:",
-            error
-        );
-
-
-        hidePreview(image);
-
-        showEmptyPreview();
-
-        setPreviewStatus(
-            "IMAGE GAGAL DIBACA."
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   ORIGINAL VIDEO PREVIEW
-========================================================= */
-
-function renderOriginalVideoPreview(
-    video,
-    file,
-    url
-) {
-
-    if (!video || !file) {
-        return;
-    }
-
-
-    resetVideo(video);
-
-
-    video.controls =
-        true;
-
-    video.playsInline =
-        true;
-
-    video.preload =
-        "metadata";
-
-    video.muted =
+    element.hidden =
         false;
 
 
-    showPreview(video);
-
-    hideEmptyPreview();
-
-    ensurePreviewStageVisible();
-
-
-    /* -----------------------------------------------------
-       METADATA LOADED
-    ----------------------------------------------------- */
-
-    video.onloadedmetadata = () => {
-
-        if (
-            state.file &&
-            state.file !== file
-        ) {
-            return;
-        }
-
-
-        showPreview(video);
-
-        hideEmptyPreview();
-
-        ensurePreviewStageVisible();
-
-        setPreviewStatus(
-            ORIGINAL_VIDEO_READY_STATUS
-        );
-
-        console.info(
-            "[GEN-Z.AI] Original video metadata loaded:",
-            file.name
-        );
-
-    };
-
-
-    /* -----------------------------------------------------
-       VIDEO DATA LOADED
-    ----------------------------------------------------- */
-
-    video.onloadeddata = () => {
-
-        if (
-            state.file &&
-            state.file !== file
-        ) {
-            return;
-        }
-
-
-        showPreview(video);
-
-        hideEmptyPreview();
-
-        ensurePreviewStageVisible();
-
-    };
-
-
-    /* -----------------------------------------------------
-       CAN PLAY
-    ----------------------------------------------------- */
-
-    video.oncanplay = () => {
-
-        if (
-            state.file &&
-            state.file !== file
-        ) {
-            return;
-        }
-
-
-        showPreview(video);
-
-        hideEmptyPreview();
-
-        ensurePreviewStageVisible();
-
-    };
-
-
-    /* -----------------------------------------------------
-       VIDEO ERROR
-    ----------------------------------------------------- */
-
-    video.onerror = () => {
-
-        if (
-            state.file &&
-            state.file !== file
-        ) {
-            return;
-        }
-
-
-        const mediaError =
-            video.error;
-
-        console.error(
-            "[GEN-Z.AI] Original video preview failed:",
-            mediaError
-        );
-
-
-        hidePreview(video);
-
-        showEmptyPreview();
-
-        setPreviewStatus(
-            "VIDEO TIDAK DAPAT DITAMPILKAN OLEH BROWSER."
-        );
-
-    };
-
-
-    /* -----------------------------------------------------
-       ASSIGN OBJECT URL
-    ----------------------------------------------------- */
-
-    try {
-
-        video.src =
-            url;
-
-        video.load();
-
-        showPreview(video);
-
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI] Failed to assign video Object URL:",
-            error
-        );
-
-
-        hidePreview(video);
-
-        showEmptyPreview();
-
-        setPreviewStatus(
-            "VIDEO GAGAL DITAMPILKAN."
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   CLEANED IMAGE PREVIEW
-========================================================= */
-
-function renderCleanedImagePreview(
-    image,
-    url
-) {
-
-    if (!image || !url) {
-        return;
-    }
-
-
-    resetImage(image);
-
-
-    image.alt =
-        "Cleaned image";
-
-    image.decoding =
-        "async";
-
-    image.loading =
-        "eager";
-
-
-    showPreview(image);
-
-
-    image.onload = () => {
-
-        showPreview(image);
-
-        console.info(
-            "[GEN-Z.AI] Cleaned image preview loaded."
-        );
-
-    };
-
-
-    image.onerror = () => {
-
-        console.error(
-            "[GEN-Z.AI] Cleaned image preview failed."
-        );
-
-        hidePreview(image);
-
-    };
-
-
-    try {
-
-        image.src =
-            url;
-
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI] Failed to assign cleaned image URL:",
-            error
-        );
-
-        hidePreview(image);
-
-    }
-
-}
-
-
-/* =========================================================
-   CLEANED VIDEO PREVIEW
-========================================================= */
-
-function renderCleanedVideoPreview(
-    video,
-    url
-) {
-
-    if (!video || !url) {
-        return;
-    }
-
-
-    resetVideo(video);
-
-
-    video.controls =
-        true;
-
-    video.playsInline =
-        true;
-
-    video.preload =
-        "metadata";
-
-
-    showPreview(video);
-
-
-    video.onloadedmetadata = () => {
-
-        showPreview(video);
-
-    };
-
-
-    video.onloadeddata = () => {
-
-        showPreview(video);
-
-    };
-
-
-    video.oncanplay = () => {
-
-        showPreview(video);
-
-    };
-
-
-    video.onerror = () => {
-
-        console.error(
-            "[GEN-Z.AI] Cleaned video preview failed."
-        );
-
-        hidePreview(video);
-
-    };
-
-
-    try {
-
-        video.src =
-            url;
-
-        video.load();
-
-        showPreview(video);
-
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI] Failed to assign cleaned video URL:",
-            error
-        );
-
-        hidePreview(video);
-
-    }
-
-}
-
-
-/* =========================================================
-   ORIGINAL PREVIEW ROUTER
-========================================================= */
-
-function renderOriginalPreview() {
-
-    const file =
-        state.file;
-
-    const fileType =
-        state.fileType;
-
-    const url =
-        state.originalURL;
-
-
-    if (!file) {
-
-        hideOriginalPreview();
-
-        showEmptyPreview();
-
-        return;
-
-    }
-
-
-    if (!url) {
-
-        console.error(
-            "[GEN-Z.AI] Original preview URL is missing."
-        );
-
-        hideOriginalPreview();
-
-        showEmptyPreview();
-
-        setPreviewStatus(
-            "FILE TERPILIH, TETAPI PREVIEW URL TIDAK TERSEDIA."
-        );
-
-        return;
-
-    }
-
-
-    ensurePreviewStageVisible();
-
-
-    /* -----------------------------------------------------
-       IMAGE
-    ----------------------------------------------------- */
-
-    if (
-        fileType === "image"
-    ) {
-
-        hidePreview(
-            elements.videoPreview
-        );
-
-        renderOriginalImagePreview(
-            elements.imagePreview,
-            file,
-            url
-        );
-
-        return;
-
-    }
-
-
-    /* -----------------------------------------------------
-       VIDEO
-    ----------------------------------------------------- */
-
-    if (
-        fileType === "video"
-    ) {
-
-        hidePreview(
-            elements.imagePreview
-        );
-
-        renderOriginalVideoPreview(
-            elements.videoPreview,
-            file,
-            url
-        );
-
-        return;
-
-    }
-
-
-    /* -----------------------------------------------------
-       UNKNOWN TYPE
-    ----------------------------------------------------- */
-
-    console.warn(
-        "[GEN-Z.AI] Unsupported preview type:",
-        fileType
+    element.style.removeProperty(
+        "display"
     );
 
 
-    hideOriginalPreview();
+    element.style.removeProperty(
+        "visibility"
+    );
 
-    showEmptyPreview();
 
-    setPreviewStatus(
-        "FORMAT MEDIA TIDAK DIDUKUNG UNTUK PREVIEW."
+    element.style.removeProperty(
+        "opacity"
+    );
+
+}
+
+
+export function hideElement(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+
+    }
+
+
+    element.classList.add(
+        "hidden"
+    );
+
+
+    element.hidden =
+        true;
+
+
+    element.style.display =
+        "none";
+
+
+    element.style.visibility =
+        "hidden";
+
+
+    element.style.opacity =
+        "0";
+
+}
+
+
+/* =========================================================
+   FORCE VISIBLE
+========================================================= */
+
+function forceVisible(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+
+    }
+
+
+    element.classList.remove(
+        "hidden",
+        "d-none"
+    );
+
+
+    element.hidden =
+        false;
+
+
+    element.style.display =
+        "block";
+
+
+    element.style.visibility =
+        "visible";
+
+
+    element.style.opacity =
+        "1";
+
+}
+
+
+/* =========================================================
+   FORCE MEDIA VISIBLE
+========================================================= */
+
+function forceMediaVisible(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+
+    }
+
+
+    element.classList.remove(
+        "hidden",
+        "d-none"
+    );
+
+
+    element.hidden =
+        false;
+
+
+    element.style.display =
+        "block";
+
+
+    element.style.visibility =
+        "visible";
+
+
+    element.style.opacity =
+        "1";
+
+
+    element.style.maxWidth =
+        "100%";
+
+
+    element.style.maxHeight =
+        "100%";
+
+
+    element.style.width =
+        "auto";
+
+
+    element.style.height =
+        "auto";
+
+}
+
+
+/* =========================================================
+   HIDE MEDIA
+========================================================= */
+
+function hideMedia(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+
+    }
+
+
+    element.pause?.();
+
+
+    element.removeAttribute(
+        "src"
+    );
+
+
+    element.removeAttribute(
+        "poster"
+    );
+
+
+    element.load?.();
+
+
+    hideElement(
+        element
     );
 
 }
 
 
 /* =========================================================
-   CLEANED PREVIEW ROUTER
+   CLEAR IMAGE
 ========================================================= */
 
-function renderCleanedPreview(
-    fileType,
-    url
+function clearImageElement(
+    element
 ) {
 
-    if (!url) {
-        return;
-    }
-
-
-    /* -----------------------------------------------------
-       IMAGE
-    ----------------------------------------------------- */
-
     if (
-        fileType === "image"
+        !element
     ) {
 
-        hidePreview(
-            elements.cleanVideoPreview
-        );
-
-        renderCleanedImagePreview(
-            elements.cleanImagePreview,
-            url
-        );
-
         return;
 
     }
 
 
-    /* -----------------------------------------------------
-       VIDEO
-    ----------------------------------------------------- */
-
-    if (
-        fileType === "video"
-    ) {
-
-        hidePreview(
-            elements.cleanImagePreview
-        );
-
-        renderCleanedVideoPreview(
-            elements.cleanVideoPreview,
-            url
-        );
-
-        return;
-
-    }
+    element.removeAttribute(
+        "src"
+    );
 
 
-    console.warn(
-        "[GEN-Z.AI] Unsupported cleaned preview type:",
-        fileType
+    element.removeAttribute(
+        "srcset"
+    );
+
+
+    element.alt =
+        "";
+
+
+    hideElement(
+        element
     );
 
 }
@@ -1364,15 +284,52 @@ function renderCleanedPreview(
    CLEAR ORIGINAL PREVIEW
 ========================================================= */
 
-function clearOriginalPreview() {
+export function clearOriginalPreview() {
 
-    resetImage(
+    clearImageElement(
         elements.imagePreview
     );
 
-    resetVideo(
+
+    hideMedia(
         elements.videoPreview
     );
+
+
+    if (
+        elements.previewEmpty
+    ) {
+
+        showElement(
+            elements.previewEmpty
+        );
+
+    }
+
+
+    if (
+        elements.previewStatus
+    ) {
+
+        elements.previewStatus.textContent =
+            "";
+
+        hideElement(
+            elements.previewStatus
+        );
+
+    }
+
+
+    if (
+        elements.aiOverlay
+    ) {
+
+        hideElement(
+            elements.aiOverlay
+        );
+
+    }
 
 }
 
@@ -1381,13 +338,14 @@ function clearOriginalPreview() {
    CLEAR CLEANED PREVIEW
 ========================================================= */
 
-function clearCleanedPreview() {
+export function clearCleanedPreview() {
 
-    resetImage(
+    clearImageElement(
         elements.cleanImagePreview
     );
 
-    resetVideo(
+
+    hideMedia(
         elements.cleanVideoPreview
     );
 
@@ -1395,91 +353,1049 @@ function clearCleanedPreview() {
 
 
 /* =========================================================
-   CLEAR ALL PREVIEW
+   REVOKE ORIGINAL URL
 ========================================================= */
 
-function clearAllPreview() {
+export function revokeOriginalPreviewUrl() {
 
-    clearOriginalPreview();
+    if (
+        state.originalPreviewUrl
+    ) {
 
-    clearCleanedPreview();
+        try {
 
-    showEmptyPreview();
+            URL.revokeObjectURL(
+                state.originalPreviewUrl
+            );
 
-    setPreviewStatus("");
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal revoke original preview URL:",
+                error
+            );
+
+        }
+
+
+        state.originalPreviewUrl =
+            null;
+
+    }
 
 }
 
 
 /* =========================================================
-   GLOBAL API
+   REVOKE CLEANED URL
 ========================================================= */
 
-window.GENZMetadataPreview = {
+export function revokeCleanedPreviewUrl() {
 
-    renderOriginalPreview,
-    renderOriginalImagePreview,
-    renderOriginalVideoPreview,
+    if (
+        state.cleanedPreviewUrl
+    ) {
 
-    renderCleanedPreview,
-    renderCleanedImagePreview,
-    renderCleanedVideoPreview,
+        try {
 
-    renderImageWithFileReader,
+            URL.revokeObjectURL(
+                state.cleanedPreviewUrl
+            );
 
-    clearOriginalPreview,
-    clearCleanedPreview,
-    clearAllPreview,
+        } catch (
+            error
+        ) {
 
-    hideOriginalPreview,
-    hideCleanedPreview,
-    hideAllMediaPreview,
+            console.warn(
+                "[GEN-Z.AI] Gagal revoke cleaned preview URL:",
+                error
+            );
 
-    showEmptyPreview,
-    hideEmptyPreview,
+        }
 
-    setPreviewStatus,
 
-    showPreview,
-    hidePreview,
+        state.cleanedPreviewUrl =
+            null;
 
-    ensurePreviewStageVisible
+    }
 
-};
+}
 
 
 /* =========================================================
-   EXPORTS
+   SET PREVIEW STATUS
+========================================================= */
+
+export function setPreviewStatus(
+    message = "",
+    type = ""
+) {
+
+    const status =
+        elements.previewStatus;
+
+
+    if (
+        !status
+    ) {
+
+        return;
+
+    }
+
+
+    status.textContent =
+        message || "";
+
+
+    status.classList.remove(
+        "is-loading",
+        "is-success",
+        "is-error",
+        "is-warning",
+        "is-info"
+    );
+
+
+    if (
+        type
+    ) {
+
+        status.classList.add(
+            `is-${type}`
+        );
+
+    }
+
+
+    if (
+        !message
+    ) {
+
+        hideElement(
+            status
+        );
+
+
+        return;
+
+    }
+
+
+    showElement(
+        status
+    );
+
+}
+
+
+/* =========================================================
+   SHOW EMPTY PREVIEW
+========================================================= */
+
+export function showPreviewEmpty() {
+
+    if (
+        elements.previewEmpty
+    ) {
+
+        showElement(
+            elements.previewEmpty
+        );
+
+    }
+
+
+    if (
+        elements.imagePreview
+    ) {
+
+        hideElement(
+            elements.imagePreview
+        );
+
+    }
+
+
+    if (
+        elements.videoPreview
+    ) {
+
+        hideElement(
+            elements.videoPreview
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   HIDE EMPTY PREVIEW
+========================================================= */
+
+export function hidePreviewEmpty() {
+
+    if (
+        elements.previewEmpty
+    ) {
+
+        hideElement(
+            elements.previewEmpty
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   IMAGE PREVIEW
+========================================================= */
+
+export function renderImagePreview(
+    source
+) {
+
+    const image =
+        elements.imagePreview;
+
+
+    if (
+        !image
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Image preview element tidak ditemukan."
+        );
+
+
+        return false;
+
+    }
+
+
+    if (
+        !source
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        elements.videoPreview
+    ) {
+
+        hideElement(
+            elements.videoPreview
+        );
+
+
+        elements.videoPreview.pause?.();
+
+    }
+
+
+    hidePreviewEmpty();
+
+
+    image.onload =
+        () => {
+
+            forceMediaVisible(
+                image
+            );
+
+        };
+
+
+    image.onerror =
+        () => {
+
+            console.error(
+                "[GEN-Z.AI] Gagal menampilkan image preview."
+            );
+
+        };
+
+
+    image.src =
+        source;
+
+
+    forceMediaVisible(
+        image
+    );
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   VIDEO PREVIEW
+========================================================= */
+
+export function renderVideoPreview(
+    source
+) {
+
+    const video =
+        elements.videoPreview;
+
+
+    if (
+        !video
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Video preview element tidak ditemukan."
+        );
+
+
+        return false;
+
+    }
+
+
+    if (
+        !source
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        elements.imagePreview
+    ) {
+
+        hideElement(
+            elements.imagePreview
+        );
+
+
+        elements.imagePreview.removeAttribute(
+            "src"
+        );
+
+    }
+
+
+    hidePreviewEmpty();
+
+
+    video.onloadedmetadata =
+        () => {
+
+            forceMediaVisible(
+                video
+            );
+
+        };
+
+
+    video.onerror =
+        () => {
+
+            console.error(
+                "[GEN-Z.AI] Gagal menampilkan video preview."
+            );
+
+        };
+
+
+    video.src =
+        source;
+
+
+    video.muted =
+        true;
+
+
+    video.playsInline =
+        true;
+
+
+    video.controls =
+        true;
+
+
+    forceMediaVisible(
+        video
+    );
+
+
+    try {
+
+        video.load();
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Video load warning:",
+            error
+        );
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   FILE PREVIEW
+========================================================= */
+
+export function renderOriginalPreview(
+    file
+) {
+
+    if (
+        !file
+    ) {
+
+        clearOriginalPreview();
+
+        return false;
+
+    }
+
+
+    revokeOriginalPreviewUrl();
+
+
+    let objectUrl =
+        "";
+
+
+    try {
+
+        objectUrl =
+            URL.createObjectURL(
+                file
+            );
+
+    } catch (
+        error
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] Tidak dapat membuat preview URL:",
+            error
+        );
+
+
+        return false;
+
+    }
+
+
+    state.originalPreviewUrl =
+        objectUrl;
+
+
+    const type =
+        String(
+            file.type ||
+            ""
+        )
+            .toLowerCase();
+
+
+    const isImage =
+        type.startsWith(
+            "image/"
+        );
+
+
+    const isVideo =
+        type.startsWith(
+            "video/"
+        );
+
+
+    if (
+        isImage
+    ) {
+
+        return renderImagePreview(
+            objectUrl
+        );
+
+    }
+
+
+    if (
+        isVideo
+    ) {
+
+        return renderVideoPreview(
+            objectUrl
+        );
+
+    }
+
+
+    URL.revokeObjectURL(
+        objectUrl
+    );
+
+
+    state.originalPreviewUrl =
+        null;
+
+
+    clearOriginalPreview();
+
+
+    return false;
+
+}
+
+
+/* =========================================================
+   CLEANED IMAGE PREVIEW
+========================================================= */
+
+export function renderCleanedImagePreview(
+    source
+) {
+
+    const image =
+        elements.cleanImagePreview;
+
+
+    if (
+        !image
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        elements.cleanVideoPreview
+    ) {
+
+        hideElement(
+            elements.cleanVideoPreview
+        );
+
+
+        elements.cleanVideoPreview.pause?.();
+
+    }
+
+
+    image.onload =
+        () => {
+
+            forceMediaVisible(
+                image
+            );
+
+        };
+
+
+    image.onerror =
+        () => {
+
+            console.error(
+                "[GEN-Z.AI] Gagal menampilkan cleaned image preview."
+            );
+
+        };
+
+
+    image.src =
+        source;
+
+
+    forceMediaVisible(
+        image
+    );
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   CLEANED VIDEO PREVIEW
+========================================================= */
+
+export function renderCleanedVideoPreview(
+    source
+) {
+
+    const video =
+        elements.cleanVideoPreview;
+
+
+    if (
+        !video
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        elements.cleanImagePreview
+    ) {
+
+        hideElement(
+            elements.cleanImagePreview
+        );
+
+
+        elements.cleanImagePreview.removeAttribute(
+            "src"
+        );
+
+    }
+
+
+    video.onloadedmetadata =
+        () => {
+
+            forceMediaVisible(
+                video
+            );
+
+        };
+
+
+    video.onerror =
+        () => {
+
+            console.error(
+                "[GEN-Z.AI] Gagal menampilkan cleaned video preview."
+            );
+
+        };
+
+
+    video.src =
+        source;
+
+
+    video.muted =
+        true;
+
+
+    video.playsInline =
+        true;
+
+
+    video.controls =
+        true;
+
+
+    forceMediaVisible(
+        video
+    );
+
+
+    try {
+
+        video.load();
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Cleaned video load warning:",
+            error
+        );
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   CLEANED FILE PREVIEW
+========================================================= */
+
+export function renderCleanedPreview(
+    file
+) {
+
+    if (
+        !file
+    ) {
+
+        clearCleanedPreview();
+
+        return false;
+
+    }
+
+
+    revokeCleanedPreviewUrl();
+
+
+    let objectUrl =
+        "";
+
+
+    try {
+
+        objectUrl =
+            URL.createObjectURL(
+                file
+            );
+
+    } catch (
+        error
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] Tidak dapat membuat cleaned preview URL:",
+            error
+        );
+
+
+        return false;
+
+    }
+
+
+    state.cleanedPreviewUrl =
+        objectUrl;
+
+
+    const type =
+        String(
+            file.type ||
+            ""
+        )
+            .toLowerCase();
+
+
+    if (
+        type.startsWith(
+            "image/"
+        )
+    ) {
+
+        return renderCleanedImagePreview(
+            objectUrl
+        );
+
+    }
+
+
+    if (
+        type.startsWith(
+            "video/"
+        )
+    ) {
+
+        return renderCleanedVideoPreview(
+            objectUrl
+        );
+
+    }
+
+
+    URL.revokeObjectURL(
+        objectUrl
+    );
+
+
+    state.cleanedPreviewUrl =
+        null;
+
+
+    clearCleanedPreview();
+
+
+    return false;
+
+}
+
+
+/* =========================================================
+   FILE READER IMAGE FALLBACK
+========================================================= */
+
+export function renderImagePreviewFromDataUrl(
+    dataUrl
+) {
+
+    if (
+        !dataUrl
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        elements.videoPreview
+    ) {
+
+        hideElement(
+            elements.videoPreview
+        );
+
+    }
+
+
+    hidePreviewEmpty();
+
+
+    if (
+        !elements.imagePreview
+    ) {
+
+        return false;
+
+    }
+
+
+    elements.imagePreview.onload =
+        () => {
+
+            forceMediaVisible(
+                elements.imagePreview
+            );
+
+        };
+
+
+    elements.imagePreview.src =
+        dataUrl;
+
+
+    forceMediaVisible(
+        elements.imagePreview
+    );
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   FILE READER
+========================================================= */
+
+export function readImageAsDataUrl(
+    file
+) {
+
+    return new Promise(
+        (
+            resolve,
+            reject
+        ) => {
+
+            if (
+                !file
+            ) {
+
+                reject(
+                    new Error(
+                        "File tidak tersedia."
+                    )
+                );
+
+
+                return;
+
+            }
+
+
+            const reader =
+                new FileReader();
+
+
+            reader.onload =
+                event => {
+
+                    const result =
+                        event.target?.result;
+
+
+                    if (
+                        typeof result !== "string"
+                    ) {
+
+                        reject(
+                            new Error(
+                                "Data URL image tidak valid."
+                            )
+                        );
+
+
+                        return;
+
+                    }
+
+
+                    resolve(
+                        result
+                    );
+
+                };
+
+
+            reader.onerror =
+                () => {
+
+                    reject(
+                        reader.error ||
+                        new Error(
+                            "Gagal membaca image."
+                        )
+                    );
+
+                };
+
+
+            reader.readAsDataURL(
+                file
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   ORIGINAL PREVIEW WITH FALLBACK
+========================================================= */
+
+export async function renderOriginalPreviewSafe(
+    file
+) {
+
+    if (
+        !file
+    ) {
+
+        clearOriginalPreview();
+
+        return false;
+
+    }
+
+
+    const rendered =
+        renderOriginalPreview(
+            file
+        );
+
+
+    if (
+        rendered
+    ) {
+
+        return true;
+
+    }
+
+
+    const type =
+        String(
+            file.type ||
+            ""
+        )
+            .toLowerCase();
+
+
+    if (
+        !type.startsWith(
+            "image/"
+        )
+    ) {
+
+        return false;
+
+    }
+
+
+    try {
+
+        const dataUrl =
+            await readImageAsDataUrl(
+                file
+            );
+
+
+        return renderImagePreviewFromDataUrl(
+            dataUrl
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] Image preview fallback gagal:",
+            error
+        );
+
+
+        return false;
+
+    }
+
+}
+
+
+/* =========================================================
+   RESET PREVIEW
+========================================================= */
+
+export function resetPreview() {
+
+    revokeOriginalPreviewUrl();
+
+    revokeCleanedPreviewUrl();
+
+    clearOriginalPreview();
+
+    clearCleanedPreview();
+
+    setPreviewStatus(
+        ""
+    );
+
+}
+
+
+/* =========================================================
+   PUBLIC API
 ========================================================= */
 
 export {
-
-    renderOriginalPreview,
-    renderOriginalImagePreview,
-    renderOriginalVideoPreview,
-
-    renderCleanedPreview,
-    renderCleanedImagePreview,
-    renderCleanedVideoPreview,
-
-    renderImageWithFileReader,
-
-    clearOriginalPreview,
-    clearCleanedPreview,
-    clearAllPreview,
-
-    hideOriginalPreview,
-    hideCleanedPreview,
-    hideAllMediaPreview,
-
-    showEmptyPreview,
-    hideEmptyPreview,
-
-    setPreviewStatus,
-
-    showPreview,
-    hidePreview,
-
-    ensurePreviewStageVisible
-
+    forceVisible,
+    forceMediaVisible,
+    hideMedia,
+    clearImageElement
 };
