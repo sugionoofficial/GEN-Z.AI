@@ -112,7 +112,7 @@ export function renderDetectionResult() {
 
             setStatus(
                 "DETECTED",
-                "AI DETECT",
+                "AI DETECTION",
                 buildCombinedDetectionDescription(
                     metadataIndicators.length,
                     sightengine
@@ -135,7 +135,7 @@ export function renderDetectionResult() {
 
             setStatus(
                 "DETECTED",
-                "AI DETECT",
+                "AI DETECTION",
                 buildSightengineDescription(
                     sightengine
                 )
