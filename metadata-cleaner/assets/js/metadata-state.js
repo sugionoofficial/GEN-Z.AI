@@ -10,6 +10,7 @@
    - Menyimpan metadata lokal
    - Menyimpan hasil Sightengine
    - Menyimpan Face Manipulation / Deepfake
+   - Menyimpan hasil Content Provenance / C2PA
    - Menyimpan file aktif
    - Menyimpan preview state
    - Menyimpan status cleaning
@@ -86,6 +87,98 @@ const metadataState = {
 
     cleanedMetadataCount:
         0,
+
+
+    /* -----------------------------------------------------
+       CONTENT PROVENANCE
+       --------------------------------------------------
+       Menyimpan hasil pemeriksaan provenance lokal.
+
+       Catatan:
+       - detected != verified
+       - VERIFIED hanya boleh digunakan apabila
+         proses verifikasi cryptographic benar-benar
+         dilakukan oleh module verifier.
+       - State ini tidak melakukan parsing / verification
+         sendiri.
+    ----------------------------------------------------- */
+
+    provenance: {
+
+        checked:
+            false,
+
+        supported:
+            false,
+
+        format:
+            "unknown",
+
+        detected:
+            false,
+
+        status:
+            "NOT_DETECTED",
+
+        verified:
+            false,
+
+        verificationStatus:
+            "NOT_VERIFIED",
+
+
+        /* -----------------------------------------------
+           C2PA
+        ----------------------------------------------- */
+
+        c2pa: {
+
+            detected:
+                false,
+
+            verified:
+                false,
+
+            manifestCount:
+                0
+
+        },
+
+
+        /* -----------------------------------------------
+           CONTENT CREDENTIALS
+        ----------------------------------------------- */
+
+        contentCredentials: {
+
+            detected:
+                false,
+
+            verified:
+                false
+
+        },
+
+
+        /* -----------------------------------------------
+           FINDINGS
+        ----------------------------------------------- */
+
+        findings:
+            [],
+
+
+        /* -----------------------------------------------
+           OPTIONAL PROVENANCE DATA
+        ----------------------------------------------- */
+
+        digitalSourceType:
+            null,
+
+        aiDisclosure:
+            null
+
+    },
 
 
     /* -----------------------------------------------------
@@ -304,6 +397,95 @@ const metadataState = {
 
 
 /* =========================================================
+   DEFAULT PROVENANCE OBJECT FACTORY
+   ---------------------------------------------------------
+   Selalu membuat object baru agar array / object tidak
+   berbagi reference ketika state di-reset.
+========================================================= */
+
+export function createEmptyProvenance() {
+
+    return {
+
+        checked:
+            false,
+
+        supported:
+            false,
+
+        format:
+            "unknown",
+
+        detected:
+            false,
+
+        status:
+            "NOT_DETECTED",
+
+        verified:
+            false,
+
+        verificationStatus:
+            "NOT_VERIFIED",
+
+
+        /* -----------------------------------------------
+           C2PA
+        ----------------------------------------------- */
+
+        c2pa: {
+
+            detected:
+                false,
+
+            verified:
+                false,
+
+            manifestCount:
+                0
+
+        },
+
+
+        /* -----------------------------------------------
+           CONTENT CREDENTIALS
+        ----------------------------------------------- */
+
+        contentCredentials: {
+
+            detected:
+                false,
+
+            verified:
+                false
+
+        },
+
+
+        /* -----------------------------------------------
+           FINDINGS
+        ----------------------------------------------- */
+
+        findings:
+            [],
+
+
+        /* -----------------------------------------------
+           OPTIONAL PROVENANCE DATA
+        ----------------------------------------------- */
+
+        digitalSourceType:
+            null,
+
+        aiDisclosure:
+            null
+
+    };
+
+}
+
+
+/* =========================================================
    DEFAULT SIGHTENGINE OBJECT FACTORY
    ---------------------------------------------------------
    Selalu membuat object baru agar array / object tidak
@@ -450,6 +632,187 @@ export function setMetadataState(
 
 
     return metadataState;
+
+}
+
+
+/* =========================================================
+   PROVENANCE STATE UPDATE
+   ---------------------------------------------------------
+   Menyimpan hasil pemeriksaan provenance yang sudah
+   dinormalisasi oleh metadata-provenance.js.
+
+   Tidak melakukan parsing.
+   Tidak melakukan verification.
+   Tidak melakukan API request.
+========================================================= */
+
+export function setProvenance(
+    provenance = null
+) {
+
+    /* -----------------------------------------------------
+       EMPTY / RESET
+    ----------------------------------------------------- */
+
+    if (
+        !provenance ||
+        typeof provenance !== "object"
+    ) {
+
+        metadataState.provenance =
+            createEmptyProvenance();
+
+        return metadataState.provenance;
+
+    }
+
+
+    metadataState.provenance = {
+
+        checked:
+            provenance.checked === true,
+
+        supported:
+            provenance.supported === true,
+
+        format:
+            provenance.format ??
+            "unknown",
+
+        detected:
+            provenance.detected === true,
+
+        status:
+            provenance.status ??
+            "NOT_DETECTED",
+
+        verified:
+            provenance.verified === true,
+
+        verificationStatus:
+            provenance.verificationStatus ??
+            "NOT_VERIFIED",
+
+
+        /* -----------------------------------------------
+           C2PA
+        ----------------------------------------------- */
+
+        c2pa:
+            provenance.c2pa
+                ? {
+
+                    detected:
+                        provenance.c2pa.detected === true,
+
+                    verified:
+                        provenance.c2pa.verified === true,
+
+                    manifestCount:
+                        Number.isFinite(
+                            Number(
+                                provenance.c2pa.manifestCount
+                            )
+                        )
+                            ? Math.max(
+                                0,
+                                Number(
+                                    provenance.c2pa.manifestCount
+                                )
+                            )
+                            : 0
+
+                }
+                : {
+
+                    detected:
+                        false,
+
+                    verified:
+                        false,
+
+                    manifestCount:
+                        0
+
+                },
+
+
+        /* -----------------------------------------------
+           CONTENT CREDENTIALS
+        ----------------------------------------------- */
+
+        contentCredentials:
+            provenance.contentCredentials
+                ? {
+
+                    detected:
+                        provenance
+                            .contentCredentials
+                            .detected === true,
+
+                    verified:
+                        provenance
+                            .contentCredentials
+                            .verified === true
+
+                }
+                : {
+
+                    detected:
+                        false,
+
+                    verified:
+                        false
+
+                },
+
+
+        /* -----------------------------------------------
+           FINDINGS
+        ----------------------------------------------- */
+
+        findings:
+            Array.isArray(
+                provenance.findings
+            )
+                ? provenance.findings.map(
+                    finding => {
+
+                        if (
+                            finding &&
+                            typeof finding === "object"
+                        ) {
+
+                            return {
+                                ...finding
+                            };
+
+                        }
+
+                        return finding;
+
+                    }
+                )
+                : [],
+
+
+        /* -----------------------------------------------
+           OPTIONAL PROVENANCE DATA
+        ----------------------------------------------- */
+
+        digitalSourceType:
+            provenance.digitalSourceType ??
+            null,
+
+        aiDisclosure:
+            provenance.aiDisclosure ??
+            null
+
+    };
+
+
+    return metadataState.provenance;
 
 }
 
@@ -1070,6 +1433,14 @@ export function resetMetadataState() {
 
     metadataState.cleanedMetadataCount =
         0;
+
+
+    /* -----------------------------------------------------
+       PROVENANCE
+    ----------------------------------------------------- */
+
+    metadataState.provenance =
+        createEmptyProvenance();
 
 
     /* -----------------------------------------------------
