@@ -880,10 +880,32 @@
 
 
  /* =========================================================
-   EXPORT
+   PUBLIC EXPORTS
 ========================================================= */
+
+/*
+   APP
+   ---------------------------------------------------------
+   Compatibility object untuk module yang masih menggunakan
+   metadata-state sebagai sumber konfigurasi aplikasi.
+
+   Jangan membuat state kedua.
+   APP hanya menunjuk ke metadataState yang sama.
+*/
+
+export const APP = metadataState;
+
+
+/*
+   Canonical state export.
+*/
 
 export const state =
     metadataState;
+
+
+/*
+   Default export.
+*/
 
 export default metadataState;
