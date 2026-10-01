@@ -5,25 +5,367 @@
    File:
    metadata-cleaner/assets/js/metadata-file.js
 
-   Fungsi:
+   Tanggung jawab:
+   - File picker
+   - File input
+   - Drag & drop
    - Validasi format media
    - Deteksi tipe media
+   - Menyimpan file aktif ke state
+   - Membuat original object URL
    - Menampilkan informasi file
-   - Helper extension / ukuran file
+   - Memulai original preview
 
-   Catatan:
-   - Tidak mengubah file asli
-   - Tidak mengubah struktur state
-   - Tidak mengubah daftar format yang didukung
+   Tidak menangani:
+   - Pembacaan metadata
+   - AI detection
+   - Cleaning
+   - Download
+   - Reset aplikasi penuh
+========================================================= */
+
+
+/* =========================================================
+   STATE
 ========================================================= */
 
 import {
     state
 } from "./metadata-state.js";
 
+
+/* =========================================================
+   DOM
+========================================================= */
+
 import {
     elements
 } from "./metadata-dom.js";
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+import {
+    setStatus
+} from "./metadata-status.js";
+
+
+/* =========================================================
+   RESET
+========================================================= */
+
+import {
+    resetForNewFile
+} from "./metadata-reset.js";
+
+
+/* =========================================================
+   PREVIEW
+========================================================= */
+
+import {
+    renderOriginalPreview,
+    setPreviewStatus
+} from "./metadata-preview.js";
+
+
+/* =========================================================
+   FILE PICKER
+========================================================= */
+
+export function openFilePicker() {
+
+    if (
+        !elements.fileInput
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] File input tidak ditemukan."
+        );
+
+
+        return;
+    }
+
+
+    try {
+
+        elements.fileInput.click();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] File picker gagal dibuka:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   FILE INPUT
+========================================================= */
+
+export function handleFileInput(
+    event
+) {
+
+    const files =
+        Array.from(
+            event?.target?.files || []
+        );
+
+
+    if (
+        !files.length
+    ) {
+
+        return;
+    }
+
+
+    processSelectedFile(
+        files[0]
+    );
+
+}
+
+
+/* =========================================================
+   DRAG OVER
+========================================================= */
+
+export function handleDragOver(
+    event
+) {
+
+    event.preventDefault();
+
+
+    elements.dropzone?.classList.add(
+        "is-dragging"
+    );
+
+}
+
+
+/* =========================================================
+   DRAG LEAVE
+========================================================= */
+
+export function handleDragLeave(
+    event
+) {
+
+    event.preventDefault();
+
+
+    elements.dropzone?.classList.remove(
+        "is-dragging"
+    );
+
+}
+
+
+/* =========================================================
+   DROP
+========================================================= */
+
+export function handleDrop(
+    event
+) {
+
+    event.preventDefault();
+
+
+    elements.dropzone?.classList.remove(
+        "is-dragging"
+    );
+
+
+    const files =
+        Array.from(
+            event?.dataTransfer?.files || []
+        );
+
+
+    if (
+        !files.length
+    ) {
+
+        return;
+    }
+
+
+    processSelectedFile(
+        files[0]
+    );
+
+}
+
+
+/* =========================================================
+   PROCESS SELECTED FILE
+========================================================= */
+
+export function processSelectedFile(
+    file
+) {
+
+    if (
+        !file
+    ) {
+
+        return;
+    }
+
+
+    /* =====================================================
+       VALIDASI FORMAT
+    ===================================================== */
+
+    if (
+        !isSupportedMedia(
+            file
+        )
+    ) {
+
+        setStatus(
+            "UNKNOWN",
+            "FORMAT TIDAK DIDUKUNG",
+            "Pilih file foto atau video yang dapat diproses oleh browser."
+        );
+
+
+        return;
+    }
+
+
+    /* =====================================================
+       RESET FILE SEBELUMNYA
+    ===================================================== */
+
+    resetForNewFile();
+
+
+    /* =====================================================
+       SIMPAN FILE AKTIF
+    ===================================================== */
+
+    state.file =
+        file;
+
+
+    state.fileType =
+        detectMediaType(
+            file
+        );
+
+
+    /* =====================================================
+       OBJECT URL
+       -----------------------------------------------------
+       resetForNewFile() sudah merevoke URL lama.
+       Di sini kita hanya membuat URL baru.
+    ===================================================== */
+
+    state.originalURL =
+        null;
+
+
+    try {
+
+        state.originalURL =
+            URL.createObjectURL(
+                file
+            );
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] Object URL creation failed:",
+            error
+        );
+
+
+        state.originalURL =
+            null;
+
+    }
+
+
+    /* =====================================================
+       FILE INFORMATION
+    ===================================================== */
+
+    updateFileInfo();
+
+
+    /* =====================================================
+       ORIGINAL PREVIEW
+    ===================================================== */
+
+    renderOriginalPreview();
+
+
+    /* =====================================================
+       BUTTON STATE
+    ===================================================== */
+
+    if (
+        elements.checkButton
+    ) {
+
+        elements.checkButton.disabled =
+            false;
+
+    }
+
+
+    if (
+        elements.cleanButton
+    ) {
+
+        elements.cleanButton.disabled =
+            true;
+
+    }
+
+
+    if (
+        elements.downloadButton
+    ) {
+
+        elements.downloadButton.disabled =
+            true;
+
+    }
+
+
+    /* =====================================================
+       PREVIEW STATUS
+    ===================================================== */
+
+    setPreviewStatus(
+        "MEDIA SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+    );
+
+
+    /* =====================================================
+       APPLICATION STATUS
+    ===================================================== */
+
+    setStatus(
+        "UNKNOWN",
+        "BELUM DIPERIKSA",
+        "Tekan CHECK untuk membaca metadata media."
+    );
+
+}
 
 
 /* =========================================================
@@ -42,6 +384,10 @@ export function isSupportedMedia(
     }
 
 
+    /* =====================================================
+       MIME TYPE
+    ===================================================== */
+
     if (
         file.type &&
         (
@@ -58,6 +404,10 @@ export function isSupportedMedia(
     }
 
 
+    /* =====================================================
+       EXTENSION FALLBACK
+    ===================================================== */
+
     const extension =
         getExtension(
             file.name
@@ -65,6 +415,8 @@ export function isSupportedMedia(
 
 
     return [
+
+        /* IMAGE */
 
         "jpg",
         "jpeg",
@@ -75,6 +427,8 @@ export function isSupportedMedia(
         "tif",
         "tiff",
         "avif",
+
+        /* VIDEO */
 
         "mp4",
         "mov",
@@ -130,6 +484,7 @@ export function detectMediaType(
 
     if (
         [
+
             "jpg",
             "jpeg",
             "png",
@@ -139,6 +494,7 @@ export function detectMediaType(
             "tif",
             "tiff",
             "avif"
+
         ].includes(
             extension
         )
@@ -172,6 +528,10 @@ export function updateFileInfo() {
     );
 
 
+    /* =====================================================
+       FILE TYPE
+    ===================================================== */
+
     if (
         elements.fileType
     ) {
@@ -184,15 +544,24 @@ export function updateFileInfo() {
     }
 
 
+    /* =====================================================
+       FILE NAME
+    ===================================================== */
+
     if (
         elements.fileName
     ) {
 
         elements.fileName.textContent =
-            state.file.name;
+            state.file.name ||
+            "";
 
     }
 
+
+    /* =====================================================
+       FILE SIZE
+    ===================================================== */
 
     if (
         elements.fileSize
@@ -217,7 +586,9 @@ export function formatBytes(
 ) {
 
     if (
-        !Number.isFinite(bytes) ||
+        !Number.isFinite(
+            bytes
+        ) ||
         bytes <= 0
     ) {
 
@@ -238,8 +609,12 @@ export function formatBytes(
 
     const index =
         Math.floor(
-            Math.log(bytes) /
-            Math.log(1024)
+            Math.log(
+                bytes
+            ) /
+            Math.log(
+                1024
+            )
         );
 
 
@@ -304,3 +679,74 @@ export function getExtension(
         .toLowerCase();
 
 }
+
+
+/* =========================================================
+   REVOKE OBJECT URL
+   ---------------------------------------------------------
+   Diekspor untuk kompatibilitas dengan modul lain yang
+   masih membutuhkan helper ini selama proses pemecahan
+   metadata-app.js.
+========================================================= */
+
+export function revokeObjectURL(
+    url
+) {
+
+    if (
+        !url
+    ) {
+
+        return;
+    }
+
+
+    try {
+
+        URL.revokeObjectURL(
+            url
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] Object URL revoke gagal:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   PUBLIC API
+========================================================= */
+
+export default {
+
+    openFilePicker,
+
+    handleFileInput,
+
+    handleDragOver,
+
+    handleDragLeave,
+
+    handleDrop,
+
+    processSelectedFile,
+
+    isSupportedMedia,
+
+    detectMediaType,
+
+    updateFileInfo,
+
+    formatBytes,
+
+    getExtension,
+
+    revokeObjectURL
+
+};
