@@ -22,6 +22,11 @@
    - Mendukung hasil cleaner berupa:
        1. Blob langsung
        2. { blob: Blob }
+
+   IMPORTANT:
+   - renderCleanedPreview() menerima Blob.
+   - Object URL cleaned dibuat dan disimpan di state.cleanedURL.
+   - Tidak mengirim Object URL ke renderCleanedPreview().
 ========================================================= */
 
 
@@ -68,7 +73,8 @@ import {
 import {
     renderCleanedPreview,
     showElement,
-    hideElement
+    hideElement,
+    clearCleanedPreview
 } from "./metadata-preview.js";
 
 
@@ -82,9 +88,9 @@ import {
 
 export async function cleanMetadata() {
 
-    /* -------------------------------------------------------
+    /* =======================================================
        VALIDASI FILE
-    ------------------------------------------------------- */
+    ======================================================= */
 
     if (
         !state.file
@@ -95,12 +101,13 @@ export async function cleanMetadata() {
         );
 
         return;
+
     }
 
 
-    /* -------------------------------------------------------
+    /* =======================================================
        CEGAH CLEANING GANDA
-    ------------------------------------------------------- */
+    ======================================================= */
 
     if (
         state.cleaning
@@ -111,37 +118,37 @@ export async function cleanMetadata() {
         );
 
         return;
+
     }
 
 
-    /* -------------------------------------------------------
+    /* =======================================================
        SIMPAN REFERENSI FILE AKTIF
-       ------------------------------------------------------
+       -------------------------------------------------------
        Sangat penting untuk proses asynchronous.
-
-       Jika user mengganti file ketika cleaning berjalan,
-       hasil file lama tidak boleh ditempel ke file baru.
-    ------------------------------------------------------- */
+    ======================================================= */
 
     const sourceFile =
         state.file;
 
 
     const sourceFileType =
-        state.fileType;
+        String(
+            state.fileType || ""
+        ).toLowerCase();
 
 
-    /* -------------------------------------------------------
+    /* =======================================================
        LOCK CLEANING
-    ------------------------------------------------------- */
+    ======================================================= */
 
     state.cleaning =
         true;
 
 
-    /* -------------------------------------------------------
+    /* =======================================================
        LOCK BUTTON
-    ------------------------------------------------------- */
+    ======================================================= */
 
     if (
         elements.cleanButton
@@ -149,6 +156,11 @@ export async function cleanMetadata() {
 
         elements.cleanButton.disabled =
             true;
+
+        elements.cleanButton.setAttribute(
+            "data-processing",
+            "true"
+        );
 
     }
 
@@ -163,45 +175,59 @@ export async function cleanMetadata() {
     }
 
 
-    /* -------------------------------------------------------
+    /* =======================================================
        HAPUS HASIL CLEANING LAMA
-    ------------------------------------------------------- */
+    ======================================================= */
 
     state.cleanedBlob =
         null;
 
 
-    if (
-        state.cleanedURL
-    ) {
+    /*
+       cleanedURL adalah nama state yang digunakan
+       oleh modul cleaning/download.
+    */
 
-        try {
+    revokeCleanedUrl();
 
-            URL.revokeObjectURL(
-                state.cleanedURL
-            );
 
-        } catch (
-            error
+    /*
+       Jika preview module menyediakan helper,
+       gunakan helper tersebut untuk membersihkan
+       preview lama.
+    */
+
+    try {
+
+        if (
+            typeof clearCleanedPreview === "function"
         ) {
 
-            console.warn(
-                "[GEN-Z.AI] Gagal revoke cleaned URL:",
-                error
-            );
+            clearCleanedPreview();
+
+        } else {
+
+            resetCleanPreviewElements();
 
         }
 
+    } catch (
+        error
+    ) {
 
-        state.cleanedURL =
-            null;
+        console.warn(
+            "[GEN-Z.AI] Gagal membersihkan preview hasil lama:",
+            error
+        );
+
+        resetCleanPreviewElements();
 
     }
 
 
-    /* -------------------------------------------------------
+    /* =======================================================
        HIDE CLEAN RESULT
-    ------------------------------------------------------- */
+    ======================================================= */
 
     if (
         elements.cleanResult
@@ -214,86 +240,22 @@ export async function cleanMetadata() {
     }
 
 
-    /* -------------------------------------------------------
-       RESET CLEAN IMAGE PREVIEW
-    ------------------------------------------------------- */
-
-    if (
-        elements.cleanImagePreview
-    ) {
-
-        elements.cleanImagePreview.removeAttribute(
-            "src"
-        );
-
-        elements.cleanImagePreview.removeAttribute(
-            "srcset"
-        );
-
-    }
-
-
-    /* -------------------------------------------------------
-       RESET CLEAN VIDEO PREVIEW
-    ------------------------------------------------------- */
-
-    if (
-        elements.cleanVideoPreview
-    ) {
-
-        try {
-
-            elements.cleanVideoPreview.pause();
-
-        } catch (
-            error
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] Gagal pause clean video:",
-                error
-            );
-
-        }
-
-
-        elements.cleanVideoPreview.removeAttribute(
-            "src"
-        );
-
-
-        /*
-         * Jangan memanggil load() jika elemen video
-         * belum memiliki source sebelumnya.
-         *
-         * Tetapi jika tersedia, tetap reset agar browser
-         * benar-benar membuang media lama.
-         */
-
-        try {
-
-            elements.cleanVideoPreview.load();
-
-        } catch (
-            error
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] Gagal reset clean video:",
-                error
-            );
-
-        }
-
-    }
-
-
-    /* -------------------------------------------------------
+    /* =======================================================
        STATUS
-    ------------------------------------------------------- */
+    ======================================================= */
 
     setPreviewStatus(
         "MEMBERSIHKAN METADATA SECARA LOKAL..."
+    );
+
+
+    console.info(
+        "[GEN-Z.AI] Metadata cleaning dimulai.",
+        {
+            name: sourceFile.name,
+            type: sourceFileType,
+            size: sourceFile.size
+        }
     );
 
 
@@ -303,16 +265,22 @@ export async function cleanMetadata() {
 
     try {
 
-        let result = null;
+        let result =
+            null;
 
 
-        /* ---------------------------------------------------
+        /* ===================================================
            IMAGE
-        --------------------------------------------------- */
+        =================================================== */
 
         if (
             sourceFileType === "image"
         ) {
+
+            console.info(
+                "[GEN-Z.AI] Cleaning image..."
+            );
+
 
             result =
                 await cleanImage(
@@ -322,13 +290,18 @@ export async function cleanMetadata() {
         }
 
 
-        /* ---------------------------------------------------
+        /* ===================================================
            VIDEO
-        --------------------------------------------------- */
+        =================================================== */
 
         else if (
             sourceFileType === "video"
         ) {
+
+            console.info(
+                "[GEN-Z.AI] Cleaning video..."
+            );
+
 
             result =
                 await cleanVideo(
@@ -338,9 +311,9 @@ export async function cleanMetadata() {
         }
 
 
-        /* ---------------------------------------------------
+        /* ===================================================
            UNKNOWN FILE TYPE
-        --------------------------------------------------- */
+        =================================================== */
 
         else {
 
@@ -353,9 +326,6 @@ export async function cleanMetadata() {
 
         /* ===================================================
            FILE CHANGE GUARD
-           ---------------------------------------------------
-           User mungkin mengganti file ketika proses async
-           masih berjalan.
         =================================================== */
 
         if (
@@ -374,13 +344,17 @@ export async function cleanMetadata() {
         /* ===================================================
            NORMALIZE CLEANER RESULT
            ---------------------------------------------------
-           Mendukung dua bentuk:
+           Bentuk yang didukung:
 
-           A. Blob langsung
-              cleanImage() -> Blob
+           1. Blob
 
-           B. Object
-              cleanImage() -> { blob: Blob }
+              cleanImage()
+              → Blob
+
+           2. Object
+
+              cleanImage()
+              → { blob: Blob }
         =================================================== */
 
         let cleanedBlob =
@@ -408,9 +382,9 @@ export async function cleanMetadata() {
         }
 
 
-        /* ---------------------------------------------------
+        /* ===================================================
            VALIDASI HASIL
-        --------------------------------------------------- */
+        =================================================== */
 
         if (
             !cleanedBlob
@@ -423,10 +397,19 @@ export async function cleanMetadata() {
         }
 
 
+        if (
+            cleanedBlob.size <= 0
+        ) {
+
+            throw new Error(
+                "File hasil cleaning kosong."
+            );
+
+        }
+
+
         /* ===================================================
            SECOND FILE CHANGE GUARD
-           ---------------------------------------------------
-           Perlindungan tambahan setelah normalisasi result.
         =================================================== */
 
         if (
@@ -451,50 +434,14 @@ export async function cleanMetadata() {
 
 
         /* ===================================================
-           HAPUS CLEANED URL LAMA
-        =================================================== */
-
-        if (
-            state.cleanedURL
-        ) {
-
-            try {
-
-                URL.revokeObjectURL(
-                    state.cleanedURL
-                );
-
-            } catch (
-                error
-            ) {
-
-                console.warn(
-                    "[GEN-Z.AI] Gagal revoke cleaned URL lama:",
-                    error
-                );
-
-            }
-
-
-            state.cleanedURL =
-                null;
-
-        }
-
-
-        /* ===================================================
-           CREATE OBJECT URL
+           BUAT OBJECT URL
         =================================================== */
 
         state.cleanedURL =
             URL.createObjectURL(
-                state.cleanedBlob
+                cleanedBlob
             );
 
-
-        /* ===================================================
-           VALIDASI OBJECT URL
-        =================================================== */
 
         if (
             !state.cleanedURL
@@ -508,12 +455,83 @@ export async function cleanMetadata() {
 
 
         /* ===================================================
-           RENDER CLEANED PREVIEW
+           SYNC ALIAS
+           ---------------------------------------------------
+           Jika metadata-preview / modul lain menggunakan
+           cleanedPreviewUrl, sinkronkan juga.
         =================================================== */
 
-        renderCleanedPreview(
-            state.cleanedURL
-        );
+        if (
+            Object.prototype.hasOwnProperty.call(
+                state,
+                "cleanedPreviewUrl"
+            )
+        ) {
+
+            state.cleanedPreviewUrl =
+                state.cleanedURL;
+
+        }
+
+
+        /* ===================================================
+           THIRD FILE CHANGE GUARD
+        =================================================== */
+
+        if (
+            state.file !== sourceFile
+        ) {
+
+            /*
+               File berubah setelah URL dibuat.
+               Jangan biarkan URL menggantung.
+            */
+
+            revokeCleanedUrl();
+
+            state.cleanedBlob =
+                null;
+
+            return;
+
+        }
+
+
+        /* ===================================================
+           RENDER CLEANED PREVIEW
+           ---------------------------------------------------
+           IMPORTANT:
+
+           renderCleanedPreview() menerima Blob,
+           BUKAN Object URL.
+
+           Jangan gunakan:
+
+               renderCleanedPreview(state.cleanedURL)
+
+           Gunakan:
+
+               renderCleanedPreview(cleanedBlob)
+        =================================================== */
+
+        const rendered =
+            renderCleanedPreview(
+                cleanedBlob,
+                sourceFileType === "image"
+                    ? "image"
+                    : "video"
+            );
+
+
+        if (
+            rendered === false
+        ) {
+
+            throw new Error(
+                "Preview hasil cleaning gagal ditampilkan."
+            );
+
+        }
 
 
         /* ===================================================
@@ -554,14 +572,30 @@ export async function cleanMetadata() {
         );
 
 
+        /* ===================================================
+           SUCCESS LOG
+        =================================================== */
+
         console.info(
             "[GEN-Z.AI] Metadata cleaning berhasil.",
             {
-                type: sourceFileType,
-                originalName: sourceFile.name,
-                originalSize: sourceFile.size,
-                cleanedSize: state.cleanedBlob.size,
-                cleanedType: state.cleanedBlob.type
+                type:
+                    sourceFileType,
+
+                originalName:
+                    sourceFile.name,
+
+                originalSize:
+                    sourceFile.size,
+
+                cleanedSize:
+                    cleanedBlob.size,
+
+                cleanedType:
+                    cleanedBlob.type,
+
+                cleanedURL:
+                    state.cleanedURL
             }
         );
 
@@ -572,9 +606,6 @@ export async function cleanMetadata() {
 
         /* ===================================================
            FILE CHANGE GUARD
-           ---------------------------------------------------
-           Error dari proses file lama tidak boleh mengubah
-           UI file baru.
         =================================================== */
 
         if (
@@ -608,40 +639,11 @@ export async function cleanMetadata() {
             null;
 
 
-        /* ---------------------------------------------------
-           REVOKE CLEANED URL
-        --------------------------------------------------- */
-
-        if (
-            state.cleanedURL
-        ) {
-
-            try {
-
-                URL.revokeObjectURL(
-                    state.cleanedURL
-                );
-
-            } catch (
-                revokeError
-            ) {
-
-                console.warn(
-                    "[GEN-Z.AI] Gagal revoke cleaned URL setelah error:",
-                    revokeError
-                );
-
-            }
-
-
-            state.cleanedURL =
-                null;
-
-        }
+        revokeCleanedUrl();
 
 
         /* ===================================================
-           HIDE RESULT
+           HIDE CLEAN RESULT
         =================================================== */
 
         if (
@@ -683,11 +685,8 @@ export async function cleanMetadata() {
     /* =======================================================
        FINALLY
        -------------------------------------------------------
-       Hanya reset state jika file yang sedang diproses
+       Hanya reset lifecycle jika file yang diproses
        masih merupakan file aktif.
-
-       Jika user sudah memilih file baru, file baru memiliki
-       lifecycle sendiri dan tidak boleh disentuh proses lama.
     ======================================================= */
 
     finally {
@@ -707,6 +706,10 @@ export async function cleanMetadata() {
                 elements.cleanButton.disabled =
                     false;
 
+                elements.cleanButton.removeAttribute(
+                    "data-processing"
+                );
+
             }
 
         }
@@ -717,18 +720,224 @@ export async function cleanMetadata() {
 
 
 /* =========================================================
-   PREVIEW STATUS
+   REVOKE CLEANED URL
+========================================================= */
+
+function revokeCleanedUrl() {
+
+    /*
+       cleanedURL adalah URL utama yang digunakan
+       metadata-clean.js / metadata-download.js.
+    */
+
+    const url =
+        state?.cleanedURL;
+
+
+    if (
+        url
+    ) {
+
+        try {
+
+            URL.revokeObjectURL(
+                url
+            );
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal revoke cleaned URL:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+       Jika terdapat alias berbeda,
+       jangan revoke URL yang sama dua kali.
+    */
+
+    const previewUrl =
+        state?.cleanedPreviewUrl;
+
+
+    if (
+        previewUrl &&
+        previewUrl !== url
+    ) {
+
+        try {
+
+            URL.revokeObjectURL(
+                previewUrl
+            );
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal revoke cleaned preview URL:",
+                error
+            );
+
+        }
+
+    }
+
+
+    if (
+        state
+    ) {
+
+        state.cleanedURL =
+            null;
+
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                state,
+                "cleanedPreviewUrl"
+            )
+        ) {
+
+            state.cleanedPreviewUrl =
+                null;
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   RESET CLEAN PREVIEW ELEMENTS
    ---------------------------------------------------------
-   Lokal di modul ini agar metadata-app.js tidak perlu
-   membawa implementasi cleaning tambahan.
+   Fallback jika helper preview tidak tersedia.
+========================================================= */
+
+function resetCleanPreviewElements() {
+
+    const image =
+        elements?.cleanImagePreview;
+
+
+    const video =
+        elements?.cleanVideoPreview;
+
+
+    if (
+        image
+    ) {
+
+        image.removeAttribute(
+            "src"
+        );
+
+
+        image.removeAttribute(
+            "srcset"
+        );
+
+
+        image.style.removeProperty(
+            "width"
+        );
+
+
+        image.style.removeProperty(
+            "height"
+        );
+
+
+        hideElement(
+            image
+        );
+
+    }
+
+
+    if (
+        video
+    ) {
+
+        try {
+
+            video.pause();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal pause cleaned video:",
+                error
+            );
+
+        }
+
+
+        video.removeAttribute(
+            "src"
+        );
+
+
+        try {
+
+            video.load();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal reset cleaned video:",
+                error
+            );
+
+        }
+
+
+        video.style.removeProperty(
+            "width"
+        );
+
+
+        video.style.removeProperty(
+            "height"
+        );
+
+
+        hideElement(
+            video
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   PREVIEW STATUS
 ========================================================= */
 
 function setPreviewStatus(
     text
 ) {
 
+    const status =
+        elements?.previewStatus;
+
+
     if (
-        !elements.previewStatus
+        !status
     ) {
 
         return;
@@ -736,10 +945,17 @@ function setPreviewStatus(
     }
 
 
-    elements.previewStatus.textContent =
+    status.textContent =
         String(
             text ?? ""
         );
+
+
+    /*
+       Jangan memaksa display di sini.
+       metadata-preview.js yang mengontrol
+       visibility status secara global.
+    */
 
 }
 
@@ -777,16 +993,6 @@ function getReadableError(
         typeof error === "object"
     ) {
 
-        /*
-         * Beberapa library mengembalikan:
-         *
-         * { message: "..." }
-         *
-         * atau:
-         *
-         * { error: "..." }
-         */
-
         if (
             typeof error.message === "string" &&
             error.message.trim()
@@ -803,6 +1009,16 @@ function getReadableError(
         ) {
 
             return error.error;
+
+        }
+
+
+        if (
+            typeof error.details === "string" &&
+            error.details.trim()
+        ) {
+
+            return error.details;
 
         }
 
