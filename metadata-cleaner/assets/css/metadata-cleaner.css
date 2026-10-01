@@ -18,6 +18,11 @@
    - Metadata detector
    - Sightengine visual detector
    - Visual stamp overlay
+
+   UPLOAD FIX:
+   - Native file input menutup seluruh dropzone
+   - Input transparan tetapi tetap clickable
+   - Tidak bergantung pada click handler JavaScript
 ========================================================= */
 
 
@@ -415,6 +420,9 @@
 
 /* =========================================================
    DROPZONE
+   ---------------------------------------------------------
+   Native file input berada DI ATAS seluruh dropzone.
+   Input transparan, tetapi tetap menerima klik.
 ========================================================= */
 
 .metadata-dropzone {
@@ -456,12 +464,133 @@
     cursor:
         pointer;
 
+    overflow:
+        hidden;
+
+    isolation:
+        isolate;
+
     transition:
         border-color 0.2s ease,
         background 0.2s ease,
         transform 0.2s ease;
 }
 
+
+/* =========================================================
+   NATIVE FILE INPUT
+   ---------------------------------------------------------
+   Jangan menggunakan:
+       display:none
+   Jangan menggunakan:
+       visibility:hidden
+
+   Input harus tetap berada di DOM dan menerima klik.
+========================================================= */
+
+.metadata-native-file-input {
+
+    position:
+        absolute;
+
+    inset:
+        0;
+
+    display:
+        block;
+
+    width:
+        100%;
+
+    height:
+        100%;
+
+    min-width:
+        100%;
+
+    min-height:
+        100%;
+
+    margin:
+        0;
+
+    padding:
+        0;
+
+    border:
+        0;
+
+    outline:
+        none;
+
+    opacity:
+        0;
+
+    cursor:
+        pointer;
+
+    z-index:
+        50;
+
+    appearance:
+        none;
+
+    -webkit-appearance:
+        none;
+
+    pointer-events:
+        auto;
+}
+
+
+/* =========================================================
+   FILE INPUT FOCUS
+========================================================= */
+
+.metadata-native-file-input:focus {
+
+    outline:
+        none;
+}
+
+
+.metadata-native-file-input:focus-visible {
+
+    outline:
+        2px solid
+        rgba(255, 48, 48, 0.75);
+
+    outline-offset:
+        -3px;
+}
+
+
+/* =========================================================
+   DROPZONE VISUAL CONTENT
+   ---------------------------------------------------------
+   Semua elemen visual tidak boleh menangkap klik.
+   Klik harus diteruskan ke native file input.
+========================================================= */
+
+.metadata-dropzone-icon,
+.metadata-dropzone-title,
+.metadata-dropzone-description,
+.metadata-dropzone-formats {
+
+    position:
+        relative;
+
+    z-index:
+        1;
+
+    pointer-events:
+        none;
+}
+
+
+/* =========================================================
+   DROPZONE HOVER
+========================================================= */
 
 .metadata-dropzone:hover {
 
@@ -476,6 +605,10 @@
 }
 
 
+/* =========================================================
+   DROPZONE DRAGOVER
+========================================================= */
+
 .metadata-dropzone.dragover {
 
     border-color:
@@ -489,6 +622,10 @@
         rgba(255, 0, 0, 0.08);
 }
 
+
+/* =========================================================
+   DROPZONE ICON
+========================================================= */
 
 .metadata-dropzone-icon {
 
@@ -532,6 +669,10 @@
 }
 
 
+/* =========================================================
+   DROPZONE TITLE
+========================================================= */
+
 .metadata-dropzone-title {
 
     margin:
@@ -547,6 +688,10 @@
         800;
 }
 
+
+/* =========================================================
+   DROPZONE DESCRIPTION
+========================================================= */
 
 .metadata-dropzone-description {
 
