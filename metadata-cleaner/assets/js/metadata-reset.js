@@ -24,6 +24,10 @@ import {
     elements
 } from "./metadata-dom.js";
 
+import {
+    revokeObjectURL
+} from "./metadata-file.js";
+
 
 import {
     clearOriginalPreview,
@@ -229,57 +233,6 @@ function resetApplication() {
     setPreviewStatus(
         "BELUM ADA MEDIA"
     );
-}
-
-
-/* =========================================================
-   OBJECT URL
-========================================================= */
-
-function revokeObjectURL(
-    url
-) {
-
-    if (
-        !url
-    ) {
-
-        return;
-    }
-
-
-    if (
-        typeof url !==
-        "string"
-    ) {
-
-        return;
-    }
-
-
-    if (
-        !url.startsWith(
-            "blob:"
-        )
-    ) {
-
-        return;
-    }
-
-
-    try {
-
-        URL.revokeObjectURL(
-            url
-        );
-
-    } catch (error) {
-
-        console.warn(
-            "[GEN-Z.AI] revokeObjectURL gagal:",
-            error
-        );
-    }
 }
 
 
