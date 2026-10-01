@@ -1,60 +1,78 @@
-// ========================================
-// GEN-Z.AI
-// SIGHTENGINE AI IMAGE DETECTION API
-// File: api/sightengine-detect.js
-// ========================================
-//
-// Fungsi:
-// - Menerima image dari Metadata Cleaner
-// - Mengirim image ke Sightengine
-// - Mengambil hasil AI-generated detection
-// - Mengembalikan hasil ter-normalisasi ke frontend
-//
-// SECURITY:
-// - SIGHTENGINE_API_USER hanya di server
-// - SIGHTENGINE_API_SECRET hanya di server
-// - Jangan pernah memasukkan credential ke frontend
-//
-// Request:
-// POST /api/sightengine-detect
-//
-// JSON:
-// {
-//     "image_base64": "...",
-//     "mime_type": "image/jpeg"
-// }
-//
-// Response:
-// {
-//     "success": true,
-//     "detection": {
-//         "ai_generated": 0.98,
-//         "is_ai_generated": true,
-//         "confidence": 98,
-//         "generators": []
-//     }
-// }
-// ========================================
+/* =========================================================
+   GEN-Z.AI
+   SIGHTENGINE AI IMAGE DETECTION API
+   ---------------------------------------------------------
+   File:
+   api/sightengine-detect.js
+
+   Fungsi:
+   - Menerima image dari Metadata Cleaner
+   - Mengirim image ke Sightengine
+   - Mengambil hasil AI-generated detection
+   - Mengambil per-generator detection
+   - Mengembalikan hasil ter-normalisasi ke frontend
+
+   SECURITY:
+   - SIGHTENGINE_API_USER hanya di server
+   - SIGHTENGINE_API_SECRET hanya di server
+   - Jangan pernah memasukkan credential ke frontend
+
+   Request:
+   POST /api/sightengine-detect
+
+   JSON:
+   {
+       "image_base64": "...",
+       "mime_type": "image/jpeg"
+   }
+
+   Response:
+   {
+       "success": true,
+       "provider": "sightengine",
+       "model": "genai",
+       "detection": {
+           "ai_generated": 0.98,
+           "confidence": 98,
+           "is_ai_generated": true,
+           "generators": [
+               {
+                   "name": "midjourney",
+                   "score": 0.91,
+                   "confidence": 91
+               }
+           ],
+           "detected_generator": {
+               "name": "midjourney",
+               "score": 0.91,
+               "confidence": 91
+           }
+       }
+   }
+========================================================= */
 
 
-// ========================================
-// CONFIG
-// ========================================
+/* =========================================================
+   CONFIG
+========================================================= */
 
 const SIGHTENGINE_ENDPOINT =
     "https://api.sightengine.com/1.0/check.json";
 
 
-// Maximum raw binary image size.
-// 15 MB cukup untuk detector image dan mencegah
-// payload frontend menjadi terlalu besar.
+/*
+   Maximum raw binary image size.
+
+   Backend tetap menjadi pengaman utama.
+*/
+
 const MAX_IMAGE_BYTES =
     15 * 1024 * 1024;
 
 
-// ========================================
-// JSON RESPONSE
-// ========================================
+/* =========================================================
+   JSON RESPONSE
+========================================================= */
 
 const json = (
     res,
@@ -69,9 +87,9 @@ const json = (
 };
 
 
-// ========================================
-// HEADER
-// ========================================
+/* =========================================================
+   HEADER
+========================================================= */
 
 const getHeader = (
     req,
@@ -80,6 +98,7 @@ const getHeader = (
 
     const headers =
         req.headers || {};
+
 
     return (
         headers[name] ||
@@ -90,9 +109,9 @@ const getHeader = (
 };
 
 
-// ========================================
-// PARSE BODY
-// ========================================
+/* =========================================================
+   PARSE BODY
+========================================================= */
 
 const parseBody = (
     req
@@ -133,9 +152,9 @@ const parseBody = (
 };
 
 
-// ========================================
-// NORMALIZE MIME
-// ========================================
+/* =========================================================
+   NORMALIZE MIME
+========================================================= */
 
 const normalizeMimeType = (
     value
@@ -151,9 +170,9 @@ const normalizeMimeType = (
 };
 
 
-// ========================================
-// SUPPORTED IMAGE TYPES
-// ========================================
+/* =========================================================
+   SUPPORTED IMAGE TYPES
+========================================================= */
 
 const SUPPORTED_IMAGE_TYPES =
     new Set([
@@ -169,9 +188,9 @@ const SUPPORTED_IMAGE_TYPES =
     ]);
 
 
-// ========================================
-// VALIDATE IMAGE MIME
-// ========================================
+/* =========================================================
+   VALIDATE IMAGE MIME
+========================================================= */
 
 const isSupportedImageType = (
     mimeType
@@ -186,13 +205,13 @@ const isSupportedImageType = (
 };
 
 
-// ========================================
-// BASE64 CLEANER
-// ========================================
+/* =========================================================
+   BASE64 CLEANER
+========================================================= */
 
 const normalizeBase64 = (
     value
-) => {
+) {
 
     if (
         typeof value !== "string"
@@ -207,14 +226,15 @@ const normalizeBase64 = (
         value.trim();
 
 
-    // Support both:
-    //
-    // data:image/jpeg;base64,AAAA...
-    //
-    // and:
-    //
-    // AAAA...
-    //
+    /*
+       Support:
+
+       data:image/jpeg;base64,...
+
+       maupun:
+
+       AAAA...
+    */
 
     if (
         base64.startsWith(
@@ -225,6 +245,7 @@ const normalizeBase64 = (
         const comma =
             base64.indexOf(",");
 
+
         if (
             comma === -1
         ) {
@@ -232,6 +253,7 @@ const normalizeBase64 = (
             return "";
 
         }
+
 
         base64 =
             base64.slice(
@@ -241,8 +263,9 @@ const normalizeBase64 = (
     }
 
 
-    // Remove accidental whitespace
-    // or line breaks.
+    /*
+       Remove accidental whitespace.
+    */
 
     base64 =
         base64.replace(
@@ -256,9 +279,9 @@ const normalizeBase64 = (
 };
 
 
-// ========================================
-// BASE64 VALIDATION
-// ========================================
+/* =========================================================
+   BASE64 VALIDATION
+========================================================= */
 
 const isValidBase64 = (
     value
@@ -274,7 +297,10 @@ const isValidBase64 = (
     }
 
 
-    // Base64 must have a valid length.
+    /*
+       Base64 normal memiliki panjang
+       kelipatan 4.
+    */
 
     if (
         value.length % 4 !== 0
@@ -293,9 +319,9 @@ const isValidBase64 = (
 };
 
 
-// ========================================
-// ESTIMATE DECODED SIZE
-// ========================================
+/* =========================================================
+   ESTIMATE DECODED SIZE
+========================================================= */
 
 const estimateBase64Bytes = (
     base64
@@ -325,9 +351,9 @@ const estimateBase64Bytes = (
 };
 
 
-// ========================================
-// READ ENVIRONMENT
-// ========================================
+/* =========================================================
+   READ ENVIRONMENT
+========================================================= */
 
 const getSightengineConfig = () => {
 
@@ -356,9 +382,9 @@ const getSightengineConfig = () => {
 };
 
 
-// ========================================
-// ERROR MESSAGE
-// ========================================
+/* =========================================================
+   ERROR MESSAGE
+========================================================= */
 
 const getRemoteErrorMessage = (
     data,
@@ -407,9 +433,9 @@ const getRemoteErrorMessage = (
 };
 
 
-// ========================================
-// NORMALIZE SCORE
-// ========================================
+/* =========================================================
+   NORMALIZE SCORE
+========================================================= */
 
 const normalizeScore = (
     value
@@ -441,9 +467,9 @@ const normalizeScore = (
 };
 
 
-// ========================================
-// PERCENTAGE
-// ========================================
+/* =========================================================
+   SCORE TO PERCENTAGE
+========================================================= */
 
 const scoreToPercentage = (
     score
@@ -465,9 +491,27 @@ const scoreToPercentage = (
 };
 
 
-// ========================================
-// GENERATOR SCORES
-// ========================================
+/* =========================================================
+   GENERATOR SCORES
+   ---------------------------------------------------------
+   Sightengine response:
+
+   type: {
+       ai_generated: 0.98,
+
+       ai_generators: {
+           dalle: 0.01,
+           firefly: 0.02,
+           flux: 0.03,
+           midjourney: 0.91,
+           ...
+       }
+   }
+
+   Jadi generator WAJIB dibaca dari:
+
+       type.ai_generators
+========================================================= */
 
 const extractGeneratorScores = (
     type
@@ -483,18 +527,23 @@ const extractGeneratorScores = (
     }
 
 
+    const generatorObject =
+        type.ai_generators;
+
+
+    if (
+        !generatorObject ||
+        typeof generatorObject !== "object" ||
+        Array.isArray(generatorObject)
+    ) {
+
+        return [];
+
+    }
+
+
     const generators = [];
 
-
-    // Sightengine can return multiple
-    // generator-specific scores.
-    //
-    // We intentionally ignore:
-    // - ai_generated
-    // because that is the global score.
-    //
-    // Every remaining numeric field
-    // is treated as a generator score.
 
     for (
         const [
@@ -502,12 +551,22 @@ const extractGeneratorScores = (
             rawScore
         ]
         of Object.entries(
-            type
+            generatorObject
         )
     ) {
 
+        /*
+           Generator name harus valid.
+        */
+
+        const generatorName =
+            String(
+                name || ""
+            ).trim();
+
+
         if (
-            name === "ai_generated"
+            !generatorName
         ) {
 
             continue;
@@ -532,7 +591,8 @@ const extractGeneratorScores = (
 
         generators.push({
 
-            name,
+            name:
+                generatorName,
 
             score,
 
@@ -545,6 +605,11 @@ const extractGeneratorScores = (
 
     }
 
+
+    /*
+       Generator dengan score tertinggi
+       ditempatkan di awal.
+    */
 
     generators.sort(
         (
@@ -561,9 +626,9 @@ const extractGeneratorScores = (
 };
 
 
-// ========================================
-// DETERMINE GENERATOR
-// ========================================
+/* =========================================================
+   DETERMINE GENERATOR
+========================================================= */
 
 const getDetectedGenerator = (
     generators
@@ -585,11 +650,26 @@ const getDetectedGenerator = (
         generators[0];
 
 
-    // Do not claim a generator when
-    // its score is extremely weak.
+    if (
+        !top
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+       Jangan menampilkan nama generator
+       jika confidence terlalu lemah.
+
+       Threshold ini hanya menentukan apakah
+       nama generator layak ditampilkan.
+       Score global ai_generated tetap menjadi
+       keputusan utama AI detection.
+    */
 
     if (
-        !top ||
         top.score < 0.5
     ) {
 
@@ -614,9 +694,9 @@ const getDetectedGenerator = (
 };
 
 
-// ========================================
-// SIGHTENGINE REQUEST
-// ========================================
+/* =========================================================
+   SIGHTENGINE REQUEST
+========================================================= */
 
 const detectWithSightengine = async (
     buffer,
@@ -624,9 +704,9 @@ const detectWithSightengine = async (
     config
 ) => {
 
-    // ------------------------------------
-    // BROWSER/VERCEL NODE SUPPORT
-    // ------------------------------------
+    /* =====================================================
+       RUNTIME CHECK
+    ===================================================== */
 
     if (
         typeof FormData === "undefined"
@@ -650,9 +730,9 @@ const detectWithSightengine = async (
     }
 
 
-    // ------------------------------------
-    // BUILD MULTIPART FORM
-    // ------------------------------------
+    /* =====================================================
+       BUILD MULTIPART FORM
+    ===================================================== */
 
     const form =
         new FormData();
@@ -701,9 +781,9 @@ const detectWithSightengine = async (
     );
 
 
-    // ------------------------------------
-    // REQUEST
-    // ------------------------------------
+    /* =====================================================
+       REQUEST
+    ===================================================== */
 
     const response =
         await fetch(
@@ -753,6 +833,10 @@ const detectWithSightengine = async (
     }
 
 
+    /* =====================================================
+       HTTP ERROR
+    ===================================================== */
+
     if (
         !response.ok
     ) {
@@ -766,6 +850,10 @@ const detectWithSightengine = async (
 
     }
 
+
+    /* =====================================================
+       RESPONSE VALIDATION
+    ===================================================== */
 
     if (
         !data ||
@@ -801,9 +889,9 @@ const detectWithSightengine = async (
 };
 
 
-// ========================================
-// MIME EXTENSION
-// ========================================
+/* =========================================================
+   MIME EXTENSION
+========================================================= */
 
 const getExtensionFromMime = (
     mimeType
@@ -842,9 +930,9 @@ const getExtensionFromMime = (
 };
 
 
-// ========================================
-// NORMALIZE RESPONSE
-// ========================================
+/* =========================================================
+   NORMALIZE RESPONSE
+========================================================= */
 
 const normalizeDetectionResponse = (
     data
@@ -857,11 +945,21 @@ const normalizeDetectionResponse = (
             : {};
 
 
+    /* =====================================================
+       GLOBAL AI SCORE
+    ===================================================== */
+
     const aiGenerated =
         normalizeScore(
             type.ai_generated
         );
 
+
+    /* =====================================================
+       PER-GENERATOR SCORES
+       -----------------------------------------------------
+       Dibaca dari type.ai_generators.
+    ===================================================== */
 
     const generators =
         extractGeneratorScores(
@@ -869,11 +967,19 @@ const normalizeDetectionResponse = (
         );
 
 
+    /* =====================================================
+       TOP GENERATOR
+    ===================================================== */
+
     const detectedGenerator =
         getDetectedGenerator(
             generators
         );
 
+
+    /* =====================================================
+       FINAL NORMALIZED RESULT
+    ===================================================== */
 
     return {
 
@@ -885,13 +991,13 @@ const normalizeDetectionResponse = (
                 aiGenerated
             ),
 
-        // General threshold.
-        //
-        // Sightengine scores are probabilities/
-        // confidence scores, not absolute proof.
-        //
-        // 0.5 is used as the detection boundary
-        // while preserving the raw score for the UI.
+        /*
+           0.5 digunakan sebagai boundary
+           untuk status UI.
+
+           Raw score tetap dikembalikan agar
+           pengguna dapat melihat nilai sebenarnya.
+        */
 
         is_ai_generated:
             aiGenerated !== null &&
@@ -907,28 +1013,30 @@ const normalizeDetectionResponse = (
 };
 
 
-// ========================================
-// MAIN HANDLER
-// ========================================
+/* =========================================================
+   MAIN HANDLER
+========================================================= */
 
 export default async function handler(
     req,
     res
 ) {
 
-    // ====================================
-    // CORS
-    // ====================================
+    /* =====================================================
+       CORS
+    ===================================================== */
 
     res.setHeader(
         "Access-Control-Allow-Origin",
         "*"
     );
 
+
     res.setHeader(
         "Access-Control-Allow-Headers",
         "Content-Type, Authorization"
     );
+
 
     res.setHeader(
         "Access-Control-Allow-Methods",
@@ -936,9 +1044,9 @@ export default async function handler(
     );
 
 
-    // ====================================
-    // OPTIONS
-    // ====================================
+    /* =====================================================
+       OPTIONS
+    ===================================================== */
 
     if (
         req.method === "OPTIONS"
@@ -951,9 +1059,9 @@ export default async function handler(
     }
 
 
-    // ====================================
-    // METHOD
-    // ====================================
+    /* =====================================================
+       METHOD
+    ===================================================== */
 
     if (
         req.method !== "POST"
@@ -964,7 +1072,8 @@ export default async function handler(
             405,
             {
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     "Method tidak diizinkan."
@@ -975,9 +1084,9 @@ export default async function handler(
     }
 
 
-    // ====================================
-    // CONFIG
-    // ====================================
+    /* =====================================================
+       CONFIG
+    ===================================================== */
 
     const config =
         getSightengineConfig();
@@ -993,7 +1102,8 @@ export default async function handler(
             500,
             {
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     "Sightengine belum dikonfigurasi di server. Pastikan SIGHTENGINE_API_USER dan SIGHTENGINE_API_SECRET tersedia."
@@ -1004,9 +1114,9 @@ export default async function handler(
     }
 
 
-    // ====================================
-    // BODY
-    // ====================================
+    /* =====================================================
+       BODY
+    ===================================================== */
 
     const body =
         parseBody(
@@ -1024,9 +1134,9 @@ export default async function handler(
         );
 
 
-    // ====================================
-    // VALIDATE IMAGE
-    // ====================================
+    /* =====================================================
+       VALIDATE BASE64
+    ===================================================== */
 
     if (
         typeof rawBase64 !== "string" ||
@@ -1038,7 +1148,8 @@ export default async function handler(
             400,
             {
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     "image_base64 wajib dikirim."
@@ -1049,9 +1160,9 @@ export default async function handler(
     }
 
 
-    // ====================================
-    // VALIDATE MIME
-    // ====================================
+    /* =====================================================
+       VALIDATE MIME
+    ===================================================== */
 
     if (
         !isSupportedImageType(
@@ -1064,7 +1175,8 @@ export default async function handler(
             400,
             {
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     "Tipe file tidak didukung. Sightengine endpoint ini hanya menerima image."
@@ -1075,15 +1187,19 @@ export default async function handler(
     }
 
 
-    // ====================================
-    // NORMALIZE BASE64
-    // ====================================
+    /* =====================================================
+       NORMALIZE BASE64
+    ===================================================== */
 
     const base64 =
         normalizeBase64(
             rawBase64
         );
 
+
+    /* =====================================================
+       VALIDATE BASE64 FORMAT
+    ===================================================== */
 
     if (
         !isValidBase64(
@@ -1096,7 +1212,8 @@ export default async function handler(
             400,
             {
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     "image_base64 tidak valid."
@@ -1107,9 +1224,9 @@ export default async function handler(
     }
 
 
-    // ====================================
-    // SIZE CHECK
-    // ====================================
+    /* =====================================================
+       SIZE CHECK
+    ===================================================== */
 
     const estimatedBytes =
         estimateBase64Bytes(
@@ -1126,7 +1243,8 @@ export default async function handler(
             400,
             {
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     "File image kosong atau tidak valid."
@@ -1147,7 +1265,8 @@ export default async function handler(
             413,
             {
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     "Ukuran image terlalu besar untuk AI Detection. Maksimum 15 MB."
@@ -1158,11 +1277,12 @@ export default async function handler(
     }
 
 
-    // ====================================
-    // DECODE
-    // ====================================
+    /* =====================================================
+       DECODE BASE64
+    ===================================================== */
 
     let buffer;
+
 
     try {
 
@@ -1179,12 +1299,14 @@ export default async function handler(
             error
         );
 
+
         return json(
             res,
             400,
             {
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     "Gagal membaca image."
@@ -1194,6 +1316,10 @@ export default async function handler(
 
     }
 
+
+    /* =====================================================
+       BUFFER VALIDATION
+    ===================================================== */
 
     if (
         !buffer ||
@@ -1205,7 +1331,8 @@ export default async function handler(
             400,
             {
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     "Image hasil decode kosong."
@@ -1226,7 +1353,8 @@ export default async function handler(
             413,
             {
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     "Ukuran image melebihi batas 15 MB."
@@ -1237,9 +1365,9 @@ export default async function handler(
     }
 
 
-    // ====================================
-    // DETECT
-    // ====================================
+    /* =====================================================
+       SIGHTENGINE DETECTION
+    ===================================================== */
 
     try {
 
@@ -1262,7 +1390,8 @@ export default async function handler(
             200,
             {
 
-                success: true,
+                success:
+                    true,
 
                 provider:
                     "sightengine",
@@ -1288,7 +1417,8 @@ export default async function handler(
             502,
             {
 
-                success: false,
+                success:
+                    false,
 
                 provider:
                     "sightengine",
