@@ -23,6 +23,13 @@
    - Native file input menutup seluruh dropzone
    - Input transparan tetapi tetap clickable
    - Tidak bergantung pada click handler JavaScript
+
+   DESKTOP LAYOUT LOCK:
+   - Upload / Preview tidak mendorong Check
+   - Preview memiliki batas tinggi dan scroll internal
+   - Metadata memiliki scroll internal
+   - Posisi awal Check tetap
+   - Desktop tidak menggunakan position: fixed
 ========================================================= */
 
 
@@ -2009,6 +2016,276 @@
 
     background:
         rgba(255, 48, 48, 0.42);
+}
+
+
+/* =========================================================
+   DESKTOP LAYOUT LOCK
+   ---------------------------------------------------------
+   Tujuan:
+   - Upload / Preview tetap di panel kiri
+   - Check / Metadata / Clean tetap di panel kanan
+   - Tinggi preview tidak mendorong posisi Check
+   - Metadata menggunakan scroll internal
+   - Preview menggunakan scroll internal jika diperlukan
+   - Tidak menggunakan position: fixed
+   - Tidak memengaruhi tablet / mobile
+========================================================= */
+
+@media (min-width: 981px) {
+
+    /* =====================================================
+       WORKSPACE
+    ===================================================== */
+
+    .metadata-workspace {
+
+        display:
+            grid;
+
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr);
+
+        align-items:
+            start;
+
+        gap:
+            20px;
+    }
+
+
+    /* =====================================================
+       PANEL LEFT / RIGHT
+       -----------------------------------------------------
+       Setiap panel berdiri sendiri.
+       Konten panel kiri tidak menentukan posisi
+       konten panel kanan.
+    ===================================================== */
+
+    .metadata-workspace > .metadata-panel {
+
+        align-self:
+            start;
+
+        min-width:
+            0;
+
+        min-height:
+            0;
+    }
+
+
+    /* =====================================================
+       PREVIEW
+       -----------------------------------------------------
+       Preview tidak boleh memperlebar grid.
+       Tingginya tetap berada di dalam area preview.
+    ===================================================== */
+
+    .metadata-preview-stage {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        min-height:
+            340px;
+
+        max-height:
+            560px;
+
+        overflow:
+            auto;
+
+        align-items:
+            center;
+
+        justify-content:
+            center;
+    }
+
+
+    .metadata-media-preview {
+
+        display:
+            block;
+
+        width:
+            auto;
+
+        max-width:
+            100%;
+
+        max-height:
+            540px;
+
+        object-fit:
+            contain;
+    }
+
+
+    /* =====================================================
+       CHECK PANEL
+       -----------------------------------------------------
+       Posisi awal Check mengikuti posisi panel kanan,
+       bukan tinggi preview di panel kiri.
+    ===================================================== */
+
+    .metadata-check-panel {
+
+        position:
+            relative;
+
+        display:
+            block;
+
+        width:
+            100%;
+
+        margin-top:
+            18px;
+
+        min-width:
+            0;
+
+        overflow:
+            visible;
+    }
+
+
+    /* =====================================================
+       ACTION ROW
+    ===================================================== */
+
+    .metadata-check-panel .metadata-action-row {
+
+        display:
+            flex;
+
+        align-items:
+            center;
+
+        justify-content:
+            flex-start;
+
+        width:
+            100%;
+
+        margin:
+            0;
+
+        padding:
+            0;
+
+        gap:
+            10px;
+
+        flex-wrap:
+            nowrap;
+    }
+
+
+    /* =====================================================
+       CHECK BUTTON
+    ===================================================== */
+
+    .metadata-check-panel .metadata-button {
+
+        flex:
+            0 0 auto;
+
+        white-space:
+            nowrap;
+    }
+
+
+    /* =====================================================
+       STATUS
+    ===================================================== */
+
+    .metadata-check-panel .metadata-status-box {
+
+        width:
+            100%;
+
+        margin:
+            16px 0 0;
+
+        min-width:
+            0;
+    }
+
+
+    /* =====================================================
+       METADATA TABLE
+       -----------------------------------------------------
+       Metadata boleh panjang.
+       Scroll terjadi di table wrapper.
+       Elemen di luar wrapper tidak ikut terdorong.
+    ===================================================== */
+
+    .metadata-table-wrap {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        max-height:
+            520px;
+
+        overflow:
+            auto;
+    }
+
+
+    .metadata-table {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+    }
+
+
+    /* =====================================================
+       CLEAN RESULT
+       -----------------------------------------------------
+       Clean result tetap berada setelah metadata.
+       Panjang metadata tidak mengubah posisi awal
+       panel kanan.
+    ===================================================== */
+
+    .metadata-clean-result {
+
+        width:
+            100%;
+
+        min-width:
+            0;
+    }
+
+
+    .metadata-clean-preview {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        overflow:
+            hidden;
+    }
+
 }
 
 
