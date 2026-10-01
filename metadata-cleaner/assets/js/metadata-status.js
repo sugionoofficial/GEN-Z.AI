@@ -79,37 +79,22 @@ export function renderDetectionResult() {
         sightengineDetected
     ) {
 
-        /*
-           IMPORTANT:
-
-           Stamp visual hanya milik
-           Sightengine visual detection.
-
-           Metadata lokal saja tidak boleh
-           membuat stamp seolah-olah berasal
-           dari Sightengine.
-        */
+        /* =================================================
+           SIGHTENGINE VISUAL DETECTION
+           -----------------------------------------------
+           Stamp hanya boleh muncul jika hasil Sightengine
+           benar-benar menyatakan is_ai_generated === true.
+        ================================================= */
 
         if (
             sightengineDetected
         ) {
 
-            showElement(
-                elements.aiOverlay
-            );
-
-
             renderOverlayStamp(
-                sightengine,
-                true
+                sightengine
             );
 
         } else {
-
-            hideElement(
-                elements.aiOverlay
-            );
-
 
             clearOverlayStamp();
 
@@ -180,7 +165,7 @@ export function renderDetectionResult() {
 
     /* =====================================================
        SIGHTENGINE SUDAH BERJALAN
-       -----------------------------------------------------
+       -----------------------------------------------
        Tidak terdeteksi sebagai AI.
     ===================================================== */
 
@@ -189,11 +174,6 @@ export function renderDetectionResult() {
         sightengine.ai_generated !== null &&
         sightengine.ai_generated !== undefined
     ) {
-
-        hideElement(
-            elements.aiOverlay
-        );
-
 
         clearOverlayStamp();
 
@@ -216,11 +196,6 @@ export function renderDetectionResult() {
        NO VISUAL RESULT
     ===================================================== */
 
-    hideElement(
-        elements.aiOverlay
-    );
-
-
     clearOverlayStamp();
 
 
@@ -236,111 +211,115 @@ export function renderDetectionResult() {
 /* =========================================================
    OVERLAY STAMP
    ---------------------------------------------------------
-   Struktur stamp menggunakan element yang sudah ada
-   di index.html.
+   Stamp visual berada langsung di atas preview media.
 
-   Tampilan:
+   Struktur HTML:
 
-       AI DETECTION
-       Model <hasil model Sightengine>
+       #metadata-ai-detect-overlay
+           .metadata-ai-detect-stamp
+               span
+                   AI DETECTION
 
-   Contoh jika API:
+   Ketika Sightengine mendeteksi AI:
 
-       model: "genai"
+       overlay.hidden = false
+       aria-hidden = false
 
-   maka:
+   Ketika tidak terdeteksi:
 
-       AI DETECTION
-       Model genai
+       overlay.hidden = true
+       aria-hidden = true
 
-   Jika API mengembalikan:
+   Model selalu berasal dari:
 
-       model: "genai-v2"
+       sightengine.model
 
-   maka:
-
-       AI DETECTION
-       Model genai-v2
-
-   Tidak ada fallback model.
-
-   Stamp hanya dipanggil ketika:
-       sightengineDetected === true
+   Tidak ada hardcode model.
 ========================================================= */
 
 function renderOverlayStamp(
-    sightengine,
-    sightengineDetected
+    sightengine
 ) {
 
     const overlay =
         elements.aiOverlay;
 
 
+    /* =====================================================
+       OVERLAY TIDAK ADA
+    ===================================================== */
+
     if (
         !overlay
     ) {
 
-        return;
-
-    }
-
-
-    /*
-       Jika bukan hasil deteksi Sightengine,
-       jangan tampilkan stamp.
-    */
-
-    if (
-        sightengineDetected !== true
-    ) {
-
-        clearOverlayStamp();
-
-
-        hideElement(
-            overlay
+        console.warn(
+            "[GEN-Z.AI] AI detection overlay element tidak ditemukan."
         );
 
-
         return;
 
     }
 
 
-    /*
-       Gunakan stamp yang SUDAH ada
-       di index.html.
+    /* =====================================================
+       PASTIKAN OVERLAY BENAR-BENAR TERLIHAT
+       -----------------------------------------------
+       Jangan hanya mengandalkan caller.
 
-       Tidak membuat struktur overlay utama baru.
-    */
+       Fungsi ini sendiri bertanggung jawab membuka
+       overlay ketika hasil Sightengine positif.
+    ===================================================== */
 
-    const stamp =
+    overlay.classList.remove(
+        "hidden"
+    );
+
+
+    overlay.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+
+    /* =====================================================
+       CARI STAMP
+    ===================================================== */
+
+    let stamp =
         overlay.querySelector(
             ".metadata-ai-detect-stamp"
         );
 
 
+    /* =====================================================
+       FALLBACK STRUCTURE
+       -----------------------------------------------
+       Jika markup stamp tidak ada, buat ulang bagian
+       stamp di dalam overlay.
+
+       Ini tidak membuat overlay utama baru.
+       Hanya menjaga UI tetap berfungsi apabila markup
+       stamp hilang atau berubah.
+    ===================================================== */
+
     if (
         !stamp
     ) {
 
-        return;
+        stamp =
+            document.createElement(
+                "div"
+            );
 
-    }
+
+        stamp.className =
+            "metadata-ai-detect-stamp";
 
 
-    const label =
-        stamp.querySelector(
-            "span"
+        overlay.appendChild(
+            stamp
         );
-
-
-    if (
-        !label
-    ) {
-
-        return;
 
     }
 
@@ -349,19 +328,46 @@ function renderOverlayStamp(
        LABEL UTAMA
     ===================================================== */
 
+    let label =
+        stamp.querySelector(
+            ":scope > span:first-child"
+        );
+
+
+    if (
+        !label
+    ) {
+
+        label =
+            document.createElement(
+                "span"
+            );
+
+
+        stamp.insertBefore(
+            label,
+            stamp.firstChild
+        );
+
+    }
+
+
     label.textContent =
         "AI DETECTION";
 
 
     /* =====================================================
        MODEL RESULT
-       -----------------------------------------------------
-       Hanya tampil jika Sightengine benar-benar
-       mendeteksi AI.
+       -----------------------------------------------
+       Model diambil langsung dari Sightengine.
 
-       Nilai model diambil langsung dari:
+       Contoh:
 
-           sightengine.model
+       genai
+       genai-v2
+       some-other-model
+
+       Tidak ada fallback.
     ===================================================== */
 
     renderOverlayModel(
@@ -369,26 +375,35 @@ function renderOverlayStamp(
         sightengine?.model
     );
 
+
+    /* =====================================================
+       FINAL VISIBILITY LOCK
+       -----------------------------------------------
+       Pastikan browser menerima overlay sebagai element
+       yang aktif setelah seluruh DOM selesai diperbarui.
+    ===================================================== */
+
+    overlay.hidden =
+        false;
+
+
+    overlay.style.visibility =
+        "visible";
+
+    overlay.style.opacity =
+        "1";
+
 }
 
 
 /* =========================================================
    OVERLAY MODEL LABEL
    ---------------------------------------------------------
-   MODEL TIDAK DI-HARDCODE.
+   Model TIDAK di-hardcode.
 
-   Nilai yang tampil berasal langsung dari:
+   Nilai berasal langsung dari:
 
        sightengine.model
-
-   Tidak ada:
-       fallback "genai"
-
-   Tidak ada:
-       pemilihan model berdasarkan generator
-
-   Tidak ada:
-       tebakan model.
 ========================================================= */
 
 function renderOverlayModel(
@@ -407,8 +422,6 @@ function renderOverlayModel(
 
     /* =====================================================
        HAPUS MODEL LAMA
-       -----------------------------------------------------
-       Penting ketika user mengganti image.
     ===================================================== */
 
     const existing =
@@ -427,7 +440,7 @@ function renderOverlayModel(
 
 
     /* =====================================================
-       MODEL HARUS BERASAL DARI RESULT
+       MODEL TIDAK TERSEDIA
     ===================================================== */
 
     if (
@@ -445,11 +458,6 @@ function renderOverlayModel(
             model
         ).trim();
 
-
-    /*
-       Jangan tampilkan baris model jika
-       Sightengine tidak memberikan nilai model.
-    */
 
     if (
         !modelValue
@@ -474,27 +482,13 @@ function renderOverlayModel(
         "metadata-ai-detect-model";
 
 
-    /*
-       Pertahankan nilai model dari API.
-
-       Contoh:
-
-       model = "genai"
-       -> Model genai
-
-       model = "genai-v2"
-       -> Model genai-v2
-
-       model = "some-other-model"
-       -> Model some-other-model
-    */
-
     modelLabel.textContent =
         `Model ${modelValue}`;
 
 
     stamp.appendChild(
         modelLabel
+
     );
 
 }
@@ -502,6 +496,14 @@ function renderOverlayModel(
 
 /* =========================================================
    CLEAR OVERLAY STAMP
+   ---------------------------------------------------------
+   Digunakan ketika:
+
+   - file baru dipilih
+   - Sightengine tidak mendeteksi AI
+   - Sightengine gagal
+   - belum ada hasil detection
+   - hanya metadata AI yang ditemukan
 ========================================================= */
 
 function clearOverlayStamp() {
@@ -519,9 +521,39 @@ function clearOverlayStamp() {
     }
 
 
+    /* =====================================================
+       HIDE OVERLAY
+    ===================================================== */
+
+    overlay.classList.add(
+        "hidden"
+    );
+
+
+    overlay.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+
+    overlay.hidden =
+        true;
+
+
+    overlay.style.visibility =
+        "hidden";
+
+    overlay.style.opacity =
+        "0";
+
+
+    /* =====================================================
+       RESET MAIN LABEL
+    ===================================================== */
+
     const label =
         overlay.querySelector(
-            ".metadata-ai-detect-stamp span"
+            ".metadata-ai-detect-stamp > span:first-child"
         );
 
 
@@ -534,6 +566,10 @@ function clearOverlayStamp() {
 
     }
 
+
+    /* =====================================================
+       REMOVE MODEL LABEL
+    ===================================================== */
 
     const model =
         overlay.querySelector(
