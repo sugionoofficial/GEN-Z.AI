@@ -10,7 +10,7 @@
    - Menyimpan metadata lokal
    - Menyimpan hasil Sightengine
    - Menyimpan Face Manipulation / Deepfake
-   - Menyimpan hasil Content Provenance / C2PA
+   - Menyimpan Content Provenance / C2PA
    - Menyimpan file aktif
    - Menyimpan preview state
    - Menyimpan status cleaning
@@ -91,99 +91,29 @@ const metadataState = {
 
     /* -----------------------------------------------------
        CONTENT PROVENANCE
-       --------------------------------------------------
-       Menyimpan hasil pemeriksaan provenance lokal.
+       -----------------------------------------------------
+       Menyimpan hasil pemeriksaan provenance seperti:
+
+       - C2PA
+       - Content Credentials
+       - digitalSourceType
+       - AI disclosure
+       - verification status
 
        Catatan:
-       - detected != verified
-       - VERIFIED hanya boleh digunakan apabila
-         proses verifikasi cryptographic benar-benar
-         dilakukan oleh module verifier.
-       - State ini tidak melakukan parsing / verification
-         sendiri.
+       Object ini hanya menyimpan hasil pemeriksaan.
+
+       Verifikasi cryptographic tidak dilakukan oleh
+       metadata-state.js.
     ----------------------------------------------------- */
 
-    provenance: {
-
-        checked:
-            false,
-
-        supported:
-            false,
-
-        format:
-            "unknown",
-
-        detected:
-            false,
-
-        status:
-            "NOT_DETECTED",
-
-        verified:
-            false,
-
-        verificationStatus:
-            "NOT_VERIFIED",
-
-
-        /* -----------------------------------------------
-           C2PA
-        ----------------------------------------------- */
-
-        c2pa: {
-
-            detected:
-                false,
-
-            verified:
-                false,
-
-            manifestCount:
-                0
-
-        },
-
-
-        /* -----------------------------------------------
-           CONTENT CREDENTIALS
-        ----------------------------------------------- */
-
-        contentCredentials: {
-
-            detected:
-                false,
-
-            verified:
-                false
-
-        },
-
-
-        /* -----------------------------------------------
-           FINDINGS
-        ----------------------------------------------- */
-
-        findings:
-            [],
-
-
-        /* -----------------------------------------------
-           OPTIONAL PROVENANCE DATA
-        ----------------------------------------------- */
-
-        digitalSourceType:
-            null,
-
-        aiDisclosure:
-            null
-
-    },
+    provenance:
+        null,
 
 
     /* -----------------------------------------------------
        SIGHTENGINE
-       --------------------------------------------------
+       -----------------------------------------------------
        Semua hasil dari backend disimpan dalam normalized
        object agar module UI tidak perlu mengetahui bentuk
        response API mentah.
@@ -397,95 +327,6 @@ const metadataState = {
 
 
 /* =========================================================
-   DEFAULT PROVENANCE OBJECT FACTORY
-   ---------------------------------------------------------
-   Selalu membuat object baru agar array / object tidak
-   berbagi reference ketika state di-reset.
-========================================================= */
-
-export function createEmptyProvenance() {
-
-    return {
-
-        checked:
-            false,
-
-        supported:
-            false,
-
-        format:
-            "unknown",
-
-        detected:
-            false,
-
-        status:
-            "NOT_DETECTED",
-
-        verified:
-            false,
-
-        verificationStatus:
-            "NOT_VERIFIED",
-
-
-        /* -----------------------------------------------
-           C2PA
-        ----------------------------------------------- */
-
-        c2pa: {
-
-            detected:
-                false,
-
-            verified:
-                false,
-
-            manifestCount:
-                0
-
-        },
-
-
-        /* -----------------------------------------------
-           CONTENT CREDENTIALS
-        ----------------------------------------------- */
-
-        contentCredentials: {
-
-            detected:
-                false,
-
-            verified:
-                false
-
-        },
-
-
-        /* -----------------------------------------------
-           FINDINGS
-        ----------------------------------------------- */
-
-        findings:
-            [],
-
-
-        /* -----------------------------------------------
-           OPTIONAL PROVENANCE DATA
-        ----------------------------------------------- */
-
-        digitalSourceType:
-            null,
-
-        aiDisclosure:
-            null
-
-    };
-
-}
-
-
-/* =========================================================
    DEFAULT SIGHTENGINE OBJECT FACTORY
    ---------------------------------------------------------
    Selalu membuat object baru agar array / object tidak
@@ -597,6 +438,314 @@ export function createEmptySightengineDetection() {
 
 
 /* =========================================================
+   DEFAULT PROVENANCE OBJECT FACTORY
+   ---------------------------------------------------------
+   Membuat object provenance baru agar tidak berbagi
+   reference ketika state di-reset.
+========================================================= */
+
+export function createEmptyProvenance() {
+
+    return {
+
+        checked:
+            false,
+
+        supported:
+            false,
+
+        format:
+            "unknown",
+
+        detected:
+            false,
+
+        status:
+            "NOT_DETECTED",
+
+        verified:
+            false,
+
+        verificationStatus:
+            "NOT_VERIFIED",
+
+
+        /* -----------------------------------------------
+           C2PA
+        ----------------------------------------------- */
+
+        c2pa: {
+
+            detected:
+                false,
+
+            verified:
+                false,
+
+            manifestCount:
+                0
+
+        },
+
+
+        /* -----------------------------------------------
+           CONTENT CREDENTIALS
+        ----------------------------------------------- */
+
+        contentCredentials: {
+
+            detected:
+                false,
+
+            verified:
+                false
+
+        },
+
+
+        /* -----------------------------------------------
+           FINDINGS
+        ----------------------------------------------- */
+
+        findings:
+            [],
+
+
+        /* -----------------------------------------------
+           SOURCE INFORMATION
+        ----------------------------------------------- */
+
+        digitalSourceType:
+            null,
+
+        aiDisclosure:
+            null
+
+    };
+
+}
+
+
+/* =========================================================
+   PROVENANCE NORMALIZER
+   ---------------------------------------------------------
+   Menjaga agar module UI selalu menerima bentuk object
+   yang konsisten walaupun inspector mengembalikan field
+   yang tidak lengkap.
+========================================================= */
+
+function normalizeProvenance(
+    provenance = null
+) {
+
+    if (
+        !provenance ||
+        typeof provenance !== "object"
+    ) {
+
+        return createEmptyProvenance();
+
+    }
+
+
+    const normalized =
+        createEmptyProvenance();
+
+
+    /* -----------------------------------------------------
+       BASIC
+    ----------------------------------------------------- */
+
+    normalized.checked =
+        provenance.checked === true;
+
+    normalized.supported =
+        provenance.supported === true;
+
+    normalized.format =
+        provenance.format ??
+        "unknown";
+
+    normalized.detected =
+        provenance.detected === true;
+
+    normalized.status =
+        provenance.status ??
+        (
+            normalized.detected
+                ? "DETECTED"
+                : "NOT_DETECTED"
+        );
+
+    normalized.verified =
+        provenance.verified === true;
+
+    normalized.verificationStatus =
+        provenance.verificationStatus ??
+        (
+            normalized.verified
+                ? "VERIFIED"
+                : "NOT_VERIFIED"
+        );
+
+
+    /* -----------------------------------------------------
+       C2PA
+    ----------------------------------------------------- */
+
+    if (
+        provenance.c2pa &&
+        typeof provenance.c2pa === "object"
+    ) {
+
+        normalized.c2pa = {
+
+            detected:
+                provenance.c2pa.detected === true,
+
+            verified:
+                provenance.c2pa.verified === true,
+
+            manifestCount:
+                Number.isFinite(
+                    Number(
+                        provenance.c2pa.manifestCount
+                    )
+                )
+                    ? Number(
+                        provenance.c2pa.manifestCount
+                    )
+                    : 0
+
+        };
+
+    }
+
+
+    /* -----------------------------------------------------
+       CONTENT CREDENTIALS
+    ----------------------------------------------------- */
+
+    if (
+        provenance.contentCredentials &&
+        typeof provenance.contentCredentials === "object"
+    ) {
+
+        normalized.contentCredentials = {
+
+            detected:
+                provenance.contentCredentials.detected === true,
+
+            verified:
+                provenance.contentCredentials.verified === true
+
+        };
+
+    }
+
+
+    /* -----------------------------------------------------
+       FINDINGS
+    ----------------------------------------------------- */
+
+    normalized.findings =
+        Array.isArray(
+            provenance.findings
+        )
+            ? provenance.findings.map(
+                finding => {
+
+                    if (
+                        finding === null ||
+                        finding === undefined
+                    ) {
+
+                        return "";
+
+                    }
+
+
+                    if (
+                        typeof finding === "string"
+                    ) {
+
+                        return finding;
+
+                    }
+
+
+                    if (
+                        typeof finding === "number" ||
+                        typeof finding === "boolean"
+                    ) {
+
+                        return String(
+                            finding
+                        );
+
+                    }
+
+
+                    /*
+                     * Jangan simpan object mentah sebagai
+                     * string "[object Object]".
+                     *
+                     * UI dapat memilih field yang relevan
+                     * jika diperlukan.
+                     */
+
+                    if (
+                        typeof finding === "object"
+                    ) {
+
+                        try {
+
+                            return JSON.stringify(
+                                finding
+                            );
+
+                        } catch {
+
+                            return "";
+
+                        }
+
+                    }
+
+
+                    return "";
+
+                }
+            ).filter(
+                Boolean
+            )
+            : [];
+
+
+    /* -----------------------------------------------------
+       DIGITAL SOURCE TYPE
+    ----------------------------------------------------- */
+
+    normalized.digitalSourceType =
+        provenance.digitalSourceType ??
+        null;
+
+
+    /* -----------------------------------------------------
+       AI DISCLOSURE
+    ----------------------------------------------------- */
+
+    normalized.aiDisclosure =
+        provenance.aiDisclosure ??
+        null;
+
+
+    return normalized;
+
+}
+
+
+/* =========================================================
    STATE ACCESS
 ========================================================= */
 
@@ -638,13 +787,6 @@ export function setMetadataState(
 
 /* =========================================================
    PROVENANCE STATE UPDATE
-   ---------------------------------------------------------
-   Menyimpan hasil pemeriksaan provenance yang sudah
-   dinormalisasi oleh metadata-provenance.js.
-
-   Tidak melakukan parsing.
-   Tidak melakukan verification.
-   Tidak melakukan API request.
 ========================================================= */
 
 export function setProvenance(
@@ -668,148 +810,14 @@ export function setProvenance(
     }
 
 
-    metadataState.provenance = {
+    /* -----------------------------------------------------
+       NORMALIZED PROVENANCE
+    ----------------------------------------------------- */
 
-        checked:
-            provenance.checked === true,
-
-        supported:
-            provenance.supported === true,
-
-        format:
-            provenance.format ??
-            "unknown",
-
-        detected:
-            provenance.detected === true,
-
-        status:
-            provenance.status ??
-            "NOT_DETECTED",
-
-        verified:
-            provenance.verified === true,
-
-        verificationStatus:
-            provenance.verificationStatus ??
-            "NOT_VERIFIED",
-
-
-        /* -----------------------------------------------
-           C2PA
-        ----------------------------------------------- */
-
-        c2pa:
-            provenance.c2pa
-                ? {
-
-                    detected:
-                        provenance.c2pa.detected === true,
-
-                    verified:
-                        provenance.c2pa.verified === true,
-
-                    manifestCount:
-                        Number.isFinite(
-                            Number(
-                                provenance.c2pa.manifestCount
-                            )
-                        )
-                            ? Math.max(
-                                0,
-                                Number(
-                                    provenance.c2pa.manifestCount
-                                )
-                            )
-                            : 0
-
-                }
-                : {
-
-                    detected:
-                        false,
-
-                    verified:
-                        false,
-
-                    manifestCount:
-                        0
-
-                },
-
-
-        /* -----------------------------------------------
-           CONTENT CREDENTIALS
-        ----------------------------------------------- */
-
-        contentCredentials:
-            provenance.contentCredentials
-                ? {
-
-                    detected:
-                        provenance
-                            .contentCredentials
-                            .detected === true,
-
-                    verified:
-                        provenance
-                            .contentCredentials
-                            .verified === true
-
-                }
-                : {
-
-                    detected:
-                        false,
-
-                    verified:
-                        false
-
-                },
-
-
-        /* -----------------------------------------------
-           FINDINGS
-        ----------------------------------------------- */
-
-        findings:
-            Array.isArray(
-                provenance.findings
-            )
-                ? provenance.findings.map(
-                    finding => {
-
-                        if (
-                            finding &&
-                            typeof finding === "object"
-                        ) {
-
-                            return {
-                                ...finding
-                            };
-
-                        }
-
-                        return finding;
-
-                    }
-                )
-                : [],
-
-
-        /* -----------------------------------------------
-           OPTIONAL PROVENANCE DATA
-        ----------------------------------------------- */
-
-        digitalSourceType:
-            provenance.digitalSourceType ??
-            null,
-
-        aiDisclosure:
-            provenance.aiDisclosure ??
-            null
-
-    };
+    metadataState.provenance =
+        normalizeProvenance(
+            provenance
+        );
 
 
     return metadataState.provenance;
@@ -929,18 +937,35 @@ export function setSightengineDetection(
                 detection.generators
             )
                 ? detection.generators.map(
-                    generator => ({
-                        ...generator
-                    })
+                    generator => {
+
+                        if (
+                            generator &&
+                            typeof generator === "object"
+                        ) {
+
+                            return {
+                                ...generator
+                            };
+
+                        }
+
+                        return generator;
+
+                    }
                 )
                 : [],
 
 
         detected_generator:
             detection.detected_generator
-                ? {
-                    ...detection.detected_generator
-                }
+                ? (
+                    typeof detection.detected_generator === "object"
+                        ? {
+                            ...detection.detected_generator
+                        }
+                        : detection.detected_generator
+                )
                 : null,
 
 
@@ -1436,7 +1461,11 @@ export function resetMetadataState() {
 
 
     /* -----------------------------------------------------
-       PROVENANCE
+       CONTENT PROVENANCE
+    -----------------------------------------------------
+       Sangat penting:
+       provenance file sebelumnya tidak boleh ikut muncul
+       ketika user memilih file baru.
     ----------------------------------------------------- */
 
     metadataState.provenance =
