@@ -25,11 +25,12 @@
    - Tidak bergantung pada click handler JavaScript
 
    DESKTOP LAYOUT LOCK:
-   - Upload / Preview tidak mendorong Check
-   - Preview memiliki batas tinggi dan scroll internal
-   - Metadata memiliki scroll internal
-   - Posisi awal Check tetap
-   - Desktop tidak menggunakan position: fixed
+   - KIRI  : Upload / Check / Clean Metadata
+   - KANAN : Preview / Metadata
+   - Setiap kolom memiliki alur vertikal independen
+   - Preview tidak mendorong Check
+   - Metadata tidak mendorong Clean Metadata
+   - Tidak menggunakan position: fixed
 ========================================================= */
 
 
@@ -313,6 +314,24 @@
 
 /* =========================================================
    WORKSPACE
+   ---------------------------------------------------------
+   PENTING:
+   Desktop TIDAK lagi menggunakan grid dua kolom biasa.
+
+   Grid biasa membuat:
+       Upload | Preview
+       Check  | Metadata
+       Clean  | ...
+
+   Tinggi Preview akan memengaruhi baris Upload/Preview,
+   sehingga Check ikut terdorong.
+
+   Desktop sekarang memakai FLOAT INDEPENDEN:
+       KIRI  : Upload -> Check -> Clean
+       KANAN : Preview -> Metadata
+
+   Karena masing-masing panel di-clear pada kolomnya,
+   kedua alur vertikal tidak saling menentukan tinggi.
 ========================================================= */
 
 .metadata-workspace {
@@ -326,18 +345,33 @@
     margin:
         0 auto;
 
+    position:
+        relative;
+
     display:
-        grid;
+        block;
 
-    grid-template-columns:
-        minmax(0, 1fr)
-        minmax(0, 1fr);
+    min-width:
+        0;
+}
 
-    gap:
-        20px;
 
-    align-items:
-        start;
+/* =========================================================
+   CLEARFIX WORKSPACE
+   ---------------------------------------------------------
+   Wajib karena desktop menggunakan float.
+========================================================= */
+
+.metadata-workspace::after {
+
+    content:
+        "";
+
+    display:
+        table;
+
+    clear:
+        both;
 }
 
 
@@ -427,9 +461,6 @@
 
 /* =========================================================
    DROPZONE
-   ---------------------------------------------------------
-   Native file input berada DI ATAS seluruh dropzone.
-   Input transparan, tetapi tetap menerima klik.
 ========================================================= */
 
 .metadata-dropzone {
@@ -486,13 +517,6 @@
 
 /* =========================================================
    NATIVE FILE INPUT
-   ---------------------------------------------------------
-   Jangan menggunakan:
-       display:none
-   Jangan menggunakan:
-       visibility:hidden
-
-   Input harus tetap berada di DOM dan menerima klik.
 ========================================================= */
 
 .metadata-native-file-input {
@@ -574,9 +598,6 @@
 
 /* =========================================================
    DROPZONE VISUAL CONTENT
-   ---------------------------------------------------------
-   Semua elemen visual tidak boleh menangkap klik.
-   Klik harus diteruskan ke native file input.
 ========================================================= */
 
 .metadata-dropzone-icon,
@@ -1116,17 +1137,6 @@
 
 /* =========================================================
    CHECK PANEL
-   ---------------------------------------------------------
-   STRUKTUR HTML AKTUAL:
-
-   .metadata-check-panel
-       ├── .metadata-action-row
-       │      └── #metadata-check-button
-       │
-       └── .metadata-status-box
-
-   Keduanya HARUS berada dalam satu alur vertikal.
-   Jangan gunakan grid dua kolom di sini.
 ========================================================= */
 
 .metadata-check-panel {
@@ -1376,9 +1386,6 @@
 
 /* =========================================================
    AI DETECT OVERLAY
-   ---------------------------------------------------------
-   Overlay MUTLAK hanya berada di preview stage.
-   Tidak boleh menjadi layer global.
 ========================================================= */
 
 .metadata-ai-detect-overlay {
@@ -2020,16 +2027,36 @@
 
 
 /* =========================================================
-   DESKTOP LAYOUT LOCK
+   DESKTOP INDEPENDENT COLUMN LOCK
    ---------------------------------------------------------
-   Tujuan:
-   - Upload / Preview tetap di panel kiri
-   - Check / Metadata / Clean tetap di panel kanan
-   - Tinggi preview tidak mendorong posisi Check
-   - Metadata menggunakan scroll internal
-   - Preview menggunakan scroll internal jika diperlukan
-   - Tidak menggunakan position: fixed
-   - Tidak memengaruhi tablet / mobile
+   HTML AKTUAL:
+
+   1. .metadata-upload-panel
+   2. .metadata-preview-panel
+   3. .metadata-check-panel
+   4. .metadata-data-panel
+   5. .metadata-clean-panel
+
+   DOM tidak diubah.
+
+   Kita membentuk dua kolom independen menggunakan float:
+
+   KIRI:
+       Upload
+       Check
+       Clean
+
+   KANAN:
+       Preview
+       Metadata
+
+   Dengan clear:left / clear:right:
+   - Check hanya menunggu panel kiri
+   - Clean hanya menunggu panel kiri
+   - Metadata hanya menunggu panel kanan
+
+   Ini memutus hubungan tinggi antar baris yang terjadi
+   pada CSS Grid sebelumnya.
 ========================================================= */
 
 @media (min-width: 981px) {
@@ -2041,49 +2068,223 @@
     .metadata-workspace {
 
         display:
-            grid;
+            block;
 
-        grid-template-columns:
-            minmax(0, 1fr)
-            minmax(0, 1fr);
+        width:
+            100%;
 
-        align-items:
-            start;
+        max-width:
+            1280px;
 
-        gap:
-            20px;
+        margin:
+            0 auto;
+
+        position:
+            relative;
+
+        min-width:
+            0;
     }
 
 
     /* =====================================================
-       PANEL LEFT / RIGHT
-       -----------------------------------------------------
-       Setiap panel berdiri sendiri.
-       Konten panel kiri tidak menentukan posisi
-       konten panel kanan.
+       GLOBAL PANEL DESKTOP
     ===================================================== */
 
     .metadata-workspace > .metadata-panel {
 
-        align-self:
-            start;
+        position:
+            relative;
 
         min-width:
             0;
 
-        min-height:
+        max-width:
+            none;
+
+        align-self:
+            auto;
+    }
+
+
+    /* =====================================================
+       LEFT COLUMN
+       -----------------------------------------------------
+       UPLOAD
+    ===================================================== */
+
+    .metadata-workspace > .metadata-upload-panel {
+
+        float:
+            left;
+
+        clear:
+            left;
+
+        width:
+            calc(50% - 10px);
+
+        margin:
+            0 0 20px;
+
+        min-width:
             0;
     }
 
 
     /* =====================================================
-       PREVIEW
+       RIGHT COLUMN
        -----------------------------------------------------
-       Preview tidak boleh memperlebar grid.
-       Tingginya tetap berada di dalam area preview.
+       PREVIEW
+    ===================================================== */
+
+    .metadata-workspace > .metadata-preview-panel {
+
+        float:
+            right;
+
+        clear:
+            right;
+
+        width:
+            calc(50% - 10px);
+
+        margin:
+            0 0 20px;
+
+        min-width:
+            0;
+    }
+
+
+    /* =====================================================
+       LEFT COLUMN
+       -----------------------------------------------------
+       CHECK
+
+       clear:left berarti Check TIDAK akan dipengaruhi
+       tinggi Preview di sebelah kanan.
+    ===================================================== */
+
+    .metadata-workspace > .metadata-check-panel {
+
+        float:
+            left;
+
+        clear:
+            left;
+
+        width:
+            calc(50% - 10px);
+
+        margin:
+            0 0 20px;
+
+        min-width:
+            0;
+
+        position:
+            relative;
+
+        z-index:
+            20;
+
+        display:
+            block;
+
+        overflow:
+            visible;
+    }
+
+
+    /* =====================================================
+       RIGHT COLUMN
+       -----------------------------------------------------
+       METADATA
+
+       clear:right berarti Metadata hanya mengikuti
+       Preview di kolom kanan.
+    ===================================================== */
+
+    .metadata-workspace > .metadata-data-panel {
+
+        float:
+            right;
+
+        clear:
+            right;
+
+        width:
+            calc(50% - 10px);
+
+        margin:
+            0 0 20px;
+
+        min-width:
+            0;
+
+        position:
+            relative;
+
+        z-index:
+            5;
+    }
+
+
+    /* =====================================================
+       LEFT COLUMN
+       -----------------------------------------------------
+       CLEAN METADATA
+
+       Clean hanya mengikuti tinggi Upload + Check.
+       Metadata kanan tidak dapat mendorongnya.
+    ===================================================== */
+
+    .metadata-workspace > .metadata-clean-panel {
+
+        float:
+            left;
+
+        clear:
+            left;
+
+        width:
+            calc(50% - 10px);
+
+        margin:
+            0;
+
+        min-width:
+            0;
+
+        position:
+            relative;
+
+        z-index:
+            10;
+    }
+
+
+    /* =====================================================
+       PREVIEW STAGE
     ===================================================== */
 
     .metadata-preview-stage {
+
+        position:
+            relative;
+
+        z-index:
+            0;
+
+        display:
+            flex;
+
+        align-items:
+            center;
+
+        justify-content:
+            center;
 
         width:
             100%;
@@ -2100,16 +2301,17 @@
         max-height:
             560px;
 
+        padding:
+            10px;
+
         overflow:
             auto;
-
-        align-items:
-            center;
-
-        justify-content:
-            center;
     }
 
+
+    /* =====================================================
+       PREVIEW MEDIA
+    ===================================================== */
 
     .metadata-media-preview {
 
@@ -2131,39 +2333,36 @@
 
 
     /* =====================================================
-       CHECK PANEL
-       -----------------------------------------------------
-       Posisi awal Check mengikuti posisi panel kanan,
-       bukan tinggi preview di panel kiri.
+       PREVIEW STATUS
     ===================================================== */
 
-    .metadata-check-panel {
-
-        position:
-            relative;
-
-        display:
-            block;
+    .metadata-preview-status {
 
         width:
             100%;
 
+        max-width:
+            100%;
+
         margin-top:
-            18px;
+            10px;
 
-        min-width:
+        margin-bottom:
             0;
-
-        overflow:
-            visible;
     }
 
 
     /* =====================================================
-       ACTION ROW
+       CHECK ACTION ROW
     ===================================================== */
 
     .metadata-check-panel .metadata-action-row {
+
+        position:
+            relative;
+
+        z-index:
+            21;
 
         display:
             flex;
@@ -2188,6 +2387,9 @@
 
         flex-wrap:
             nowrap;
+
+        clear:
+            both;
     }
 
 
@@ -2196,6 +2398,12 @@
     ===================================================== */
 
     .metadata-check-panel .metadata-button {
+
+        position:
+            relative;
+
+        z-index:
+            22;
 
         flex:
             0 0 auto;
@@ -2206,28 +2414,40 @@
 
 
     /* =====================================================
-       STATUS
+       CHECK STATUS
     ===================================================== */
 
     .metadata-check-panel .metadata-status-box {
 
+        position:
+            relative;
+
+        z-index:
+            1;
+
+        display:
+            block;
+
         width:
             100%;
+
+        min-width:
+            0;
 
         margin:
             16px 0 0;
 
-        min-width:
-            0;
+        clear:
+            both;
     }
 
 
     /* =====================================================
        METADATA TABLE
        -----------------------------------------------------
-       Metadata boleh panjang.
-       Scroll terjadi di table wrapper.
-       Elemen di luar wrapper tidak ikut terdorong.
+       Metadata panjang tetap scroll di dalam wrapper.
+       Panel kanan boleh tinggi, tetapi tidak memengaruhi
+       alur panel kiri.
     ===================================================== */
 
     .metadata-table-wrap {
@@ -2240,6 +2460,9 @@
 
         max-height:
             520px;
+
+        margin-top:
+            14px;
 
         overflow:
             auto;
@@ -2257,12 +2480,15 @@
 
 
     /* =====================================================
-       CLEAN RESULT
-       -----------------------------------------------------
-       Clean result tetap berada setelah metadata.
-       Panjang metadata tidak mengubah posisi awal
-       panel kanan.
+       CLEAN PANEL
     ===================================================== */
+
+    .metadata-clean-panel {
+
+        min-width:
+            0;
+    }
+
 
     .metadata-clean-result {
 
@@ -2271,6 +2497,9 @@
 
         min-width:
             0;
+
+        max-width:
+            100%;
     }
 
 
@@ -2286,22 +2515,98 @@
             hidden;
     }
 
+
+    /* =====================================================
+       FINAL FLOAT CLEAR
+       -----------------------------------------------------
+       Memastikan workspace menghitung seluruh tinggi dari
+       kedua kolom.
+    ===================================================== */
+
+    .metadata-workspace::after {
+
+        content:
+            "";
+
+        display:
+            table;
+
+        clear:
+            both;
+    }
+
 }
 
 
 /* =========================================================
    TABLET
+   ---------------------------------------------------------
+   Mulai <=980px:
+   - Semua float dimatikan
+   - Semua panel kembali normal flow
+   - Satu kolom
 ========================================================= */
 
 @media (max-width: 980px) {
 
     .metadata-workspace {
 
-        grid-template-columns:
-            1fr;
+        display:
+            block;
 
-        align-items:
-            start;
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        margin:
+            0 auto;
+    }
+
+
+    .metadata-workspace > .metadata-panel {
+
+        float:
+            none;
+
+        clear:
+            none;
+
+        display:
+            block;
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        margin:
+            0 0 15px;
+    }
+
+
+    .metadata-workspace > .metadata-panel:last-child {
+
+        margin-bottom:
+            0;
+    }
+
+
+    .metadata-workspace::after {
+
+        content:
+            "";
+
+        display:
+            block;
+
+        clear:
+            both;
     }
 
 
@@ -2309,6 +2614,12 @@
 
         min-height:
             320px;
+
+        max-height:
+            none;
+
+        overflow:
+            hidden;
     }
 
 
@@ -2321,7 +2632,7 @@
             100%;
 
         margin-top:
-            18px;
+            0;
 
         padding:
             14px;
@@ -2345,6 +2656,16 @@
 
         margin-top:
             16px;
+    }
+
+
+    .metadata-table-wrap {
+
+        max-height:
+            520px;
+
+        overflow:
+            auto;
     }
 
 }
@@ -2408,8 +2729,43 @@
 
     .metadata-workspace {
 
-        gap:
-            15px;
+        display:
+            block;
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        margin:
+            0;
+    }
+
+
+    .metadata-workspace > .metadata-panel {
+
+        float:
+            none;
+
+        clear:
+            none;
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        margin:
+            0 0 15px;
+    }
+
+
+    .metadata-workspace > .metadata-panel:last-child {
+
+        margin-bottom:
+            0;
     }
 
 
@@ -2423,6 +2779,10 @@
     }
 
 
+    /* =====================================================
+       DROPZONE
+    ===================================================== */
+
     .metadata-dropzone {
 
         min-height:
@@ -2434,16 +2794,26 @@
     }
 
 
+    /* =====================================================
+       PREVIEW
+    ===================================================== */
+
     .metadata-preview-stage {
 
         min-height:
             270px;
+
+        max-height:
+            none;
 
         padding:
             7px;
 
         margin-bottom:
             0;
+
+        overflow:
+            hidden;
     }
 
 
@@ -2482,8 +2852,8 @@
         width:
             100%;
 
-        margin-top:
-            18px;
+        margin:
+            0;
 
         padding:
             13px;
@@ -2574,6 +2944,10 @@
     }
 
 
+    /* =====================================================
+       METADATA
+    ===================================================== */
+
     .metadata-table-wrap {
 
         max-height:
@@ -2587,6 +2961,10 @@
             470px;
     }
 
+
+    /* =====================================================
+       CLEAN RESULT
+    ===================================================== */
 
     .metadata-clean-result-header {
 
@@ -2717,8 +3095,8 @@
         display:
             block;
 
-        margin-top:
-            18px;
+        margin:
+            0;
 
         padding:
             11px;
