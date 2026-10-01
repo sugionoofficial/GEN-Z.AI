@@ -420,18 +420,6 @@ async function onCheck(
     }
 
 
-    /*
-     * Jangan melakukan validasi:
-     *
-     * input.files
-     * window state
-     * global state
-     *
-     * karena metadata-check.js sendiri sudah
-     * memeriksa state.file.
-     */
-
-
     console.log(
         "[GEN-Z.AI] Menjalankan checkMetadata()..."
     );
@@ -471,14 +459,6 @@ async function onCheck(
         button.removeAttribute(
             "aria-busy"
         );
-
-
-        /*
-         * checkMetadata() sendiri bertanggung jawab
-         * mengembalikan tombol ke enabled state.
-         *
-         * Jangan mengubah disabled di sini.
-         */
 
     }
 
@@ -817,13 +797,6 @@ export function bindMetadataEvents(
         elements.checkButton
     ) {
 
-        /*
-         * Pastikan kondisi awal disabled.
-         *
-         * metadata-file.js akan mengaktifkannya setelah
-         * file berhasil diproses.
-         */
-
         elements.checkButton.disabled =
             true;
 
@@ -900,3 +873,14 @@ export default {
     disableCheckButton
 
 };
+
+
+/* =========================================================
+   DEPLOYMENT TRIGGER
+   ---------------------------------------------------------
+   Functional code intentionally unchanged.
+   Commit perubahan ini ke GitHub agar Vercel menjalankan
+   deployment otomatis.
+========================================================= */
+
+// GEN-Z.AI DEPLOY TRIGGER: 2026-10-01
