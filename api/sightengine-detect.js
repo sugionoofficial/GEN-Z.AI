@@ -32,6 +32,7 @@
        "provider": "sightengine",
        "model": "genai",
        "detection": {
+           "model": "genai",
            "ai_generated": 0.98,
            "confidence": 98,
            "is_ai_generated": true,
@@ -39,6 +40,11 @@
            "detected_generator": null
        }
    }
+
+   Catatan:
+   - "model" berasal dari konfigurasi model yang benar-benar
+     dikirim ke Sightengine.
+   - Frontend tidak menentukan atau menebak model.
 ========================================================= */
 
 
@@ -48,6 +54,19 @@
 
 const SIGHTENGINE_ENDPOINT =
     "https://api.sightengine.com/1.0/check.json";
+
+
+/*
+   Model yang benar-benar dikirim ke Sightengine.
+
+   Jangan menduplikasi string "genai" di beberapa bagian
+   kode.
+
+   Jika suatu saat model API diganti, cukup ubah nilai ini.
+*/
+
+const SIGHTENGINE_MODEL =
+    "genai";
 
 
 const MAX_IMAGE_BYTES =
@@ -332,7 +351,10 @@ const getSightengineConfig = () => {
 
         apiUser,
 
-        apiSecret
+        apiSecret,
+
+        model:
+            SIGHTENGINE_MODEL
 
     };
 
@@ -683,6 +705,10 @@ const detectWithSightengine = async (
         new FormData();
 
 
+    /* =====================================================
+       CREDENTIAL
+    ===================================================== */
+
     form.append(
         "api_user",
         config.apiUser
@@ -695,11 +721,21 @@ const detectWithSightengine = async (
     );
 
 
+    /* =====================================================
+       MODEL
+       -----------------------------------------------------
+       Gunakan satu sumber konfigurasi.
+    ===================================================== */
+
     form.append(
         "models",
-        "genai"
+        config.model
     );
 
+
+    /* =====================================================
+       FILE
+    ===================================================== */
 
     const extension =
         getExtensionFromMime(
@@ -725,6 +761,10 @@ const detectWithSightengine = async (
         `genz-ai-image.${extension}`
     );
 
+
+    /* =====================================================
+       REQUEST
+    ===================================================== */
 
     const response =
         await fetch(
@@ -774,6 +814,10 @@ const detectWithSightengine = async (
     }
 
 
+    /* =====================================================
+       HTTP ERROR
+    ===================================================== */
+
     if (
         !response.ok
     ) {
@@ -788,6 +832,10 @@ const detectWithSightengine = async (
     }
 
 
+    /* =====================================================
+       INVALID RESPONSE
+    ===================================================== */
+
     if (
         !data ||
         typeof data !== "object"
@@ -799,6 +847,10 @@ const detectWithSightengine = async (
 
     }
 
+
+    /* =====================================================
+       SIGHTENGINE FAILURE
+    ===================================================== */
 
     if (
         data.status &&
@@ -827,7 +879,8 @@ const detectWithSightengine = async (
 ========================================================= */
 
 const normalizeDetectionResponse = (
-    data
+    data,
+    model
 ) => {
 
     const type =
@@ -856,6 +909,13 @@ const normalizeDetectionResponse = (
 
 
     return {
+
+        /*
+           Model yang digunakan oleh request.
+        */
+
+        model:
+            model || null,
 
         ai_generated:
             aiGenerated,
@@ -1247,9 +1307,19 @@ export default async function handler(
 
         const detection =
             normalizeDetectionResponse(
-                sightengineResult
+                sightengineResult,
+                config.model
             );
 
+
+        /* =================================================
+           RESPONSE
+           -------------------------------------------------
+           model tersedia di dua tempat untuk kompatibilitas:
+
+           response.model
+           response.detection.model
+        ================================================= */
 
         return json(
             res,
@@ -1263,7 +1333,7 @@ export default async function handler(
                     "sightengine",
 
                 model:
-                    "genai",
+                    config.model,
 
                 detection
 
