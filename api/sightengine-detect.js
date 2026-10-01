@@ -35,18 +35,8 @@
            "ai_generated": 0.98,
            "confidence": 98,
            "is_ai_generated": true,
-           "generators": [
-               {
-                   "name": "midjourney",
-                   "score": 0.91,
-                   "confidence": 91
-               }
-           ],
-           "detected_generator": {
-               "name": "midjourney",
-               "score": 0.91,
-               "confidence": 91
-           }
+           "generators": [],
+           "detected_generator": null
        }
    }
 ========================================================= */
@@ -59,12 +49,6 @@
 const SIGHTENGINE_ENDPOINT =
     "https://api.sightengine.com/1.0/check.json";
 
-
-/*
-   Maximum raw binary image size.
-
-   Backend tetap menjadi pengaman utama.
-*/
 
 const MAX_IMAGE_BYTES =
     15 * 1024 * 1024;
@@ -83,28 +67,6 @@ const json = (
     return res
         .status(status)
         .json(data);
-
-};
-
-
-/* =========================================================
-   HEADER
-========================================================= */
-
-const getHeader = (
-    req,
-    name
-) => {
-
-    const headers =
-        req.headers || {};
-
-
-    return (
-        headers[name] ||
-        headers[name.toLowerCase()] ||
-        ""
-    );
 
 };
 
@@ -211,7 +173,7 @@ const isSupportedImageType = (
 
 const normalizeBase64 = (
     value
-) {
+) => {
 
     if (
         typeof value !== "string"
@@ -296,11 +258,6 @@ const isValidBase64 = (
 
     }
 
-
-    /*
-       Base64 normal memiliki panjang
-       kelipatan 4.
-    */
 
     if (
         value.length % 4 !== 0
@@ -493,24 +450,6 @@ const scoreToPercentage = (
 
 /* =========================================================
    GENERATOR SCORES
-   ---------------------------------------------------------
-   Sightengine response:
-
-   type: {
-       ai_generated: 0.98,
-
-       ai_generators: {
-           dalle: 0.01,
-           firefly: 0.02,
-           flux: 0.03,
-           midjourney: 0.91,
-           ...
-       }
-   }
-
-   Jadi generator WAJIB dibaca dari:
-
-       type.ai_generators
 ========================================================= */
 
 const extractGeneratorScores = (
@@ -554,10 +493,6 @@ const extractGeneratorScores = (
             generatorObject
         )
     ) {
-
-        /*
-           Generator name harus valid.
-        */
 
         const generatorName =
             String(
@@ -606,11 +541,6 @@ const extractGeneratorScores = (
     }
 
 
-    /*
-       Generator dengan score tertinggi
-       ditempatkan di awal.
-    */
-
     generators.sort(
         (
             a,
@@ -651,25 +581,7 @@ const getDetectedGenerator = (
 
 
     if (
-        !top
-    ) {
-
-        return null;
-
-    }
-
-
-    /*
-       Jangan menampilkan nama generator
-       jika confidence terlalu lemah.
-
-       Threshold ini hanya menentukan apakah
-       nama generator layak ditampilkan.
-       Score global ai_generated tetap menjadi
-       keputusan utama AI detection.
-    */
-
-    if (
+        !top ||
         top.score < 0.5
     ) {
 
@@ -695,6 +607,47 @@ const getDetectedGenerator = (
 
 
 /* =========================================================
+   MIME EXTENSION
+========================================================= */
+
+const getExtensionFromMime = (
+    mimeType
+) => {
+
+    switch (
+        normalizeMimeType(
+            mimeType
+        )
+    ) {
+
+        case "image/png":
+            return "png";
+
+        case "image/webp":
+            return "webp";
+
+        case "image/gif":
+            return "gif";
+
+        case "image/bmp":
+            return "bmp";
+
+        case "image/tiff":
+            return "tiff";
+
+        case "image/avif":
+            return "avif";
+
+        case "image/jpeg":
+        default:
+            return "jpg";
+
+    }
+
+};
+
+
+/* =========================================================
    SIGHTENGINE REQUEST
 ========================================================= */
 
@@ -703,10 +656,6 @@ const detectWithSightengine = async (
     mimeType,
     config
 ) => {
-
-    /* =====================================================
-       RUNTIME CHECK
-    ===================================================== */
 
     if (
         typeof FormData === "undefined"
@@ -729,10 +678,6 @@ const detectWithSightengine = async (
 
     }
 
-
-    /* =====================================================
-       BUILD MULTIPART FORM
-    ===================================================== */
 
     const form =
         new FormData();
@@ -780,10 +725,6 @@ const detectWithSightengine = async (
         `genz-ai-image.${extension}`
     );
 
-
-    /* =====================================================
-       REQUEST
-    ===================================================== */
 
     const response =
         await fetch(
@@ -833,10 +774,6 @@ const detectWithSightengine = async (
     }
 
 
-    /* =====================================================
-       HTTP ERROR
-    ===================================================== */
-
     if (
         !response.ok
     ) {
@@ -850,10 +787,6 @@ const detectWithSightengine = async (
 
     }
 
-
-    /* =====================================================
-       RESPONSE VALIDATION
-    ===================================================== */
 
     if (
         !data ||
@@ -890,47 +823,6 @@ const detectWithSightengine = async (
 
 
 /* =========================================================
-   MIME EXTENSION
-========================================================= */
-
-const getExtensionFromMime = (
-    mimeType
-) => {
-
-    switch (
-        normalizeMimeType(
-            mimeType
-        )
-    ) {
-
-        case "image/png":
-            return "png";
-
-        case "image/webp":
-            return "webp";
-
-        case "image/gif":
-            return "gif";
-
-        case "image/bmp":
-            return "bmp";
-
-        case "image/tiff":
-            return "tiff";
-
-        case "image/avif":
-            return "avif";
-
-        case "image/jpeg":
-        default:
-            return "jpg";
-
-    }
-
-};
-
-
-/* =========================================================
    NORMALIZE RESPONSE
 ========================================================= */
 
@@ -945,21 +837,11 @@ const normalizeDetectionResponse = (
             : {};
 
 
-    /* =====================================================
-       GLOBAL AI SCORE
-    ===================================================== */
-
     const aiGenerated =
         normalizeScore(
             type.ai_generated
         );
 
-
-    /* =====================================================
-       PER-GENERATOR SCORES
-       -----------------------------------------------------
-       Dibaca dari type.ai_generators.
-    ===================================================== */
 
     const generators =
         extractGeneratorScores(
@@ -967,19 +849,11 @@ const normalizeDetectionResponse = (
         );
 
 
-    /* =====================================================
-       TOP GENERATOR
-    ===================================================== */
-
     const detectedGenerator =
         getDetectedGenerator(
             generators
         );
 
-
-    /* =====================================================
-       FINAL NORMALIZED RESULT
-    ===================================================== */
 
     return {
 
@@ -990,14 +864,6 @@ const normalizeDetectionResponse = (
             scoreToPercentage(
                 aiGenerated
             ),
-
-        /*
-           0.5 digunakan sebagai boundary
-           untuk status UI.
-
-           Raw score tetap dikembalikan agar
-           pengguna dapat melihat nilai sebenarnya.
-        */
 
         is_ai_generated:
             aiGenerated !== null &&
