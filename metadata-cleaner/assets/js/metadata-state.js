@@ -880,7 +880,10 @@
 
 
  /* =========================================================
-    EXPORT
- ========================================================= */
+   EXPORT
+========================================================= */
 
- export default metadataState;
+export const state =
+    metadataState;
+
+export default metadataState;
