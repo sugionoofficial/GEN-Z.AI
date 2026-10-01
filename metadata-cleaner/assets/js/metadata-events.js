@@ -1,4 +1,4 @@
-/* =========================================================
+ /* =========================================================
    GEN-Z.AI
    AI METADATA CLEANER
    ---------------------------------------------------------
@@ -8,19 +8,20 @@
    Fungsi:
    - Register application event listeners
    - Menangani file input
-   - Menangani click upload
+   - Menangani upload click
    - Menangani drag & drop
-   - Menangani tombol CHECK
-   - Menangani tombol CLEAN
-   - Menangani tombol DOWNLOAD
+   - Menangani CHECK
+   - Menangani CLEAN
+   - Menangani DOWNLOAD
 
-   Catatan:
+   Upload architecture:
+   - Native file input menjadi sumber upload utama
+   - Dropzone hanya menjadi trigger UI
+   - Tidak bergantung pada default <label>
+   - Tidak membuka picker dua kali
    - Tidak mengubah proses metadata
    - Tidak mengubah Sightengine
    - Tidak mengubah cleaning
-   - Tidak mengubah state
-   - Dropzone tetap menggunakan input file yang sama
-   - Upload menggunakan input.click() secara eksplisit
 ========================================================= */
 
 
@@ -54,7 +55,9 @@ export function bindMetadataEvents({
     /* =====================================================
        FILE INPUT
        -----------------------------------------------------
-       Ini adalah event utama ketika user benar-benar
+       Ini adalah sumber event upload yang sebenarnya.
+
+       Browser akan mengirim event "change" setelah user
        memilih file dari native file picker.
     ===================================================== */
 
@@ -74,23 +77,20 @@ export function bindMetadataEvents({
     /* =====================================================
        DROPZONE CLICK
        -----------------------------------------------------
-       Jangan mengandalkan default behavior <label>.
+       Dropzone pada HTML saat ini berupa <label> yang
+       membungkus input file.
 
-       HTML menggunakan:
+       Kita tidak menggunakan default activation dari
+       <label>. Picker dibuka secara eksplisit.
 
-       <label id="metadata-dropzone">
-           <input
-               id="metadata-file-input"
-               type="file"
-               hidden
-           >
-       </label>
+       preventDefault():
+       - mencegah label menjalankan activation otomatis
 
-       Karena input berada di dalam label, browser dapat
-       menjalankan label activation secara otomatis.
+       stopPropagation():
+       - mencegah handler lain ikut memproses click
 
-       Di sini default action dimatikan lalu picker dibuka
-       secara eksplisit satu kali.
+       input.click():
+       - membuka native file picker tepat satu kali
     ===================================================== */
 
     if (
@@ -101,26 +101,13 @@ export function bindMetadataEvents({
             "click",
             event => {
 
-                /*
-                   Jangan biarkan browser menjalankan
-                   default activation dari <label>.
-                */
-
                 event.preventDefault();
-
-
-                /*
-                   Hentikan event agar tidak diteruskan
-                   ke handler global lain.
-                */
-
                 event.stopPropagation();
 
 
                 /*
-                   Jika browser mengirim event click
-                   langsung pada input, jangan panggil
-                   input.click() kembali.
+                   Jika target adalah input file itu sendiri,
+                   jangan menjalankan picker kedua.
                 */
 
                 if (
@@ -133,7 +120,7 @@ export function bindMetadataEvents({
 
 
                 /*
-                   Gunakan fungsi picker milik coordinator.
+                   Pastikan fungsi picker memang tersedia.
                 */
 
                 if (
@@ -152,8 +139,6 @@ export function bindMetadataEvents({
 
     /* =====================================================
        CHANGE FILE BUTTON
-       -----------------------------------------------------
-       Tombol GANTI menggunakan picker yang sama.
     ===================================================== */
 
     if (
@@ -164,18 +149,9 @@ export function bindMetadataEvents({
             "click",
             event => {
 
-                /*
-                   Tombol berada di area aplikasi sendiri.
-                   Jangan biarkan event naik ke parent.
-                */
-
                 event.preventDefault();
                 event.stopPropagation();
 
-
-                /*
-                   Buka picker.
-                */
 
                 if (
                     typeof openFilePicker === "function"
@@ -192,7 +168,7 @@ export function bindMetadataEvents({
 
 
     /* =====================================================
-       CHECK
+       CHECK BUTTON
     ===================================================== */
 
     if (
@@ -209,7 +185,7 @@ export function bindMetadataEvents({
 
 
     /* =====================================================
-       CLEAN
+       CLEAN BUTTON
     ===================================================== */
 
     if (
@@ -226,7 +202,7 @@ export function bindMetadataEvents({
 
 
     /* =====================================================
-       DOWNLOAD
+       DOWNLOAD BUTTON
     ===================================================== */
 
     if (
@@ -294,22 +270,64 @@ export function bindMetadataEvents({
 
 
     /* =====================================================
-       DEBUG
+       DIAGNOSTIC
        -----------------------------------------------------
-       Tidak memproses file.
+       Tidak mengubah fungsi aplikasi.
 
-       Hanya memastikan event binding memang terjadi.
+       Hanya memastikan semua elemen dan handler utama
+       berhasil ditemukan ketika module dijalankan.
     ===================================================== */
 
     console.info(
-        "[GEN-Z.AI] Metadata Cleaner events bound.",
+        "[GEN-Z.AI] Metadata Cleaner event binding:",
         {
-            fileInput: Boolean(elements.fileInput),
-            dropzone: Boolean(elements.dropzone),
-            changeButton: Boolean(elements.changeButton),
-            checkButton: Boolean(elements.checkButton),
-            cleanButton: Boolean(elements.cleanButton),
-            downloadButton: Boolean(elements.downloadButton)
+            fileInput: Boolean(
+                elements.fileInput
+            ),
+
+            dropzone: Boolean(
+                elements.dropzone
+            ),
+
+            changeButton: Boolean(
+                elements.changeButton
+            ),
+
+            checkButton: Boolean(
+                elements.checkButton
+            ),
+
+            cleanButton: Boolean(
+                elements.cleanButton
+            ),
+
+            downloadButton: Boolean(
+                elements.downloadButton
+            ),
+
+            handleFileInput:
+                typeof handleFileInput === "function",
+
+            openFilePicker:
+                typeof openFilePicker === "function",
+
+            checkMetadata:
+                typeof checkMetadata === "function",
+
+            cleanMetadata:
+                typeof cleanMetadata === "function",
+
+            downloadCleanedFile:
+                typeof downloadCleanedFile === "function",
+
+            handleDragOver:
+                typeof handleDragOver === "function",
+
+            handleDragLeave:
+                typeof handleDragLeave === "function",
+
+            handleDrop:
+                typeof handleDrop === "function"
         }
     );
 
