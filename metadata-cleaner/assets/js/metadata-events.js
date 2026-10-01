@@ -6,7 +6,6 @@
    metadata-cleaner/assets/js/metadata-events.js
 
    Tanggung jawab:
-   - Bind seluruh event Metadata Cleaner
    - Native file input
    - Drag & Drop
    - File selection
@@ -14,18 +13,20 @@
    - Clean metadata
    - Download cleaned file
    - Reset
+   - Change file
 
    IMPORTANT:
-   - metadata-app.js adalah coordinator.
-   - Callback dikirim langsung melalui bindMetadataEvents().
-   - Tidak menggunakan window.GENZ_METADATA_APP.
-   - Tidak membuat circular dependency.
-   - Native file input menangani klik pada area upload.
+   - Jalur upload/file input langsung menggunakan
+     processSelectedFile().
+   - Tidak bergantung pada callback metadata-app.js
+     untuk proses upload.
+   - Jalur CHECK / CLEAN / DOWNLOAD tetap menggunakan
+     callback coordinator.
 ========================================================= */
 
 
 /* =========================================================
-   IMPORT
+   DOM
 ========================================================= */
 
 import {
@@ -34,23 +35,16 @@ import {
 
 
 /* =========================================================
+   FILE PROCESSOR
+========================================================= */
+
+import {
+    processSelectedFile
+} from "./metadata-file.js";
+
+
+/* =========================================================
    CALLBACKS
-   ---------------------------------------------------------
-   Callback berasal langsung dari metadata-app.js.
-
-   Contoh:
-
-       bindMetadataEvents({
-           handleFileInput,
-           openFilePicker,
-           checkMetadata,
-           cleanMetadata,
-           downloadCleanedFile,
-           handleDragOver,
-           handleDragLeave,
-           handleDrop
-       });
-
 ========================================================= */
 
 let callbacks = {};
@@ -80,15 +74,31 @@ export function openFilePicker() {
     const input =
         elements?.fileInput;
 
+
     if (
         !input
     ) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: #metadata-file-input tidak ditemukan."
+        );
 
         return;
     }
 
 
-    input.click();
+    try {
+
+        input.click();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: gagal membuka file picker.",
+            error
+        );
+
+    }
 
 }
 
@@ -96,42 +106,102 @@ export function openFilePicker() {
 /* =========================================================
    FILE INPUT CHANGE
    ---------------------------------------------------------
-   File input diserahkan langsung ke coordinator.
+   LANGSUNG diproses di sini.
 
-   metadata-app.js:
-       handleFileInput(event)
+   Tidak lagi:
 
-   akan:
-       - membaca FileList
-       - mengambil file pertama
-       - memvalidasi media
-       - reset state
-       - membuat object URL
-       - render preview
+       event
+         ↓
+       callback
+         ↓
+       metadata-app
+         ↓
+       metadata-file
+
+   Sekarang:
+
+       event
+         ↓
+       processSelectedFile()
 ========================================================= */
 
 function handleFileInput(
     event
 ) {
 
-    const handler =
-        callbacks?.handleFileInput;
+    const input =
+        event?.target;
+
 
     if (
-        typeof handler !== "function"
+        !input
     ) {
 
         console.error(
-            "[GEN-Z.AI] metadata-events: handleFileInput callback tidak tersedia."
+            "[GEN-Z.AI] metadata-events: file input target tidak tersedia."
         );
 
         return;
     }
 
 
-    handler(
-        event
+    const files =
+        Array.from(
+            input.files || []
+        );
+
+
+    console.info(
+        "[GEN-Z.AI] Native file input:",
+        files.length
     );
+
+
+    if (
+        files.length === 0
+    ) {
+
+        return;
+    }
+
+
+    try {
+
+        processSelectedFile(
+            files[0]
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: processSelectedFile gagal:",
+            error
+        );
+
+    }
+
+
+    /*
+       Reset value setelah file berhasil
+       diserahkan ke processor.
+
+       Ini memungkinkan file yang sama dipilih
+       kembali pada percobaan berikutnya.
+    */
+
+    try {
+
+        input.value =
+            "";
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] metadata-events: gagal reset input value.",
+            error
+        );
+
+    }
 
 }
 
@@ -179,13 +249,16 @@ function handleDragOver(
     }
 
 
-    /*
-       Jalankan callback coordinator
-       jika tersedia.
-    */
+    elements?.dropzone
+        ?.classList
+        ?.add(
+            "dragover"
+        );
+
 
     const handler =
         callbacks?.handleDragOver;
+
 
     if (
         typeof handler === "function"
@@ -194,14 +267,6 @@ function handleDragOver(
         handler(
             event
         );
-
-    } else {
-
-        elements?.dropzone
-            ?.classList
-            ?.add(
-                "dragover"
-            );
 
     }
 
@@ -223,6 +288,7 @@ function handleDragLeave(
     const dropzone =
         elements?.dropzone;
 
+
     if (
         !dropzone
     ) {
@@ -232,9 +298,9 @@ function handleDragLeave(
 
 
     /*
-       Jangan menghapus status drag
-       apabila pointer masih berada
-       di dalam dropzone.
+       Jangan menghapus visual drag state
+       jika pointer masih berada di dalam
+       dropzone.
     */
 
     if (
@@ -248,20 +314,19 @@ function handleDragLeave(
     }
 
 
-    dropzone
-        .classList
-        .remove(
-            "dragover"
-        );
+    dropzone.classList.remove(
+        "dragover"
+    );
 
 
-    /*
-       Jalankan callback coordinator
-       jika tersedia.
-    */
+    dropzone.classList.remove(
+        "is-dragging"
+    );
+
 
     const handler =
         callbacks?.handleDragLeave;
+
 
     if (
         typeof handler === "function"
@@ -278,6 +343,11 @@ function handleDragLeave(
 
 /* =========================================================
    DROP
+   ---------------------------------------------------------
+   LANGSUNG memproses file.
+
+   Tidak bergantung pada callback coordinator
+   untuk upload.
 ========================================================= */
 
 function handleDrop(
@@ -295,34 +365,47 @@ function handleDrop(
         );
 
 
-    /*
-       Serahkan event langsung ke
-       coordinator.
+    elements?.dropzone
+        ?.classList
+        ?.remove(
+            "is-dragging"
+        );
 
-       metadata-app.js akan mengambil:
-           event.dataTransfer.files
-       lalu memproses file melalui
-           processSelectedFile().
-    */
 
-    const handler =
-        callbacks?.handleDrop;
+    const files =
+        Array.from(
+            event?.dataTransfer?.files || []
+        );
+
+
+    console.info(
+        "[GEN-Z.AI] Drop files:",
+        files.length
+    );
+
 
     if (
-        typeof handler !== "function"
+        files.length === 0
     ) {
-
-        console.error(
-            "[GEN-Z.AI] metadata-events: handleDrop callback tidak tersedia."
-        );
 
         return;
     }
 
 
-    handler(
-        event
-    );
+    try {
+
+        processSelectedFile(
+            files[0]
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: dropped file gagal diproses:",
+            error
+        );
+
+    }
 
 }
 
@@ -330,27 +413,15 @@ function handleDrop(
 /* =========================================================
    DROPZONE CLICK
    ---------------------------------------------------------
-   Native file input sekarang menutupi
-   seluruh area dropzone melalui CSS.
+   Native input menutupi seluruh area dropzone.
 
-   Karena itu JANGAN memanggil:
-       openFilePicker()
-
-   dari event mouse click.
-
-   Kalau dipanggil lagi, beberapa browser dapat
-   membuka picker dua kali atau menghasilkan
-   perilaku aneh.
+   Jangan memanggil input.click() lagi dari click
+   karena dapat membuka file picker dua kali.
 ========================================================= */
 
 function handleDropzoneClick(
     event
 ) {
-
-    /*
-       Bila yang diklik adalah native input,
-       biarkan browser menangani sendiri.
-    */
 
     if (
         event?.target ===
@@ -362,10 +433,7 @@ function handleDropzoneClick(
 
 
     /*
-       Tidak melakukan apa pun.
-
-       Native input berada di atas area
-       visual dropzone.
+       Native input menangani klik.
     */
 
 }
@@ -373,14 +441,6 @@ function handleDropzoneClick(
 
 /* =========================================================
    DROPZONE KEYBOARD
-   ---------------------------------------------------------
-   Untuk akses keyboard.
-
-   Mouse:
-       Native input.
-
-   Keyboard:
-       Enter / Space → file picker.
 ========================================================= */
 
 function handleDropzoneKeydown(
@@ -403,31 +463,13 @@ function handleDropzoneKeydown(
     event.preventDefault();
 
 
-    const handler =
-        callbacks?.openFilePicker;
-
-
-    if (
-        typeof handler === "function"
-    ) {
-
-        handler();
-
-        return;
-    }
-
-
-    /*
-       Fallback langsung ke input.
-    */
-
     openFilePicker();
 
 }
 
 
 /* =========================================================
-   CHECK BUTTON
+   CHECK
 ========================================================= */
 
 function handleCheckClick(
@@ -453,13 +495,24 @@ function handleCheckClick(
     }
 
 
-    handler();
+    try {
+
+        handler();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: checkMetadata gagal:",
+            error
+        );
+
+    }
 
 }
 
 
 /* =========================================================
-   CLEAN BUTTON
+   CLEAN
 ========================================================= */
 
 function handleCleanClick(
@@ -485,13 +538,24 @@ function handleCleanClick(
     }
 
 
-    handler();
+    try {
+
+        handler();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: cleanMetadata gagal:",
+            error
+        );
+
+    }
 
 }
 
 
 /* =========================================================
-   DOWNLOAD BUTTON
+   DOWNLOAD
 ========================================================= */
 
 function handleDownloadClick(
@@ -517,13 +581,24 @@ function handleDownloadClick(
     }
 
 
-    handler();
+    try {
+
+        handler();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: download gagal:",
+            error
+        );
+
+    }
 
 }
 
 
 /* =========================================================
-   RESET BUTTON
+   RESET
 ========================================================= */
 
 function handleResetClick(
@@ -541,28 +616,28 @@ function handleResetClick(
         typeof handler !== "function"
     ) {
 
-        /*
-           Reset bukan callback wajib
-           pada metadata-app.js versi saat ini.
-
-           Jangan error jika memang tidak
-           diberikan oleh coordinator.
-        */
-
         return;
     }
 
 
-    handler();
+    try {
+
+        handler();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: reset gagal:",
+            error
+        );
+
+    }
 
 }
 
 
 /* =========================================================
-   CHANGE BUTTON
-   ---------------------------------------------------------
-   Tombol "Ganti File" juga membuka
-   native file picker.
+   CHANGE FILE
 ========================================================= */
 
 function handleChangeClick(
@@ -572,30 +647,13 @@ function handleChangeClick(
     event?.preventDefault();
 
 
-    const handler =
-        callbacks?.openFilePicker;
-
-
-    if (
-        typeof handler === "function"
-    ) {
-
-        handler();
-
-        return;
-    }
-
-
     openFilePicker();
 
 }
 
 
 /* =========================================================
-   PREVENT DEFAULT DOCUMENT DROP
-   ---------------------------------------------------------
-   Mencegah browser membuka file secara langsung
-   ketika file dilepas di luar dropzone.
+   DOCUMENT DRAGOVER
 ========================================================= */
 
 function preventDocumentDragOver(
@@ -607,9 +665,37 @@ function preventDocumentDragOver(
 }
 
 
+/* =========================================================
+   DOCUMENT DROP
+========================================================= */
+
 function preventDocumentDrop(
     event
 ) {
+
+    /*
+       Jangan mencegah drop yang memang terjadi
+       di dalam dropzone.
+
+       Kalau drop terjadi di luar dropzone,
+       browser tidak boleh membuka file tersebut.
+    */
+
+    const dropzone =
+        elements?.dropzone;
+
+
+    if (
+        dropzone &&
+        event.target &&
+        dropzone.contains(
+            event.target
+        )
+    ) {
+
+        return;
+    }
+
 
     event.preventDefault();
 
@@ -617,27 +703,12 @@ function preventDocumentDrop(
 
 
 /* =========================================================
-   BIND METADATA EVENTS
-   ---------------------------------------------------------
-   Ini adalah nama export yang digunakan
-   metadata-app.js:
-
-       import {
-           bindMetadataEvents
-       } from "./metadata-events.js";
-
-   Kemudian:
-
-       bindMetadataEvents({...});
+   BIND EVENTS
 ========================================================= */
 
 export function bindMetadataEvents(
     providedCallbacks = {}
 ) {
-
-    /*
-       Simpan seluruh callback dari coordinator.
-    */
 
     setCallbacks(
         providedCallbacks
@@ -664,226 +735,28 @@ export function bindMetadataEvents(
         fileInput
     ) {
 
-        fileInput.addEventListener(
-            "change",
-            handleFileInput
-        );
-
-    }
-
-
-    /* =====================================================
-       DROPZONE
-    ===================================================== */
-
-    if (
-        dropzone
-    ) {
-
         /*
-           Mouse click sengaja tidak membuka
-           picker secara manual.
+           Pastikan tidak terjadi binding ganda
+           jika init terpanggil lebih dari sekali.
         */
-
-        dropzone.addEventListener(
-            "click",
-            handleDropzoneClick
-        );
-
-
-        /*
-           Keyboard accessibility.
-        */
-
-        dropzone.addEventListener(
-            "keydown",
-            handleDropzoneKeydown
-        );
-
-
-        /*
-           Drag & Drop.
-        */
-
-        dropzone.addEventListener(
-            "dragenter",
-            handleDragEnter
-        );
-
-
-        dropzone.addEventListener(
-            "dragover",
-            handleDragOver
-        );
-
-
-        dropzone.addEventListener(
-            "dragleave",
-            handleDragLeave
-        );
-
-
-        dropzone.addEventListener(
-            "drop",
-            handleDrop
-        );
-
-    }
-
-
-    /* =====================================================
-       CHECK
-    ===================================================== */
-
-    if (
-        checkButton
-    ) {
-
-        checkButton.addEventListener(
-            "click",
-            handleCheckClick
-        );
-
-    }
-
-
-    /* =====================================================
-       CLEAN
-    ===================================================== */
-
-    if (
-        cleanButton
-    ) {
-
-        cleanButton.addEventListener(
-            "click",
-            handleCleanClick
-        );
-
-    }
-
-
-    /* =====================================================
-       DOWNLOAD
-    ===================================================== */
-
-    if (
-        downloadButton
-    ) {
-
-        downloadButton.addEventListener(
-            "click",
-            handleDownloadClick
-        );
-
-    }
-
-
-    /* =====================================================
-       RESET
-    ===================================================== */
-
-    if (
-        resetButton
-    ) {
-
-        resetButton.addEventListener(
-            "click",
-            handleResetClick
-        );
-
-    }
-
-
-    /* =====================================================
-       CHANGE FILE
-    ===================================================== */
-
-    if (
-        changeButton
-    ) {
-
-        changeButton.addEventListener(
-            "click",
-            handleChangeClick
-        );
-
-    }
-
-
-    /* =====================================================
-       DOCUMENT DROP PROTECTION
-    ===================================================== */
-
-    document.addEventListener(
-        "dragover",
-        preventDocumentDragOver
-    );
-
-
-    document.addEventListener(
-        "drop",
-        preventDocumentDrop
-    );
-
-}
-
-
-/* =========================================================
-   COMPATIBILITY ALIAS
-   ---------------------------------------------------------
-   Beberapa bagian lama mungkin masih memanggil
-   bindEvents().
-
-   Alias ini dipertahankan agar tidak mematahkan
-   kode lain.
-
-   Untuk aplikasi utama gunakan:
-       bindMetadataEvents(...)
-========================================================= */
-
-export function bindEvents(
-    providedCallbacks = {}
-) {
-
-    bindMetadataEvents(
-        providedCallbacks
-    );
-
-}
-
-
-/* =========================================================
-   UNBIND EVENTS
-========================================================= */
-
-export function unbindEvents() {
-
-    const {
-        fileInput,
-        dropzone,
-        checkButton,
-        cleanButton,
-        downloadButton,
-        resetButton,
-        changeButton
-    } =
-        elements || {};
-
-
-    /* =====================================================
-       FILE INPUT
-    ===================================================== */
-
-    if (
-        fileInput
-    ) {
 
         fileInput.removeEventListener(
             "change",
             handleFileInput
         );
 
+
+        fileInput.addEventListener(
+            "change",
+            handleFileInput
+        );
+
+    } else {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: #metadata-file-input TIDAK DITEMUKAN."
+        );
+
     }
 
 
@@ -926,6 +799,42 @@ export function unbindEvents() {
 
 
         dropzone.removeEventListener(
+            "drop",
+            handleDrop
+        );
+
+
+        dropzone.addEventListener(
+            "click",
+            handleDropzoneClick
+        );
+
+
+        dropzone.addEventListener(
+            "keydown",
+            handleDropzoneKeydown
+        );
+
+
+        dropzone.addEventListener(
+            "dragenter",
+            handleDragEnter
+        );
+
+
+        dropzone.addEventListener(
+            "dragover",
+            handleDragOver
+        );
+
+
+        dropzone.addEventListener(
+            "dragleave",
+            handleDragLeave
+        );
+
+
+        dropzone.addEventListener(
             "drop",
             handleDrop
         );
@@ -946,6 +855,12 @@ export function unbindEvents() {
             handleCheckClick
         );
 
+
+        checkButton.addEventListener(
+            "click",
+            handleCheckClick
+        );
+
     }
 
 
@@ -958,6 +873,12 @@ export function unbindEvents() {
     ) {
 
         cleanButton.removeEventListener(
+            "click",
+            handleCleanClick
+        );
+
+
+        cleanButton.addEventListener(
             "click",
             handleCleanClick
         );
@@ -978,6 +899,12 @@ export function unbindEvents() {
             handleDownloadClick
         );
 
+
+        downloadButton.addEventListener(
+            "click",
+            handleDownloadClick
+        );
+
     }
 
 
@@ -990,6 +917,12 @@ export function unbindEvents() {
     ) {
 
         resetButton.removeEventListener(
+            "click",
+            handleResetClick
+        );
+
+
+        resetButton.addEventListener(
             "click",
             handleResetClick
         );
@@ -1010,11 +943,17 @@ export function unbindEvents() {
             handleChangeClick
         );
 
+
+        changeButton.addEventListener(
+            "click",
+            handleChangeClick
+        );
+
     }
 
 
     /* =====================================================
-       DOCUMENT
+       DOCUMENT PROTECTION
     ===================================================== */
 
     document.removeEventListener(
@@ -1029,9 +968,183 @@ export function unbindEvents() {
     );
 
 
-    /*
-       Bersihkan reference callback.
-    */
+    document.addEventListener(
+        "dragover",
+        preventDocumentDragOver
+    );
+
+
+    document.addEventListener(
+        "drop",
+        preventDocumentDrop
+    );
+
+
+    console.info(
+        "[GEN-Z.AI] Metadata events bound."
+    );
+
+}
+
+
+/* =========================================================
+   COMPATIBILITY ALIAS
+========================================================= */
+
+export function bindEvents(
+    providedCallbacks = {}
+) {
+
+    bindMetadataEvents(
+        providedCallbacks
+    );
+
+}
+
+
+/* =========================================================
+   UNBIND
+========================================================= */
+
+export function unbindEvents() {
+
+    const {
+        fileInput,
+        dropzone,
+        checkButton,
+        cleanButton,
+        downloadButton,
+        resetButton,
+        changeButton
+    } =
+        elements || {};
+
+
+    if (
+        fileInput
+    ) {
+
+        fileInput.removeEventListener(
+            "change",
+            handleFileInput
+        );
+
+    }
+
+
+    if (
+        dropzone
+    ) {
+
+        dropzone.removeEventListener(
+            "click",
+            handleDropzoneClick
+        );
+
+
+        dropzone.removeEventListener(
+            "keydown",
+            handleDropzoneKeydown
+        );
+
+
+        dropzone.removeEventListener(
+            "dragenter",
+            handleDragEnter
+        );
+
+
+        dropzone.removeEventListener(
+            "dragover",
+            handleDragOver
+        );
+
+
+        dropzone.removeEventListener(
+            "dragleave",
+            handleDragLeave
+        );
+
+
+        dropzone.removeEventListener(
+            "drop",
+            handleDrop
+        );
+
+    }
+
+
+    if (
+        checkButton
+    ) {
+
+        checkButton.removeEventListener(
+            "click",
+            handleCheckClick
+        );
+
+    }
+
+
+    if (
+        cleanButton
+    ) {
+
+        cleanButton.removeEventListener(
+            "click",
+            handleCleanClick
+        );
+
+    }
+
+
+    if (
+        downloadButton
+    ) {
+
+        downloadButton.removeEventListener(
+            "click",
+            handleDownloadClick
+        );
+
+    }
+
+
+    if (
+        resetButton
+    ) {
+
+        resetButton.removeEventListener(
+            "click",
+            handleResetClick
+        );
+
+    }
+
+
+    if (
+        changeButton
+    ) {
+
+        changeButton.removeEventListener(
+            "click",
+            handleChangeClick
+        );
+
+    }
+
+
+    document.removeEventListener(
+        "dragover",
+        preventDocumentDragOver
+    );
+
+
+    document.removeEventListener(
+        "drop",
+        preventDocumentDrop
+    );
+
 
     callbacks = {};
 
@@ -1039,7 +1152,7 @@ export function unbindEvents() {
 
 
 /* =========================================================
-   DEFAULT EXPORT
+   PUBLIC API
 ========================================================= */
 
 export default {
