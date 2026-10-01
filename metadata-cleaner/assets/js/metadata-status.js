@@ -525,11 +525,11 @@ function formatGeneratorName(
         ideogram:
             "Ideogram",
 
-        kling:
-            "Kling",
-
         imagen:
             "Imagen",
+
+        kling:
+            "Kling",
 
         midjourney:
             "MidJourney",
@@ -1108,6 +1108,11 @@ function formatProvenanceStatus(
 
     }
 
+
+    /*
+     * VERIFIED hanya jika inspector memang menyatakan
+     * verified === true.
+     */
 
     if (
         provenance.verified === true
@@ -2041,18 +2046,20 @@ function sortGenerators(
        DIFFUSION
        Imagen              76%
        Nano Banana         76%
-       Wan                  8%
-       ...
+       Wan                   8%
 
        GAN
-       StyleGAN             1%
+       StyleGAN              1%
 
        OTHER
-       Other                9%
-       Deepfake            60%
+       Other                 9%
+       Deepfake             60%
 
-   Deepfake ditambahkan pada OTHER dari field
-   face/deepfake backend.
+   Deepfake hanya ditambahkan dari detector deepfake.
+
+   Jika backend juga mengirim "deepfake" di dalam
+   generators[], entry tersebut dilewati agar tidak
+   terjadi duplikasi.
 
    Tidak ada generator yang dibuang hanya karena
    score = 0.
@@ -2138,6 +2145,32 @@ function renderSightengineGenerators(
         const generator of sortedGenerators
     ) {
 
+        /*
+         * Deepfake mempunyai sumber khusus:
+         * detection.deepfake / deepfake_confidence.
+         *
+         * Jika provider juga mengirim deepfake di
+         * generators[], jangan masukkan di sini.
+         *
+         * Nanti hanya satu entry Deepfake dibuat
+         * berdasarkan detector deepfake.
+         */
+
+        const generatorKey =
+            normalizeGeneratorKey(
+                generator.name
+            );
+
+
+        if (
+            generatorKey === "deepfake"
+        ) {
+
+            continue;
+
+        }
+
+
         const group =
             getGeneratorGroup(
                 generator
@@ -2179,6 +2212,9 @@ function renderSightengineGenerators(
 
        Ditampilkan hanya di OTHER agar tidak terjadi
        duplikasi pada SIGHTENGINE AI DETECTION.
+
+       Entry generator "deepfake" dari provider sengaja
+       dilewati di loop sebelumnya.
     ===================================================== */
 
     const deepfakeScore =
