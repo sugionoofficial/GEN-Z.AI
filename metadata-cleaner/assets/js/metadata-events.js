@@ -14,11 +14,12 @@
    - CLEAN
    - DOWNLOAD
 
-   CATATAN:
-   - Tidak membaca window state.
-   - Tidak membaca input.files untuk menentukan
-     apakah file aktif.
-   - State file sepenuhnya dikelola metadata-state.js.
+   CHECK BUTTON FIX:
+   - CHECK tidak dikunci menggunakan disabled saat idle.
+   - Status kesiapan menggunakan aria-disabled.
+   - disabled hanya digunakan ketika CHECK sedang diproses.
+   - Mencegah tombol terlihat aktif tetapi native browser
+     menolak click event.
 ========================================================= */
 
 
@@ -48,25 +49,33 @@ export function enableCheckButton() {
         elements.checkButton;
 
 
-    if (
-        !button
-    ) {
+    if (!button) {
 
         console.error(
             "[GEN-Z.AI] CHECK button tidak ditemukan."
         );
 
         return;
-
     }
 
+
+    /*
+       CHECK idle harus tetap clickable.
+       Jangan menggunakan disabled di sini.
+    */
 
     button.disabled =
         false;
 
 
+    button.setAttribute(
+        "aria-disabled",
+        "false"
+    );
+
+
     button.removeAttribute(
-        "aria-disabled"
+        "aria-busy"
     );
 
 
@@ -83,22 +92,28 @@ export function disableCheckButton() {
         elements.checkButton;
 
 
-    if (
-        !button
-    ) {
-
+    if (!button) {
         return;
-
     }
 
 
+    /*
+       Idle disabled hanya menggunakan aria-disabled.
+       Native disabled sengaja tidak digunakan.
+    */
+
     button.disabled =
-        true;
+        false;
 
 
     button.setAttribute(
         "aria-disabled",
         "true"
+    );
+
+
+    button.removeAttribute(
+        "aria-busy"
     );
 
 }
@@ -131,7 +146,6 @@ async function onFileInput(
         );
 
         return;
-
     }
 
 
@@ -180,7 +194,6 @@ function onOpenFilePicker(
         );
 
         return;
-
     }
 
 
@@ -240,7 +253,6 @@ function onDragOver(
     ) {
 
         return;
-
     }
 
 
@@ -282,7 +294,6 @@ function onDragLeave(
     ) {
 
         return;
-
     }
 
 
@@ -333,7 +344,6 @@ async function onDrop(
         );
 
         return;
-
     }
 
 
@@ -359,8 +369,6 @@ async function onDrop(
 
 /* =========================================================
    CHECK
-   ---------------------------------------------------------
-   INI SATU-SATUNYA HANDLER CHECK.
 ========================================================= */
 
 async function onCheck(
@@ -388,16 +396,31 @@ async function onCheck(
         elements.checkButton;
 
 
-    if (
-        !button
-    ) {
+    if (!button) {
 
         console.error(
             "[GEN-Z.AI] #metadata-check-button TIDAK ADA."
         );
 
         return;
+    }
 
+
+    /*
+       Jika CHECK sedang busy, abaikan klik kedua.
+    */
+
+    if (
+        button.getAttribute(
+            "aria-busy"
+        ) === "true"
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] CHECK masih berjalan."
+        );
+
+        return;
     }
 
 
@@ -416,7 +439,29 @@ async function onCheck(
         );
 
         return;
+    }
 
+
+    /*
+       Periksa status readiness tanpa menggunakan
+       native disabled.
+    */
+
+    const ariaDisabled =
+        button.getAttribute(
+            "aria-disabled"
+        );
+
+
+    if (
+        ariaDisabled === "true"
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] CHECK belum siap."
+        );
+
+        return;
     }
 
 
@@ -424,6 +469,11 @@ async function onCheck(
         "[GEN-Z.AI] Menjalankan checkMetadata()..."
     );
 
+
+    /*
+       Sekarang native disabled digunakan hanya selama
+       proses async berlangsung.
+    */
 
     button.disabled =
         true;
@@ -456,9 +506,33 @@ async function onCheck(
 
     } finally {
 
+        button.disabled =
+            false;
+
+
         button.removeAttribute(
             "aria-busy"
         );
+
+
+        /*
+           Jika callback gagal dan tidak ada file,
+           kembali ke idle disabled secara visual,
+           tetapi tombol tetap secara teknis clickable.
+        */
+
+        if (
+            !currentCallbacks ||
+            typeof currentCallbacks.checkMetadata !==
+                "function"
+        ) {
+
+            button.setAttribute(
+                "aria-disabled",
+                "true"
+            );
+
+        }
 
     }
 
@@ -481,16 +555,13 @@ async function onClean(
         elements.cleanButton;
 
 
-    if (
-        !button
-    ) {
+    if (!button) {
 
         console.error(
             "[GEN-Z.AI] CLEAN button tidak ditemukan."
         );
 
         return;
-
     }
 
 
@@ -503,7 +574,6 @@ async function onClean(
         );
 
         return;
-
     }
 
 
@@ -521,7 +591,6 @@ async function onClean(
         );
 
         return;
-
     }
 
 
@@ -575,12 +644,8 @@ function onDownload(
         elements.downloadButton;
 
 
-    if (
-        !button
-    ) {
-
+    if (!button) {
         return;
-
     }
 
 
@@ -593,7 +658,6 @@ function onDownload(
         );
 
         return;
-
     }
 
 
@@ -611,7 +675,6 @@ function onDownload(
         );
 
         return;
-
     }
 
 
@@ -641,12 +704,8 @@ function onDropzoneKeydown(
     event
 ) {
 
-    if (
-        !event
-    ) {
-
+    if (!event) {
         return;
-
     }
 
 
@@ -656,7 +715,6 @@ function onDropzoneKeydown(
     ) {
 
         return;
-
     }
 
 
@@ -797,8 +855,19 @@ export function bindMetadataEvents(
         elements.checkButton
     ) {
 
+        /*
+           Jangan membuat CHECK native-disabled saat binding.
+           Gunakan aria-disabled.
+        */
+
         elements.checkButton.disabled =
-            true;
+            false;
+
+
+        elements.checkButton.setAttribute(
+            "aria-disabled",
+            "true"
+        );
 
 
         elements.checkButton.addEventListener(
@@ -810,7 +879,6 @@ export function bindMetadataEvents(
         console.log(
             "[GEN-Z.AI] CHECK listener OK."
         );
-
 
     } else {
 
@@ -877,10 +945,6 @@ export default {
 
 /* =========================================================
    DEPLOYMENT TRIGGER
-   ---------------------------------------------------------
-   Functional code intentionally unchanged.
-   Commit perubahan ini ke GitHub agar Vercel menjalankan
-   deployment otomatis.
 ========================================================= */
 
-// GEN-Z.AI DEPLOY TRIGGER: 2026-10-01
+// GEN-Z.AI DEPLOY TRIGGER: 2026-10-01-CHECK-FIX
