@@ -12,18 +12,15 @@
    - File selection
    - Check metadata
    - Clean metadata
+   - Download cleaned file
    - Reset
-   - Tidak membuka file picker secara manual dari dropzone
 
    IMPORTANT:
-   Native file input sekarang menutupi seluruh
-   area #metadata-dropzone melalui CSS.
-
-   Karena itu:
-   - Jangan memanggil fileInput.click()
-     dari event click dropzone.
-   - Browser native input menangani klik.
-   - Event "change" menangani file terpilih.
+   - metadata-app.js adalah coordinator.
+   - Callback dikirim langsung melalui bindMetadataEvents().
+   - Tidak menggunakan window.GENZ_METADATA_APP.
+   - Tidak membuat circular dependency.
+   - Native file input menangani klik pada area upload.
 ========================================================= */
 
 
@@ -37,31 +34,45 @@ import {
 
 
 /* =========================================================
-   OPTIONAL APP FUNCTIONS
+   CALLBACKS
    ---------------------------------------------------------
-   Fungsi callback diambil dari window agar modul events
-   tidak membuat circular dependency dengan metadata-app.js.
+   Callback berasal langsung dari metadata-app.js.
+
+   Contoh:
+
+       bindMetadataEvents({
+           handleFileInput,
+           openFilePicker,
+           checkMetadata,
+           cleanMetadata,
+           downloadCleanedFile,
+           handleDragOver,
+           handleDragLeave,
+           handleDrop
+       });
+
 ========================================================= */
 
-function getAppFunction(name) {
+let callbacks = {};
 
-    const fn =
-        window?.GENZ_METADATA_APP?.[name];
 
-    return typeof fn === "function"
-        ? fn
-        : null;
+/* =========================================================
+   SET CALLBACKS
+========================================================= */
+
+function setCallbacks(
+    providedCallbacks = {}
+) {
+
+    callbacks = {
+        ...providedCallbacks
+    };
+
 }
 
 
 /* =========================================================
    OPEN FILE PICKER
-   ---------------------------------------------------------
-   Dipertahankan sebagai helper kompatibilitas.
-
-   IMPORTANT:
-   Fungsi ini TIDAK dipanggil oleh event click dropzone.
-   Native input sekarang menerima klik secara langsung.
 ========================================================= */
 
 export function openFilePicker() {
@@ -69,69 +80,59 @@ export function openFilePicker() {
     const input =
         elements?.fileInput;
 
-    if (!input) {
+    if (
+        !input
+    ) {
+
         return;
     }
 
+
     input.click();
+
 }
 
 
 /* =========================================================
    FILE INPUT CHANGE
+   ---------------------------------------------------------
+   File input diserahkan langsung ke coordinator.
+
+   metadata-app.js:
+       handleFileInput(event)
+
+   akan:
+       - membaca FileList
+       - mengambil file pertama
+       - memvalidasi media
+       - reset state
+       - membuat object URL
+       - render preview
 ========================================================= */
 
-async function handleFileInput(event) {
+function handleFileInput(
+    event
+) {
 
-    const input =
-        event?.currentTarget ||
-        elements?.fileInput;
-
-    if (!input) {
-        return;
-    }
-
-    const files =
-        Array.from(
-            input.files || []
-        );
+    const handler =
+        callbacks?.handleFileInput;
 
     if (
-        files.length === 0
+        typeof handler !== "function"
     ) {
-        return;
-    }
 
-    const handleFiles =
-        getAppFunction(
-            "handleFiles"
-        );
-
-    if (handleFiles) {
-
-        await handleFiles(
-            files
+        console.error(
+            "[GEN-Z.AI] metadata-events: handleFileInput callback tidak tersedia."
         );
 
         return;
     }
 
 
-    /* =====================================================
-       COMPATIBILITY FALLBACK
-    ===================================================== */
+    handler(
+        event
+    );
 
-    const handleFile =
-        getAppFunction(
-            "handleFile"
-        );
-
-    if (handleFile) {
-
-        await handleFile(
-            files[0]
-        );
-    }
 }
 
 
@@ -139,14 +140,20 @@ async function handleFileInput(event) {
    DRAG ENTER
 ========================================================= */
 
-function handleDragEnter(event) {
+function handleDragEnter(
+    event
+) {
 
     event.preventDefault();
     event.stopPropagation();
 
+
     elements?.dropzone
         ?.classList
-        ?.add("dragover");
+        ?.add(
+            "dragover"
+        );
+
 }
 
 
@@ -154,10 +161,13 @@ function handleDragEnter(event) {
    DRAG OVER
 ========================================================= */
 
-function handleDragOver(event) {
+function handleDragOver(
+    event
+) {
 
     event.preventDefault();
     event.stopPropagation();
+
 
     if (
         event.dataTransfer
@@ -165,11 +175,36 @@ function handleDragOver(event) {
 
         event.dataTransfer.dropEffect =
             "copy";
+
     }
 
-    elements?.dropzone
-        ?.classList
-        ?.add("dragover");
+
+    /*
+       Jalankan callback coordinator
+       jika tersedia.
+    */
+
+    const handler =
+        callbacks?.handleDragOver;
+
+    if (
+        typeof handler === "function"
+    ) {
+
+        handler(
+            event
+        );
+
+    } else {
+
+        elements?.dropzone
+            ?.classList
+            ?.add(
+                "dragover"
+            );
+
+    }
+
 }
 
 
@@ -177,22 +212,29 @@ function handleDragOver(event) {
    DRAG LEAVE
 ========================================================= */
 
-function handleDragLeave(event) {
+function handleDragLeave(
+    event
+) {
 
     event.preventDefault();
     event.stopPropagation();
 
+
     const dropzone =
         elements?.dropzone;
 
-    if (!dropzone) {
+    if (
+        !dropzone
+    ) {
+
         return;
     }
 
 
     /*
-       Jika pointer masih berada di dalam
-       child element, jangan menghapus state.
+       Jangan menghapus status drag
+       apabila pointer masih berada
+       di dalam dropzone.
     */
 
     if (
@@ -201,12 +243,36 @@ function handleDragLeave(event) {
             event.relatedTarget
         )
     ) {
+
         return;
     }
 
+
     dropzone
         .classList
-        .remove("dragover");
+        .remove(
+            "dragover"
+        );
+
+
+    /*
+       Jalankan callback coordinator
+       jika tersedia.
+    */
+
+    const handler =
+        callbacks?.handleDragLeave;
+
+    if (
+        typeof handler === "function"
+    ) {
+
+        handler(
+            event
+        );
+
+    }
+
 }
 
 
@@ -214,230 +280,378 @@ function handleDragLeave(event) {
    DROP
 ========================================================= */
 
-async function handleDrop(event) {
+function handleDrop(
+    event
+) {
 
     event.preventDefault();
     event.stopPropagation();
 
-    const dropzone =
-        elements?.dropzone;
 
-    dropzone
+    elements?.dropzone
         ?.classList
-        ?.remove("dragover");
-
-    const files =
-        Array.from(
-            event?.dataTransfer?.files || []
+        ?.remove(
+            "dragover"
         );
+
+
+    /*
+       Serahkan event langsung ke
+       coordinator.
+
+       metadata-app.js akan mengambil:
+           event.dataTransfer.files
+       lalu memproses file melalui
+           processSelectedFile().
+    */
+
+    const handler =
+        callbacks?.handleDrop;
 
     if (
-        files.length === 0
+        typeof handler !== "function"
     ) {
-        return;
-    }
 
-
-    const handleFiles =
-        getAppFunction(
-            "handleFiles"
-        );
-
-    if (handleFiles) {
-
-        await handleFiles(
-            files
+        console.error(
+            "[GEN-Z.AI] metadata-events: handleDrop callback tidak tersedia."
         );
 
         return;
     }
 
 
-    /* =====================================================
-       COMPATIBILITY FALLBACK
-    ===================================================== */
+    handler(
+        event
+    );
 
-    const handleFile =
-        getAppFunction(
-            "handleFile"
-        );
-
-    if (handleFile) {
-
-        await handleFile(
-            files[0]
-        );
-    }
 }
 
 
 /* =========================================================
    DROPZONE CLICK
    ---------------------------------------------------------
-   IMPORTANT:
+   Native file input sekarang menutupi
+   seluruh area dropzone melalui CSS.
 
-   JANGAN melakukan:
+   Karena itu JANGAN memanggil:
+       openFilePicker()
 
-       openFilePicker();
+   dari event mouse click.
 
-   di sini.
-
-   Native input sekarang berada di atas dropzone
-   dan menerima klik secara langsung.
-
-   Event click hanya dicegah agar tidak terjadi
-   double-trigger pada browser tertentu.
+   Kalau dipanggil lagi, beberapa browser dapat
+   membuka picker dua kali atau menghasilkan
+   perilaku aneh.
 ========================================================= */
 
-function handleDropzoneClick(event) {
+function handleDropzoneClick(
+    event
+) {
 
     /*
-       Jika target adalah native input,
-       biarkan browser menjalankan native picker.
-
-       Jika target adalah elemen visual di bawah input,
-       input seharusnya sudah menerima pointer karena
-       z-index native input lebih tinggi.
+       Bila yang diklik adalah native input,
+       biarkan browser menangani sendiri.
     */
 
     if (
         event?.target ===
         elements?.fileInput
     ) {
+
         return;
     }
 
+
     /*
-       Jangan memanggil:
-           elements.fileInput.click()
+       Tidak melakukan apa pun.
 
-       dan jangan memanggil:
-           openFilePicker()
-
-       dari sini.
+       Native input berada di atas area
+       visual dropzone.
     */
 
-    return;
 }
 
 
 /* =========================================================
    DROPZONE KEYBOARD
    ---------------------------------------------------------
-   Accessibility fallback.
+   Untuk akses keyboard.
 
-   Enter / Space tetap bisa membuka picker ketika
-   dropzone mendapatkan keyboard focus.
+   Mouse:
+       Native input.
 
-   Mouse click tetap ditangani native input.
+   Keyboard:
+       Enter / Space → file picker.
 ========================================================= */
 
-function handleDropzoneKeydown(event) {
+function handleDropzoneKeydown(
+    event
+) {
 
     const key =
         event?.key;
+
 
     if (
         key !== "Enter" &&
         key !== " "
     ) {
+
         return;
     }
+
 
     event.preventDefault();
 
+
+    const handler =
+        callbacks?.openFilePicker;
+
+
+    if (
+        typeof handler === "function"
+    ) {
+
+        handler();
+
+        return;
+    }
+
+
+    /*
+       Fallback langsung ke input.
+    */
+
     openFilePicker();
+
 }
 
 
 /* =========================================================
-   CHECK METADATA
+   CHECK BUTTON
 ========================================================= */
 
-async function handleCheckClick(event) {
+function handleCheckClick(
+    event
+) {
 
     event?.preventDefault();
 
-    const fn =
-        getAppFunction(
-            "checkMetadata"
+
+    const handler =
+        callbacks?.checkMetadata;
+
+
+    if (
+        typeof handler !== "function"
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: checkMetadata callback tidak tersedia."
         );
 
-    if (!fn) {
         return;
     }
 
-    await fn();
+
+    handler();
+
 }
 
 
 /* =========================================================
-   CLEAN METADATA
+   CLEAN BUTTON
 ========================================================= */
 
-async function handleCleanClick(event) {
+function handleCleanClick(
+    event
+) {
 
     event?.preventDefault();
 
-    const fn =
-        getAppFunction(
-            "cleanMetadata"
+
+    const handler =
+        callbacks?.cleanMetadata;
+
+
+    if (
+        typeof handler !== "function"
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: cleanMetadata callback tidak tersedia."
         );
 
-    if (!fn) {
         return;
     }
 
-    await fn();
+
+    handler();
+
 }
 
 
 /* =========================================================
-   RESET
+   DOWNLOAD BUTTON
 ========================================================= */
 
-function handleResetClick(event) {
+function handleDownloadClick(
+    event
+) {
 
     event?.preventDefault();
 
-    const fn =
-        getAppFunction(
-            "reset"
+
+    const handler =
+        callbacks?.downloadCleanedFile;
+
+
+    if (
+        typeof handler !== "function"
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] metadata-events: downloadCleanedFile callback tidak tersedia."
         );
 
-    if (!fn) {
         return;
     }
 
-    fn();
+
+    handler();
+
+}
+
+
+/* =========================================================
+   RESET BUTTON
+========================================================= */
+
+function handleResetClick(
+    event
+) {
+
+    event?.preventDefault();
+
+
+    const handler =
+        callbacks?.reset;
+
+
+    if (
+        typeof handler !== "function"
+    ) {
+
+        /*
+           Reset bukan callback wajib
+           pada metadata-app.js versi saat ini.
+
+           Jangan error jika memang tidak
+           diberikan oleh coordinator.
+        */
+
+        return;
+    }
+
+
+    handler();
+
+}
+
+
+/* =========================================================
+   CHANGE BUTTON
+   ---------------------------------------------------------
+   Tombol "Ganti File" juga membuka
+   native file picker.
+========================================================= */
+
+function handleChangeClick(
+    event
+) {
+
+    event?.preventDefault();
+
+
+    const handler =
+        callbacks?.openFilePicker;
+
+
+    if (
+        typeof handler === "function"
+    ) {
+
+        handler();
+
+        return;
+    }
+
+
+    openFilePicker();
+
 }
 
 
 /* =========================================================
    PREVENT DEFAULT DOCUMENT DROP
    ---------------------------------------------------------
-   Mencegah browser membuka file langsung ketika file
-   dilepas di luar dropzone.
+   Mencegah browser membuka file secara langsung
+   ketika file dilepas di luar dropzone.
 ========================================================= */
 
-function preventDocumentDrop(event) {
+function preventDocumentDragOver(
+    event
+) {
 
     event.preventDefault();
+
+}
+
+
+function preventDocumentDrop(
+    event
+) {
+
+    event.preventDefault();
+
 }
 
 
 /* =========================================================
-   BIND EVENTS
+   BIND METADATA EVENTS
+   ---------------------------------------------------------
+   Ini adalah nama export yang digunakan
+   metadata-app.js:
+
+       import {
+           bindMetadataEvents
+       } from "./metadata-events.js";
+
+   Kemudian:
+
+       bindMetadataEvents({...});
 ========================================================= */
 
-export function bindEvents() {
+export function bindMetadataEvents(
+    providedCallbacks = {}
+) {
+
+    /*
+       Simpan seluruh callback dari coordinator.
+    */
+
+    setCallbacks(
+        providedCallbacks
+    );
+
 
     const {
         fileInput,
         dropzone,
         checkButton,
         cleanButton,
-        resetButton
+        downloadButton,
+        resetButton,
+        changeButton
     } =
         elements || {};
 
@@ -446,22 +660,30 @@ export function bindEvents() {
        FILE INPUT
     ===================================================== */
 
-    if (fileInput) {
+    if (
+        fileInput
+    ) {
 
         fileInput.addEventListener(
             "change",
             handleFileInput
         );
+
     }
 
 
     /* =====================================================
-       DROPZONE MOUSE CLICK
-       -----------------------------------------------------
-       Tidak membuka picker secara manual.
+       DROPZONE
     ===================================================== */
 
-    if (dropzone) {
+    if (
+        dropzone
+    ) {
+
+        /*
+           Mouse click sengaja tidak membuka
+           picker secara manual.
+        */
 
         dropzone.addEventListener(
             "click",
@@ -469,9 +691,9 @@ export function bindEvents() {
         );
 
 
-        /* =================================================
-           KEYBOARD ACCESSIBILITY
-        ================================================= */
+        /*
+           Keyboard accessibility.
+        */
 
         dropzone.addEventListener(
             "keydown",
@@ -479,68 +701,113 @@ export function bindEvents() {
         );
 
 
-        /* =================================================
-           DRAG & DROP
-        ================================================= */
+        /*
+           Drag & Drop.
+        */
 
         dropzone.addEventListener(
             "dragenter",
             handleDragEnter
         );
 
+
         dropzone.addEventListener(
             "dragover",
             handleDragOver
         );
+
 
         dropzone.addEventListener(
             "dragleave",
             handleDragLeave
         );
 
+
         dropzone.addEventListener(
             "drop",
             handleDrop
         );
+
     }
 
 
     /* =====================================================
-       CHECK BUTTON
+       CHECK
     ===================================================== */
 
-    if (checkButton) {
+    if (
+        checkButton
+    ) {
 
         checkButton.addEventListener(
             "click",
             handleCheckClick
         );
+
     }
 
 
     /* =====================================================
-       CLEAN BUTTON
+       CLEAN
     ===================================================== */
 
-    if (cleanButton) {
+    if (
+        cleanButton
+    ) {
 
         cleanButton.addEventListener(
             "click",
             handleCleanClick
         );
+
     }
 
 
     /* =====================================================
-       RESET BUTTON
+       DOWNLOAD
     ===================================================== */
 
-    if (resetButton) {
+    if (
+        downloadButton
+    ) {
+
+        downloadButton.addEventListener(
+            "click",
+            handleDownloadClick
+        );
+
+    }
+
+
+    /* =====================================================
+       RESET
+    ===================================================== */
+
+    if (
+        resetButton
+    ) {
 
         resetButton.addEventListener(
             "click",
             handleResetClick
         );
+
+    }
+
+
+    /* =====================================================
+       CHANGE FILE
+    ===================================================== */
+
+    if (
+        changeButton
+    ) {
+
+        changeButton.addEventListener(
+            "click",
+            handleChangeClick
+        );
+
     }
 
 
@@ -550,23 +817,44 @@ export function bindEvents() {
 
     document.addEventListener(
         "dragover",
-        preventDocumentDrop
+        preventDocumentDragOver
     );
+
 
     document.addEventListener(
         "drop",
         preventDocumentDrop
     );
+
+}
+
+
+/* =========================================================
+   COMPATIBILITY ALIAS
+   ---------------------------------------------------------
+   Beberapa bagian lama mungkin masih memanggil
+   bindEvents().
+
+   Alias ini dipertahankan agar tidak mematahkan
+   kode lain.
+
+   Untuk aplikasi utama gunakan:
+       bindMetadataEvents(...)
+========================================================= */
+
+export function bindEvents(
+    providedCallbacks = {}
+) {
+
+    bindMetadataEvents(
+        providedCallbacks
+    );
+
 }
 
 
 /* =========================================================
    UNBIND EVENTS
-   ---------------------------------------------------------
-   Disediakan untuk kompatibilitas / lifecycle module.
-
-   Karena listener di atas menggunakan function reference,
-   listener dapat dilepas dengan aman.
 ========================================================= */
 
 export function unbindEvents() {
@@ -576,90 +864,177 @@ export function unbindEvents() {
         dropzone,
         checkButton,
         cleanButton,
-        resetButton
+        downloadButton,
+        resetButton,
+        changeButton
     } =
         elements || {};
 
 
-    if (fileInput) {
+    /* =====================================================
+       FILE INPUT
+    ===================================================== */
+
+    if (
+        fileInput
+    ) {
 
         fileInput.removeEventListener(
             "change",
             handleFileInput
         );
+
     }
 
 
-    if (dropzone) {
+    /* =====================================================
+       DROPZONE
+    ===================================================== */
+
+    if (
+        dropzone
+    ) {
 
         dropzone.removeEventListener(
             "click",
             handleDropzoneClick
         );
 
+
         dropzone.removeEventListener(
             "keydown",
             handleDropzoneKeydown
         );
+
 
         dropzone.removeEventListener(
             "dragenter",
             handleDragEnter
         );
 
+
         dropzone.removeEventListener(
             "dragover",
             handleDragOver
         );
+
 
         dropzone.removeEventListener(
             "dragleave",
             handleDragLeave
         );
 
+
         dropzone.removeEventListener(
             "drop",
             handleDrop
         );
+
     }
 
 
-    if (checkButton) {
+    /* =====================================================
+       CHECK
+    ===================================================== */
+
+    if (
+        checkButton
+    ) {
 
         checkButton.removeEventListener(
             "click",
             handleCheckClick
         );
+
     }
 
 
-    if (cleanButton) {
+    /* =====================================================
+       CLEAN
+    ===================================================== */
+
+    if (
+        cleanButton
+    ) {
 
         cleanButton.removeEventListener(
             "click",
             handleCleanClick
         );
+
     }
 
 
-    if (resetButton) {
+    /* =====================================================
+       DOWNLOAD
+    ===================================================== */
+
+    if (
+        downloadButton
+    ) {
+
+        downloadButton.removeEventListener(
+            "click",
+            handleDownloadClick
+        );
+
+    }
+
+
+    /* =====================================================
+       RESET
+    ===================================================== */
+
+    if (
+        resetButton
+    ) {
 
         resetButton.removeEventListener(
             "click",
             handleResetClick
         );
+
     }
 
 
+    /* =====================================================
+       CHANGE FILE
+    ===================================================== */
+
+    if (
+        changeButton
+    ) {
+
+        changeButton.removeEventListener(
+            "click",
+            handleChangeClick
+        );
+
+    }
+
+
+    /* =====================================================
+       DOCUMENT
+    ===================================================== */
+
     document.removeEventListener(
         "dragover",
-        preventDocumentDrop
+        preventDocumentDragOver
     );
+
 
     document.removeEventListener(
         "drop",
         preventDocumentDrop
     );
+
+
+    /*
+       Bersihkan reference callback.
+    */
+
+    callbacks = {};
+
 }
 
 
@@ -669,7 +1044,9 @@ export function unbindEvents() {
 
 export default {
 
+    bindMetadataEvents,
     bindEvents,
     unbindEvents,
     openFilePicker
+
 };
