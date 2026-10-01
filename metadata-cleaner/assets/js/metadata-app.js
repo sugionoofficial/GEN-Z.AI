@@ -11,6 +11,7 @@
    - Read image metadata
    - Read basic video/container metadata
    - Detect AI-related metadata indicators
+   - Detect C2PA / Content Credentials
    - Show AI DETECT overlay
    - Clean image metadata locally
    - Clean video metadata locally through FFmpeg WASM
@@ -26,6 +27,8 @@
    - File hasil dibaca ulang setelah cleaning.
    - Metadata UI selalu mengikuti file yang terakhir
      benar-benar dibaca.
+   - C2PA / Content Credentials diperiksa langsung
+     saat CHECK dan setelah cleaning.
 ========================================================= */
 
 import {
@@ -84,51 +87,88 @@ import {
 
 
 /* =========================================================
+   C2PA / CONTENT CREDENTIALS
+   ---------------------------------------------------------
+   WAJIB di-import langsung.
+
+   Sebelumnya metadata-app.js hanya mencoba:
+
+       window.GENZMetadataProvenance
+
+   sehingga pada saat CHECK module provenance belum tentu
+   tersedia di window dan pemeriksaan C2PA tidak dijalankan.
+
+   Sekarang CHECK menggunakan named export secara langsung.
+========================================================= */
+
+import {
+    inspectProvenance
+} from "./metadata-provenance.js";
+
+
+/* =========================================================
    CONSTANTS
 ========================================================= */
 
-const CLEANING_DURATION = 10000;
+const CLEANING_DURATION =
+    10000;
 
 
-const CLEANING_TICK = 100;
+const CLEANING_TICK =
+    100;
 
 
 const CLEANING_STAGES = [
+
     {
         progress: 8,
         title: "INITIALIZING",
-        message: "Menyiapkan proses pembersihan..."
+        message:
+            "Menyiapkan proses pembersihan..."
     },
+
     {
         progress: 22,
         title: "ANALYZING",
-        message: "Menganalisis struktur media..."
+        message:
+            "Menganalisis struktur media..."
     },
+
     {
         progress: 42,
         title: "CLEANING",
-        message: "Membersihkan metadata..."
+        message:
+            "Membersihkan metadata..."
     },
+
     {
         progress: 64,
         title: "REBUILDING",
-        message: "Membangun file hasil baru..."
+        message:
+            "Membangun file hasil baru..."
     },
+
     {
         progress: 82,
         title: "VERIFYING",
-        message: "Memeriksa ulang file hasil..."
+        message:
+            "Memeriksa ulang file hasil..."
     },
+
     {
         progress: 94,
         title: "FINALIZING",
-        message: "Menyiapkan file untuk download..."
+        message:
+            "Menyiapkan file untuk download..."
     },
+
     {
         progress: 100,
         title: "READY",
-        message: "File cleaned siap digunakan."
+        message:
+            "File cleaned siap digunakan."
     }
+
 ];
 
 
@@ -144,12 +184,19 @@ function init() {
     bindMetadataEvents({
 
         handleFileInput,
+
         openFilePicker,
+
         checkMetadata,
+
         cleanMetadata,
+
         downloadCleanedFile,
+
         handleDragOver,
+
         handleDragLeave,
+
         handleDrop
 
     });
@@ -417,6 +464,7 @@ function isSupportedMedia(file) {
 
 
     return [
+
         "jpg",
         "jpeg",
         "png",
@@ -426,6 +474,7 @@ function isSupportedMedia(file) {
         "tif",
         "tiff",
         "avif",
+
         "mp4",
         "mov",
         "m4v",
@@ -436,6 +485,7 @@ function isSupportedMedia(file) {
         "mpg",
         "3gp",
         "ogv"
+
     ].includes(
         extension
     );
@@ -472,6 +522,7 @@ function detectMediaType(file) {
 
     if (
         [
+
             "jpg",
             "jpeg",
             "png",
@@ -481,6 +532,7 @@ function detectMediaType(file) {
             "tif",
             "tiff",
             "avif"
+
         ].includes(
             extension
         )
@@ -592,6 +644,20 @@ function renderOriginalPreview() {
 
 /* =========================================================
    CHECK METADATA
+   ---------------------------------------------------------
+   SEKARANG CHECK melakukan:
+
+   1. Read metadata
+   2. Normalize metadata
+   3. Detect AI metadata indicators
+   4. Inspect C2PA / Content Credentials
+   5. Simpan hasil provenance
+   6. Render semuanya
+
+   C2PA TIDAK dianggap sebagai bukti AI secara otomatis.
+   C2PA adalah provenance. Jika manifest memiliki
+   digitalSourceType / AI disclosure, informasi tersebut
+   dapat digunakan untuk menjelaskan provenance AI.
 ========================================================= */
 
 async function checkMetadata() {
@@ -612,6 +678,10 @@ async function checkMetadata() {
     }
 
 
+    const sourceFile =
+        state.file;
+
+
     elements.checkButton.disabled =
         true;
 
@@ -630,14 +700,29 @@ async function checkMetadata() {
 
     try {
 
+        /* =================================================
+           STEP 1
+           READ NORMAL METADATA
+        ================================================= */
+
         const metadata =
             state.fileType === "image"
+
                 ? await readImageMetadata(
-                    state.file
+                    sourceFile
                 )
+
                 : await readVideoMetadata(
-                    state.file
+                    sourceFile
                 );
+
+
+        if (
+            state.file !== sourceFile
+        ) {
+
+            return;
+        }
 
 
         state.metadata =
@@ -646,15 +731,57 @@ async function checkMetadata() {
             );
 
 
+        /* =================================================
+           STEP 2
+           DETECT AI METADATA INDICATORS
+        ================================================= */
+
         state.aiIndicators =
             detectAIIndicators(
                 state.metadata
             );
 
 
+        /* =================================================
+           STEP 3
+           C2PA / CONTENT CREDENTIALS
+           -------------------------------------------------
+           Ini yang sebelumnya hilang.
+
+           inspectProvenance() membaca binary file dan
+           mencari struktur provenance yang relevan.
+
+           Jangan hanya melihat EXIF karena C2PA/JUMBF
+           bukan sekadar field EXIF biasa.
+        ================================================= */
+
+        state.provenance =
+            await inspectFileProvenance(
+                sourceFile
+            );
+
+
+        if (
+            state.file !== sourceFile
+        ) {
+
+            return;
+        }
+
+
+        /* =================================================
+           STEP 4
+           MARK CHECKED
+        ================================================= */
+
         state.checked =
             true;
 
+
+        /* =================================================
+           STEP 5
+           RENDER ALL
+        ================================================= */
 
         renderMetadata();
 
@@ -666,11 +793,54 @@ async function checkMetadata() {
             false;
 
 
-        setPreviewStatus(
-            state.aiIndicators.length
-                ? "INDIKATOR AI DITEMUKAN PADA METADATA."
-                : "PEMERIKSAAN METADATA SELESAI."
-        );
+        /* =================================================
+           PREVIEW STATUS
+        ================================================= */
+
+        const hasAIIndicators =
+            Array.isArray(
+                state.aiIndicators
+            ) &&
+            state.aiIndicators.length > 0;
+
+
+        const hasProvenance =
+            Boolean(
+                state.provenance?.detected
+            );
+
+
+        if (
+            hasAIIndicators &&
+            hasProvenance
+        ) {
+
+            setPreviewStatus(
+                "INDIKATOR AI DAN CONTENT PROVENANCE DITEMUKAN."
+            );
+
+        } else if (
+            hasAIIndicators
+        ) {
+
+            setPreviewStatus(
+                "INDIKATOR AI DITEMUKAN PADA METADATA."
+            );
+
+        } else if (
+            hasProvenance
+        ) {
+
+            setPreviewStatus(
+                "CONTENT PROVENANCE / C2PA DITEMUKAN."
+            );
+
+        } else {
+
+            setPreviewStatus(
+                "PEMERIKSAAN METADATA SELESAI."
+            );
+        }
 
 
     } catch (error) {
@@ -687,6 +857,10 @@ async function checkMetadata() {
 
         state.aiIndicators =
             [];
+
+
+        state.provenance =
+            null;
 
 
         renderMetadata();
@@ -708,16 +882,104 @@ async function checkMetadata() {
 
     } finally {
 
-        elements.checkButton.disabled =
-            false;
+        if (
+            state.file === sourceFile
+        ) {
+
+            elements.checkButton.disabled =
+                false;
+        }
     }
+}
+
+
+/* =========================================================
+   INSPECT PROVENANCE
+   ---------------------------------------------------------
+   Direct module call.
+
+   Fallback window tetap disediakan untuk kompatibilitas
+   apabila build/deployment lama mengekspos API global.
+========================================================= */
+
+async function inspectFileProvenance(
+    file
+) {
+
+    if (!file) {
+
+        return null;
+    }
+
+
+    try {
+
+        if (
+            typeof inspectProvenance ===
+            "function"
+        ) {
+
+            const result =
+                await inspectProvenance(
+                    file
+                );
+
+
+            return result || null;
+        }
+
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] Direct provenance inspection failed:",
+            error
+        );
+    }
+
+
+    /* =====================================================
+       FALLBACK GLOBAL
+    ===================================================== */
+
+    const provenanceAPI =
+        window.GENZMetadataProvenance;
+
+
+    if (
+        provenanceAPI &&
+        typeof provenanceAPI.inspectProvenance ===
+            "function"
+    ) {
+
+        try {
+
+            const result =
+                await provenanceAPI.inspectProvenance(
+                    file
+                );
+
+
+            return result || null;
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Global provenance inspection failed:",
+                error
+            );
+        }
+    }
+
+
+    return null;
 }
 
 
 /* =========================================================
    CLEAN
    ---------------------------------------------------------
-   Flow baru:
+   Flow:
 
    1. Tampilkan premium loader.
    2. Jalankan cleaning.
@@ -725,7 +987,7 @@ async function checkMetadata() {
    4. Buat File baru.
    5. Preview File baru.
    6. Baca ulang metadata File baru.
-   7. Periksa ulang provenance jika tersedia.
+   7. Periksa ulang C2PA / Content Credentials.
    8. Render metadata terbaru.
    9. Aktifkan Download.
 
@@ -865,8 +1127,11 @@ async function cleanMetadata() {
     try {
 
         await Promise.all([
+
             cleaningPromise,
+
             minimumLoading
+
         ]);
 
 
@@ -977,9 +1242,6 @@ async function cleanMetadata() {
 
         /* =================================================
            UPDATE FILE INFORMATION
-           -------------------------------------------------
-           Informasi file di panel sekarang mengikuti
-           file cleaned.
         ================================================= */
 
         updateCleanedFileInfo(
@@ -989,8 +1251,6 @@ async function cleanMetadata() {
 
         /* =================================================
            RE-READ CLEANED METADATA
-           -------------------------------------------------
-           Ini bagian yang sebelumnya belum dilakukan.
         ================================================= */
 
         updatePremiumCleaningLoader(
@@ -1005,9 +1265,11 @@ async function cleanMetadata() {
             cleanedFile.type?.startsWith(
                 "image/"
             )
+
                 ? await readImageMetadata(
                     cleanedFile
                 )
+
                 : await readVideoMetadata(
                     cleanedFile
                 );
@@ -1028,9 +1290,8 @@ async function cleanMetadata() {
         /* =================================================
            PROVENANCE RECHECK
            -------------------------------------------------
-           Jika metadata-provenance.js tersedia melalui
-           global GENZMetadataProvenance, baca ulang
-           file hasil.
+           C2PA / Content Credentials diperiksa ulang
+           terhadap FILE HASIL, bukan file original.
         ================================================= */
 
         await refreshCleanedProvenance(
@@ -1085,7 +1346,9 @@ async function cleanMetadata() {
             state.aiIndicators.length
                 ? "DETECTED"
                 : "CLEAR",
+
             "FILE CLEANED SIAP",
+
             "Metadata telah dibaca ulang dari file hasil cleaning."
         );
 
@@ -1116,6 +1379,10 @@ async function cleanMetadata() {
 
 
         state.cleanedFile =
+            null;
+
+
+        state.provenance =
             null;
 
 
@@ -1192,36 +1459,8 @@ async function refreshCleanedProvenance(
         !cleanedFile
     ) {
 
-        return;
-    }
-
-
-    const provenanceAPI =
-        window.GENZMetadataProvenance;
-
-
-    if (
-        !provenanceAPI ||
-        typeof provenanceAPI.inspectProvenance !==
-            "function"
-    ) {
-
-        /*
-         * Module provenance mungkin belum dimuat.
-         * Jangan membuat aplikasi gagal hanya karena
-         * modul optional tersebut tidak tersedia.
-         */
-
-        if (
-            Object.prototype.hasOwnProperty.call(
-                state,
-                "provenance"
-            )
-        ) {
-
-            state.provenance =
-                null;
-        }
+        state.provenance =
+            null;
 
 
         return;
@@ -1231,7 +1470,7 @@ async function refreshCleanedProvenance(
     try {
 
         const result =
-            await provenanceAPI.inspectProvenance(
+            await inspectFileProvenance(
                 cleanedFile
             );
 
@@ -1702,8 +1941,6 @@ function removePremiumCleaningLoader(
 
 /* =========================================================
    PREMIUM LOADER CSS
-   ---------------------------------------------------------
-   Dibuat di JS supaya tidak perlu mengubah HTML/CSS lain.
 ========================================================= */
 
 function injectPremiumCleaningStyles() {
@@ -2145,11 +2382,13 @@ function injectPremiumCleaningStyles() {
         @keyframes genzCleanOrbit {
 
             from {
+
                 transform:
                     rotate(0deg);
             }
 
             to {
+
                 transform:
                     rotate(360deg);
             }
@@ -2437,24 +2676,25 @@ function resetForNewFile() {
         [];
 
 
+    /*
+     * Selalu reset provenance.
+     *
+     * Sebelumnya hanya di-reset apabila property tersebut
+     * sudah ada. Sekarang state provenance dibuat eksplisit
+     * sehingga tidak ada hasil C2PA file sebelumnya yang
+     * tertinggal.
+     */
+
+    state.provenance =
+        null;
+
+
     state.cleanedBlob =
         null;
 
 
     state.cleanedFile =
         null;
-
-
-    if (
-        Object.prototype.hasOwnProperty.call(
-            state,
-            "provenance"
-        )
-    ) {
-
-        state.provenance =
-            null;
-    }
 
 
     if (
@@ -2527,6 +2767,10 @@ function resetApplication() {
 
 
     state.fileType =
+        null;
+
+
+    state.provenance =
         null;
 
 
@@ -2694,11 +2938,13 @@ function formatBytes(
 
 
     const units = [
+
         "B",
         "KB",
         "MB",
         "GB",
         "TB"
+
     ];
 
 
@@ -2765,6 +3011,10 @@ function getExtension(
         .toLowerCase();
 }
 
+
+/* =========================================================
+   ASPECT RATIO
+========================================================= */
 
 function calculateAspectRatio(
     width,
@@ -2877,10 +3127,22 @@ window.GENZMetadataCleaner =
                     state.fileType,
 
                 metadata:
-                    [...state.metadata],
+                    [
+                        ...(
+                            state.metadata || []
+                        )
+                    ],
 
                 aiIndicators:
-                    [...state.aiIndicators],
+                    [
+                        ...(
+                            state.aiIndicators || []
+                        )
+                    ],
+
+                provenance:
+                    state.provenance ||
+                    null,
 
                 checked:
                     state.checked,
@@ -2891,7 +3153,8 @@ window.GENZMetadataCleaner =
                     ),
 
                 cleanedFile:
-                    state.cleanedFile || null
+                    state.cleanedFile ||
+                    null
             };
         },
 
