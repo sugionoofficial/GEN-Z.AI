@@ -75,6 +75,21 @@ import {
     getReadableError
 } from "./metadata-check.js";
 
+/* =========================================================
+   PREVIEW MODULE
+   ---------------------------------------------------------
+   Semua fungsi preview sekarang ditangani oleh:
+   metadata-preview.js
+========================================================= */
+
+import {
+    renderOriginalPreview,
+    renderCleanedPreview,
+    clearOriginalPreview,
+    clearCleanedPreview,
+    setPreviewStatus
+} from "./metadata-preview.js";
+
 
 import {
     normalizeMetadata,
