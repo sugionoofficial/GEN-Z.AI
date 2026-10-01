@@ -24,7 +24,8 @@
 
    AI DETECTION:
    1. Local metadata detector
-   2. Sightengine visual AI detector
+   2. C2PA / Content Credentials provenance
+   3. Sightengine visual AI detector
 
    CONTENT PROVENANCE:
    1. C2PA
@@ -38,20 +39,22 @@
    - Metadata detection dan visual detection
      merupakan dua sumber berbeda.
    - Provenance detection merupakan sumber informasi
-     yang berbeda dari AI visual detection.
+     provenance yang dapat menjadi signal AI apabila
+     C2PA / Content Credentials menyatakan informasi
+     terkait AI.
+   - Provenance DETECTED tidak sama dengan VERIFIED.
+   - Verification tetap dipisahkan dari detection.
    - Tidak ada detector yang dapat menjamin
      asal media secara 100%.
    - Model pada AI DETECTION stamp berasal
-     langsung dari result Sightengine.
-   - Stamp visual ditampilkan jika Sightengine
-     menyatakan salah satu detector visual
-     terdeteksi:
-       is_ai_generated === true
-       is_face_manipulated === true
-       is_deepfake === true
-   - sightengineChecked menjadi sumber kebenaran
-     apakah hasil Sightengine benar-benar tersedia.
-   - Provenance DETECTED tidak sama dengan VERIFIED.
+     langsung dari result Sightengine jika
+     Sightengine menjadi sumber detection.
+   - Jika hanya provenance yang terdeteksi,
+     stamp menggunakan sumber:
+       C2PA
+       Content Credentials
+       Content Provenance
+     tanpa mengarang nama model AI.
 ========================================================= */
 
 
@@ -123,21 +126,6 @@ const SIGHTENGINE_MEDIA_TITLE =
 
 /* =========================================================
    GENERATOR GROUPS
-   ---------------------------------------------------------
-   Mengikuti kategori generator yang digunakan oleh
-   Sightengine.
-
-   Penting:
-   - Hanya generator yang benar-benar dikirim backend
-     yang ditampilkan.
-   - Score 0% tetap ditampilkan.
-   - Tidak membuat score palsu untuk generator yang
-     tidak dikirim provider.
-========================================================= */
-
-
-/* =========================================================
-   DIFFUSION GENERATORS
 ========================================================= */
 
 const DIFFUSION_GENERATORS =
@@ -583,14 +571,6 @@ function formatGeneratorName(
 
 /* =========================================================
    GENERATOR GROUP
-   ---------------------------------------------------------
-   Return:
-       diffusion
-       gan
-       other
-
-   Generator yang tidak dikenal tidak dibuang.
-   Ia masuk OTHER agar hasil provider tidak hilang.
 ========================================================= */
 
 function getGeneratorGroup(
@@ -654,11 +634,6 @@ function getGeneratorGroup(
 
 /* =========================================================
    GENERATOR FORMAT
-   ---------------------------------------------------------
-   IMPORTANT:
-   - score adalah nilai utama dari Sightengine.
-   - confidence hanya fallback.
-   - score 0 adalah nilai valid.
 ========================================================= */
 
 function formatGenerator(
@@ -778,11 +753,6 @@ function formatValue(
 
 /* =========================================================
    GENERIC OBJECT DISPLAY
-   ---------------------------------------------------------
-   Digunakan untuk provenance values yang mungkin berupa
-   object / array.
-
-   Tidak menampilkan "[object Object]".
 ========================================================= */
 
 function formatStructuredValue(
@@ -1091,6 +1061,116 @@ function hasProvenanceResult(
 
 
 /* =========================================================
+   PROVENANCE DETECTED
+   ---------------------------------------------------------
+   Provenance dianggap terdeteksi apabila:
+   - root detected === true
+   - C2PA detected === true
+   - Content Credentials detected === true
+========================================================= */
+
+function isProvenanceDetected(
+    provenance
+) {
+
+    if (
+        !hasProvenanceResult(
+            provenance
+        )
+    ) {
+
+        return false;
+
+    }
+
+
+    return (
+        provenance.detected === true ||
+        provenance.c2pa?.detected === true ||
+        provenance.contentCredentials?.detected === true
+    );
+
+}
+
+
+/* =========================================================
+   AI PROVENANCE SIGNAL
+   ---------------------------------------------------------
+   C2PA / Content Credentials dapat memberikan signal
+   AI melalui:
+   - digitalSourceType
+   - aiDisclosure
+   - C2PA detected
+   - Content Credentials detected
+
+   Untuk UI GEN-Z.AI, keberadaan C2PA / CC yang telah
+   terdeteksi dianggap sebagai detection signal.
+
+   IMPORTANT:
+   DETECTED != VERIFIED
+========================================================= */
+
+function hasAIProvenanceSignal(
+    provenance
+) {
+
+    if (
+        !isProvenanceDetected(
+            provenance
+        )
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        provenance.digitalSourceType !== null &&
+        provenance.digitalSourceType !== undefined &&
+        provenance.digitalSourceType !== ""
+    ) {
+
+        return true;
+
+    }
+
+
+    if (
+        provenance.aiDisclosure !== null &&
+        provenance.aiDisclosure !== undefined &&
+        provenance.aiDisclosure !== ""
+    ) {
+
+        return true;
+
+    }
+
+
+    if (
+        provenance.c2pa?.detected === true
+    ) {
+
+        return true;
+
+    }
+
+
+    if (
+        provenance.contentCredentials?.detected === true
+    ) {
+
+        return true;
+
+    }
+
+
+    return false;
+
+}
+
+
+/* =========================================================
    PROVENANCE STATUS
 ========================================================= */
 
@@ -1109,11 +1189,6 @@ function formatProvenanceStatus(
     }
 
 
-    /*
-     * VERIFIED hanya jika inspector memang menyatakan
-     * verified === true.
-     */
-
     if (
         provenance.verified === true
     ) {
@@ -1125,6 +1200,24 @@ function formatProvenanceStatus(
 
     if (
         provenance.detected === true
+    ) {
+
+        return "DETECTED";
+
+    }
+
+
+    if (
+        provenance.c2pa?.detected === true
+    ) {
+
+        return "DETECTED";
+
+    }
+
+
+    if (
+        provenance.contentCredentials?.detected === true
     ) {
 
         return "DETECTED";
@@ -1466,29 +1559,6 @@ function renderProvenanceFindings(
 
 /* =========================================================
    PROVENANCE METADATA
-   ---------------------------------------------------------
-   Struktur:
-
-       CONTENT PROVENANCE
-
-       Status
-       Format
-       Verification
-
-       C2PA
-       Status
-       Verification
-       Manifest Count
-
-       CONTENT CREDENTIALS
-       Status
-       Verification
-
-       Digital Source Type
-       AI Disclosure
-
-       PROVENANCE FINDINGS
-       ...
 ========================================================= */
 
 function renderProvenanceMetadata(
@@ -1623,19 +1693,6 @@ function hasSightengineResult(
 
 /* =========================================================
    SIGHTENGINE DETECTION
-   ---------------------------------------------------------
-   Tampilan utama:
-
-       SIGHTENGINE AI DETECTION
-
-       GenAI              99%
-       Face manipulation  60%
-
-   Deepfake TIDAK lagi ditampilkan di section ini.
-   Deepfake ditampilkan satu kali di AI GENERATORS > OTHER.
-
-   Detection Model dan informasi teknis tetap
-   dipertahankan untuk kompatibilitas.
 ========================================================= */
 
 function renderSightengineDetection(
@@ -1749,13 +1806,6 @@ function renderSightengineDetection(
         );
 
 
-    /* =====================================================
-       GenAI score
-       -----------------------------------------------------
-       Score menjadi sumber utama.
-       Confidence hanya fallback.
-    ===================================================== */
-
     html +=
         createMetadataRow(
             "GenAI",
@@ -1771,10 +1821,6 @@ function renderSightengineDetection(
         );
 
 
-    /* =====================================================
-       Face manipulation score
-    ===================================================== */
-
     html +=
         createMetadataRow(
             "Face manipulation",
@@ -1789,10 +1835,6 @@ function renderSightengineDetection(
                     : "N/A"
         );
 
-
-    /* =====================================================
-       Informasi teknis
-    ===================================================== */
 
     html +=
         createMetadataRow(
@@ -1829,10 +1871,6 @@ function renderSightengineDetection(
 
 /* =========================================================
    GENERATOR ROW
-   ---------------------------------------------------------
-   Score menjadi sumber utama.
-   Confidence hanya fallback.
-   Score 0 tetap valid.
 ========================================================= */
 
 function renderGeneratorRow(
@@ -1965,10 +2003,6 @@ function renderGeneratorGroup(
 
 /* =========================================================
    SORT GENERATORS
-   ---------------------------------------------------------
-   Provider order tetap dihormati berdasarkan score.
-
-   Score 0 tetap masuk.
 ========================================================= */
 
 function sortGenerators(
@@ -2038,31 +2072,6 @@ function sortGenerators(
 
 /* =========================================================
    AI GENERATORS
-   ---------------------------------------------------------
-   Struktur:
-
-       AI GENERATORS
-
-       DIFFUSION
-       Imagen              76%
-       Nano Banana         76%
-       Wan                   8%
-
-       GAN
-       StyleGAN              1%
-
-       OTHER
-       Other                 9%
-       Deepfake             60%
-
-   Deepfake hanya ditambahkan dari detector deepfake.
-
-   Jika backend juga mengirim "deepfake" di dalam
-   generators[], entry tersebut dilewati agar tidak
-   terjadi duplikasi.
-
-   Tidak ada generator yang dibuang hanya karena
-   score = 0.
 ========================================================= */
 
 function renderSightengineGenerators(
@@ -2087,16 +2096,6 @@ function renderSightengineGenerators(
             ? detection.generators
             : [];
 
-
-    /*
-     * Tidak ada generator individual.
-     *
-     * Jangan membuat daftar generator palsu.
-     *
-     * Deepfake tetap dapat tampil meskipun
-     * endpoint genai tidak mengembalikan
-     * generators array.
-     */
 
     if (
         generators.length === 0
@@ -2144,17 +2143,6 @@ function renderSightengineGenerators(
     for (
         const generator of sortedGenerators
     ) {
-
-        /*
-         * Deepfake mempunyai sumber khusus:
-         * detection.deepfake / deepfake_confidence.
-         *
-         * Jika provider juga mengirim deepfake di
-         * generators[], jangan masukkan di sini.
-         *
-         * Nanti hanya satu entry Deepfake dibuat
-         * berdasarkan detector deepfake.
-         */
 
         const generatorKey =
             normalizeGeneratorKey(
@@ -2204,19 +2192,6 @@ function renderSightengineGenerators(
     }
 
 
-    /* =====================================================
-       Deepfake
-       -----------------------------------------------------
-       Deepfake berasal dari detector deepfake,
-       bukan ai_generators.
-
-       Ditampilkan hanya di OTHER agar tidak terjadi
-       duplikasi pada SIGHTENGINE AI DETECTION.
-
-       Entry generator "deepfake" dari provider sengaja
-       dilewati di loop sebelumnya.
-    ===================================================== */
-
     const deepfakeScore =
         normalizeScore(
             detection.deepfake
@@ -2249,10 +2224,6 @@ function renderSightengineGenerators(
 
     }
 
-
-    /*
-     * Jangan render section utama kosong.
-     */
 
     if (
         diffusion.length === 0 &&
@@ -2544,19 +2515,11 @@ function renderAnalysisMetadata() {
         "";
 
 
-    /* =====================================================
-       CONTENT PROVENANCE
-    ===================================================== */
-
     html +=
         renderProvenanceMetadata(
             state.provenance
         );
 
-
-    /* =====================================================
-       SIGHTENGINE
-    ===================================================== */
 
     html +=
         renderSightengineMetadata(
@@ -2570,19 +2533,420 @@ function renderAnalysisMetadata() {
 
 
 /* =========================================================
+   PROVENANCE OVERLAY STAMP
+   ---------------------------------------------------------
+   Dipakai jika C2PA / Content Credentials menjadi
+   sumber AI detection tetapi Sightengine belum
+   memberikan visual detection.
+
+   Tidak mengarang nama model.
+========================================================= */
+
+function renderProvenanceOverlayStamp(
+    provenance
+) {
+
+    const overlay =
+        elements.aiOverlay;
+
+
+    if (
+        !overlay
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] AI detection overlay element tidak ditemukan."
+        );
+
+
+        return;
+
+    }
+
+
+    overlay.classList.remove(
+        "hidden"
+    );
+
+
+    overlay.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+
+    let stamp =
+        overlay.querySelector(
+            ".metadata-ai-detect-stamp"
+        );
+
+
+    if (
+        !stamp
+    ) {
+
+        stamp =
+            document.createElement(
+                "div"
+            );
+
+
+        stamp.className =
+            "metadata-ai-detect-stamp";
+
+
+        overlay.appendChild(
+            stamp
+        );
+
+    }
+
+
+    let label =
+        stamp.querySelector(
+            ":scope > span:first-child"
+        );
+
+
+    if (
+        !label
+    ) {
+
+        label =
+            document.createElement(
+                "span"
+            );
+
+
+        stamp.insertBefore(
+            label,
+            stamp.firstChild
+        );
+
+    }
+
+
+    label.textContent =
+        "AI DETECTION";
+
+
+    renderProvenanceOverlayModel(
+        stamp,
+        provenance
+    );
+
+
+    overlay.hidden =
+        false;
+
+
+    overlay.style.visibility =
+        "visible";
+
+
+    overlay.style.opacity =
+        "1";
+
+}
+
+
+/* =========================================================
+   PROVENANCE OVERLAY MODEL / SOURCE
+========================================================= */
+
+function renderProvenanceOverlayModel(
+    stamp,
+    provenance
+) {
+
+    if (
+        !stamp
+    ) {
+
+        return;
+
+    }
+
+
+    const existing =
+        stamp.querySelector(
+            ".metadata-ai-detect-model"
+        );
+
+
+    if (
+        existing
+    ) {
+
+        existing.remove();
+
+    }
+
+
+    let source =
+        "";
+
+
+    const c2paDetected =
+        provenance?.c2pa?.detected === true;
+
+
+    const credentialsDetected =
+        provenance?.contentCredentials?.detected === true;
+
+
+    if (
+        c2paDetected &&
+        credentialsDetected
+    ) {
+
+        source =
+            "Source C2PA / Content Credentials";
+
+    } else if (
+        c2paDetected
+    ) {
+
+        source =
+            "Source C2PA";
+
+    } else if (
+        credentialsDetected
+    ) {
+
+        source =
+            "Source Content Credentials";
+
+    } else {
+
+        source =
+            "Source Content Provenance";
+
+    }
+
+
+    const modelLabel =
+        document.createElement(
+            "span"
+        );
+
+
+    modelLabel.className =
+        "metadata-ai-detect-model";
+
+
+    modelLabel.textContent =
+        source;
+
+
+    stamp.appendChild(
+        modelLabel
+    );
+
+}
+
+
+/* =========================================================
+   PROVENANCE DETECTION DESCRIPTION
+========================================================= */
+
+function buildProvenanceDetectionDescription(
+    provenance
+) {
+
+    const parts = [];
+
+
+    if (
+        provenance?.c2pa?.detected === true
+    ) {
+
+        const manifestCount =
+            Number.isFinite(
+                Number(
+                    provenance.c2pa.manifestCount
+                )
+            )
+                ? Number(
+                    provenance.c2pa.manifestCount
+                )
+                : 0;
+
+
+        parts.push(
+            `C2PA terdeteksi dengan ${manifestCount} manifest.`
+        );
+
+    }
+
+
+    if (
+        provenance?.contentCredentials?.detected === true
+    ) {
+
+        parts.push(
+            "Content Credentials terdeteksi."
+        );
+
+    }
+
+
+    if (
+        provenance?.digitalSourceType !== null &&
+        provenance?.digitalSourceType !== undefined &&
+        provenance?.digitalSourceType !== ""
+    ) {
+
+        parts.push(
+            `Digital Source Type: ${formatStructuredValue(
+                provenance.digitalSourceType
+            ).replace(
+                /&quot;/g,
+                '"'
+            )}.`
+        );
+
+    }
+
+
+    if (
+        provenance?.aiDisclosure !== null &&
+        provenance?.aiDisclosure !== undefined &&
+        provenance?.aiDisclosure !== ""
+    ) {
+
+        parts.push(
+            "AI Disclosure tersedia pada Content Credentials."
+        );
+
+    }
+
+
+    if (
+        provenance?.verificationStatus
+    ) {
+
+        parts.push(
+            `Verification: ${String(
+                provenance.verificationStatus
+            )}.`
+        );
+
+    } else {
+
+        parts.push(
+            "Verification: NOT VERIFIED."
+        );
+
+    }
+
+
+    if (
+        Array.isArray(
+            provenance?.findings
+        ) &&
+        provenance.findings.length > 0
+    ) {
+
+        parts.push(
+            `${provenance.findings.length} provenance finding ditemukan.`
+        );
+
+    }
+
+
+    if (
+        parts.length === 0
+    ) {
+
+        return (
+            "Content provenance terdeteksi pada file."
+        );
+
+    }
+
+
+    return parts.join(
+        " "
+    );
+
+}
+
+
+/* =========================================================
+   METADATA + PROVENANCE DESCRIPTION
+========================================================= */
+
+function buildMetadataProvenanceDescription(
+    metadataCount,
+    provenance
+) {
+
+    const provenanceText =
+        buildProvenanceDetectionDescription(
+            provenance
+        );
+
+
+    return (
+        `${metadataCount} indikator AI ditemukan pada metadata. ` +
+        `${provenanceText}`
+    );
+
+}
+
+
+/* =========================================================
+   PROVENANCE + SIGHTENGINE DESCRIPTION
+========================================================= */
+
+function buildProvenanceSightengineDescription(
+    provenance,
+    sightengine
+) {
+
+    const provenanceText =
+        buildProvenanceDetectionDescription(
+            provenance
+        );
+
+
+    const sightengineText =
+        buildSightengineDescription(
+            sightengine
+        );
+
+
+    return (
+        `${provenanceText} ` +
+        `${sightengineText}`
+    );
+
+}
+
+
+/* =========================================================
    DETECTION RESULT
    ---------------------------------------------------------
-   Sightengine dianggap terdeteksi jika salah satu:
-   - is_ai_generated
-   - is_face_manipulated
-   - is_deepfake
+   AI DETECTION menggunakan tiga sumber:
 
-   SIGHTENGINE CHECKED dianggap valid jika salah satu
-   score detector tersedia.
+   1. Local metadata detector
+   2. C2PA / Content Credentials
+   3. Sightengine visual AI detector
 
-   Provenance tidak digunakan sebagai AI detector.
-   Provenance hanya memberikan informasi asal /
-   riwayat yang tersedia pada file.
+   Prioritas overlay:
+
+   1. Sightengine visual detection
+   2. C2PA / Content Credentials provenance
+
+   Penting:
+   - C2PA DETECTED tetap NOT VERIFIED jika belum
+     dilakukan cryptographic verification.
+   - C2PA detection tidak mengubah score Sightengine.
+   - C2PA detection tidak membuat score palsu.
+   - Jika hanya C2PA yang ditemukan, AI DETECTION
+     tetap muncul karena file memiliki AI/provenance
+     signal yang terdeteksi.
 ========================================================= */
 
 export function renderDetectionResult() {
@@ -2597,6 +2961,26 @@ export function renderDetectionResult() {
 
     const metadataDetected =
         metadataIndicators.length > 0;
+
+
+    const provenance =
+        isObject(
+            state.provenance
+        )
+            ? state.provenance
+            : null;
+
+
+    const provenanceDetected =
+        isProvenanceDetected(
+            provenance
+        );
+
+
+    const aiProvenanceDetected =
+        hasAIProvenanceSignal(
+            provenance
+        );
 
 
     const sightengine =
@@ -2624,14 +3008,28 @@ export function renderDetectionResult() {
 
     /* =====================================================
        AI DETECTED
+       -----------------------------------------------------
+       C2PA / Content Credentials sekarang ikut menjadi
+       detection signal apabila provenance benar-benar
+       terdeteksi.
+    ===================================================== */
+
+    const aiDetected =
+        metadataDetected ||
+        sightengineDetected ||
+        aiProvenanceDetected;
+
+
+    /* =====================================================
+       AI DETECTED
     ===================================================== */
 
     if (
-        metadataDetected ||
-        sightengineDetected
+        aiDetected
     ) {
 
         /* =================================================
+           PRIORITY 1:
            SIGHTENGINE VISUAL DETECTION
         ================================================= */
 
@@ -2643,9 +3041,57 @@ export function renderDetectionResult() {
                 sightengine
             );
 
-        } else {
+        }
+
+
+        /* =================================================
+           PRIORITY 2:
+           C2PA / CONTENT CREDENTIALS
+
+           Hanya dipakai apabila Sightengine tidak
+           memberikan visual detection.
+        ================================================= */
+
+        else if (
+            aiProvenanceDetected
+        ) {
+
+            renderProvenanceOverlayStamp(
+                provenance
+            );
+
+        }
+
+
+        else {
 
             clearOverlayStamp();
+
+        }
+
+
+        /* =================================================
+           METADATA + SIGHTENGINE + PROVENANCE
+        ================================================= */
+
+        if (
+            metadataDetected &&
+            sightengineDetected &&
+            aiProvenanceDetected
+        ) {
+
+            setStatus(
+                "DETECTED",
+                "AI DETECTION",
+                buildCombinedProvenanceDetectionDescription(
+                    metadataIndicators.length,
+                    provenance,
+                    sightengine
+                )
+            );
+
+
+            return;
 
         }
 
@@ -2665,6 +3111,54 @@ export function renderDetectionResult() {
                 buildCombinedDetectionDescription(
                     metadataIndicators.length,
                     sightengine
+                )
+            );
+
+
+            return;
+
+        }
+
+
+        /* =================================================
+           PROVENANCE + SIGHTENGINE
+        ================================================= */
+
+        if (
+            aiProvenanceDetected &&
+            sightengineDetected
+        ) {
+
+            setStatus(
+                "DETECTED",
+                "AI DETECTION",
+                buildProvenanceSightengineDescription(
+                    provenance,
+                    sightengine
+                )
+            );
+
+
+            return;
+
+        }
+
+
+        /* =================================================
+           METADATA + PROVENANCE
+        ================================================= */
+
+        if (
+            metadataDetected &&
+            aiProvenanceDetected
+        ) {
+
+            setStatus(
+                "DETECTED",
+                "AI DETECTION",
+                buildMetadataProvenanceDescription(
+                    metadataIndicators.length,
+                    provenance
                 )
             );
 
@@ -2697,12 +3191,34 @@ export function renderDetectionResult() {
 
 
         /* =================================================
+           PROVENANCE ONLY
+        ================================================= */
+
+        if (
+            aiProvenanceDetected
+        ) {
+
+            setStatus(
+                "DETECTED",
+                "AI DETECTION",
+                buildProvenanceDetectionDescription(
+                    provenance
+                )
+            );
+
+
+            return;
+
+        }
+
+
+        /* =================================================
            METADATA ONLY
         ================================================= */
 
         setStatus(
             "DETECTED",
-            "AI DETECT",
+            "AI DETECTION",
             `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
         );
 
@@ -2766,20 +3282,44 @@ export function renderDetectionResult() {
         state.sightengineError
     ) {
 
-        clearOverlayStamp();
-
-
         if (
             metadataDetected
         ) {
 
+            clearOverlayStamp();
+
+
             setStatus(
                 "DETECTED",
-                "AI DETECT",
+                "AI DETECTION",
                 `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata. AI visual detection dari Sightengine tidak tersedia.`
             );
 
-        } else {
+        }
+
+        else if (
+            aiProvenanceDetected
+        ) {
+
+            renderProvenanceOverlayStamp(
+                provenance
+            );
+
+
+            setStatus(
+                "DETECTED",
+                "AI DETECTION",
+                buildProvenanceDetectionDescription(
+                    provenance
+                )
+            );
+
+        }
+
+        else {
+
+            clearOverlayStamp();
+
 
             setStatus(
                 "UNKNOWN",
@@ -2799,6 +3339,29 @@ export function renderDetectionResult() {
        NO SIGHTENGINE RESULT
     ===================================================== */
 
+    if (
+        aiProvenanceDetected
+    ) {
+
+        renderProvenanceOverlayStamp(
+            provenance
+        );
+
+
+        setStatus(
+            "DETECTED",
+            "AI DETECTION",
+            buildProvenanceDetectionDescription(
+                provenance
+            )
+        );
+
+
+        return;
+
+    }
+
+
     clearOverlayStamp();
 
 
@@ -2806,12 +3369,46 @@ export function renderDetectionResult() {
         metadataDetected
             ? "DETECTED"
             : "CLEAR",
+
         metadataDetected
-            ? "AI DETECT"
+            ? "AI DETECTION"
             : "TIDAK TERDETEKSI DARI METADATA",
+
         metadataDetected
             ? `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
+
             : "Tidak ditemukan indikator AI yang dikenali pada metadata yang berhasil dibaca. Ini bukan bukti bahwa media bukan hasil AI."
+    );
+
+}
+
+
+/* =========================================================
+   COMBINED PROVENANCE DETECTION DESCRIPTION
+========================================================= */
+
+function buildCombinedProvenanceDetectionDescription(
+    metadataCount,
+    provenance,
+    sightengine
+) {
+
+    const provenanceText =
+        buildProvenanceDetectionDescription(
+            provenance
+        );
+
+
+    const sightengineText =
+        buildSightengineDescription(
+            sightengine
+        );
+
+
+    return (
+        `${metadataCount} indikator AI ditemukan pada metadata. ` +
+        `${provenanceText} ` +
+        `${sightengineText}`
     );
 
 }
