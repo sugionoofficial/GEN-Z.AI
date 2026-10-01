@@ -7,21 +7,43 @@
 
    Tanggung jawab:
    - Menerima image dari frontend
-   - Menjaga Sightengine credentials tetap server-side
+   - Menjaga credential Sightengine tetap server-side
    - Mengirim image ke Sightengine
-   - Menggunakan model genai
-   - Menormalisasi hasil AI detection
-   - Mengembalikan generator scores
-   - Mengembalikan request metadata
-   - Mengembalikan media metadata
+   - Menggunakan model:
+       genai
+       deepfake
+   - Mengembalikan:
+       GenAI score
+       Face manipulation / deepfake score
+       AI generator scores
+       Request metadata
+       Media metadata
    - Tidak menyimpan file/image
+
+   Sightengine:
+   models=genai,deepfake
+========================================================= */
+
+
+/* =========================================================
+   CONSTANTS
 ========================================================= */
 
 const SIGHTENGINE_ENDPOINT =
     "https://api.sightengine.com/1.0/check.json";
 
-const SIGHTENGINE_MODEL =
+
+const SIGHTENGINE_MODELS =
+    "genai,deepfake";
+
+
+const SIGHTENGINE_GENAI_MODEL =
     "genai";
+
+
+const SIGHTENGINE_DEEPFAKE_MODEL =
+    "deepfake";
+
 
 const MAX_IMAGE_SIZE =
     15 * 1024 * 1024;
@@ -36,8 +58,10 @@ function getSightengineConfig() {
     const apiUser =
         process.env.SIGHTENGINE_API_USER;
 
+
     const apiSecret =
         process.env.SIGHTENGINE_API_SECRET;
+
 
     if (
         !apiUser ||
@@ -50,9 +74,13 @@ function getSightengineConfig() {
 
     }
 
+
     return {
+
         apiUser,
+
         apiSecret
+
     };
 
 }
@@ -69,8 +97,12 @@ function sendJson(
 ) {
 
     res
-        .status(status)
-        .json(payload);
+        .status(
+            status
+        )
+        .json(
+            payload
+        );
 
 }
 
@@ -92,15 +124,19 @@ function ensurePostMethod(
             res,
             405,
             {
-                success: false,
+                success:
+                    false,
+
                 error:
                     "Method not allowed."
             }
         );
 
+
         return false;
 
     }
+
 
     return true;
 
@@ -116,10 +152,13 @@ function getImageData(
 ) {
 
     const body =
-        req.body || {};
+        req.body ||
+        {};
+
 
     const image =
         body.image;
+
 
     if (
         typeof image !== "string" ||
@@ -131,6 +170,7 @@ function getImageData(
         );
 
     }
+
 
     return image.trim();
 
@@ -150,6 +190,7 @@ function parseDataUrl(
             /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s
         );
 
+
     if (
         !match
     ) {
@@ -160,12 +201,15 @@ function parseDataUrl(
 
     }
 
+
     const mimeType =
         match[1] ||
         "application/octet-stream";
 
+
     const encodedData =
         match[2];
+
 
     if (
         !encodedData
@@ -177,9 +221,13 @@ function parseDataUrl(
 
     }
 
+
     return {
+
         mimeType,
+
         encodedData
+
     };
 
 }
@@ -195,16 +243,27 @@ function isSupportedImageType(
 
     const supportedTypes =
         new Set([
+
             "image/jpeg",
+
             "image/png",
+
             "image/webp",
+
             "image/gif",
+
             "image/bmp",
+
             "image/tiff"
+
         ]);
 
+
     return supportedTypes.has(
-        String(mimeType || "")
+        String(
+            mimeType ||
+            ""
+        )
             .toLowerCase()
     );
 
@@ -220,8 +279,15 @@ function getBase64ByteSize(
 ) {
 
     const normalized =
-        String(base64 || "")
-            .replace(/\s/g, "");
+        String(
+            base64 ||
+            ""
+        )
+            .replace(
+                /\s/g,
+                ""
+            );
+
 
     if (
         normalized.length === 0
@@ -231,12 +297,22 @@ function getBase64ByteSize(
 
     }
 
+
     const padding =
-        normalized.endsWith("==")
+        normalized.endsWith(
+            "=="
+        )
+
             ? 2
-            : normalized.endsWith("=")
+
+            : normalized.endsWith(
+                "="
+            )
+
                 ? 1
+
                 : 0;
+
 
     return Math.floor(
         normalized.length * 3 / 4
@@ -247,6 +323,9 @@ function getBase64ByteSize(
 
 /* =========================================================
    SCORE NORMALIZATION
+   ---------------------------------------------------------
+   Sightengine score:
+       0.0 - 1.0
 ========================================================= */
 
 function normalizeScore(
@@ -254,15 +333,21 @@ function normalizeScore(
 ) {
 
     const numeric =
-        Number(value);
+        Number(
+            value
+        );
+
 
     if (
-        !Number.isFinite(numeric)
+        !Number.isFinite(
+            numeric
+        )
     ) {
 
         return null;
 
     }
+
 
     if (
         numeric < 0
@@ -272,6 +357,7 @@ function normalizeScore(
 
     }
 
+
     if (
         numeric > 1
     ) {
@@ -280,13 +366,14 @@ function normalizeScore(
 
     }
 
+
     return numeric;
 
 }
 
 
 /* =========================================================
-   PERCENTAGE
+   SCORE → PERCENTAGE
 ========================================================= */
 
 function scoreToPercentage(
@@ -294,7 +381,10 @@ function scoreToPercentage(
 ) {
 
     const normalized =
-        normalizeScore(score);
+        normalizeScore(
+            score
+        );
+
 
     if (
         normalized === null
@@ -303,6 +393,7 @@ function scoreToPercentage(
         return null;
 
     }
+
 
     return Math.round(
         normalized * 100
@@ -327,6 +418,7 @@ function normalizeGeneratorName(
 
     }
 
+
     return name.trim();
 
 }
@@ -334,6 +426,19 @@ function normalizeGeneratorName(
 
 /* =========================================================
    GENERATOR SCORES
+   ---------------------------------------------------------
+   Sightengine genai response:
+
+   type.ai_generators = {
+       "dall_e": 0.02,
+       "firefly": 0.01,
+       "flux": 0.01,
+       ...
+   }
+
+   Jangan membuang generator dengan score 0.
+   Frontend membutuhkan seluruh hasil yang dikirim
+   oleh provider.
 ========================================================= */
 
 function extractGeneratorScores(
@@ -343,39 +448,36 @@ function extractGeneratorScores(
     const generators =
         type?.ai_generators;
 
+
     if (
         !generators ||
         typeof generators !== "object" ||
-        Array.isArray(generators)
+        Array.isArray(
+            generators
+        )
     ) {
 
         return [];
 
     }
 
+
     return Object.entries(
         generators
     )
         .map(
-            ([name, rawScore]) => {
-
-                const score =
-                    normalizeScore(
-                        rawScore
-                    );
-
-                if (
-                    score === null
-                ) {
-
-                    return null;
-
-                }
+            (
+                [
+                    name,
+                    rawScore
+                ]
+            ) => {
 
                 const normalizedName =
                     normalizeGeneratorName(
                         name
                     );
+
 
                 if (
                     !normalizedName
@@ -385,7 +487,24 @@ function extractGeneratorScores(
 
                 }
 
+
+                const score =
+                    normalizeScore(
+                        rawScore
+                    );
+
+
+                if (
+                    score === null
+                ) {
+
+                    return null;
+
+                }
+
+
                 return {
+
                     name:
                         normalizedName,
 
@@ -395,15 +514,26 @@ function extractGeneratorScores(
                         scoreToPercentage(
                             score
                         )
+
                 };
 
             }
         )
-        .filter(Boolean)
+        .filter(
+            Boolean
+        )
         .sort(
-            (a, b) =>
-                b.score -
-                a.score
+            (
+                a,
+                b
+            ) => {
+
+                return (
+                    b.score -
+                    a.score
+                );
+
+            }
         );
 
 }
@@ -412,7 +542,12 @@ function extractGeneratorScores(
 /* =========================================================
    DETECTED GENERATOR
    ---------------------------------------------------------
-   Generator dianggap terdeteksi hanya jika score >= 0.5.
+   Generator dianggap terdeteksi apabila score >= 0.5.
+
+   Ini hanya menentukan generator utama untuk field
+   detected_generator.
+
+   Semua generator tetap dikembalikan.
 ========================================================= */
 
 function getDetectedGenerator(
@@ -420,7 +555,9 @@ function getDetectedGenerator(
 ) {
 
     if (
-        !Array.isArray(generators) ||
+        !Array.isArray(
+            generators
+        ) ||
         generators.length === 0
     ) {
 
@@ -428,8 +565,10 @@ function getDetectedGenerator(
 
     }
 
+
     const topGenerator =
         generators[0];
+
 
     if (
         !topGenerator
@@ -438,6 +577,7 @@ function getDetectedGenerator(
         return null;
 
     }
+
 
     if (
         !Number.isFinite(
@@ -449,6 +589,7 @@ function getDetectedGenerator(
 
     }
 
+
     if (
         topGenerator.score < 0.5
     ) {
@@ -457,7 +598,9 @@ function getDetectedGenerator(
 
     }
 
+
     return {
+
         name:
             topGenerator.name,
 
@@ -466,6 +609,7 @@ function getDetectedGenerator(
 
         confidence:
             topGenerator.confidence
+
     };
 
 }
@@ -488,25 +632,44 @@ function normalizeRequestMetadata(
 
     }
 
+
     return {
+
         id:
             typeof request.id === "string"
+
                 ? request.id
+
                 : null,
+
 
         timestamp:
             Number.isFinite(
-                Number(request.timestamp)
+                Number(
+                    request.timestamp
+                )
             )
-                ? Number(request.timestamp)
+
+                ? Number(
+                    request.timestamp
+                )
+
                 : null,
+
 
         operations:
             Number.isFinite(
-                Number(request.operations)
+                Number(
+                    request.operations
+                )
             )
-                ? Number(request.operations)
+
+                ? Number(
+                    request.operations
+                )
+
                 : null
+
     };
 
 }
@@ -529,16 +692,24 @@ function normalizeMediaMetadata(
 
     }
 
+
     return {
+
         id:
             typeof media.id === "string"
+
                 ? media.id
+
                 : null,
+
 
         uri:
             typeof media.uri === "string"
+
                 ? media.uri
+
                 : null
+
     };
 
 }
@@ -546,6 +717,32 @@ function normalizeMediaMetadata(
 
 /* =========================================================
    DETECTION NORMALIZATION
+   ---------------------------------------------------------
+   Hasil akhir:
+
+   {
+       model: "genai",
+
+       ai_generated: 0.99,
+
+       confidence: 99,
+
+       is_ai_generated: true,
+
+       face_manipulation: 0.60,
+
+       face_manipulation_confidence: 60,
+
+       is_face_manipulated: true,
+
+       generators: [],
+
+       detected_generator: null,
+
+       request: {},
+
+       media: {}
+   }
 ========================================================= */
 
 function normalizeDetectionResponse(
@@ -554,22 +751,60 @@ function normalizeDetectionResponse(
 ) {
 
     const type =
-        data?.type || {};
+        data?.type ||
+        {};
+
+
+    /* =====================================================
+       GENAI
+    ===================================================== */
 
     const aiGenerated =
         normalizeScore(
             type.ai_generated
         );
 
+
+    /* =====================================================
+       FACE MANIPULATION / DEEPFAKE
+       -----------------------------------------------------
+       Sightengine deepfake response:
+
+           type.deepfake
+
+       Contoh:
+           0.60
+
+       Ini yang nantinya ditampilkan sebagai:
+
+           Face manipulation 60%
+===================================================== */
+
+    const faceManipulation =
+        normalizeScore(
+            type.deepfake
+        );
+
+
+    /* =====================================================
+       GENERATORS
+    ===================================================== */
+
     const generators =
         extractGeneratorScores(
             type
         );
 
+
     const detectedGenerator =
         getDetectedGenerator(
             generators
         );
+
+
+    /* =====================================================
+       FINAL
+    ===================================================== */
 
     return {
 
@@ -577,27 +812,62 @@ function normalizeDetectionResponse(
             model ||
             null,
 
+
         ai_generated:
             aiGenerated,
+
 
         confidence:
             scoreToPercentage(
                 aiGenerated
             ),
 
+
         is_ai_generated:
             aiGenerated !== null &&
             aiGenerated >= 0.5,
 
+
+        face_manipulation:
+            faceManipulation,
+
+
+        face_manipulation_confidence:
+            scoreToPercentage(
+                faceManipulation
+            ),
+
+
+        is_face_manipulated:
+            faceManipulation !== null &&
+            faceManipulation >= 0.5,
+
+
+        /*
+         * Alias untuk kompatibilitas.
+         */
+        deepfake:
+            faceManipulation,
+
+
+        deepfake_confidence:
+            scoreToPercentage(
+                faceManipulation
+            ),
+
+
         generators,
+
 
         detected_generator:
             detectedGenerator,
+
 
         request:
             normalizeRequestMetadata(
                 data?.request
             ),
+
 
         media:
             normalizeMediaMetadata(
@@ -620,10 +890,16 @@ async function requestSightengine(
     const config =
         getSightengineConfig();
 
+
     const parsed =
         parseDataUrl(
             imageData
         );
+
+
+    /* =====================================================
+       MIME
+    ===================================================== */
 
     if (
         !isSupportedImageType(
@@ -637,10 +913,16 @@ async function requestSightengine(
 
     }
 
+
+    /* =====================================================
+       BASE64 SIZE
+    ===================================================== */
+
     const byteSize =
         getBase64ByteSize(
             parsed.encodedData
         );
+
 
     if (
         byteSize <= 0
@@ -652,8 +934,10 @@ async function requestSightengine(
 
     }
 
+
     if (
-        byteSize > MAX_IMAGE_SIZE
+        byteSize >
+        MAX_IMAGE_SIZE
     ) {
 
         throw new Error(
@@ -662,11 +946,17 @@ async function requestSightengine(
 
     }
 
+
+    /* =====================================================
+       BUFFER
+    ===================================================== */
+
     const imageBuffer =
         Buffer.from(
             parsed.encodedData,
             "base64"
         );
+
 
     if (
         !imageBuffer ||
@@ -679,6 +969,7 @@ async function requestSightengine(
 
     }
 
+
     if (
         imageBuffer.length >
         MAX_IMAGE_SIZE
@@ -690,23 +981,40 @@ async function requestSightengine(
 
     }
 
+
+    /* =====================================================
+       FORM DATA
+    ===================================================== */
+
     const formData =
         new FormData();
+
 
     formData.append(
         "api_user",
         config.apiUser
     );
 
+
     formData.append(
         "api_secret",
         config.apiSecret
     );
 
+
+    /*
+     * IMPORTANT
+     *
+     * Dua model sekaligus.
+     *
+     * Sightengine mendukung comma-separated models.
+     */
+
     formData.append(
         "models",
-        SIGHTENGINE_MODEL
+        SIGHTENGINE_MODELS
     );
+
 
     const blob =
         new Blob(
@@ -719,11 +1027,17 @@ async function requestSightengine(
             }
         );
 
+
     formData.append(
         "media",
         blob,
         "upload"
     );
+
+
+    /* =====================================================
+       REQUEST
+    ===================================================== */
 
     const response =
         await fetch(
@@ -737,7 +1051,10 @@ async function requestSightengine(
             }
         );
 
-    let data = null;
+
+    let data =
+        null;
+
 
     try {
 
@@ -752,6 +1069,11 @@ async function requestSightengine(
 
     }
 
+
+    /* =====================================================
+       HTTP ERROR
+    ===================================================== */
+
     if (
         !response.ok
     ) {
@@ -761,11 +1083,19 @@ async function requestSightengine(
             data?.error ||
             `Sightengine request failed (${response.status}).`;
 
+
         throw new Error(
-            String(message)
+            String(
+                message
+            )
         );
 
     }
+
+
+    /* =====================================================
+       API STATUS
+    ===================================================== */
 
     if (
         data?.status &&
@@ -777,11 +1107,15 @@ async function requestSightengine(
             data?.error ||
             "Sightengine detection failed.";
 
+
         throw new Error(
-            String(message)
+            String(
+                message
+            )
         );
 
     }
+
 
     return data;
 
@@ -797,6 +1131,10 @@ export default async function handler(
     res
 ) {
 
+    /* =====================================================
+       METHOD
+    ===================================================== */
+
     if (
         !ensurePostMethod(
             req,
@@ -808,38 +1146,80 @@ export default async function handler(
 
     }
 
+
     try {
+
+        /* =================================================
+           IMAGE
+        ================================================= */
 
         const imageData =
             getImageData(
                 req
             );
 
+
+        /* =================================================
+           SIGHTENGINE
+        ================================================= */
+
         const sightengineResponse =
             await requestSightengine(
                 imageData
             );
 
+
+        /* =================================================
+           NORMALIZE
+        ================================================= */
+
         const detection =
             normalizeDetectionResponse(
                 sightengineResponse,
-                SIGHTENGINE_MODEL
+                SIGHTENGINE_GENAI_MODEL
             );
+
+
+        /* =================================================
+           RESPONSE
+        ================================================= */
 
         sendJson(
             res,
             200,
             {
+
                 success:
                     true,
+
 
                 provider:
                     "sightengine",
 
+
+                /*
+                 * Primary model tetap genai
+                 * agar kompatibel dengan frontend lama.
+                 */
+
                 model:
-                    SIGHTENGINE_MODEL,
+                    SIGHTENGINE_GENAI_MODEL,
+
+
+                /*
+                 * Models yang benar-benar dipanggil.
+                 */
+
+                models:
+                    [
+                        SIGHTENGINE_GENAI_MODEL,
+
+                        SIGHTENGINE_DEEPFAKE_MODEL
+                    ],
+
 
                 detection
+
             }
         );
 
@@ -852,16 +1232,20 @@ export default async function handler(
             error
         );
 
+
         sendJson(
             res,
             500,
             {
+
                 success:
                     false,
+
 
                 error:
                     error?.message ||
                     "Sightengine detection failed."
+
             }
         );
 
