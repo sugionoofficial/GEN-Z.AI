@@ -28,6 +28,8 @@
      langsung dari result Sightengine.
    - Stamp visual hanya ditampilkan jika
      Sightengine menyatakan is_ai_generated === true.
+   - sightengineChecked menjadi sumber kebenaran
+     apakah hasil Sightengine benar-benar tersedia.
 ========================================================= */
 
 
@@ -96,6 +98,7 @@ function escapeHtml(
 
     }
 
+
     return String(
         value
     )
@@ -136,6 +139,7 @@ function normalizeScore(
             value
         );
 
+
     if (
         !Number.isFinite(
             number
@@ -145,6 +149,7 @@ function normalizeScore(
         return null;
 
     }
+
 
     return Math.max(
         0,
@@ -166,6 +171,7 @@ function normalizePercent(
             value
         );
 
+
     if (
         !Number.isFinite(
             number
@@ -175,6 +181,7 @@ function normalizePercent(
         return null;
 
     }
+
 
     return Math.max(
         0,
@@ -200,6 +207,7 @@ function formatPercentage(
             score
         );
 
+
     if (
         normalized === null
     ) {
@@ -207,6 +215,7 @@ function formatPercentage(
         return "N/A";
 
     }
+
 
     const percentage =
         normalized * 100;
@@ -258,6 +267,7 @@ function formatPercentageFromPercent(
         normalizePercent(
             value
         );
+
 
     if (
         percentage === null
@@ -478,9 +488,12 @@ function formatGeneratorDisplay(
     generator
 ) {
 
-    return formatGenerator(
-        generator
-    ) || "Tidak terdeteksi";
+    return (
+        formatGenerator(
+            generator
+        ) ||
+        "Tidak terdeteksi"
+    );
 
 }
 
@@ -596,7 +609,8 @@ function renderLocalMetadata(
     }
 
 
-    let html = "";
+    let html =
+        "";
 
 
     for (
@@ -650,6 +664,39 @@ function renderLocalMetadata(
 
 
 /* =========================================================
+   SIGHTENGINE RESULT AVAILABILITY
+   ---------------------------------------------------------
+   Penting:
+
+   Object kosong dari metadata-state.js bukan berarti
+   Sightengine berhasil.
+
+   sightengineChecked adalah sumber kebenaran.
+========================================================= */
+
+function hasSightengineResult(
+    detection
+) {
+
+    if (
+        state.sightengineChecked !== true
+    ) {
+
+        return false;
+
+    }
+
+
+    return (
+        isObject(
+            detection
+        )
+    );
+
+}
+
+
+/* =========================================================
    SIGHTENGINE DETECTION
 ========================================================= */
 
@@ -658,7 +705,7 @@ function renderSightengineDetection(
 ) {
 
     if (
-        !isObject(
+        !hasSightengineResult(
             detection
         )
     ) {
@@ -731,7 +778,8 @@ function renderSightengineDetection(
             : "Tidak terdeteksi";
 
 
-    let html = "";
+    let html =
+        "";
 
 
     html +=
@@ -804,7 +852,7 @@ function renderSightengineGenerators(
 ) {
 
     if (
-        !isObject(
+        !hasSightengineResult(
             detection
         )
     ) {
@@ -822,6 +870,14 @@ function renderSightengineGenerators(
             : [];
 
 
+    /*
+       generators: [] adalah hasil valid.
+
+       Tidak menampilkan section kosong karena
+       tidak ada generator individual yang diberikan
+       oleh provider.
+    */
+
     if (
         generators.length === 0
     ) {
@@ -831,7 +887,8 @@ function renderSightengineGenerators(
     }
 
 
-    let html = "";
+    let html =
+        "";
 
 
     html +=
@@ -890,7 +947,7 @@ function renderSightengineRequest(
 ) {
 
     if (
-        !isObject(
+        !hasSightengineResult(
             detection
         )
     ) {
@@ -941,7 +998,8 @@ function renderSightengineRequest(
     }
 
 
-    let html = "";
+    let html =
+        "";
 
 
     html +=
@@ -985,7 +1043,7 @@ function renderSightengineMedia(
 ) {
 
     if (
-        !isObject(
+        !hasSightengineResult(
             detection
         )
     ) {
@@ -1032,7 +1090,8 @@ function renderSightengineMedia(
     }
 
 
-    let html = "";
+    let html =
+        "";
 
 
     html +=
@@ -1069,7 +1128,7 @@ function renderSightengineMetadata(
 ) {
 
     if (
-        !isObject(
+        !hasSightengineResult(
             detection
         )
     ) {
@@ -1079,7 +1138,8 @@ function renderSightengineMetadata(
     }
 
 
-    let html = "";
+    let html =
+        "";
 
 
     html +=
@@ -1134,9 +1194,8 @@ export function renderDetectionResult() {
 
 
     const sightengineAvailable =
-        Boolean(
-            sightengine &&
-            typeof sightengine === "object"
+        hasSightengineResult(
+            sightengine
         );
 
 
@@ -1236,9 +1295,10 @@ export function renderDetectionResult() {
 
 
     /* =====================================================
-       SIGHTENGINE SUDAH BERJALAN
+       SIGHTENGINE CHECKED
        -----------------------------------------------------
-       Tidak terdeteksi sebagai AI.
+       Sightengine berhasil dijalankan dan memberikan
+       score yang dapat digunakan.
     ===================================================== */
 
     if (
@@ -1265,16 +1325,65 @@ export function renderDetectionResult() {
 
 
     /* =====================================================
-       NO VISUAL RESULT
+       SIGHTENGINE ERROR
+       -----------------------------------------------------
+       Provider gagal, sehingga jangan menyebut image
+       "tidak terdeteksi AI" berdasarkan Sightengine.
+    ===================================================== */
+
+    if (
+        state.sightengineError
+    ) {
+
+        clearOverlayStamp();
+
+
+        if (
+            metadataDetected
+        ) {
+
+            setStatus(
+                "DETECTED",
+                "AI DETECT",
+                `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata. AI visual detection dari Sightengine tidak tersedia.`
+            );
+
+        } else {
+
+            setStatus(
+                "UNKNOWN",
+                "AI VISUAL DETECTION TIDAK TERSEDIA",
+                "Metadata lokal berhasil diperiksa, tetapi Sightengine tidak dapat memberikan hasil visual AI detection."
+            );
+
+        }
+
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       NO SIGHTENGINE RESULT
+       -----------------------------------------------------
+       Untuk video atau kondisi ketika Sightengine
+       memang tidak dijalankan.
     ===================================================== */
 
     clearOverlayStamp();
 
 
     setStatus(
-        "CLEAR",
-        "TIDAK TERDETEKSI DARI METADATA",
-        "Tidak ditemukan indikator AI yang dikenali pada metadata yang berhasil dibaca. Ini bukan bukti bahwa media bukan hasil AI."
+        metadataDetected
+            ? "DETECTED"
+            : "CLEAR",
+        metadataDetected
+            ? "AI DETECT"
+            : "TIDAK TERDETEKSI DARI METADATA",
+        metadataDetected
+            ? `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
+            : "Tidak ditemukan indikator AI yang dikenali pada metadata yang berhasil dibaca. Ini bukan bukti bahwa media bukan hasil AI."
     );
 
 }
@@ -1844,12 +1953,13 @@ export function setStatus(
 /* =========================================================
    METADATA RENDER
    ---------------------------------------------------------
-   Tetap menggunakan kontrak lama:
+   Metadata lokal tetap dihitung sebagai metadata file.
 
-       renderMetadata()
+   Section Sightengine hanya muncul jika:
+       state.sightengineChecked === true
 
-   Tetapi sekarang setelah metadata lokal dirender,
-   hasil Sightengine juga dimasukkan ke tabel yang sama.
+   Dengan demikian kegagalan provider tidak menghasilkan
+   section palsu berisi N/A.
 ========================================================= */
 
 export function renderMetadata() {
@@ -1875,7 +1985,8 @@ export function renderMetadata() {
         state.sightengineDetection;
 
 
-    let html = "";
+    let html =
+        "";
 
 
     /* =====================================================
