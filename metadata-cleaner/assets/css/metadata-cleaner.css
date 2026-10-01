@@ -324,10 +324,6 @@
     gap:
         20px;
 
-    /*
-       Pastikan setiap panel mengikuti tinggi
-       konten sebenarnya.
-    */
     align-items:
         start;
 }
@@ -858,11 +854,6 @@
     overflow:
         hidden;
 
-    /*
-       Penting:
-       preview stage hanya menjadi area foto.
-       Elemen setelahnya tidak ikut tertutup.
-    */
     isolation:
         isolate;
 }
@@ -974,8 +965,16 @@
 /* =========================================================
    CHECK PANEL
    ---------------------------------------------------------
-   Panel CHECK harus selalu menjadi blok terpisah
-   dari preview dan overlay.
+   STRUKTUR HTML AKTUAL:
+
+   .metadata-check-panel
+       ├── .metadata-action-row
+       │      └── #metadata-check-button
+       │
+       └── .metadata-status-box
+
+   Keduanya HARUS berada dalam satu alur vertikal.
+   Jangan gunakan grid dua kolom di sini.
 ========================================================= */
 
 .metadata-check-panel {
@@ -987,17 +986,7 @@
         20;
 
     display:
-        grid;
-
-    grid-template-columns:
-        minmax(0, 1fr)
-        auto;
-
-    align-items:
-        center;
-
-    gap:
-        14px;
+        block;
 
     width:
         100%;
@@ -1022,57 +1011,11 @@
         0 8px 24px
         rgba(0, 0, 0, 0.22);
 
-    /*
-       Jangan biarkan transform/overlay preview
-       mengganggu panel CHECK.
-    */
     isolation:
         isolate;
-}
 
-
-.metadata-check-info {
-
-    position:
-        relative;
-
-    z-index:
-        1;
-
-    min-width:
-        0;
-}
-
-
-.metadata-check-title {
-
-    margin:
-        0 0 5px;
-
-    color:
-        #ffffff;
-
-    font-size:
-        13px;
-
-    font-weight:
-        800;
-}
-
-
-.metadata-check-description {
-
-    margin:
-        0;
-
-    color:
-        var(--metadata-text-muted);
-
-    font-size:
-        11px;
-
-    line-height:
-        1.5;
+    overflow:
+        visible;
 }
 
 
@@ -1080,7 +1023,6 @@
    CHECK BUTTON AREA
 ========================================================= */
 
-.metadata-check-panel > .metadata-button,
 .metadata-check-panel .metadata-action-row {
 
     position:
@@ -1088,10 +1030,37 @@
 
     z-index:
         21;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        flex-start;
+
+    width:
+        100%;
+
+    margin:
+        0;
+
+    padding:
+        0;
+
+    clear:
+        both;
 }
 
 
 .metadata-check-panel .metadata-button {
+
+    position:
+        relative;
+
+    z-index:
+        22;
 
     flex:
         0 0 auto;
@@ -1105,7 +1074,7 @@
    STATUS BOX
 ========================================================= */
 
-.metadata-status-box {
+.metadata-check-panel .metadata-status-box {
 
     position:
         relative;
@@ -1113,11 +1082,14 @@
     z-index:
         1;
 
+    display:
+        block;
+
     width:
         100%;
 
-    margin-top:
-        16px;
+    margin:
+        16px 0 0;
 
     padding:
         16px;
@@ -1131,6 +1103,9 @@
 
     background:
         rgba(255, 255, 255, 0.025);
+
+    clear:
+        both;
 }
 
 
@@ -1250,8 +1225,8 @@
 /* =========================================================
    AI DETECT OVERLAY
    ---------------------------------------------------------
-   Overlay hanya berlaku di area preview.
-   Tidak boleh keluar dan menutupi CHECK.
+   Overlay MUTLAK hanya berada di preview stage.
+   Tidak boleh menjadi layer global.
 ========================================================= */
 
 .metadata-ai-detect-overlay {
@@ -1286,10 +1261,6 @@
     overflow:
         hidden;
 
-    /*
-       Memastikan overlay menjadi layer tersendiri
-       di dalam preview saja.
-    */
     isolation:
         isolate;
 }
@@ -1352,6 +1323,9 @@
 
     transform:
         rotate(-7deg);
+
+    transform-origin:
+        center;
 
     box-shadow:
         0 0 8px
@@ -1918,8 +1892,37 @@
 
     .metadata-check-panel {
 
+        display:
+            block;
+
+        width:
+            100%;
+
         margin-top:
             18px;
+
+        padding:
+            14px;
+    }
+
+
+    .metadata-check-panel .metadata-action-row {
+
+        width:
+            100%;
+
+        margin:
+            0;
+    }
+
+
+    .metadata-check-panel .metadata-status-box {
+
+        width:
+            100%;
+
+        margin-top:
+            16px;
     }
 
 }
@@ -2039,6 +2042,10 @@
     }
 
 
+    /* =====================================================
+       CHECK PANEL MOBILE
+    ===================================================== */
+
     .metadata-check-panel {
 
         position:
@@ -2047,27 +2054,30 @@
         z-index:
             20;
 
-        grid-template-columns:
-            1fr;
+        display:
+            block;
 
-        gap:
-            12px;
+        width:
+            100%;
 
         margin-top:
             18px;
 
         padding:
             13px;
+
+        overflow:
+            visible;
     }
 
 
     .metadata-check-panel .metadata-action-row {
 
-        width:
-            100%;
+        position:
+            relative;
 
-        margin-top:
-            0;
+        z-index:
+            21;
 
         display:
             flex;
@@ -2078,6 +2088,18 @@
         align-items:
             stretch;
 
+        justify-content:
+            flex-start;
+
+        width:
+            100%;
+
+        margin:
+            0;
+
+        padding:
+            0;
+
         gap:
             10px;
     }
@@ -2085,24 +2107,48 @@
 
     .metadata-check-panel .metadata-button {
 
+        position:
+            relative;
+
+        z-index:
+            22;
+
+        display:
+            flex;
+
         width:
             100%;
 
         min-height:
             44px;
+
+        margin:
+            0;
     }
 
 
-    .metadata-status-box {
+    .metadata-check-panel .metadata-status-box {
+
+        position:
+            relative;
+
+        z-index:
+            1;
+
+        display:
+            block;
 
         width:
             100%;
 
-        margin-top:
+        margin:
+            16px 0 0;
+
+        padding:
             16px;
 
-        box-sizing:
-            border-box;
+        clear:
+            both;
     }
 
 
@@ -2246,6 +2292,9 @@
 
     .metadata-check-panel {
 
+        display:
+            block;
+
         margin-top:
             18px;
 
@@ -2254,10 +2303,36 @@
     }
 
 
+    .metadata-check-panel .metadata-action-row {
+
+        width:
+            100%;
+
+        margin:
+            0;
+    }
+
+
     .metadata-check-panel .metadata-button {
+
+        width:
+            100%;
 
         min-height:
             44px;
+
+        margin:
+            0;
+    }
+
+
+    .metadata-check-panel .metadata-status-box {
+
+        width:
+            100%;
+
+        margin:
+            16px 0 0;
     }
 
 
