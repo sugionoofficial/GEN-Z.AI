@@ -10,6 +10,7 @@
    - Menangani file input / drag & drop
    - Koordinasi pembacaan metadata
    - Koordinasi local AI metadata detection
+   - Koordinasi provenance / C2PA inspection
    - Koordinasi Sightengine visual AI detection
    - Menghubungkan module cleaning
    - Menyediakan public API
@@ -31,15 +32,21 @@
    - metadata-cleaner-image.js
    - metadata-cleaner-video.js
    - metadata-sightengine.js
+   - metadata-provenance.js
 
    Catatan:
    - File ini hanya menjadi coordinator.
    - Implementasi fungsi yang sudah dipindahkan
      tidak diduplikasi di sini.
    - Sightengine hanya digunakan untuk IMAGE.
+   - Provenance / C2PA inspection hanya digunakan
+     untuk IMAGE.
    - Video tetap menggunakan detector metadata lokal.
    - API credential Sightengine tidak pernah berada
      di browser.
+   - Provenance bukan AI visual detection.
+   - Provenance NOT_DETECTED bukan berarti media
+     terbukti bukan hasil AI.
 ========================================================= */
 
 
@@ -100,6 +107,15 @@ import {
     detectSightengine,
     canUseSightengine
 } from "./metadata-sightengine.js";
+
+
+/* =========================================================
+   PROVENANCE / C2PA
+========================================================= */
+
+import {
+    inspectProvenance
+} from "./metadata-provenance.js";
 
 
 /* =========================================================
@@ -413,6 +429,19 @@ function processSelectedFile(
 
 
     /*
+       Pastikan provenance dari file sebelumnya
+       tidak terbawa ke file baru.
+
+       Field ini dibuat secara dinamis agar
+       metadata-app.js tetap kompatibel dengan
+       metadata-state.js lama.
+    */
+
+    state.provenance =
+        null;
+
+
+    /*
        Tentukan image / video.
     */
 
@@ -505,10 +534,11 @@ function processSelectedFile(
    1. Read metadata lokal
    2. Normalize metadata
    3. Local metadata AI detection
-   4. Sightengine visual AI detection
-   5. Render metadata
-   6. Render detection
-   7. Enable cleaning
+   4. Provenance / C2PA inspection
+   5. Sightengine visual AI detection
+   6. Render metadata
+   7. Render detection
+   8. Enable cleaning
 
    VIDEO:
    1. Read metadata lokal
@@ -519,6 +549,7 @@ function processSelectedFile(
    6. Enable cleaning
 
    Sightengine TIDAK digunakan untuk video.
+   Provenance inspector TIDAK digunakan untuk video.
 ========================================================= */
 
 async function checkMetadata() {
@@ -552,13 +583,23 @@ async function checkMetadata() {
        Simpan reference file.
 
        Ini penting agar hasil asynchronous
-       dari Sightengine tidak masuk ke file
-       baru apabila user mengganti file
-       ketika request masih berjalan.
+       dari Sightengine atau provenance inspector
+       tidak masuk ke file baru apabila user
+       mengganti file ketika request/proses
+       masih berjalan.
     */
 
     const sourceFile =
         state.file;
+
+
+    /*
+       Pastikan provenance tidak menggunakan
+       hasil file sebelumnya.
+    */
+
+    state.provenance =
+        null;
 
 
     /*
@@ -660,6 +701,129 @@ async function checkMetadata() {
             detectAIIndicators(
                 state.metadata
             );
+
+
+        /* =================================================
+           PROVENANCE / C2PA
+           -------------------------------------------------
+           Hanya IMAGE.
+        ================================================= */
+
+        /*
+           Pastikan hasil provenance sebelumnya
+           tidak terbawa.
+        */
+
+        state.provenance =
+            null;
+
+
+        if (
+            state.fileType === "image"
+        ) {
+
+            try {
+
+                /*
+                   Inspector hanya membaca file.
+
+                   File asli tidak diubah.
+
+                   Hasil provenance tidak digunakan
+                   sebagai pengganti AI detector.
+                */
+
+                state.provenance =
+                    await inspectProvenance(
+                        sourceFile
+                    );
+
+
+                /*
+                   Pastikan user belum mengganti
+                   file selama proses inspection.
+                */
+
+                if (
+                    state.file !== sourceFile
+                ) {
+
+                    return;
+                }
+
+            } catch (
+                provenanceError
+            ) {
+
+                /*
+                   Kegagalan provenance inspection
+                   tidak boleh menggagalkan:
+                   - metadata
+                   - local AI detection
+                   - Sightengine
+                   - cleaning
+                */
+
+                if (
+                    state.file === sourceFile
+                ) {
+
+                    state.provenance = {
+
+                        checked: true,
+
+                        supported: false,
+
+                        format: "unknown",
+
+                        detected: false,
+
+                        status: "ERROR",
+
+                        verified: false,
+
+                        verificationStatus:
+                            "NOT_VERIFIED",
+
+                        c2pa: {
+
+                            detected: false,
+
+                            verified: false,
+
+                            manifestCount: 0
+
+                        },
+
+                        contentCredentials: {
+
+                            detected: false,
+
+                            verified: false
+
+                        },
+
+                        findings: [],
+
+                        digitalSourceType:
+                            null,
+
+                        aiDisclosure:
+                            null
+
+                    };
+
+                }
+
+
+                console.error(
+                    "[GEN-Z.AI] Provenance inspection failed:",
+                    provenanceError
+                );
+
+            }
+
+        }
 
 
         /* =================================================
@@ -847,8 +1011,8 @@ async function checkMetadata() {
         /*
            Metadata berhasil diperiksa.
 
-           Sightengine boleh gagal tanpa
-           menggagalkan metadata lokal.
+           Sightengine atau provenance boleh gagal
+           tanpa menggagalkan metadata lokal.
         */
 
         state.checked =
@@ -915,6 +1079,10 @@ async function checkMetadata() {
            2. Sightengine visual AI
            3. Sightengine error
            4. Normal completion
+
+           Provenance tidak dijadikan status
+           "AI / bukan AI" karena provenance
+           bukan visual AI detection.
         */
 
         if (
@@ -991,6 +1159,16 @@ async function checkMetadata() {
 
         state.aiIndicators =
             [];
+
+
+        /*
+           Provenance juga harus dikosongkan
+           agar tidak menampilkan hasil file
+           sebelumnya.
+        */
+
+        state.provenance =
+            null;
 
 
         /*
