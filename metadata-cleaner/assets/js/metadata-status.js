@@ -1,24 +1,24 @@
- /* =========================================================
-    GEN-Z.AI
-    AI METADATA CLEANER
-    ---------------------------------------------------------
-    File:
-    metadata-cleaner/assets/js/metadata-status.js
+/* =========================================================
+   GEN-Z.AI
+   AI METADATA CLEANER
+   ---------------------------------------------------------
+   File:
+   metadata-cleaner/assets/js/metadata-status.js
 
-    Fungsi:
-    - Render detection result
-    - Render status
-    - Render metadata table
+   Fungsi:
+   - Render detection result
+   - Render status
+   - Render metadata table
 
-    AI DETECTION:
-    1. Local metadata detector
-    2. Sightengine visual AI detector
+   AI DETECTION:
+   1. Local metadata detector
+   2. Sightengine visual AI detector
 
-    Catatan:
-    - Metadata detection dan visual detection
-      merupakan dua sumber berbeda.
-    - Tidak ada detector yang dapat menjamin
-      asal media secara 100%.
+   Catatan:
+   - Metadata detection dan visual detection
+     merupakan dua sumber berbeda.
+   - Tidak ada detector yang dapat menjamin
+     asal media secara 100%.
 ========================================================= */
 
 
@@ -68,8 +68,6 @@ export function renderDetectionResult() {
 
     /* =====================================================
        AI DETECTED
-       -----------------------------------------------------
-       Salah satu detector mendeteksi indikasi AI.
     ===================================================== */
 
     if (
@@ -81,13 +79,6 @@ export function renderDetectionResult() {
             elements.aiOverlay
         );
 
-
-        /*
-           Update isi stamp yang SUDAH ada
-           di index.html.
-
-           Tidak membuat struktur DOM baru.
-        */
 
         renderOverlayStamp(
             sightengine,
@@ -162,11 +153,6 @@ export function renderDetectionResult() {
        SIGHTENGINE SUDAH BERJALAN
        -----------------------------------------------------
        Tidak terdeteksi sebagai AI.
-
-       Ini berbeda dengan:
-       - detector belum dijalankan
-       - request gagal
-       - video
     ===================================================== */
 
     if (
@@ -199,8 +185,6 @@ export function renderDetectionResult() {
 
     /* =====================================================
        NO VISUAL RESULT
-       -----------------------------------------------------
-       Video atau Sightengine tidak tersedia/gagal.
     ===================================================== */
 
     hideElement(
@@ -244,10 +228,10 @@ function renderOverlayStamp(
 
 
     /*
-       Ambil stamp yang SUDAH ada
-       dari HTML.
+       Gunakan stamp yang SUDAH ada
+       di index.html.
 
-       Tidak membuat element baru.
+       Tidak membuat struktur overlay utama baru.
     */
 
     const stamp =
@@ -280,54 +264,156 @@ function renderOverlayStamp(
     }
 
 
-    /*
-       Default stamp.
-    */
+    /* =====================================================
+       LABEL UTAMA
+    ===================================================== */
 
-    let text =
-        "AI DETECT";
+    label.textContent =
+        "AI DETECTION";
 
 
     /* =====================================================
-       SIGHTENGINE DETECTION
+       MODEL RESULT
+       -----------------------------------------------------
+       Contoh Sightengine:
+
+       model: "genai"
+
+       Akan ditampilkan:
+
+       Model Genai
     ===================================================== */
 
-    if (
+    renderOverlayModel(
+        stamp,
         sightengineDetected
+            ? sightengine?.model
+            : null
+    );
+
+}
+
+
+/* =========================================================
+   OVERLAY MODEL LABEL
+========================================================= */
+
+function renderOverlayModel(
+    stamp,
+    model
+) {
+
+    if (
+        !stamp
     ) {
 
-        const confidence =
-            formatConfidence(
-                sightengine.ai_generated,
-                sightengine.confidence
-            );
-
-
-        if (
-            confidence
-        ) {
-
-            text =
-                `AI DETECT ${confidence}`;
-
-        }
+        return;
 
     }
 
 
     /*
-       Metadata-only tetap menggunakan
-       stamp standar agar tidak terlalu penuh.
+       Hapus label model lama terlebih dahulu.
+
+       Ini penting ketika user mengganti image.
     */
 
-    label.textContent =
-        text;
+    const existing =
+        stamp.querySelector(
+            ".metadata-ai-detect-model"
+        );
+
+
+    if (
+        existing
+    ) {
+
+        existing.remove();
+
+    }
+
+
+    const normalized =
+        String(
+            model || ""
+        )
+            .trim();
 
 
     /*
-       aria-hidden tetap dipertahankan
-       sesuai struktur HTML asli.
+       Jika tidak ada model result,
+       jangan tampilkan label palsu.
     */
+
+    if (
+        !normalized
+    ) {
+
+        return;
+
+    }
+
+
+    const modelLabel =
+        document.createElement(
+            "span"
+        );
+
+
+    modelLabel.className =
+        "metadata-ai-detect-model";
+
+
+    modelLabel.textContent =
+        `Model ${formatModelName(
+            normalized
+        )}`;
+
+
+    stamp.appendChild(
+        modelLabel
+    );
+
+}
+
+
+/* =========================================================
+   MODEL NAME FORMAT
+========================================================= */
+
+function formatModelName(
+    model
+) {
+
+    const value =
+        String(
+            model || ""
+        )
+            .trim();
+
+
+    if (
+        !value
+    ) {
+
+        return "";
+
+    }
+
+
+    return value
+        .split(
+            /[-_\s]+/
+        )
+        .filter(
+            Boolean
+        )
+        .map(
+            part =>
+                part.charAt(0).toUpperCase() +
+                part.slice(1).toLowerCase()
+        )
+        .join(" ");
 
 }
 
@@ -362,7 +448,22 @@ function clearOverlayStamp() {
     ) {
 
         label.textContent =
-            "AI DETECT";
+            "AI DETECTION";
+
+    }
+
+
+    const model =
+        overlay.querySelector(
+            ".metadata-ai-detect-model"
+        );
+
+
+    if (
+        model
+    ) {
+
+        model.remove();
 
     }
 
@@ -491,17 +592,6 @@ function buildSightengineClearDescription(
 
 /* =========================================================
    CONFIDENCE FORMAT
-   ---------------------------------------------------------
-   Mendukung dua bentuk:
-
-   1. ai_generated = 0.98
-      → 98%
-
-   2. confidence = 98
-      → 98%
-
-   Raw score Sightengine tetap menjadi sumber
-   utama jika tersedia.
 ========================================================= */
 
 function formatConfidence(
