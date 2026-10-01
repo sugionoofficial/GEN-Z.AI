@@ -1,41 +1,255 @@
 /* =========================================================
    GEN-Z.AI
-   AI METADATA CLEANER
+   METADATA CLEANER
    ---------------------------------------------------------
    File:
    metadata-cleaner/assets/js/metadata-preview.js
 
-   Fungsi:
-   - Render preview file asli
-   - Render preview hasil cleaning
-   - Mengatur status preview
-   - Helper show / hide element
-
-   Catatan:
-   - Tidak mengubah state file
-   - Tidak mengubah proses metadata
-   - Tidak mengubah proses cleaning
-   - Tidak membuat object URL baru
-   - Menggunakan object URL yang dibuat oleh metadata-app.js
+   Tanggung jawab:
+   - Render original image preview
+   - Render original video preview
+   - Render cleaned media preview
+   - Mengontrol visibility preview
+   - Mengontrol preview status
+   - Tidak menangani:
+       * file selection
+       * metadata extraction
+       * AI detection
+       * cleaning
+       * download
+       * upload
+       * state mutation
 ========================================================= */
+
+import { state } from "./metadata-state.js";
+import { elements } from "./metadata-dom.js";
 
 
 /* =========================================================
-   STATE
+   INTERNAL CONSTANTS
 ========================================================= */
 
-import {
-    state
-} from "./metadata-state.js";
+const PREVIEW_MAX_HEIGHT = "540px";
 
 
 /* =========================================================
-   DOM
+   INTERNAL HELPERS
 ========================================================= */
 
-import {
-    elements
-} from "./metadata-dom.js";
+/**
+ * Memastikan elemen preview benar-benar terlihat.
+ *
+ * Penting:
+ * metadata-app.js sebelumnya pernah memberikan inline:
+ *
+ * display:none !important
+ * visibility:hidden !important
+ * opacity:0 !important
+ *
+ * Menghapus class .hidden saja TIDAK cukup.
+ *
+ * Karena itu semua inline visibility state dibersihkan
+ * dan kemudian dipaksa visible.
+ */
+function showPreview(element) {
+
+    if (!element) {
+        return;
+    }
+
+    element.hidden = false;
+
+    element.removeAttribute("hidden");
+
+    element.classList.remove("hidden");
+
+    element.style.setProperty(
+        "display",
+        "block",
+        "important"
+    );
+
+    element.style.setProperty(
+        "visibility",
+        "visible",
+        "important"
+    );
+
+    element.style.setProperty(
+        "opacity",
+        "1",
+        "important"
+    );
+
+    element.style.setProperty(
+        "max-width",
+        "100%",
+        "important"
+    );
+
+    element.style.setProperty(
+        "max-height",
+        PREVIEW_MAX_HEIGHT,
+        "important"
+    );
+
+    element.style.setProperty(
+        "width",
+        "auto",
+        "important"
+    );
+
+    element.style.setProperty(
+        "height",
+        "auto",
+        "important"
+    );
+
+    element.style.setProperty(
+        "object-fit",
+        "contain",
+        "important"
+    );
+
+    element.style.setProperty(
+        "position",
+        "relative",
+        "important"
+    );
+
+    element.style.setProperty(
+        "z-index",
+        "2",
+        "important"
+    );
+
+    element.style.setProperty(
+        "flex-shrink",
+        "0",
+        "important"
+    );
+}
+
+
+/**
+ * Menyembunyikan elemen preview secara konsisten.
+ */
+function hidePreview(element) {
+
+    if (!element) {
+        return;
+    }
+
+    element.hidden = true;
+
+    element.setAttribute(
+        "hidden",
+        ""
+    );
+
+    element.classList.add("hidden");
+
+    element.style.setProperty(
+        "display",
+        "none",
+        "important"
+    );
+
+    element.style.setProperty(
+        "visibility",
+        "hidden",
+        "important"
+    );
+
+    element.style.setProperty(
+        "opacity",
+        "0",
+        "important"
+    );
+}
+
+
+/**
+ * Membersihkan sumber video lama.
+ *
+ * Ini mencegah <source> lama tetap aktif ketika preview
+ * berpindah file.
+ */
+function clearVideoSources(video) {
+
+    if (!video) {
+        return;
+    }
+
+    const sources =
+        video.querySelectorAll("source");
+
+    sources.forEach(
+        (source) => {
+
+            source.removeAttribute("src");
+
+            source.remove();
+        }
+    );
+}
+
+
+/**
+ * Membersihkan src video tanpa menghapus elemen video.
+ */
+function resetVideo(video) {
+
+    if (!video) {
+        return;
+    }
+
+    try {
+
+        video.pause();
+
+    } catch (error) {
+
+        /* noop */
+
+    }
+
+    video.removeAttribute("src");
+
+    clearVideoSources(video);
+
+    try {
+
+        video.load();
+
+    } catch (error) {
+
+        /* noop */
+
+    }
+}
+
+
+/**
+ * Menampilkan preview kosong.
+ */
+function showEmptyPreview() {
+
+    showElement(
+        elements?.previewEmpty
+    );
+}
+
+
+/**
+ * Menyembunyikan preview kosong.
+ */
+function hideEmptyPreview() {
+
+    hideElement(
+        elements?.previewEmpty
+    );
+}
 
 
 /* =========================================================
@@ -53,39 +267,41 @@ export function renderOriginalPreview() {
     const empty =
         elements?.previewEmpty;
 
-
-    /* =====================================================
-       RESET VISUAL PREVIEW
-    ===================================================== */
-
-    hideElement(
-        image
-    );
-
-    hideElement(
-        video
-    );
-
-    hideElement(
-        elements?.aiOverlay
-    );
+    const overlay =
+        elements?.aiOverlay;
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
+       RESET VISUAL STATE
+    ----------------------------------------------------- */
+
+    hidePreview(image);
+
+    hidePreview(video);
+
+    hideElement(overlay);
+
+
+    /* -----------------------------------------------------
        NO FILE
-    ===================================================== */
+    ----------------------------------------------------- */
 
     if (
         !state.file ||
         !state.originalURL
     ) {
 
-        showElement(
-            empty
-        );
+        showEmptyPreview();
 
         return;
     }
+
+
+    /* -----------------------------------------------------
+       FILE EXISTS
+    ----------------------------------------------------- */
+
+    hideEmptyPreview();
 
 
     /* =====================================================
@@ -96,120 +312,103 @@ export function renderOriginalPreview() {
         state.fileType === "image"
     ) {
 
-        /*
-           Pastikan element image memang tersedia.
-        */
-
-        if (
-            !image
-        ) {
-
-            console.error(
-                "[GEN-Z.AI] Preview image element tidak ditemukan: #metadata-image-preview"
-            );
-
-            showElement(
-                empty
-            );
-
+        if (!image) {
             return;
         }
 
 
-        /*
-           Pastikan preview kosong terlebih dahulu.
-        */
+        /* ---------------------------------------------
+           Reset old handlers
+        --------------------------------------------- */
 
-        image.removeAttribute(
-            "hidden"
-        );
+        image.onload = null;
+
+        image.onerror = null;
+
+
+        /* ---------------------------------------------
+           Configure image
+        --------------------------------------------- */
+
+        image.removeAttribute("hidden");
 
         image.classList.remove(
             "hidden"
         );
 
-        image.style.display =
-            "block";
+        image.alt =
+            state.file?.name ||
+            "Image preview";
 
-        image.style.visibility =
-            "visible";
+        image.decoding = "async";
 
-        image.style.opacity =
-            "1";
+        image.loading = "eager";
 
 
-        /*
-           Pasang object URL file asli.
-        */
+        /* ---------------------------------------------
+           Clear previous source
+        --------------------------------------------- */
+
+        image.removeAttribute(
+            "src"
+        );
+
+
+        /* ---------------------------------------------
+           Force visible BEFORE src
+        --------------------------------------------- */
+
+        showPreview(image);
+
+
+        /* ---------------------------------------------
+           Load image
+        --------------------------------------------- */
+
+        image.onload = () => {
+
+            if (
+                state.file &&
+                state.fileType === "image" &&
+                state.originalURL
+            ) {
+
+                showPreview(image);
+
+                hideEmptyPreview();
+            }
+        };
+
+
+        image.onerror = () => {
+
+            hidePreview(image);
+
+            showEmptyPreview();
+
+            setPreviewStatus(
+                "Gagal menampilkan preview gambar."
+            );
+        };
+
 
         image.src =
             state.originalURL;
 
 
-        /*
-           Pastikan browser melakukan load
-           terhadap object URL baru.
-        */
+        /* ---------------------------------------------
+           Cached image safety
+        --------------------------------------------- */
 
-        image.onload =
-            () => {
+        if (
+            image.complete &&
+            image.naturalWidth > 0
+        ) {
 
-                /*
-                   Jangan mengubah state.
+            showPreview(image);
 
-                   Hanya memastikan preview tetap
-                   terlihat setelah browser selesai
-                   memuat image.
-                */
-
-                if (
-                    state.file &&
-                    state.fileType === "image" &&
-                    state.originalURL === image.src
-                ) {
-
-                    showElement(
-                        image
-                    );
-
-                }
-
-            };
-
-
-        image.onerror =
-            (error) => {
-
-                console.error(
-                    "[GEN-Z.AI] Gagal memuat image preview:",
-                    error
-                );
-
-
-                /*
-                   Jangan biarkan image rusak
-                   tetap menutupi empty state.
-                */
-
-                hideElement(
-                    image
-                );
-
-
-                showElement(
-                    empty
-                );
-
-            };
-
-
-        /*
-           Empty state harus disembunyikan.
-        */
-
-        hideElement(
-            empty
-        );
+            hideEmptyPreview();
+        }
 
 
         return;
@@ -224,28 +423,32 @@ export function renderOriginalPreview() {
         state.fileType === "video"
     ) {
 
-        if (
-            !video
-        ) {
-
-            console.error(
-                "[GEN-Z.AI] Preview video element tidak ditemukan: #metadata-video-preview"
-            );
-
-            showElement(
-                empty
-            );
-
+        if (!video) {
             return;
         }
 
 
-        /*
-           Bersihkan source lama.
-        */
+        /* ---------------------------------------------
+           Reset video
+        --------------------------------------------- */
 
-        video.pause();
+        resetVideo(video);
 
+
+        video.controls = true;
+
+        video.playsInline = true;
+
+        video.preload = "metadata";
+
+        video.autoplay = false;
+
+        video.loop = false;
+
+
+        /* ---------------------------------------------
+           Remove hidden state
+        --------------------------------------------- */
 
         video.removeAttribute(
             "hidden"
@@ -255,38 +458,75 @@ export function renderOriginalPreview() {
             "hidden"
         );
 
-        video.style.display =
-            "block";
 
-        video.style.visibility =
-            "visible";
+        /* ---------------------------------------------
+           Event handlers
+        --------------------------------------------- */
 
-        video.style.opacity =
-            "1";
+        video.onloadedmetadata = () => {
+
+            showPreview(video);
+
+            hideEmptyPreview();
+        };
 
 
-        /*
-           Pasang object URL.
-        */
+        video.onloadeddata = () => {
+
+            showPreview(video);
+
+            hideEmptyPreview();
+        };
+
+
+        video.oncanplay = () => {
+
+            showPreview(video);
+
+            hideEmptyPreview();
+        };
+
+
+        video.onerror = () => {
+
+            hidePreview(video);
+
+            showEmptyPreview();
+
+            setPreviewStatus(
+                "Format video tidak dapat ditampilkan browser."
+            );
+        };
+
+
+        /* ---------------------------------------------
+           Force visible BEFORE assigning src
+        --------------------------------------------- */
+
+        showPreview(video);
+
+
+        /* ---------------------------------------------
+           Assign object URL
+        --------------------------------------------- */
 
         video.src =
             state.originalURL;
 
 
-        /*
-           Browser memuat video.
-        */
+        /* ---------------------------------------------
+           Force browser to reload media
+        --------------------------------------------- */
 
-        video.load();
+        try {
 
+            video.load();
 
-        /*
-           Empty state disembunyikan.
-        */
+        } catch (error) {
 
-        hideElement(
-            empty
-        );
+            /* noop */
+
+        }
 
 
         return;
@@ -294,13 +534,10 @@ export function renderOriginalPreview() {
 
 
     /* =====================================================
-       FALLBACK
+       UNKNOWN FILE TYPE
     ===================================================== */
 
-    showElement(
-        empty
-    );
-
+    showEmptyPreview();
 }
 
 
@@ -313,35 +550,56 @@ export function renderCleanedPreview(
 ) {
 
     const image =
-        elements?.cleanImagePreview;
+        elements?.imagePreview;
 
     const video =
-        elements?.cleanVideoPreview;
+        elements?.videoPreview;
+
+    const empty =
+        elements?.previewEmpty;
+
+    const overlay =
+        elements?.aiOverlay;
 
 
-    /* =====================================================
-       BERSIHKAN PREVIEW HASIL SEBELUMNYA
-    ===================================================== */
+    /* -----------------------------------------------------
+       RESET
+    ----------------------------------------------------- */
 
-    hideElement(
-        image
-    );
+    hidePreview(image);
 
-    hideElement(
-        video
-    );
+    hidePreview(video);
+
+    hideElement(overlay);
 
 
-    /* =====================================================
-       NO CLEANED URL
-    ===================================================== */
+    /* -----------------------------------------------------
+       No cleaned URL
+    ----------------------------------------------------- */
 
-    if (
-        !url
-    ) {
+    if (!url) {
+
+        if (
+            state.file &&
+            state.originalURL
+        ) {
+
+            renderOriginalPreview();
+
+            return;
+        }
+
+        showEmptyPreview();
 
         return;
     }
+
+
+    /* -----------------------------------------------------
+       Hide empty state
+    ----------------------------------------------------- */
+
+    hideEmptyPreview();
 
 
     /* =====================================================
@@ -352,16 +610,14 @@ export function renderCleanedPreview(
         state.fileType === "image"
     ) {
 
-        if (
-            !image
-        ) {
-
-            console.error(
-                "[GEN-Z.AI] Cleaned image preview element tidak ditemukan."
-            );
-
+        if (!image) {
             return;
         }
+
+
+        image.onload = null;
+
+        image.onerror = null;
 
 
         image.removeAttribute(
@@ -372,23 +628,56 @@ export function renderCleanedPreview(
             "hidden"
         );
 
-        image.style.display =
-            "block";
 
-        image.style.visibility =
-            "visible";
+        image.alt =
+            state.file?.name ||
+            "Cleaned image preview";
 
-        image.style.opacity =
-            "1";
+        image.decoding = "async";
 
-
-        image.src =
-            url;
+        image.loading = "eager";
 
 
-        hideElement(
-            video
+        image.removeAttribute(
+            "src"
         );
+
+
+        showPreview(image);
+
+
+        image.onload = () => {
+
+            showPreview(image);
+
+            hideEmptyPreview();
+        };
+
+
+        image.onerror = () => {
+
+            hidePreview(image);
+
+            showEmptyPreview();
+
+            setPreviewStatus(
+                "Gagal menampilkan preview hasil."
+            );
+        };
+
+
+        image.src = url;
+
+
+        if (
+            image.complete &&
+            image.naturalWidth > 0
+        ) {
+
+            showPreview(image);
+
+            hideEmptyPreview();
+        }
 
 
         return;
@@ -403,16 +692,23 @@ export function renderCleanedPreview(
         state.fileType === "video"
     ) {
 
-        if (
-            !video
-        ) {
-
-            console.error(
-                "[GEN-Z.AI] Cleaned video preview element tidak ditemukan."
-            );
-
+        if (!video) {
             return;
         }
+
+
+        resetVideo(video);
+
+
+        video.controls = true;
+
+        video.playsInline = true;
+
+        video.preload = "metadata";
+
+        video.autoplay = false;
+
+        video.loop = false;
 
 
         video.removeAttribute(
@@ -423,29 +719,69 @@ export function renderCleanedPreview(
             "hidden"
         );
 
-        video.style.display =
-            "block";
 
-        video.style.visibility =
-            "visible";
+        video.onloadedmetadata = () => {
 
-        video.style.opacity =
-            "1";
+            showPreview(video);
 
-
-        video.src =
-            url;
+            hideEmptyPreview();
+        };
 
 
-        video.load();
+        video.onloadeddata = () => {
+
+            showPreview(video);
+
+            hideEmptyPreview();
+        };
 
 
-        hideElement(
-            image
-        );
+        video.oncanplay = () => {
 
+            showPreview(video);
+
+            hideEmptyPreview();
+        };
+
+
+        video.onerror = () => {
+
+            hidePreview(video);
+
+            showEmptyPreview();
+
+            setPreviewStatus(
+                "Gagal menampilkan preview hasil video."
+            );
+        };
+
+
+        showPreview(video);
+
+
+        video.src = url;
+
+
+        try {
+
+            video.load();
+
+        } catch (error) {
+
+            /* noop */
+
+        }
+
+
+        return;
     }
 
+
+    /* -----------------------------------------------------
+       Unknown cleaned media
+    ----------------------------------------------------- */
+
+    showEmptyPreview();
 }
 
 
@@ -457,85 +793,104 @@ export function setPreviewStatus(
     text
 ) {
 
+    const status =
+        elements?.previewStatus;
+
+    if (!status) {
+        return;
+    }
+
+
     if (
-        !elements?.previewStatus
+        text === undefined ||
+        text === null ||
+        String(text).trim() === ""
     ) {
+
+        status.textContent = "";
+
+        hideElement(status);
 
         return;
     }
 
 
-    elements.previewStatus.textContent =
-        text || "";
+    status.textContent =
+        String(text);
 
+    showElement(status);
 }
 
 
 /* =========================================================
-   SHOW ELEMENT
-   ---------------------------------------------------------
-   Jangan hanya menghapus class.
-
-   Property hidden juga dikembalikan ke false
-   supaya tidak ada konflik dengan HTML/DOM state.
+   GENERIC SHOW
 ========================================================= */
 
 export function showElement(
     element
 ) {
 
-    if (
-        !element
-    ) {
-
+    if (!element) {
         return;
     }
 
 
-    element.hidden =
-        false;
-
+    element.hidden = false;
 
     element.removeAttribute(
         "hidden"
     );
 
-
     element.classList.remove(
         "hidden"
     );
 
+
+    /*
+     * Untuk elemen preview media, gunakan
+     * showPreview() agar inline style lama
+     * juga dibersihkan.
+     */
 }
 
 
 /* =========================================================
-   HIDE ELEMENT
+   GENERIC HIDE
 ========================================================= */
 
 export function hideElement(
     element
 ) {
 
-    if (
-        !element
-    ) {
-
+    if (!element) {
         return;
     }
 
 
+    element.hidden = true;
+
+    element.setAttribute(
+        "hidden",
+        ""
+    );
+
     element.classList.add(
         "hidden"
     );
-
-
-    /*
-       Jangan menggunakan property hidden
-       untuk preview utama karena CSS aplikasi
-       menggunakan class .hidden sebagai sumber
-       visibility.
-
-       Cukup classList di sini.
-    */
-
 }
+
+
+/* =========================================================
+   EXPORT INTERNAL PREVIEW HELPERS
+   ---------------------------------------------------------
+   Tidak digunakan oleh module lain secara normal,
+   tetapi disediakan agar tidak perlu membuat implementasi
+   visibility kedua di file lain.
+========================================================= */
+
+export {
+    showPreview,
+    hidePreview,
+    resetVideo,
+    clearVideoSources
+};
