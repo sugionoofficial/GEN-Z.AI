@@ -32,8 +32,12 @@
      asal media secara 100%.
    - Model pada AI DETECTION stamp berasal
      langsung dari result Sightengine.
-   - Stamp visual hanya ditampilkan jika
-     Sightengine menyatakan is_ai_generated === true.
+   - Stamp visual ditampilkan jika Sightengine
+     menyatakan salah satu detector visual
+     terdeteksi:
+       is_ai_generated === true
+       is_face_manipulated === true
+       is_deepfake === true
    - sightengineChecked menjadi sumber kebenaran
      apakah hasil Sightengine benar-benar tersedia.
 ========================================================= */
@@ -622,6 +626,11 @@ function getGeneratorGroup(
 
 /* =========================================================
    GENERATOR FORMAT
+   ---------------------------------------------------------
+   IMPORTANT:
+   - score adalah nilai utama dari Sightengine.
+   - confidence hanya fallback.
+   - score 0 adalah nilai valid.
 ========================================================= */
 
 function formatGenerator(
@@ -654,24 +663,6 @@ function formatGenerator(
     }
 
 
-    const confidence =
-        normalizePercent(
-            generator.confidence
-        );
-
-
-    if (
-        confidence !== null
-    ) {
-
-        return (
-            `${name} ` +
-            `(${formatPercentageFromPercent(confidence)})`
-        );
-
-    }
-
-
     const score =
         normalizeScore(
             generator.score
@@ -685,6 +676,24 @@ function formatGenerator(
         return (
             `${name} ` +
             `(${formatPercentage(score)})`
+        );
+
+    }
+
+
+    const confidence =
+        normalizePercent(
+            generator.confidence
+        );
+
+
+    if (
+        confidence !== null
+    ) {
+
+        return (
+            `${name} ` +
+            `(${formatPercentageFromPercent(confidence)})`
         );
 
     }
@@ -898,6 +907,7 @@ function hasSightengineResult(
 
        GenAI              99%
        Face manipulation  60%
+       Deepfake           60%
 
    Detection Model dan informasi teknis tetap
    dipertahankan untuk kompatibilitas.
@@ -952,12 +962,28 @@ function renderSightengineDetection(
         );
 
 
+    const deepfake =
+        normalizeScore(
+            detection.deepfake
+        );
+
+
+    const deepfakeConfidence =
+        normalizePercent(
+            detection.deepfake_confidence
+        );
+
+
     const isAiGenerated =
         detection.is_ai_generated === true;
 
 
     const isFaceManipulated =
         detection.is_face_manipulated === true;
+
+
+    const isDeepfake =
+        detection.is_deepfake === true;
 
 
     const detectedGenerator =
@@ -974,7 +1000,8 @@ function renderSightengineDetection(
 
     if (
         isAiGenerated ||
-        isFaceManipulated
+        isFaceManipulated ||
+        isDeepfake
     ) {
 
         detectionStatus =
@@ -982,7 +1009,8 @@ function renderSightengineDetection(
 
     } else if (
         aiGenerated !== null ||
-        faceManipulation !== null
+        faceManipulation !== null ||
+        deepfake !== null
     ) {
 
         detectionStatus =
@@ -1009,9 +1037,12 @@ function renderSightengineDetection(
         );
 
 
-    /*
-     * GenAI score
-     */
+    /* =====================================================
+       GenAI score
+       -----------------------------------------------------
+       Score menjadi sumber utama.
+       Confidence hanya fallback.
+    ===================================================== */
 
     html +=
         createMetadataRow(
@@ -1028,9 +1059,9 @@ function renderSightengineDetection(
         );
 
 
-    /*
-     * Face manipulation score
-     */
+    /* =====================================================
+       Face manipulation score
+    ===================================================== */
 
     html +=
         createMetadataRow(
@@ -1047,9 +1078,32 @@ function renderSightengineDetection(
         );
 
 
-    /*
-     * Informasi teknis tetap dipertahankan.
-     */
+    /* =====================================================
+       Deepfake score
+       -----------------------------------------------------
+       Deepfake adalah hasil detector visual tersendiri.
+       Generator Deepfake tetap juga ditampilkan pada
+       grup OTHER apabila score/confidence tersedia.
+    ===================================================== */
+
+    html +=
+        createMetadataRow(
+            "Deepfake",
+            deepfake !== null
+                ? formatPercentage(
+                    deepfake
+                )
+                : deepfakeConfidence !== null
+                    ? formatPercentageFromPercent(
+                        deepfakeConfidence
+                    )
+                    : "N/A"
+        );
+
+
+    /* =====================================================
+       Informasi teknis
+    ===================================================== */
 
     html +=
         createMetadataRow(
@@ -1086,6 +1140,10 @@ function renderSightengineDetection(
 
 /* =========================================================
    GENERATOR ROW
+   ---------------------------------------------------------
+   Score menjadi sumber utama.
+   Confidence hanya fallback.
+   Score 0 tetap valid.
 ========================================================= */
 
 function renderGeneratorRow(
@@ -1118,21 +1176,8 @@ function renderGeneratorRow(
     }
 
 
-    /*
-     * Jangan pernah menggunakan truthy check
-     * terhadap score/confidence.
-     *
-     * Score 0 adalah hasil valid dan harus tampil.
-     */
-
     let value =
         "";
-
-
-    const confidence =
-        normalizePercent(
-            generator.confidence
-        );
 
 
     const score =
@@ -1141,22 +1186,28 @@ function renderGeneratorRow(
         );
 
 
+    const confidence =
+        normalizePercent(
+            generator.confidence
+        );
+
+
     if (
-        confidence !== null
-    ) {
-
-        value =
-            formatPercentageFromPercent(
-                confidence
-            );
-
-    } else if (
         score !== null
     ) {
 
         value =
             formatPercentage(
                 score
+            );
+
+    } else if (
+        confidence !== null
+    ) {
+
+        value =
+            formatPercentageFromPercent(
+                confidence
             );
 
     } else {
@@ -1306,14 +1357,15 @@ function sortGenerators(
        DIFFUSION
        Imagen              76%
        Nano Banana         76%
-       Wan                 8%
+       Wan                  8%
        ...
 
        GAN
-       StyleGAN            1%
+       StyleGAN             1%
 
        OTHER
-       Other               9%
+       Other                9%
+       Deepfake            60%
 
    Deepfake ditambahkan pada OTHER dari field
    face/deepfake backend.
@@ -1349,17 +1401,15 @@ function renderSightengineGenerators(
      * Tidak ada generator individual.
      *
      * Jangan membuat daftar generator palsu.
+     *
+     * Deepfake tetap dapat tampil meskipun
+     * endpoint genai tidak mengembalikan
+     * generators array.
      */
 
     if (
         generators.length === 0
     ) {
-
-        /*
-         * Deepfake tetap dapat tampil meskipun
-         * endpoint genai tidak mengembalikan
-         * generator array.
-         */
 
         const deepfakeScore =
             normalizeScore(
@@ -1437,13 +1487,12 @@ function renderSightengineGenerators(
     }
 
 
-    /*
-     * Deepfake berasal dari model deepfake,
-     * bukan ai_generators.
-
-     * Masukkan ke OTHER agar struktur hasil sesuai
-     * dengan kategori visual detection.
-     */
+    /* =====================================================
+       Deepfake
+       -----------------------------------------------------
+       Deepfake berasal dari detector deepfake,
+       bukan ai_generators.
+    ===================================================== */
 
     const deepfakeScore =
         normalizeScore(
@@ -1764,6 +1813,14 @@ function renderSightengineMetadata(
 
 /* =========================================================
    DETECTION RESULT
+   ---------------------------------------------------------
+   Sightengine dianggap terdeteksi jika salah satu:
+   - is_ai_generated
+   - is_face_manipulated
+   - is_deepfake
+
+   SIGHTENGINE CHECKED dianggap valid jika salah satu
+   score detector tersedia.
 ========================================================= */
 
 export function renderDetectionResult() {
@@ -1790,11 +1847,16 @@ export function renderDetectionResult() {
         );
 
 
+    /* =====================================================
+       SIGHTENGINE DETECTED
+    ===================================================== */
+
     const sightengineDetected =
         sightengineAvailable &&
         (
             sightengine.is_ai_generated === true ||
-            sightengine.is_face_manipulated === true
+            sightengine.is_face_manipulated === true ||
+            sightengine.is_deepfake === true
         );
 
 
@@ -1890,12 +1952,31 @@ export function renderDetectionResult() {
 
     /* =====================================================
        SIGHTENGINE CHECKED
+       -----------------------------------------------------
+       Hasil Sightengine dianggap valid jika salah satu
+       detector memiliki score.
     ===================================================== */
 
-    if (
+    const sightengineHasScore =
         sightengineAvailable &&
-        sightengine.ai_generated !== null &&
-        sightengine.ai_generated !== undefined
+        (
+            (
+                sightengine.ai_generated !== null &&
+                sightengine.ai_generated !== undefined
+            ) ||
+            (
+                sightengine.face_manipulation !== null &&
+                sightengine.face_manipulation !== undefined
+            ) ||
+            (
+                sightengine.deepfake !== null &&
+                sightengine.deepfake !== undefined
+            )
+        );
+
+
+    if (
+        sightengineHasScore
     ) {
 
         clearOverlayStamp();
@@ -2262,6 +2343,30 @@ function buildCombinedDetectionDescription(
         );
 
 
+    const deepfakeScore =
+        normalizeScore(
+            sightengine?.deepfake
+        );
+
+
+    const deepfakeConfidence =
+        normalizePercent(
+            sightengine?.deepfake_confidence
+        );
+
+
+    const deepfake =
+        deepfakeScore !== null
+            ? formatPercentage(
+                deepfakeScore
+            )
+            : deepfakeConfidence !== null
+                ? formatPercentageFromPercent(
+                    deepfakeConfidence
+                )
+                : "";
+
+
     const generator =
         formatGenerator(
             sightengine?.detected_generator
@@ -2274,10 +2379,14 @@ function buildCombinedDetectionDescription(
 
         confidence
             ? `Sightengine mendeteksi indikasi GenAI dengan confidence ${confidence}.`
-            : "Sightengine mendeteksi indikasi GenAI.",
+            : "",
 
         faceManipulation
             ? `Face manipulation: ${faceManipulation}.`
+            : "",
+
+        deepfake
+            ? `Deepfake: ${deepfake}.`
             : "",
 
         generator
@@ -2317,6 +2426,30 @@ function buildSightengineDescription(
         );
 
 
+    const deepfakeScore =
+        normalizeScore(
+            sightengine?.deepfake
+        );
+
+
+    const deepfakeConfidence =
+        normalizePercent(
+            sightengine?.deepfake_confidence
+        );
+
+
+    const deepfake =
+        deepfakeScore !== null
+            ? formatPercentage(
+                deepfakeScore
+            )
+            : deepfakeConfidence !== null
+                ? formatPercentageFromPercent(
+                    deepfakeConfidence
+                )
+                : "";
+
+
     const generator =
         formatGenerator(
             sightengine?.detected_generator
@@ -2333,6 +2466,10 @@ function buildSightengineDescription(
 
         faceManipulation
             ? `Face manipulation: ${faceManipulation}.`
+            : "",
+
+        deepfake
+            ? `Deepfake: ${deepfake}.`
             : "",
 
         generator
@@ -2372,6 +2509,30 @@ function buildSightengineClearDescription(
         );
 
 
+    const deepfakeScore =
+        normalizeScore(
+            sightengine?.deepfake
+        );
+
+
+    const deepfakeConfidence =
+        normalizePercent(
+            sightengine?.deepfake_confidence
+        );
+
+
+    const deepfake =
+        deepfakeScore !== null
+            ? formatPercentage(
+                deepfakeScore
+            )
+            : deepfakeConfidence !== null
+                ? formatPercentageFromPercent(
+                    deepfakeConfidence
+                )
+                : "";
+
+
     const parts = [
 
         "Sightengine tidak mendeteksi image sebagai AI pada threshold yang digunakan.",
@@ -2382,6 +2543,10 @@ function buildSightengineClearDescription(
 
         faceManipulation
             ? `Face manipulation: ${faceManipulation}.`
+            : "",
+
+        deepfake
+            ? `Deepfake: ${deepfake}.`
             : "",
 
         "Hasil ini bukan jaminan bahwa image pasti dibuat oleh manusia."
