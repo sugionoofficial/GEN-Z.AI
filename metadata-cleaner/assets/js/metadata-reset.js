@@ -18,7 +18,7 @@
    - Tidak mengubah proses cleaning
    - Tidak mengubah proses metadata detection
    - Object URL selalu direvoke sebelum state dikosongkan
-   - Menggunakan elements.cleanResult sesuai metadata-dom.js
+   - Tidak mereset state FFmpeg
 ========================================================= */
 
 
@@ -38,9 +38,9 @@ import {
 
 export function resetForNewFile() {
 
-    /*
-       Lepaskan Object URL file asli
-    */
+    /* =====================================================
+       REVOKE ORIGINAL OBJECT URL
+    ===================================================== */
 
     if (
         state.originalURL
@@ -53,9 +53,9 @@ export function resetForNewFile() {
     }
 
 
-    /*
-       Lepaskan Object URL hasil cleaning
-    */
+    /* =====================================================
+       REVOKE CLEANED OBJECT URL
+    ===================================================== */
 
     if (
         state.cleanedURL
@@ -68,9 +68,9 @@ export function resetForNewFile() {
     }
 
 
-    /*
-       Bersihkan URL dari state
-    */
+    /* =====================================================
+       RESET URL STATE
+    ===================================================== */
 
     state.originalURL =
         null;
@@ -80,41 +80,41 @@ export function resetForNewFile() {
         null;
 
 
-    /*
-       Bersihkan blob hasil cleaning
-    */
+    /* =====================================================
+       RESET CLEANED BLOB
+    ===================================================== */
 
     state.cleanedBlob =
         null;
 
 
-    /*
-       Bersihkan metadata
-    */
+    /* =====================================================
+       RESET METADATA
+    ===================================================== */
 
     state.metadata =
         [];
 
 
-    /*
-       Bersihkan hasil AI detection
-    */
+    /* =====================================================
+       RESET AI INDICATORS
+    ===================================================== */
 
     state.aiIndicators =
         [];
 
 
-    /*
-       Reset status pemeriksaan
-    */
+    /* =====================================================
+       RESET CHECK STATUS
+    ===================================================== */
 
     state.checked =
         false;
 
 
-    /*
-       Reset status cleaning
-    */
+    /* =====================================================
+       RESET CLEANING STATUS
+    ===================================================== */
 
     state.cleaning =
         false;
@@ -187,7 +187,7 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       AI DETECT OVERLAY
+       AI DETECTION OVERLAY
     ===================================================== */
 
     if (
@@ -201,7 +201,7 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       METADATA CONTENT
+       METADATA TABLE
     ===================================================== */
 
     if (
@@ -230,12 +230,6 @@ export function resetForNewFile() {
 
     /* =====================================================
        CLEAN RESULT
-       -----------------------------------------------------
-       Nama element yang benar adalah:
-       elements.cleanResult
-
-       Bukan:
-       elements.cleanedResult
     ===================================================== */
 
     if (
@@ -294,6 +288,386 @@ export function resetForNewFile() {
         elements.fileInfo.classList.add(
             "hidden"
         );
+
+    }
+
+
+    /* =====================================================
+       RESET ORIGINAL PREVIEW VISIBILITY
+    ===================================================== */
+
+    if (
+        elements.previewEmpty
+    ) {
+
+        elements.previewEmpty.classList.remove(
+            "hidden"
+        );
+
+    }
+
+
+    if (
+        elements.imagePreview
+    ) {
+
+        elements.imagePreview.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    if (
+        elements.videoPreview
+    ) {
+
+        elements.videoPreview.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    /* =====================================================
+       RESET CLEANED PREVIEW VISIBILITY
+    ===================================================== */
+
+    if (
+        elements.cleanImagePreview
+    ) {
+
+        elements.cleanImagePreview.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    if (
+        elements.cleanVideoPreview
+    ) {
+
+        elements.cleanVideoPreview.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    /* =====================================================
+       RESET AI OVERLAY VISIBILITY
+    ===================================================== */
+
+    if (
+        elements.aiOverlay
+    ) {
+
+        elements.aiOverlay.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    /* =====================================================
+       RESET STATUS INDICATOR
+    ===================================================== */
+
+    if (
+        elements.statusIndicator
+    ) {
+
+        elements.statusIndicator.classList.remove(
+            "is-detected",
+            "is-clear",
+            "is-unknown"
+        );
+
+    }
+
+
+    /* =====================================================
+       RESET DETECTION STATUS CLASSES
+    ===================================================== */
+
+    if (
+        elements.detectionStatus
+    ) {
+
+        elements.detectionStatus.classList.remove(
+            "success",
+            "error",
+            "warning",
+            "info"
+        );
+
+    }
+
+
+    /* =====================================================
+       RESET STATUS TITLE
+    ===================================================== */
+
+    if (
+        elements.statusTitle
+    ) {
+
+        elements.statusTitle.textContent =
+            "";
+
+    }
+
+
+    /* =====================================================
+       RESET STATUS DESCRIPTION
+    ===================================================== */
+
+    if (
+        elements.statusDescription
+    ) {
+
+        elements.statusDescription.textContent =
+            "";
+
+    }
+
+
+    /* =====================================================
+       RESET PREVIEW STATUS
+    ===================================================== */
+
+    if (
+        elements.previewStatus
+    ) {
+
+        elements.previewStatus.textContent =
+            "";
+
+    }
+
+}
+
+
+/* =========================================================
+   RESET APPLICATION
+========================================================= */
+
+export function resetApplication() {
+
+    /* =====================================================
+       RESET ACTIVE FILE DATA
+    ===================================================== */
+
+    resetForNewFile();
+
+
+    /* =====================================================
+       CLEAR ACTIVE FILE
+    ===================================================== */
+
+    state.file =
+        null;
+
+
+    state.fileType =
+        null;
+
+
+    /*
+       Jangan reset FFmpeg di sini.
+
+       FFmpeg merupakan resource aplikasi yang dapat
+       digunakan kembali untuk proses video berikutnya.
+
+       Reset file/aplikasi tidak boleh memaksa FFmpeg
+       melakukan loading ulang.
+    */
+
+
+    /* =====================================================
+       RESET FILE INPUT
+    ===================================================== */
+
+    if (
+        elements.fileInput
+    ) {
+
+        elements.fileInput.value =
+            "";
+
+    }
+
+
+    /* =====================================================
+       RESET FILE TYPE TEXT
+    ===================================================== */
+
+    if (
+        elements.fileType
+    ) {
+
+        elements.fileType.textContent =
+            "";
+
+    }
+
+
+    /* =====================================================
+       RESET FILE NAME TEXT
+    ===================================================== */
+
+    if (
+        elements.fileName
+    ) {
+
+        elements.fileName.textContent =
+            "";
+
+    }
+
+
+    /* =====================================================
+       RESET FILE SIZE TEXT
+    ===================================================== */
+
+    if (
+        elements.fileSize
+    ) {
+
+        elements.fileSize.textContent =
+            "";
+
+    }
+
+
+    /* =====================================================
+       RESET METADATA TABLE
+    ===================================================== */
+
+    if (
+        elements.metadataTableBody
+    ) {
+
+        elements.metadataTableBody.innerHTML =
+            "";
+
+    }
+
+
+    if (
+        elements.metadataCount
+    ) {
+
+        elements.metadataCount.textContent =
+            "0";
+
+    }
+
+
+    /* =====================================================
+       RESET DETECTION STATUS
+    ===================================================== */
+
+    if (
+        elements.detectionStatus
+    ) {
+
+        elements.detectionStatus.classList.remove(
+            "success",
+            "error",
+            "warning",
+            "info"
+        );
+
+    }
+
+
+    if (
+        elements.statusIndicator
+    ) {
+
+        elements.statusIndicator.classList.remove(
+            "is-detected",
+            "is-clear",
+            "is-unknown"
+        );
+
+    }
+
+
+    /* =====================================================
+       RESET STATUS TITLE
+    ===================================================== */
+
+    if (
+        elements.statusTitle
+    ) {
+
+        elements.statusTitle.textContent =
+            "";
+
+    }
+
+
+    /* =====================================================
+       RESET STATUS DESCRIPTION
+    ===================================================== */
+
+    if (
+        elements.statusDescription
+    ) {
+
+        elements.statusDescription.textContent =
+            "";
+
+    }
+
+
+    /* =====================================================
+       RESET BUTTONS
+    ===================================================== */
+
+    if (
+        elements.checkButton
+    ) {
+
+        elements.checkButton.disabled =
+            true;
+
+    }
+
+
+    if (
+        elements.cleanButton
+    ) {
+
+        elements.cleanButton.disabled =
+            true;
+
+    }
+
+
+    if (
+        elements.downloadButton
+    ) {
+
+        elements.downloadButton.disabled =
+            true;
+
+    }
+
+
+    /* =====================================================
+       RESET PREVIEW STATUS
+    ===================================================== */
+
+    if (
+        elements.previewStatus
+    ) {
+
+        elements.previewStatus.textContent =
+            "BELUM ADA MEDIA";
 
     }
 
@@ -362,7 +736,7 @@ export function resetForNewFile() {
 
 
     /* =====================================================
-       RESET AI OVERLAY VISIBILITY
+       RESET AI OVERLAY
     ===================================================== */
 
     if (
@@ -373,370 +747,8 @@ export function resetForNewFile() {
             "hidden"
         );
 
-    }
-
-
-    /* =====================================================
-       RESET STATUS INDICATOR
-    ===================================================== */
-
-    if (
-        elements.statusIndicator
-    ) {
-
-        elements.statusIndicator.classList.remove(
-            "is-detected",
-            "is-clear",
-            "is-unknown"
-        );
-
-    }
-
-
-    /* =====================================================
-       RESET STATUS CLASSES
-    ===================================================== */
-
-    if (
-        elements.detectionStatus
-    ) {
-
-        elements.detectionStatus.classList.remove(
-            "success",
-            "error",
-            "warning",
-            "info"
-        );
-
-    }
-
-
-    if (
-        elements.statusTitle
-    ) {
-
-        elements.statusTitle.textContent =
+        elements.aiOverlay.textContent =
             "";
-
-    }
-
-
-    if (
-        elements.statusDescription
-    ) {
-
-        elements.statusDescription.textContent =
-            "";
-
-    }
-
-
-    /* =====================================================
-       RESET PREVIEW STATUS
-    ===================================================== */
-
-    if (
-        elements.previewStatus
-    ) {
-
-        elements.previewStatus.textContent =
-            "";
-
-    }
-
-}
-
-
-/* =========================================================
-   RESET APPLICATION
-========================================================= */
-
-export function resetApplication() {
-
-    /*
-       Reset seluruh data file aktif
-    */
-
-    resetForNewFile();
-
-
-    /*
-       Bersihkan file utama
-    */
-
-    state.file =
-        null;
-
-
-    state.fileType =
-        null;
-
-
-    /*
-       Reset FFmpeg state aplikasi.
-
-       Instance FFmpeg tidak dihancurkan di sini.
-       Hanya status penggunaan aplikasi yang dikembalikan
-       ke kondisi awal.
-    */
-
-    state.ffmpeg =
-        null;
-
-
-    state.ffmpegLoaded =
-        false;
-
-
-    state.ffmpegLoading =
-        false;
-
-
-    state.ffmpegScriptsLoaded =
-        false;
-
-
-    /* =====================================================
-       RESET FILE INPUT
-    ===================================================== */
-
-    if (
-        elements.fileInput
-    ) {
-
-        elements.fileInput.value =
-            "";
-
-    }
-
-
-    /* =====================================================
-       RESET FILE INFO TEXT
-    ===================================================== */
-
-    if (
-        elements.fileType
-    ) {
-
-        elements.fileType.textContent =
-            "";
-
-    }
-
-
-    if (
-        elements.fileName
-    ) {
-
-        elements.fileName.textContent =
-            "";
-
-    }
-
-
-    if (
-        elements.fileSize
-    ) {
-
-        elements.fileSize.textContent =
-            "";
-
-    }
-
-
-    /* =====================================================
-       RESET METADATA TABLE
-    ===================================================== */
-
-    if (
-        elements.metadataTableBody
-    ) {
-
-        elements.metadataTableBody.innerHTML =
-            "";
-
-    }
-
-
-    if (
-        elements.metadataCount
-    ) {
-
-        elements.metadataCount.textContent =
-            "0";
-
-    }
-
-
-    /* =====================================================
-       RESET DETECTION STATUS
-    ===================================================== */
-
-    if (
-        elements.detectionStatus
-    ) {
-
-        elements.detectionStatus.classList.remove(
-            "success",
-            "error",
-            "warning",
-            "info"
-        );
-
-    }
-
-
-    if (
-        elements.statusIndicator
-    ) {
-
-        elements.statusIndicator.classList.remove(
-            "is-detected",
-            "is-clear",
-            "is-unknown"
-        );
-
-    }
-
-
-    /* =====================================================
-       RESET STATUS TEXT
-    ===================================================== */
-
-    if (
-        elements.statusTitle
-    ) {
-
-        elements.statusTitle.textContent =
-            "";
-
-    }
-
-
-    if (
-        elements.statusDescription
-    ) {
-
-        elements.statusDescription.textContent =
-            "";
-
-    }
-
-
-    /* =====================================================
-       RESET BUTTONS
-    ===================================================== */
-
-    if (
-        elements.checkButton
-    ) {
-
-        elements.checkButton.disabled =
-            true;
-
-    }
-
-
-    if (
-        elements.cleanButton
-    ) {
-
-        elements.cleanButton.disabled =
-            true;
-
-    }
-
-
-    if (
-        elements.downloadButton
-    ) {
-
-        elements.downloadButton.disabled =
-            true;
-
-    }
-
-
-    /* =====================================================
-       RESET PREVIEW STATUS
-    ===================================================== */
-
-    if (
-        elements.previewStatus
-    ) {
-
-        elements.previewStatus.textContent =
-            "BELUM ADA MEDIA";
-
-    }
-
-
-    /* =====================================================
-       RESET PREVIEW VISIBILITY
-    ===================================================== */
-
-    if (
-        elements.previewEmpty
-    ) {
-
-        elements.previewEmpty.classList.remove(
-            "hidden"
-        );
-
-    }
-
-
-    if (
-        elements.imagePreview
-    ) {
-
-        elements.imagePreview.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    if (
-        elements.videoPreview
-    ) {
-
-        elements.videoPreview.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    if (
-        elements.cleanImagePreview
-    ) {
-
-        elements.cleanImagePreview.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    if (
-        elements.cleanVideoPreview
-    ) {
-
-        elements.cleanVideoPreview.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    if (
-        elements.aiOverlay
-    ) {
-
-        elements.aiOverlay.classList.add(
-            "hidden"
-        );
 
     }
 
