@@ -88,17 +88,6 @@ import {
 
 /* =========================================================
    C2PA / CONTENT CREDENTIALS
-   ---------------------------------------------------------
-   WAJIB di-import langsung.
-
-   Sebelumnya metadata-app.js hanya mencoba:
-
-       window.GENZMetadataProvenance
-
-   sehingga pada saat CHECK module provenance belum tentu
-   tersedia di window dan pemeriksaan C2PA tidak dijalankan.
-
-   Sekarang CHECK menggunakan named export secara langsung.
 ========================================================= */
 
 import {
@@ -216,9 +205,6 @@ function init() {
 
 /* =========================================================
    COMPATIBILITY EVENT BINDING
-   ---------------------------------------------------------
-   Tetap dipertahankan agar module lama yang masih
-   memanggil bindEvents() tidak rusak.
 ========================================================= */
 
 function bindEvents() {
@@ -278,7 +264,30 @@ function bindEvents() {
 
 function openFilePicker() {
 
-    elements.fileInput?.click();
+    if (
+        !elements.fileInput
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] File input tidak ditemukan."
+        );
+
+
+        return;
+    }
+
+
+    try {
+
+        elements.fileInput.click();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] File picker gagal dibuka:",
+            error
+        );
+    }
 }
 
 
@@ -396,10 +405,38 @@ function processSelectedFile(file) {
         );
 
 
+    /*
+     * Pastikan object URL lama sudah benar-benar dilepas
+     * sebelum membuat object URL baru.
+     */
+
+    revokeObjectURL(
+        state.originalURL
+    );
+
+
     state.originalURL =
-        URL.createObjectURL(
-            file
+        null;
+
+
+    try {
+
+        state.originalURL =
+            URL.createObjectURL(
+                file
+            );
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] Object URL creation failed:",
+            error
         );
+
+
+        state.originalURL =
+            null;
+    }
 
 
     updateFileInfo();
@@ -573,7 +610,8 @@ function updateFileInfo() {
     ) {
 
         elements.fileName.textContent =
-            state.file.name;
+            state.file?.name ||
+            "";
     }
 
 
@@ -583,7 +621,7 @@ function updateFileInfo() {
 
         elements.fileSize.textContent =
             formatBytes(
-                state.file.size
+                state.file?.size || 0
             );
     }
 }
@@ -592,33 +630,118 @@ function updateFileInfo() {
 /* =========================================================
    ORIGINAL PREVIEW
    ---------------------------------------------------------
-   - Menampilkan image langsung dari object URL.
-   - Menampilkan video dari object URL secara eksplisit.
-   - Memaksa HTMLVideoElement melakukan load ulang.
-   - Menjaga controls / playsInline / preload.
-   - Menangani error video agar preview tidak diam saja.
+   PERBAIKAN UTAMA:
+
+   - Jangan hanya mengandalkan class .hidden.
+   - Paksa display / visibility / opacity.
+   - Image memakai object URL + fallback FileReader.
+   - Video memakai object URL + source element.
+   - Video load() dipanggil setelah source berubah.
+   - Listener dipasang SEBELUM load().
+   - Preview element diberi ukuran eksplisit.
 ========================================================= */
 
 function renderOriginalPreview() {
 
-    hideElement(
-        elements.previewEmpty
+    const image =
+        elements.imagePreview;
+
+
+    const video =
+        elements.videoPreview;
+
+
+    const empty =
+        elements.previewEmpty;
+
+
+    /*
+     * Reset semua preview terlebih dahulu.
+     */
+
+    hidePreviewElement(
+        image
+    );
+
+
+    hidePreviewElement(
+        video
     );
 
 
     hideElement(
-        elements.imagePreview
-    );
-
-
-    hideElement(
-        elements.videoPreview
+        empty
     );
 
 
     hideElement(
         elements.aiOverlay
     );
+
+
+    /*
+     * Pastikan preview stage tetap terlihat.
+     */
+
+    if (
+        elements.previewStage
+    ) {
+
+        elements.previewStage.style.display =
+            "flex";
+
+        elements.previewStage.style.visibility =
+            "visible";
+
+        elements.previewStage.style.opacity =
+            "1";
+    }
+
+
+    if (
+        !state.file
+    ) {
+
+        showElement(
+            empty
+        );
+
+
+        setPreviewStatus(
+            "BELUM ADA MEDIA"
+        );
+
+
+        return;
+    }
+
+
+    if (
+        !state.originalURL
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] Preview URL tidak tersedia.",
+            {
+                fileName:
+                    state.file.name,
+
+                fileType:
+                    state.file.type,
+
+                mediaType:
+                    state.fileType
+            }
+        );
+
+
+        setPreviewStatus(
+            "PREVIEW TIDAK DAPAT DIBUAT."
+        );
+
+
+        return;
+    }
 
 
     /* =================================================
@@ -629,21 +752,10 @@ function renderOriginalPreview() {
         state.fileType === "image"
     ) {
 
-        if (
-            !elements.imagePreview ||
-            !state.originalURL
-        ) {
-
-            return;
-        }
-
-
-        elements.imagePreview.src =
-            state.originalURL;
-
-
-        showElement(
-            elements.imagePreview
+        renderOriginalImagePreview(
+            image,
+            state.file,
+            state.originalURL
         );
 
 
@@ -655,17 +767,14 @@ function renderOriginalPreview() {
        VIDEO
     ================================================= */
 
-    const video =
-        elements.videoPreview;
-
-
     if (
-        !video ||
-        !state.originalURL
+        state.fileType === "video"
     ) {
 
-        console.warn(
-            "[GEN-Z.AI] Video preview element atau object URL tidak tersedia."
+        renderOriginalVideoPreview(
+            video,
+            state.file,
+            state.originalURL
         );
 
 
@@ -673,9 +782,407 @@ function renderOriginalPreview() {
     }
 
 
-    /* =================================================
-       RESET VIDEO ELEMENT
-    ================================================= */
+    console.warn(
+        "[GEN-Z.AI] Media type tidak dikenali:",
+        state.fileType
+    );
+}
+
+
+/* =========================================================
+   ORIGINAL IMAGE PREVIEW
+========================================================= */
+
+function renderOriginalImagePreview(
+    image,
+    file,
+    url
+) {
+
+    if (
+        !image
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] Image preview element tidak tersedia."
+        );
+
+
+        setPreviewStatus(
+            "IMAGE PREVIEW ELEMENT TIDAK TERSEDIA."
+        );
+
+
+        return;
+    }
+
+
+    /*
+     * Hapus handler lama.
+     */
+
+    image.onload =
+        null;
+
+
+    image.onerror =
+        null;
+
+
+    /*
+     * Reset src.
+     */
+
+    try {
+
+        image.removeAttribute(
+            "src"
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] Reset image src gagal:",
+            error
+        );
+    }
+
+
+    /*
+     * Paksa style visibility.
+     */
+
+    forcePreviewVisible(
+        image
+    );
+
+
+    image.alt =
+        file?.name ||
+        "Media preview";
+
+
+    image.decoding =
+        "async";
+
+
+    image.loading =
+        "eager";
+
+
+    /*
+     * Event sukses.
+     */
+
+    image.onload =
+        () => {
+
+            forcePreviewVisible(
+                image
+            );
+
+
+            hideElement(
+                elements.previewEmpty
+            );
+
+
+            setPreviewStatus(
+                "IMAGE SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+            );
+
+
+            console.info(
+                "[GEN-Z.AI] Image preview loaded:",
+                {
+                    fileName:
+                        file?.name || "",
+
+                    width:
+                        image.naturalWidth,
+
+                    height:
+                        image.naturalHeight,
+
+                    url
+                }
+            );
+        };
+
+
+    /*
+     * Event gagal.
+     */
+
+    image.onerror =
+        (event) => {
+
+            console.error(
+                "[GEN-Z.AI] Image preview gagal dimuat:",
+                {
+                    event,
+
+                    fileName:
+                        file?.name || "",
+
+                    fileType:
+                        file?.type || "",
+
+                    fileSize:
+                        file?.size || 0,
+
+                    url
+                }
+            );
+
+
+            /*
+             * Fallback terakhir:
+             * baca File langsung menjadi data URL.
+             */
+
+            renderImageWithFileReader(
+                image,
+                file
+            );
+        };
+
+
+    /*
+     * Pasang object URL.
+     */
+
+    try {
+
+        image.src =
+            url;
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] Assign image object URL gagal:",
+            error
+        );
+
+
+        renderImageWithFileReader(
+            image,
+            file
+        );
+
+
+        return;
+    }
+
+
+    /*
+     * Tampilkan langsung.
+     */
+
+    forcePreviewVisible(
+        image
+    );
+
+
+    /*
+     * Beberapa browser dapat menyelesaikan image
+     * secara synchronous setelah src dipasang.
+     */
+
+    if (
+        image.complete &&
+        image.naturalWidth > 0
+    ) {
+
+        forcePreviewVisible(
+            image
+        );
+
+
+        hideElement(
+            elements.previewEmpty
+        );
+
+
+        setPreviewStatus(
+            "IMAGE SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+        );
+    }
+}
+
+
+/* =========================================================
+   IMAGE FILEREADER FALLBACK
+========================================================= */
+
+function renderImageWithFileReader(
+    image,
+    file
+) {
+
+    if (
+        !image ||
+        !file
+    ) {
+
+        return;
+    }
+
+
+    if (
+        typeof FileReader ===
+        "undefined"
+    ) {
+
+        setPreviewStatus(
+            "BROWSER TIDAK MENDUKUNG IMAGE PREVIEW."
+        );
+
+
+        return;
+    }
+
+
+    console.warn(
+        "[GEN-Z.AI] Menggunakan FileReader fallback untuk image preview."
+    );
+
+
+    const reader =
+        new FileReader();
+
+
+    reader.onload =
+        () => {
+
+            const result =
+                reader.result;
+
+
+            if (
+                typeof result !==
+                "string"
+            ) {
+
+                setPreviewStatus(
+                    "IMAGE PREVIEW GAGAL."
+                );
+
+
+                return;
+            }
+
+
+            image.onload =
+                () => {
+
+                    forcePreviewVisible(
+                        image
+                    );
+
+
+                    hideElement(
+                        elements.previewEmpty
+                    );
+
+
+                    setPreviewStatus(
+                        "IMAGE SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+                    );
+                };
+
+
+            image.onerror =
+                () => {
+
+                    console.error(
+                        "[GEN-Z.AI] FileReader image preview juga gagal."
+                    );
+
+
+                    setPreviewStatus(
+                        "IMAGE TIDAK DAPAT DITAMPILKAN OLEH BROWSER."
+                    );
+                };
+
+
+            image.src =
+                result;
+
+
+            forcePreviewVisible(
+                image
+            );
+        };
+
+
+    reader.onerror =
+        (error) => {
+
+            console.error(
+                "[GEN-Z.AI] FileReader image preview gagal:",
+                error
+            );
+
+
+            setPreviewStatus(
+                "IMAGE PREVIEW GAGAL DIBACA."
+            );
+        };
+
+
+    try {
+
+        reader.readAsDataURL(
+            file
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] FileReader readAsDataURL gagal:",
+            error
+        );
+
+
+        setPreviewStatus(
+            "IMAGE PREVIEW GAGAL DIBACA."
+        );
+    }
+}
+
+
+/* =========================================================
+   ORIGINAL VIDEO PREVIEW
+========================================================= */
+
+function renderOriginalVideoPreview(
+    video,
+    file,
+    url
+) {
+
+    if (
+        !video
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] Video preview element tidak tersedia."
+        );
+
+
+        setPreviewStatus(
+            "VIDEO PREVIEW ELEMENT TIDAK TERSEDIA."
+        );
+
+
+        return;
+    }
+
+
+    /*
+     * Hentikan resource sebelumnya.
+     */
 
     try {
 
@@ -684,10 +1191,30 @@ function renderOriginalPreview() {
     } catch (error) {
 
         console.warn(
-            "[GEN-Z.AI] Video pause sebelum preview gagal:",
+            "[GEN-Z.AI] Video pause gagal:",
             error
         );
     }
+
+
+    /*
+     * Lepaskan source lama.
+     */
+
+    video.onloadedmetadata =
+        null;
+
+
+    video.onloadeddata =
+        null;
+
+
+    video.canplay =
+        null;
+
+
+    video.error =
+        null;
 
 
     video.removeAttribute(
@@ -695,12 +1222,27 @@ function renderOriginalPreview() {
     );
 
 
-    video.load();
+    clearVideoSources(
+        video
+    );
 
 
-    /* =================================================
-       VIDEO CONFIGURATION
-    ================================================= */
+    try {
+
+        video.load();
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] Video reset load gagal:",
+            error
+        );
+    }
+
+
+    /*
+     * Konfigurasi video.
+     */
 
     video.controls =
         true;
@@ -708,6 +1250,12 @@ function renderOriginalPreview() {
 
     video.playsInline =
         true;
+
+
+    video.setAttribute(
+        "playsinline",
+        ""
+    );
 
 
     video.preload =
@@ -718,152 +1266,279 @@ function renderOriginalPreview() {
         false;
 
 
-    /* =================================================
-       SOURCE
-    ================================================= */
+    video.autoplay =
+        false;
 
-    video.src =
-        state.originalURL;
+
+    video.loop =
+        false;
+
+
+    video.disablePictureInPicture =
+        false;
 
 
     /*
-     * Explicit load diperlukan setelah source baru
-     * dipasang supaya browser memulai kembali lifecycle
-     * pemuatan video.
+     * Force visibility sebelum loading.
      */
 
-    video.load();
-
-
-    /* =================================================
-       PREVIEW VISIBILITY
-    ================================================= */
-
-    showElement(
+    forcePreviewVisible(
         video
     );
 
 
-    /* =================================================
-       MEDIA EVENTS
-       -------------------------------------------------
-       loadedmetadata:
-       Browser sudah membaca metadata video.
+    /*
+     * Pasang source melalui <source>.
+     *
+     * Browser akan memilih source yang didukung.
+     */
 
-       loadeddata:
-       Frame pertama sudah tersedia.
-
-       error:
-       Browser gagal membaca resource / codec.
-    ================================================= */
-
-    const handleLoadedMetadata = () => {
-
-        if (
-            state.file &&
-            state.originalURL &&
-            video.src === state.originalURL
-        ) {
-
-            setPreviewStatus(
-                "VIDEO SIAP DIPUTAR."
-            );
-        }
-
-    };
+    const source =
+        document.createElement(
+            "source"
+        );
 
 
-    const handleLoadedData = () => {
+    source.src =
+        url;
 
-        if (
-            state.file &&
-            state.originalURL &&
-            video.src === state.originalURL
-        ) {
 
-            showElement(
+    if (
+        file?.type
+    ) {
+
+        source.type =
+            file.type;
+    }
+
+
+    video.appendChild(
+        source
+    );
+
+
+    /*
+     * Fallback juga dipasang di src langsung.
+     * Ini menjaga kompatibilitas dengan browser yang
+     * menangani src attribute lebih baik daripada source.
+     */
+
+    video.src =
+        url;
+
+
+    /*
+     * Event loadstart.
+     */
+
+    video.onloadstart =
+        () => {
+
+            forcePreviewVisible(
                 video
             );
+        };
+
+
+    /*
+     * Metadata berhasil dibaca.
+     */
+
+    video.onloadedmetadata =
+        () => {
+
+            if (
+                state.file === file
+            ) {
+
+                forcePreviewVisible(
+                    video
+                );
+
+
+                hideElement(
+                    elements.previewEmpty
+                );
+
+
+                setPreviewStatus(
+                    "VIDEO SIAP DIPUTAR."
+                );
+
+
+                console.info(
+                    "[GEN-Z.AI] Video metadata loaded:",
+                    {
+                        fileName:
+                            file?.name || "",
+
+                        duration:
+                            video.duration,
+
+                        width:
+                            video.videoWidth,
+
+                        height:
+                            video.videoHeight,
+
+                        readyState:
+                            video.readyState,
+
+                        currentSrc:
+                            video.currentSrc
+                    }
+                );
+            }
+        };
+
+
+    /*
+     * Frame/data tersedia.
+     */
+
+    video.onloadeddata =
+        () => {
+
+            if (
+                state.file === file
+            ) {
+
+                forcePreviewVisible(
+                    video
+                );
+
+
+                hideElement(
+                    elements.previewEmpty
+                );
+
+
+                setPreviewStatus(
+                    "VIDEO SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+                );
+            }
+        };
+
+
+    /*
+     * Browser sudah bisa mulai memutar.
+     */
+
+    video.oncanplay =
+        () => {
+
+            if (
+                state.file === file
+            ) {
+
+                forcePreviewVisible(
+                    video
+                );
+            }
+        };
+
+
+    /*
+     * Error.
+     */
+
+    video.onerror =
+        () => {
+
+            const mediaError =
+                video.error;
+
+
+            console.error(
+                "[GEN-Z.AI] Video preview gagal dimuat:",
+                {
+                    code:
+                        mediaError?.code ||
+                        null,
+
+                    message:
+                        mediaError?.message ||
+                        null,
+
+                    fileName:
+                        file?.name ||
+                        null,
+
+                    fileType:
+                        file?.type ||
+                        null,
+
+                    fileSize:
+                        file?.size ||
+                        0,
+
+                    url,
+
+                    currentSrc:
+                        video.currentSrc ||
+                        "",
+
+                    networkState:
+                        video.networkState,
+
+                    readyState:
+                        video.readyState
+                }
+            );
+
 
             setPreviewStatus(
-                "VIDEO SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+                "VIDEO TIDAK DAPAT DIPUTAR OLEH BROWSER. FORMAT ATAU CODEC MUNGKIN TIDAK DIDUKUNG."
             );
-        }
-
-    };
+        };
 
 
-    const handleVideoError = () => {
+    /*
+     * Tampilkan.
+     */
 
-        const mediaError =
-            video.error;
+    forcePreviewVisible(
+        video
+    );
 
+
+    /*
+     * load() harus dilakukan SETELAH source dipasang.
+     */
+
+    try {
+
+        video.load();
+
+    } catch (error) {
 
         console.error(
-            "[GEN-Z.AI] Video preview gagal dimuat:",
-            {
-                code:
-                    mediaError?.code || null,
-
-                message:
-                    mediaError?.message || null,
-
-                fileName:
-                    state.file?.name || null,
-
-                fileType:
-                    state.file?.type || null,
-
-                fileSize:
-                    state.file?.size || 0,
-
-                url:
-                    state.originalURL || null
-            }
+            "[GEN-Z.AI] Video load() gagal:",
+            error
         );
 
 
         setPreviewStatus(
-            "VIDEO TIDAK DAPAT DIPUTAR OLEH BROWSER."
+            "VIDEO PREVIEW GAGAL DIMUAT."
         );
 
-    };
+
+        return;
+    }
 
 
     /*
-     * Hapus listener sebelumnya supaya tidak menumpuk
-     * setiap kali user memilih file baru.
+     * Tetap terlihat selama proses loading.
      */
 
-    video.onloadedmetadata =
-        handleLoadedMetadata;
-
-
-    video.onloadeddata =
-        handleLoadedData;
-
-
-    video.onerror =
-        handleVideoError;
+    forcePreviewVisible(
+        video
+    );
 }
 
 
 /* =========================================================
    CHECK METADATA
-   ---------------------------------------------------------
-   SEKARANG CHECK melakukan:
-
-   1. Read metadata
-   2. Normalize metadata
-   3. Detect AI metadata indicators
-   4. Inspect C2PA / Content Credentials
-   5. Simpan hasil provenance
-   6. Render semuanya
-
-   C2PA TIDAK dianggap sebagai bukti AI secara otomatis.
-   C2PA adalah provenance. Jika manifest memiliki
-   digitalSourceType / AI disclosure, informasi tersebut
-   dapat digunakan untuk menjelaskan provenance AI.
 ========================================================= */
 
 async function checkMetadata() {
@@ -951,14 +1626,6 @@ async function checkMetadata() {
         /* =================================================
            STEP 3
            C2PA / CONTENT CREDENTIALS
-           -------------------------------------------------
-           Ini yang sebelumnya hilang.
-
-           inspectProvenance() membaca binary file dan
-           mencari struktur provenance yang relevan.
-
-           Jangan hanya melihat EXIF karena C2PA/JUMBF
-           bukan sekadar field EXIF biasa.
         ================================================= */
 
         state.provenance =
@@ -1101,11 +1768,6 @@ async function checkMetadata() {
 
 /* =========================================================
    INSPECT PROVENANCE
-   ---------------------------------------------------------
-   Direct module call.
-
-   Fallback window tetap disediakan untuk kompatibilitas
-   apabila build/deployment lama mengekspos API global.
 ========================================================= */
 
 async function inspectFileProvenance(
@@ -1144,9 +1806,9 @@ async function inspectFileProvenance(
     }
 
 
-    /* =====================================================
-       FALLBACK GLOBAL
-    ===================================================== */
+    /*
+     * Fallback global untuk deployment lama.
+     */
 
     const provenanceAPI =
         window.GENZMetadataProvenance;
@@ -1184,20 +1846,6 @@ async function inspectFileProvenance(
 
 /* =========================================================
    CLEAN
-   ---------------------------------------------------------
-   Flow:
-
-   1. Tampilkan premium loader.
-   2. Jalankan cleaning.
-   3. Tunggu minimum 10 detik.
-   4. Buat File baru.
-   5. Preview File baru.
-   6. Baca ulang metadata File baru.
-   7. Periksa ulang C2PA / Content Credentials.
-   8. Render metadata terbaru.
-   9. Aktifkan Download.
-
-   File asli tidak pernah diganti.
 ========================================================= */
 
 async function cleanMetadata() {
@@ -1239,7 +1887,7 @@ async function cleanMetadata() {
         state.cleanedURL
     ) {
 
-        URL.revokeObjectURL(
+        revokeObjectURL(
             state.cleanedURL
         );
 
@@ -1416,7 +2064,7 @@ async function cleanMetadata() {
             state.cleanedURL
         ) {
 
-            URL.revokeObjectURL(
+            revokeObjectURL(
                 state.cleanedURL
             );
 
@@ -1432,12 +2080,13 @@ async function cleanMetadata() {
             );
 
 
-        /* =================================================
-           RENDER CLEANED PREVIEW
-        ================================================= */
+        /*
+         * Render cleaned preview.
+         */
 
         renderCleanedPreview(
-            state.cleanedURL
+            state.cleanedURL,
+            cleanedFile
         );
 
 
@@ -1446,18 +2095,18 @@ async function cleanMetadata() {
         );
 
 
-        /* =================================================
-           UPDATE FILE INFORMATION
-        ================================================= */
+        /*
+         * Update file information.
+         */
 
         updateCleanedFileInfo(
             cleanedFile
         );
 
 
-        /* =================================================
-           RE-READ CLEANED METADATA
-        ================================================= */
+        /*
+         * Re-read cleaned metadata.
+         */
 
         updatePremiumCleaningLoader(
             loader,
@@ -1493,12 +2142,9 @@ async function cleanMetadata() {
             );
 
 
-        /* =================================================
-           PROVENANCE RECHECK
-           -------------------------------------------------
-           C2PA / Content Credentials diperiksa ulang
-           terhadap FILE HASIL, bukan file original.
-        ================================================= */
+        /*
+         * Provenance recheck.
+         */
 
         await refreshCleanedProvenance(
             cleanedFile
@@ -1509,9 +2155,9 @@ async function cleanMetadata() {
             true;
 
 
-        /* =================================================
-           RENDER LATEST METADATA
-        ================================================= */
+        /*
+         * Render latest metadata.
+         */
 
         updatePremiumCleaningLoader(
             loader,
@@ -1527,9 +2173,9 @@ async function cleanMetadata() {
         renderDetectionResult();
 
 
-        /* =================================================
-           DOWNLOAD READY
-        ================================================= */
+        /*
+         * Download ready.
+         */
 
         elements.downloadButton.disabled =
             false;
@@ -1596,7 +2242,7 @@ async function cleanMetadata() {
             state.cleanedURL
         ) {
 
-            URL.revokeObjectURL(
+            revokeObjectURL(
                 state.cleanedURL
             );
 
@@ -2663,20 +3309,21 @@ function injectPremiumCleaningStyles() {
 /* =========================================================
    CLEANED PREVIEW
    ---------------------------------------------------------
-   Menampilkan hasil cleaning menggunakan object URL.
-   Video dipaksa reload setelah source diganti.
+   Hasil cleaning menggunakan mekanisme preview yang
+   sama dengan original preview.
 ========================================================= */
 
 function renderCleanedPreview(
-    url
+    url,
+    file = null
 ) {
 
-    hideElement(
+    hidePreviewElement(
         elements.imagePreview
     );
 
 
-    hideElement(
+    hidePreviewElement(
         elements.videoPreview
     );
 
@@ -2686,12 +3333,12 @@ function renderCleanedPreview(
     );
 
 
-    hideElement(
+    hidePreviewElement(
         elements.cleanImagePreview
     );
 
 
-    hideElement(
+    hidePreviewElement(
         elements.cleanVideoPreview
     );
 
@@ -2709,38 +3356,106 @@ function renderCleanedPreview(
     }
 
 
-    /* =================================================
-       CLEANED IMAGE
-    ================================================= */
+    const cleanedFile =
+        file ||
+        state.cleanedFile;
+
+
+    /*
+     * CLEANED IMAGE
+     */
 
     if (
         state.fileType === "image"
     ) {
 
+        const image =
+            elements.cleanImagePreview;
+
+
         if (
-            !elements.cleanImagePreview
+            !image
         ) {
+
+            console.warn(
+                "[GEN-Z.AI] Cleaned image preview element tidak tersedia."
+            );
+
 
             return;
         }
 
 
-        elements.cleanImagePreview.src =
+        image.onload =
+            () => {
+
+                forcePreviewVisible(
+                    image
+                );
+            };
+
+
+        image.onerror =
+            () => {
+
+                console.error(
+                    "[GEN-Z.AI] Cleaned image preview gagal:",
+                    {
+                        url,
+
+                        fileName:
+                            cleanedFile?.name ||
+                            null
+                    }
+                );
+
+
+                setPreviewStatus(
+                    "IMAGE CLEANED TIDAK DAPAT DITAMPILKAN."
+                );
+            };
+
+
+        image.alt =
+            cleanedFile?.name ||
+            "Cleaned image preview";
+
+
+        image.decoding =
+            "async";
+
+
+        image.loading =
+            "eager";
+
+
+        image.src =
             url;
 
 
-        showElement(
-            elements.cleanImagePreview
+        forcePreviewVisible(
+            image
         );
+
+
+        if (
+            image.complete &&
+            image.naturalWidth > 0
+        ) {
+
+            forcePreviewVisible(
+                image
+            );
+        }
 
 
         return;
     }
 
 
-    /* =================================================
-       CLEANED VIDEO
-    ================================================= */
+    /*
+     * CLEANED VIDEO
+     */
 
     const video =
         elements.cleanVideoPreview;
@@ -2772,12 +3487,43 @@ function renderCleanedPreview(
     }
 
 
+    video.onloadedmetadata =
+        null;
+
+
+    video.onloadeddata =
+        null;
+
+
+    video.canplay =
+        null;
+
+
+    video.onerror =
+        null;
+
+
     video.removeAttribute(
         "src"
     );
 
 
-    video.load();
+    clearVideoSources(
+        video
+    );
+
+
+    try {
+
+        video.load();
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] Cleaned video reset load gagal:",
+            error
+        );
+    }
 
 
     video.controls =
@@ -2788,6 +3534,12 @@ function renderCleanedPreview(
         true;
 
 
+    video.setAttribute(
+        "playsinline",
+        ""
+    );
+
+
     video.preload =
         "metadata";
 
@@ -2796,24 +3548,45 @@ function renderCleanedPreview(
         false;
 
 
+    video.autoplay =
+        false;
+
+
+    const source =
+        document.createElement(
+            "source"
+        );
+
+
+    source.src =
+        url;
+
+
+    if (
+        cleanedFile?.type
+    ) {
+
+        source.type =
+            cleanedFile.type;
+    }
+
+
+    video.appendChild(
+        source
+    );
+
+
     video.src =
         url;
 
 
-    /*
-     * Paksa browser membaca object URL baru.
-     */
-
-    video.load();
-
-
-    showElement(
-        video
-    );
-
-
     video.onloadedmetadata =
         () => {
+
+            forcePreviewVisible(
+                video
+            );
+
 
             setPreviewStatus(
                 "VIDEO CLEANED SIAP DIPUTAR."
@@ -2824,10 +3597,18 @@ function renderCleanedPreview(
     video.onloadeddata =
         () => {
 
-            showElement(
+            forcePreviewVisible(
                 video
             );
+        };
 
+
+    video.canplay =
+        () => {
+
+            forcePreviewVisible(
+                video
+            );
         };
 
 
@@ -2842,12 +3623,24 @@ function renderCleanedPreview(
                 "[GEN-Z.AI] Cleaned video preview gagal dimuat:",
                 {
                     code:
-                        mediaError?.code || null,
+                        mediaError?.code ||
+                        null,
 
                     message:
-                        mediaError?.message || null,
+                        mediaError?.message ||
+                        null,
 
-                    url
+                    url,
+
+                    currentSrc:
+                        video.currentSrc ||
+                        "",
+
+                    networkState:
+                        video.networkState,
+
+                    readyState:
+                        video.readyState
                 }
             );
 
@@ -2856,6 +3649,37 @@ function renderCleanedPreview(
                 "VIDEO CLEANED TIDAK DAPAT DIPUTAR OLEH BROWSER."
             );
         };
+
+
+    forcePreviewVisible(
+        video
+    );
+
+
+    try {
+
+        video.load();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] Cleaned video load() gagal:",
+            error
+        );
+
+
+        setPreviewStatus(
+            "VIDEO CLEANED GAGAL DIMUAT."
+        );
+
+
+        return;
+    }
+
+
+    forcePreviewVisible(
+        video
+    );
 }
 
 
@@ -2869,8 +3693,17 @@ function clearCleanedPreview() {
         elements.cleanImagePreview
     ) {
 
-        elements.cleanImagePreview.src =
-            "";
+        elements.cleanImagePreview.onload =
+            null;
+
+
+        elements.cleanImagePreview.onerror =
+            null;
+
+
+        elements.cleanImagePreview.removeAttribute(
+            "src"
+        );
     }
 
 
@@ -2878,7 +3711,33 @@ function clearCleanedPreview() {
         elements.cleanVideoPreview
     ) {
 
-        elements.cleanVideoPreview.pause();
+        try {
+
+            elements.cleanVideoPreview.pause();
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Cleaned video pause saat clear gagal:",
+                error
+            );
+        }
+
+
+        elements.cleanVideoPreview.onloadedmetadata =
+            null;
+
+
+        elements.cleanVideoPreview.onloadeddata =
+            null;
+
+
+        elements.cleanVideoPreview.canplay =
+            null;
+
+
+        elements.cleanVideoPreview.onerror =
+            null;
 
 
         elements.cleanVideoPreview.removeAttribute(
@@ -2886,16 +3745,31 @@ function clearCleanedPreview() {
         );
 
 
-        elements.cleanVideoPreview.load();
+        clearVideoSources(
+            elements.cleanVideoPreview
+        );
+
+
+        try {
+
+            elements.cleanVideoPreview.load();
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Cleaned video load saat clear gagal:",
+                error
+            );
+        }
     }
 
 
-    hideElement(
+    hidePreviewElement(
         elements.cleanImagePreview
     );
 
 
-    hideElement(
+    hidePreviewElement(
         elements.cleanVideoPreview
     );
 }
@@ -2929,7 +3803,8 @@ function downloadCleanedFile() {
     anchor.download =
         state.cleanedFile?.name ||
         createCleanedFilename(
-            state.file.name
+            state.file?.name ||
+            "media"
         );
 
 
@@ -2957,8 +3832,15 @@ function createCleanedFilename(
     originalName
 ) {
 
+    const safeName =
+        String(
+            originalName ||
+            "media"
+        );
+
+
     const dot =
-        originalName.lastIndexOf(
+        safeName.lastIndexOf(
             "."
         );
 
@@ -2967,19 +3849,19 @@ function createCleanedFilename(
         dot <= 0
     ) {
 
-        return `${originalName}_cleaned`;
+        return `${safeName}_cleaned`;
     }
 
 
     const base =
-        originalName.slice(
+        safeName.slice(
             0,
             dot
         );
 
 
     const extension =
-        originalName.slice(
+        safeName.slice(
             dot + 1
         );
 
@@ -3006,15 +3888,6 @@ function resetForNewFile() {
         [];
 
 
-    /*
-     * Selalu reset provenance.
-     *
-     * Sebelumnya hanya di-reset apabila property tersebut
-     * sudah ada. Sekarang state provenance dibuat eksplisit
-     * sehingga tidak ada hasil C2PA file sebelumnya yang
-     * tertinggal.
-     */
-
     state.provenance =
         null;
 
@@ -3031,7 +3904,7 @@ function resetForNewFile() {
         state.originalURL
     ) {
 
-        URL.revokeObjectURL(
+        revokeObjectURL(
             state.originalURL
         );
 
@@ -3045,7 +3918,7 @@ function resetForNewFile() {
         state.cleanedURL
     ) {
 
-        URL.revokeObjectURL(
+        revokeObjectURL(
             state.cleanedURL
         );
 
@@ -3053,6 +3926,9 @@ function resetForNewFile() {
         state.cleanedURL =
             null;
     }
+
+
+    clearOriginalPreview();
 
 
     clearCleanedPreview();
@@ -3063,8 +3939,13 @@ function resetForNewFile() {
     );
 
 
-    elements.downloadButton.disabled =
-        true;
+    if (
+        elements.downloadButton
+    ) {
+
+        elements.downloadButton.disabled =
+            true;
+    }
 
 
     renderMetadata();
@@ -3108,7 +3989,7 @@ function resetApplication() {
         state.originalURL
     ) {
 
-        URL.revokeObjectURL(
+        revokeObjectURL(
             state.originalURL
         );
 
@@ -3132,14 +4013,10 @@ function resetApplication() {
     );
 
 
-    hideElement(
-        elements.imagePreview
-    );
+    clearOriginalPreview();
 
 
-    hideElement(
-        elements.videoPreview
-    );
+    clearCleanedPreview();
 
 
     showElement(
@@ -3173,6 +4050,120 @@ function resetApplication() {
 
 
 /* =========================================================
+   CLEAR ORIGINAL PREVIEW
+========================================================= */
+
+function clearOriginalPreview() {
+
+    const image =
+        elements.imagePreview;
+
+
+    const video =
+        elements.videoPreview;
+
+
+    if (
+        image
+    ) {
+
+        image.onload =
+            null;
+
+
+        image.onerror =
+            null;
+
+
+        image.removeAttribute(
+            "src"
+        );
+
+
+        clearPreviewInlineStyles(
+            image
+        );
+    }
+
+
+    if (
+        video
+    ) {
+
+        try {
+
+            video.pause();
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Original video pause saat clear gagal:",
+                error
+            );
+        }
+
+
+        video.onloadedmetadata =
+            null;
+
+
+        video.onloadeddata =
+            null;
+
+
+        video.onloadstart =
+            null;
+
+
+        video.oncanplay =
+            null;
+
+
+        video.onerror =
+            null;
+
+
+        video.removeAttribute(
+            "src"
+        );
+
+
+        clearVideoSources(
+            video
+        );
+
+
+        try {
+
+            video.load();
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Original video load saat clear gagal:",
+                error
+            );
+        }
+
+
+        clearPreviewInlineStyles(
+            video
+        );
+    }
+
+
+    hidePreviewElement(
+        image
+    );
+
+
+    hidePreviewElement(
+        video
+    );
+}
+
+
+/* =========================================================
    PREVIEW STATUS
 ========================================================= */
 
@@ -3186,6 +4177,311 @@ function setPreviewStatus(
 
         elements.previewStatus.textContent =
             text;
+    }
+}
+
+
+/* =========================================================
+   PREVIEW VISIBILITY
+   ---------------------------------------------------------
+   Ini sengaja tidak hanya menghapus .hidden.
+   Ada CSS lain yang dapat mengatur display / visibility /
+   opacity. Preview harus menang secara eksplisit.
+========================================================= */
+
+function forcePreviewVisible(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+    }
+
+
+    element.classList.remove(
+        "hidden"
+    );
+
+
+    element.style.setProperty(
+        "display",
+        element.tagName === "VIDEO" ||
+        element.tagName === "IMG"
+            ? "block"
+            : "block",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "visibility",
+        "visible",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "opacity",
+        "1",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "max-width",
+        "100%",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "max-height",
+        "540px",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "width",
+        "auto",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "height",
+        "auto",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "object-fit",
+        "contain",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "position",
+        "relative",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "z-index",
+        "2",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "flex-shrink",
+        "0",
+        "important"
+    );
+}
+
+
+/* =========================================================
+   HIDE PREVIEW ELEMENT
+========================================================= */
+
+function hidePreviewElement(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+    }
+
+
+    element.classList.add(
+        "hidden"
+    );
+
+
+    element.style.setProperty(
+        "display",
+        "none",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "visibility",
+        "hidden",
+        "important"
+    );
+
+
+    element.style.setProperty(
+        "opacity",
+        "0",
+        "important"
+    );
+}
+
+
+/* =========================================================
+   CLEAR PREVIEW INLINE STYLES
+========================================================= */
+
+function clearPreviewInlineStyles(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+    }
+
+
+    element.style.removeProperty(
+        "display"
+    );
+
+
+    element.style.removeProperty(
+        "visibility"
+    );
+
+
+    element.style.removeProperty(
+        "opacity"
+    );
+
+
+    element.style.removeProperty(
+        "max-width"
+    );
+
+
+    element.style.removeProperty(
+        "max-height"
+    );
+
+
+    element.style.removeProperty(
+        "width"
+    );
+
+
+    element.style.removeProperty(
+        "height"
+    );
+
+
+    element.style.removeProperty(
+        "object-fit"
+    );
+
+
+    element.style.removeProperty(
+        "position"
+    );
+
+
+    element.style.removeProperty(
+        "z-index"
+    );
+
+
+    element.style.removeProperty(
+        "flex-shrink"
+    );
+}
+
+
+/* =========================================================
+   CLEAR VIDEO SOURCES
+========================================================= */
+
+function clearVideoSources(
+    video
+) {
+
+    if (
+        !video
+    ) {
+
+        return;
+    }
+
+
+    const sources =
+        Array.from(
+            video.querySelectorAll(
+                "source"
+            )
+        );
+
+
+    for (
+        const source of sources
+    ) {
+
+        source.remove();
+    }
+}
+
+
+/* =========================================================
+   REVOKE OBJECT URL
+========================================================= */
+
+function revokeObjectURL(
+    url
+) {
+
+    if (
+        !url
+    ) {
+
+        return;
+    }
+
+
+    if (
+        typeof url !==
+        "string"
+    ) {
+
+        return;
+    }
+
+
+    if (
+        !url.startsWith(
+            "blob:"
+        )
+    ) {
+
+        return;
+    }
+
+
+    try {
+
+        URL.revokeObjectURL(
+            url
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] revokeObjectURL gagal:",
+            error
+        );
     }
 }
 
@@ -3234,7 +4530,15 @@ function showElement(
     element
 ) {
 
-    element?.classList.remove(
+    if (
+        !element
+    ) {
+
+        return;
+    }
+
+
+    element.classList.remove(
         "hidden"
     );
 }
@@ -3244,7 +4548,15 @@ function hideElement(
     element
 ) {
 
-    element?.classList.add(
+    if (
+        !element
+    ) {
+
+        return;
+    }
+
+
+    element.classList.add(
         "hidden"
     );
 }
