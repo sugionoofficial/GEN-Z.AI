@@ -24,10 +24,6 @@ import {
     elements
 } from "./metadata-dom.js";
 
-import {
-    revokeObjectURL
-} from "./metadata-file.js";
-
 
 import {
     clearOriginalPreview,
@@ -40,6 +36,112 @@ import {
     renderMetadata,
     setStatus
 } from "./metadata-status.js";
+
+
+/* =========================================================
+   OBJECT URL
+========================================================= */
+
+function revokeObjectURL(
+    url
+) {
+
+    if (
+        !url
+    ) {
+
+        return;
+    }
+
+
+    if (
+        typeof url !==
+        "string"
+    ) {
+
+        return;
+    }
+
+
+    if (
+        !url.startsWith(
+            "blob:"
+        )
+    ) {
+
+        return;
+    }
+
+
+    try {
+
+        URL.revokeObjectURL(
+            url
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "[GEN-Z.AI] revokeObjectURL gagal:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   DOM HELPERS
+========================================================= */
+
+function showElement(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+    }
+
+
+    element.hidden =
+        false;
+
+    element.removeAttribute(
+        "hidden"
+    );
+
+    element.classList.remove(
+        "hidden"
+    );
+}
+
+
+function hideElement(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+    }
+
+
+    element.hidden =
+        true;
+
+    element.setAttribute(
+        "hidden",
+        ""
+    );
+
+    element.classList.add(
+        "hidden"
+    );
+}
 
 
 /* =========================================================
@@ -172,6 +274,20 @@ function resetApplication() {
 
 
     if (
+        state.cleanedURL
+    ) {
+
+        revokeObjectURL(
+            state.cleanedURL
+        );
+
+
+        state.cleanedURL =
+            null;
+    }
+
+
+    if (
         elements.fileInput
     ) {
 
@@ -237,66 +353,20 @@ function resetApplication() {
 
 
 /* =========================================================
-   DOM HELPERS
-========================================================= */
-
-function showElement(
-    element
-) {
-
-    if (
-        !element
-    ) {
-
-        return;
-    }
-
-
-    element.classList.remove(
-        "hidden"
-    );
-}
-
-
-function hideElement(
-    element
-) {
-
-    if (
-        !element
-    ) {
-
-        return;
-    }
-
-
-    element.classList.add(
-        "hidden"
-    );
-}
-
-
-/* =========================================================
    PUBLIC API
 ========================================================= */
 
 export {
-
     resetForNewFile,
-
     resetApplication,
-
     revokeObjectURL
-
 };
 
 
 window.GENZMetadataReset = {
 
     resetForNewFile,
-
     resetApplication,
-
     revokeObjectURL
 
 };
