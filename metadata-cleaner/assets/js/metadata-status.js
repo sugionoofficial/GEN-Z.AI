@@ -6,15 +6,47 @@
    metadata-cleaner/assets/js/metadata-status.js
 
    Tanggung jawab:
-   - Render metadata lokal
+   - Render detection result
+   - Render status
+   - Render metadata table
    - Render Sightengine AI Detection
    - Render AI generator scores
    - Render Sightengine request metadata
    - Render Sightengine media metadata
-   - Mengatur status detection
    - Mengatur AI DETECTION overlay
-   - Tidak melakukan API request
+
+   AI DETECTION:
+   1. Local metadata detector
+   2. Sightengine visual AI detector
+
+   Catatan:
+   - Metadata detection dan visual detection
+     merupakan dua sumber berbeda.
+   - Tidak ada detector yang dapat menjamin
+     asal media secara 100%.
+   - Model pada AI DETECTION stamp berasal
+     langsung dari result Sightengine.
+   - Stamp visual hanya ditampilkan jika
+     Sightengine menyatakan is_ai_generated === true.
 ========================================================= */
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+import {
+    state
+} from "./metadata-state.js";
+
+
+/* =========================================================
+   DOM
+========================================================= */
+
+import {
+    elements
+} from "./metadata-dom.js";
 
 
 /* =========================================================
@@ -100,7 +132,9 @@ function normalizeScore(
 ) {
 
     const number =
-        Number(value);
+        Number(
+            value
+        );
 
     if (
         !Number.isFinite(
@@ -112,23 +146,13 @@ function normalizeScore(
 
     }
 
-    if (
-        number < 0
-    ) {
-
-        return 0;
-
-    }
-
-    if (
-        number > 1
-    ) {
-
-        return 1;
-
-    }
-
-    return number;
+    return Math.max(
+        0,
+        Math.min(
+            1,
+            number
+        )
+    );
 
 }
 
@@ -138,7 +162,9 @@ function normalizePercent(
 ) {
 
     const number =
-        Number(value);
+        Number(
+            value
+        );
 
     if (
         !Number.isFinite(
@@ -150,23 +176,13 @@ function normalizePercent(
 
     }
 
-    if (
-        number < 0
-    ) {
-
-        return 0;
-
-    }
-
-    if (
-        number > 100
-    ) {
-
-        return 100;
-
-    }
-
-    return number;
+    return Math.max(
+        0,
+        Math.min(
+            100,
+            number
+        )
+    );
 
 }
 
@@ -195,6 +211,7 @@ function formatPercentage(
     const percentage =
         normalized * 100;
 
+
     if (
         percentage === 0
     ) {
@@ -203,6 +220,7 @@ function formatPercentage(
 
     }
 
+
     if (
         percentage < 1
     ) {
@@ -210,6 +228,7 @@ function formatPercentage(
         return `${percentage.toFixed(2)}%`;
 
     }
+
 
     if (
         Number.isInteger(
@@ -220,6 +239,7 @@ function formatPercentage(
         return `${percentage}%`;
 
     }
+
 
     return `${percentage.toFixed(1)}%`;
 
@@ -247,6 +267,7 @@ function formatPercentageFromPercent(
 
     }
 
+
     if (
         percentage === 0
     ) {
@@ -255,6 +276,7 @@ function formatPercentageFromPercent(
 
     }
 
+
     if (
         percentage < 1
     ) {
@@ -262,6 +284,7 @@ function formatPercentageFromPercent(
         return `${percentage.toFixed(2)}%`;
 
     }
+
 
     if (
         Number.isInteger(
@@ -272,6 +295,7 @@ function formatPercentageFromPercent(
         return `${percentage}%`;
 
     }
+
 
     return `${percentage.toFixed(1)}%`;
 
@@ -294,10 +318,12 @@ function formatGeneratorName(
 
     }
 
+
     const normalized =
         name
             .trim()
             .toLowerCase();
+
 
     const names = {
 
@@ -360,6 +386,7 @@ function formatGeneratorName(
 
     };
 
+
     return (
         names[normalized] ||
         name
@@ -382,45 +409,61 @@ function formatGenerator(
         )
     ) {
 
-        return "Unknown";
+        return "";
 
     }
+
 
     const name =
         formatGeneratorName(
             generator.name
         );
 
+
+    if (
+        !name
+    ) {
+
+        return "";
+
+    }
+
+
     const confidence =
         normalizePercent(
             generator.confidence
         );
 
+
     if (
         confidence !== null
     ) {
 
-        /*
-         * IMPORTANT:
-         * Jangan menghilangkan nama generator.
-         */
-
-        return `${name} (${formatPercentageFromPercent(confidence)})`;
+        return (
+            `${name} ` +
+            `(${formatPercentageFromPercent(confidence)})`
+        );
 
     }
+
 
     const score =
         normalizeScore(
             generator.score
         );
 
+
     if (
         score !== null
     ) {
 
-        return `${name} (${formatPercentage(score)})`;
+        return (
+            `${name} ` +
+            `(${formatPercentage(score)})`
+        );
 
     }
+
 
     return name;
 
@@ -428,7 +471,22 @@ function formatGenerator(
 
 
 /* =========================================================
-   VALUE FORMAT
+   GENERATOR DISPLAY VALUE
+========================================================= */
+
+function formatGeneratorDisplay(
+    generator
+) {
+
+    return formatGenerator(
+        generator
+    ) || "Tidak terdeteksi";
+
+}
+
+
+/* =========================================================
+   SAFE VALUE
 ========================================================= */
 
 function formatValue(
@@ -445,6 +503,7 @@ function formatValue(
 
     }
 
+
     return escapeHtml(
         value
     );
@@ -458,39 +517,16 @@ function formatValue(
 
 function createMetadataRow(
     label,
-    value,
-    options = {}
+    value
 ) {
 
-    const {
-
-        className = "",
-
-        raw = false
-
-    } = options;
-
-    const safeLabel =
-        escapeHtml(
-            label
-        );
-
-    const safeValue =
-        raw
-            ? String(
-                value ?? ""
-            )
-            : formatValue(
-                value
-            );
-
     return `
-        <tr class="${escapeHtml(className)}">
+        <tr>
             <td class="metadata-key">
-                ${safeLabel}
+                ${escapeHtml(label)}
             </td>
             <td class="metadata-value">
-                ${safeValue}
+                ${formatValue(value)}
             </td>
         </tr>
     `;
@@ -519,6 +555,21 @@ function createSectionRow(
 
 /* =========================================================
    LOCAL METADATA
+   ---------------------------------------------------------
+   Mendukung format lama:
+       {
+           field: "...",
+           value: "..."
+       }
+
+   Juga mendukung:
+       {
+           key: "...",
+           value: "..."
+       }
+
+   Agar module normalizer lama maupun baru
+   tetap kompatibel.
 ========================================================= */
 
 function renderLocalMetadata(
@@ -535,6 +586,7 @@ function renderLocalMetadata(
 
     }
 
+
     if (
         metadata.length === 0
     ) {
@@ -543,52 +595,62 @@ function renderLocalMetadata(
 
     }
 
-    return metadata
-        .map(
-            item => {
 
-                if (
-                    !isObject(
-                        item
-                    )
-                ) {
+    let html = "";
 
-                    return "";
 
-                }
+    for (
+        const item of metadata
+    ) {
 
-                const key =
-                    item.key ??
-                    item.name ??
-                    "";
+        if (
+            !isObject(
+                item
+            )
+        ) {
 
-                const value =
-                    item.value ??
-                    "";
+            continue;
 
-                if (
-                    !key
-                ) {
+        }
 
-                    return "";
 
-                }
+        const field =
+            item.field ??
+            item.key ??
+            item.name ??
+            "";
 
-                return createMetadataRow(
-                    key,
-                    value
-                );
 
-            }
-        )
-        .filter(Boolean)
-        .join("");
+        const value =
+            item.value ??
+            "";
+
+
+        if (
+            !field
+        ) {
+
+            continue;
+
+        }
+
+
+        html +=
+            createMetadataRow(
+                field,
+                value
+            );
+
+    }
+
+
+    return html;
 
 }
 
 
 /* =========================================================
-   SIGHTENGINE AI DETECTION
+   SIGHTENGINE DETECTION
 ========================================================= */
 
 function renderSightengineDetection(
@@ -605,26 +667,32 @@ function renderSightengineDetection(
 
     }
 
+
     const provider =
         detection.provider ||
         "sightengine";
 
+
     const model =
         detection.model ||
         "N/A";
+
 
     const aiGenerated =
         normalizeScore(
             detection.ai_generated
         );
 
+
     const confidence =
         normalizePercent(
             detection.confidence
         );
 
+
     const isAiGenerated =
         detection.is_ai_generated === true;
+
 
     const detectedGenerator =
         isObject(
@@ -633,8 +701,10 @@ function renderSightengineDetection(
             ? detection.detected_generator
             : null;
 
+
     let detectionStatus =
-        "TIDAK TERDETEKSI";
+        "TIDAK TERSEDIA";
+
 
     if (
         isAiGenerated
@@ -650,71 +720,75 @@ function renderSightengineDetection(
         detectionStatus =
             "TIDAK TERDETEKSI";
 
-    } else {
-
-        detectionStatus =
-            "TIDAK TERSEDIA";
-
     }
+
 
     const detectedGeneratorText =
         detectedGenerator
-            ? formatGenerator(
+            ? formatGeneratorDisplay(
                 detectedGenerator
             )
             : "Tidak terdeteksi";
 
+
     let html = "";
 
-    html += createSectionRow(
-        SIGHTENGINE_SECTION_TITLE
-    );
 
-    html += createMetadataRow(
-        "Provider",
-        provider
-    );
+    html +=
+        createSectionRow(
+            SIGHTENGINE_SECTION_TITLE
+        );
 
-    html += createMetadataRow(
-        "Detection Model",
-        model
-    );
 
-    /*
-     * AI Generated menggunakan score asli.
-     *
-     * Contoh:
-     * 0.001 → 0.10%
-     * 0.99  → 99%
-     */
+    html +=
+        createMetadataRow(
+            "Provider",
+            provider
+        );
 
-    html += createMetadataRow(
-        "AI Generated",
-        aiGenerated !== null
-            ? formatPercentage(
-                aiGenerated
-            )
-            : "N/A"
-    );
 
-    html += createMetadataRow(
-        "Confidence",
-        confidence !== null
-            ? formatPercentageFromPercent(
-                confidence
-            )
-            : "N/A"
-    );
+    html +=
+        createMetadataRow(
+            "Detection Model",
+            model
+        );
 
-    html += createMetadataRow(
-        "Detection Status",
-        detectionStatus
-    );
 
-    html += createMetadataRow(
-        "Detected Generator",
-        detectedGeneratorText
-    );
+    html +=
+        createMetadataRow(
+            "AI Generated",
+            aiGenerated !== null
+                ? formatPercentage(
+                    aiGenerated
+                )
+                : "N/A"
+        );
+
+
+    html +=
+        createMetadataRow(
+            "Confidence",
+            confidence !== null
+                ? formatPercentageFromPercent(
+                    confidence
+                )
+                : "N/A"
+        );
+
+
+    html +=
+        createMetadataRow(
+            "Detection Status",
+            detectionStatus
+        );
+
+
+    html +=
+        createMetadataRow(
+            "Detected Generator",
+            detectedGeneratorText
+        );
+
 
     return html;
 
@@ -739,12 +813,14 @@ function renderSightengineGenerators(
 
     }
 
+
     const generators =
         Array.isArray(
             detection.generators
         )
             ? detection.generators
             : [];
+
 
     if (
         generators.length === 0
@@ -754,11 +830,15 @@ function renderSightengineGenerators(
 
     }
 
+
     let html = "";
 
-    html += createSectionRow(
-        SIGHTENGINE_GENERATORS_TITLE
-    );
+
+    html +=
+        createSectionRow(
+            SIGHTENGINE_GENERATORS_TITLE
+        );
+
 
     for (
         const generator of generators
@@ -774,46 +854,27 @@ function renderSightengineGenerators(
 
         }
 
+
         const name =
             formatGeneratorName(
                 generator.name
             );
 
-        const score =
-            normalizeScore(
-                generator.score
+
+        const value =
+            formatGeneratorDisplay(
+                generator
             );
 
-        const confidence =
-            normalizePercent(
-                generator.confidence
+
+        html +=
+            createMetadataRow(
+                name,
+                value
             );
-
-        let value =
-            name;
-
-        if (
-            confidence !== null
-        ) {
-
-            value =
-                `${name} (${formatPercentageFromPercent(confidence)})`;
-
-        } else if (
-            score !== null
-        ) {
-
-            value =
-                `${name} (${formatPercentage(score)})`;
-
-        }
-
-        html += createMetadataRow(
-            name,
-            value
-        );
 
     }
+
 
     return html;
 
@@ -838,12 +899,14 @@ function renderSightengineRequest(
 
     }
 
+
     const request =
         isObject(
             detection.request
         )
             ? detection.request
             : null;
+
 
     if (
         !request
@@ -853,13 +916,21 @@ function renderSightengineRequest(
 
     }
 
+
     const hasData =
-        request.id !== null &&
-        request.id !== undefined ||
-        request.timestamp !== null &&
-        request.timestamp !== undefined ||
-        request.operations !== null &&
-        request.operations !== undefined;
+        (
+            request.id !== null &&
+            request.id !== undefined
+        ) ||
+        (
+            request.timestamp !== null &&
+            request.timestamp !== undefined
+        ) ||
+        (
+            request.operations !== null &&
+            request.operations !== undefined
+        );
+
 
     if (
         !hasData
@@ -869,26 +940,36 @@ function renderSightengineRequest(
 
     }
 
+
     let html = "";
 
-    html += createSectionRow(
-        SIGHTENGINE_REQUEST_TITLE
-    );
 
-    html += createMetadataRow(
-        "Request ID",
-        request.id
-    );
+    html +=
+        createSectionRow(
+            SIGHTENGINE_REQUEST_TITLE
+        );
 
-    html += createMetadataRow(
-        "Timestamp",
-        request.timestamp
-    );
 
-    html += createMetadataRow(
-        "Operations",
-        request.operations
-    );
+    html +=
+        createMetadataRow(
+            "Request ID",
+            request.id
+        );
+
+
+    html +=
+        createMetadataRow(
+            "Timestamp",
+            request.timestamp
+        );
+
+
+    html +=
+        createMetadataRow(
+            "Operations",
+            request.operations
+        );
+
 
     return html;
 
@@ -913,12 +994,14 @@ function renderSightengineMedia(
 
     }
 
+
     const media =
         isObject(
             detection.media
         )
             ? detection.media
             : null;
+
 
     if (
         !media
@@ -927,6 +1010,7 @@ function renderSightengineMedia(
         return "";
 
     }
+
 
     const hasData =
         (
@@ -938,6 +1022,7 @@ function renderSightengineMedia(
             media.uri.trim()
         );
 
+
     if (
         !hasData
     ) {
@@ -946,27 +1031,29 @@ function renderSightengineMedia(
 
     }
 
+
     let html = "";
 
-    html += createSectionRow(
-        SIGHTENGINE_MEDIA_TITLE
-    );
 
-    html += createMetadataRow(
-        "Media ID",
-        media.id
-    );
+    html +=
+        createSectionRow(
+            SIGHTENGINE_MEDIA_TITLE
+        );
 
-    /*
-     * URI ditampilkan sebagai teks yang di-escape.
-     * Tidak dibuat menjadi HTML link agar response
-     * eksternal tidak dapat menyuntikkan markup.
-     */
 
-    html += createMetadataRow(
-        "Media URI",
-        media.uri
-    );
+    html +=
+        createMetadataRow(
+            "Media ID",
+            media.id
+        );
+
+
+    html +=
+        createMetadataRow(
+            "Media URI",
+            media.uri
+        );
+
 
     return html;
 
@@ -974,7 +1061,7 @@ function renderSightengineMedia(
 
 
 /* =========================================================
-   COMBINED SIGHTENGINE RENDER
+   COMBINED SIGHTENGINE METADATA
 ========================================================= */
 
 function renderSightengineMetadata(
@@ -991,27 +1078,33 @@ function renderSightengineMetadata(
 
     }
 
+
     let html = "";
+
 
     html +=
         renderSightengineDetection(
             detection
         );
 
+
     html +=
         renderSightengineGenerators(
             detection
         );
+
 
     html +=
         renderSightengineRequest(
             detection
         );
 
+
     html +=
         renderSightengineMedia(
             detection
         );
+
 
     return html;
 
@@ -1019,359 +1112,255 @@ function renderSightengineMetadata(
 
 
 /* =========================================================
-   METADATA COUNT
+   DETECTION RESULT
 ========================================================= */
 
-function updateMetadataCount(
-    tbody,
-    countElement
-) {
+export function renderDetectionResult() {
+
+    const metadataIndicators =
+        Array.isArray(
+            state.aiIndicators
+        )
+            ? state.aiIndicators
+            : [];
+
+
+    const metadataDetected =
+        metadataIndicators.length > 0;
+
+
+    const sightengine =
+        state.sightengineDetection;
+
+
+    const sightengineAvailable =
+        Boolean(
+            sightengine &&
+            typeof sightengine === "object"
+        );
+
+
+    const sightengineDetected =
+        sightengineAvailable &&
+        sightengine.is_ai_generated === true;
+
+
+    /* =====================================================
+       AI DETECTED
+    ===================================================== */
 
     if (
-        !tbody
+        metadataDetected ||
+        sightengineDetected
     ) {
 
-        return;
+        /* =================================================
+           SIGHTENGINE VISUAL DETECTION
+        ================================================= */
 
-    }
+        if (
+            sightengineDetected
+        ) {
 
-    const rows =
-        Array.from(
-            tbody.querySelectorAll(
-                "tr"
-            )
-        )
-        .filter(
-            row =>
-                !row.classList.contains(
-                    "metadata-section-row"
+            renderOverlayStamp(
+                sightengine
+            );
+
+        } else {
+
+            clearOverlayStamp();
+
+        }
+
+
+        /* =================================================
+           METADATA + SIGHTENGINE
+        ================================================= */
+
+        if (
+            metadataDetected &&
+            sightengineDetected
+        ) {
+
+            setStatus(
+                "DETECTED",
+                "AI DETECTION",
+                buildCombinedDetectionDescription(
+                    metadataIndicators.length,
+                    sightengine
                 )
-        );
-
-    if (
-        countElement
-    ) {
-
-        countElement.textContent =
-            String(
-                rows.length
             );
 
-    }
 
-}
+            return;
 
-
-/* =========================================================
-   TABLE RENDER
-========================================================= */
-
-export function renderMetadataStatus(
-    {
-        metadata = [],
-        sightengineDetection = null,
-        elements = {}
-    } = {}
-) {
-
-    const tbody =
-        elements.metadataTableBody ||
-        document.getElementById(
-            "metadata-table-body"
-        );
-
-    const countElement =
-        elements.metadataCount ||
-        document.getElementById(
-            "metadata-count"
-        );
-
-    if (
-        !tbody
-    ) {
-
-        return;
-
-    }
-
-    let html = "";
-
-    html +=
-        renderLocalMetadata(
-            metadata
-        );
-
-    html +=
-        renderSightengineMetadata(
-            sightengineDetection
-        );
-
-    tbody.innerHTML =
-        html;
-
-    updateMetadataCount(
-        tbody,
-        countElement
-    );
-
-}
+        }
 
 
-/* =========================================================
-   STATUS DESCRIPTION
-========================================================= */
+        /* =================================================
+           SIGHTENGINE ONLY
+        ================================================= */
 
-export function getDetectionStatusDescription(
-    detection
-) {
+        if (
+            sightengineDetected
+        ) {
 
-    if (
-        !isObject(
-            detection
-        )
-    ) {
-
-        return "";
-
-    }
-
-    const aiGenerated =
-        normalizeScore(
-            detection.ai_generated
-        );
-
-    const confidence =
-        normalizePercent(
-            detection.confidence
-        );
-
-    const isAiGenerated =
-        detection.is_ai_generated === true;
-
-    const provider =
-        detection.provider ||
-        "Sightengine";
-
-    if (
-        isAiGenerated
-    ) {
-
-        const confidenceText =
-            confidence !== null
-                ? ` Confidence: ${formatPercentageFromPercent(confidence)}.`
-                : "";
-
-        return (
-            `${provider} mendeteksi indikasi bahwa image ` +
-            `dibuat atau dimodifikasi menggunakan AI.` +
-            confidenceText
-        );
-
-    }
-
-    if (
-        aiGenerated !== null
-    ) {
-
-        return (
-            `${provider} tidak mendeteksi indikasi kuat ` +
-            `bahwa image dibuat menggunakan AI. ` +
-            `AI Generated: ${formatPercentage(aiGenerated)}.`
-        );
-
-    }
-
-    return (
-        `${provider} tidak memberikan hasil AI detection ` +
-        `yang dapat digunakan.`
-    );
-
-}
-
-
-/* =========================================================
-   OVERLAY HELPERS
-========================================================= */
-
-function getPreviewStage() {
-
-    return (
-        document.querySelector(
-            ".metadata-preview-stage"
-        ) ||
-        document.getElementById(
-            "metadata-preview-stage"
-        )
-    );
-
-}
-
-
-function getOverlay() {
-
-    const stage =
-        getPreviewStage();
-
-    if (
-        !stage
-    ) {
-
-        return null;
-
-    }
-
-    let overlay =
-        stage.querySelector(
-            ".metadata-ai-detect-stamp"
-        );
-
-    if (
-        !overlay
-    ) {
-
-        overlay =
-            document.createElement(
-                "div"
+            setStatus(
+                "DETECTED",
+                "AI DETECTION",
+                buildSightengineDescription(
+                    sightengine
+                )
             );
 
-        overlay.className =
-            "metadata-ai-detect-stamp";
 
-        overlay.setAttribute(
-            "aria-hidden",
-            "true"
+            return;
+
+        }
+
+
+        /* =================================================
+           METADATA ONLY
+        ================================================= */
+
+        setStatus(
+            "DETECTED",
+            "AI DETECT",
+            `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
         );
 
-        overlay.hidden =
-            true;
-
-        stage.appendChild(
-            overlay
-        );
-
-    }
-
-    return overlay;
-
-}
-
-
-/* =========================================================
-   OVERLAY CLEAR
-========================================================= */
-
-export function clearOverlayStamp() {
-
-    const overlay =
-        getOverlay();
-
-    if (
-        !overlay
-    ) {
 
         return;
 
     }
 
-    overlay.classList.remove(
-        "is-ai"
-    );
 
-    overlay.classList.remove(
-        "is-clean"
-    );
-
-    overlay.setAttribute(
-        "aria-hidden",
-        "true"
-    );
-
-    overlay.hidden =
-        true;
-
-    overlay.style.visibility =
-        "hidden";
-
-    overlay.style.opacity =
-        "0";
-
-    const label =
-        overlay.querySelector(
-            ".metadata-ai-detect-label"
-        );
+    /* =====================================================
+       SIGHTENGINE SUDAH BERJALAN
+       -----------------------------------------------------
+       Tidak terdeteksi sebagai AI.
+    ===================================================== */
 
     if (
-        label
-    ) {
-
-        label.textContent =
-            "";
-
-    }
-
-    const model =
-        overlay.querySelector(
-            ".metadata-ai-detect-model"
-        );
-
-    if (
-        model
-    ) {
-
-        model.textContent =
-            "";
-
-    }
-
-}
-
-
-/* =========================================================
-   OVERLAY RENDER
-========================================================= */
-
-export function renderOverlayStamp(
-    detection
-) {
-
-    const overlay =
-        getOverlay();
-
-    if (
-        !overlay
-    ) {
-
-        return;
-
-    }
-
-    if (
-        !isObject(
-            detection
-        )
+        sightengineAvailable &&
+        sightengine.ai_generated !== null &&
+        sightengine.ai_generated !== undefined
     ) {
 
         clearOverlayStamp();
 
+
+        setStatus(
+            "CLEAR",
+            "TIDAK TERDETEKSI SEBAGAI AI",
+            buildSightengineClearDescription(
+                sightengine
+            )
+        );
+
+
         return;
 
     }
 
-    const isAiGenerated =
-        detection.is_ai_generated === true;
 
-    const provider =
-        detection.provider ||
-        "sightengine";
+    /* =====================================================
+       NO VISUAL RESULT
+    ===================================================== */
 
-    const model =
-        detection.model ||
-        "";
+    clearOverlayStamp();
+
+
+    setStatus(
+        "CLEAR",
+        "TIDAK TERDETEKSI DARI METADATA",
+        "Tidak ditemukan indikator AI yang dikenali pada metadata yang berhasil dibaca. Ini bukan bukti bahwa media bukan hasil AI."
+    );
+
+}
+
+
+/* =========================================================
+   OVERLAY STAMP
+========================================================= */
+
+function renderOverlayStamp(
+    sightengine
+) {
+
+    const overlay =
+        elements.aiOverlay;
+
+
+    if (
+        !overlay
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] AI detection overlay element tidak ditemukan."
+        );
+
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       PASTIKAN TERLIHAT
+    ===================================================== */
+
+    overlay.classList.remove(
+        "hidden"
+    );
+
+
+    overlay.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+
+    /* =====================================================
+       FIND / CREATE STAMP
+    ===================================================== */
+
+    let stamp =
+        overlay.querySelector(
+            ".metadata-ai-detect-stamp"
+        );
+
+
+    if (
+        !stamp
+    ) {
+
+        stamp =
+            document.createElement(
+                "div"
+            );
+
+
+        stamp.className =
+            "metadata-ai-detect-stamp";
+
+
+        overlay.appendChild(
+            stamp
+        );
+
+    }
+
+
+    /* =====================================================
+       LABEL
+    ===================================================== */
 
     let label =
-        overlay.querySelector(
-            ".metadata-ai-detect-label"
+        stamp.querySelector(
+            ":scope > span:first-child"
         );
+
 
     if (
         !label
@@ -1379,86 +1368,46 @@ export function renderOverlayStamp(
 
         label =
             document.createElement(
-                "div"
+                "span"
             );
 
-        label.className =
-            "metadata-ai-detect-label";
 
-        overlay.appendChild(
-            label
+        stamp.insertBefore(
+            label,
+            stamp.firstChild
         );
 
     }
 
-    let modelElement =
-        overlay.querySelector(
-            ".metadata-ai-detect-model"
-        );
 
-    if (
-        !modelElement
-    ) {
+    label.textContent =
+        "AI DETECTION";
 
-        modelElement =
-            document.createElement(
-                "div"
-            );
 
-        modelElement.className =
-            "metadata-ai-detect-model";
+    /* =====================================================
+       MODEL
+       -----------------------------------------------------
+       Tidak hardcode.
+       Diambil langsung dari Sightengine.
+    ===================================================== */
 
-        overlay.appendChild(
-            modelElement
-        );
-
-    }
-
-    overlay.classList.remove(
-        "is-ai"
+    renderOverlayModel(
+        stamp,
+        sightengine?.model
     );
 
-    overlay.classList.remove(
-        "is-clean"
-    );
 
-    if (
-        isAiGenerated
-    ) {
-
-        overlay.classList.add(
-            "is-ai"
-        );
-
-        label.textContent =
-            "AI DETECTION";
-
-    } else {
-
-        overlay.classList.add(
-            "is-clean"
-        );
-
-        label.textContent =
-            "AI DETECTION";
-
-    }
-
-    modelElement.textContent =
-        model
-            ? `${provider} • ${model}`
-            : provider;
+    /* =====================================================
+       FINAL VISIBILITY
+    ===================================================== */
 
     overlay.hidden =
         false;
 
-    overlay.setAttribute(
-        "aria-hidden",
-        "false"
-    );
 
     overlay.style.visibility =
         "visible";
+
 
     overlay.style.opacity =
         "1";
@@ -1467,34 +1416,549 @@ export function renderOverlayStamp(
 
 
 /* =========================================================
-   COMBINED STATUS
+   OVERLAY MODEL
 ========================================================= */
 
-export function renderDetectionStatus(
-    {
-        metadata = [],
-        sightengineDetection = null,
-        elements = {}
-    } = {}
+function renderOverlayModel(
+    stamp,
+    model
 ) {
 
-    renderMetadataStatus({
-        metadata,
-        sightengineDetection,
-        elements
-    });
-
     if (
-        sightengineDetection
+        !stamp
     ) {
 
-        renderOverlayStamp(
-            sightengineDetection
+        return;
+
+    }
+
+
+    const existing =
+        stamp.querySelector(
+            ".metadata-ai-detect-model"
+        );
+
+
+    if (
+        existing
+    ) {
+
+        existing.remove();
+
+    }
+
+
+    if (
+        model === null ||
+        model === undefined
+    ) {
+
+        return;
+
+    }
+
+
+    const modelValue =
+        String(
+            model
+        ).trim();
+
+
+    if (
+        !modelValue
+    ) {
+
+        return;
+
+    }
+
+
+    const modelLabel =
+        document.createElement(
+            "span"
+        );
+
+
+    modelLabel.className =
+        "metadata-ai-detect-model";
+
+
+    modelLabel.textContent =
+        `Model ${modelValue}`;
+
+
+    stamp.appendChild(
+        modelLabel
+    );
+
+}
+
+
+/* =========================================================
+   CLEAR OVERLAY
+========================================================= */
+
+function clearOverlayStamp() {
+
+    const overlay =
+        elements.aiOverlay;
+
+
+    if (
+        !overlay
+    ) {
+
+        return;
+
+    }
+
+
+    overlay.classList.add(
+        "hidden"
+    );
+
+
+    overlay.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+
+    overlay.hidden =
+        true;
+
+
+    overlay.style.visibility =
+        "hidden";
+
+
+    overlay.style.opacity =
+        "0";
+
+
+    const label =
+        overlay.querySelector(
+            ".metadata-ai-detect-stamp > span:first-child"
+        );
+
+
+    if (
+        label
+    ) {
+
+        label.textContent =
+            "AI DETECTION";
+
+    }
+
+
+    const model =
+        overlay.querySelector(
+            ".metadata-ai-detect-model"
+        );
+
+
+    if (
+        model
+    ) {
+
+        model.remove();
+
+    }
+
+}
+
+
+/* =========================================================
+   COMBINED DESCRIPTION
+========================================================= */
+
+function buildCombinedDetectionDescription(
+    metadataCount,
+    sightengine
+) {
+
+    const confidence =
+        formatConfidence(
+            sightengine?.ai_generated,
+            sightengine?.confidence
+        );
+
+
+    const generator =
+        formatGenerator(
+            sightengine?.detected_generator
+        );
+
+
+    const parts = [
+
+        `${metadataCount} indikator AI ditemukan pada metadata.`,
+
+        confidence
+            ? `Sightengine juga mendeteksi indikasi image AI dengan confidence ${confidence}.`
+            : "Sightengine juga mendeteksi indikasi image AI.",
+
+        generator
+            ? `Generator teratas: ${generator}.`
+            : ""
+
+    ];
+
+
+    return parts
+        .filter(
+            Boolean
+        )
+        .join(" ");
+
+}
+
+
+/* =========================================================
+   SIGHTENGINE DESCRIPTION
+========================================================= */
+
+function buildSightengineDescription(
+    sightengine
+) {
+
+    const confidence =
+        formatConfidence(
+            sightengine?.ai_generated,
+            sightengine?.confidence
+        );
+
+
+    const generator =
+        formatGenerator(
+            sightengine?.detected_generator
+        );
+
+
+    const parts = [
+
+        "Sightengine mendeteksi indikasi bahwa image dibuat atau dimodifikasi menggunakan AI.",
+
+        confidence
+            ? `Confidence: ${confidence}.`
+            : "",
+
+        generator
+            ? `Generator teratas: ${generator}.`
+            : ""
+
+    ];
+
+
+    return parts
+        .filter(
+            Boolean
+        )
+        .join(" ");
+
+}
+
+
+/* =========================================================
+   SIGHTENGINE CLEAR DESCRIPTION
+========================================================= */
+
+function buildSightengineClearDescription(
+    sightengine
+) {
+
+    const confidence =
+        formatConfidence(
+            sightengine?.ai_generated,
+            sightengine?.confidence
+        );
+
+
+    if (
+        confidence
+    ) {
+
+        return (
+            "Sightengine tidak mendeteksi image sebagai AI " +
+            "pada threshold yang digunakan. " +
+            `Confidence AI: ${confidence}. ` +
+            "Hasil ini bukan jaminan bahwa image pasti " +
+            "dibuat oleh manusia."
+        );
+
+    }
+
+
+    return (
+        "Sightengine tidak mendeteksi image sebagai AI " +
+        "pada threshold yang digunakan. " +
+        "Hasil ini bukan jaminan bahwa image pasti " +
+        "dibuat oleh manusia."
+    );
+
+}
+
+
+/* =========================================================
+   CONFIDENCE FORMAT
+========================================================= */
+
+function formatConfidence(
+    aiGenerated,
+    confidence
+) {
+
+    const aiScore =
+        Number(
+            aiGenerated
+        );
+
+
+    if (
+        Number.isFinite(
+            aiScore
+        )
+    ) {
+
+        const normalized =
+            Math.max(
+                0,
+                Math.min(
+                    1,
+                    aiScore
+                )
+            );
+
+
+        return `${Math.round(
+            normalized * 100
+        )}%`;
+
+    }
+
+
+    const explicitConfidence =
+        Number(
+            confidence
+        );
+
+
+    if (
+        Number.isFinite(
+            explicitConfidence
+        )
+    ) {
+
+        return `${Math.round(
+            Math.max(
+                0,
+                Math.min(
+                    100,
+                    explicitConfidence
+                )
+            )
+        )}%`;
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+export function setStatus(
+    type,
+    title,
+    description
+) {
+
+    if (
+        elements.statusTitle
+    ) {
+
+        elements.statusTitle.textContent =
+            title;
+
+    }
+
+
+    if (
+        elements.statusDescription
+    ) {
+
+        elements.statusDescription.textContent =
+            description;
+
+    }
+
+
+    if (
+        !elements.statusIndicator
+    ) {
+
+        return;
+
+    }
+
+
+    elements.statusIndicator.classList.remove(
+        "is-detected",
+        "is-clear",
+        "is-unknown"
+    );
+
+
+    if (
+        type === "DETECTED"
+    ) {
+
+        elements.statusIndicator.classList.add(
+            "is-detected"
+        );
+
+    } else if (
+        type === "CLEAR"
+    ) {
+
+        elements.statusIndicator.classList.add(
+            "is-clear"
         );
 
     } else {
 
-        clearOverlayStamp();
+        elements.statusIndicator.classList.add(
+            "is-unknown"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   METADATA RENDER
+   ---------------------------------------------------------
+   Tetap menggunakan kontrak lama:
+
+       renderMetadata()
+
+   Tetapi sekarang setelah metadata lokal dirender,
+   hasil Sightengine juga dimasukkan ke tabel yang sama.
+========================================================= */
+
+export function renderMetadata() {
+
+    if (
+        !elements.metadataTableBody
+    ) {
+
+        return;
+
+    }
+
+
+    const metadata =
+        Array.isArray(
+            state.metadata
+        )
+            ? state.metadata
+            : [];
+
+
+    const sightengine =
+        state.sightengineDetection;
+
+
+    let html = "";
+
+
+    /* =====================================================
+       LOCAL METADATA
+    ===================================================== */
+
+    html +=
+        renderLocalMetadata(
+            metadata
+        );
+
+
+    /* =====================================================
+       SIGHTENGINE
+    ===================================================== */
+
+    html +=
+        renderSightengineMetadata(
+            sightengine
+        );
+
+
+    /* =====================================================
+       EMPTY STATE
+    ===================================================== */
+
+    if (
+        !html
+    ) {
+
+        elements.metadataTableBody.innerHTML = `
+            <tr>
+                <td
+                    colspan="2"
+                    class="metadata-empty-cell"
+                >
+                    Tidak ada metadata yang berhasil dibaca.
+                </td>
+            </tr>
+        `;
+
+
+        if (
+            elements.metadataCount
+        ) {
+
+            elements.metadataCount.textContent =
+                "0";
+
+        }
+
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       INSERT
+    ===================================================== */
+
+    elements.metadataTableBody.innerHTML =
+        html;
+
+
+    /* =====================================================
+       COUNT
+       -----------------------------------------------------
+       Hanya metadata lokal yang dihitung.
+
+       Section Sightengine tidak dianggap sebagai
+       metadata file sehingga angka count tetap konsisten
+       dengan fungsi lama.
+    ===================================================== */
+
+    if (
+        elements.metadataCount
+    ) {
+
+        elements.metadataCount.textContent =
+            String(
+                metadata.length
+            );
 
     }
 
