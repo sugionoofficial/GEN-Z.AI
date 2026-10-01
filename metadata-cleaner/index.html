@@ -172,12 +172,6 @@
 
                     <!-- =========================================
                          DROPZONE
-                         -------------------------------------------------
-                         Native file input menutupi seluruh area
-                         dropzone secara transparan.
-
-                         Browser menangani file picker secara native.
-                         Tidak bergantung pada click() JavaScript.
                     ========================================== -->
 
                     <div
@@ -316,10 +310,27 @@
                     </div>
 
 
+                    <!-- =============================================
+                         PREVIEW STAGE
+                    ============================================== -->
+
                     <div
                         class="metadata-preview-stage"
                         id="metadata-preview-stage"
+                        style="
+                            display:flex;
+                            position:relative;
+                            width:100%;
+                            min-height:340px;
+                            align-items:center;
+                            justify-content:center;
+                            overflow:hidden;
+                        "
                     >
+
+                        <!-- =========================================
+                             EMPTY STATE
+                        ========================================== -->
 
                         <div
                             class="metadata-preview-empty"
@@ -350,12 +361,33 @@
                         </div>
 
 
+                        <!-- =========================================
+                             IMAGE PREVIEW
+
+                             Jangan diberi inline display:none.
+                             JavaScript yang mengatur visibility.
+                        ========================================== -->
+
                         <img
                             id="metadata-image-preview"
                             class="metadata-media-preview hidden"
                             alt="Media preview"
+                            draggable="false"
+                            style="
+                                max-width:100%;
+                                max-height:540px;
+                                width:auto;
+                                height:auto;
+                                object-fit:contain;
+                                position:relative;
+                                z-index:2;
+                            "
                         >
 
+
+                        <!-- =========================================
+                             VIDEO PREVIEW
+                        ========================================== -->
 
                         <video
                             id="metadata-video-preview"
@@ -363,6 +395,15 @@
                             controls
                             playsinline
                             preload="metadata"
+                            style="
+                                max-width:100%;
+                                max-height:540px;
+                                width:auto;
+                                height:auto;
+                                object-fit:contain;
+                                position:relative;
+                                z-index:2;
+                            "
                         ></video>
 
 
@@ -714,9 +755,11 @@
                 <div
                     class="metadata-disclaimer-title"
                 >
+
                     <p>
                         AI DETECTION INFORMATION:
-                        </p>
+                    </p>
+
                 </div>
 
 
@@ -753,8 +796,932 @@
 
     <script
         type="module"
-        src="./assets/js/metadata-app.js"
+        src="./assets/js/metadata-app.js?v=20261001"
     ></script>
+
+
+    <!-- =====================================================
+         NATIVE PREVIEW FALLBACK
+         -----------------------------------------------------
+         Jalur ini sengaja terpisah dari metadata-app.js.
+
+         Tujuan:
+         File input
+              ↓
+         File object
+              ↓
+         Object URL
+              ↓
+         IMG / VIDEO
+              ↓
+         Preview
+
+         Tidak menunggu CHECK.
+         Tidak menunggu metadata.
+         Tidak menunggu API.
+    ====================================================== -->
+
+    <script>
+
+    (function () {
+
+        "use strict";
+
+
+        function initNativePreview() {
+
+            const input =
+                document.getElementById(
+                    "metadata-file-input"
+                );
+
+
+            const stage =
+                document.getElementById(
+                    "metadata-preview-stage"
+                );
+
+
+            const empty =
+                document.getElementById(
+                    "metadata-preview-empty"
+                );
+
+
+            const image =
+                document.getElementById(
+                    "metadata-image-preview"
+                );
+
+
+            const video =
+                document.getElementById(
+                    "metadata-video-preview"
+                );
+
+
+            const previewStatus =
+                document.getElementById(
+                    "metadata-preview-status"
+                );
+
+
+            const checkButton =
+                document.getElementById(
+                    "metadata-check-button"
+                );
+
+
+            if (
+                !input ||
+                !stage ||
+                !image ||
+                !video
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI] Native Preview: elemen preview tidak lengkap.",
+                    {
+                        input,
+                        stage,
+                        empty,
+                        image,
+                        video
+                    }
+                );
+
+                return;
+            }
+
+
+            let activePreviewURL =
+                null;
+
+
+            /* =================================================
+               SHOW STAGE
+            ================================================= */
+
+            function showStage() {
+
+                stage.hidden =
+                    false;
+
+
+                stage.removeAttribute(
+                    "hidden"
+                );
+
+
+                stage.classList.remove(
+                    "hidden"
+                );
+
+
+                stage.style.setProperty(
+                    "display",
+                    "flex",
+                    "important"
+                );
+
+
+                stage.style.setProperty(
+                    "visibility",
+                    "visible",
+                    "important"
+                );
+
+
+                stage.style.setProperty(
+                    "opacity",
+                    "1",
+                    "important"
+                );
+
+            }
+
+
+            /* =================================================
+               HIDE ELEMENT
+            ================================================= */
+
+            function hideElement(
+                element
+            ) {
+
+                if (!element) {
+                    return;
+                }
+
+
+                element.hidden =
+                    true;
+
+
+                element.classList.add(
+                    "hidden"
+                );
+
+
+                element.style.setProperty(
+                    "display",
+                    "none",
+                    "important"
+                );
+
+            }
+
+
+            /* =================================================
+               SHOW IMAGE
+            ================================================= */
+
+            function showImage() {
+
+                image.hidden =
+                    false;
+
+
+                image.removeAttribute(
+                    "hidden"
+                );
+
+
+                image.classList.remove(
+                    "hidden"
+                );
+
+
+                image.style.setProperty(
+                    "display",
+                    "block",
+                    "important"
+                );
+
+
+                image.style.setProperty(
+                    "visibility",
+                    "visible",
+                    "important"
+                );
+
+
+                image.style.setProperty(
+                    "opacity",
+                    "1",
+                    "important"
+                );
+
+
+                image.style.setProperty(
+                    "max-width",
+                    "100%",
+                    "important"
+                );
+
+
+                image.style.setProperty(
+                    "max-height",
+                    "540px",
+                    "important"
+                );
+
+
+                image.style.setProperty(
+                    "width",
+                    "auto",
+                    "important"
+                );
+
+
+                image.style.setProperty(
+                    "height",
+                    "auto",
+                    "important"
+                );
+
+
+                image.style.setProperty(
+                    "object-fit",
+                    "contain",
+                    "important"
+                );
+
+
+                image.style.setProperty(
+                    "position",
+                    "relative",
+                    "important"
+                );
+
+
+                image.style.setProperty(
+                    "z-index",
+                    "2",
+                    "important"
+                );
+
+            }
+
+
+            /* =================================================
+               SHOW VIDEO
+            ================================================= */
+
+            function showVideo() {
+
+                video.hidden =
+                    false;
+
+
+                video.removeAttribute(
+                    "hidden"
+                );
+
+
+                video.classList.remove(
+                    "hidden"
+                );
+
+
+                video.style.setProperty(
+                    "display",
+                    "block",
+                    "important"
+                );
+
+
+                video.style.setProperty(
+                    "visibility",
+                    "visible",
+                    "important"
+                );
+
+
+                video.style.setProperty(
+                    "opacity",
+                    "1",
+                    "important"
+                );
+
+
+                video.style.setProperty(
+                    "max-width",
+                    "100%",
+                    "important"
+                );
+
+
+                video.style.setProperty(
+                    "max-height",
+                    "540px",
+                    "important"
+                );
+
+
+                video.style.setProperty(
+                    "width",
+                    "auto",
+                    "important"
+                );
+
+
+                video.style.setProperty(
+                    "height",
+                    "auto",
+                    "important"
+                );
+
+
+                video.style.setProperty(
+                    "object-fit",
+                    "contain",
+                    "important"
+                );
+
+
+                video.style.setProperty(
+                    "position",
+                    "relative",
+                    "important"
+                );
+
+
+                video.style.setProperty(
+                    "z-index",
+                    "2",
+                    "important"
+                );
+
+            }
+
+
+            /* =================================================
+               RESET PREVIEW
+            ================================================= */
+
+            function resetPreview() {
+
+                if (
+                    activePreviewURL
+                ) {
+
+                    try {
+
+                        URL.revokeObjectURL(
+                            activePreviewURL
+                        );
+
+                    } catch (error) {
+
+                        console.warn(
+                            "[GEN-Z.AI] Preview URL revoke gagal.",
+                            error
+                        );
+
+                    }
+
+
+                    activePreviewURL =
+                        null;
+
+                }
+
+
+                try {
+
+                    image.onload =
+                        null;
+
+                    image.onerror =
+                        null;
+
+                    image.removeAttribute(
+                        "src"
+                    );
+
+                } catch (error) {
+                    /* ignore */
+                }
+
+
+                try {
+
+                    video.pause();
+
+                } catch (error) {
+                    /* ignore */
+                }
+
+
+                try {
+
+                    video.removeAttribute(
+                        "src"
+                    );
+
+                    video.load();
+
+                } catch (error) {
+                    /* ignore */
+                }
+
+
+                hideElement(
+                    image
+                );
+
+
+                hideElement(
+                    video
+                );
+
+            }
+
+
+            /* =================================================
+               UPDATE STATUS
+            ================================================= */
+
+            function updateStatus(
+                message
+            ) {
+
+                if (!previewStatus) {
+                    return;
+                }
+
+
+                previewStatus.textContent =
+                    message;
+
+
+                previewStatus.hidden =
+                    false;
+
+
+                previewStatus.removeAttribute(
+                    "hidden"
+                );
+
+
+                previewStatus.classList.remove(
+                    "hidden"
+                );
+
+
+                previewStatus.style.setProperty(
+                    "display",
+                    "block",
+                    "important"
+                );
+
+            }
+
+
+            /* =================================================
+               IMAGE PREVIEW
+            ================================================= */
+
+            function renderImage(
+                file
+            ) {
+
+                resetPreview();
+
+
+                showStage();
+
+
+                if (empty) {
+
+                    hideElement(
+                        empty
+                    );
+
+                }
+
+
+                showImage();
+
+
+                const url =
+                    URL.createObjectURL(
+                        file
+                    );
+
+
+                activePreviewURL =
+                    url;
+
+
+                image.onload =
+                    function () {
+
+                        showImage();
+
+
+                        if (empty) {
+
+                            hideElement(
+                                empty
+                            );
+
+                        }
+
+
+                        updateStatus(
+                            "IMAGE SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+                        );
+
+
+                        if (checkButton) {
+
+                            checkButton.disabled =
+                                false;
+
+                        }
+
+
+                        console.info(
+                            "[GEN-Z.AI] IMAGE PREVIEW OK:",
+                            file.name
+                        );
+
+                    };
+
+
+                image.onerror =
+                    function () {
+
+                        console.error(
+                            "[GEN-Z.AI] IMAGE PREVIEW ERROR:",
+                            file.name
+                        );
+
+
+                        /*
+                           Fallback FileReader.
+                        */
+
+                        const reader =
+                            new FileReader();
+
+
+                        reader.onload =
+                            function () {
+
+                                /*
+                                   Jangan revoke URL di sini.
+                                   Browser masih mungkin membutuhkan
+                                   object URL dari module utama.
+                                */
+
+                                image.src =
+                                    reader.result;
+
+
+                                showImage();
+
+
+                                updateStatus(
+                                    "IMAGE SIAP."
+                                );
+
+                            };
+
+
+                        reader.onerror =
+                            function () {
+
+                                hideElement(
+                                    image
+                                );
+
+
+                                if (empty) {
+
+                                    empty.classList.remove(
+                                        "hidden"
+                                    );
+
+
+                                    empty.hidden =
+                                        false;
+
+
+                                    empty.style.setProperty(
+                                        "display",
+                                        "flex",
+                                        "important"
+                                    );
+
+                                }
+
+
+                                updateStatus(
+                                    "IMAGE TIDAK DAPAT DITAMPILKAN."
+                                );
+
+                            };
+
+
+                        reader.readAsDataURL(
+                            file
+                        );
+
+                    };
+
+
+                image.src =
+                    url;
+
+            }
+
+
+            /* =================================================
+               VIDEO PREVIEW
+            ================================================= */
+
+            function renderVideo(
+                file
+            ) {
+
+                resetPreview();
+
+
+                showStage();
+
+
+                if (empty) {
+
+                    hideElement(
+                        empty
+                    );
+
+                }
+
+
+                showVideo();
+
+
+                const url =
+                    URL.createObjectURL(
+                        file
+                    );
+
+
+                activePreviewURL =
+                    url;
+
+
+                video.onloadedmetadata =
+                    function () {
+
+                        showVideo();
+
+
+                        if (empty) {
+
+                            hideElement(
+                                empty
+                            );
+
+                        }
+
+
+                        updateStatus(
+                            "VIDEO SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
+                        );
+
+
+                        if (checkButton) {
+
+                            checkButton.disabled =
+                                false;
+
+                        }
+
+
+                        console.info(
+                            "[GEN-Z.AI] VIDEO PREVIEW OK:",
+                            file.name
+                        );
+
+                    };
+
+
+                video.onerror =
+                    function () {
+
+                        console.error(
+                            "[GEN-Z.AI] VIDEO PREVIEW ERROR:",
+                            file.name
+                        );
+
+
+                        updateStatus(
+                            "VIDEO TIDAK DAPAT DITAMPILKAN OLEH BROWSER."
+                        );
+
+                    };
+
+
+                video.src =
+                    url;
+
+
+                video.load();
+
+            }
+
+
+            /* =================================================
+               FILE PROCESSOR
+            ================================================= */
+
+            function processPreviewFile(
+                file
+            ) {
+
+                if (!file) {
+                    return;
+                }
+
+
+                const type =
+                    String(
+                        file.type || ""
+                    ).toLowerCase();
+
+
+                const isImage =
+                    type.indexOf(
+                        "image/"
+                    ) === 0;
+
+
+                const isVideo =
+                    type.indexOf(
+                        "video/"
+                    ) === 0;
+
+
+                console.info(
+                    "[GEN-Z.AI] Native Preview menerima:",
+                    {
+                        name:
+                            file.name,
+
+                        type:
+                            file.type,
+
+                        size:
+                            file.size,
+
+                        isImage,
+                        isVideo
+                    }
+                );
+
+
+                if (
+                    !isImage &&
+                    !isVideo
+                ) {
+
+                    console.warn(
+                        "[GEN-Z.AI] Format media tidak didukung:",
+                        file.type
+                    );
+
+                    return;
+                }
+
+
+                if (isImage) {
+
+                    renderImage(
+                        file
+                    );
+
+                    return;
+                }
+
+
+                renderVideo(
+                    file
+                );
+
+            }
+
+
+            /* =================================================
+               INPUT CHANGE
+            ================================================= */
+
+            input.addEventListener(
+                "change",
+                function (event) {
+
+                    const files =
+                        Array.from(
+                            event?.target?.files || []
+                        );
+
+
+                    if (
+                        files.length === 0
+                    ) {
+
+                        return;
+                    }
+
+
+                    processPreviewFile(
+                        files[0]
+                    );
+
+                },
+                false
+            );
+
+
+            /* =================================================
+               DROP
+            ================================================= */
+
+            const dropzone =
+                document.getElementById(
+                    "metadata-dropzone"
+                );
+
+
+            if (dropzone) {
+
+                dropzone.addEventListener(
+                    "drop",
+                    function (event) {
+
+                        const files =
+                            Array.from(
+                                event?.dataTransfer?.files || []
+                            );
+
+
+                        if (
+                            files.length === 0
+                        ) {
+
+                            return;
+                        }
+
+
+                        processPreviewFile(
+                            files[0]
+                        );
+
+                    },
+                    false
+                );
+
+            }
+
+
+            console.info(
+                "[GEN-Z.AI] Native Preview Bridge initialized."
+            );
+
+        }
+
+
+        /* =====================================================
+           DOM READY
+        ====================================================== */
+
+        if (
+            document.readyState ===
+            "loading"
+        ) {
+
+            document.addEventListener(
+                "DOMContentLoaded",
+                initNativePreview,
+                {
+                    once:
+                        true
+                }
+            );
+
+        } else {
+
+            initNativePreview();
+
+        }
+
+    })();
+
+    </script>
 
 
     <!-- =====================================================
