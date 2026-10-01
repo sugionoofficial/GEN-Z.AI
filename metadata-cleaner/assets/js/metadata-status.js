@@ -9,6 +9,16 @@
    - Render detection result
    - Render status
    - Render metadata table
+
+   AI DETECTION LAYERS:
+   1. Local metadata detector
+   2. Sightengine visual AI detector
+
+   Catatan:
+   - Metadata detection dan visual detection
+     adalah dua sumber yang berbeda.
+   - Tidak ada detector yang memberikan jaminan
+     100% bahwa sebuah image dibuat oleh AI.
 ========================================================= */
 
 import {
@@ -26,8 +36,43 @@ import {
 
 export function renderDetectionResult() {
 
+    const metadataIndicators =
+        Array.isArray(
+            state.aiIndicators
+        )
+            ? state.aiIndicators
+            : [];
+
+
+    const sightengine =
+        state.sightengineDetection;
+
+
+    const sightengineAvailable =
+        Boolean(
+            sightengine &&
+            typeof sightengine === "object"
+        );
+
+
+    const sightengineDetected =
+        sightengineAvailable &&
+        sightengine.is_ai_generated === true;
+
+
+    const metadataDetected =
+        metadataIndicators.length > 0;
+
+
+    /* =====================================================
+       AI DETECTED
+       -----------------------------------------------------
+       Salah satu layer mendeteksi AI.
+    ===================================================== */
+
     if (
-        state.aiIndicators.length
+        metadataDetected ||
+        sightengineDetected
     ) {
 
         showElement(
@@ -35,16 +80,128 @@ export function renderDetectionResult() {
         );
 
 
+        /*
+           -----------------------------------------------
+           BOTH
+           -----------------------------------------------
+           Metadata + Sightengine sama-sama mendeteksi.
+        */
+
+        if (
+            metadataDetected &&
+            sightengineDetected
+        ) {
+
+            const description =
+                buildCombinedDetectionDescription(
+                    metadataIndicators.length,
+                    sightengine
+                );
+
+
+            setStatus(
+                "DETECTED",
+                "AI DETECT",
+                description
+            );
+
+
+            return;
+
+        }
+
+
+        /*
+           -----------------------------------------------
+           SIGHTENGINE ONLY
+           -----------------------------------------------
+        */
+
+        if (
+            sightengineDetected
+        ) {
+
+            const description =
+                buildSightengineDescription(
+                    sightengine
+                );
+
+
+            setStatus(
+                "DETECTED",
+                "AI DETECT",
+                description
+            );
+
+
+            return;
+
+        }
+
+
+        /*
+           -----------------------------------------------
+           METADATA ONLY
+           -----------------------------------------------
+        */
+
         setStatus(
             "DETECTED",
             "AI DETECT",
-            `${state.aiIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
+            `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
         );
 
 
         return;
+
     }
 
+
+    /* =====================================================
+       SIGHTENGINE ANALYSIS AVAILABLE
+       -----------------------------------------------------
+       Image sudah dianalisis tetapi skor berada
+       di bawah threshold deteksi.
+    ===================================================== */
+
+    if (
+        sightengineAvailable &&
+        sightengine.ai_generated !== null &&
+        sightengine.ai_generated !== undefined
+    ) {
+
+        const description =
+            buildSightengineClearDescription(
+                sightengine
+            );
+
+
+        hideElement(
+            elements.aiOverlay
+        );
+
+
+        setStatus(
+            "CLEAR",
+            "TIDAK TERDETEKSI SEBAGAI AI",
+            description
+        );
+
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       METADATA ONLY
+       -----------------------------------------------------
+       Tidak ada hasil Sightengine.
+       Bisa terjadi pada:
+       - video
+       - provider gagal
+       - image tidak dapat dikirim
+    ===================================================== */
 
     hideElement(
         elements.aiOverlay
@@ -56,6 +213,226 @@ export function renderDetectionResult() {
         "TIDAK TERDETEKSI DARI METADATA",
         "Tidak ditemukan indikator AI yang dikenali pada metadata yang berhasil dibaca. Ini bukan bukti bahwa media bukan hasil AI."
     );
+
+}
+
+
+/* =========================================================
+   COMBINED DESCRIPTION
+========================================================= */
+
+function buildCombinedDetectionDescription(
+    metadataCount,
+    sightengine
+) {
+
+    const score =
+        formatConfidence(
+            sightengine?.confidence
+        );
+
+
+    const generator =
+        formatGenerator(
+            sightengine?.detected_generator
+        );
+
+
+    const parts = [
+
+        `${metadataCount} indikator AI ditemukan pada metadata.`,
+
+        score
+            ? `Sightengine mendeteksi indikasi AI dengan confidence ${score}.`
+            : "Sightengine juga mendeteksi indikasi image AI.",
+
+        generator
+            ? `Generator teratas: ${generator}.`
+            : ""
+
+    ];
+
+
+    return parts
+        .filter(
+            Boolean
+        )
+        .join(" ");
+
+}
+
+
+/* =========================================================
+   SIGHTENGINE DESCRIPTION
+========================================================= */
+
+function buildSightengineDescription(
+    sightengine
+) {
+
+    const score =
+        formatConfidence(
+            sightengine?.confidence
+        );
+
+
+    const generator =
+        formatGenerator(
+            sightengine?.detected_generator
+        );
+
+
+    const parts = [
+
+        "Sightengine mendeteksi indikasi bahwa image dibuat atau dimodifikasi menggunakan AI.",
+
+        score
+            ? `Confidence: ${score}.`
+            : "",
+
+        generator
+            ? `Generator teratas: ${generator}.`
+            : ""
+
+    ];
+
+
+    return parts
+        .filter(
+            Boolean
+        )
+        .join(" ");
+
+}
+
+
+/* =========================================================
+   SIGHTENGINE CLEAR DESCRIPTION
+========================================================= */
+
+function buildSightengineClearDescription(
+    sightengine
+) {
+
+    const score =
+        formatConfidence(
+            sightengine?.confidence
+        );
+
+
+    if (
+        score
+    ) {
+
+        return `Sightengine tidak mendeteksi image sebagai AI pada threshold yang digunakan. Confidence AI: ${score}. Hasil ini bukan jaminan bahwa image pasti dibuat oleh manusia.`;
+
+    }
+
+
+    return "Sightengine tidak mendeteksi image sebagai AI pada threshold yang digunakan. Hasil ini bukan jaminan bahwa image pasti dibuat oleh manusia.";
+
+}
+
+
+/* =========================================================
+   CONFIDENCE FORMAT
+========================================================= */
+
+function formatConfidence(
+    value
+) {
+
+    const number =
+        Number(
+            value
+        );
+
+
+    if (
+        !Number.isFinite(
+            number
+        )
+    ) {
+
+        return "";
+
+    }
+
+
+    return `${Math.max(
+        0,
+        Math.min(
+            100,
+            Math.round(
+                number
+            )
+        )
+    )}%`;
+
+}
+
+
+/* =========================================================
+   GENERATOR FORMAT
+========================================================= */
+
+function formatGenerator(
+    generator
+) {
+
+    if (
+        !generator ||
+        typeof generator !== "object"
+    ) {
+
+        return "";
+
+    }
+
+
+    const name =
+        String(
+            generator.name || ""
+        )
+            .trim();
+
+
+    if (
+        !name
+    ) {
+
+        return "";
+
+    }
+
+
+    const confidence =
+        Number(
+            generator.confidence
+        );
+
+
+    if (
+        Number.isFinite(
+            confidence
+        )
+    ) {
+
+        return `${name} (${Math.round(
+            Math.max(
+                0,
+                Math.min(
+                    100,
+                    confidence
+                )
+            )
+        )}%)`;
+
+    }
+
+
+    return name;
+
 }
 
 
@@ -105,7 +482,9 @@ export function setStatus(
         elements.statusIndicator.classList.add(
             "is-unknown"
         );
+
     }
+
 }
 
 
@@ -194,6 +573,7 @@ export function renderMetadata() {
         elements.metadataTableBody.appendChild(
             row
         );
+
     }
 
 
@@ -201,6 +581,7 @@ export function renderMetadata() {
         String(
             state.metadata.length
         );
+
 }
 
 
@@ -223,6 +604,7 @@ function showElement(
     element.classList.remove(
         "hidden"
     );
+
 }
 
 
@@ -241,4 +623,5 @@ function hideElement(
     element.classList.add(
         "hidden"
     );
+
 }
