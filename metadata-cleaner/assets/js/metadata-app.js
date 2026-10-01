@@ -134,9 +134,17 @@ import {
 } from "./metadata-utils.js";
 
 import {
+    openFilePicker,
+    handleFileInput,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    processSelectedFile,
+    isSupportedMedia,
+    detectMediaType,
+    updateFileInfo,
     revokeObjectURL
 } from "./metadata-file.js";
-
 /* =========================================================
    CONSTANTS
 ========================================================= */
