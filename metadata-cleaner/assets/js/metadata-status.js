@@ -21,6 +21,8 @@
      asal media secara 100%.
    - Model pada AI DETECTION stamp selalu berasal
      langsung dari result Sightengine.
+   - Stamp visual hanya ditampilkan jika
+     Sightengine benar-benar mendeteksi AI.
 ========================================================= */
 
 
@@ -77,16 +79,41 @@ export function renderDetectionResult() {
         sightengineDetected
     ) {
 
-        showElement(
-            elements.aiOverlay
-        );
+        /*
+           IMPORTANT:
+
+           Stamp visual hanya milik
+           Sightengine visual detection.
+
+           Metadata lokal saja tidak boleh
+           membuat stamp seolah-olah berasal
+           dari Sightengine.
+        */
+
+        if (
+            sightengineDetected
+        ) {
+
+            showElement(
+                elements.aiOverlay
+            );
 
 
-        renderOverlayStamp(
-            sightengine,
-            sightengineDetected,
-            metadataDetected
-        );
+            renderOverlayStamp(
+                sightengine,
+                true
+            );
+
+        } else {
+
+            hideElement(
+                elements.aiOverlay
+            );
+
+
+            clearOverlayStamp();
+
+        }
 
 
         /* =================================================
@@ -236,12 +263,14 @@ export function renderDetectionResult() {
        Model genai-v2
 
    Tidak ada fallback model.
+
+   Stamp hanya dipanggil ketika:
+       sightengineDetected === true
 ========================================================= */
 
 function renderOverlayStamp(
     sightengine,
-    sightengineDetected,
-    metadataDetected
+    sightengineDetected
 ) {
 
     const overlay =
@@ -251,6 +280,28 @@ function renderOverlayStamp(
     if (
         !overlay
     ) {
+
+        return;
+
+    }
+
+
+    /*
+       Jika bukan hasil deteksi Sightengine,
+       jangan tampilkan stamp.
+    */
+
+    if (
+        sightengineDetected !== true
+    ) {
+
+        clearOverlayStamp();
+
+
+        hideElement(
+            overlay
+        );
+
 
         return;
 
@@ -315,9 +366,7 @@ function renderOverlayStamp(
 
     renderOverlayModel(
         stamp,
-        sightengineDetected
-            ? sightengine?.model
-            : null
+        sightengine?.model
     );
 
 }
