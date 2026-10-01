@@ -23,11 +23,6 @@ import {
 } from "./metadata-state.js";
 
 
-import {
-    elements
-} from "./metadata-dom.js";
-
-
 /* =========================================================
    DOWNLOAD CLEANED FILE
 ========================================================= */
@@ -100,72 +95,50 @@ export function downloadCleanedFile() {
 
 /* =========================================================
    CREATE CLEANED FILENAME
+   ---------------------------------------------------------
+   Mempertahankan perilaku asli metadata-app.js
 ========================================================= */
 
 export function createCleanedFilename(
     originalName
 ) {
 
-    const name =
-        String(
-            originalName || "file"
+    const dot =
+        originalName.lastIndexOf(
+            "."
         );
+
+
+    /*
+       File tanpa extension
+    */
+
+    if (
+        dot <= 0
+    ) {
+
+        return (
+            `${originalName}_cleaned`
+        );
+
+    }
 
 
     /*
        Pisahkan nama dan extension
     */
 
-    const lastDot =
-        name.lastIndexOf(
-            "."
+    const base =
+        originalName.slice(
+            0,
+            dot
         );
 
 
-    let baseName =
-        name;
-
-
-    let extension =
-        "";
-
-
-    if (
-        lastDot > 0
-    ) {
-
-        baseName =
-            name.slice(
-                0,
-                lastDot
-            );
-
-
-        extension =
-            name.slice(
-                lastDot
-            );
-
-    }
-
-
-    /*
-       Jika nama sudah mengandung suffix
-       cleaned, jangan menambahkannya lagi
-    */
-
-    if (
-        /(?:[_-]cleaned)$/i.test(
-            baseName
-        )
-    ) {
-
-        return (
-            baseName +
-            extension
+    const extension =
+        originalName.slice(
+            dot + 1
         );
-
-    }
 
 
     /*
@@ -173,8 +146,7 @@ export function createCleanedFilename(
     */
 
     return (
-        `${baseName}_cleaned` +
-        extension
+        `${base}_cleaned.${extension}`
     );
 
 }
