@@ -32,6 +32,8 @@
    - Backend GEN-Z.AI yang berkomunikasi dengan Sightengine.
    - Module ini khusus IMAGE.
    - Video tetap menggunakan sistem metadata lokal.
+   - Model detection diambil dari result backend.
+   - Tidak mengubah nama model menjadi format lain.
 ========================================================= */
 
 
@@ -285,7 +287,7 @@ export async function detectSightengine(
     */
 
     return normalizeDetection(
-        data.detection
+        data
     );
 
 }
@@ -444,11 +446,33 @@ function getResponseError(
 
 /* =========================================================
    NORMALIZE DETECTION
+   ---------------------------------------------------------
+   IMPORTANT:
+
+   Model tidak lagi diambil sebagai hardcode.
+
+   Prioritas:
+
+       data.model
+       detection.model
+
+   Jika backend tidak mengirim model sama sekali,
+   model dikosongkan.
+
+   Dengan begitu frontend tidak pernah mengarang
+   nama model.
 ========================================================= */
 
 function normalizeDetection(
-    detection
+    data
 ) {
+
+    const detection =
+        data?.detection &&
+        typeof data.detection === "object"
+            ? data.detection
+            : {};
+
 
     const aiGenerated =
         normalizeScore(
@@ -487,13 +511,47 @@ function normalizeDetection(
             );
 
 
+    /*
+       Ambil model langsung dari response.
+
+       Tidak mengubah:
+       - huruf besar/kecil
+       - tanda "-"
+       - "_"
+       - nama custom
+       - versi model
+
+       Contoh:
+
+       "genai"
+       "genai-v2"
+       "GenAI"
+       "custom-model-01"
+
+       semuanya dipertahankan apa adanya.
+    */
+
+    const rawModel =
+        data?.model ??
+        detection?.model ??
+        null;
+
+
+    const model =
+        normalizeModel(
+            rawModel
+        );
+
+
     return {
 
         provider:
-            "sightengine",
+            String(
+                data?.provider ||
+                "sightengine"
+            ).trim(),
 
-        model:
-            "genai",
+        model,
 
         ai_generated:
             aiGenerated,
@@ -509,6 +567,52 @@ function normalizeDetection(
             detectedGenerator
 
     };
+
+}
+
+
+/* =========================================================
+   MODEL
+========================================================= */
+
+function normalizeModel(
+    value
+) {
+
+    /*
+       Model boleh kosong.
+
+       Jangan memberikan fallback "genai"
+       karena itu akan mengubah result backend
+       menjadi nilai buatan frontend.
+    */
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return null;
+
+    }
+
+
+    const model =
+        String(
+            value
+        ).trim();
+
+
+    if (
+        !model
+    ) {
+
+        return null;
+
+    }
+
+
+    return model;
 
 }
 
