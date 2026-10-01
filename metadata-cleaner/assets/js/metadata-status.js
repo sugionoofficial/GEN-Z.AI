@@ -3213,19 +3213,26 @@ export function renderDetectionResult() {
 
 
         /* =================================================
-           METADATA ONLY
-        ================================================= */
+   METADATA ONLY
+   -------------------------------------------------
+   Metadata AI terdeteksi sehingga overlay tetap
+   ditampilkan pada preview meskipun tidak ada
+   hasil visual Sightengine.
+================================================= */
 
-        setStatus(
-            "DETECTED",
-            "AI DETECTION",
-            `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
-        );
+renderOverlayStamp(
+    null
+);
 
 
-        return;
+setStatus(
+    "DETECTED",
+    "AI DETECTION",
+    `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
+);
 
-    }
+
+return;
 
 
     /* =====================================================
@@ -3283,19 +3290,21 @@ export function renderDetectionResult() {
     ) {
 
         if (
-            metadataDetected
-        ) {
+    metadataDetected
+) {
 
-            clearOverlayStamp();
+    renderOverlayStamp(
+        null
+    );
 
 
-            setStatus(
-                "DETECTED",
-                "AI DETECTION",
-                `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata. AI visual detection dari Sightengine tidak tersedia.`
-            );
+    setStatus(
+        "DETECTED",
+        "AI DETECTION",
+        `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata. AI visual detection dari Sightengine tidak tersedia.`
+    );
 
-        }
+}
 
         else if (
             aiProvenanceDetected
