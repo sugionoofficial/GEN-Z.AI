@@ -7,6 +7,12 @@
 
    Fungsi:
    - Detect AI-related metadata indicators
+   - Detect C2PA AI provenance metadata
+   - Detect Content Credentials AI disclosure
+   - Detect digitalSourceType
+   - Detect trainedAlgorithmicMedia
+   - Detect trainedAlgorithmicData
+   - Detect known AI generators
    - Metadata-only detection
    - Mengurangi false positive
 ========================================================= */
@@ -17,15 +23,28 @@
    ---------------------------------------------------------
    Metadata-only detection.
 
-   Aturan:
-   - Tidak menggunakan "ai" sebagai keyword tunggal.
-   - Matching menggunakan batas kata.
-   - Identifier AI yang jelas tetap terdeteksi.
-   - Nama umum seperti "runway", "pika", "gemini", dll.
-     tidak dianggap indikator hanya karena muncul sebagai
-     kata biasa.
-   - Hasil detection adalah indikator metadata,
-     bukan bukti media benar-benar dibuat oleh AI.
+   IMPORTANT:
+   ---------------------------------------------------------
+   C2PA / Content Credentials dapat memberikan
+   machine-readable AI provenance.
+
+   Contoh:
+
+       c2pa.created
+       digitalSourceType
+       trainedAlgorithmicMedia
+       c2pa.ai-disclosure
+       softwareAgent
+
+   Jika metadata mengandung:
+
+       trainedAlgorithmicMedia
+
+   maka itu diperlakukan sebagai AI provenance
+   karena C2PA mendefinisikannya sebagai media
+   yang dibuat menggunakan AI/ML.
+
+   Detection metadata bukan cryptographic verification.
 ========================================================= */
 
 export function detectAIIndicators(
@@ -40,9 +59,16 @@ export function detectAIIndicators(
 
     /* =====================================================
        STRONG IDENTIFIERS
+       -----------------------------------------------------
+       Identifier yang secara langsung mengindikasikan
+       AI / generative media.
     ===================================================== */
 
     const strongPatterns = [
+
+        /* -----------------------------------------------
+           GENERAL AI
+        ----------------------------------------------- */
 
         /\bartificial intelligence\b/i,
 
@@ -58,6 +84,18 @@ export function detectAIIndicators(
 
         /\bai-generated content\b/i,
 
+        /\bai generated media\b/i,
+
+        /\bai-generated media\b/i,
+
+        /\bai generated image\b/i,
+
+        /\bai-generated image\b/i,
+
+        /\bai generated video\b/i,
+
+        /\bai-generated video\b/i,
+
         /\bsynthetic media\b/i,
 
         /\bsynthetic image\b/i,
@@ -65,6 +103,40 @@ export function detectAIIndicators(
         /\bsynthetic video\b/i,
 
         /\bsynthetic content\b/i,
+
+
+        /* -----------------------------------------------
+           C2PA AI PROVENANCE
+        ----------------------------------------------- */
+
+        /\bc2pa\.created\b/i,
+
+        /\bc2pa\.ai-disclosure\b/i,
+
+        /\bc2pa ai disclosure\b/i,
+
+        /\bai-disclosure\b/i,
+
+        /\bdigitalSourceType\b/i,
+
+        /\bdigital source type\b/i,
+
+        /\btrainedAlgorithmicMedia\b/i,
+
+        /\btrained algorithmic media\b/i,
+
+        /\btrainedAlgorithmicData\b/i,
+
+        /\btrained algorithmic data\b/i,
+
+        /\bcompositedWithTrainedAlgorithmicMedia\b/i,
+
+        /\bcomposited with trained algorithmic media\b/i,
+
+
+        /* -----------------------------------------------
+           GENERATIVE AI SYSTEMS
+        ----------------------------------------------- */
 
         /\bmidjourney\b/i,
 
@@ -138,6 +210,11 @@ export function detectAIIndicators(
 
         /\btopaz ai\b/i,
 
+
+        /* -----------------------------------------------
+           GENERATIVE OPERATIONS
+        ----------------------------------------------- */
+
         /\bgenerative fill\b/i,
 
         /\bgenerative expand\b/i,
@@ -158,7 +235,95 @@ export function detectAIIndicators(
 
 
     /* =====================================================
+       AI GENERATOR NAMES
+       -----------------------------------------------------
+       Nama provider/model yang dapat muncul tanpa
+       kata "AI".
+    ===================================================== */
+
+    const generatorPatterns = [
+
+        {
+            name:
+                "grok imagine",
+
+            pattern:
+                /\bgrok\s+imagine\b/i
+        },
+
+        {
+            name:
+                "grok",
+
+            pattern:
+                /\bgrok\b/i
+        },
+
+        {
+            name:
+                "sora",
+
+            pattern:
+                /\bsora\b/i
+        },
+
+        {
+            name:
+                "midjourney",
+
+            pattern:
+                /\bmidjourney\b/i
+        },
+
+        {
+            name:
+                "seedance",
+
+            pattern:
+                /\bseedance\b/i
+        },
+
+        {
+            name:
+                "seedream",
+
+            pattern:
+                /\bseedream\b/i
+        },
+
+        {
+            name:
+                "veo",
+
+            pattern:
+                /\bveo\b/i
+        },
+
+        {
+            name:
+                "kling",
+
+            pattern:
+                /\bkling\b/i
+        },
+
+        {
+            name:
+                "runway",
+
+            pattern:
+                /\brunway\b/i
+        }
+
+    ];
+
+
+    /* =====================================================
        CONTEXTUAL IDENTIFIERS
+       -----------------------------------------------------
+       Nama seperti runway / pika / gemini tidak selalu
+       berarti AI. Karena itu hanya dipakai jika berada
+       di field metadata yang relevan.
     ===================================================== */
 
     const contextualPatterns = [
@@ -238,6 +403,10 @@ export function detectAIIndicators(
     ];
 
 
+    /* =====================================================
+       LOOP METADATA
+    ===================================================== */
+
     for (
         const item of metadata || []
     ) {
@@ -305,7 +474,9 @@ export function detectAIIndicators(
 
 
             if (
-                seen.has(key)
+                seen.has(
+                    key
+                )
             ) {
 
                 continue;
@@ -328,6 +499,71 @@ export function detectAIIndicators(
                 source
 
             });
+
+        }
+
+
+        /* =================================================
+           GENERATOR MATCH
+           -------------------------------------------------
+           Generator name seperti Grok Imagine diperlakukan
+           sebagai strong AI metadata ketika muncul di
+           metadata file.
+        ================================================= */
+
+        for (
+            const itemPattern of generatorPatterns
+        ) {
+
+            const match =
+                combined.match(
+                    itemPattern.pattern
+                );
+
+
+            if (
+                !match
+            ) {
+
+                continue;
+            }
+
+
+            const keyword =
+                itemPattern.name;
+
+
+            const key =
+                `generator::${keyword}::${field}::${value}`;
+
+
+            if (
+                seen.has(
+                    key
+                )
+            ) {
+
+                continue;
+            }
+
+
+            seen.add(
+                key
+            );
+
+
+            matches.push({
+
+                keyword,
+
+                field,
+
+                value,
+
+                source
+
+            });
+
         }
 
 
@@ -337,21 +573,81 @@ export function detectAIIndicators(
 
         const contextualField =
             (
-                /software/i.test(field) ||
-                /encoder/i.test(field) ||
-                /creator/i.test(field) ||
-                /author/i.test(field) ||
-                /application/i.test(field) ||
-                /producer/i.test(field) ||
-                /handler/i.test(field) ||
-                /writing/i.test(field) ||
-                /generator/i.test(field) ||
-                /model/i.test(field) ||
-                /tool/i.test(field) ||
-                /comment/i.test(field) ||
-                /description/i.test(field) ||
-                /title/i.test(field) ||
-                /vendor/i.test(field)
+                /software/i.test(
+                    field
+                ) ||
+
+                /encoder/i.test(
+                    field
+                ) ||
+
+                /creator/i.test(
+                    field
+                ) ||
+
+                /author/i.test(
+                    field
+                ) ||
+
+                /application/i.test(
+                    field
+                ) ||
+
+                /producer/i.test(
+                    field
+                ) ||
+
+                /handler/i.test(
+                    field
+                ) ||
+
+                /writing/i.test(
+                    field
+                ) ||
+
+                /generator/i.test(
+                    field
+                ) ||
+
+                /model/i.test(
+                    field
+                ) ||
+
+                /tool/i.test(
+                    field
+                ) ||
+
+                /comment/i.test(
+                    field
+                ) ||
+
+                /description/i.test(
+                    field
+                ) ||
+
+                /title/i.test(
+                    field
+                ) ||
+
+                /vendor/i.test(
+                    field
+                ) ||
+
+                /provenance/i.test(
+                    field
+                ) ||
+
+                /credential/i.test(
+                    field
+                ) ||
+
+                /source/i.test(
+                    field
+                ) ||
+
+                /creation/i.test(
+                    field
+                )
             );
 
 
@@ -386,7 +682,9 @@ export function detectAIIndicators(
 
 
             if (
-                seen.has(key)
+                seen.has(
+                    key
+                )
             ) {
 
                 continue;
@@ -409,9 +707,103 @@ export function detectAIIndicators(
                 source
 
             });
+
         }
+
     }
 
 
     return matches;
+
+}
+
+
+/* =========================================================
+   C2PA AI HELPER
+   ---------------------------------------------------------
+   Dipakai jika module lain ingin memastikan bahwa
+   indikator tertentu memang berasal dari C2PA AI
+   provenance.
+========================================================= */
+
+export function hasC2PAAIIndicator(
+    metadata
+) {
+
+    for (
+        const item of metadata || []
+    ) {
+
+        if (
+            !item
+        ) {
+
+            continue;
+        }
+
+
+        const combined =
+            [
+                item.field,
+                item.value,
+                item.source
+            ]
+                .map(
+                    value =>
+                        String(
+                            value || ""
+                        )
+                )
+                .join(
+                    " "
+                );
+
+
+        if (
+            /\btrainedAlgorithmicMedia\b/i.test(
+                combined
+            )
+        ) {
+
+            return true;
+        }
+
+
+        if (
+            /\btrainedAlgorithmicData\b/i.test(
+                combined
+            )
+        ) {
+
+            return true;
+        }
+
+
+        if (
+            /\bc2pa\.ai-disclosure\b/i.test(
+                combined
+            )
+        ) {
+
+            return true;
+        }
+
+
+        if (
+            /\bc2pa\.created\b/i.test(
+                combined
+            ) &&
+            /\bdigitalSourceType\b/i.test(
+                combined
+            )
+        ) {
+
+            return true;
+        }
+
+    }
+
+
+    return false;
+
 }
