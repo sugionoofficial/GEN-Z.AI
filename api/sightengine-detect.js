@@ -1,595 +1,426 @@
 /* =========================================================
    GEN-Z.AI
-   SIGHTENGINE AI IMAGE DETECTION API
+   SIGHTENGINE AI DETECTION API
    ---------------------------------------------------------
    File:
    api/sightengine-detect.js
 
-   Fungsi:
-   - Menerima image dari Metadata Cleaner
+   Tanggung jawab:
+   - Menerima image dari frontend
+   - Menjaga Sightengine credentials tetap server-side
    - Mengirim image ke Sightengine
-   - Mengambil hasil AI-generated detection
-   - Mengambil per-generator detection
-   - Mengembalikan hasil ter-normalisasi ke frontend
-
-   SECURITY:
-   - SIGHTENGINE_API_USER hanya di server
-   - SIGHTENGINE_API_SECRET hanya di server
-   - Jangan pernah memasukkan credential ke frontend
-
-   Request:
-   POST /api/sightengine-detect
-
-   JSON:
-   {
-       "image_base64": "...",
-       "mime_type": "image/jpeg"
-   }
-
-   Response:
-   {
-       "success": true,
-       "provider": "sightengine",
-       "model": "genai",
-       "detection": {
-           "model": "genai",
-           "ai_generated": 0.98,
-           "confidence": 98,
-           "is_ai_generated": true,
-           "generators": [],
-           "detected_generator": null
-       }
-   }
-
-   Catatan:
-   - "model" berasal dari konfigurasi model yang benar-benar
-     dikirim ke Sightengine.
-   - Frontend tidak menentukan atau menebak model.
-========================================================= */
-
-
-/* =========================================================
-   CONFIG
+   - Menggunakan model genai
+   - Menormalisasi hasil AI detection
+   - Mengembalikan generator scores
+   - Mengembalikan request metadata
+   - Mengembalikan media metadata
+   - Tidak menyimpan file/image
 ========================================================= */
 
 const SIGHTENGINE_ENDPOINT =
     "https://api.sightengine.com/1.0/check.json";
 
-
-/*
-   Model yang benar-benar dikirim ke Sightengine.
-
-   Jangan menduplikasi string "genai" di beberapa bagian
-   kode.
-
-   Jika suatu saat model API diganti, cukup ubah nilai ini.
-*/
-
 const SIGHTENGINE_MODEL =
     "genai";
 
-
-const MAX_IMAGE_BYTES =
+const MAX_IMAGE_SIZE =
     15 * 1024 * 1024;
 
 
 /* =========================================================
-   JSON RESPONSE
+   ENVIRONMENT
 ========================================================= */
 
-const json = (
+function getSightengineConfig() {
+
+    const apiUser =
+        process.env.SIGHTENGINE_API_USER;
+
+    const apiSecret =
+        process.env.SIGHTENGINE_API_SECRET;
+
+    if (
+        !apiUser ||
+        !apiSecret
+    ) {
+
+        throw new Error(
+            "Sightengine credentials are not configured."
+        );
+
+    }
+
+    return {
+        apiUser,
+        apiSecret
+    };
+
+}
+
+
+/* =========================================================
+   RESPONSE HELPERS
+========================================================= */
+
+function sendJson(
     res,
     status,
-    data
-) => {
+    payload
+) {
 
-    return res
+    res
         .status(status)
-        .json(data);
+        .json(payload);
 
-};
+}
 
 
 /* =========================================================
-   PARSE BODY
+   METHOD VALIDATION
 ========================================================= */
 
-const parseBody = (
+function ensurePostMethod(
+    req,
+    res
+) {
+
+    if (
+        req.method !== "POST"
+    ) {
+
+        sendJson(
+            res,
+            405,
+            {
+                success: false,
+                error:
+                    "Method not allowed."
+            }
+        );
+
+        return false;
+
+    }
+
+    return true;
+
+}
+
+
+/* =========================================================
+   BODY VALIDATION
+========================================================= */
+
+function getImageData(
     req
-) => {
+) {
+
+    const body =
+        req.body || {};
+
+    const image =
+        body.image;
 
     if (
-        req.body &&
-        typeof req.body === "object" &&
-        !Buffer.isBuffer(req.body)
+        typeof image !== "string" ||
+        image.trim() === ""
     ) {
 
-        return req.body;
+        throw new Error(
+            "Image data is required."
+        );
 
     }
 
+    return image.trim();
+
+}
+
+
+/* =========================================================
+   DATA URL PARSER
+========================================================= */
+
+function parseDataUrl(
+    dataUrl
+) {
+
+    const match =
+        dataUrl.match(
+            /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s
+        );
 
     if (
-        typeof req.body === "string"
+        !match
     ) {
 
-        try {
-
-            return JSON.parse(
-                req.body
-            );
-
-        } catch {
-
-            return {};
-
-        }
+        throw new Error(
+            "Invalid image data."
+        );
 
     }
 
+    const mimeType =
+        match[1] ||
+        "application/octet-stream";
 
-    return {};
+    const encodedData =
+        match[2];
 
-};
+    if (
+        !encodedData
+    ) {
 
+        throw new Error(
+            "Image data is empty."
+        );
 
-/* =========================================================
-   NORMALIZE MIME
-========================================================= */
+    }
 
-const normalizeMimeType = (
-    value
-) => {
+    return {
+        mimeType,
+        encodedData
+    };
 
-    return String(
-        value || ""
-    )
-        .trim()
-        .toLowerCase()
-        .split(";")[0];
-
-};
-
-
-/* =========================================================
-   SUPPORTED IMAGE TYPES
-========================================================= */
-
-const SUPPORTED_IMAGE_TYPES =
-    new Set([
-
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "image/gif",
-        "image/bmp",
-        "image/tiff",
-        "image/avif"
-
-    ]);
+}
 
 
 /* =========================================================
-   VALIDATE IMAGE MIME
+   MIME VALIDATION
 ========================================================= */
 
-const isSupportedImageType = (
+function isSupportedImageType(
     mimeType
-) => {
+) {
 
-    return SUPPORTED_IMAGE_TYPES.has(
-        normalizeMimeType(
-            mimeType
-        )
+    const supportedTypes =
+        new Set([
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/gif",
+            "image/bmp",
+            "image/tiff"
+        ]);
+
+    return supportedTypes.has(
+        String(mimeType || "")
+            .toLowerCase()
     );
 
-};
+}
 
 
 /* =========================================================
-   BASE64 CLEANER
+   BASE64 SIZE
 ========================================================= */
 
-const normalizeBase64 = (
-    value
-) => {
-
-    if (
-        typeof value !== "string"
-    ) {
-
-        return "";
-
-    }
-
-
-    let base64 =
-        value.trim();
-
-
-    /*
-       Support:
-
-       data:image/jpeg;base64,...
-
-       maupun:
-
-       AAAA...
-    */
-
-    if (
-        base64.startsWith(
-            "data:"
-        )
-    ) {
-
-        const comma =
-            base64.indexOf(",");
-
-
-        if (
-            comma === -1
-        ) {
-
-            return "";
-
-        }
-
-
-        base64 =
-            base64.slice(
-                comma + 1
-            );
-
-    }
-
-
-    /*
-       Remove accidental whitespace.
-    */
-
-    base64 =
-        base64.replace(
-            /\s+/g,
-            ""
-        );
-
-
-    return base64;
-
-};
-
-
-/* =========================================================
-   BASE64 VALIDATION
-========================================================= */
-
-const isValidBase64 = (
-    value
-) => {
-
-    if (
-        typeof value !== "string" ||
-        !value
-    ) {
-
-        return false;
-
-    }
-
-
-    if (
-        value.length % 4 !== 0
-    ) {
-
-        return false;
-
-    }
-
-
-    return /^[A-Za-z0-9+/]*={0,2}$/
-        .test(
-            value
-        );
-
-};
-
-
-/* =========================================================
-   ESTIMATE DECODED SIZE
-========================================================= */
-
-const estimateBase64Bytes = (
+function getBase64ByteSize(
     base64
-) => {
+) {
+
+    const normalized =
+        String(base64 || "")
+            .replace(/\s/g, "");
 
     if (
-        !base64
+        normalized.length === 0
     ) {
 
         return 0;
 
     }
 
-
     const padding =
-        base64.endsWith("==")
+        normalized.endsWith("==")
             ? 2
-            : base64.endsWith("=")
+            : normalized.endsWith("=")
                 ? 1
                 : 0;
 
-
     return Math.floor(
-        (base64.length * 3) / 4
+        normalized.length * 3 / 4
     ) - padding;
 
-};
+}
 
 
 /* =========================================================
-   READ ENVIRONMENT
+   SCORE NORMALIZATION
 ========================================================= */
 
-const getSightengineConfig = () => {
-
-    const apiUser =
-        String(
-            process.env.SIGHTENGINE_API_USER ||
-            ""
-        ).trim();
-
-
-    const apiSecret =
-        String(
-            process.env.SIGHTENGINE_API_SECRET ||
-            ""
-        ).trim();
-
-
-    return {
-
-        apiUser,
-
-        apiSecret,
-
-        model:
-            SIGHTENGINE_MODEL
-
-    };
-
-};
-
-
-/* =========================================================
-   ERROR MESSAGE
-========================================================= */
-
-const getRemoteErrorMessage = (
-    data,
-    fallback
-) => {
-
-    if (
-        data &&
-        typeof data === "object"
-    ) {
-
-        const candidates = [
-
-            data.error?.message,
-
-            data.error?.type,
-
-            data.message,
-
-            data.error
-
-        ];
-
-
-        for (
-            const candidate
-            of candidates
-        ) {
-
-            if (
-                typeof candidate === "string" &&
-                candidate.trim()
-            ) {
-
-                return candidate.trim();
-
-            }
-
-        }
-
-    }
-
-
-    return fallback;
-
-};
-
-
-/* =========================================================
-   NORMALIZE SCORE
-========================================================= */
-
-const normalizeScore = (
+function normalizeScore(
     value
-) => {
+) {
 
-    const number =
+    const numeric =
         Number(value);
 
-
     if (
-        !Number.isFinite(
-            number
-        )
+        !Number.isFinite(numeric)
     ) {
 
         return null;
 
     }
 
+    if (
+        numeric < 0
+    ) {
 
-    return Math.max(
-        0,
-        Math.min(
-            1,
-            number
-        )
-    );
+        return 0;
 
-};
+    }
+
+    if (
+        numeric > 1
+    ) {
+
+        return 1;
+
+    }
+
+    return numeric;
+
+}
 
 
 /* =========================================================
-   SCORE TO PERCENTAGE
+   PERCENTAGE
 ========================================================= */
 
-const scoreToPercentage = (
+function scoreToPercentage(
     score
-) => {
+) {
+
+    const normalized =
+        normalizeScore(score);
 
     if (
-        score === null
+        normalized === null
     ) {
 
         return null;
 
     }
 
-
     return Math.round(
-        score * 100
+        normalized * 100
     );
 
-};
+}
+
+
+/* =========================================================
+   GENERATOR NAME
+========================================================= */
+
+function normalizeGeneratorName(
+    name
+) {
+
+    if (
+        typeof name !== "string"
+    ) {
+
+        return "";
+
+    }
+
+    return name.trim();
+
+}
 
 
 /* =========================================================
    GENERATOR SCORES
 ========================================================= */
 
-const extractGeneratorScores = (
+function extractGeneratorScores(
     type
-) => {
+) {
+
+    const generators =
+        type?.ai_generators;
 
     if (
-        !type ||
-        typeof type !== "object"
+        !generators ||
+        typeof generators !== "object" ||
+        Array.isArray(generators)
     ) {
 
         return [];
 
     }
 
+    return Object.entries(
+        generators
+    )
+        .map(
+            ([name, rawScore]) => {
 
-    const generatorObject =
-        type.ai_generators;
+                const score =
+                    normalizeScore(
+                        rawScore
+                    );
 
+                if (
+                    score === null
+                ) {
 
-    if (
-        !generatorObject ||
-        typeof generatorObject !== "object" ||
-        Array.isArray(generatorObject)
-    ) {
+                    return null;
 
-        return [];
+                }
 
-    }
+                const normalizedName =
+                    normalizeGeneratorName(
+                        name
+                    );
 
+                if (
+                    !normalizedName
+                ) {
 
-    const generators = [];
+                    return null;
 
+                }
 
-    for (
-        const [
-            name,
-            rawScore
-        ]
-        of Object.entries(
-            generatorObject
+                return {
+                    name:
+                        normalizedName,
+
+                    score,
+
+                    confidence:
+                        scoreToPercentage(
+                            score
+                        )
+                };
+
+            }
         )
-    ) {
+        .filter(Boolean)
+        .sort(
+            (a, b) =>
+                b.score -
+                a.score
+        );
 
-        const generatorName =
-            String(
-                name || ""
-            ).trim();
-
-
-        if (
-            !generatorName
-        ) {
-
-            continue;
-
-        }
-
-
-        const score =
-            normalizeScore(
-                rawScore
-            );
-
-
-        if (
-            score === null
-        ) {
-
-            continue;
-
-        }
-
-
-        generators.push({
-
-            name:
-                generatorName,
-
-            score,
-
-            confidence:
-                scoreToPercentage(
-                    score
-                )
-
-        });
-
-    }
-
-
-    generators.sort(
-        (
-            a,
-            b
-        ) =>
-            b.score -
-            a.score
-    );
-
-
-    return generators;
-
-};
+}
 
 
 /* =========================================================
-   DETERMINE GENERATOR
+   DETECTED GENERATOR
+   ---------------------------------------------------------
+   Generator dianggap terdeteksi hanya jika score >= 0.5.
 ========================================================= */
 
-const getDetectedGenerator = (
+function getDetectedGenerator(
     generators
-) => {
+) {
 
     if (
-        !Array.isArray(
-            generators
-        ) ||
+        !Array.isArray(generators) ||
         generators.length === 0
     ) {
 
@@ -597,325 +428,154 @@ const getDetectedGenerator = (
 
     }
 
-
-    const top =
+    const topGenerator =
         generators[0];
 
-
     if (
-        !top ||
-        top.score < 0.5
+        !topGenerator
     ) {
 
         return null;
 
     }
 
-
-    return {
-
-        name:
-            top.name,
-
-        score:
-            top.score,
-
-        confidence:
-            top.confidence
-
-    };
-
-};
-
-
-/* =========================================================
-   MIME EXTENSION
-========================================================= */
-
-const getExtensionFromMime = (
-    mimeType
-) => {
-
-    switch (
-        normalizeMimeType(
-            mimeType
+    if (
+        !Number.isFinite(
+            topGenerator.score
         )
     ) {
 
-        case "image/png":
-            return "png";
-
-        case "image/webp":
-            return "webp";
-
-        case "image/gif":
-            return "gif";
-
-        case "image/bmp":
-            return "bmp";
-
-        case "image/tiff":
-            return "tiff";
-
-        case "image/avif":
-            return "avif";
-
-        case "image/jpeg":
-        default:
-            return "jpg";
+        return null;
 
     }
 
-};
+    if (
+        topGenerator.score < 0.5
+    ) {
+
+        return null;
+
+    }
+
+    return {
+        name:
+            topGenerator.name,
+
+        score:
+            topGenerator.score,
+
+        confidence:
+            topGenerator.confidence
+    };
+
+}
 
 
 /* =========================================================
-   SIGHTENGINE REQUEST
+   REQUEST METADATA
 ========================================================= */
 
-const detectWithSightengine = async (
-    buffer,
-    mimeType,
-    config
-) => {
+function normalizeRequestMetadata(
+    request
+) {
 
     if (
-        typeof FormData === "undefined"
+        !request ||
+        typeof request !== "object"
     ) {
 
-        throw new Error(
-            "FormData tidak tersedia pada runtime server."
-        );
+        return null;
 
     }
 
+    return {
+        id:
+            typeof request.id === "string"
+                ? request.id
+                : null,
 
-    if (
-        typeof Blob === "undefined"
-    ) {
-
-        throw new Error(
-            "Blob tidak tersedia pada runtime server."
-        );
-
-    }
-
-
-    const form =
-        new FormData();
-
-
-    /* =====================================================
-       CREDENTIAL
-    ===================================================== */
-
-    form.append(
-        "api_user",
-        config.apiUser
-    );
-
-
-    form.append(
-        "api_secret",
-        config.apiSecret
-    );
-
-
-    /* =====================================================
-       MODEL
-       -----------------------------------------------------
-       Gunakan satu sumber konfigurasi.
-    ===================================================== */
-
-    form.append(
-        "models",
-        config.model
-    );
-
-
-    /* =====================================================
-       FILE
-    ===================================================== */
-
-    const extension =
-        getExtensionFromMime(
-            mimeType
-        );
-
-
-    const blob =
-        new Blob(
-            [
-                buffer
-            ],
-            {
-                type:
-                    mimeType
-            }
-        );
-
-
-    form.append(
-        "media",
-        blob,
-        `genz-ai-image.${extension}`
-    );
-
-
-    /* =====================================================
-       REQUEST
-    ===================================================== */
-
-    const response =
-        await fetch(
-            SIGHTENGINE_ENDPOINT,
-            {
-
-                method:
-                    "POST",
-
-                body:
-                    form
-
-            }
-        );
-
-
-    const responseText =
-        await response.text();
-
-
-    let data =
-        null;
-
-
-    if (
-        responseText
-    ) {
-
-        try {
-
-            data =
-                JSON.parse(
-                    responseText
-                );
-
-        } catch {
-
-            data = {
-
-                raw:
-                    responseText
-
-            };
-
-        }
-
-    }
-
-
-    /* =====================================================
-       HTTP ERROR
-    ===================================================== */
-
-    if (
-        !response.ok
-    ) {
-
-        throw new Error(
-            getRemoteErrorMessage(
-                data,
-                `Sightengine HTTP ${response.status}`
+        timestamp:
+            Number.isFinite(
+                Number(request.timestamp)
             )
-        );
+                ? Number(request.timestamp)
+                : null,
 
-    }
-
-
-    /* =====================================================
-       INVALID RESPONSE
-    ===================================================== */
-
-    if (
-        !data ||
-        typeof data !== "object"
-    ) {
-
-        throw new Error(
-            "Response Sightengine tidak valid."
-        );
-
-    }
-
-
-    /* =====================================================
-       SIGHTENGINE FAILURE
-    ===================================================== */
-
-    if (
-        data.status &&
-        String(
-            data.status
-        ).toLowerCase() === "failure"
-    ) {
-
-        throw new Error(
-            getRemoteErrorMessage(
-                data,
-                "Sightengine gagal melakukan analisis."
+        operations:
+            Number.isFinite(
+                Number(request.operations)
             )
-        );
+                ? Number(request.operations)
+                : null
+    };
 
-    }
-
-
-    return data;
-
-};
+}
 
 
 /* =========================================================
-   NORMALIZE RESPONSE
+   MEDIA METADATA
 ========================================================= */
 
-const normalizeDetectionResponse = (
+function normalizeMediaMetadata(
+    media
+) {
+
+    if (
+        !media ||
+        typeof media !== "object"
+    ) {
+
+        return null;
+
+    }
+
+    return {
+        id:
+            typeof media.id === "string"
+                ? media.id
+                : null,
+
+        uri:
+            typeof media.uri === "string"
+                ? media.uri
+                : null
+    };
+
+}
+
+
+/* =========================================================
+   DETECTION NORMALIZATION
+========================================================= */
+
+function normalizeDetectionResponse(
     data,
     model
-) => {
+) {
 
     const type =
-        data?.type &&
-        typeof data.type === "object"
-            ? data.type
-            : {};
-
+        data?.type || {};
 
     const aiGenerated =
         normalizeScore(
             type.ai_generated
         );
 
-
     const generators =
         extractGeneratorScores(
             type
         );
-
 
     const detectedGenerator =
         getDetectedGenerator(
             generators
         );
 
-
     return {
 
-        /*
-           Model yang digunakan oleh request.
-        */
-
         model:
-            model || null,
+            model ||
+            null,
 
         ai_generated:
             aiGenerated,
@@ -932,11 +592,200 @@ const normalizeDetectionResponse = (
         generators,
 
         detected_generator:
-            detectedGenerator
+            detectedGenerator,
+
+        request:
+            normalizeRequestMetadata(
+                data?.request
+            ),
+
+        media:
+            normalizeMediaMetadata(
+                data?.media
+            )
 
     };
 
-};
+}
+
+
+/* =========================================================
+   SIGHTENGINE REQUEST
+========================================================= */
+
+async function requestSightengine(
+    imageData
+) {
+
+    const config =
+        getSightengineConfig();
+
+    const parsed =
+        parseDataUrl(
+            imageData
+        );
+
+    if (
+        !isSupportedImageType(
+            parsed.mimeType
+        )
+    ) {
+
+        throw new Error(
+            `Unsupported image type: ${parsed.mimeType}`
+        );
+
+    }
+
+    const byteSize =
+        getBase64ByteSize(
+            parsed.encodedData
+        );
+
+    if (
+        byteSize <= 0
+    ) {
+
+        throw new Error(
+            "Image data is empty."
+        );
+
+    }
+
+    if (
+        byteSize > MAX_IMAGE_SIZE
+    ) {
+
+        throw new Error(
+            "Image exceeds the 15 MB Sightengine limit."
+        );
+
+    }
+
+    const imageBuffer =
+        Buffer.from(
+            parsed.encodedData,
+            "base64"
+        );
+
+    if (
+        !imageBuffer ||
+        imageBuffer.length === 0
+    ) {
+
+        throw new Error(
+            "Unable to decode image."
+        );
+
+    }
+
+    if (
+        imageBuffer.length >
+        MAX_IMAGE_SIZE
+    ) {
+
+        throw new Error(
+            "Image exceeds the 15 MB Sightengine limit."
+        );
+
+    }
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        "api_user",
+        config.apiUser
+    );
+
+    formData.append(
+        "api_secret",
+        config.apiSecret
+    );
+
+    formData.append(
+        "models",
+        SIGHTENGINE_MODEL
+    );
+
+    const blob =
+        new Blob(
+            [
+                imageBuffer
+            ],
+            {
+                type:
+                    parsed.mimeType
+            }
+        );
+
+    formData.append(
+        "media",
+        blob,
+        "upload"
+    );
+
+    const response =
+        await fetch(
+            SIGHTENGINE_ENDPOINT,
+            {
+                method:
+                    "POST",
+
+                body:
+                    formData
+            }
+        );
+
+    let data = null;
+
+    try {
+
+        data =
+            await response.json();
+
+    } catch {
+
+        throw new Error(
+            `Sightengine returned an invalid response (${response.status}).`
+        );
+
+    }
+
+    if (
+        !response.ok
+    ) {
+
+        const message =
+            data?.error?.message ||
+            data?.error ||
+            `Sightengine request failed (${response.status}).`;
+
+        throw new Error(
+            String(message)
+        );
+
+    }
+
+    if (
+        data?.status &&
+        data.status !== "success"
+    ) {
+
+        const message =
+            data?.error?.message ||
+            data?.error ||
+            "Sightengine detection failed.";
+
+        throw new Error(
+            String(message)
+        );
+
+    }
+
+    return data;
+
+}
 
 
 /* =========================================================
@@ -948,384 +797,39 @@ export default async function handler(
     res
 ) {
 
-    /* =====================================================
-       CORS
-    ===================================================== */
-
-    res.setHeader(
-        "Access-Control-Allow-Origin",
-        "*"
-    );
-
-
-    res.setHeader(
-        "Access-Control-Allow-Headers",
-        "Content-Type, Authorization"
-    );
-
-
-    res.setHeader(
-        "Access-Control-Allow-Methods",
-        "POST, OPTIONS"
-    );
-
-
-    /* =====================================================
-       OPTIONS
-    ===================================================== */
-
     if (
-        req.method === "OPTIONS"
-    ) {
-
-        return res
-            .status(204)
-            .end();
-
-    }
-
-
-    /* =====================================================
-       METHOD
-    ===================================================== */
-
-    if (
-        req.method !== "POST"
-    ) {
-
-        return json(
-            res,
-            405,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "Method tidak diizinkan."
-
-            }
-        );
-
-    }
-
-
-    /* =====================================================
-       CONFIG
-    ===================================================== */
-
-    const config =
-        getSightengineConfig();
-
-
-    if (
-        !config.apiUser ||
-        !config.apiSecret
-    ) {
-
-        return json(
-            res,
-            500,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "Sightengine belum dikonfigurasi di server. Pastikan SIGHTENGINE_API_USER dan SIGHTENGINE_API_SECRET tersedia."
-
-            }
-        );
-
-    }
-
-
-    /* =====================================================
-       BODY
-    ===================================================== */
-
-    const body =
-        parseBody(
-            req
-        );
-
-
-    const rawBase64 =
-        body.image_base64;
-
-
-    const mimeType =
-        normalizeMimeType(
-            body.mime_type
-        );
-
-
-    /* =====================================================
-       VALIDATE BASE64
-    ===================================================== */
-
-    if (
-        typeof rawBase64 !== "string" ||
-        !rawBase64.trim()
-    ) {
-
-        return json(
-            res,
-            400,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "image_base64 wajib dikirim."
-
-            }
-        );
-
-    }
-
-
-    /* =====================================================
-       VALIDATE MIME
-    ===================================================== */
-
-    if (
-        !isSupportedImageType(
-            mimeType
+        !ensurePostMethod(
+            req,
+            res
         )
     ) {
 
-        return json(
-            res,
-            400,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "Tipe file tidak didukung. Sightengine endpoint ini hanya menerima image."
-
-            }
-        );
+        return;
 
     }
-
-
-    /* =====================================================
-       NORMALIZE BASE64
-    ===================================================== */
-
-    const base64 =
-        normalizeBase64(
-            rawBase64
-        );
-
-
-    /* =====================================================
-       VALIDATE BASE64 FORMAT
-    ===================================================== */
-
-    if (
-        !isValidBase64(
-            base64
-        )
-    ) {
-
-        return json(
-            res,
-            400,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "image_base64 tidak valid."
-
-            }
-        );
-
-    }
-
-
-    /* =====================================================
-       SIZE CHECK
-    ===================================================== */
-
-    const estimatedBytes =
-        estimateBase64Bytes(
-            base64
-        );
-
-
-    if (
-        estimatedBytes <= 0
-    ) {
-
-        return json(
-            res,
-            400,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "File image kosong atau tidak valid."
-
-            }
-        );
-
-    }
-
-
-    if (
-        estimatedBytes >
-        MAX_IMAGE_BYTES
-    ) {
-
-        return json(
-            res,
-            413,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "Ukuran image terlalu besar untuk AI Detection. Maksimum 15 MB."
-
-            }
-        );
-
-    }
-
-
-    /* =====================================================
-       DECODE BASE64
-    ===================================================== */
-
-    let buffer;
-
 
     try {
 
-        buffer =
-            Buffer.from(
-                base64,
-                "base64"
+        const imageData =
+            getImageData(
+                req
             );
 
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI] Base64 decode error:",
-            error
-        );
-
-
-        return json(
-            res,
-            400,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "Gagal membaca image."
-
-            }
-        );
-
-    }
-
-
-    /* =====================================================
-       BUFFER VALIDATION
-    ===================================================== */
-
-    if (
-        !buffer ||
-        !buffer.length
-    ) {
-
-        return json(
-            res,
-            400,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "Image hasil decode kosong."
-
-            }
-        );
-
-    }
-
-
-    if (
-        buffer.length >
-        MAX_IMAGE_BYTES
-    ) {
-
-        return json(
-            res,
-            413,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "Ukuran image melebihi batas 15 MB."
-
-            }
-        );
-
-    }
-
-
-    /* =====================================================
-       SIGHTENGINE DETECTION
-    ===================================================== */
-
-    try {
-
-        const sightengineResult =
-            await detectWithSightengine(
-                buffer,
-                mimeType,
-                config
+        const sightengineResponse =
+            await requestSightengine(
+                imageData
             );
-
 
         const detection =
             normalizeDetectionResponse(
-                sightengineResult,
-                config.model
+                sightengineResponse,
+                SIGHTENGINE_MODEL
             );
 
-
-        /* =================================================
-           RESPONSE
-           -------------------------------------------------
-           model tersedia di dua tempat untuk kompatibilitas:
-
-           response.model
-           response.detection.model
-        ================================================= */
-
-        return json(
+        sendJson(
             res,
             200,
             {
-
                 success:
                     true,
 
@@ -1333,36 +837,31 @@ export default async function handler(
                     "sightengine",
 
                 model:
-                    config.model,
+                    SIGHTENGINE_MODEL,
 
                 detection
-
             }
         );
 
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         console.error(
-            "[GEN-Z.AI] Sightengine detection error:",
+            "[Sightengine]",
             error
         );
 
-
-        return json(
+        sendJson(
             res,
-            502,
+            500,
             {
-
                 success:
                     false,
 
-                provider:
-                    "sightengine",
-
                 error:
                     error?.message ||
-                    "Sightengine gagal melakukan AI detection."
-
+                    "Sightengine detection failed."
             }
         );
 
