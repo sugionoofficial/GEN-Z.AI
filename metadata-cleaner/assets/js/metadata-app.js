@@ -12,10 +12,21 @@
    - Read basic video/container metadata
    - Detect AI-related metadata indicators
    - Show AI DETECT overlay
-   - Clean image metadata locally
-   - Clean video metadata locally through FFmpeg WASM
+   - Coordinate image/video metadata cleaning
    - Download cleaned copy
    - Original file remains untouched
+
+   Architecture:
+   - metadata-state.js
+   - metadata-dom.js
+   - metadata-events.js
+   - metadata-normalizer.js
+   - metadata-detector.js
+   - metadata-status.js
+   - metadata-image.js
+   - metadata-video.js
+   - metadata-cleaner-image.js
+   - metadata-cleaner-video.js
 ========================================================= */
 
 import {
@@ -72,74 +83,33 @@ function init() {
 
     cacheElements();
 
+
     bindMetadataEvents({
 
         handleFileInput,
+
         openFilePicker,
+
         checkMetadata,
+
         cleanMetadata,
+
         downloadCleanedFile,
+
         handleDragOver,
+
         handleDragLeave,
+
         handleDrop
 
     });
 
+
     resetApplication();
+
 
     console.info(
         "[GEN-Z.AI] AI Metadata Cleaner initialized."
-    );
-}
-
-
-function bindEvents() {
-
-    elements.fileInput?.addEventListener(
-        "change",
-        handleFileInput
-    );
-
-
-    elements.changeButton?.addEventListener(
-        "click",
-        openFilePicker
-    );
-
-
-    elements.checkButton?.addEventListener(
-        "click",
-        checkMetadata
-    );
-
-
-    elements.cleanButton?.addEventListener(
-        "click",
-        cleanMetadata
-    );
-
-
-    elements.downloadButton?.addEventListener(
-        "click",
-        downloadCleanedFile
-    );
-
-
-    elements.dropzone?.addEventListener(
-        "dragover",
-        handleDragOver
-    );
-
-
-    elements.dropzone?.addEventListener(
-        "dragleave",
-        handleDragLeave
-    );
-
-
-    elements.dropzone?.addEventListener(
-        "drop",
-        handleDrop
     );
 }
 
@@ -151,68 +121,109 @@ function bindEvents() {
 function openFilePicker() {
 
     elements.fileInput?.click();
+
 }
 
 
-function handleFileInput(event) {
+/* =========================================================
+   FILE INPUT
+========================================================= */
+
+function handleFileInput(
+    event
+) {
 
     const files =
         Array.from(
             event.target?.files || []
         );
 
-    if (!files.length) {
+
+    if (
+        !files.length
+    ) {
 
         return;
     }
 
+
     processSelectedFile(
         files[0]
     );
+
 }
 
 
-function handleDragOver(event) {
+/* =========================================================
+   DRAG OVER
+========================================================= */
+
+function handleDragOver(
+    event
+) {
 
     event.preventDefault();
+
 
     elements.dropzone?.classList.add(
         "is-dragging"
     );
+
 }
 
 
-function handleDragLeave(event) {
+/* =========================================================
+   DRAG LEAVE
+========================================================= */
+
+function handleDragLeave(
+    event
+) {
 
     event.preventDefault();
+
 
     elements.dropzone?.classList.remove(
         "is-dragging"
     );
+
 }
 
 
-function handleDrop(event) {
+/* =========================================================
+   DROP
+========================================================= */
+
+function handleDrop(
+    event
+) {
 
     event.preventDefault();
+
 
     elements.dropzone?.classList.remove(
         "is-dragging"
     );
+
 
     const files =
         Array.from(
             event.dataTransfer?.files || []
         );
 
-    if (!files.length) {
+
+    if (
+        !files.length
+    ) {
 
         return;
     }
 
+
     processSelectedFile(
         files[0]
     );
+
 }
 
 
@@ -220,16 +231,22 @@ function handleDrop(event) {
    FILE PROCESSING
 ========================================================= */
 
-function processSelectedFile(file) {
+function processSelectedFile(
+    file
+) {
 
-    if (!file) {
+    if (
+        !file
+    ) {
 
         return;
     }
 
 
     if (
-        !isSupportedMedia(file)
+        !isSupportedMedia(
+            file
+        )
     ) {
 
         setStatus(
@@ -238,6 +255,7 @@ function processSelectedFile(file) {
             "Pilih file foto atau video yang dapat diproses oleh browser."
         );
 
+
         return;
     }
 
@@ -245,35 +263,51 @@ function processSelectedFile(file) {
     resetForNewFile();
 
 
-    state.file = file;
+    state.file =
+        file;
+
 
     state.fileType =
-        detectMediaType(file);
+        detectMediaType(
+            file
+        );
 
 
     state.originalURL =
-        URL.createObjectURL(file);
+        URL.createObjectURL(
+            file
+        );
 
 
     updateFileInfo();
 
+
     renderOriginalPreview();
 
-    elements.checkButton.disabled = false;
 
-    elements.cleanButton.disabled = true;
+    elements.checkButton.disabled =
+        false;
 
-    elements.downloadButton.disabled = true;
+
+    elements.cleanButton.disabled =
+        true;
+
+
+    elements.downloadButton.disabled =
+        true;
+
 
     setPreviewStatus(
         "MEDIA SIAP. TEKAN CHECK UNTUK MEMBACA METADATA."
     );
+
 
     setStatus(
         "UNKNOWN",
         "BELUM DIPERIKSA",
         "Tekan CHECK untuk membaca metadata media."
     );
+
 }
 
 
@@ -281,9 +315,13 @@ function processSelectedFile(file) {
    TYPE DETECTION
 ========================================================= */
 
-function isSupportedMedia(file) {
+function isSupportedMedia(
+    file
+) {
 
-    if (!file) {
+    if (
+        !file
+    ) {
 
         return false;
     }
@@ -292,8 +330,12 @@ function isSupportedMedia(file) {
     if (
         file.type &&
         (
-            file.type.startsWith("image/") ||
-            file.type.startsWith("video/")
+            file.type.startsWith(
+                "image/"
+            ) ||
+            file.type.startsWith(
+                "video/"
+            )
         )
     ) {
 
@@ -308,6 +350,7 @@ function isSupportedMedia(file) {
 
 
     return [
+
         "jpg",
         "jpeg",
         "png",
@@ -317,6 +360,7 @@ function isSupportedMedia(file) {
         "tif",
         "tiff",
         "avif",
+
         "mp4",
         "mov",
         "m4v",
@@ -327,13 +371,21 @@ function isSupportedMedia(file) {
         "mpg",
         "3gp",
         "ogv"
+
     ].includes(
         extension
     );
+
 }
 
 
-function detectMediaType(file) {
+/* =========================================================
+   MEDIA TYPE
+========================================================= */
+
+function detectMediaType(
+    file
+) {
 
     if (
         file.type?.startsWith(
@@ -382,6 +434,7 @@ function detectMediaType(file) {
 
 
     return "video";
+
 }
 
 
@@ -410,6 +463,7 @@ function updateFileInfo() {
         formatBytes(
             state.file.size
         );
+
 }
 
 
@@ -423,13 +477,16 @@ function renderOriginalPreview() {
         elements.previewEmpty
     );
 
+
     hideElement(
         elements.imagePreview
     );
 
+
     hideElement(
         elements.videoPreview
     );
+
 
     hideElement(
         elements.aiOverlay
@@ -443,9 +500,11 @@ function renderOriginalPreview() {
         elements.imagePreview.src =
             state.originalURL;
 
+
         showElement(
             elements.imagePreview
         );
+
 
         return;
     }
@@ -454,9 +513,11 @@ function renderOriginalPreview() {
     elements.videoPreview.src =
         state.originalURL;
 
+
     showElement(
         elements.videoPreview
     );
+
 }
 
 
@@ -482,7 +543,8 @@ async function checkMetadata() {
     }
 
 
-    elements.checkButton.disabled = true;
+    elements.checkButton.disabled =
+        true;
 
 
     setStatus(
@@ -501,9 +563,11 @@ async function checkMetadata() {
 
         const metadata =
             state.fileType === "image"
+
                 ? await readImageMetadata(
                     state.file
                 )
+
                 : await readVideoMetadata(
                     state.file
                 );
@@ -521,10 +585,12 @@ async function checkMetadata() {
             );
 
 
-        state.checked = true;
+        state.checked =
+            true;
 
 
         renderMetadata();
+
 
         renderDetectionResult();
 
@@ -534,12 +600,18 @@ async function checkMetadata() {
 
 
         setPreviewStatus(
+
             state.aiIndicators.length
+
                 ? "INDIKATOR AI DITEMUKAN PADA METADATA."
+
                 : "PEMERIKSAAN METADATA SELESAI."
+
         );
 
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         console.error(
             "[GEN-Z.AI] Metadata check failed:",
@@ -547,9 +619,13 @@ async function checkMetadata() {
         );
 
 
-        state.metadata = [];
+        state.metadata =
+            [];
 
-        state.aiIndicators = [];
+
+        state.aiIndicators =
+            [];
+
 
         renderMetadata();
 
@@ -571,20 +647,10 @@ async function checkMetadata() {
 
         elements.checkButton.disabled =
             false;
+
     }
+
 }
-
-
-
-
-
-
-
-
-
-
-  
-
 
 
 /* =========================================================
@@ -646,6 +712,7 @@ async function cleanMetadata() {
             state.cleanedURL
         );
 
+
         state.cleanedURL =
             null;
     }
@@ -671,11 +738,14 @@ async function cleanMetadata() {
 
         elements.cleanVideoPreview.pause();
 
+
         elements.cleanVideoPreview.removeAttribute(
             "src"
         );
 
+
         elements.cleanVideoPreview.load();
+
     }
 
 
@@ -704,6 +774,7 @@ async function cleanMetadata() {
                 await cleanVideo(
                     sourceFile
                 );
+
         }
 
 
@@ -751,6 +822,7 @@ async function cleanMetadata() {
                 state.cleanedURL
             );
 
+
             state.cleanedURL =
                 null;
         }
@@ -780,7 +852,9 @@ async function cleanMetadata() {
             "METADATA CLEANING SELESAI. HASIL ADALAH FILE BARU."
         );
 
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         /*
          * Jika user sudah mengganti file,
@@ -813,6 +887,7 @@ async function cleanMetadata() {
             URL.revokeObjectURL(
                 state.cleanedURL
             );
+
 
             state.cleanedURL =
                 null;
@@ -849,842 +924,11 @@ async function cleanMetadata() {
 
             elements.cleanButton.disabled =
                 false;
-        }
-    }
-}
 
-
-/* =========================================================
-   CLEAN IMAGE
-========================================================= */
-
-async function cleanImage(file) {
-
-    const image =
-        await loadImage(
-            file
-        );
-
-
-    const canvas =
-        document.createElement(
-            "canvas"
-        );
-
-
-    canvas.width =
-        image.naturalWidth;
-
-
-    canvas.height =
-        image.naturalHeight;
-
-
-    const context =
-        canvas.getContext(
-            "2d",
-            {
-                alpha: true
-            }
-        );
-
-
-    if (
-        !context
-    ) {
-
-        throw new Error(
-            "Canvas browser tidak tersedia."
-        );
-    }
-
-
-    context.drawImage(
-        image,
-        0,
-        0
-    );
-
-
-    const outputType =
-        getImageOutputType(
-            file
-        );
-
-
-    const blob =
-        await canvasToBlob(
-            canvas,
-            outputType,
-            outputType === "image/jpeg"
-                ? 0.94
-                : undefined
-        );
-
-
-    return {
-
-        blob,
-
-        type:
-            outputType
-    };
-}
-
-
-/* =========================================================
-   IMAGE LOADER
-========================================================= */
-
-function loadImage(file) {
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const image =
-                new Image();
-
-
-            const url =
-                URL.createObjectURL(
-                    file
-                );
-
-
-            image.onload = () => {
-
-                URL.revokeObjectURL(
-                    url
-                );
-
-                resolve(
-                    image
-                );
-            };
-
-
-            image.onerror = () => {
-
-                URL.revokeObjectURL(
-                    url
-                );
-
-                reject(
-                    new Error(
-                        "Gambar tidak dapat dibaca."
-                    )
-                );
-            };
-
-
-            image.src =
-                url;
-        }
-    );
-}
-
-
-/* =========================================================
-   IMAGE OUTPUT TYPE
-========================================================= */
-
-function getImageOutputType(
-    file
-) {
-
-    if (
-        file.type === "image/png"
-    ) {
-
-        return "image/png";
-    }
-
-
-    if (
-        file.type === "image/webp"
-    ) {
-
-        return "image/webp";
-    }
-
-
-    return "image/jpeg";
-}
-
-
-/* =========================================================
-   CANVAS TO BLOB
-========================================================= */
-
-function canvasToBlob(
-    canvas,
-    type,
-    quality
-) {
-
-    return new Promise(
-        (resolve, reject) => {
-
-            canvas.toBlob(
-                blob => {
-
-                    if (!blob) {
-
-                        reject(
-                            new Error(
-                                "Browser gagal membuat file hasil."
-                            )
-                        );
-
-                        return;
-                    }
-
-
-                    resolve(
-                        blob
-                    );
-                },
-                type,
-                quality
-            );
-        }
-    );
-}
-
-
-/* =========================================================
-   CLEAN VIDEO
-   ---------------------------------------------------------
-   Uses FFmpeg WASM locally.
-
-   Strategy:
-   - preserve all media streams
-   - remove global/container metadata
-   - remove chapters
-   - copy streams without video/audio re-encoding
-   - use faststart only for MP4/MOV containers
-========================================================= */
-
-async function cleanVideo(file) {
-
-    const ffmpeg =
-        await ensureFFmpeg();
-
-
-    const inputName =
-        createFFmpegFilename(
-            file.name
-        );
-
-
-    const outputName =
-        `cleaned_${inputName}`;
-
-
-    const inputData =
-        new Uint8Array(
-            await file.arrayBuffer()
-        );
-
-
-    try {
-
-        await ffmpeg.writeFile(
-            inputName,
-            inputData
-        );
-
-
-        /*
-         * Base remux arguments.
-         *
-         * -map 0
-         *     Preserve every input stream.
-         *
-         * -map_metadata -1
-         *     Remove container/global metadata.
-         *
-         * -map_chapters -1
-         *     Remove chapter metadata.
-         *
-         * -c copy
-         *     Do not re-encode video/audio.
-         */
-
-        const ffmpegArguments = [
-
-            "-i",
-            inputName,
-
-            "-map",
-            "0",
-
-            "-map_metadata",
-            "-1",
-
-            "-map_chapters",
-            "-1",
-
-            "-c",
-            "copy"
-        ];
-
-
-        /*
-         * +faststart is intended for ISO-BMFF
-         * containers such as MP4/MOV.
-         *
-         * Do not apply it blindly to WebM, MKV,
-         * AVI, OGV, etc.
-         */
-
-        if (
-            isMovLikeVideo(
-                file
-            )
-        ) {
-
-            ffmpegArguments.push(
-                "-movflags",
-                "+faststart"
-            );
         }
 
-
-        ffmpegArguments.push(
-            outputName
-        );
-
-
-        const result =
-            await ffmpeg.exec(
-                ffmpegArguments
-            );
-
-
-        if (
-            result !== 0
-        ) {
-
-            throw new Error(
-                "FFmpeg gagal melakukan remux video."
-            );
-        }
-
-
-        const outputData =
-            await ffmpeg.readFile(
-                outputName
-            );
-
-
-        if (
-            !outputData ||
-            !outputData.length
-        ) {
-
-            throw new Error(
-                "FFmpeg tidak menghasilkan file video."
-            );
-        }
-
-
-        const outputType =
-            getCleanVideoMimeType(
-                file
-            );
-
-
-        return {
-
-            blob:
-                new Blob(
-                    [
-                        outputData
-                    ],
-                    {
-                        type:
-                            outputType
-                    }
-                ),
-
-            type:
-                outputType
-        };
-
-    } finally {
-
-        await safeDeleteFFmpegFile(
-            ffmpeg,
-            inputName
-        );
-
-
-        await safeDeleteFFmpegFile(
-            ffmpeg,
-            outputName
-        );
-    }
-}
-
-
-/* =========================================================
-   FFMPEG LOADER
-========================================================= */
-
-async function ensureFFmpeg() {
-
-    if (
-        state.ffmpegLoaded &&
-        state.ffmpeg
-    ) {
-
-        return state.ffmpeg;
     }
 
-
-    if (
-        state.ffmpegLoading
-    ) {
-
-        return waitForFFmpeg();
-    }
-
-
-    state.ffmpegLoading =
-        true;
-
-
-    try {
-
-        await loadFFmpegScripts();
-
-
-        if (
-            typeof window.FFmpeg ===
-            "undefined"
-        ) {
-
-            throw new Error(
-                "FFmpeg browser library tidak tersedia."
-            );
-        }
-
-
-        const FFmpegClass =
-            window.FFmpeg.FFmpeg;
-
-
-        if (
-            typeof FFmpegClass !==
-            "function"
-        ) {
-
-            throw new Error(
-                "FFmpeg constructor tidak tersedia."
-            );
-        }
-
-
-        const ffmpeg =
-            new FFmpegClass();
-
-
-        ffmpeg.on(
-            "log",
-            ({
-                message
-            }) => {
-
-                console.debug(
-                    "[FFmpeg]",
-                    message
-                );
-            }
-        );
-
-
-        const coreURL =
-            `${APP.FFMPEG_BASE_URL}/ffmpeg-core.js`;
-
-
-        const wasmURL =
-            `${APP.FFMPEG_BASE_URL}/ffmpeg-core.wasm`;
-
-
-        await ffmpeg.load({
-
-            coreURL:
-                await toBlobURL(
-                    coreURL,
-                    "text/javascript"
-                ),
-
-            wasmURL:
-                await toBlobURL(
-                    wasmURL,
-                    "application/wasm"
-                )
-        });
-
-
-        state.ffmpeg =
-            ffmpeg;
-
-
-        state.ffmpegLoaded =
-            true;
-
-
-        return ffmpeg;
-
-    } finally {
-
-        state.ffmpegLoading =
-            false;
-    }
-}
-
-
-/* =========================================================
-   FFMPEG SCRIPT LOADER
-========================================================= */
-
-function loadFFmpegScripts() {
-
-    if (
-        state.ffmpegScriptsLoaded
-    ) {
-
-        return Promise.resolve();
-    }
-
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const existing =
-                document.querySelector(
-                    'script[data-genz-ffmpeg="true"]'
-                );
-
-
-            if (existing) {
-
-                if (
-                    typeof window.FFmpeg !==
-                    "undefined"
-                ) {
-
-                    state.ffmpegScriptsLoaded =
-                        true;
-
-                    resolve();
-
-                    return;
-                }
-            }
-
-
-            const script =
-                document.createElement(
-                    "script"
-                );
-
-
-            script.src =
-                APP.FFMPEG_PACKAGE_URL;
-
-
-            script.async =
-                false;
-
-
-            script.dataset.genzFfmpeg =
-                "true";
-
-
-            script.onload = () => {
-
-                if (
-                    typeof window.FFmpeg ===
-                    "undefined"
-                ) {
-
-                    reject(
-                        new Error(
-                            "FFmpeg script berhasil dimuat tetapi global FFmpeg tidak ditemukan."
-                        )
-                    );
-
-                    return;
-                }
-
-
-                state.ffmpegScriptsLoaded =
-                    true;
-
-                resolve();
-            };
-
-
-            script.onerror = () => {
-
-                reject(
-                    new Error(
-                        "FFmpeg browser library gagal dimuat."
-                    )
-                );
-            };
-
-
-            document.head.appendChild(
-                script
-            );
-        }
-    );
-}
-
-
-/* =========================================================
-   BLOB URL HELPER
-========================================================= */
-
-async function toBlobURL(
-    url,
-    mimeType
-) {
-
-    const response =
-        await fetch(
-            url
-        );
-
-
-    if (
-        !response.ok
-    ) {
-
-        throw new Error(
-            `Gagal mengambil FFmpeg resource: ${response.status}`
-        );
-    }
-
-
-    const blob =
-        await response.blob();
-
-
-    return URL.createObjectURL(
-        new Blob(
-            [
-                blob
-            ],
-            {
-                type:
-                    mimeType
-            }
-        )
-    );
-}
-
-
-/* =========================================================
-   FFMPEG WAIT
-========================================================= */
-
-function waitForFFmpeg() {
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const start =
-                Date.now();
-
-
-            const timer =
-                setInterval(
-                    () => {
-
-                        if (
-                            state.ffmpegLoaded &&
-                            state.ffmpeg
-                        ) {
-
-                            clearInterval(
-                                timer
-                            );
-
-                            resolve(
-                                state.ffmpeg
-                            );
-
-                            return;
-                        }
-
-
-                        if (
-                            Date.now() -
-                            start >
-                            120000
-                        ) {
-
-                            clearInterval(
-                                timer
-                            );
-
-                            reject(
-                                new Error(
-                                    "FFmpeg membutuhkan waktu terlalu lama untuk dimuat."
-                                )
-                            );
-                        }
-
-                    },
-                    100
-                );
-        }
-    );
-}
-
-
-/* =========================================================
-   FFMPEG FILE NAME
-========================================================= */
-
-function createFFmpegFilename(
-    originalName
-) {
-
-    const extension =
-        getExtension(
-            originalName
-        );
-
-
-    const safeExtension =
-        extension ||
-        "mp4";
-
-
-    return `input.${safeExtension}`;
-}
-
-
-/* =========================================================
-   VIDEO MIME
-========================================================= */
-
-function getCleanVideoMimeType(
-    file
-) {
-
-    const extension =
-        getExtension(
-            file.name
-        ).toLowerCase();
-
-
-    if (
-        extension === "webm" ||
-        file.type === "video/webm"
-    ) {
-
-        return "video/webm";
-    }
-
-
-    if (
-        extension === "mov" ||
-        file.type === "video/quicktime"
-    ) {
-
-        return "video/quicktime";
-    }
-
-
-    if (
-        extension === "mkv" ||
-        file.type === "video/x-matroska"
-    ) {
-
-        return "video/x-matroska";
-    }
-
-
-    if (
-        extension === "avi" ||
-        file.type === "video/x-msvideo"
-    ) {
-
-        return "video/x-msvideo";
-    }
-
-
-    if (
-        extension === "ogv" ||
-        file.type === "video/ogg"
-    ) {
-
-        return "video/ogg";
-    }
-
-
-    if (
-        extension === "mpeg" ||
-        extension === "mpg"
-    ) {
-
-        return "video/mpeg";
-    }
-
-
-    return "video/mp4";
-}
-
-
-/* =========================================================
-   MOV / MP4 CONTAINER CHECK
-========================================================= */
-
-function isMovLikeVideo(
-    file
-) {
-
-    const extension =
-        getExtension(
-            file.name
-        ).toLowerCase();
-
-
-    return (
-        extension === "mp4" ||
-        extension === "m4v" ||
-        extension === "mov" ||
-        file.type === "video/mp4" ||
-        file.type === "video/quicktime"
-    );
-}
-
-
-/* =========================================================
-   FFMPEG DELETE
-========================================================= */
-
-async function safeDeleteFFmpegFile(
-    ffmpeg,
-    filename
-) {
-
-    try {
-
-        await ffmpeg.deleteFile(
-            filename
-        );
-
-    } catch {
-        /* Ignore cleanup errors. */
-    }
 }
 
 
@@ -1713,9 +957,11 @@ function renderCleanedPreview(
         elements.cleanImagePreview.src =
             url;
 
+
         showElement(
             elements.cleanImagePreview
         );
+
 
         return;
     }
@@ -1724,9 +970,11 @@ function renderCleanedPreview(
     elements.cleanVideoPreview.src =
         url;
 
+
     showElement(
         elements.cleanVideoPreview
     );
+
 }
 
 
@@ -1770,6 +1018,7 @@ function downloadCleanedFile() {
 
 
     anchor.remove();
+
 }
 
 
@@ -1809,6 +1058,7 @@ function createCleanedFilename(
 
 
     return `${base}_cleaned.${extension}`;
+
 }
 
 
@@ -1857,6 +1107,7 @@ function resetForNewFile() {
             state.originalURL
         );
 
+
         state.originalURL =
             null;
     }
@@ -1874,6 +1125,7 @@ function resetForNewFile() {
         URL.revokeObjectURL(
             state.cleanedURL
         );
+
 
         state.cleanedURL =
             null;
@@ -1899,11 +1151,14 @@ function resetForNewFile() {
 
         elements.cleanVideoPreview.pause();
 
+
         elements.cleanVideoPreview.removeAttribute(
             "src"
         );
 
+
         elements.cleanVideoPreview.load();
+
     }
 
 
@@ -1950,8 +1205,13 @@ function resetForNewFile() {
         "is-clear",
         "is-unknown"
     );
+
 }
 
+
+/* =========================================================
+   RESET APPLICATION
+========================================================= */
 
 function resetApplication() {
 
@@ -1974,13 +1234,20 @@ function resetApplication() {
             state.originalURL
         );
 
+
         state.originalURL =
             null;
     }
 
 
-    elements.fileInput.value =
-        "";
+    if (
+        elements.fileInput
+    ) {
+
+        elements.fileInput.value =
+            "";
+
+    }
 
 
     elements.fileInfo?.classList.add(
@@ -2025,6 +1292,7 @@ function resetApplication() {
     setPreviewStatus(
         "BELUM ADA MEDIA"
     );
+
 }
 
 
@@ -2043,6 +1311,7 @@ function setPreviewStatus(
         elements.previewStatus.textContent =
             text;
     }
+
 }
 
 
@@ -2057,6 +1326,7 @@ function showElement(
     element?.classList.remove(
         "hidden"
     );
+
 }
 
 
@@ -2067,6 +1337,7 @@ function hideElement(
     element?.classList.add(
         "hidden"
     );
+
 }
 
 
@@ -2123,8 +1394,13 @@ function formatBytes(
             ? 0
             : 2
     )} ${units[safeIndex]}`;
+
 }
 
+
+/* =========================================================
+   EXTENSION
+========================================================= */
 
 function getExtension(
     filename
@@ -2157,8 +1433,16 @@ function getExtension(
             dot + 1
         )
         .toLowerCase();
+
 }
 
+
+/* =========================================================
+   ASPECT RATIO
+   ---------------------------------------------------------
+   Dipertahankan sebagai helper lokal karena masih
+   digunakan oleh metadata-app.js / kompatibilitas.
+========================================================= */
 
 function calculateAspectRatio(
     width,
@@ -2182,6 +1466,7 @@ function calculateAspectRatio(
 
 
     return `${width / divisor}:${height / divisor}`;
+
 }
 
 
@@ -2192,13 +1477,17 @@ function greatestCommonDivisor(
 
     a =
         Math.abs(
-            Math.round(a)
+            Math.round(
+                a
+            )
         );
 
 
     b =
         Math.abs(
-            Math.round(b)
+            Math.round(
+                b
+            )
         );
 
 
@@ -2209,15 +1498,19 @@ function greatestCommonDivisor(
         const temp =
             b;
 
+
         b =
             a % b;
 
+
         a =
             temp;
+
     }
 
 
     return a || 1;
+
 }
 
 
@@ -2248,6 +1541,7 @@ function getReadableError(
     return String(
         error
     );
+
 }
 
 
@@ -2255,40 +1549,49 @@ function getReadableError(
    PUBLIC APP
 ========================================================= */
 
-window.GENZMetadataCleaner = Object.freeze({
+window.GENZMetadataCleaner =
+    Object.freeze({
 
-    getState() {
+        getState() {
 
-        return {
+            return {
 
-            file:
-                state.file,
+                file:
+                    state.file,
 
-            fileType:
-                state.fileType,
+                fileType:
+                    state.fileType,
 
-            metadata:
-                [...state.metadata],
+                metadata:
+                    [
+                        ...state.metadata
+                    ],
 
-            aiIndicators:
-                [...state.aiIndicators],
+                aiIndicators:
+                    [
+                        ...state.aiIndicators
+                    ],
 
-            checked:
-                state.checked,
+                checked:
+                    state.checked,
 
-            cleaned:
-                Boolean(
-                    state.cleanedBlob
-                )
-        };
-    },
+                cleaned:
+                    Boolean(
+                        state.cleanedBlob
+                    )
 
-    reset() {
+            };
 
-        resetApplication();
-    }
+        },
 
-});
+
+        reset() {
+
+            resetApplication();
+
+        }
+
+    });
 
 
 /* =========================================================
@@ -2311,4 +1614,5 @@ if (
 } else {
 
     init();
+
 }
