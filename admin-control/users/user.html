@@ -11,7 +11,7 @@
     >
 
     <title>
-        GEN-Z.AI - User Management
+        User Management • GEN-Z.AI
     </title>
 
 
@@ -20,8 +20,8 @@
     ====================================================== -->
 
     <script
-        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-    </script>
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
 
 
     <!-- =====================================================
@@ -29,17 +29,17 @@
     ====================================================== -->
 
     <script
-        src="../assets/js/config.js">
-    </script>
+        src="../assets/js/config.js"
+    ></script>
 
 
     <!-- =====================================================
-         USER PAGE SUPABASE
+         SUPABASE CLIENT
     ====================================================== -->
 
     <script
-        src="./supabase.js">
-    </script>
+        src="./supabase.js"
+    ></script>
 
 
     <!-- =====================================================
@@ -47,12 +47,12 @@
     ====================================================== -->
 
     <script
-        src="/navigation/navigation.js">
-    </script>
+        src="/navigation/navigation.js"
+    ></script>
 
 
     <!-- =====================================================
-         GLOBAL PREMIUM STYLE
+         PREMIUM GLOBAL CSS
     ====================================================== -->
 
     <link
@@ -62,7 +62,7 @@
 
 
     <!-- =====================================================
-         USER MANAGEMENT STYLE
+         USER MANAGEMENT CSS
     ====================================================== -->
 
     <link
@@ -75,6 +75,7 @@
 
 <body>
 
+
     <!-- =====================================================
          SHARED NAVIGATION
     ====================================================== -->
@@ -83,21 +84,26 @@
 
 
     <!-- =====================================================
-         MAIN
+         USER MANAGEMENT PAGE
     ====================================================== -->
 
-    <main class="user-management-page">
-
+    <main
+        class="user-management-page"
+    >
 
         <!-- =================================================
-             TOPBAR
+             PAGE TOPBAR
         ================================================== -->
 
-        <section class="page-topbar">
+        <section
+            class="page-topbar"
+        >
 
             <div class="page-heading">
 
-                <div class="page-kicker">
+                <div
+                    class="page-kicker"
+                >
                     USER MANAGEMENT
                 </div>
 
@@ -106,18 +112,30 @@
                 </h1>
 
                 <p>
-                    Kelola akun, role, credit, status,
-                    dan verifikasi email pengguna.
+                    Kelola akun, role, status,
+                    credits, dan verifikasi email user.
                 </p>
+
+                <div
+                    id="userInfo"
+                    class="user-info"
+                >
+                    Memuat...
+                </div>
 
             </div>
 
 
-            <div class="page-user-info">
+            <div
+                class="page-actions"
+            >
 
-                <span id="userInfo">
-                    Memuat...
-                </span>
+                <a
+                    href="../admin-panel.html"
+                    class="back-button"
+                >
+                    ← Admin Panel
+                </a>
 
             </div>
 
@@ -125,32 +143,21 @@
 
 
         <!-- =================================================
-             BACK BUTTON
-        ================================================== -->
-
-        <div class="page-actions">
-
-            <a
-                href="../admin-panel.html"
-                class="back-button"
-            >
-                ← Kembali ke Admin Panel
-            </a>
-
-        </div>
-
-
-        <!-- =================================================
              STATISTICS
         ================================================== -->
 
-        <section class="stats-grid">
+        <section
+            class="stats-grid"
+        >
 
+            <article
+                class="stat-card"
+            >
 
-            <div class="stat-card">
-
-                <div class="stat-label">
-                    TOTAL USERS
+                <div
+                    class="stat-label"
+                >
+                    Total Users
                 </div>
 
                 <div
@@ -160,13 +167,17 @@
                     0
                 </div>
 
-            </div>
+            </article>
 
 
-            <div class="stat-card">
+            <article
+                class="stat-card"
+            >
 
-                <div class="stat-label">
-                    ACTIVE USERS
+                <div
+                    class="stat-label"
+                >
+                    Active Users
                 </div>
 
                 <div
@@ -176,13 +187,17 @@
                     0
                 </div>
 
-            </div>
+            </article>
 
 
-            <div class="stat-card">
+            <article
+                class="stat-card"
+            >
 
-                <div class="stat-label">
-                    ADMIN USERS
+                <div
+                    class="stat-label"
+                >
+                    Admin / Owner
                 </div>
 
                 <div
@@ -192,83 +207,87 @@
                     0
                 </div>
 
-            </div>
-
+            </article>
 
         </section>
 
 
         <!-- =================================================
-             USER CARD
+             USER MANAGEMENT CARD
         ================================================== -->
 
-        <section class="users-card">
+        <section
+            class="users-card"
+        >
 
-
-            <div class="users-card-header">
-
+            <div
+                class="users-card-header"
+            >
 
                 <div>
 
-                    <h2>
-                        Semua Users
-                    </h2>
-
-                    <p>
-                        Daftar seluruh akun yang terdaftar
-                        pada sistem GEN-Z.AI.
-                    </p>
-
-                </div>
-
-
-                <button
-                    type="button"
-                    id="addUserButton"
-                    class="primary-button"
-                >
-                    + ADD USER
-                </button>
-
-
-            </div>
-
-
-            <!-- =============================================
-                 TOOLBAR
-            ============================================== -->
-
-            <div class="users-toolbar">
-
-
-                <div class="search-wrapper">
-
-                    <input
-                        type="search"
-                        id="searchInput"
-                        class="search-input"
-                        placeholder="Cari email, nama, role, atau status..."
-                        autocomplete="off"
+                    <div
+                        class="section-title"
                     >
+                        User Accounts
+                    </div>
+
+                    <div
+                        class="section-subtitle"
+                    >
+                        Daftar seluruh akun yang tersedia.
+                    </div>
 
                 </div>
 
 
-                <button
-                    type="button"
-                    id="refreshButton"
-                    class="secondary-button"
+                <div
+                    class="users-toolbar"
                 >
-                    ↻ REFRESH
-                </button>
 
+                    <button
+                        type="button"
+                        id="addUserButton"
+                        class="primary-button"
+                    >
+                        + Add User
+                    </button>
+
+                    <button
+                        type="button"
+                        id="refreshButton"
+                        class="secondary-button"
+                    >
+                        Refresh
+                    </button>
+
+                </div>
 
             </div>
 
 
-            <!-- =============================================
+            <!-- =================================================
+                 SEARCH
+            ================================================== -->
+
+            <div
+                class="users-search"
+            >
+
+                <input
+                    type="search"
+                    id="searchInput"
+                    class="search-input"
+                    placeholder="Cari email, nama, role, atau status..."
+                    autocomplete="off"
+                >
+
+            </div>
+
+
+            <!-- =================================================
                  MESSAGE
-            ============================================== -->
+            ================================================== -->
 
             <div
                 id="message"
@@ -277,26 +296,34 @@
             ></div>
 
 
-            <!-- =============================================
-                 USERS
-            ============================================== -->
+            <!-- =================================================
+                 USERS TABLE CONTAINER
+            ================================================== -->
 
             <div
                 id="userContainer"
                 class="user-container"
             >
 
-                <div class="empty-state">
+                <div
+                    class="empty-state"
+                >
 
-                    <div class="empty-icon">
+                    <div
+                        class="empty-icon"
+                    >
                         ...
                     </div>
 
-                    <div class="empty-title">
+                    <div
+                        class="empty-title"
+                    >
                         Memuat Users
                     </div>
 
-                    <div class="empty-text">
+                    <div
+                        class="empty-text"
+                    >
                         Mengambil data user...
                     </div>
 
@@ -304,9 +331,7 @@
 
             </div>
 
-
         </section>
-
 
     </main>
 
@@ -321,20 +346,31 @@
         aria-hidden="true"
     >
 
-        <div class="modal-content">
+        <div
+            class="modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="addUserTitle"
+        >
 
-
-            <div class="modal-header">
+            <div
+                class="modal-header"
+            >
 
                 <div>
 
-                    <div class="modal-kicker">
-                        USER MANAGEMENT
+                    <div
+                        id="addUserTitle"
+                        class="modal-title"
+                    >
+                        Add User
                     </div>
 
-                    <h2>
-                        Add User
-                    </h2>
+                    <div
+                        class="modal-subtitle"
+                    >
+                        Buat akun user baru.
+                    </div>
 
                 </div>
 
@@ -353,17 +389,17 @@
 
             <form
                 id="addUserForm"
-                autocomplete="off"
             >
 
+                <!-- EMAIL -->
 
-                <!-- =========================================
-                     EMAIL
-                ========================================== -->
+                <div
+                    class="form-group"
+                >
 
-                <div class="form-group">
-
-                    <label for="newEmail">
+                    <label
+                        for="newEmail"
+                    >
                         Email
                     </label>
 
@@ -371,20 +407,22 @@
                         type="email"
                         id="newEmail"
                         name="email"
-                        required
                         autocomplete="email"
+                        required
                     >
 
                 </div>
 
 
-                <!-- =========================================
-                     PASSWORD
-                ========================================== -->
+                <!-- PASSWORD -->
 
-                <div class="form-group">
+                <div
+                    class="form-group"
+                >
 
-                    <label for="newPassword">
+                    <label
+                        for="newPassword"
+                    >
                         Password
                     </label>
 
@@ -393,21 +431,23 @@
                         id="newPassword"
                         name="password"
                         minlength="6"
-                        required
                         autocomplete="new-password"
+                        required
                     >
 
                 </div>
 
 
-                <!-- =========================================
-                     NAME
-                ========================================== -->
+                <!-- NAME -->
 
-                <div class="form-group">
+                <div
+                    class="form-group"
+                >
 
-                    <label for="newName">
-                        Nama
+                    <label
+                        for="newName"
+                    >
+                        Name
                     </label>
 
                     <input
@@ -420,13 +460,15 @@
                 </div>
 
 
-                <!-- =========================================
-                     ROLE
-                ========================================== -->
+                <!-- ROLE -->
 
-                <div class="form-group">
+                <div
+                    class="form-group"
+                >
 
-                    <label for="newRole">
+                    <label
+                        for="newRole"
+                    >
                         Role
                     </label>
 
@@ -435,18 +477,22 @@
                         name="role"
                     >
 
-                        <option value="USER">
+                        <option
+                            value="USER"
+                        >
                             USER
                         </option>
 
                         <option
-                            value="ADMIN"
                             id="adminRoleOption"
+                            value="ADMIN"
                         >
                             ADMIN
                         </option>
 
-                        <option value="OWNER">
+                        <option
+                            value="OWNER"
+                        >
                             OWNER
                         </option>
 
@@ -455,13 +501,15 @@
                 </div>
 
 
-                <!-- =========================================
-                     CREDITS
-                ========================================== -->
+                <!-- CREDITS -->
 
-                <div class="form-group">
+                <div
+                    class="form-group"
+                >
 
-                    <label for="newCredits">
+                    <label
+                        for="newCredits"
+                    >
                         Credits
                     </label>
 
@@ -477,13 +525,15 @@
                 </div>
 
 
-                <!-- =========================================
-                     STATUS
-                ========================================== -->
+                <!-- STATUS -->
 
-                <div class="form-group">
+                <div
+                    class="form-group"
+                >
 
-                    <label for="newStatus">
+                    <label
+                        for="newStatus"
+                    >
                         Status
                     </label>
 
@@ -492,16 +542,22 @@
                         name="status"
                     >
 
-                        <option value="active">
-                            ACTIVE
+                        <option
+                            value="active"
+                        >
+                            Active
                         </option>
 
-                        <option value="inactive">
-                            INACTIVE
+                        <option
+                            value="inactive"
+                        >
+                            Inactive
                         </option>
 
-                        <option value="suspended">
-                            SUSPENDED
+                        <option
+                            value="suspended"
+                        >
+                            Suspended
                         </option>
 
                     </select>
@@ -509,32 +565,30 @@
                 </div>
 
 
-                <!-- =========================================
-                     FORM ACTIONS
-                ========================================== -->
+                <!-- FORM ACTIONS -->
 
-                <div class="modal-actions">
+                <div
+                    class="modal-actions"
+                >
 
                     <button
                         type="button"
                         id="cancelAddButton"
                         class="secondary-button"
                     >
-                        CANCEL
+                        Cancel
                     </button>
 
                     <button
                         type="submit"
                         class="primary-button"
                     >
-                        CREATE USER
+                        Create User
                     </button>
 
                 </div>
 
-
             </form>
-
 
         </div>
 
@@ -551,20 +605,31 @@
         aria-hidden="true"
     >
 
-        <div class="modal-content modal-delete">
+        <div
+            class="modal-content delete-modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="deleteUserTitle"
+        >
 
-
-            <div class="modal-header">
+            <div
+                class="modal-header"
+            >
 
                 <div>
 
-                    <div class="modal-kicker">
-                        DANGER ZONE
+                    <div
+                        id="deleteUserTitle"
+                        class="modal-title"
+                    >
+                        Delete User
                     </div>
 
-                    <h2>
-                        Delete User
-                    </h2>
+                    <div
+                        class="modal-subtitle"
+                    >
+                        Tindakan ini tidak dapat dibatalkan.
+                    </div>
 
                 </div>
 
@@ -581,31 +646,36 @@
             </div>
 
 
-            <div class="delete-message">
+            <div
+                class="delete-warning"
+            >
 
-                <p>
-                    User berikut akan dihapus:
-                </p>
+                <div
+                    class="delete-warning-title"
+                >
+                    Hapus akun berikut?
+                </div>
 
-                <strong
+                <div
                     id="deleteUserName"
-                ></strong>
-
-                <p>
-                    Tindakan ini tidak dapat dibatalkan.
-                </p>
+                    class="delete-user-name"
+                >
+                    -
+                </div>
 
             </div>
 
 
-            <div class="modal-actions">
+            <div
+                class="modal-actions"
+            >
 
                 <button
                     type="button"
                     id="cancelDeleteButton"
                     class="secondary-button"
                 >
-                    CANCEL
+                    Cancel
                 </button>
 
                 <button
@@ -613,11 +683,10 @@
                     id="confirmDeleteButton"
                     class="danger-button"
                 >
-                    DELETE USER
+                    Delete User
                 </button>
 
             </div>
-
 
         </div>
 
@@ -626,15 +695,12 @@
 
     <!-- =====================================================
          USER MANAGEMENT MODULE
-         -----------------------------------------------------
-         Satu-satunya entry point:
-         user-loader.js
     ====================================================== -->
 
     <script
         type="module"
-        src="./assets/js/user-loader.js">
-    </script>
+        src="./assets/js/user-loader.js"
+    ></script>
 
 </body>
 
