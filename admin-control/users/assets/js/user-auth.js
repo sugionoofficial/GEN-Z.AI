@@ -34,11 +34,34 @@ function getSupabaseClient() {
 
 /* =========================================================
    REDIRECT
+   ---------------------------------------------------------
+   Halaman ini berada di:
+
+   /admin-control/users/user.html
+
+   Karena /admin-control/index.html TIDAK ADA,
+   redirect authentication diarahkan ke root login.
 ========================================================= */
 
-function redirectTo(path) {
+function redirectToLogin() {
 
-    window.location.href = path;
+    window.location.href = "/";
+
+}
+
+
+/* =========================================================
+   REDIRECT NON ADMIN
+   ---------------------------------------------------------
+   Jangan mengarang path /admin-control/user/dashboard.html.
+   Jika navigation/session menyatakan user bukan admin,
+   kembali ke root agar sistem login/navigation menentukan
+   halaman tujuan yang benar.
+========================================================= */
+
+function redirectUnauthorized() {
+
+    window.location.href = "/";
 
 }
 
@@ -126,12 +149,15 @@ function configureRoleOptions(role) {
                 document.createElement("option");
 
             option.id = "adminRoleOption";
+
             option.value = "ADMIN";
+
             option.textContent = "ADMIN";
 
             roleInput.appendChild(option);
 
         }
+
 
         roleInput.value = "USER";
 
@@ -150,13 +176,17 @@ export async function checkAuth() {
         getSupabaseClient();
 
 
+    /* =====================================================
+       SUPABASE MISSING
+    ====================================================== */
+
     if (!supabase) {
 
         console.error(
             "[GEN-Z.AI] Supabase client tidak tersedia."
         );
 
-        redirectTo("../index.html");
+        redirectToLogin();
 
         return false;
 
@@ -185,9 +215,13 @@ export async function checkAuth() {
             data?.session || null;
 
 
+        /* =================================================
+           NO SESSION
+        ================================================= */
+
         if (!session?.user) {
 
-            redirectTo("../index.html");
+            redirectToLogin();
 
             return false;
 
@@ -199,7 +233,7 @@ export async function checkAuth() {
 
 
         /* =================================================
-           PROFILE
+           LOAD PROFILE
         ================================================= */
 
         const {
@@ -223,13 +257,17 @@ export async function checkAuth() {
         }
 
 
+        /* =================================================
+           PROFILE NOT FOUND
+        ================================================= */
+
         if (!profile) {
 
             console.error(
                 "[GEN-Z.AI] Profile admin tidak ditemukan."
             );
 
-            redirectTo("../index.html");
+            redirectToLogin();
 
             return false;
 
@@ -237,7 +275,7 @@ export async function checkAuth() {
 
 
         /* =================================================
-           NORMALIZE
+           NORMALIZE ROLE / STATUS
         ================================================= */
 
         const role =
@@ -257,7 +295,7 @@ export async function checkAuth() {
 
 
         /* =================================================
-           ROLE AUTHORIZATION
+           ADMIN / OWNER ONLY
         ================================================= */
 
         if (
@@ -265,9 +303,7 @@ export async function checkAuth() {
             role !== "OWNER"
         ) {
 
-            redirectTo(
-                "../user/dashboard.html"
-            );
+            redirectUnauthorized();
 
             return false;
 
@@ -275,14 +311,12 @@ export async function checkAuth() {
 
 
         /* =================================================
-           STATUS AUTHORIZATION
+           ACTIVE ONLY
         ================================================= */
 
         if (status !== "active") {
 
-            redirectTo(
-                "../user/dashboard.html"
-            );
+            redirectUnauthorized();
 
             return false;
 
@@ -290,7 +324,7 @@ export async function checkAuth() {
 
 
         /* =================================================
-           SAVE PROFILE STATE
+           SAVE PROFILE
         ================================================= */
 
         userState.currentProfile = {
@@ -331,7 +365,6 @@ export async function checkAuth() {
 
         return true;
 
-
     } catch (error) {
 
         console.error(
@@ -339,7 +372,7 @@ export async function checkAuth() {
             error
         );
 
-        redirectTo("../index.html");
+        redirectToLogin();
 
         return false;
 
