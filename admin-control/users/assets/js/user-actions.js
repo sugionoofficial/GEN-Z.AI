@@ -1,6 +1,6 @@
 /* =========================================================
    GEN-Z.AI
-   USER MANAGEMENT - ACTIONS
+   USER MANAGEMENT ACTIONS
    ---------------------------------------------------------
    File:
    admin-control/users/assets/js/user-actions.js
@@ -10,16 +10,19 @@
    - Confirm email
    - Resend confirmation email
    - Delete user
-========================================================= */
+   - Validasi form
+   - Loading state tombol
+   - Tidak mengelola authentication session
+   - Tidak melakukan redirect
+   - Tidak melakukan signOut
+   ========================================================= */
 
-import {
-    userState
-} from "./user-state.js";
+import { userState } from "./user-state.js";
 
 import {
     createUser,
-    confirmUserEmail,
     resendConfirmation,
+    confirmUserEmail,
     deleteUser
 } from "./user-api.js";
 
@@ -28,17 +31,141 @@ import {
     closeDeleteModal
 } from "./user-modal.js";
 
-import {
-    loadUsers
-} from "./user-data.js";
+import { loadUsers } from "./user-data.js";
 
 import {
-    showMessage
+    showMessage,
+    clearMessage
 } from "./user-utils.js";
 
 
 /* =========================================================
-   CREATE USER
+   ELEMENT HELPER
+========================================================= */
+
+function getElement(id) {
+
+    return document.getElementById(id);
+}
+
+
+/* =========================================================
+   CURRENT ROLE
+========================================================= */
+
+function getCurrentRole() {
+
+    return String(
+        userState.currentProfile?.role ||
+        window.GENZNavigation?.getRole?.() ||
+        window.GENZ_CURRENT_ROLE ||
+        "USER"
+    )
+        .trim()
+        .toUpperCase();
+}
+
+
+/* =========================================================
+   EMAIL VALIDATION
+========================================================= */
+
+function isValidEmail(email) {
+
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        .test(
+            String(email || "").trim()
+        );
+}
+
+
+/* =========================================================
+   NUMBER VALIDATION
+========================================================= */
+
+function getCreditsValue(value) {
+
+    const credits =
+        Number(value);
+
+
+    if (!Number.isFinite(credits)) {
+
+        return null;
+    }
+
+
+    if (credits < 0) {
+
+        return null;
+    }
+
+
+    return credits;
+}
+
+
+/* =========================================================
+   BUTTON LOADING
+========================================================= */
+
+function setButtonLoading(
+    button,
+    loading,
+    loadingText = "Memproses..."
+) {
+
+    if (!button) {
+        return;
+    }
+
+
+    if (loading) {
+
+        if (
+            !button.dataset.originalText
+        ) {
+
+            button.dataset.originalText =
+                button.textContent;
+        }
+
+
+        button.disabled = true;
+
+        button.classList.add(
+            "loading"
+        );
+
+        button.textContent =
+            loadingText;
+
+        return;
+    }
+
+
+    button.disabled = false;
+
+    button.classList.remove(
+        "loading"
+    );
+
+
+    if (
+        button.dataset.originalText !==
+        undefined
+    ) {
+
+        button.textContent =
+            button.dataset.originalText;
+
+        delete button.dataset.originalText;
+    }
+}
+
+
+/* =========================================================
+   SUBMIT ADD USER
 ========================================================= */
 
 export async function submitAddUser(event) {
@@ -47,65 +174,45 @@ export async function submitAddUser(event) {
 
 
     const form =
-        document.getElementById(
-            "addUserForm"
-        );
+        event.currentTarget ||
+        getElement("addUserForm");
 
 
     if (!form) {
-
         return;
-
     }
 
 
-    const submitButton =
-        form.querySelector(
-            'button[type="submit"]'
-        );
+    clearMessage();
 
+
+    /*
+       Fields.
+    */
 
     const emailInput =
-        document.getElementById(
-            "newEmail"
-        );
+        getElement("newEmail");
 
     const passwordInput =
-        document.getElementById(
-            "newPassword"
-        );
+        getElement("newPassword");
 
     const nameInput =
-        document.getElementById(
-            "newName"
-        );
+        getElement("newName");
 
     const roleInput =
-        document.getElementById(
-            "newRole"
-        );
+        getElement("newRole");
 
     const creditsInput =
-        document.getElementById(
-            "newCredits"
-        );
+        getElement("newCredits");
 
     const statusInput =
-        document.getElementById(
-            "newStatus"
-        );
+        getElement("newStatus");
 
-
-    /* -----------------------------------------------------
-       READ INPUT
-    ----------------------------------------------------- */
 
     const email =
         String(
             emailInput?.value || ""
-        )
-            .trim()
-            .toLowerCase();
+        ).trim();
 
 
     const password =
@@ -117,8 +224,7 @@ export async function submitAddUser(event) {
     const name =
         String(
             nameInput?.value || ""
-        )
-            .trim();
+        ).trim();
 
 
     let role =
@@ -129,14 +235,13 @@ export async function submitAddUser(event) {
             .toUpperCase();
 
 
-    const creditsRaw =
-        String(
-            creditsInput?.value || "0"
-        )
-            .trim();
+    const credits =
+        getCreditsValue(
+            creditsInput?.value ?? 0
+        );
 
 
-    let status =
+    const status =
         String(
             statusInput?.value || "active"
         )
@@ -144,29 +249,15 @@ export async function submitAddUser(event) {
             .toLowerCase();
 
 
-    /* -----------------------------------------------------
-       EMAIL VALIDATION
-    ----------------------------------------------------- */
-
-    const emailPattern =
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const currentRole =
+        getCurrentRole();
 
 
-    if (!email) {
+    /* =====================================================
+       VALIDATION
+    ===================================================== */
 
-        showMessage(
-            "Email wajib diisi.",
-            "error"
-        );
-
-        emailInput?.focus();
-
-        return;
-
-    }
-
-
-    if (!emailPattern.test(email)) {
+    if (!isValidEmail(email)) {
 
         showMessage(
             "Format email tidak valid.",
@@ -176,13 +267,8 @@ export async function submitAddUser(event) {
         emailInput?.focus();
 
         return;
-
     }
 
-
-    /* -----------------------------------------------------
-       PASSWORD VALIDATION
-    ----------------------------------------------------- */
 
     if (password.length < 6) {
 
@@ -194,77 +280,50 @@ export async function submitAddUser(event) {
         passwordInput?.focus();
 
         return;
-
     }
-
-
-    /* -----------------------------------------------------
-       ROLE VALIDATION
-    ----------------------------------------------------- */
-
-    const currentRole =
-        String(
-            userState.currentProfile?.role || ""
-        )
-            .trim()
-            .toUpperCase();
-
-
-    const allowedRoles =
-        ["USER", "ADMIN", "OWNER"];
 
 
     if (
-        !allowedRoles.includes(role)
+        ![
+            "USER",
+            "ADMIN",
+            "OWNER"
+        ].includes(role)
     ) {
 
-        role = "USER";
-
-    }
-
-
-    /*
-     * ADMIN hanya boleh membuat USER.
-     */
-
-    if (currentRole === "ADMIN") {
-
-        role = "USER";
-
-    }
-
-
-    /*
-     * OWNER tidak boleh dibuat melalui
-     * User Management.
-     */
-
-    if (role === "OWNER") {
-
         showMessage(
-            "Role OWNER tidak dapat dibuat melalui User Management.",
+            "Role user tidak valid.",
             "error"
         );
 
         return;
-
     }
 
 
-    /* -----------------------------------------------------
-       CREDIT VALIDATION
-    ----------------------------------------------------- */
+    /*
+       ADMIN hanya boleh membuat USER.
+       OWNER boleh membuat USER / ADMIN.
+       OWNER tidak boleh dibuat melalui UI.
+    */
 
-    const credits =
-        Number(
-            creditsRaw || 0
+    if (currentRole === "ADMIN") {
+
+        role = "USER";
+    }
+
+
+    if (role === "OWNER") {
+
+        showMessage(
+            "Pembuatan akun OWNER tidak diizinkan.",
+            "error"
         );
 
+        return;
+    }
 
-    if (
-        !Number.isFinite(credits) ||
-        credits < 0
-    ) {
+
+    if (credits === null) {
 
         showMessage(
             "Credits harus berupa angka 0 atau lebih.",
@@ -274,55 +333,48 @@ export async function submitAddUser(event) {
         creditsInput?.focus();
 
         return;
-
     }
-
-
-    /* -----------------------------------------------------
-       STATUS VALIDATION
-    ----------------------------------------------------- */
-
-    const allowedStatuses =
-        [
-            "active",
-            "inactive",
-            "suspended"
-        ];
 
 
     if (
-        !allowedStatuses.includes(status)
+        ![
+            "active",
+            "inactive",
+            "suspended"
+        ].includes(status)
     ) {
 
-        status = "active";
+        showMessage(
+            "Status user tidak valid.",
+            "error"
+        );
 
+        return;
     }
 
 
-    /* -----------------------------------------------------
-       LOCK SUBMIT
-    ----------------------------------------------------- */
+    /*
+       Submit button.
+    */
 
-    const originalText =
-        submitButton?.textContent ||
-        "Create User";
+    const submitButton =
+        form.querySelector(
+            'button[type="submit"]'
+        );
 
 
-    if (submitButton) {
-
-        submitButton.disabled = true;
-
-        submitButton.textContent =
-            "Creating...";
-
-    }
+    setButtonLoading(
+        submitButton,
+        true,
+        "Membuat User..."
+    );
 
 
     try {
 
-        /* -------------------------------------------------
-           CREATE
-        ------------------------------------------------- */
+        /*
+           Request ke API.
+        */
 
         const result =
             await createUser({
@@ -338,27 +390,28 @@ export async function submitAddUser(event) {
                 credits,
 
                 status
-
             });
 
 
-        /* -------------------------------------------------
-           CLOSE MODAL
-        ------------------------------------------------- */
+        /*
+           Tutup modal.
+        */
 
         closeAddModal();
 
 
-        /* -------------------------------------------------
-           REFRESH DATA
-        ------------------------------------------------- */
+        /*
+           Refresh data.
+        */
 
         await loadUsers();
 
 
-        /* -------------------------------------------------
-           EMAIL RESULT
-        ------------------------------------------------- */
+        /*
+           API dapat memberi informasi
+           apakah email confirmation berhasil
+           dikirim.
+        */
 
         if (
             result &&
@@ -366,7 +419,7 @@ export async function submitAddUser(event) {
         ) {
 
             showMessage(
-                "User berhasil dibuat, tetapi email konfirmasi belum berhasil dikirim.",
+                "User berhasil dibuat, tetapi email konfirmasi gagal dikirim.",
                 "warning"
             );
 
@@ -376,13 +429,13 @@ export async function submitAddUser(event) {
                 "User berhasil dibuat.",
                 "success"
             );
-
         }
+
 
     } catch (error) {
 
         console.error(
-            "[GEN-Z.AI] Create user error:",
+            "[GEN-Z.AI UserActions] Create user error:",
             error
         );
 
@@ -395,76 +448,75 @@ export async function submitAddUser(event) {
 
     } finally {
 
-        if (submitButton) {
-
-            submitButton.disabled = false;
-
-            submitButton.textContent =
-                originalText;
-
-        }
-
+        setButtonLoading(
+            submitButton,
+            false
+        );
     }
-
 }
 
 
 /* =========================================================
-   CONFIRM EMAIL
+   CONFIRM USER EMAIL
 ========================================================= */
 
 export async function confirmEmail(
     userId,
-    email = ""
+    email
 ) {
 
-    if (!userId) {
+    const id =
+        String(userId || "").trim();
+
+
+    if (!id) {
+
+        showMessage(
+            "User ID tidak tersedia.",
+            "error"
+        );
 
         return;
-
     }
 
 
-    const displayEmail =
-        String(
-            email || ""
-        ).trim();
+    const targetEmail =
+        String(email || "").trim();
 
 
     const confirmed =
         window.confirm(
-            displayEmail
-                ? `Konfirmasi email ${displayEmail}?`
-                : "Konfirmasi email user ini?"
+            targetEmail
+                ? `Confirm email untuk ${targetEmail}?`
+                : "Confirm email user ini?"
         );
 
 
     if (!confirmed) {
-
         return;
-
     }
 
 
     try {
 
-        await confirmUserEmail(
-            userId
-        );
+        const result =
+            await confirmUserEmail(id);
 
 
         await loadUsers();
 
 
         showMessage(
+            result?.message ||
             "Email user berhasil dikonfirmasi.",
             "success"
         );
 
+
     } catch (error) {
 
         console.error(
-            "[GEN-Z.AI] Confirm email error:",
+            "[GEN-Z.AI UserActions] Confirm email error:",
             error
         );
 
@@ -474,9 +526,7 @@ export async function confirmEmail(
             "Gagal mengonfirmasi email user.",
             "error"
         );
-
     }
-
 }
 
 
@@ -484,25 +534,20 @@ export async function confirmEmail(
    RESEND CONFIRMATION
 ========================================================= */
 
-export async function resendEmail(
-    email
-) {
+export async function resendEmail(email) {
 
     const targetEmail =
-        String(
-            email || ""
-        ).trim();
+        String(email || "").trim();
 
 
     if (!targetEmail) {
 
         showMessage(
-            "Email user tidak ditemukan.",
+            "Email user tidak tersedia.",
             "error"
         );
 
         return;
-
     }
 
 
@@ -513,9 +558,7 @@ export async function resendEmail(
 
 
     if (!confirmed) {
-
         return;
-
     }
 
 
@@ -527,29 +570,17 @@ export async function resendEmail(
             );
 
 
-        if (
-            result &&
-            result.emailSent === false
-        ) {
+        showMessage(
+            result?.message ||
+            "Email konfirmasi berhasil dikirim ulang.",
+            "success"
+        );
 
-            showMessage(
-                "Permintaan berhasil diproses, tetapi email konfirmasi belum berhasil dikirim.",
-                "warning"
-            );
-
-        } else {
-
-            showMessage(
-                "Email konfirmasi berhasil dikirim ulang.",
-                "success"
-            );
-
-        }
 
     } catch (error) {
 
         console.error(
-            "[GEN-Z.AI] Resend confirmation error:",
+            "[GEN-Z.AI UserActions] Resend email error:",
             error
         );
 
@@ -559,14 +590,12 @@ export async function resendEmail(
             "Gagal mengirim ulang email konfirmasi.",
             "error"
         );
-
     }
-
 }
 
 
 /* =========================================================
-   DELETE USER
+   CONFIRM DELETE USER
 ========================================================= */
 
 export async function confirmDeleteUser() {
@@ -577,34 +606,39 @@ export async function confirmDeleteUser() {
 
     if (!target?.id) {
 
+        showMessage(
+            "User yang akan dihapus tidak ditemukan.",
+            "error"
+        );
+
         closeDeleteModal();
 
         return;
-
     }
 
 
-    const button =
-        document.getElementById(
-            "confirmDeleteButton"
-        );
+    const confirmButton =
+        getElement("confirmDeleteButton");
 
 
-    if (button) {
-
-        button.disabled = true;
-
-        button.textContent =
-            "Deleting...";
-
-    }
+    setButtonLoading(
+        confirmButton,
+        true,
+        "Menghapus..."
+    );
 
 
     try {
 
-        await deleteUser(
-            target.id
-        );
+        /*
+           API tetap menjadi authority untuk
+           permission delete.
+        */
+
+        const result =
+            await deleteUser(
+                target.id
+            );
 
 
         closeDeleteModal();
@@ -614,14 +648,16 @@ export async function confirmDeleteUser() {
 
 
         showMessage(
+            result?.message ||
             "User berhasil dihapus.",
             "success"
         );
 
+
     } catch (error) {
 
         console.error(
-            "[GEN-Z.AI] Delete user error:",
+            "[GEN-Z.AI UserActions] Delete user error:",
             error
         );
 
@@ -634,15 +670,28 @@ export async function confirmDeleteUser() {
 
     } finally {
 
-        if (button) {
-
-            button.disabled = false;
-
-            button.textContent =
-                "Delete User";
-
-        }
-
+        setButtonLoading(
+            confirmButton,
+            false
+        );
     }
+}
 
+
+/* =========================================================
+   GLOBAL BRIDGE
+========================================================= */
+
+if (typeof window !== "undefined") {
+
+    window.GENZUserActions = {
+
+        submitAddUser,
+
+        confirmEmail,
+
+        resendEmail,
+
+        confirmDeleteUser
+    };
 }
