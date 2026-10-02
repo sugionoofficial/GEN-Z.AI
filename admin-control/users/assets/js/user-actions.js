@@ -8,14 +8,14 @@
    Fungsi:
    - Create user
    - Confirm email
-   - Resend confirmation email
+   - Resend confirmation
+   - Edit user
    - Delete user
-   - Validasi form
-   - Loading state tombol
-   - Tidak mengelola authentication session
-   - Tidak melakukan redirect
-   - Tidak melakukan signOut
-   ========================================================= */
+
+   Catatan:
+   - Permission frontend hanya sebagai guard.
+   - Permission sebenarnya tetap divalidasi oleh API.
+========================================================= */
 
 import { userState } from "./user-state.js";
 
@@ -23,15 +23,19 @@ import {
     createUser,
     resendConfirmation,
     confirmUserEmail,
+    updateUser,
     deleteUser
 } from "./user-api.js";
 
 import {
     closeAddModal,
+    closeEditModal,
     closeDeleteModal
 } from "./user-modal.js";
 
-import { loadUsers } from "./user-data.js";
+import {
+    loadUsers
+} from "./user-data.js";
 
 import {
     showMessage,
@@ -40,127 +44,243 @@ import {
 
 
 /* =========================================================
-   ELEMENT HELPER
-========================================================= */
-
-function getElement(id) {
-
-    return document.getElementById(id);
-}
-
-
-/* =========================================================
    CURRENT ROLE
 ========================================================= */
 
 function getCurrentRole() {
 
-    return String(
+    const role =
+
         userState.currentProfile?.role ||
+
         window.GENZNavigation?.getRole?.() ||
+
         window.GENZ_CURRENT_ROLE ||
-        "USER"
-    )
+
+        "USER";
+
+
+    return String(role)
         .trim()
         .toUpperCase();
+
 }
 
 
 /* =========================================================
-   EMAIL VALIDATION
+   TARGET PERMISSION
 ========================================================= */
 
-function isValidEmail(email) {
+function canManageTarget(
+    target
+) {
 
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        .test(
-            String(email || "").trim()
-        );
+    if (!target?.id) {
+
+        return false;
+
+    }
+
+
+    const currentRole =
+        getCurrentRole();
+
+
+    const currentUserId =
+
+        userState.currentUser?.id ||
+
+        window.GENZNavigation?.getUser?.()?.id ||
+
+        window.GENZ_CURRENT_USER?.id ||
+
+        "";
+
+
+    /*
+     * Tidak boleh mengelola akun sendiri.
+     */
+
+    if (
+        currentUserId &&
+        String(target.id) ===
+        String(currentUserId)
+    ) {
+
+        return false;
+
+    }
+
+
+    const targetRole =
+
+        String(
+            target.role || "USER"
+        )
+            .trim()
+            .toUpperCase();
+
+
+    /*
+     * OWNER tidak dapat mengedit OWNER.
+     */
+
+    if (
+        targetRole === "OWNER"
+    ) {
+
+        return false;
+
+    }
+
+
+    /*
+     * ADMIN hanya dapat mengelola USER.
+     */
+
+    if (
+        currentRole === "ADMIN" &&
+        targetRole !== "USER"
+    ) {
+
+        return false;
+
+    }
+
+
+    /*
+     * Hanya ADMIN / OWNER.
+     */
+
+    if (
+        currentRole !== "ADMIN" &&
+        currentRole !== "OWNER"
+    ) {
+
+        return false;
+
+    }
+
+
+    return true;
+
 }
 
 
 /* =========================================================
-   NUMBER VALIDATION
+   VALIDATE CREDITS
 ========================================================= */
 
-function getCreditsValue(value) {
+function parseCredits(
+    value
+) {
 
     const credits =
         Number(value);
 
 
-    if (!Number.isFinite(credits)) {
+    if (
+        !Number.isFinite(credits)
+    ) {
 
-        return null;
+        throw new Error(
+            "Credits harus berupa angka yang valid."
+        );
+
     }
 
 
-    if (credits < 0) {
+    if (
+        credits < 0
+    ) {
 
-        return null;
+        throw new Error(
+            "Credits tidak boleh kurang dari 0."
+        );
+
     }
 
 
     return credits;
+
 }
 
 
 /* =========================================================
-   BUTTON LOADING
+   VALIDATE STATUS
 ========================================================= */
 
-function setButtonLoading(
-    button,
-    loading,
-    loadingText = "Memproses..."
+function parseStatus(
+    value
 ) {
 
-    if (!button) {
-        return;
-    }
+    const status =
+
+        String(
+            value || ""
+        )
+            .trim()
+            .toLowerCase();
 
 
-    if (loading) {
+    const allowed = [
 
-        if (
-            !button.dataset.originalText
-        ) {
+        "active",
 
-            button.dataset.originalText =
-                button.textContent;
-        }
+        "inactive",
 
+        "suspended"
 
-        button.disabled = true;
-
-        button.classList.add(
-            "loading"
-        );
-
-        button.textContent =
-            loadingText;
-
-        return;
-    }
-
-
-    button.disabled = false;
-
-    button.classList.remove(
-        "loading"
-    );
+    ];
 
 
     if (
-        button.dataset.originalText !==
-        undefined
+        !allowed.includes(status)
     ) {
 
-        button.textContent =
-            button.dataset.originalText;
+        throw new Error(
+            "Status user tidak valid."
+        );
 
-        delete button.dataset.originalText;
     }
+
+
+    return status;
+
+}
+
+
+/* =========================================================
+   VALIDATE ROLE
+========================================================= */
+
+function parseRole(
+    value
+) {
+
+    const role =
+
+        String(
+            value || ""
+        )
+            .trim()
+            .toUpperCase();
+
+
+    if (
+        role !== "USER" &&
+        role !== "ADMIN"
+    ) {
+
+        throw new Error(
+            "Role user tidak valid."
+        );
+
+    }
+
+
+    return role;
+
 }
 
 
@@ -168,213 +288,193 @@ function setButtonLoading(
    SUBMIT ADD USER
 ========================================================= */
 
-export async function submitAddUser(event) {
+export async function submitAddUser(
+    event
+) {
 
     event.preventDefault();
-
-
-    const form =
-        event.currentTarget ||
-        getElement("addUserForm");
-
-
-    if (!form) {
-        return;
-    }
 
 
     clearMessage();
 
 
-    /*
-       Fields.
-    */
-
-    const emailInput =
-        getElement("newEmail");
-
-    const passwordInput =
-        getElement("newPassword");
-
-    const nameInput =
-        getElement("newName");
-
-    const roleInput =
-        getElement("newRole");
-
-    const creditsInput =
-        getElement("newCredits");
-
-    const statusInput =
-        getElement("newStatus");
-
-
     const email =
-        String(
-            emailInput?.value || ""
-        ).trim();
+        document
+            .getElementById("newEmail")
+            ?.value
+            .trim() || "";
 
 
     const password =
-        String(
-            passwordInput?.value || ""
-        );
+        document
+            .getElementById("newPassword")
+            ?.value || "";
 
 
     const name =
-        String(
-            nameInput?.value || ""
-        ).trim();
+        document
+            .getElementById("newName")
+            ?.value
+            .trim() || "";
 
 
     let role =
-        String(
-            roleInput?.value || "USER"
-        )
-            .trim()
-            .toUpperCase();
+
+        document
+            .getElementById("newRole")
+            ?.value || "USER";
 
 
     const credits =
-        getCreditsValue(
-            creditsInput?.value ?? 0
+        parseCredits(
+
+            document
+                .getElementById("newCredits")
+                ?.value ?? 0
+
         );
 
 
     const status =
-        String(
-            statusInput?.value || "active"
-        )
-            .trim()
-            .toLowerCase();
+        parseStatus(
+
+            document
+                .getElementById("newStatus")
+                ?.value || "active"
+
+        );
 
 
     const currentRole =
         getCurrentRole();
 
 
-    /* =====================================================
-       VALIDATION
-    ===================================================== */
+    /*
+     * Email
+     */
 
-    if (!isValidEmail(email)) {
+    if (!email) {
 
         showMessage(
-            "Format email tidak valid.",
+            "Email wajib diisi.",
             "error"
         );
 
-        emailInput?.focus();
-
         return;
+
     }
 
 
-    if (password.length < 6) {
+    /*
+     * Password
+     */
+
+    if (
+        password.length < 6
+    ) {
 
         showMessage(
             "Password minimal 6 karakter.",
             "error"
         );
 
-        passwordInput?.focus();
-
         return;
-    }
 
-
-    if (
-        ![
-            "USER",
-            "ADMIN",
-            "OWNER"
-        ].includes(role)
-    ) {
-
-        showMessage(
-            "Role user tidak valid.",
-            "error"
-        );
-
-        return;
     }
 
 
     /*
-       ADMIN hanya boleh membuat USER.
-       OWNER boleh membuat USER / ADMIN.
-       OWNER tidak boleh dibuat melalui UI.
-    */
+     * Role
+     */
 
-    if (currentRole === "ADMIN") {
+    try {
+
+        role =
+            parseRole(role);
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    /*
+     * ADMIN tidak boleh membuat ADMIN.
+     */
+
+    if (
+        currentRole === "ADMIN"
+    ) {
 
         role = "USER";
-    }
 
-
-    if (role === "OWNER") {
-
-        showMessage(
-            "Pembuatan akun OWNER tidak diizinkan.",
-            "error"
-        );
-
-        return;
-    }
-
-
-    if (credits === null) {
-
-        showMessage(
-            "Credits harus berupa angka 0 atau lebih.",
-            "error"
-        );
-
-        creditsInput?.focus();
-
-        return;
-    }
-
-
-    if (
-        ![
-            "active",
-            "inactive",
-            "suspended"
-        ].includes(status)
-    ) {
-
-        showMessage(
-            "Status user tidak valid.",
-            "error"
-        );
-
-        return;
     }
 
 
     /*
-       Submit button.
-    */
+     * OWNER creation tidak diizinkan.
+     */
 
-    const submitButton =
-        form.querySelector(
-            'button[type="submit"]'
+    if (
+        role === "OWNER"
+    ) {
+
+        showMessage(
+            "Pembuatan user dengan role OWNER tidak diizinkan.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    /*
+     * Role operator harus valid.
+     */
+
+    if (
+        currentRole !== "ADMIN" &&
+        currentRole !== "OWNER"
+    ) {
+
+        showMessage(
+            "Anda tidak memiliki izin untuk membuat user.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    const button =
+        document.querySelector(
+            "#addUserForm button[type='submit']"
         );
 
 
-    setButtonLoading(
-        submitButton,
-        true,
-        "Membuat User..."
-    );
+    const originalText =
+        button?.textContent || "Tambah User";
 
 
     try {
 
-        /*
-           Request ke API.
-        */
+        if (button) {
+
+            button.disabled = true;
+
+            button.textContent =
+                "Menyimpan...";
+
+        }
+
 
         const result =
             await createUser({
@@ -387,39 +487,25 @@ export async function submitAddUser(event) {
 
                 role,
 
-                credits,
+                status,
 
-                status
+                credits
+
             });
 
-
-        /*
-           Tutup modal.
-        */
 
         closeAddModal();
 
 
-        /*
-           Refresh data.
-        */
-
         await loadUsers();
 
 
-        /*
-           API dapat memberi informasi
-           apakah email confirmation berhasil
-           dikirim.
-        */
-
         if (
-            result &&
-            result.emailSent === false
+            result?.emailSent === false
         ) {
 
             showMessage(
-                "User berhasil dibuat, tetapi email konfirmasi gagal dikirim.",
+                "User berhasil dibuat, tetapi email konfirmasi belum terkirim.",
                 "warning"
             );
 
@@ -429,8 +515,8 @@ export async function submitAddUser(event) {
                 "User berhasil dibuat.",
                 "success"
             );
-        }
 
+        }
 
     } catch (error) {
 
@@ -448,70 +534,443 @@ export async function submitAddUser(event) {
 
     } finally {
 
-        setButtonLoading(
-            submitButton,
-            false
-        );
+        if (button) {
+
+            button.disabled = false;
+
+            button.textContent =
+                originalText;
+
+        }
+
     }
+
 }
 
 
 /* =========================================================
-   CONFIRM USER EMAIL
+   SUBMIT EDIT USER
 ========================================================= */
 
-export async function confirmEmail(
-    userId,
-    email
+export async function submitEditUser(
+    event
 ) {
 
-    const id =
-        String(userId || "").trim();
+    event.preventDefault();
 
 
-    if (!id) {
+    clearMessage();
+
+
+    const editingUser =
+        userState.editingUser;
+
+
+    if (
+        !editingUser?.id
+    ) {
 
         showMessage(
-            "User ID tidak tersedia.",
+            "User yang akan diedit tidak ditemukan.",
             "error"
         );
 
         return;
+
     }
 
 
-    const targetEmail =
-        String(email || "").trim();
+    /*
+     * Pastikan target masih merupakan
+     * user yang boleh dikelola.
+     */
+
+    if (
+        !canManageTarget(
+            editingUser
+        )
+    ) {
+
+        showMessage(
+            "Anda tidak memiliki izin untuk mengedit user ini.",
+            "error"
+        );
+
+        return;
+
+    }
 
 
-    const confirmed =
-        window.confirm(
-            targetEmail
-                ? `Confirm email untuk ${targetEmail}?`
-                : "Confirm email user ini?"
+    const userId =
+        document
+            .getElementById("editUserId")
+            ?.value
+            .trim() ||
+
+        String(
+            editingUser.id
         );
 
 
-    if (!confirmed) {
+    const name =
+        document
+            .getElementById("editName")
+            ?.value
+            .trim() || "";
+
+
+    let role =
+
+        document
+            .getElementById("editRole")
+            ?.value || "USER";
+
+
+    let credits;
+
+
+    let status;
+
+
+    const emailConfirmedElement =
+        document.getElementById(
+            "editEmailConfirmed"
+        );
+
+
+    const emailConfirmed =
+        Boolean(
+            emailConfirmedElement?.checked
+        );
+
+
+    /*
+     * Validasi role.
+     */
+
+    try {
+
+        role =
+            parseRole(role);
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
         return;
+
     }
+
+
+    /*
+     * Validasi credits.
+     */
+
+    try {
+
+        credits =
+            parseCredits(
+
+                document
+                    .getElementById(
+                        "editCredits"
+                    )
+                    ?.value ?? 0
+
+            );
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    /*
+     * Validasi status.
+     */
+
+    try {
+
+        status =
+            parseStatus(
+
+                document
+                    .getElementById(
+                        "editStatus"
+                    )
+                    ?.value ||
+
+                "active"
+
+            );
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    const currentRole =
+        getCurrentRole();
+
+
+    /*
+     * ADMIN tidak boleh memberikan
+     * role ADMIN.
+     */
+
+    if (
+        currentRole === "ADMIN"
+    ) {
+
+        role = "USER";
+
+    }
+
+
+    /*
+     * OWNER adalah satu-satunya role
+     * yang dapat memberikan ADMIN.
+     *
+     * OWNER sendiri tidak dapat disentuh.
+     */
+
+    if (
+        editingUser.role
+            ?.toString()
+            .trim()
+            .toUpperCase() ===
+        "OWNER"
+    ) {
+
+        showMessage(
+            "Akun OWNER tidak dapat diedit.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    /*
+     * ID wajib ada.
+     */
+
+    if (!userId) {
+
+        showMessage(
+            "ID user tidak ditemukan.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    /*
+     * Tombol submit.
+     */
+
+    const button =
+        document.querySelector(
+            "#editUserForm button[type='submit']"
+        );
+
+
+    const originalText =
+        button?.textContent ||
+        "Simpan Perubahan";
 
 
     try {
 
+        if (button) {
+
+            button.disabled = true;
+
+            button.textContent =
+                "Menyimpan...";
+
+        }
+
+
+        console.log(
+            "[GEN-Z.AI UserActions] Updating user:",
+            {
+                userId,
+                name,
+                role,
+                credits,
+                status,
+                emailConfirmed
+            }
+        );
+
+
         const result =
-            await confirmUserEmail(id);
+            await updateUser({
+
+                userId,
+
+                name,
+
+                role,
+
+                credits,
+
+                status,
+
+                emailConfirmed
+
+            });
+
+
+        /*
+         * Tutup modal setelah API
+         * berhasil menyimpan.
+         */
+
+        closeEditModal();
+
+
+        /*
+         * Reload data agar tabel langsung
+         * menggunakan data database terbaru.
+         */
+
+        await loadUsers();
+
+
+        showMessage(
+            result?.user
+                ? "Data user berhasil diperbarui."
+                : "Data user berhasil diperbarui.",
+            "success"
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI UserActions] Update user error:",
+            error
+        );
+
+
+        showMessage(
+            error?.message ||
+            "Gagal memperbarui data user.",
+            "error"
+        );
+
+    } finally {
+
+        if (button) {
+
+            button.disabled = false;
+
+            button.textContent =
+                originalText;
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   CONFIRM EMAIL
+========================================================= */
+
+export async function confirmEmail(
+    userId,
+    email = ""
+) {
+
+    if (!userId) {
+
+        showMessage(
+            "ID user tidak ditemukan.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    const target =
+        userState.allUsers.find(
+            user =>
+                String(user.id) ===
+                String(userId)
+        );
+
+
+    if (
+        target &&
+        !canManageTarget(target)
+    ) {
+
+        showMessage(
+            "Anda tidak memiliki izin untuk mengonfirmasi user ini.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    const confirmed =
+        window.confirm(
+
+            `Konfirmasi email user${email ? `:\n${email}` : ""}?`
+
+        );
+
+
+    if (!confirmed) {
+
+        return;
+
+    }
+
+
+    clearMessage();
+
+
+    try {
+
+        await confirmUserEmail(
+            userId
+        );
 
 
         await loadUsers();
 
 
         showMessage(
-            result?.message ||
             "Email user berhasil dikonfirmasi.",
             "success"
         );
-
 
     } catch (error) {
 
@@ -526,7 +985,9 @@ export async function confirmEmail(
             "Gagal mengonfirmasi email user.",
             "error"
         );
+
     }
+
 }
 
 
@@ -534,48 +995,86 @@ export async function confirmEmail(
    RESEND CONFIRMATION
 ========================================================= */
 
-export async function resendEmail(email) {
+export async function resendEmail(
+    email
+) {
 
-    const targetEmail =
-        String(email || "").trim();
-
-
-    if (!targetEmail) {
+    if (!email) {
 
         showMessage(
-            "Email user tidak tersedia.",
+            "Email user tidak ditemukan.",
             "error"
         );
 
         return;
+
+    }
+
+
+    const target =
+        userState.allUsers.find(
+            user =>
+                String(
+                    user.email || ""
+                ).toLowerCase() ===
+                String(email).toLowerCase()
+        );
+
+
+    if (
+        target &&
+        !canManageTarget(target)
+    ) {
+
+        showMessage(
+            "Anda tidak memiliki izin untuk mengirim ulang email user ini.",
+            "error"
+        );
+
+        return;
+
     }
 
 
     const confirmed =
         window.confirm(
-            `Kirim ulang email konfirmasi ke ${targetEmail}?`
+
+            `Kirim ulang email konfirmasi ke:\n${email}?`
+
         );
 
 
     if (!confirmed) {
+
         return;
+
     }
+
+
+    clearMessage();
 
 
     try {
 
         const result =
             await resendConfirmation(
-                targetEmail
+                email
             );
 
 
         showMessage(
-            result?.message ||
-            "Email konfirmasi berhasil dikirim ulang.",
-            "success"
-        );
 
+            result?.emailSent === false
+
+                ? "Permintaan berhasil diproses, tetapi email belum terkirim."
+
+                : "Email konfirmasi berhasil dikirim ulang.",
+
+            result?.emailSent === false
+                ? "warning"
+                : "success"
+
+        );
 
     } catch (error) {
 
@@ -590,12 +1089,14 @@ export async function resendEmail(email) {
             "Gagal mengirim ulang email konfirmasi.",
             "error"
         );
+
     }
+
 }
 
 
 /* =========================================================
-   CONFIRM DELETE USER
+   DELETE USER
 ========================================================= */
 
 export async function confirmDeleteUser() {
@@ -611,34 +1112,89 @@ export async function confirmDeleteUser() {
             "error"
         );
 
-        closeDeleteModal();
-
         return;
+
     }
 
 
-    const confirmButton =
-        getElement("confirmDeleteButton");
+    const fullTarget =
+        userState.allUsers.find(
+            user =>
+                String(user.id) ===
+                String(target.id)
+        ) ||
+        target;
 
 
-    setButtonLoading(
-        confirmButton,
-        true,
-        "Menghapus..."
-    );
+    if (
+        !canManageTarget(
+            fullTarget
+        )
+    ) {
+
+        closeDeleteModal();
+
+
+        showMessage(
+            "Anda tidak memiliki izin untuk menghapus user ini.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    const confirmed =
+        window.confirm(
+
+            `Hapus user ini?\n\n` +
+
+            `${target.name || target.email || "User"}\n` +
+
+            `${target.email || ""}\n\n` +
+
+            `Tindakan ini tidak dapat dibatalkan.`
+
+        );
+
+
+    if (!confirmed) {
+
+        return;
+
+    }
+
+
+    clearMessage();
+
+
+    const button =
+        document.getElementById(
+            "confirmDeleteButton"
+        );
+
+
+    const originalText =
+        button?.textContent ||
+        "Hapus User";
 
 
     try {
 
-        /*
-           API tetap menjadi authority untuk
-           permission delete.
-        */
+        if (button) {
 
-        const result =
-            await deleteUser(
-                target.id
-            );
+            button.disabled = true;
+
+            button.textContent =
+                "Menghapus...";
+
+        }
+
+
+        await deleteUser(
+            target.id
+        );
 
 
         closeDeleteModal();
@@ -648,11 +1204,9 @@ export async function confirmDeleteUser() {
 
 
         showMessage(
-            result?.message ||
             "User berhasil dihapus.",
             "success"
         );
-
 
     } catch (error) {
 
@@ -670,11 +1224,17 @@ export async function confirmDeleteUser() {
 
     } finally {
 
-        setButtonLoading(
-            confirmButton,
-            false
-        );
+        if (button) {
+
+            button.disabled = false;
+
+            button.textContent =
+                originalText;
+
+        }
+
     }
+
 }
 
 
@@ -682,16 +1242,22 @@ export async function confirmDeleteUser() {
    GLOBAL BRIDGE
 ========================================================= */
 
-if (typeof window !== "undefined") {
+if (
+    typeof window !== "undefined"
+) {
 
     window.GENZUserActions = {
 
         submitAddUser,
+
+        submitEditUser,
 
         confirmEmail,
 
         resendEmail,
 
         confirmDeleteUser
+
     };
+
 }
