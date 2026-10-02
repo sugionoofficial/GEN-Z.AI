@@ -1,25 +1,22 @@
 /* =========================================================
    GEN-Z.AI
-   USER MANAGEMENT - AUTHENTICATION
+   USER MANAGEMENT - AUTH
    ---------------------------------------------------------
    File:
    admin-control/users/assets/js/user-auth.js
 
    Fungsi:
-   - Memeriksa Supabase client
-   - Memeriksa session
-   - Mengambil profile pengguna
-   - Memvalidasi role ADMIN / OWNER
-   - Memvalidasi status active
-   - Mengisi informasi user di topbar
-   - Mengatur opsi role berdasarkan role admin
+   - Cek session Supabase
+   - Ambil profile admin
+   - Validasi role ADMIN / OWNER
+   - Validasi status active
+   - Simpan current user/profile ke userState
+   - Update userInfo
 
-   Tidak menangani:
-   - User API
-   - Load users
-   - Render table
-   - Modal
-   - Create / confirm / resend / delete
+   Catatan:
+   - Tidak mengatur sidebar/navigation
+   - Tidak melakukan logout
+   - Tidak mengubah API server
 ========================================================= */
 
 import {
@@ -28,296 +25,349 @@ import {
 
 
 /* =========================================================
-   AUTH REDIRECT
-========================================================= */
-
-function redirectToLogin() {
-
-    window.location.href =
-        "../index.html";
-
-}
-
-
-/* =========================================================
-   AUTH REDIRECT USER
-========================================================= */
-
-function redirectToUserDashboard() {
-
-    window.location.href =
-        "../user/dashboard.html";
-
-}
-
-
-/* =========================================================
-   GET SUPABASE CLIENT
+   SUPABASE CLIENT
 ========================================================= */
 
 function getSupabaseClient() {
 
-    return window.GENZ_SUPABASE || null;
+    return (
+        window.GENZ_SUPABASE ||
+        window.supabaseClient ||
+        null
+    );
 
 }
 
 
 /* =========================================================
-   CHECK AUTHENTICATION
+   REDIRECT
+========================================================= */
+
+function redirectTo(path) {
+
+    window.location.href = path;
+
+}
+
+
+/* =========================================================
+   CHECK AUTH
 ========================================================= */
 
 export async function checkAuth() {
 
-    const supabaseClient =
+    const supabase =
         getSupabaseClient();
 
 
-    /* -----------------------------------------------------
-       SUPABASE CLIENT CHECK
-    ----------------------------------------------------- */
+    /* =====================================================
+       SUPABASE CHECK
+    ====================================================== */
 
-    if (!supabaseClient) {
+    if (!supabase) {
 
         console.error(
             "[GEN-Z.AI] Supabase client tidak tersedia."
         );
 
-        redirectToLogin();
-
-        return false;
-
-    }
-
-
-    /* -----------------------------------------------------
-       GET SESSION
-    ----------------------------------------------------- */
-
-    let sessionResult;
-
-    try {
-
-        sessionResult =
-            await supabaseClient.auth.getSession();
-
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI] Gagal mengambil session:",
-            error
+        redirectTo(
+            "../index.html"
         );
 
-        redirectToLogin();
-
         return false;
 
     }
 
-
-    const session =
-        sessionResult?.data?.session;
-
-
-    if (!session) {
-
-        redirectToLogin();
-
-        return false;
-
-    }
-
-
-    /* -----------------------------------------------------
-       STORE CURRENT USER
-    ----------------------------------------------------- */
-
-    userState.currentUser =
-        session.user;
-
-
-    /* -----------------------------------------------------
-       LOAD PROFILE
-    ----------------------------------------------------- */
-
-    let profileResult;
 
     try {
 
-        profileResult =
-            await supabaseClient
+        /* =================================================
+           SESSION
+        ================================================== */
 
+        const {
+            data,
+            error
+        } =
+            await supabase.auth.getSession();
+
+
+        if (error) {
+
+            throw error;
+
+        }
+
+
+        const session =
+            data?.session || null;
+
+
+        if (!session?.user) {
+
+            redirectTo(
+                "../index.html"
+            );
+
+            return false;
+
+        }
+
+
+        userState.currentUser =
+            session.user;
+
+
+        /* =================================================
+           PROFILE
+        ================================================== */
+
+        const {
+            data: profile,
+            error: profileError
+        } =
+            await supabase
                 .from("profiles")
-
                 .select(
                     "id,email,name,role,status,credits"
                 )
-
                 .eq(
                     "id",
                     session.user.id
                 )
-
                 .maybeSingle();
 
-    } catch (error) {
 
-        console.error(
-            "[GEN-Z.AI] Gagal mengambil profile:",
-            error
-        );
+        if (profileError) {
 
-        await supabaseClient.auth.signOut();
+            throw profileError;
 
-        redirectToLogin();
-
-        return false;
-
-    }
+        }
 
 
-    const profile =
-        profileResult?.data;
+        if (!profile) {
 
-    const profileError =
-        profileResult?.error;
+            console.error(
+                "[GEN-Z.AI] Profile admin tidak ditemukan."
+            );
 
+            redirectTo(
+                "../index.html"
+            );
 
-    /* -----------------------------------------------------
-       PROFILE VALIDATION
-    ----------------------------------------------------- */
+            return false;
 
-    if (
-        profileError ||
-        !profile
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] Profile tidak ditemukan:",
-            profileError
-        );
-
-        await supabaseClient.auth.signOut();
-
-        redirectToLogin();
-
-        return false;
-
-    }
+        }
 
 
-    /* -----------------------------------------------------
-       NORMALIZE ROLE
-    ----------------------------------------------------- */
+        /* =================================================
+           NORMALIZE ROLE
+        ================================================== */
 
-    const role =
-        String(
-            profile.role || "USER"
-        )
+        const role =
+            String(
+                profile.role || "USER"
+            )
             .trim()
             .toUpperCase();
 
 
-    /* -----------------------------------------------------
-       NORMALIZE STATUS
-    ----------------------------------------------------- */
+        /* =================================================
+           NORMALIZE STATUS
+        ================================================== */
 
-    const status =
-        String(
-            profile.status || "active"
-        )
+        const status =
+            String(
+                profile.status || "active"
+            )
             .trim()
             .toLowerCase();
 
 
-    /* -----------------------------------------------------
-       ADMIN / OWNER ACCESS
-    ----------------------------------------------------- */
+        /* =================================================
+           ROLE VALIDATION
+        ================================================== */
 
-    if (
-        role !== "ADMIN" &&
-        role !== "OWNER"
-    ) {
+        if (
+            role !== "ADMIN" &&
+            role !== "OWNER"
+        ) {
 
-        redirectToUserDashboard();
+            redirectTo(
+                "../user/dashboard.html"
+            );
+
+            return false;
+
+        }
+
+
+        /* =================================================
+           STATUS VALIDATION
+        ================================================== */
+
+        if (
+            status !== "active"
+        ) {
+
+            redirectTo(
+                "../user/dashboard.html"
+            );
+
+            return false;
+
+        }
+
+
+        /* =================================================
+           SAVE PROFILE STATE
+        ================================================== */
+
+        userState.currentProfile = {
+
+            ...profile,
+
+            role,
+
+            status
+
+        };
+
+
+        /* =================================================
+           USER INFO
+        ================================================== */
+
+        const userInfo =
+            document.getElementById(
+                "userInfo"
+            );
+
+
+        if (userInfo) {
+
+            userInfo.textContent =
+                `${profile.email || session.user.email || ""} • ${role}`;
+
+        }
+
+
+        /* =================================================
+           ADMIN ROLE OPTION
+           -------------------------------------------------
+           ADMIN tidak boleh membuat ADMIN / OWNER.
+        ================================================== */
+
+        const adminRoleOption =
+            document.getElementById(
+                "adminRoleOption"
+            );
+
+
+        if (
+            role === "ADMIN" &&
+            adminRoleOption
+        ) {
+
+            adminRoleOption.remove();
+
+        }
+
+
+        /* =================================================
+           AUTH SUCCESS
+        ================================================== */
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] User auth error:",
+            error
+        );
+
+
+        redirectTo(
+            "../index.html"
+        );
 
         return false;
 
     }
 
-
-    /* -----------------------------------------------------
-       ACTIVE STATUS REQUIRED
-    ----------------------------------------------------- */
-
-    if (
-        status !== "active"
-    ) {
-
-        redirectToUserDashboard();
-
-        return false;
-
-    }
+}
 
 
-    /* -----------------------------------------------------
-       STORE CURRENT PROFILE
-    ----------------------------------------------------- */
+/* =========================================================
+   GET CURRENT PROFILE
+========================================================= */
 
-    userState.currentProfile = {
+export function getCurrentProfile() {
 
-        ...profile,
+    return (
+        userState.currentProfile ||
+        null
+    );
 
-        role
-
-    };
-
-
-    /* -----------------------------------------------------
-       UPDATE USER INFO
-    ----------------------------------------------------- */
-
-    const userInfo =
-        document.getElementById(
-            "userInfo"
-        );
+}
 
 
-    if (userInfo) {
+/* =========================================================
+   GET CURRENT ROLE
+========================================================= */
 
-        userInfo.textContent =
-            `${profile.email || session.user.email || ""} • ${role}`;
+export function getCurrentRole() {
 
-    }
+    return String(
+        userState.currentProfile?.role ||
+        ""
+    )
+    .trim()
+    .toUpperCase();
 
-
-    /* -----------------------------------------------------
-       ADMIN ROLE RESTRICTION
-       -----------------------------------------------------
-       ADMIN tidak boleh membuat ADMIN.
-       OWNER tetap dapat melihat opsi ADMIN.
-    ----------------------------------------------------- */
-
-    const adminRoleOption =
-        document.getElementById(
-            "adminRoleOption"
-        );
+}
 
 
-    if (
-        role === "ADMIN" &&
-        adminRoleOption
-    ) {
+/* =========================================================
+   ADMIN CHECK
+========================================================= */
 
-        adminRoleOption.remove();
+export function isAdmin() {
 
-    }
+    return (
+        getCurrentRole() === "ADMIN"
+    );
+
+}
 
 
-    /* -----------------------------------------------------
-       SUCCESS
-    ----------------------------------------------------- */
+/* =========================================================
+   OWNER CHECK
+========================================================= */
 
-    return true;
+export function isOwner() {
+
+    return (
+        getCurrentRole() === "OWNER"
+    );
+
+}
+
+
+/* =========================================================
+   MANAGEMENT CHECK
+========================================================= */
+
+export function canManageUsers() {
+
+    const role =
+        getCurrentRole();
+
+
+    return (
+        role === "ADMIN" ||
+        role === "OWNER"
+    );
 
 }
