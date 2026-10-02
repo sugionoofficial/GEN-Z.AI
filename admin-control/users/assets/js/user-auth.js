@@ -1,27 +1,20 @@
 /* =========================================================
    GEN-Z.AI
-   USER MANAGEMENT - AUTH
+   USER MANAGEMENT AUTH
    ---------------------------------------------------------
    File:
    admin-control/users/assets/js/user-auth.js
 
    Fungsi:
-   - Memastikan Supabase tersedia
-   - Memeriksa session login
-   - Membaca profile admin
-   - Memvalidasi role ADMIN / OWNER
-   - Memvalidasi status active
-   - Menampilkan identitas admin
-
-   CATATAN:
-   - Navigation tetap ditangani oleh:
-     /navigation/navigation.js
-   - File ini tidak membuat sidebar/menu/logout.
+   - Memastikan session tersedia
+   - Memuat profile admin
+   - Validasi role ADMIN / OWNER
+   - Validasi status active
+   - Mengatur role option pada Add User
+   - Tidak menangani navigation
 ========================================================= */
 
-import {
-    userState
-} from "./user-state.js";
+import { userState } from "./user-state.js";
 
 
 /* =========================================================
@@ -43,12 +36,106 @@ function getSupabaseClient() {
    REDIRECT
 ========================================================= */
 
-function redirectTo(
-    path
-) {
+function redirectTo(path) {
 
-    window.location.href =
-        path;
+    window.location.href = path;
+
+}
+
+
+/* =========================================================
+   CONFIGURE ROLE OPTIONS
+========================================================= */
+
+function configureRoleOptions(role) {
+
+    const roleInput =
+        document.getElementById("newRole");
+
+    const adminRoleOption =
+        document.getElementById("adminRoleOption");
+
+    if (!roleInput) {
+        return;
+    }
+
+
+    const currentRole =
+        String(role || "")
+            .trim()
+            .toUpperCase();
+
+
+    /* =====================================================
+       OWNER CREATION IS NEVER ALLOWED
+    ====================================================== */
+
+    const ownerOption =
+        Array.from(
+            roleInput.options || []
+        ).find(
+            option =>
+                String(option.value || "")
+                    .trim()
+                    .toUpperCase() === "OWNER"
+        );
+
+
+    if (ownerOption) {
+
+        ownerOption.remove();
+
+    }
+
+
+    /* =====================================================
+       ADMIN MAY ONLY CREATE USER
+    ====================================================== */
+
+    if (currentRole === "ADMIN") {
+
+        if (adminRoleOption) {
+            adminRoleOption.remove();
+        }
+
+        roleInput.value = "USER";
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       OWNER MAY CREATE USER / ADMIN
+    ====================================================== */
+
+    if (currentRole === "OWNER") {
+
+        if (
+            !Array.from(
+                roleInput.options || []
+            ).some(
+                option =>
+                    String(option.value || "")
+                        .trim()
+                        .toUpperCase() === "ADMIN"
+            )
+        ) {
+
+            const option =
+                document.createElement("option");
+
+            option.id = "adminRoleOption";
+            option.value = "ADMIN";
+            option.textContent = "ADMIN";
+
+            roleInput.appendChild(option);
+
+        }
+
+        roleInput.value = "USER";
+
+    }
 
 }
 
@@ -63,19 +150,13 @@ export async function checkAuth() {
         getSupabaseClient();
 
 
-    /* -----------------------------------------------------
-       SUPABASE CHECK
-    ----------------------------------------------------- */
-
     if (!supabase) {
 
         console.error(
             "[GEN-Z.AI] Supabase client tidak tersedia."
         );
 
-        redirectTo(
-            "../index.html"
-        );
+        redirectTo("../index.html");
 
         return false;
 
@@ -84,9 +165,9 @@ export async function checkAuth() {
 
     try {
 
-        /* -------------------------------------------------
-           GET SESSION
-        ------------------------------------------------- */
+        /* =================================================
+           SESSION
+        ================================================= */
 
         const {
             data,
@@ -96,9 +177,7 @@ export async function checkAuth() {
 
 
         if (error) {
-
             throw error;
-
         }
 
 
@@ -106,17 +185,9 @@ export async function checkAuth() {
             data?.session || null;
 
 
-        /* -------------------------------------------------
-           SESSION CHECK
-        ------------------------------------------------- */
+        if (!session?.user) {
 
-        if (
-            !session?.user
-        ) {
-
-            redirectTo(
-                "../index.html"
-            );
+            redirectTo("../index.html");
 
             return false;
 
@@ -127,9 +198,9 @@ export async function checkAuth() {
             session.user;
 
 
-        /* -------------------------------------------------
-           LOAD PROFILE
-        ------------------------------------------------- */
+        /* =================================================
+           PROFILE
+        ================================================= */
 
         const {
             data: profile,
@@ -148,15 +219,9 @@ export async function checkAuth() {
 
 
         if (profileError) {
-
             throw profileError;
-
         }
 
-
-        /* -------------------------------------------------
-           PROFILE CHECK
-        ------------------------------------------------- */
 
         if (!profile) {
 
@@ -164,23 +229,20 @@ export async function checkAuth() {
                 "[GEN-Z.AI] Profile admin tidak ditemukan."
             );
 
-            redirectTo(
-                "../index.html"
-            );
+            redirectTo("../index.html");
 
             return false;
 
         }
 
 
-        /* -------------------------------------------------
-           NORMALIZE ROLE + STATUS
-        ------------------------------------------------- */
+        /* =================================================
+           NORMALIZE
+        ================================================= */
 
         const role =
             String(
-                profile.role ||
-                "USER"
+                profile.role || "USER"
             )
                 .trim()
                 .toUpperCase();
@@ -188,16 +250,15 @@ export async function checkAuth() {
 
         const status =
             String(
-                profile.status ||
-                "active"
+                profile.status || "active"
             )
                 .trim()
                 .toLowerCase();
 
 
-        /* -------------------------------------------------
-           ROLE CHECK
-        ------------------------------------------------- */
+        /* =================================================
+           ROLE AUTHORIZATION
+        ================================================= */
 
         if (
             role !== "ADMIN" &&
@@ -213,13 +274,11 @@ export async function checkAuth() {
         }
 
 
-        /* -------------------------------------------------
-           STATUS CHECK
-        ------------------------------------------------- */
+        /* =================================================
+           STATUS AUTHORIZATION
+        ================================================= */
 
-        if (
-            status !== "active"
-        ) {
+        if (status !== "active") {
 
             redirectTo(
                 "../user/dashboard.html"
@@ -230,9 +289,9 @@ export async function checkAuth() {
         }
 
 
-        /* -------------------------------------------------
+        /* =================================================
            SAVE PROFILE STATE
-        ------------------------------------------------- */
+        ================================================= */
 
         userState.currentProfile = {
 
@@ -245,9 +304,9 @@ export async function checkAuth() {
         };
 
 
-        /* -------------------------------------------------
-           ADMIN IDENTITY
-        ------------------------------------------------- */
+        /* =================================================
+           PAGE USER INFO
+        ================================================= */
 
         const userInfo =
             document.getElementById(
@@ -258,38 +317,20 @@ export async function checkAuth() {
         if (userInfo) {
 
             userInfo.textContent =
-                `${
-                    profile.email ||
-                    session.user.email ||
-                    ""
-                } • ${role}`;
+                `${profile.email || session.user.email || ""} • ${role}`;
 
         }
 
 
-        /* -------------------------------------------------
-           ADMIN ROLE OPTION
-           -------------------------------------------------
-           ADMIN tidak boleh membuat ADMIN.
-        ----------------------------------------------------- */
+        /* =================================================
+           CONFIGURE ADD USER ROLE
+        ================================================= */
 
-        const adminRoleOption =
-            document.getElementById(
-                "adminRoleOption"
-            );
-
-
-        if (
-            role === "ADMIN" &&
-            adminRoleOption
-        ) {
-
-            adminRoleOption.remove();
-
-        }
+        configureRoleOptions(role);
 
 
         return true;
+
 
     } catch (error) {
 
@@ -298,10 +339,7 @@ export async function checkAuth() {
             error
         );
 
-
-        redirectTo(
-            "../index.html"
-        );
+        redirectTo("../index.html");
 
         return false;
 
@@ -331,8 +369,7 @@ export function getCurrentProfile() {
 export function getCurrentRole() {
 
     return String(
-        userState.currentProfile?.role ||
-        ""
+        userState.currentProfile?.role || ""
     )
         .trim()
         .toUpperCase();
@@ -341,28 +378,34 @@ export function getCurrentRole() {
 
 
 /* =========================================================
-   ROLE HELPERS
+   IS ADMIN
 ========================================================= */
 
 export function isAdmin() {
 
     return (
-        getCurrentRole() ===
-        "ADMIN"
+        getCurrentRole() === "ADMIN"
     );
 
 }
 
+
+/* =========================================================
+   IS OWNER
+========================================================= */
 
 export function isOwner() {
 
     return (
-        getCurrentRole() ===
-        "OWNER"
+        getCurrentRole() === "OWNER"
     );
 
 }
 
+
+/* =========================================================
+   CAN MANAGE USERS
+========================================================= */
 
 export function canManageUsers() {
 
