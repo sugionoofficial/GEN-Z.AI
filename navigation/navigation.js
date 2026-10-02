@@ -3084,25 +3084,65 @@ function getSupabaseClient() {
 
 
     /* =====================================================
-       INITIALIZE
-    ===================================================== */
+   INITIALIZE
+===================================================== */
 
-    async function initialize() {
+async function initialize() {
 
-        injectStyles();
+    injectStyles();
+
+
+    /*
+     * Do not initialize auth on login page.
+     * Login page does not need the protected sidebar.
+     */
+
+    if (
+        isLoginPage()
+    ) {
+
+        navigationReady =
+            true;
+
+
+        if (
+            navigationReadyResolve
+        ) {
+
+            navigationReadyResolve(
+                true
+            );
+
+            navigationReadyResolve =
+                null;
+
+        }
+
+
+        return;
+
+    }
+
+
+    try {
+
+        const authenticated =
+            await validateAuthentication();
 
 
         /*
-         * Do not initialize auth on login page.
-         * Login page does not need the protected sidebar.
+         * Authentication gagal.
+         *
+         * validateAuthentication()
+         * sudah menangani redirect ke login.
          */
 
         if (
-            isLoginPage()
+            !authenticated
         ) {
 
             navigationReady =
-                true;
+                false;
 
 
             if (
@@ -3110,7 +3150,7 @@ function getSupabaseClient() {
             ) {
 
                 navigationReadyResolve(
-                    true
+                    false
                 );
 
                 navigationReadyResolve =
@@ -3124,25 +3164,79 @@ function getSupabaseClient() {
         }
 
 
-        const authenticated =
-            await validateAuthentication();
-
-
-        if (
-            !authenticated
-        ) {
-
-            return;
-
-        }
-
+        /*
+         * Render navigation setelah
+         * authentication berhasil.
+         */
 
         renderNavigation();
 
 
+        /*
+         * Pasang auth listener.
+         */
+
         setupAuthListener();
 
+
+        /*
+         * PENTING:
+         *
+         * Semua halaman yang menunggu:
+         *
+         * window.GENZNavigationReady
+         *
+         * harus mendapatkan hasil.
+         */
+
+        navigationReady =
+            true;
+
+
+        if (
+            navigationReadyResolve
+        ) {
+
+            navigationReadyResolve(
+                true
+            );
+
+            navigationReadyResolve =
+                null;
+
+        }
+
+
+    } catch (
+        error
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] Navigation initialization error:",
+            error
+        );
+
+
+        navigationReady =
+            false;
+
+
+        if (
+            navigationReadyResolve
+        ) {
+
+            navigationReadyResolve(
+                false
+            );
+
+            navigationReadyResolve =
+                null;
+
+        }
+
     }
+
+}
 
 
     /* =====================================================
