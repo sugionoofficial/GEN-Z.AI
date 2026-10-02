@@ -12,7 +12,6 @@
    - MP4/MOV fallback scan
    - FFmpeg timeout protection
    - FFprobe output validation
-   - Tolerant FFprobe return-code handling
 ========================================================= */
 
 import {
@@ -440,15 +439,7 @@ export async function readVideoMetadataWithFFprobe(
 
         /* =================================================
            FFPROBE
-           
-           Catatan:
-           ffprobe() dapat mengembalikan status non-zero
-           pada beberapa kombinasi FFmpeg WASM/core walaupun
-           output JSON sudah berhasil dibuat.
-
-           Karena itu status return TIDAK langsung dianggap
-           gagal. Output JSON adalah sumber validasi utama.
-        ===================================================== */
+        ================================================= */
 
         let ffprobeResult =
             null;
@@ -493,16 +484,12 @@ export async function readVideoMetadataWithFFprobe(
 
             ffprobeExecutionError =
                 error;
-
         }
 
 
         /* =================================================
            READ FFPROBE JSON
-           
-           Bahkan jika return code non-zero atau promise
-           melempar error, coba baca output terlebih dahulu.
-        ===================================================== */
+        ================================================= */
 
         let probeData =
             null;
@@ -529,13 +516,12 @@ export async function readVideoMetadataWithFFprobe(
 
             readProbeError =
                 error;
-
         }
 
 
         /* =================================================
            HANDLE MISSING OUTPUT
-        ===================================================== */
+        ================================================= */
 
         if (
             probeData === null ||
@@ -709,12 +695,6 @@ export async function readVideoMetadataWithFFprobe(
             error
         ) {
 
-            /*
-             * Kalau output bukan JSON valid, jangan diam-diam
-             * menganggap FFprobe berhasil hanya karena file
-             * output ada.
-             */
-
             const preview =
                 jsonText
                     .slice(
@@ -786,23 +766,10 @@ export async function readVideoMetadataWithFFprobe(
 
 
         /* =================================================
-           DIAGNOSTIC LOG
-        ================================================= */
-
-        if (
-            ffprobeExecutionError
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI][FFprobe] Execution reported an error, tetapi output JSON valid dan akan digunakan:",
-                getErrorMessage(
-                    ffprobeExecutionError
-                )
-            );
-
-        
-        /* =================================================
-           SUCCESS
+           FFPROBE SUCCESS
+           
+           Return code -1 tidak lagi ditampilkan sebagai
+           warning selama JSON FFprobe valid.
         ================================================= */
 
         return parsed;
