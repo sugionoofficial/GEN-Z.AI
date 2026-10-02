@@ -18,8 +18,8 @@ import {
 
 import {
     createUser,
-    resendConfirmation,
     confirmUserEmail,
+    resendConfirmation,
     deleteUser
 } from "./user-api.js";
 
@@ -38,7 +38,7 @@ import {
 
 
 /* =========================================================
-   SUBMIT CREATE USER
+   CREATE USER
 ========================================================= */
 
 export async function submitAddUser(event) {
@@ -51,11 +51,18 @@ export async function submitAddUser(event) {
             "addUserForm"
         );
 
+
     if (!form) {
 
         return;
 
     }
+
+
+    const submitButton =
+        form.querySelector(
+            'button[type="submit"]'
+        );
 
 
     const emailInput =
@@ -89,12 +96,16 @@ export async function submitAddUser(event) {
         );
 
 
+    /* -----------------------------------------------------
+       READ INPUT
+    ----------------------------------------------------- */
+
     const email =
         String(
             emailInput?.value || ""
         )
-        .trim()
-        .toLowerCase();
+            .trim()
+            .toLowerCase();
 
 
     const password =
@@ -106,32 +117,40 @@ export async function submitAddUser(event) {
     const name =
         String(
             nameInput?.value || ""
-        ).trim();
+        )
+            .trim();
 
 
     let role =
         String(
             roleInput?.value || "USER"
         )
-        .trim()
-        .toUpperCase();
+            .trim()
+            .toUpperCase();
 
 
     const creditsRaw =
-        creditsInput?.value;
+        String(
+            creditsInput?.value || "0"
+        )
+            .trim();
 
 
-    const status =
+    let status =
         String(
             statusInput?.value || "active"
         )
-        .trim()
-        .toLowerCase();
+            .trim()
+            .toLowerCase();
 
 
-    /* =====================================================
-       VALIDASI EMAIL
-    ===================================================== */
+    /* -----------------------------------------------------
+       EMAIL VALIDATION
+    ----------------------------------------------------- */
+
+    const emailPattern =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 
     if (!email) {
 
@@ -147,11 +166,7 @@ export async function submitAddUser(event) {
     }
 
 
-    if (
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-            email
-        )
-    ) {
+    if (!emailPattern.test(email)) {
 
         showMessage(
             "Format email tidak valid.",
@@ -165,9 +180,9 @@ export async function submitAddUser(event) {
     }
 
 
-    /* =====================================================
-       VALIDASI PASSWORD
-    ===================================================== */
+    /* -----------------------------------------------------
+       PASSWORD VALIDATION
+    ----------------------------------------------------- */
 
     if (password.length < 6) {
 
@@ -183,15 +198,20 @@ export async function submitAddUser(event) {
     }
 
 
-    /* =====================================================
-       VALIDASI ROLE
-    ===================================================== */
+    /* -----------------------------------------------------
+       ROLE VALIDATION
+    ----------------------------------------------------- */
 
-    const allowedRoles = [
-        "USER",
-        "ADMIN",
-        "OWNER"
-    ];
+    const currentRole =
+        String(
+            userState.currentProfile?.role || ""
+        )
+            .trim()
+            .toUpperCase();
+
+
+    const allowedRoles =
+        ["USER", "ADMIN", "OWNER"];
 
 
     if (
@@ -203,22 +223,11 @@ export async function submitAddUser(event) {
     }
 
 
-    const currentRole =
-        String(
-            userState.currentProfile?.role ||
-            ""
-        )
-        .trim()
-        .toUpperCase();
-
-
     /*
-       ADMIN hanya boleh membuat USER.
-    */
+     * ADMIN hanya boleh membuat USER.
+     */
 
-    if (
-        currentRole === "ADMIN"
-    ) {
+    if (currentRole === "ADMIN") {
 
         role = "USER";
 
@@ -226,16 +235,14 @@ export async function submitAddUser(event) {
 
 
     /*
-       OWNER tidak dapat dibuat melalui
-       User Management.
-    */
+     * OWNER tidak boleh dibuat melalui
+     * User Management.
+     */
 
-    if (
-        role === "OWNER"
-    ) {
+    if (role === "OWNER") {
 
         showMessage(
-            "Role OWNER tidak dapat dibuat dari User Management.",
+            "Role OWNER tidak dapat dibuat melalui User Management.",
             "error"
         );
 
@@ -244,9 +251,9 @@ export async function submitAddUser(event) {
     }
 
 
-    /* =====================================================
-       VALIDASI CREDIT
-    ===================================================== */
+    /* -----------------------------------------------------
+       CREDIT VALIDATION
+    ----------------------------------------------------- */
 
     const credits =
         Number(
@@ -260,7 +267,7 @@ export async function submitAddUser(event) {
     ) {
 
         showMessage(
-            "Credit harus berupa angka 0 atau lebih.",
+            "Credits harus berupa angka 0 atau lebih.",
             "error"
         );
 
@@ -271,36 +278,34 @@ export async function submitAddUser(event) {
     }
 
 
-    /* =====================================================
-       VALIDASI STATUS
-    ===================================================== */
+    /* -----------------------------------------------------
+       STATUS VALIDATION
+    ----------------------------------------------------- */
 
-    const allowedStatuses = [
-        "active",
-        "inactive",
-        "suspended"
-    ];
-
-
-    const finalStatus =
-        allowedStatuses.includes(status)
-            ? status
-            : "active";
+    const allowedStatuses =
+        [
+            "active",
+            "inactive",
+            "suspended"
+        ];
 
 
-    /* =====================================================
-       BUTTON STATE
-    ===================================================== */
+    if (
+        !allowedStatuses.includes(status)
+    ) {
 
-    const submitButton =
-        form.querySelector(
-            'button[type="submit"]'
-        );
+        status = "active";
 
+    }
+
+
+    /* -----------------------------------------------------
+       LOCK SUBMIT
+    ----------------------------------------------------- */
 
     const originalText =
         submitButton?.textContent ||
-        "CREATE USER";
+        "Create User";
 
 
     if (submitButton) {
@@ -308,16 +313,16 @@ export async function submitAddUser(event) {
         submitButton.disabled = true;
 
         submitButton.textContent =
-            "MEMBUAT...";
+            "Creating...";
 
     }
 
 
     try {
 
-        /* =================================================
-           CREATE USER
-        ================================================= */
+        /* -------------------------------------------------
+           CREATE
+        ------------------------------------------------- */
 
         const result =
             await createUser({
@@ -332,31 +337,32 @@ export async function submitAddUser(event) {
 
                 credits,
 
-                status: finalStatus
+                status
 
             });
 
 
-        /* =================================================
+        /* -------------------------------------------------
            CLOSE MODAL
-        ================================================= */
+        ------------------------------------------------- */
 
         closeAddModal();
 
 
-        /* =================================================
+        /* -------------------------------------------------
            REFRESH DATA
-        ================================================= */
+        ------------------------------------------------- */
 
         await loadUsers();
 
 
-        /* =================================================
-           RESULT MESSAGE
-        ================================================= */
+        /* -------------------------------------------------
+           EMAIL RESULT
+        ------------------------------------------------- */
 
         if (
-            result?.emailSent === false
+            result &&
+            result.emailSent === false
         ) {
 
             showMessage(
@@ -409,15 +415,31 @@ export async function submitAddUser(event) {
 
 export async function confirmEmail(
     userId,
-    email
+    email = ""
 ) {
 
     if (!userId) {
 
-        showMessage(
-            "User ID tidak ditemukan.",
-            "error"
+        return;
+
+    }
+
+
+    const displayEmail =
+        String(
+            email || ""
+        ).trim();
+
+
+    const confirmed =
+        window.confirm(
+            displayEmail
+                ? `Konfirmasi email ${displayEmail}?`
+                : "Konfirmasi email user ini?"
         );
+
+
+    if (!confirmed) {
 
         return;
 
@@ -425,19 +447,6 @@ export async function confirmEmail(
 
 
     try {
-
-        const confirmed =
-            window.confirm(
-                `Konfirmasi email user:\n${email || userId}?`
-            );
-
-
-        if (!confirmed) {
-
-            return;
-
-        }
-
 
         await confirmUserEmail(
             userId
@@ -479,15 +488,13 @@ export async function resendEmail(
     email
 ) {
 
-    const normalizedEmail =
+    const targetEmail =
         String(
             email || ""
-        )
-        .trim()
-        .toLowerCase();
+        ).trim();
 
 
-    if (!normalizedEmail) {
+    if (!targetEmail) {
 
         showMessage(
             "Email user tidak ditemukan.",
@@ -499,30 +506,45 @@ export async function resendEmail(
     }
 
 
+    const confirmed =
+        window.confirm(
+            `Kirim ulang email konfirmasi ke ${targetEmail}?`
+        );
+
+
+    if (!confirmed) {
+
+        return;
+
+    }
+
+
     try {
 
-        const confirmed =
-            window.confirm(
-                `Kirim ulang email konfirmasi ke:\n${normalizedEmail}?`
+        const result =
+            await resendConfirmation(
+                targetEmail
             );
 
 
-        if (!confirmed) {
+        if (
+            result &&
+            result.emailSent === false
+        ) {
 
-            return;
+            showMessage(
+                "Permintaan berhasil diproses, tetapi email konfirmasi belum berhasil dikirim.",
+                "warning"
+            );
+
+        } else {
+
+            showMessage(
+                "Email konfirmasi berhasil dikirim ulang.",
+                "success"
+            );
 
         }
-
-
-        await resendConfirmation(
-            normalizedEmail
-        );
-
-
-        showMessage(
-            "Email konfirmasi berhasil dikirim ulang.",
-            "success"
-        );
 
     } catch (error) {
 
@@ -545,9 +567,6 @@ export async function resendEmail(
 
 /* =========================================================
    DELETE USER
-   ---------------------------------------------------------
-   Tidak menggunakan window.confirm().
-   Konfirmasi dilakukan melalui deleteModal.
 ========================================================= */
 
 export async function confirmDeleteUser() {
@@ -557,11 +576,6 @@ export async function confirmDeleteUser() {
 
 
     if (!target?.id) {
-
-        showMessage(
-            "User yang akan dihapus tidak ditemukan.",
-            "error"
-        );
 
         closeDeleteModal();
 
@@ -576,17 +590,12 @@ export async function confirmDeleteUser() {
         );
 
 
-    const originalText =
-        button?.textContent ||
-        "DELETE USER";
-
-
     if (button) {
 
         button.disabled = true;
 
         button.textContent =
-            "MENGHAPUS...";
+            "Deleting...";
 
     }
 
@@ -605,7 +614,7 @@ export async function confirmDeleteUser() {
 
 
         showMessage(
-            `User ${target.email || target.name || ""} berhasil dihapus.`,
+            "User berhasil dihapus.",
             "success"
         );
 
@@ -630,7 +639,7 @@ export async function confirmDeleteUser() {
             button.disabled = false;
 
             button.textContent =
-                originalText;
+                "Delete User";
 
         }
 
