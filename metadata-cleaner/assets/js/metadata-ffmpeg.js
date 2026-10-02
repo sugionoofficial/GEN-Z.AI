@@ -1,17 +1,17 @@
 /* =========================================================
    GEN-Z.AI
-   FFMPEG WASM ENGINE
+   FFMPEG WASM ENGINE - DIAGNOSTIC BUILD
    ---------------------------------------------------------
    File:
    metadata-cleaner/assets/js/metadata-ffmpeg.js
 
-   Fungsi:
-   - Load @ffmpeg/ffmpeg
-   - Load @ffmpeg/core single-thread
-   - Mengatasi cross-origin class Worker
-   - FFprobe
-   - FFmpeg video processing
-   - Tidak menggunakan ffmpeg-core.worker.js
+   Tujuan versi ini:
+   - Memastikan @ffmpeg/ffmpeg dapat dimuat
+   - Memastikan class worker dapat dibuat
+   - Memastikan core JS dapat diakses
+   - Memastikan core WASM dapat diakses
+   - Menampilkan error asli dari FFmpeg
+   - Tidak menutupi error internal ffmpeg-core.js
 ========================================================= */
 
 import { state } from "./metadata-state.js";
@@ -29,36 +29,32 @@ const FFMPEG_CORE_VERSION =
 
 
 /* =========================================================
-   FFMPEG MODULE
+   URL
 ========================================================= */
 
 const FFMPEG_MODULE_URL =
     `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm/index.js`;
 
 
-/* =========================================================
-   CLASS WORKER
-========================================================= */
-
 const FFMPEG_WORKER_URL =
     `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm/worker.js`;
 
+
 const FFMPEG_CONST_URL =
     `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm/const.js`;
+
 
 const FFMPEG_ERRORS_URL =
     `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm/errors.js`;
 
 
-/* =========================================================
-   CORE
-========================================================= */
-
 const FFMPEG_CORE_BASE_URL =
     `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/umd`;
 
+
 const FFMPEG_CORE_JS_URL =
     `${FFMPEG_CORE_BASE_URL}/ffmpeg-core.js`;
+
 
 const FFMPEG_CORE_WASM_URL =
     `${FFMPEG_CORE_BASE_URL}/ffmpeg-core.wasm`;
@@ -91,7 +87,13 @@ async function loadFFmpegModule() {
 
 
     console.info(
-        "[GEN-Z.AI][FFmpeg] Loading FFmpeg module..."
+        "[GEN-Z.AI][FFmpeg] Loading module..."
+    );
+
+
+    console.info(
+        "[GEN-Z.AI][FFmpeg] Module URL:",
+        FFMPEG_MODULE_URL
     );
 
 
@@ -112,7 +114,7 @@ async function loadFFmpegModule() {
         ) {
 
             throw new Error(
-                "Module @ffmpeg/ffmpeg kosong."
+                "Module kosong."
             );
 
         }
@@ -143,9 +145,13 @@ async function loadFFmpegModule() {
             null;
 
 
-        throw new Error(
-            `FFmpeg module gagal dimuat: ${getErrorMessage(error)}`
+        console.error(
+            "[GEN-Z.AI][FFmpeg] Module error:",
+            error
         );
+
+
+        throw error;
 
     }
 
@@ -209,7 +215,7 @@ export async function ensureFFmpeg() {
 
 
 /* =========================================================
-   INITIALIZE FFMPEG
+   INITIALIZE
 ========================================================= */
 
 async function initializeFFmpeg() {
@@ -230,9 +236,187 @@ async function initializeFFmpeg() {
 
     try {
 
-        /* -------------------------------------------------
-           MODULE
-        ------------------------------------------------- */
+        /* =================================================
+           STEP 1
+        ================================================= */
+
+        console.group(
+            "[GEN-Z.AI][FFmpeg] Initialization"
+        );
+
+
+        console.info(
+            "Library:",
+            FFMPEG_VERSION
+        );
+
+
+        console.info(
+            "Core:",
+            FFMPEG_CORE_VERSION
+        );
+
+
+        console.info(
+            "Core JS:",
+            FFMPEG_CORE_JS_URL
+        );
+
+
+        console.info(
+            "Core WASM:",
+            FFMPEG_CORE_WASM_URL
+        );
+
+
+        /* =================================================
+           STEP 2
+           Test core JS HTTP access
+        ================================================= */
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] Testing core JS access..."
+        );
+
+
+        const coreResponse =
+            await fetch(
+                FFMPEG_CORE_JS_URL,
+                {
+                    method:
+                        "GET",
+
+                    mode:
+                        "cors",
+
+                    cache:
+                        "no-store"
+                }
+            );
+
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] Core JS HTTP status:",
+            coreResponse.status
+        );
+
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] Core JS content-type:",
+            coreResponse.headers.get(
+                "content-type"
+            )
+        );
+
+
+        if (
+            !coreResponse.ok
+        ) {
+
+            throw new Error(
+                `Core JS HTTP ${coreResponse.status} ${coreResponse.statusText}`
+            );
+
+        }
+
+
+        const coreSource =
+            await coreResponse.text();
+
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] Core JS size:",
+            coreSource.length
+        );
+
+
+        if (
+            !coreSource
+        ) {
+
+            throw new Error(
+                "ffmpeg-core.js kosong."
+            );
+
+        }
+
+
+        /* =================================================
+           STEP 3
+           Test WASM HTTP access
+        ================================================= */
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] Testing core WASM access..."
+        );
+
+
+        const wasmResponse =
+            await fetch(
+                FFMPEG_CORE_WASM_URL,
+                {
+                    method:
+                        "GET",
+
+                    mode:
+                        "cors",
+
+                    cache:
+                        "no-store"
+                }
+            );
+
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] Core WASM HTTP status:",
+            wasmResponse.status
+        );
+
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] Core WASM content-type:",
+            wasmResponse.headers.get(
+                "content-type"
+            )
+        );
+
+
+        if (
+            !wasmResponse.ok
+        ) {
+
+            throw new Error(
+                `Core WASM HTTP ${wasmResponse.status} ${wasmResponse.statusText}`
+            );
+
+        }
+
+
+        const wasmBlob =
+            await wasmResponse.blob();
+
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] Core WASM size:",
+            wasmBlob.size
+        );
+
+
+        if (
+            wasmBlob.size <= 0
+        ) {
+
+            throw new Error(
+                "ffmpeg-core.wasm kosong."
+            );
+
+        }
+
+
+        /* =================================================
+           STEP 4
+           Load FFmpeg library
+        ================================================= */
 
         const module =
             await loadFFmpegModule();
@@ -241,10 +425,6 @@ async function initializeFFmpeg() {
         const FFmpegClass =
             module.FFmpeg;
 
-
-        /* -------------------------------------------------
-           INSTANCE
-        ------------------------------------------------- */
 
         const ffmpeg =
             new FFmpegClass();
@@ -266,9 +446,10 @@ async function initializeFFmpeg() {
         );
 
 
-        /* -------------------------------------------------
-           EVENTS
-        ------------------------------------------------- */
+        /* =================================================
+           STEP 5
+           Events
+        ================================================= */
 
         if (
             typeof ffmpeg.on ===
@@ -279,16 +460,10 @@ async function initializeFFmpeg() {
                 "log",
                 ({ message }) => {
 
-                    if (
+                    console.debug(
+                        "[GEN-Z.AI][FFmpeg][LOG]",
                         message
-                    ) {
-
-                        console.debug(
-                            "[GEN-Z.AI][FFmpeg]",
-                            message
-                        );
-
-                    }
+                    );
 
                 }
             );
@@ -305,7 +480,7 @@ async function initializeFFmpeg() {
                     ) {
 
                         console.debug(
-                            "[GEN-Z.AI][FFmpeg] Progress:",
+                            "[GEN-Z.AI][FFmpeg][PROGRESS]",
                             Math.round(
                                 progress * 100
                             ) + "%"
@@ -319,75 +494,99 @@ async function initializeFFmpeg() {
         }
 
 
-        /* -------------------------------------------------
-           CLASS WORKER
-           -------------------------------------------------
-           Hanya worker wrapper yang dibuat Blob.
-
-           Core JS tetap memakai URL CDN asli.
-        ------------------------------------------------- */
+        /* =================================================
+           STEP 6
+           Worker
+        ================================================= */
 
         classWorkerBlobURL =
             await createFFmpegClassWorker();
 
 
         console.info(
-            "[GEN-Z.AI][FFmpeg] Class worker ready."
+            "[GEN-Z.AI][FFmpeg] Class worker Blob:",
+            classWorkerBlobURL
         );
 
 
-        /* -------------------------------------------------
-           CORE URL
-           -------------------------------------------------
-           Jangan dibuat Blob.
-
-           @ffmpeg/core membutuhkan URL asli untuk
-           dependency internal Emscripten/WASM.
-        ------------------------------------------------- */
+        /* =================================================
+           STEP 7
+           FFmpeg.load
+        ================================================= */
 
         console.info(
-            "[GEN-Z.AI][FFmpeg] Core JS:",
-            FFMPEG_CORE_JS_URL
+            "[GEN-Z.AI][FFmpeg] Calling ffmpeg.load()..."
         );
 
+
+        try {
+
+            await ffmpeg.load({
+
+                coreURL:
+                    FFMPEG_CORE_JS_URL,
+
+                wasmURL:
+                    FFMPEG_CORE_WASM_URL,
+
+                classWorkerURL:
+                    classWorkerBlobURL
+
+            });
+
+        } catch (loadError) {
+
+            console.group(
+                "[GEN-Z.AI][FFmpeg] RAW LOAD ERROR"
+            );
+
+
+            console.error(
+                "Error object:",
+                loadError
+            );
+
+
+            console.error(
+                "Error name:",
+                loadError?.name
+            );
+
+
+            console.error(
+                "Error message:",
+                loadError?.message
+            );
+
+
+            console.error(
+                "Error stack:",
+                loadError?.stack
+            );
+
+
+            console.error(
+                "Error cause:",
+                loadError?.cause
+            );
+
+
+            console.groupEnd();
+
+
+            throw loadError;
+
+        }
+
+
+        /* =================================================
+           STEP 8
+        ================================================= */
 
         console.info(
-            "[GEN-Z.AI][FFmpeg] Core WASM:",
-            FFMPEG_CORE_WASM_URL
+            "[GEN-Z.AI][FFmpeg] ffmpeg.load() SUCCESS."
         );
 
-
-        /* -------------------------------------------------
-           LOAD
-        ------------------------------------------------- */
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Starting FFmpeg.load()..."
-        );
-
-
-        await ffmpeg.load({
-
-            coreURL:
-                FFMPEG_CORE_JS_URL,
-
-            wasmURL:
-                FFMPEG_CORE_WASM_URL,
-
-            classWorkerURL:
-                classWorkerBlobURL
-
-        });
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] FFmpeg.load() completed."
-        );
-
-
-        /* -------------------------------------------------
-           VERIFY
-        ------------------------------------------------- */
 
         if (
             typeof ffmpeg.writeFile !==
@@ -425,27 +624,33 @@ async function initializeFFmpeg() {
         }
 
 
-        if (
+        console.info(
+            "[GEN-Z.AI][FFmpeg] writeFile(): OK"
+        );
+
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] readFile(): OK"
+        );
+
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] exec(): OK"
+        );
+
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] ffprobe():",
             typeof ffmpeg.ffprobe ===
-            "function"
-        ) {
-
-            console.info(
-                "[GEN-Z.AI][FFmpeg] ffprobe() tersedia."
-            );
-
-        } else {
-
-            console.warn(
-                "[GEN-Z.AI][FFmpeg] ffprobe() tidak tersedia."
-            );
-
-        }
+                "function"
+                ? "AVAILABLE"
+                : "NOT AVAILABLE"
+        );
 
 
-        /* -------------------------------------------------
-           SAVE STATE
-        ------------------------------------------------- */
+        /* =================================================
+           STEP 9
+        ================================================= */
 
         state.ffmpeg =
             ffmpeg;
@@ -458,8 +663,11 @@ async function initializeFFmpeg() {
 
 
         console.info(
-            "[GEN-Z.AI][FFmpeg] FFmpeg READY."
+            "[GEN-Z.AI][FFmpeg] READY."
         );
+
+
+        console.groupEnd();
 
 
         return ffmpeg;
@@ -476,27 +684,40 @@ async function initializeFFmpeg() {
             false;
 
 
-        const normalized =
-            normalizeFFmpegError(
-                error
-            );
-
-
         console.error(
-            "[GEN-Z.AI][FFmpeg] Initialization failed:",
-            normalized
+            "[GEN-Z.AI][FFmpeg] Initialization failed."
         );
 
 
-        throw normalized;
+        console.error(
+            "NAME:",
+            error?.name
+        );
+
+
+        console.error(
+            "MESSAGE:",
+            error?.message
+        );
+
+
+        console.error(
+            "STACK:",
+            error?.stack
+        );
+
+
+        console.error(
+            "RAW:",
+            error
+        );
+
+
+        throw normalizeFFmpegError(
+            error
+        );
 
     } finally {
-
-        /*
-         * Blob worker hanya dibutuhkan saat
-         * initialization. Setelah Worker berhasil
-         * dibuat oleh FFmpeg, URL boleh dibersihkan.
-         */
 
         revokeObjectURL(
             classWorkerBlobURL
@@ -514,38 +735,24 @@ async function initializeFFmpeg() {
 async function createFFmpegClassWorker() {
 
     console.info(
-        "[GEN-Z.AI][FFmpeg] Fetching class worker:",
-        FFMPEG_WORKER_URL
+        "[GEN-Z.AI][FFmpeg] Fetching worker..."
     );
 
 
-    let response;
+    const response =
+        await fetch(
+            FFMPEG_WORKER_URL,
+            {
+                method:
+                    "GET",
 
+                mode:
+                    "cors",
 
-    try {
-
-        response =
-            await fetch(
-                FFMPEG_WORKER_URL,
-                {
-                    method:
-                        "GET",
-
-                    mode:
-                        "cors",
-
-                    cache:
-                        "no-store"
-                }
-            );
-
-    } catch (error) {
-
-        throw new Error(
-            `Tidak dapat mengakses FFmpeg class worker: ${getErrorMessage(error)}`
+                cache:
+                    "no-store"
+            }
         );
-
-    }
 
 
     if (
@@ -553,7 +760,7 @@ async function createFFmpegClassWorker() {
     ) {
 
         throw new Error(
-            `FFmpeg class worker gagal dimuat: ${response.status} ${response.statusText}`
+            `Worker HTTP ${response.status} ${response.statusText}`
         );
 
     }
@@ -568,20 +775,20 @@ async function createFFmpegClassWorker() {
     ) {
 
         throw new Error(
-            "Isi FFmpeg class worker kosong."
+            "worker.js kosong."
         );
 
     }
 
 
+    console.info(
+        "[GEN-Z.AI][FFmpeg] Worker size:",
+        source.length
+    );
+
+
     /* -----------------------------------------------------
-       Worker.js memiliki dependency relatif:
-
-       ./const.js
-       ./errors.js
-
-       Karena worker dijalankan dari Blob URL,
-       dependency tersebut harus diarahkan ke CDN.
+       Relative imports -> absolute CDN imports
     ----------------------------------------------------- */
 
     source =
@@ -627,7 +834,7 @@ async function createFFmpegClassWorker() {
     ) {
 
         throw new Error(
-            "Blob class worker kosong."
+            "Blob worker kosong."
         );
 
     }
@@ -641,39 +848,7 @@ async function createFFmpegClassWorker() {
 
 
 /* =========================================================
-   REVOKE OBJECT URL
-========================================================= */
-
-function revokeObjectURL(
-    url
-) {
-
-    if (
-        !url
-    ) {
-
-        return;
-
-    }
-
-
-    try {
-
-        URL.revokeObjectURL(
-            url
-        );
-
-    } catch {
-
-        /* ignore */
-
-    }
-
-}
-
-
-/* =========================================================
-   WAIT FOR FFMPEG
+   WAIT
 ========================================================= */
 
 export async function waitForFFmpeg() {
@@ -684,7 +859,7 @@ export async function waitForFFmpeg() {
 
 
 /* =========================================================
-   CREATE FFMPEG FILENAME
+   FILENAME
 ========================================================= */
 
 export function createFFmpegFilename(
@@ -717,7 +892,7 @@ export function createFFmpegFilename(
 
 
 /* =========================================================
-   GET CLEAN VIDEO MIME TYPE
+   MIME TYPE
 ========================================================= */
 
 export function getCleanVideoMimeType(
@@ -761,8 +936,6 @@ export function getCleanVideoMimeType(
             return "video/x-m4v";
 
 
-        case "mp4":
-
         default:
 
             return "video/mp4";
@@ -773,7 +946,7 @@ export function getCleanVideoMimeType(
 
 
 /* =========================================================
-   IS MOV LIKE VIDEO
+   MOV
 ========================================================= */
 
 export function isMovLikeVideo(
@@ -851,7 +1024,7 @@ export async function safeDeleteFFmpegFile(
 
     } catch {
 
-        /* File mungkin sudah tidak ada. */
+        /* ignore */
 
     }
 
@@ -939,7 +1112,7 @@ function normalizeFFmpegError(
 
 
 /* =========================================================
-   GET EXTENSION
+   EXTENSION
 ========================================================= */
 
 function getExtension(
@@ -1067,7 +1240,7 @@ if (
 
 
 /* =========================================================
-   PUBLIC API
+   DEFAULT EXPORT
 ========================================================= */
 
 export default {
