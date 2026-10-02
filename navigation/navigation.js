@@ -104,88 +104,133 @@
 
 
     /* =====================================================
-       SUPABASE
-    ===================================================== */
+   SUPABASE
+===================================================== */
 
-    function getSupabaseClient() {
+function getSupabaseClient() {
 
-        if (
-            window.GENZ_SUPABASE
-        ) {
+    /* -------------------------------------------------
+       1. Gunakan client yang sudah dibuat oleh project
+       ------------------------------------------------- */
 
-            return window.GENZ_SUPABASE;
+    if (
+        window.GENZ_SUPABASE
+    ) {
 
-        }
-
-
-        if (
-            window.supabaseClient
-        ) {
-
-            return window.supabaseClient;
-
-        }
-
-
-        const supabaseGlobal =
-            window.supabase;
-
-
-        const config =
-            window.GENZ_CONFIG;
-
-
-        if (
-            !supabaseGlobal ||
-            typeof supabaseGlobal.createClient !==
-                "function"
-        ) {
-
-            return null;
-
-        }
-
-
-        if (
-            !config ||
-            !config.SUPABASE_URL ||
-            !config.SUPABASE_ANON_KEY
-        ) {
-
-            return null;
-
-        }
-
-
-        try {
-
-            const client =
-                supabaseGlobal.createClient(
-                    config.SUPABASE_URL,
-                    config.SUPABASE_ANON_KEY
-                );
-
-
-            window.supabaseClient =
-                client;
-
-
-            return client;
-
-        } catch (
-            error
-        ) {
-
-            console.error(
-                "[GEN-Z.AI] Supabase client error:",
-                error
-            );
-
-            return null;
-
-        }
+        return window.GENZ_SUPABASE;
 
     }
+
+
+    if (
+        window.supabaseClient
+    ) {
+
+        return window.supabaseClient;
+
+    }
+
+
+    /* -------------------------------------------------
+       2. Ambil Supabase library
+       ------------------------------------------------- */
+
+    const supabaseGlobal =
+        window.supabase;
+
+
+    const config =
+        window.GENZ_CONFIG;
+
+
+    if (
+        !supabaseGlobal ||
+        typeof supabaseGlobal.createClient !==
+            "function"
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] Supabase library tidak tersedia."
+        );
+
+        return null;
+
+    }
+
+
+    /* -------------------------------------------------
+       3. GEN-Z.AI menggunakan SUPABASE_KEY
+       
+       Kompatibilitas:
+       - SUPABASE_KEY
+       - SUPABASE_ANON_KEY
+       ------------------------------------------------- */
+
+    if (
+        !config ||
+        !config.SUPABASE_URL
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] SUPABASE_URL tidak tersedia."
+        );
+
+        return null;
+
+    }
+
+
+    const supabaseKey =
+        config.SUPABASE_KEY ||
+        config.SUPABASE_ANON_KEY;
+
+
+    if (
+        !supabaseKey
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] SUPABASE_KEY tidak tersedia."
+        );
+
+        return null;
+
+    }
+
+
+    /* -------------------------------------------------
+       4. Buat client
+       ------------------------------------------------- */
+
+    try {
+
+        const client =
+            supabaseGlobal.createClient(
+                config.SUPABASE_URL,
+                supabaseKey
+            );
+
+
+        window.supabaseClient =
+            client;
+
+
+        return client;
+
+    } catch (
+        error
+    ) {
+
+        console.error(
+            "[GEN-Z.AI] Supabase client error:",
+            error
+        );
+
+        return null;
+
+    }
+
+}
 
 
     /* =====================================================
