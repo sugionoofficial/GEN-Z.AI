@@ -6,10 +6,12 @@
    admin-control/users/assets/js/user-render.js
 
    Fungsi:
-   - Render statistik
-   - Render daftar users
-   - Menentukan permission action
-   - Render tombol Confirm / Resend / Delete
+   - Render tabel users
+   - Render badge role
+   - Render badge status
+   - Render status email
+   - Render action button
+   - Update statistik
 ========================================================= */
 
 import {
@@ -38,6 +40,22 @@ export function updateStats() {
             : [];
 
 
+    const totalUsers =
+        document.getElementById(
+            "totalUsers"
+        );
+
+    const activeUsers =
+        document.getElementById(
+            "activeUsers"
+        );
+
+    const adminUsers =
+        document.getElementById(
+            "adminUsers"
+        );
+
+
     const total =
         users.length;
 
@@ -48,8 +66,8 @@ export function updateStats() {
                 String(
                     user?.status || ""
                 )
-                .trim()
-                .toLowerCase() === "active"
+                    .trim()
+                    .toLowerCase() === "active"
         ).length;
 
 
@@ -61,9 +79,8 @@ export function updateStats() {
                     String(
                         user?.role || ""
                     )
-                    .trim()
-                    .toUpperCase();
-
+                        .trim()
+                        .toUpperCase();
 
                 return (
                     role === "ADMIN" ||
@@ -74,43 +91,25 @@ export function updateStats() {
         ).length;
 
 
-    const totalElement =
-        document.getElementById(
-            "totalUsers"
-        );
+    if (totalUsers) {
 
-
-    const activeElement =
-        document.getElementById(
-            "activeUsers"
-        );
-
-
-    const adminElement =
-        document.getElementById(
-            "adminUsers"
-        );
-
-
-    if (totalElement) {
-
-        totalElement.textContent =
+        totalUsers.textContent =
             formatNumber(total);
 
     }
 
 
-    if (activeElement) {
+    if (activeUsers) {
 
-        activeElement.textContent =
+        activeUsers.textContent =
             formatNumber(active);
 
     }
 
 
-    if (adminElement) {
+    if (adminUsers) {
 
-        adminElement.textContent =
+        adminUsers.textContent =
             formatNumber(admins);
 
     }
@@ -139,23 +138,25 @@ export function renderUsers(
     }
 
 
-    const list =
+    const userList =
         Array.isArray(users)
             ? users
             : [];
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        EMPTY STATE
-    ====================================================== */
+    ----------------------------------------------------- */
 
-    if (list.length === 0) {
+    if (
+        userList.length === 0
+    ) {
 
         container.innerHTML = `
             <div class="empty-state">
 
                 <div class="empty-icon">
-                    ◌
+                    👥
                 </div>
 
                 <div class="empty-title">
@@ -163,7 +164,7 @@ export function renderUsers(
                 </div>
 
                 <div class="empty-text">
-                    Tidak ditemukan user yang sesuai.
+                    Belum ada user yang sesuai dengan pencarian.
                 </div>
 
             </div>
@@ -174,31 +175,30 @@ export function renderUsers(
     }
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        CURRENT USER
-    ====================================================== */
+    ----------------------------------------------------- */
 
     const currentUserId =
-        userState.currentUser?.id ||
-        userState.currentProfile?.id ||
-        "";
+        String(
+            userState.currentUser?.id || ""
+        );
 
 
     const currentRole =
         String(
-            userState.currentProfile?.role ||
-            ""
+            userState.currentProfile?.role || ""
         )
-        .trim()
-        .toUpperCase();
+            .trim()
+            .toUpperCase();
 
 
-    /* =====================================================
-       TABLE ROWS
-    ====================================================== */
+    /* -----------------------------------------------------
+       TABLE
+    ----------------------------------------------------- */
 
     const rows =
-        list.map(
+        userList.map(
             (user) => {
 
                 const userId =
@@ -223,16 +223,16 @@ export function renderUsers(
                     String(
                         user?.role || "USER"
                     )
-                    .trim()
-                    .toUpperCase();
+                        .trim()
+                        .toUpperCase();
 
 
                 const status =
                     String(
                         user?.status || "active"
                     )
-                    .trim()
-                    .toLowerCase();
+                        .trim()
+                        .toLowerCase();
 
 
                 const credits =
@@ -247,16 +247,12 @@ export function renderUsers(
                     );
 
 
-                /* =========================================
+                /* -----------------------------------------
                    PERMISSION
-                ========================================== */
+                ----------------------------------------- */
 
                 const isSelf =
-                    Boolean(
-                        currentUserId &&
-                        userId &&
-                        currentUserId === userId
-                    );
+                    userId === currentUserId;
 
 
                 const isOwner =
@@ -264,12 +260,13 @@ export function renderUsers(
 
 
                 /*
-                   OWNER:
-                   dapat mengelola USER dan ADMIN.
-
-                   ADMIN:
-                   hanya dapat mengelola USER.
-                */
+                 * OWNER:
+                 * - dapat mengelola USER
+                 * - dapat mengelola ADMIN
+                 *
+                 * ADMIN:
+                 * - hanya dapat mengelola USER
+                 */
 
                 const adminCanManage =
                     currentRole === "OWNER" ||
@@ -292,186 +289,191 @@ export function renderUsers(
                     !emailConfirmed;
 
 
-                /* =========================================
-                   ROLE BADGE
-                ========================================== */
+                /* -----------------------------------------
+                   ACTION BUTTONS
+                ----------------------------------------- */
 
-                const roleClass =
-                    getRoleClass(role);
-
-
-                /* =========================================
-                   STATUS BADGE
-                ========================================== */
-
-                const statusClass =
-                    getStatusClass(status);
-
-
-                /* =========================================
-                   ACTIONS
-                ========================================== */
-
-                const actions = [];
+                let actions = "";
 
 
                 if (
                     canManageConfirmation
                 ) {
 
-                    actions.push(`
+                    actions += `
                         <button
                             type="button"
-                            class="action-button confirm"
+                            class="action-button"
                             data-action="confirm"
                             data-user-id="${escapeHtml(userId)}"
                             data-user-email="${escapeHtml(email)}"
                         >
-                            CONFIRM
+                            Confirm
                         </button>
-                    `);
 
-
-                    actions.push(`
                         <button
                             type="button"
-                            class="action-button resend"
+                            class="action-button"
                             data-action="resend"
                             data-user-email="${escapeHtml(email)}"
                         >
-                            RESEND
+                            Resend
                         </button>
-                    `);
+                    `;
 
                 }
 
 
                 if (canDelete) {
 
-                    actions.push(`
+                    actions += `
                         <button
                             type="button"
-                            class="action-button delete"
+                            class="action-button danger"
                             data-action="delete"
                             data-user-id="${escapeHtml(userId)}"
                             data-user-email="${escapeHtml(email)}"
                             data-user-name="${escapeHtml(name)}"
                         >
-                            DELETE
+                            Delete
                         </button>
-                    `);
+                    `;
 
                 }
 
 
-                if (actions.length === 0) {
+                if (!actions) {
 
-                    actions.push(`
+                    actions = `
                         <span class="action-disabled">
-                            —
+                            -
                         </span>
-                    `);
+                    `;
 
                 }
 
 
-                /* =========================================
-                   RETURN ROW
-                ========================================== */
+                /* -----------------------------------------
+                   DISPLAY NAME
+                ----------------------------------------- */
+
+                const displayName =
+                    name.trim()
+                        ? name
+                        : "-";
+
+
+                /* -----------------------------------------
+                   ROLE BADGE
+                ----------------------------------------- */
+
+                const roleClass =
+                    getRoleClass(role);
+
+
+                const roleLabel =
+                    escapeHtml(role);
+
+
+                /* -----------------------------------------
+                   STATUS BADGE
+                ----------------------------------------- */
+
+                const statusClass =
+                    getStatusClass(status);
+
+
+                const statusLabel =
+                    status
+                        .charAt(0)
+                        .toUpperCase() +
+                    status.slice(1);
+
+
+                /* -----------------------------------------
+                   EMAIL STATUS
+                ----------------------------------------- */
+
+                const emailBadge =
+                    emailConfirmed
+                        ? `
+                            <span class="email-badge verified">
+                                Verified
+                            </span>
+                        `
+                        : `
+                            <span class="email-badge unverified">
+                                Unverified
+                            </span>
+                        `;
+
+
+                /* -----------------------------------------
+                   ROW
+                ----------------------------------------- */
 
                 return `
                     <tr>
 
                         <td>
-
                             <div class="user-email">
                                 ${escapeHtml(email)}
                             </div>
 
+                            ${emailBadge}
                         </td>
 
 
                         <td>
-
                             <div class="user-name">
-                                ${escapeHtml(name || "—")}
+                                ${escapeHtml(displayName)}
                             </div>
-
                         </td>
 
 
                         <td>
-
                             <span
                                 class="role-badge ${escapeHtml(roleClass)}"
                             >
-                                ${escapeHtml(role)}
+                                ${roleLabel}
                             </span>
-
                         </td>
 
 
                         <td>
-
                             <span class="credit-value">
                                 ${formatNumber(credits)}
                             </span>
-
                         </td>
 
 
                         <td>
-
                             <span
                                 class="status-badge ${escapeHtml(statusClass)}"
                             >
-                                ${escapeHtml(status)}
+                                ${escapeHtml(statusLabel)}
                             </span>
-
                         </td>
 
 
                         <td>
-
-                            ${
-                                emailConfirmed
-                                    ? `
-                                        <span class="email-badge verified">
-                                            VERIFIED
-                                        </span>
-                                      `
-                                    : `
-                                        <span class="email-badge unverified">
-                                            UNVERIFIED
-                                        </span>
-                                      `
-                            }
-
-                        </td>
-
-
-                        <td>
-
                             <div class="actions">
-                                ${actions.join("")}
+                                ${actions}
                             </div>
-
                         </td>
 
                     </tr>
                 `;
 
             }
-        )
-        .join("");
+        ).join("");
 
 
-    /* =====================================================
-       TABLE
-    ====================================================== */
+    /* -----------------------------------------------------
+       FINAL TABLE
+    ----------------------------------------------------- */
 
     container.innerHTML = `
-
         <div class="table-wrapper">
 
             <table class="users-table">
@@ -481,48 +483,40 @@ export function renderUsers(
                     <tr>
 
                         <th>
-                            EMAIL
+                            Email
                         </th>
 
                         <th>
-                            NAMA
+                            Name
                         </th>
 
                         <th>
-                            ROLE
+                            Role
                         </th>
 
                         <th>
-                            CREDIT
+                            Credits
                         </th>
 
                         <th>
-                            STATUS
+                            Status
                         </th>
 
                         <th>
-                            EMAIL
-                        </th>
-
-                        <th>
-                            ACTION
+                            Actions
                         </th>
 
                     </tr>
 
                 </thead>
 
-
                 <tbody>
-
                     ${rows}
-
                 </tbody>
 
             </table>
 
         </div>
-
     `;
 
 }
