@@ -6,21 +6,20 @@
    admin-control/users/assets/js/user-loader.js
 
    Fungsi:
-   - Entry point halaman Users
-   - Memulai event handler
-   - Memeriksa authentication
-   - Memuat data users
+   - Entry point Users module
+   - Bind event
+   - Validasi authentication
+   - Load data users
 
    Dependency order:
    1. user-events.js
    2. user-auth.js
    3. user-data.js
 
-   File ini tidak menangani:
-   - API implementation
-   - Render
-   - Modal
-   - CRUD logic
+   Catatan:
+   - Jangan load user-loader.js dari module lain.
+   - Jangan menambahkan script module Users lain langsung
+     ke HTML.
 ========================================================= */
 
 import {
@@ -37,41 +36,72 @@ import {
 
 
 /* =========================================================
-   INITIALIZE USERS PAGE
+   PAGE INIT
 ========================================================= */
 
-async function initUsersPage() {
+export async function initUsersPage() {
 
-    /* -----------------------------------------------------
-       BIND EVENTS
-       -----------------------------------------------------
-       Event dipasang terlebih dahulu supaya setelah data
-       selesai dimuat seluruh tombol sudah siap digunakan.
-    ----------------------------------------------------- */
+    try {
 
-    initUserEvents();
+        /* =================================================
+           EVENT LISTENER
+        ================================================= */
 
-
-    /* -----------------------------------------------------
-       AUTHENTICATION
-    ----------------------------------------------------- */
-
-    const authenticated =
-        await checkAuth();
+        initUserEvents();
 
 
-    if (!authenticated) {
+        /* =================================================
+           AUTHENTICATION
+        ================================================= */
 
-        return;
+        const authenticated =
+            await checkAuth();
+
+
+        if (!authenticated) {
+
+            return;
+
+        }
+
+
+        /* =================================================
+           LOAD USERS
+        ================================================= */
+
+        await loadUsers();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] Users page initialization error:",
+            error
+        );
+
+
+        const container =
+            document.getElementById(
+                "userContainer"
+            );
+
+
+        if (container) {
+
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">⚠</div>
+                    <div class="empty-title">
+                        Gagal memuat halaman Users
+                    </div>
+                    <div class="empty-text">
+                        Terjadi kesalahan saat memuat User Management.
+                    </div>
+                </div>
+            `;
+
+        }
 
     }
-
-
-    /* -----------------------------------------------------
-       LOAD USERS
-    ----------------------------------------------------- */
-
-    await loadUsers();
 
 }
 
@@ -80,30 +110,13 @@ async function initUsersPage() {
    START
 ========================================================= */
 
-initUsersPage()
-    .catch(
-        error => {
+initUsersPage().catch(
+    (error) => {
 
-            console.error(
-                "[GEN-Z.AI] Users page initialization error:",
-                error
-            );
+        console.error(
+            "[GEN-Z.AI] Fatal Users loader error:",
+            error
+        );
 
-            const container =
-                document.getElementById(
-                    "userContainer"
-                );
-
-
-            if (container) {
-
-                container.innerHTML = `
-                    <div class="empty">
-                        Gagal menginisialisasi halaman Users.
-                    </div>
-                `;
-
-            }
-
-        }
-    );
+    }
+);
