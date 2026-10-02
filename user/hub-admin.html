@@ -116,367 +116,11 @@
 
 
         /* =====================================================
-           MENU BUTTON
+           SHARED NAVIGATION
+           ---------------------------------------------------------
+           Navigasi halaman ditangani sepenuhnya oleh:
+           ../navigation/navigation.js
         ====================================================== */
-
-        .menu-button {
-
-            position: fixed;
-
-            top: 20px;
-            left: 20px;
-
-            width: 48px;
-            height: 48px;
-
-            border:
-                1px solid
-                rgba(255,255,255,.15);
-
-            border-radius: 15px;
-
-            background:
-                rgba(17,24,39,.94);
-
-            color:
-                white;
-
-            display: flex;
-
-            align-items:
-                center;
-
-            justify-content:
-                center;
-
-            flex-direction:
-                column;
-
-            gap: 5px;
-
-            cursor:
-                pointer;
-
-            z-index:
-                1200;
-
-            box-shadow:
-                0 12px 30px
-                rgba(0,0,0,.18);
-
-        }
-
-
-        .menu-button span {
-
-            width: 19px;
-            height: 2px;
-
-            background:
-                white;
-
-            border-radius:
-                10px;
-
-        }
-
-
-        /* =====================================================
-           SIDEBAR
-        ====================================================== */
-
-        .sidebar {
-
-            position: fixed;
-
-            inset:
-                0 auto 0 0;
-
-            width: 285px;
-
-            background:
-
-                linear-gradient(
-                    180deg,
-                    #111827 0%,
-                    #0b1220 100%
-                );
-
-            color:
-                white;
-
-            z-index:
-                1100;
-
-            transform:
-                translateX(-105%);
-
-            transition:
-                transform .3s ease;
-
-            padding:
-                28px 18px;
-
-            display:
-                flex;
-
-            flex-direction:
-                column;
-
-            box-shadow:
-                25px 0 70px
-                rgba(0,0,0,.25);
-
-        }
-
-
-        .sidebar.open {
-
-            transform:
-                translateX(0);
-
-        }
-
-
-        .brand {
-
-            padding:
-                5px 14px 28px;
-
-        }
-
-
-        .brand h2 {
-
-            font-size:
-                22px;
-
-            font-weight:
-                800;
-
-            letter-spacing:
-                -.7px;
-
-        }
-
-
-        .brand span {
-
-            display:
-                block;
-
-            margin-top:
-                5px;
-
-            font-size:
-                11px;
-
-            color:
-                #9ca3af;
-
-            letter-spacing:
-                1.6px;
-
-        }
-
-
-        .nav {
-
-            display:
-                flex;
-
-            flex-direction:
-                column;
-
-            gap:
-                6px;
-
-        }
-
-
-        .nav a {
-
-            text-decoration:
-                none;
-
-            color:
-                #9ca3af;
-
-            padding:
-                13px 14px;
-
-            border-radius:
-                13px;
-
-            font-size:
-                13px;
-
-            font-weight:
-                600;
-
-            transition:
-                .2s ease;
-
-        }
-
-
-        .nav a:hover,
-        .nav a.active {
-
-            color:
-                white;
-
-            background:
-                rgba(255,255,255,.08);
-
-        }
-
-
-        .nav a.active {
-
-            box-shadow:
-                inset 3px 0 0
-                var(--accent);
-
-        }
-
-
-        .sidebar-bottom {
-
-            margin-top:
-                auto;
-
-        }
-
-
-        .user-mini {
-
-            padding:
-                14px;
-
-            border-radius:
-                16px;
-
-            background:
-                rgba(255,255,255,.06);
-
-            margin-bottom:
-                10px;
-
-        }
-
-
-        .user-mini small {
-
-            color:
-                #9ca3af;
-
-            font-size:
-                10px;
-
-        }
-
-
-        .user-mini strong {
-
-            display:
-                block;
-
-            margin-top:
-                5px;
-
-            font-size:
-                12px;
-
-            overflow:
-                hidden;
-
-            text-overflow:
-                ellipsis;
-
-            white-space:
-                nowrap;
-
-        }
-
-
-        .logout {
-
-            width:
-                100%;
-
-            border:
-                1px solid
-                rgba(255,255,255,.1);
-
-            background:
-                transparent;
-
-            color:
-                #d1d5db;
-
-            padding:
-                12px;
-
-            border-radius:
-                13px;
-
-            cursor:
-                pointer;
-
-            font-weight:
-                600;
-
-        }
-
-
-        .logout:hover {
-
-            background:
-                rgba(255,255,255,.08);
-
-        }
-
-
-        .overlay {
-
-            position:
-                fixed;
-
-            inset:
-                0;
-
-            background:
-                rgba(15,23,42,.35);
-
-            backdrop-filter:
-                blur(4px);
-
-            z-index:
-                1000;
-
-            opacity:
-                0;
-
-            pointer-events:
-                none;
-
-            transition:
-                .3s ease;
-
-        }
-
-
-        .overlay.active {
-
-            opacity:
-                1;
-
-            pointer-events:
-                auto;
-
-        }
-
 
         /* =====================================================
            MAIN
@@ -500,9 +144,6 @@
 
 
         .topbar {
-
-            padding-left:
-                70px;
 
             display:
                 flex;
@@ -1235,9 +876,6 @@
 
             .topbar {
 
-                padding-left:
-                    62px;
-
                 align-items:
                     flex-start;
 
@@ -1247,22 +885,6 @@
 
 
         @media (max-width: 520px) {
-
-            .menu-button {
-
-                top:
-                    14px;
-
-                left:
-                    14px;
-
-                width:
-                    44px;
-
-                height:
-                    44px;
-
-            }
 
 
             .main {
@@ -1274,9 +896,6 @@
 
 
             .topbar {
-
-                padding-left:
-                    58px;
 
                 flex-direction:
                     column;
@@ -1325,14 +944,6 @@
             }
 
 
-            .sidebar {
-
-                width:
-                    275px;
-
-            }
-
-
             .admin-contact-item {
 
                 align-items:
@@ -1362,107 +973,13 @@
 
 
     <!-- =====================================================
-         MENU
+         SHARED NAVIGATION
+         -----------------------------------------------------
+         Seluruh navigasi halaman dikelola oleh:
+         ../navigation/navigation.js
     ====================================================== -->
 
-    <button
-        class="menu-button"
-        id="menuButton"
-        type="button"
-        aria-label="Buka navigasi"
-        aria-controls="sidebar"
-        aria-expanded="false"
-    >
-
-        <span></span>
-        <span></span>
-        <span></span>
-
-    </button>
-
-
-    <!-- =====================================================
-         SIDEBAR
-    ====================================================== -->
-
-    <aside
-        class="sidebar"
-        id="sidebar"
-    >
-
-        <div class="brand">
-
-            <h2>
-                GEN-Z.AI
-            </h2>
-
-            <span>
-                AI VIDEO GENERATION
-            </span>
-
-        </div>
-
-
-        <nav class="nav">
-
-            <a href="./dashboard.html">
-                Dashboard
-            </a>
-
-            <a href="../generate/index.html">
-                Generate
-            </a>
-
-            <a href="../history/index.html">
-                History
-            </a>
-
-            <a href="./topup.html">
-                Top Up
-            </a>
-
-            <a
-                href="./hub-admin.html"
-                class="active"
-            >
-                Hub Admin
-            </a>
-
-        </nav>
-
-
-        <div class="sidebar-bottom">
-
-            <div class="user-mini">
-
-                <small>
-                    ACCOUNT
-                </small>
-
-                <strong id="sidebarEmail">
-                    Loading...
-                </strong>
-
-            </div>
-
-
-            <button
-                class="logout"
-                id="logoutButton"
-                type="button"
-            >
-                LOG OUT
-            </button>
-
-        </div>
-
-    </aside>
-
-
-    <div
-        class="overlay"
-        id="overlay"
-    ></div>
+    <div id="genz-navigation"></div>
 
 
     <!-- =====================================================
@@ -1732,6 +1249,9 @@
 
     <script src="../assets/js/config.js"></script>
 
+    <!-- Shared GEN-Z.AI Navigation -->
+    <script src="../navigation/navigation.js"></script>
+
 
     <script>
 
@@ -1766,30 +1286,6 @@
             /* =================================================
                ELEMENTS
             ================================================== */
-
-            const menuButton =
-                document.getElementById(
-                    "menuButton"
-                );
-
-
-            const sidebar =
-                document.getElementById(
-                    "sidebar"
-                );
-
-
-            const overlay =
-                document.getElementById(
-                    "overlay"
-                );
-
-
-            const logoutButton =
-                document.getElementById(
-                    "logoutButton"
-                );
-
 
             const message =
                 document.getElementById(
@@ -1830,12 +1326,6 @@
             const creditBalance =
                 document.getElementById(
                     "creditBalance"
-                );
-
-
-            const sidebarEmail =
-                document.getElementById(
-                    "sidebarEmail"
                 );
 
 
@@ -1900,83 +1390,6 @@
 
             let hubAdminActive =
                 false;
-
-
-            /* =================================================
-               SIDEBAR
-            ================================================== */
-
-            menuButton?.addEventListener(
-                "click",
-                () => {
-
-                    const isOpen =
-                        sidebar.classList.contains(
-                            "open"
-                        );
-
-
-                    if (isOpen) {
-
-                        closeSidebar();
-
-                    } else {
-
-                        sidebar.classList.add(
-                            "open"
-                        );
-
-                        overlay.classList.add(
-                            "active"
-                        );
-
-                        menuButton.setAttribute(
-                            "aria-expanded",
-                            "true"
-                        );
-
-                    }
-
-                }
-            );
-
-
-            overlay?.addEventListener(
-                "click",
-                closeSidebar
-            );
-
-
-            document
-                .querySelectorAll(".nav a")
-                .forEach(
-                    link => {
-
-                        link.addEventListener(
-                            "click",
-                            closeSidebar
-                        );
-
-                    }
-                );
-
-
-            function closeSidebar() {
-
-                sidebar.classList.remove(
-                    "open"
-                );
-
-                overlay.classList.remove(
-                    "active"
-                );
-
-                menuButton.setAttribute(
-                    "aria-expanded",
-                    "false"
-                );
-
-            }
 
 
             /* =================================================
@@ -2138,16 +1551,6 @@
                         .toLocaleString(
                             "id-ID"
                         );
-
-                }
-
-
-                if (sidebarEmail) {
-
-                    sidebarEmail.textContent =
-                        profile.email ||
-                        currentUser.email ||
-                        "User";
 
                 }
 
@@ -2786,47 +2189,10 @@
 
 
             /* =================================================
-               LOGOUT
-            ================================================== */
-
-            logoutButton?.addEventListener(
-                "click",
-                async () => {
-
-                    try {
-
-                        if (
-                            supabaseClient
-                        ) {
-
-                            await
-                                supabaseClient
-                                    .auth
-                                    .signOut();
-
-                        }
-
-                    } catch (error) {
-
-                        console.error(
-                            "[GEN-Z.AI] Logout error:",
-                            error
-                        );
-
-                    } finally {
-
-                        window.location.replace(
-                            "../login.html"
-                        );
-
-                    }
-
-                }
-            );
-
-
-            /* =================================================
                INIT
+               -------------------------------------------------
+               Logout dan account navigation ditangani oleh
+               ../navigation/navigation.js.
             ================================================== */
 
             async function init() {
