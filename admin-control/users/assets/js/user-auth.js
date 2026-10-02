@@ -5,116 +5,91 @@
    File:
    admin-control/users/assets/js/user-auth.js
 
-   Fungsi:
-   - Menggunakan authentication dari shared navigation
-   - Tidak melakukan getSession() sendiri
-   - Tidak melakukan query profiles sendiri
-   - Tidak melakukan redirect sendiri
-   - Mengambil user/profile/role dari navigation
-   - Menjaga compatibility dengan modul User Management
-
-   OWNER AUTH SYSTEM:
+   AUTH OWNER:
    /navigation/navigation.js
+
+   Fungsi:
+   - Mengambil authentication state dari shared navigation
+   - Tidak membuat session sendiri
+   - Tidak melakukan signOut sendiri
+   - Tidak melakukan redirect sendiri
+   - Menentukan hak akses User Management
    ========================================================= */
 
-import {
-    userState
-} from "./user-state.js";
+import { userState } from "./user-state.js";
 
 
 /* =========================================================
-   NAVIGATION READY
+   WAIT FOR SHARED NAVIGATION
 ========================================================= */
 
 async function waitForNavigation() {
 
-    /*
-       navigation.js membuat:
-
-       window.GENZNavigationReady
-
-       Promise tersebut selesai setelah:
-       - session berhasil diperiksa
-       - profile berhasil dimuat
-       - role ditentukan
-       - navigation dirender
-
-       Jadi User Management tidak perlu menjalankan
-       sistem authentication kedua.
-    */
-
-    try {
-
-        if (
-            window.GENZNavigationReady &&
-            typeof window.GENZNavigationReady.then ===
-                "function"
-        ) {
-
-            const ready =
-                await window.GENZNavigationReady;
-
-            return ready !== false;
-
-        }
-
-
-        /*
-           Fallback jika Promise belum tersedia.
-
-           Jangan langsung redirect.
-           Tunggu sebentar agar navigation.js memiliki
-           kesempatan melakukan initialization.
-        */
-
-        for (
-            let attempt = 0;
-            attempt < 20;
-            attempt++
-        ) {
-
-            if (
-                window.GENZNavigation
-            ) {
-
-                if (
-                    window.GENZNavigation.getUser &&
-                    window.GENZNavigation.getProfile
-                ) {
-
-                    return true;
-
-                }
-
-            }
-
-
-            await new Promise(
-                resolve =>
-                    setTimeout(
-                        resolve,
-                        100
-                    )
-            );
-
-        }
-
-
-        return false;
-
-    } catch (
-        error
+    if (
+        window.GENZNavigationReady &&
+        typeof window.GENZNavigationReady.then === "function"
     ) {
 
-        console.error(
-            "[GEN-Z.AI] Navigation ready error:",
-            error
-        );
+        try {
 
-        return false;
+            const result =
+                await window.GENZNavigationReady;
 
+            return result !== false;
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI UserAuth] Navigation error:",
+                error
+            );
+
+            return false;
+        }
     }
 
+
+    for (
+        let attempt = 0;
+        attempt < 30;
+        attempt++
+    ) {
+
+        if (
+            window.GENZNavigation &&
+            window.GENZNavigationReady
+        ) {
+
+            try {
+
+                const result =
+                    await window.GENZNavigationReady;
+
+                return result !== false;
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI UserAuth] Navigation wait error:",
+                    error
+                );
+
+                return false;
+            }
+        }
+
+
+        await new Promise(
+            resolve => setTimeout(resolve, 100)
+        );
+    }
+
+
+    console.error(
+        "[GEN-Z.AI UserAuth] Shared navigation tidak tersedia."
+    );
+
+    return false;
 }
 
 
@@ -122,502 +97,328 @@ async function waitForNavigation() {
    ROLE OPTIONS
 ========================================================= */
 
-function configureRoleOptions(
-    role
-) {
+function configureRoleOptions(role) {
 
-    const roleInput =
-        document.getElementById(
-            "newRole"
-        );
+    const roleSelect =
+        document.getElementById("newRole");
 
+    const adminOption =
+        document.getElementById("adminRoleOption");
 
-    const adminRoleOption =
-        document.getElementById(
-            "adminRoleOption"
-        );
-
-
-    if (
-        !roleInput
-    ) {
-
+    if (!roleSelect) {
         return;
-
     }
 
 
-    const currentRole =
-        String(
-            role || ""
-        )
+    const normalizedRole =
+        String(role || "USER")
             .trim()
             .toUpperCase();
 
 
     /*
-       OWNER tidak boleh dibuat melalui User Management.
-
-       API juga tetap melakukan validasi server-side.
-       Ini hanya menjaga UI agar konsisten.
+       OWNER:
+       USER + ADMIN
     */
 
-    const ownerOption =
-        Array.from(
-            roleInput.options || []
-        )
-            .find(
-                option =>
-                    String(
-                        option.value || ""
-                    )
-                        .trim()
-                        .toUpperCase() ===
-                    "OWNER"
-            );
+    if (normalizedRole === "OWNER") {
 
+        if (adminOption) {
 
-    if (
-        ownerOption
-    ) {
-
-        ownerOption.remove();
-
-    }
-
-
-    /*
-       ADMIN hanya boleh membuat USER.
-
-       Karena itu pilihan ADMIN disembunyikan untuk ADMIN.
-    */
-
-    if (
-        currentRole ===
-        "ADMIN"
-    ) {
-
-        if (
-            adminRoleOption
-        ) {
-
-            adminRoleOption.remove();
-
+            adminOption.hidden = false;
+            adminOption.disabled = false;
         }
 
-
-        roleInput.value =
-            "USER";
-
+        roleSelect.value = "USER";
 
         return;
-
     }
 
 
     /*
-       OWNER boleh membuat ADMIN atau USER.
+       ADMIN:
+       USER only
     */
 
-    if (
-        currentRole ===
-        "OWNER"
-    ) {
+    if (normalizedRole === "ADMIN") {
 
-        const hasAdminOption =
-            Array.from(
-                roleInput.options || []
-            )
-                .some(
-                    option =>
-                        String(
-                            option.value || ""
-                        )
-                            .trim()
-                            .toUpperCase() ===
-                        "ADMIN"
-                );
+        if (adminOption) {
 
-
-        if (
-            !hasAdminOption
-        ) {
-
-            const option =
-                document.createElement(
-                    "option"
-                );
-
-
-            option.id =
-                "adminRoleOption";
-
-
-            option.value =
-                "ADMIN";
-
-
-            option.textContent =
-                "ADMIN";
-
-
-            roleInput.appendChild(
-                option
-            );
-
+            adminOption.hidden = true;
+            adminOption.disabled = true;
         }
 
+        roleSelect.value = "USER";
 
-        roleInput.value =
-            "USER";
-
+        return;
     }
 
+
+    /*
+       USER:
+       Tidak boleh mengelola User Management.
+    */
+
+    if (adminOption) {
+
+        adminOption.hidden = true;
+        adminOption.disabled = true;
+    }
+
+    roleSelect.value = "USER";
 }
 
 
 /* =========================================================
    CHECK AUTH
-   ---------------------------------------------------------
-   Shared navigation adalah sumber auth utama.
 ========================================================= */
 
 export async function checkAuth() {
 
-    /*
-       Tunggu shared navigation selesai.
-
-       navigation.js yang menangani:
-       - tidak ada session
-       - redirect ke /login.html
-       - profile
-       - role
-       - status
-    */
-
     const navigationReady =
         await waitForNavigation();
 
+    if (!navigationReady) {
 
-    if (
-        !navigationReady
-    ) {
-
-        /*
-           Jangan melakukan redirect dari halaman ini.
-
-           Jika session tidak valid, navigation.js sudah
-           menangani redirect ke LOGIN_PATH.
-
-           Menghindari redirect kedua yang menyebabkan
-           halaman saling melempar.
-        */
+        console.warn(
+            "[GEN-Z.AI UserAuth] Navigation belum authenticated."
+        );
 
         return false;
-
     }
 
-
-    /*
-       Ambil data langsung dari shared navigation.
-    */
 
     const navigation =
         window.GENZNavigation;
 
-
-    if (
-        !navigation
-    ) {
+    if (!navigation) {
 
         console.error(
-            "[GEN-Z.AI] Shared navigation tidak tersedia."
+            "[GEN-Z.AI UserAuth] window.GENZNavigation tidak tersedia."
         );
 
         return false;
-
     }
 
 
-    const currentUser =
-        typeof navigation.getUser ===
-            "function"
-            ? navigation.getUser()
-            : null;
+    let currentUser = null;
+    let currentProfile = null;
+    let currentRole = "USER";
 
 
-    const currentProfile =
-        typeof navigation.getProfile ===
-            "function"
-            ? navigation.getProfile()
-            : null;
+    try {
+
+        if (
+            typeof navigation.getUser === "function"
+        ) {
+
+            currentUser =
+                navigation.getUser();
+        }
 
 
-    const navigationRole =
-        typeof navigation.getRole ===
-            "function"
-            ? navigation.getRole()
-            : "";
+        if (
+            typeof navigation.getProfile === "function"
+        ) {
+
+            currentProfile =
+                navigation.getProfile();
+        }
+
+
+        if (
+            typeof navigation.getRole === "function"
+        ) {
+
+            currentRole =
+                navigation.getRole();
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI UserAuth] Gagal membaca navigation state:",
+            error
+        );
+
+        return false;
+    }
 
 
     /*
-       Navigation globals menjadi fallback.
+       Fallback ke global navigation state.
     */
 
-    const user =
-        currentUser ||
-        window.GENZ_NAVIGATION_USER ||
-        null;
+    if (!currentUser) {
+
+        currentUser =
+            window.GENZ_CURRENT_USER ||
+            window.currentUser ||
+            null;
+    }
 
 
-    const profile =
-        currentProfile ||
-        window.GENZ_NAVIGATION_PROFILE ||
-        window.GENZ_CURRENT_PROFILE ||
-        null;
+    if (!currentProfile) {
+
+        currentProfile =
+            window.GENZ_CURRENT_PROFILE ||
+            window.currentProfile ||
+            null;
+    }
 
 
-    const role =
-        String(
-            navigationRole ||
-            window.GENZ_NAVIGATION_ROLE ||
-            profile?.role ||
-            ""
-        )
+    if (!currentRole) {
+
+        currentRole =
+            window.GENZ_CURRENT_ROLE ||
+            window.currentRole ||
+            "USER";
+    }
+
+
+    currentRole =
+        String(currentRole || "USER")
             .trim()
             .toUpperCase();
 
 
     /*
-       Kalau navigation sudah ready tetapi user/profile
-       benar-benar tidak ada, jangan membuat auth system
-       kedua.
-
-       navigation sendiri yang bertanggung jawab terhadap
-       redirect login.
+       User Management hanya untuk ADMIN / OWNER.
     */
 
     if (
-        !user
+        currentRole !== "ADMIN" &&
+        currentRole !== "OWNER"
     ) {
 
-        console.error(
-            "[GEN-Z.AI] User session tidak tersedia dari shared navigation."
+        console.warn(
+            "[GEN-Z.AI UserAuth] Role tidak memiliki akses:",
+            currentRole
         );
 
         return false;
-
     }
 
 
-    if (
-        !profile
-    ) {
+    if (!currentUser) {
 
-        console.error(
-            "[GEN-Z.AI] Profile tidak tersedia dari shared navigation."
+        console.warn(
+            "[GEN-Z.AI UserAuth] Current user tidak tersedia."
         );
 
         return false;
-
     }
 
 
     /*
-       User Management hanya menerima ADMIN / OWNER.
-    */
-
-    if (
-        role !== "ADMIN" &&
-        role !== "OWNER"
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] User Management membutuhkan role ADMIN atau OWNER."
-        );
-
-        return false;
-
-    }
-
-
-    /*
-       Status sudah diperiksa oleh navigation.js.
-
-       Kita tetap normalisasi di state agar modul lain
-       mendapatkan struktur yang konsisten.
-    */
-
-    const status =
-        String(
-            profile.status ||
-            "active"
-        )
-            .trim()
-            .toLowerCase();
-
-
-    /*
-       Simpan ke state lokal User Management.
-
-       Tidak ada query Supabase tambahan.
+       Simpan state halaman.
     */
 
     userState.currentUser =
-        user;
+        currentUser;
+
+    userState.currentProfile =
+        currentProfile;
 
 
-    userState.currentProfile = {
-
-        ...profile,
-
-        role,
-
-        status
-
-    };
-
-
-    /* =====================================================
-       USER INFO
-    ===================================================== */
+    /*
+       Update informasi user di halaman.
+    */
 
     const userInfo =
-        document.getElementById(
-            "userInfo"
-        );
+        document.getElementById("userInfo");
 
+    if (userInfo) {
 
-    if (
-        userInfo
-    ) {
+        const email =
+            currentProfile?.email ||
+            currentUser?.email ||
+            "-";
 
         userInfo.textContent =
-            `${profile.email || user.email || ""} • ${role}`;
-
+            `${email} • ${currentRole}`;
     }
 
 
-    /* =====================================================
-       ROLE OPTIONS
-    ===================================================== */
-
     configureRoleOptions(
-        role
+        currentRole
     );
 
 
     return true;
-
 }
 
 
 /* =========================================================
-   CURRENT PROFILE
+   STATE ACCESSORS
 ========================================================= */
 
 export function getCurrentProfile() {
 
-    return (
-        userState.currentProfile ||
-        window.GENZ_CURRENT_PROFILE ||
-        window.GENZ_NAVIGATION_PROFILE ||
-        null
-    );
-
+    return userState.currentProfile;
 }
 
-
-/* =========================================================
-   CURRENT ROLE
-========================================================= */
 
 export function getCurrentRole() {
 
-    const profile =
-        getCurrentProfile();
-
+    const navigation =
+        window.GENZNavigation;
 
     if (
-        profile?.role
+        navigation &&
+        typeof navigation.getRole === "function"
     ) {
 
         return String(
-            profile.role
+            navigation.getRole() || "USER"
         )
             .trim()
             .toUpperCase();
-
     }
 
 
-    return String(
-        window.GENZ_NAVIGATION_ROLE ||
-        ""
-    )
-        .trim()
-        .toUpperCase();
-
+    return "USER";
 }
 
 
 /* =========================================================
-   IS ADMIN
+   ROLE HELPERS
 ========================================================= */
 
 export function isAdmin() {
 
     return (
-        getCurrentRole() ===
-        "ADMIN"
+        getCurrentRole() === "ADMIN"
     );
-
 }
 
-
-/* =========================================================
-   IS OWNER
-========================================================= */
 
 export function isOwner() {
 
     return (
-        getCurrentRole() ===
-        "OWNER"
+        getCurrentRole() === "OWNER"
     );
-
 }
 
-
-/* =========================================================
-   CAN MANAGE USERS
-========================================================= */
 
 export function canManageUsers() {
 
     const role =
         getCurrentRole();
 
-
     return (
         role === "ADMIN" ||
         role === "OWNER"
     );
-
 }
 
 
 /* =========================================================
-   GLOBAL COMPATIBILITY
-   ---------------------------------------------------------
-   Beberapa modul lama mungkin membaca helper ini dari
-   window. Tetap expose tanpa mengambil alih auth.
+   GLOBAL BRIDGE
 ========================================================= */
 
-if (
-    typeof window !==
-    "undefined"
-) {
+if (typeof window !== "undefined") {
 
     window.GENZUserAuth = {
 
@@ -632,7 +433,5 @@ if (
         isOwner,
 
         canManageUsers
-
     };
-
 }
