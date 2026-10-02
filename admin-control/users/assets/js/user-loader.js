@@ -6,20 +6,10 @@
    admin-control/users/assets/js/user-loader.js
 
    Fungsi:
-   - Entry point Users module
-   - Bind event
+   - Entry point User Management
+   - Initialize event handler
    - Validasi authentication
    - Load data users
-
-   Dependency order:
-   1. user-events.js
-   2. user-auth.js
-   3. user-data.js
-
-   Catatan:
-   - Jangan load user-loader.js dari module lain.
-   - Jangan menambahkan script module Users lain langsung
-     ke HTML.
 ========================================================= */
 
 import {
@@ -36,23 +26,23 @@ import {
 
 
 /* =========================================================
-   PAGE INIT
+   INITIALIZE USERS PAGE
 ========================================================= */
 
 export async function initUsersPage() {
 
     try {
 
-        /* =================================================
-           EVENT LISTENER
-        ================================================= */
+        /* -------------------------------------------------
+           EVENTS
+        ------------------------------------------------- */
 
         initUserEvents();
 
 
-        /* =================================================
+        /* -------------------------------------------------
            AUTHENTICATION
-        ================================================= */
+        ------------------------------------------------- */
 
         const authenticated =
             await checkAuth();
@@ -65,9 +55,9 @@ export async function initUsersPage() {
         }
 
 
-        /* =================================================
+        /* -------------------------------------------------
            LOAD USERS
-        ================================================= */
+        ------------------------------------------------- */
 
         await loadUsers();
 
@@ -89,13 +79,19 @@ export async function initUsersPage() {
 
             container.innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-icon">⚠</div>
-                    <div class="empty-title">
-                        Gagal memuat halaman Users
+
+                    <div class="empty-icon">
+                        ⚠
                     </div>
+
+                    <div class="empty-title">
+                        Gagal Memuat Halaman Users
+                    </div>
+
                     <div class="empty-text">
                         Terjadi kesalahan saat memuat User Management.
                     </div>
+
                 </div>
             `;
 
@@ -107,7 +103,7 @@ export async function initUsersPage() {
 
 
 /* =========================================================
-   START
+   BOOT
 ========================================================= */
 
 initUsersPage().catch(
