@@ -6,36 +6,37 @@
    admin-control/users/assets/js/user-api.js
 
    Fungsi:
-   - Komunikasi dengan /api/admin-users
-   - GET users
+   - Mengambil access token Supabase
+   - Request ke /api/admin-users
+   - LIST users
    - CREATE user
    - RESEND confirmation
    - CONFIRM email
    - DELETE user
 
-   Catatan:
-   - Tidak mengubah API server
-   - Mengikuti posisi:
-       admin-control/
-       └── users/
-           └── assets/
-               └── js/
-                   └── user-api.js
-
-   - API berada di:
-       /api/admin-users
+   CATATAN:
+   - Tidak mengubah API server.
+   - Tidak mengandung logic permission.
+   - Permission tetap divalidasi oleh API server.
 ========================================================= */
 
 
 /* =========================================================
-   API CONFIG
+   API ENDPOINT
+   ---------------------------------------------------------
+   Document:
+   admin-control/users/user.html
+
+   ../../api/admin-users
+   -> /api/admin-users
 ========================================================= */
 
-const API_URL = "../../api/admin-users";
+const API_URL =
+    "../../api/admin-users";
 
 
 /* =========================================================
-   SUPABASE
+   SUPABASE CLIENT
 ========================================================= */
 
 function getSupabaseClient() {
@@ -55,7 +56,9 @@ function getSupabaseClient() {
 
 async function getAccessToken() {
 
-    const supabase = getSupabaseClient();
+    const supabase =
+        getSupabaseClient();
+
 
     if (!supabase) {
 
@@ -69,7 +72,8 @@ async function getAccessToken() {
     const {
         data,
         error
-    } = await supabase.auth.getSession();
+    } =
+        await supabase.auth.getSession();
 
 
     if (error) {
@@ -86,7 +90,9 @@ async function getAccessToken() {
         data?.session || null;
 
 
-    if (!session?.access_token) {
+    if (
+        !session?.access_token
+    ) {
 
         throw new Error(
             "Session login tidak ditemukan."
@@ -148,6 +154,10 @@ async function apiRequest(
         );
 
 
+    /* -----------------------------------------------------
+       RESPONSE PARSE
+    ----------------------------------------------------- */
+
     let result = null;
 
 
@@ -163,6 +173,10 @@ async function apiRequest(
     }
 
 
+    /* -----------------------------------------------------
+       HTTP ERROR
+    ----------------------------------------------------- */
+
     if (!response.ok) {
 
         const message =
@@ -171,10 +185,16 @@ async function apiRequest(
             `Request gagal (${response.status}).`;
 
 
-        throw new Error(message);
+        throw new Error(
+            message
+        );
 
     }
 
+
+    /* -----------------------------------------------------
+       APPLICATION ERROR
+    ----------------------------------------------------- */
 
     if (
         result &&
@@ -197,6 +217,8 @@ async function apiRequest(
 
 /* =========================================================
    GET USERS
+   ---------------------------------------------------------
+   GET /api/admin-users
 ========================================================= */
 
 export async function getUsers() {
@@ -210,6 +232,20 @@ export async function getUsers() {
 
 /* =========================================================
    CREATE USER
+   ---------------------------------------------------------
+   POST /api/admin-users
+
+   Server contract:
+
+   {
+       action: "create",
+       email,
+       password,
+       name,
+       role,
+       credits,
+       status
+   }
 ========================================================= */
 
 export async function createUser(
@@ -228,7 +264,14 @@ export async function createUser(
 
 
 /* =========================================================
-   RESEND CONFIRMATION EMAIL
+   RESEND CONFIRMATION
+   ---------------------------------------------------------
+   POST /api/admin-users
+
+   {
+       action: "resend",
+       email
+   }
 ========================================================= */
 
 export async function resendConfirmation(
@@ -248,6 +291,13 @@ export async function resendConfirmation(
 
 /* =========================================================
    CONFIRM USER EMAIL
+   ---------------------------------------------------------
+   PATCH /api/admin-users
+
+   {
+       action: "confirm",
+       userId
+   }
 ========================================================= */
 
 export async function confirmUserEmail(
@@ -267,6 +317,12 @@ export async function confirmUserEmail(
 
 /* =========================================================
    DELETE USER
+   ---------------------------------------------------------
+   DELETE /api/admin-users
+
+   {
+       userId
+   }
 ========================================================= */
 
 export async function deleteUser(
@@ -284,10 +340,7 @@ export async function deleteUser(
 
 
 /* =========================================================
-   EXPORT OPTIONAL API OBJECT
-   ---------------------------------------------------------
-   Tidak wajib digunakan oleh module lain.
-   Disediakan supaya debugging lebih mudah.
+   PUBLIC API
 ========================================================= */
 
 export const GENZUserAPI = {
@@ -306,7 +359,9 @@ export const GENZUserAPI = {
 
 
 /* =========================================================
-   DEBUG
+   OPTIONAL GLOBAL
+   ---------------------------------------------------------
+   Dipertahankan untuk kompatibilitas/debugging.
 ========================================================= */
 
 if (
