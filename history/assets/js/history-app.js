@@ -1,3 +1,4 @@
+//history-app.js?v=1.5
 /* =========================================================
    GEN-Z.AI
    HISTORY APP BOOTSTRAP MODULE
