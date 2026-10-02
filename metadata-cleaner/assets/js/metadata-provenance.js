@@ -9,7 +9,7 @@
    - Memeriksa C2PA
    - Memeriksa Content Credentials
    - Memeriksa C2PA Manifest Store
-   - Mendukung IMAGE + VIDEO
+   - Mendukung C2PA IMAGE + VIDEO
    - Mendukung JPEG / PNG / WebP / MP4 / MOV
    - Mendeteksi digitalSourceType
    - Mendeteksi trainedAlgorithmicMedia
@@ -31,7 +31,6 @@
        - trainedAlgorithmicMedia
        - trainedAlgorithmicData
        - c2pa.ai-disclosure
-       - c2pa.created
        - AI-specific provenance declaration
 
    NOT VERIFIED
@@ -147,6 +146,75 @@ function hexToBytes(
 
 
     return bytes;
+
+}
+
+
+/* =========================================================
+   FILE EXTENSION
+   ---------------------------------------------------------
+   FIX:
+   detectFormat() menggunakan getExtension()
+   untuk membedakan MP4 dan MOV, tetapi fungsi
+   sebelumnya tidak tersedia.
+
+   Fungsi ini sengaja lokal di module ini agar
+   metadata-provenance.js tidak bergantung pada
+   global function dari module lain.
+========================================================= */
+
+function getExtension(
+    fileName
+) {
+
+    if (
+        typeof fileName !== "string"
+    ) {
+
+        return "";
+
+    }
+
+
+    const normalized =
+        fileName
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        !normalized
+    ) {
+
+        return "";
+
+    }
+
+
+    const lastDot =
+        normalized.lastIndexOf(
+            "."
+        );
+
+
+    if (
+        lastDot < 0 ||
+        lastDot === normalized.length - 1
+    ) {
+
+        return "";
+
+    }
+
+
+    return normalized
+        .slice(
+            lastDot + 1
+        )
+        .replace(
+            /[^a-z0-9]/g,
+            ""
+        );
 
 }
 
@@ -464,6 +532,12 @@ function detectFormat(
             bytes
         )
     ) {
+
+        /*
+           FIX:
+           getExtension() sekarang tersedia
+           secara lokal di module ini.
+        */
 
         const extension =
             getExtension(
@@ -1218,7 +1292,6 @@ function inspectAIProvenance(
     /*
        digitalSourceType
        -----------------------------------------------
-
        Search for the complete known URI first.
     */
 
@@ -1269,11 +1342,6 @@ function inspectAIProvenance(
 
     /*
        softwareAgent
-
-       C2PA v2 uses a richer softwareAgent
-       structure. We intentionally inspect
-       the nearby ASCII representation instead
-       of assuming one fixed binary encoding.
     */
 
     let softwareAgent =
@@ -1329,11 +1397,6 @@ function inspectAIProvenance(
 
     /*
        AI Disclosure.
-
-       We do not parse the entire assertion
-       as a trusted structured object here.
-       We only report that an AI disclosure
-       signal exists.
     */
 
     const aiDisclosure =
@@ -1365,13 +1428,7 @@ function inspectAIProvenance(
 
 
     /*
-       c2pa.created alone indicates a
-       provenance creation action, but not
-       necessarily AI.
-
-       Therefore it becomes AI evidence only
-       when combined with an AI-specific
-       digitalSourceType or AI disclosure.
+       c2pa.created alone does not prove AI.
     */
 
     const aiDetected =
@@ -1439,13 +1496,6 @@ function cleanProvenanceValue(
 
     }
 
-
-    /*
-       Do not return an enormous binary-derived
-       metadata string.
-
-       Keep the useful portion.
-    */
 
     const maxLength =
         180;
@@ -1588,11 +1638,6 @@ function createResult(
         format,
 
         detected,
-
-        /*
-           AI provenance is separate from
-           generic provenance.
-        */
 
         aiDetected:
             Boolean(
@@ -1933,8 +1978,6 @@ export {
 
 /* =========================================================
    GLOBAL API
-   ---------------------------------------------------------
-   Public API kecil untuk debugging / integrasi.
 ========================================================= */
 
 window.GENZMetadataProvenance =
