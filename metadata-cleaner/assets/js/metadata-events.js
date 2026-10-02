@@ -14,12 +14,12 @@
    - CLEAN
    - DOWNLOAD
 
-   CHECK BUTTON FIX:
-   - CHECK tidak dikunci menggunakan disabled saat idle.
-   - Status kesiapan menggunakan aria-disabled.
-   - disabled hanya digunakan ketika CHECK sedang diproses.
-   - Mencegah tombol terlihat aktif tetapi native browser
-     menolak click event.
+   CHECK FIX:
+   - Tidak menggunakan aria-disabled sebagai sumber
+     kebenaran.
+   - Kesiapan CHECK ditentukan oleh state.file.
+   - Native disabled hanya digunakan ketika tombol
+     memang belum mempunyai file atau sedang processing.
 ========================================================= */
 
 
@@ -30,6 +30,15 @@
 import {
     elements
 } from "./metadata-dom.js";
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+import {
+    state
+} from "./metadata-state.js";
 
 
 /* =========================================================
@@ -58,11 +67,6 @@ export function enableCheckButton() {
         return;
     }
 
-
-    /*
-       CHECK idle harus tetap clickable.
-       Jangan menggunakan disabled di sini.
-    */
 
     button.disabled =
         false;
@@ -93,17 +97,18 @@ export function disableCheckButton() {
 
 
     if (!button) {
+
         return;
     }
 
 
     /*
-       Idle disabled hanya menggunakan aria-disabled.
-       Native disabled sengaja tidak digunakan.
+       Native disabled digunakan ketika belum ada
+       file yang bisa diperiksa.
     */
 
     button.disabled =
-        false;
+        true;
 
 
     button.setAttribute(
@@ -380,15 +385,17 @@ async function onCheck(
 
 
     console.log(
-        "[GEN-Z.AI] ============================="
+        "[GEN-Z.AI] ========================================"
     );
+
 
     console.log(
         "[GEN-Z.AI] CHECK BUTTON CLICKED"
     );
 
+
     console.log(
-        "[GEN-Z.AI] ============================="
+        "[GEN-Z.AI] ========================================"
     );
 
 
@@ -406,9 +413,9 @@ async function onCheck(
     }
 
 
-    /*
-       Jika CHECK sedang busy, abaikan klik kedua.
-    */
+    /* =====================================================
+       BUSY GUARD
+    ===================================================== */
 
     if (
         button.getAttribute(
@@ -423,6 +430,10 @@ async function onCheck(
         return;
     }
 
+
+    /* =====================================================
+       CALLBACK GUARD
+    ===================================================== */
 
     const callback =
         currentCallbacks.checkMetadata;
@@ -442,38 +453,63 @@ async function onCheck(
     }
 
 
-    /*
-       Periksa status readiness tanpa menggunakan
-       native disabled.
-    */
+    /* =====================================================
+       FILE GUARD
+       -----------------------------------------------------
+       Ini sekarang menjadi sumber kebenaran.
 
-    const ariaDisabled =
-        button.getAttribute(
-            "aria-disabled"
-        );
-
+       Jangan menggunakan aria-disabled untuk menentukan
+       apakah file tersedia.
+    ===================================================== */
 
     if (
-        ariaDisabled === "true"
+        !state.file
     ) {
 
         console.warn(
-            "[GEN-Z.AI] CHECK belum siap."
+            "[GEN-Z.AI] CHECK ditolak: belum ada file."
         );
+
+
+        /*
+           Pastikan UI kembali konsisten.
+        */
+
+        button.disabled =
+            true;
+
+
+        button.setAttribute(
+            "aria-disabled",
+            "true"
+        );
+
 
         return;
     }
 
 
     console.log(
-        "[GEN-Z.AI] Menjalankan checkMetadata()..."
+        "[GEN-Z.AI] Active file:",
+        {
+            name:
+                state.file.name,
+
+            type:
+                state.file.type,
+
+            size:
+                state.file.size,
+
+            fileType:
+                state.fileType
+        }
     );
 
 
-    /*
-       Sekarang native disabled digunakan hanya selama
-       proses async berlangsung.
-    */
+    /* =====================================================
+       START CHECK
+    ===================================================== */
 
     button.disabled =
         true;
@@ -482,6 +518,17 @@ async function onCheck(
     button.setAttribute(
         "aria-busy",
         "true"
+    );
+
+
+    button.setAttribute(
+        "aria-disabled",
+        "true"
+    );
+
+
+    console.log(
+        "[GEN-Z.AI] Menjalankan checkMetadata()..."
     );
 
 
@@ -506,26 +553,27 @@ async function onCheck(
 
     } finally {
 
-        button.disabled =
-            false;
-
-
-        button.removeAttribute(
-            "aria-busy"
-        );
-
-
         /*
-           Jika callback gagal dan tidak ada file,
-           kembali ke idle disabled secara visual,
-           tetapi tombol tetap secara teknis clickable.
+           Jangan mengaktifkan kembali tombol jika file
+           sudah diganti ketika proses async berjalan.
         */
 
         if (
-            !currentCallbacks ||
-            typeof currentCallbacks.checkMetadata !==
-                "function"
+            state.file
         ) {
+
+            button.disabled =
+                false;
+
+            button.setAttribute(
+                "aria-disabled",
+                "false"
+            );
+
+        } else {
+
+            button.disabled =
+                true;
 
             button.setAttribute(
                 "aria-disabled",
@@ -533,6 +581,30 @@ async function onCheck(
             );
 
         }
+
+
+        button.removeAttribute(
+            "aria-busy"
+        );
+
+
+        console.log(
+            "[GEN-Z.AI] CHECK BUTTON FINAL STATE:",
+            {
+                disabled:
+                    button.disabled,
+
+                ariaDisabled:
+                    button.getAttribute(
+                        "aria-disabled"
+                    ),
+
+                hasFile:
+                    Boolean(
+                        state.file
+                    )
+            }
+        );
 
     }
 
@@ -645,6 +717,7 @@ function onDownload(
 
 
     if (!button) {
+
         return;
     }
 
@@ -705,6 +778,7 @@ function onDropzoneKeydown(
 ) {
 
     if (!event) {
+
         return;
     }
 
@@ -856,12 +930,12 @@ export function bindMetadataEvents(
     ) {
 
         /*
-           Jangan membuat CHECK native-disabled saat binding.
-           Gunakan aria-disabled.
+           Saat awal aplikasi belum ada file.
+           Native disabled memang digunakan di sini.
         */
 
         elements.checkButton.disabled =
-            false;
+            true;
 
 
         elements.checkButton.setAttribute(
@@ -947,4 +1021,4 @@ export default {
    DEPLOYMENT TRIGGER
 ========================================================= */
 
-// GEN-Z.AI DEPLOY TRIGGER: 2026-10-01-CHECK-FIX
+// GEN-Z.AI DEPLOY TRIGGER: 2026-10-02-CHECK-STATE-FIX
