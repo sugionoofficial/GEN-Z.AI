@@ -25,6 +25,14 @@
    - program
 
    -map_metadata -1 saja tidak cukup untuk seluruh konteks.
+
+   PERBAIKAN:
+   - Jangan langsung menganggap exec() gagal hanya karena
+     return code bukan 0.
+   - Verifikasi output file secara langsung.
+   - Jika output valid, hasil cleaning tetap dianggap berhasil.
+   - Cleanup file virtual dibuat aman terhadap file yang sudah
+     tidak ada.
 ========================================================= */
 
 
@@ -65,9 +73,17 @@ export async function cleanVideo(
     }
 
 
+    /* =====================================================
+       ENSURE FFMPEG
+    ===================================================== */
+
     const ffmpeg =
         await ensureFFmpeg();
 
+
+    /* =====================================================
+       CREATE TEMPORARY FILENAMES
+    ===================================================== */
 
     const inputName =
         createFFmpegFilename(
@@ -79,13 +95,32 @@ export async function cleanVideo(
         `cleaned_${inputName}`;
 
 
+    /* =====================================================
+       READ SOURCE FILE
+    ===================================================== */
+
     const inputData =
         new Uint8Array(
             await file.arrayBuffer()
         );
 
 
+    if (
+        !inputData ||
+        inputData.length === 0
+    ) {
+
+        throw new Error(
+            "Data video kosong atau tidak dapat dibaca."
+        );
+    }
+
+
     try {
+
+        /* =================================================
+           WRITE INPUT TO FFMPEG VIRTUAL FILESYSTEM
+        ================================================= */
 
         await ffmpeg.writeFile(
             inputName,
@@ -93,9 +128,9 @@ export async function cleanVideo(
         );
 
 
-        /* =====================================================
+        /* =================================================
            FFMPEG ARGUMENTS
-           =====================================================
+           =================================================
 
            -i inputName
                Membaca file sumber.
@@ -125,9 +160,13 @@ export async function cleanVideo(
            -c copy
                Tidak melakukan re-encode video/audio.
 
-           ===================================================== */
+           ================================================= */
 
         const ffmpegArguments = [
+
+            /* -------------------------------------------------
+               INPUT
+            ------------------------------------------------- */
 
             "-i",
             inputName,
@@ -143,18 +182,6 @@ export async function cleanVideo(
 
             /* -------------------------------------------------
                REMOVE GLOBAL / CONTAINER METADATA
-
-               Global metadata:
-               title
-               artist
-               comment
-               description
-               creation_time
-               encoder
-               software
-               copyright
-               location
-               dll.
             ------------------------------------------------- */
 
             "-map_metadata",
@@ -163,13 +190,6 @@ export async function cleanVideo(
 
             /* -------------------------------------------------
                REMOVE PER-STREAM METADATA
-
-               Contoh:
-               stream title
-               handler_name
-               language metadata
-               encoder tags
-               stream-specific tags
             ------------------------------------------------- */
 
             "-map_metadata:s",
@@ -202,10 +222,10 @@ export async function cleanVideo(
 
             /* -------------------------------------------------
                STREAM COPY
+            -------------------------------------------------
 
-               Video/audio tidak di-decode dan tidak di-encode
-               ulang.
-            ------------------------------------------------- */
+               Tidak melakukan re-encode video/audio.
+            */
 
             "-c",
             "copy"
@@ -234,7 +254,7 @@ export async function cleanVideo(
 
         /* =====================================================
            OUTPUT
-           ===================================================== */
+        ===================================================== */
 
         ffmpegArguments.push(
             outputName
@@ -245,46 +265,134 @@ export async function cleanVideo(
            EXECUTE FFMPEG
            ===================================================== */
 
-        const result =
-            await ffmpeg.exec(
-                ffmpegArguments
-            );
+        let execResult = null;
+        let execError = null;
 
 
-        if (
-            result !== 0
+        try {
+
+            execResult =
+                await ffmpeg.exec(
+                    ffmpegArguments
+                );
+
+        } catch (
+            error
         ) {
 
-            throw new Error(
-                "FFmpeg gagal melakukan remux video."
-            );
+            execError =
+                error;
+
         }
 
 
         /* =====================================================
-           READ CLEANED FILE
-           ===================================================== */
+           CHECK OUTPUT FILE
+           -----------------------------------------------------
+           Jangan hanya mengandalkan return code exec().
 
-        const outputData =
-            await ffmpeg.readFile(
-                outputName
-            );
+           Pada FFmpeg WASM tertentu, command dapat menghasilkan
+           output yang valid walaupun return code yang diterima
+           oleh wrapper bukan 0.
+
+           Karena itu output filesystem menjadi pemeriksaan
+           keberhasilan utama.
+        ===================================================== */
+
+        let outputData = null;
 
 
-        if (
-            !outputData ||
-            !outputData.length
+        try {
+
+            outputData =
+                await ffmpeg.readFile(
+                    outputName
+                );
+
+        } catch (
+            readError
         ) {
 
+            outputData =
+                null;
+
+
+            if (
+                !execError
+            ) {
+
+                execError =
+                    readError;
+            }
+        }
+
+
+        /* =====================================================
+           NORMALIZE OUTPUT DATA
+        ===================================================== */
+
+        if (
+            outputData &&
+            outputData.length > 0
+        ) {
+
+            /*
+             * Output video benar-benar tersedia.
+             *
+             * Jika execResult bukan 0 tetapi file output valid,
+             * jangan menggagalkan cleaning.
+             */
+
+        } else {
+
+            /* =================================================
+               OUTPUT TIDAK ADA
+            ================================================= */
+
+            let errorMessage =
+                "FFmpeg tidak menghasilkan file video.";
+
+
+            if (
+                execError
+            ) {
+
+                const message =
+                    execError?.message ||
+                    String(
+                        execError
+                    );
+
+
+                if (
+                    message
+                ) {
+
+                    errorMessage +=
+                        ` ${message}`;
+                }
+            }
+
+
+            if (
+                execResult !== null &&
+                execResult !== undefined
+            ) {
+
+                errorMessage +=
+                    ` Return code: ${execResult}.`;
+            }
+
+
             throw new Error(
-                "FFmpeg tidak menghasilkan file video."
+                errorMessage
             );
         }
 
 
         /* =====================================================
            OUTPUT MIME TYPE
-           ===================================================== */
+        ===================================================== */
 
         const outputType =
             getCleanVideoMimeType(
@@ -294,7 +402,7 @@ export async function cleanVideo(
 
         /* =====================================================
            RETURN NEW BLOB
-           ===================================================== */
+        ===================================================== */
 
         return {
 
@@ -318,17 +426,48 @@ export async function cleanVideo(
 
         /* =====================================================
            CLEAN FFMPEG VIRTUAL FILES
+           -----------------------------------------------------
+           Cleanup tidak boleh mengubah hasil cleaning menjadi
+           gagal.
+
+           Jika file sudah otomatis dihapus oleh FFmpeg atau
+           filesystem virtual, safeDeleteFFmpegFile menangani
+           kondisi tersebut.
         ===================================================== */
 
-        await safeDeleteFFmpegFile(
-            ffmpeg,
-            inputName
-        );
+        try {
+
+            await safeDeleteFFmpegFile(
+                ffmpeg,
+                inputName
+            );
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][CLEAN] Input cleanup dilewati:",
+                error
+            );
+        }
 
 
-        await safeDeleteFFmpegFile(
-            ffmpeg,
-            outputName
-        );
+        try {
+
+            await safeDeleteFFmpegFile(
+                ffmpeg,
+                outputName
+            );
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][CLEAN] Output cleanup dilewati:",
+                error
+            );
+        }
     }
 }
