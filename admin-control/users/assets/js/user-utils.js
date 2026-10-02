@@ -1,31 +1,29 @@
 /* =========================================================
    GEN-Z.AI
-   USER MANAGEMENT - UTILITIES
+   USER MANAGEMENT - UTILS
    ---------------------------------------------------------
    File:
    admin-control/users/assets/js/user-utils.js
 
    Fungsi:
    - HTML escaping
-   - Number formatting
-   - Role class
-   - Status class
-   - Message handling
-
-   Tidak menangani:
-   - Authentication
-   - API request
-   - User loading
-   - User rendering
-   - Modal action
+   - Format angka
+   - Class role
+   - Class status
+   - Message handler
 ========================================================= */
 
 
 /* =========================================================
    ESCAPE HTML
+   ---------------------------------------------------------
+   Mencegah data user yang berasal dari database
+   langsung menjadi HTML.
 ========================================================= */
 
-export function escapeHtml(value) {
+export function escapeHtml(
+    value
+) {
 
     if (
         value === null ||
@@ -71,7 +69,9 @@ export function escapeHtml(value) {
    FORMAT NUMBER
 ========================================================= */
 
-export function formatNumber(value) {
+export function formatNumber(
+    value
+) {
 
     return Number(
         value || 0
@@ -86,10 +86,13 @@ export function formatNumber(value) {
    ROLE CLASS
 ========================================================= */
 
-export function getRoleClass(role) {
+export function getRoleClass(
+    role
+) {
 
     return String(
-        role || "USER"
+        role ||
+        "USER"
     )
         .trim()
         .toLowerCase();
@@ -101,10 +104,13 @@ export function getRoleClass(role) {
    STATUS CLASS
 ========================================================= */
 
-export function getStatusClass(status) {
+export function getStatusClass(
+    status
+) {
 
     return String(
-        status || "active"
+        status ||
+        "active"
     )
         .trim()
         .toLowerCase();
@@ -135,20 +141,23 @@ export function showMessage(
 
 
     message.textContent =
-        text;
+        String(
+            text || ""
+        );
 
 
     message.className =
-        "message " + type;
+        "message " +
+        String(
+            type || "success"
+        );
 
 
     window.scrollTo({
 
-        top:
-            0,
+        top: 0,
 
-        behavior:
-            "smooth"
+        behavior: "smooth"
 
     });
 
