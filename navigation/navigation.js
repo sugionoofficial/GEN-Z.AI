@@ -109,15 +109,7 @@
 
     /* =====================================================
        GLOBAL COMPATIBILITY BRIDGE
-       -----------------------------------------------------
-       Beberapa halaman lama GEN-Z.AI masih membaca:
-
-       window.GENZ_NAVIGATION_USER
-       window.GENZ_NAVIGATION_PROFILE
-       window.GENZ_NAVIGATION_ROLE
-
-       Jangan hapus bridge ini.
-       ===================================================== */
+    ===================================================== */
 
     function syncNavigationGlobals() {
 
@@ -134,11 +126,6 @@
                 currentRole
             );
 
-
-        /*
-         * Compatibility tambahan yang sudah
-         * digunakan beberapa modul Generate.
-         */
 
         if (
             currentProfile
@@ -163,10 +150,6 @@
 
     function getSupabaseClient() {
 
-        /* -------------------------------------------------
-           1. Gunakan client yang sudah dibuat project
-           ------------------------------------------------- */
-
         if (
             window.GENZ_SUPABASE
         ) {
@@ -184,10 +167,6 @@
 
         }
 
-
-        /* -------------------------------------------------
-           2. Ambil Supabase library
-           ------------------------------------------------- */
 
         const supabaseGlobal =
             window.supabase;
@@ -211,14 +190,6 @@
 
         }
 
-
-        /* -------------------------------------------------
-           3. GEN-Z.AI menggunakan SUPABASE_KEY
-           
-           Kompatibilitas:
-           - SUPABASE_KEY
-           - SUPABASE_ANON_KEY
-           ------------------------------------------------- */
 
         if (
             !config ||
@@ -251,10 +222,6 @@
 
         }
 
-
-        /* -------------------------------------------------
-           4. Buat client
-           ------------------------------------------------- */
 
         try {
 
@@ -575,14 +542,6 @@
                         )
                         .maybeSingle();
 
-
-                /*
-                 * Beberapa database lama tidak
-                 * mempunyai kolom status.
-                 *
-                 * Jangan membuat navigation gagal
-                 * hanya karena kolom tersebut tidak ada.
-                 */
 
                 if (
                     result.error &&
@@ -999,7 +958,10 @@
 
     /* =====================================================
        AVATAR LETTER
-    ===================================================== */
+       -----------------------------------------------------
+       Dipertahankan untuk compatibility internal.
+       Tidak lagi ditampilkan pada navigation.
+       ===================================================== */
 
     function getAvatarLetter() {
 
@@ -1037,12 +999,6 @@
         }
 
 
-        /*
-         * Pastikan semua halaman yang masih memakai
-         * global lama mendapatkan state terbaru
-         * sebelum navigation dirender.
-         */
-
         syncNavigationGlobals();
 
 
@@ -1050,10 +1006,6 @@
             getNavigationConfig(
                 currentRole
             );
-
-
-        const displayName =
-            getDisplayName();
 
 
         const email =
@@ -1170,43 +1122,6 @@
 
 
                 <!-- =================================================
-                     USER
-                     ================================================= -->
-
-                <div class="genz-user-box">
-
-                    <div class="genz-user-avatar">
-                        ${escapeHTML(
-                            getAvatarLetter()
-                        )}
-                    </div>
-
-                    <div class="genz-user-info">
-
-                        <div class="genz-user-name">
-                            ${escapeHTML(
-                                displayName
-                            )}
-                        </div>
-
-                        <div class="genz-user-email">
-                            ${escapeHTML(
-                                email
-                            )}
-                        </div>
-
-                        <div class="genz-user-role">
-                            ${escapeHTML(
-                                roleLabel
-                            )}
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- =================================================
                      NAVIGATION
                      ================================================= -->
 
@@ -1221,23 +1136,38 @@
 
 
                 <!-- =================================================
-                     FOOTER
+                     ACCOUNT + LOGOUT
                      ================================================= -->
 
                 <div class="genz-sidebar-footer">
+
+                    <div class="genz-account-box">
+
+                        <div class="genz-account-label">
+                            ACCOUNT
+                        </div>
+
+                        <div class="genz-account-email">
+                            ${escapeHTML(
+                                email
+                            )}
+                        </div>
+
+                        <div class="genz-account-role">
+                            ${escapeHTML(
+                                roleLabel
+                            )}
+                        </div>
+
+                    </div>
+
 
                     <button
                         type="button"
                         class="genz-logout-button"
                         id="genz-logout-button"
                     >
-                        <span class="genz-nav-icon">
-                            ↪
-                        </span>
-
-                        <span>
-                            Logout
-                        </span>
+                        LOG OUT
                     </button>
 
                 </div>
@@ -1580,10 +1510,6 @@
             "user";
 
 
-        /*
-         * Bersihkan global compatibility bridge.
-         */
-
         syncNavigationGlobals();
 
 
@@ -1708,11 +1634,6 @@
                             );
 
 
-                        /*
-                         * Update global bridge SEBELUM
-                         * render navigation.
-                         */
-
                         syncNavigationGlobals();
 
 
@@ -1835,18 +1756,6 @@
                 );
 
 
-            /*
-             * Ini bagian penting untuk Admin Panel.
-             *
-             * Admin Panel membaca:
-             *
-             * window.GENZ_NAVIGATION_PROFILE
-             * window.GENZ_NAVIGATION_ROLE
-             *
-             * Jadi keduanya harus sudah tersedia
-             * sebelum halaman admin melakukan pengecekan.
-             */
-
             syncNavigationGlobals();
 
 
@@ -1863,13 +1772,6 @@
             }
 
         } else {
-
-            /*
-             * Keep authenticated session.
-             *
-             * Profile dapat belum tersedia saat
-             * propagasi database.
-             */
 
             currentProfile =
                 null;
@@ -2102,7 +2004,7 @@
 
 
             /* =================================================
-               NEW GEN-Z.AI LOGO
+               GEN-Z.AI LOGO
                ================================================= */
 
             .genz-logo {
@@ -2474,182 +2376,7 @@
 
 
             /* =================================================
-               USER BOX
-               ================================================= */
-
-            .genz-user-box {
-
-                display: flex;
-
-                align-items: center;
-
-                gap: 10px;
-
-                margin:
-                    14px 12px 8px;
-
-                padding: 11px;
-
-                box-sizing: border-box;
-
-                border:
-                    1px solid
-                    var(
-                        --genz-border
-                    );
-
-                border-radius: 12px;
-
-                background:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .025
-                    );
-
-            }
-
-
-            .genz-user-avatar {
-
-                width: 38px;
-
-                height: 38px;
-
-                flex: 0 0 38px;
-
-                display: flex;
-
-                align-items: center;
-
-                justify-content: center;
-
-                border-radius: 11px;
-
-                background:
-                    linear-gradient(
-                        135deg,
-                        #ff2525,
-                        #680000
-                    );
-
-                color: #ffffff;
-
-                font-size: 15px;
-
-                font-weight: 800;
-
-                box-shadow:
-                    0 0 12px
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .2
-                    );
-
-            }
-
-
-            .genz-user-info {
-
-                min-width: 0;
-
-                flex: 1;
-
-            }
-
-
-            .genz-user-name {
-
-                overflow: hidden;
-
-                color: #ffffff;
-
-                font-size: 13px;
-
-                font-weight: 700;
-
-                line-height: 1.35;
-
-                text-overflow: ellipsis;
-
-                white-space: nowrap;
-
-            }
-
-
-            .genz-user-email {
-
-                margin-top: 2px;
-
-                overflow: hidden;
-
-                color:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .42
-                    );
-
-                font-size: 10px;
-
-                line-height: 1.3;
-
-                text-overflow: ellipsis;
-
-                white-space: nowrap;
-
-            }
-
-
-            .genz-user-role {
-
-                display: inline-block;
-
-                margin-top: 5px;
-
-                padding:
-                    2px 6px;
-
-                border:
-                    1px solid
-                    rgba(
-                        255,
-                        50,
-                        50,
-                        .28
-                    );
-
-                border-radius: 5px;
-
-                color:
-                    #ff6565;
-
-                background:
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .06
-                    );
-
-                font-size: 8px;
-
-                line-height: 1.3;
-
-                font-weight: 800;
-
-                letter-spacing:
-                    .8px;
-
-            }
-
-
-            /* =================================================
-               NAV
+               NAVIGATION
                ================================================= */
 
             .genz-nav {
@@ -2818,7 +2545,7 @@
 
 
             /* =================================================
-               FOOTER
+               ACCOUNT + LOGOUT
                ================================================= */
 
             .genz-sidebar-footer {
@@ -2842,6 +2569,132 @@
             }
 
 
+            .genz-account-box {
+
+                width: 100%;
+
+                margin:
+                    0 0 10px;
+
+                padding:
+                    10px 11px;
+
+                box-sizing: border-box;
+
+                border:
+                    1px solid
+                    rgba(
+                        255,
+                        50,
+                        50,
+                        .18
+                    );
+
+                border-radius: 10px;
+
+                background:
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .025
+                    );
+
+            }
+
+
+            .genz-account-label {
+
+                margin-bottom: 5px;
+
+                color:
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .45
+                    );
+
+                font-size: 9px;
+
+                line-height: 1.2;
+
+                font-weight: 800;
+
+                letter-spacing:
+                    1.2px;
+
+            }
+
+
+            .genz-account-email {
+
+                overflow: hidden;
+
+                color:
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .72
+                    );
+
+                font-size: 10px;
+
+                line-height: 1.35;
+
+                font-weight: 600;
+
+                text-overflow: ellipsis;
+
+                white-space: nowrap;
+
+            }
+
+
+            .genz-account-role {
+
+                display: inline-block;
+
+                margin-top: 5px;
+
+                padding:
+                    2px 6px;
+
+                border:
+                    1px solid
+                    rgba(
+                        255,
+                        50,
+                        50,
+                        .28
+                    );
+
+                border-radius: 5px;
+
+                color:
+                    #ff6565;
+
+                background:
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .06
+                    );
+
+                font-size: 8px;
+
+                line-height: 1.3;
+
+                font-weight: 800;
+
+                letter-spacing:
+                    .8px;
+
+            }
+
+
             .genz-logout-button {
 
                 width: 100%;
@@ -2852,7 +2705,7 @@
 
                 align-items: center;
 
-                gap: 10px;
+                justify-content: center;
 
                 padding:
                     9px 11px;
@@ -2865,24 +2718,19 @@
                         255,
                         50,
                         50,
-                        .14
+                        .25
                     );
 
                 border-radius: 10px;
 
                 color:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .6
-                    );
+                    #ff3b3b;
 
                 background:
                     rgba(
                         255,
-                        255,
-                        255,
+                        0,
+                        0,
                         .025
                     );
 
@@ -2890,28 +2738,33 @@
 
                 font-size: 12px;
 
-                font-weight: 600;
+                font-weight: 800;
+
+                letter-spacing:
+                    .8px;
 
                 cursor: pointer;
 
                 transition:
                     background .18s ease,
                     border-color .18s ease,
-                    color .18s ease;
+                    color .18s ease,
+                    box-shadow .18s ease;
 
             }
 
 
             .genz-logout-button:hover {
 
-                color: #ffffff;
+                color:
+                    #ff5555;
 
                 background:
                     rgba(
                         255,
                         0,
                         0,
-                        .09
+                        .08
                     );
 
                 border-color:
@@ -2919,7 +2772,16 @@
                         255,
                         50,
                         50,
-                        .3
+                        .45
+                    );
+
+                box-shadow:
+                    0 0 12px
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .12
                     );
 
             }
@@ -3191,18 +3053,26 @@
                 }
 
 
-                .genz-user-box {
-
-                    margin:
-                        12px 10px 7px;
-
-                }
-
-
                 .genz-nav {
 
                     padding:
                         7px 8px 14px;
+
+                }
+
+
+                .genz-sidebar-footer {
+
+                    padding:
+                        9px 8px 12px;
+
+                }
+
+
+                .genz-account-box {
+
+                    margin-bottom:
+                        9px;
 
                 }
 
@@ -3226,11 +3096,6 @@
 
         injectStyles();
 
-
-        /*
-         * Login page tidak membutuhkan protected
-         * navigation.
-         */
 
         if (
             isLoginPage()
@@ -3265,13 +3130,6 @@
                 await validateAuthentication();
 
 
-            /*
-             * Authentication gagal.
-             *
-             * validateAuthentication()
-             * sudah menangani redirect.
-             */
-
             if (
                 !authenticated
             ) {
@@ -3299,36 +3157,14 @@
             }
 
 
-            /*
-             * Pastikan compatibility bridge
-             * sudah tersedia sebelum halaman lain
-             * mulai membaca state navigation.
-             */
-
             syncNavigationGlobals();
 
-
-            /*
-             * Render navigation.
-             */
 
             renderNavigation();
 
 
-            /*
-             * Pasang auth listener.
-             */
-
             setupAuthListener();
 
-
-            /*
-             * Semua halaman yang menunggu:
-             *
-             * window.GENZNavigationReady
-             *
-             * akan mendapatkan hasil.
-             */
 
             navigationReady =
                 true;
@@ -3360,12 +3196,6 @@
             navigationReady =
                 false;
 
-
-            /*
-             * Tetap sinkronkan global supaya
-             * halaman yang melakukan pengecekan
-             * tidak membaca state lama.
-             */
 
             syncNavigationGlobals();
 
@@ -3421,11 +3251,6 @@
     window.GENZNavigationReady =
         navigationReadyPromise;
 
-
-    /*
-     * Initialize global bridge immediately
-     * dengan state default.
-     */
 
     syncNavigationGlobals();
 
