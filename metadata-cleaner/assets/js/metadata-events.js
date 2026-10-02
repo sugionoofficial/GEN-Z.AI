@@ -777,28 +777,19 @@ function onDropzoneKeydown(
     event
 ) {
 
-    if (!event) {
+    /*
+       DROPZONE sekarang menggunakan native <label>
+       dengan for="metadata-file-input".
 
-        return;
-    }
+       Browser menangani aktivasi file picker
+       secara native.
 
+       Tidak boleh memanggil input.click()
+       dari sini karena dapat menyebabkan
+       picker tidak terbuka / double trigger.
+    */
 
-    if (
-        event.key !== "Enter" &&
-        event.key !== " "
-    ) {
-
-        return;
-    }
-
-
-    event.preventDefault();
-
-
-    onOpenFilePicker(
-        event
-    );
-
+    return;
 }
 
 
@@ -855,54 +846,48 @@ export function bindMetadataEvents(
 
 
     /* =====================================================
-       DROPZONE
-    ===================================================== */
+   DROPZONE
+===================================================== */
 
-    if (
-        elements.dropzone
-    ) {
+if (
+    elements.dropzone
+) {
 
-        elements.dropzone.addEventListener(
-            "click",
-            onOpenFilePicker
-        );
-
-
-        elements.dropzone.addEventListener(
-            "keydown",
-            onDropzoneKeydown
-        );
+    elements.dropzone.addEventListener(
+        "keydown",
+        onDropzoneKeydown
+    );
 
 
-        elements.dropzone.addEventListener(
-            "dragover",
-            onDragOver
-        );
+    elements.dropzone.addEventListener(
+        "dragover",
+        onDragOver
+    );
 
 
-        elements.dropzone.addEventListener(
-            "dragleave",
-            onDragLeave
-        );
+    elements.dropzone.addEventListener(
+        "dragleave",
+        onDragLeave
+    );
 
 
-        elements.dropzone.addEventListener(
-            "drop",
-            onDrop
-        );
+    elements.dropzone.addEventListener(
+        "drop",
+        onDrop
+    );
 
 
-        console.log(
-            "[GEN-Z.AI] DROPZONE listeners OK."
-        );
+    console.log(
+        "[GEN-Z.AI] DROPZONE listeners OK."
+    );
 
-    } else {
+} else {
 
-        console.error(
-            "[GEN-Z.AI] DROPZONE tidak ditemukan."
-        );
+    console.error(
+        "[GEN-Z.AI] DROPZONE tidak ditemukan."
+    );
 
-    }
+}
 
 
     /* =====================================================
