@@ -156,7 +156,7 @@ export async function checkMetadata() {
     setStatus(
         "UNKNOWN",
         "MEMBACA METADATA...",
-        "Metadata sedang diperiksa secara lokal di browser."
+        "GEN-Z.AI Sedang memeriksa METADATA..."
     );
 
 
