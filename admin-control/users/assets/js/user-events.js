@@ -7,21 +7,12 @@
 
    Fungsi:
    - Bind seluruh event halaman Users
-   - Search
-   - Refresh
    - Add User modal
    - Delete User modal
-   - Confirm
-   - Resend
-   - Delete
-   - Backdrop
-   - Escape
-
-   Tidak menangani:
-   - API implementation
-   - Authentication
-   - Render logic
-   - State implementation
+   - Search
+   - Refresh
+   - Table action delegation
+   - Keyboard Escape
 ========================================================= */
 
 import {
@@ -45,291 +36,13 @@ import {
 
 
 /* =========================================================
-   EVENT INITIALIZER
+   HANDLE TABLE ACTION
+   ---------------------------------------------------------
+   Event delegation digunakan supaya button yang dibuat
+   secara dinamis oleh user-render.js tetap bekerja.
 ========================================================= */
 
-export function initUserEvents() {
-
-    /* -----------------------------------------------------
-       ADD USER BUTTON
-    ----------------------------------------------------- */
-
-    const addUserButton =
-        document.getElementById(
-            "addUserButton"
-        );
-
-
-    if (addUserButton) {
-
-        addUserButton.addEventListener(
-            "click",
-            openAddModal
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       CLOSE ADD MODAL
-    ----------------------------------------------------- */
-
-    const closeAddButton =
-        document.getElementById(
-            "closeAddButton"
-        );
-
-
-    if (closeAddButton) {
-
-        closeAddButton.addEventListener(
-            "click",
-            closeAddModal
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       CANCEL ADD MODAL
-    ----------------------------------------------------- */
-
-    const cancelAddButton =
-        document.getElementById(
-            "cancelAddButton"
-        );
-
-
-    if (cancelAddButton) {
-
-        cancelAddButton.addEventListener(
-            "click",
-            closeAddModal
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       ADD USER FORM
-    ----------------------------------------------------- */
-
-    const addUserForm =
-        document.getElementById(
-            "addUserForm"
-        );
-
-
-    if (addUserForm) {
-
-        addUserForm.addEventListener(
-            "submit",
-            submitAddUser
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       DELETE MODAL CLOSE
-    ----------------------------------------------------- */
-
-    const closeDeleteButton =
-        document.getElementById(
-            "closeDeleteButton"
-        );
-
-
-    if (closeDeleteButton) {
-
-        closeDeleteButton.addEventListener(
-            "click",
-            closeDeleteModal
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       DELETE MODAL CANCEL
-    ----------------------------------------------------- */
-
-    const cancelDeleteButton =
-        document.getElementById(
-            "cancelDeleteButton"
-        );
-
-
-    if (cancelDeleteButton) {
-
-        cancelDeleteButton.addEventListener(
-            "click",
-            closeDeleteModal
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       CONFIRM DELETE
-    ----------------------------------------------------- */
-
-    const confirmDeleteButton =
-        document.getElementById(
-            "confirmDeleteButton"
-        );
-
-
-    if (confirmDeleteButton) {
-
-        confirmDeleteButton.addEventListener(
-            "click",
-            confirmDeleteUser
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       SEARCH
-    ----------------------------------------------------- */
-
-    const searchInput =
-        document.getElementById(
-            "searchInput"
-        );
-
-
-    if (searchInput) {
-
-        searchInput.addEventListener(
-            "input",
-            filterUsers
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       REFRESH
-    ----------------------------------------------------- */
-
-    const refreshButton =
-        document.getElementById(
-            "refreshButton"
-        );
-
-
-    if (refreshButton) {
-
-        refreshButton.addEventListener(
-            "click",
-            loadUsers
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       TABLE ACTIONS
-       -----------------------------------------------------
-       Event delegation digunakan karena tombol action
-       dibuat secara dinamis oleh user-render.js.
-    ----------------------------------------------------- */
-
-    const userContainer =
-        document.getElementById(
-            "userContainer"
-        );
-
-
-    if (userContainer) {
-
-        userContainer.addEventListener(
-            "click",
-            handleTableAction
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       MODAL BACKDROP
-    ----------------------------------------------------- */
-
-    const addModal =
-        document.getElementById(
-            "addModal"
-        );
-
-
-    if (addModal) {
-
-        addModal.addEventListener(
-            "click",
-            event => {
-
-                if (
-                    event.target ===
-                    addModal
-                ) {
-
-                    closeAddModal();
-
-                }
-
-            }
-        );
-
-    }
-
-
-    const deleteModal =
-        document.getElementById(
-            "deleteModal"
-        );
-
-
-    if (deleteModal) {
-
-        deleteModal.addEventListener(
-            "click",
-            event => {
-
-                if (
-                    event.target ===
-                    deleteModal
-                ) {
-
-                    closeDeleteModal();
-
-                }
-
-            }
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       ESCAPE KEY
-    ----------------------------------------------------- */
-
-    document.addEventListener(
-        "keydown",
-        handleEscapeKey
-    );
-
-}
-
-
-/* =========================================================
-   TABLE ACTION HANDLER
-========================================================= */
-
-function handleTableAction(
-    event
-) {
+function handleTableAction(event) {
 
     const button =
         event.target.closest(
@@ -348,78 +61,56 @@ function handleTableAction(
         button.dataset.action;
 
 
-    /* -----------------------------------------------------
-       CONFIRM
-    ----------------------------------------------------- */
-
-    if (
-        action === "confirm"
-    ) {
-
-        const userId =
-            button.dataset.userId || "";
+    const userId =
+        button.dataset.userId ||
+        "";
 
 
-        const email =
-            button.dataset.userEmail || "";
+    const email =
+        button.dataset.userEmail ||
+        "";
 
 
-        confirmEmail(
-            userId,
-            email
-        );
-
-        return;
-
-    }
+    const name =
+        button.dataset.userName ||
+        "";
 
 
-    /* -----------------------------------------------------
-       RESEND
-    ----------------------------------------------------- */
+    switch (action) {
 
-    if (
-        action === "resend"
-    ) {
+        case "confirm":
 
-        const email =
-            button.dataset.userEmail || "";
+            confirmEmail(
+                userId,
+                email
+            );
 
-
-        resendEmail(
-            email
-        );
-
-        return;
-
-    }
+            break;
 
 
-    /* -----------------------------------------------------
-       DELETE
-    ----------------------------------------------------- */
+        case "resend":
 
-    if (
-        action === "delete"
-    ) {
+            resendEmail(
+                email
+            );
 
-        const userId =
-            button.dataset.userId || "";
+            break;
 
 
-        const email =
-            button.dataset.userEmail || "";
+        case "delete":
+
+            openDeleteModal(
+                userId,
+                email,
+                name
+            );
+
+            break;
 
 
-        const name =
-            button.dataset.userName || "";
+        default:
 
-
-        openDeleteModal(
-            userId,
-            email,
-            name
-        );
+            break;
 
     }
 
@@ -427,12 +118,10 @@ function handleTableAction(
 
 
 /* =========================================================
-   ESCAPE HANDLER
+   HANDLE ESCAPE
 ========================================================= */
 
-function handleEscapeKey(
-    event
-) {
+function handleEscapeKey(event) {
 
     if (
         event.key !== "Escape"
@@ -448,16 +137,21 @@ function handleEscapeKey(
             "addModal"
         );
 
+
     const deleteModal =
         document.getElementById(
             "deleteModal"
         );
 
 
+    /*
+       Jika Add User terbuka,
+       tutup Add User terlebih dahulu.
+    */
+
     if (
-        addModal?.classList.contains(
-            "open"
-        )
+        addModal &&
+        addModal.classList.contains("show")
     ) {
 
         closeAddModal();
@@ -467,14 +161,270 @@ function handleEscapeKey(
     }
 
 
+    /*
+       Jika Delete User terbuka,
+       tutup Delete User.
+    */
+
     if (
-        deleteModal?.classList.contains(
-            "open"
-        )
+        deleteModal &&
+        deleteModal.classList.contains("show")
     ) {
 
         closeDeleteModal();
 
     }
+
+}
+
+
+/* =========================================================
+   HANDLE ADD MODAL BACKDROP
+========================================================= */
+
+function handleAddModalBackdrop(event) {
+
+    const modal =
+        document.getElementById(
+            "addModal"
+        );
+
+
+    if (
+        !modal ||
+        event.target !== modal
+    ) {
+
+        return;
+
+    }
+
+
+    closeAddModal();
+
+}
+
+
+/* =========================================================
+   HANDLE DELETE MODAL BACKDROP
+========================================================= */
+
+function handleDeleteModalBackdrop(event) {
+
+    const modal =
+        document.getElementById(
+            "deleteModal"
+        );
+
+
+    if (
+        !modal ||
+        event.target !== modal
+    ) {
+
+        return;
+
+    }
+
+
+    closeDeleteModal();
+
+}
+
+
+/* =========================================================
+   INIT EVENTS
+========================================================= */
+
+export function initUserEvents() {
+
+    /* =====================================================
+       ADD USER BUTTON
+    ===================================================== */
+
+    const addUserButton =
+        document.getElementById(
+            "addUserButton"
+        );
+
+
+    addUserButton?.addEventListener(
+        "click",
+        openAddModal
+    );
+
+
+    /* =====================================================
+       CLOSE ADD MODAL
+    ===================================================== */
+
+    const closeAddButton =
+        document.getElementById(
+            "closeAddButton"
+        );
+
+
+    closeAddButton?.addEventListener(
+        "click",
+        closeAddModal
+    );
+
+
+    const cancelAddButton =
+        document.getElementById(
+            "cancelAddButton"
+        );
+
+
+    cancelAddButton?.addEventListener(
+        "click",
+        closeAddModal
+    );
+
+
+    /* =====================================================
+       ADD USER FORM
+    ===================================================== */
+
+    const addUserForm =
+        document.getElementById(
+            "addUserForm"
+        );
+
+
+    addUserForm?.addEventListener(
+        "submit",
+        submitAddUser
+    );
+
+
+    /* =====================================================
+       CLOSE DELETE MODAL
+    ===================================================== */
+
+    const closeDeleteButton =
+        document.getElementById(
+            "closeDeleteButton"
+        );
+
+
+    closeDeleteButton?.addEventListener(
+        "click",
+        closeDeleteModal
+    );
+
+
+    const cancelDeleteButton =
+        document.getElementById(
+            "cancelDeleteButton"
+        );
+
+
+    cancelDeleteButton?.addEventListener(
+        "click",
+        closeDeleteModal
+    );
+
+
+    /* =====================================================
+       CONFIRM DELETE
+    ===================================================== */
+
+    const confirmDeleteButton =
+        document.getElementById(
+            "confirmDeleteButton"
+        );
+
+
+    confirmDeleteButton?.addEventListener(
+        "click",
+        confirmDeleteUser
+    );
+
+
+    /* =====================================================
+       SEARCH
+    ===================================================== */
+
+    const searchInput =
+        document.getElementById(
+            "searchInput"
+        );
+
+
+    searchInput?.addEventListener(
+        "input",
+        filterUsers
+    );
+
+
+    /* =====================================================
+       REFRESH
+    ===================================================== */
+
+    const refreshButton =
+        document.getElementById(
+            "refreshButton"
+        );
+
+
+    refreshButton?.addEventListener(
+        "click",
+        loadUsers
+    );
+
+
+    /* =====================================================
+       TABLE ACTION DELEGATION
+    ===================================================== */
+
+    const userContainer =
+        document.getElementById(
+            "userContainer"
+        );
+
+
+    userContainer?.addEventListener(
+        "click",
+        handleTableAction
+    );
+
+
+    /* =====================================================
+       MODAL BACKDROP
+    ===================================================== */
+
+    const addModal =
+        document.getElementById(
+            "addModal"
+        );
+
+
+    addModal?.addEventListener(
+        "click",
+        handleAddModalBackdrop
+    );
+
+
+    const deleteModal =
+        document.getElementById(
+            "deleteModal"
+        );
+
+
+    deleteModal?.addEventListener(
+        "click",
+        handleDeleteModalBackdrop
+    );
+
+
+    /* =====================================================
+       ESCAPE KEY
+    ===================================================== */
+
+    document.addEventListener(
+        "keydown",
+        handleEscapeKey
+    );
 
 }
