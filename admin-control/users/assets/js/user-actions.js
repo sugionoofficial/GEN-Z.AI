@@ -10,18 +10,6 @@
    - Confirm email
    - Resend confirmation email
    - Delete user
-
-   Dependency:
-   - user-state.js
-   - user-api.js
-   - user-modal.js
-   - user-data.js
-   - user-utils.js
-
-   Tidak menangani:
-   - Authentication halaman
-   - Render table
-   - Event binding
 ========================================================= */
 
 import {
@@ -50,16 +38,22 @@ import {
 
 
 /* =========================================================
-   CREATE USER
+   SUBMIT CREATE USER
 ========================================================= */
 
-export async function submitAddUser(
-    event
-) {
+export async function submitAddUser(event) {
 
-    if (event) {
+    event.preventDefault();
 
-        event.preventDefault();
+
+    const form =
+        document.getElementById(
+            "addUserForm"
+        );
+
+    if (!form) {
+
+        return;
 
     }
 
@@ -94,22 +88,13 @@ export async function submitAddUser(
             "newStatus"
         );
 
-    const submitButton =
-        document.querySelector(
-            '#addUserForm button[type="submit"]'
-        );
-
-
-    /* -----------------------------------------------------
-       READ VALUES
-    ----------------------------------------------------- */
 
     const email =
         String(
             emailInput?.value || ""
         )
-            .trim()
-            .toLowerCase();
+        .trim()
+        .toLowerCase();
 
 
     const password =
@@ -121,35 +106,32 @@ export async function submitAddUser(
     const name =
         String(
             nameInput?.value || ""
-        )
-            .trim();
+        ).trim();
 
 
     let role =
         String(
             roleInput?.value || "USER"
         )
-            .trim()
-            .toUpperCase();
+        .trim()
+        .toUpperCase();
 
 
-    const credits =
-        Number(
-            creditsInput?.value || 0
-        );
+    const creditsRaw =
+        creditsInput?.value;
 
 
     const status =
         String(
             statusInput?.value || "active"
         )
-            .trim()
-            .toLowerCase();
+        .trim()
+        .toLowerCase();
 
 
-    /* -----------------------------------------------------
-       VALIDATE EMAIL
-    ----------------------------------------------------- */
+    /* =====================================================
+       VALIDASI EMAIL
+    ===================================================== */
 
     if (!email) {
 
@@ -164,10 +146,6 @@ export async function submitAddUser(
 
     }
 
-
-    /* -----------------------------------------------------
-       BASIC EMAIL FORMAT
-    ----------------------------------------------------- */
 
     if (
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
@@ -187,13 +165,11 @@ export async function submitAddUser(
     }
 
 
-    /* -----------------------------------------------------
-       VALIDATE PASSWORD
-    ----------------------------------------------------- */
+    /* =====================================================
+       VALIDASI PASSWORD
+    ===================================================== */
 
-    if (
-        password.length < 6
-    ) {
+    if (password.length < 6) {
 
         showMessage(
             "Password minimal 6 karakter.",
@@ -207,58 +183,59 @@ export async function submitAddUser(
     }
 
 
-    /* -----------------------------------------------------
-       VALIDATE ROLE
-    ----------------------------------------------------- */
+    /* =====================================================
+       VALIDASI ROLE
+    ===================================================== */
+
+    const allowedRoles = [
+        "USER",
+        "ADMIN",
+        "OWNER"
+    ];
+
 
     if (
-        ![
-            "USER",
-            "ADMIN",
-            "OWNER"
-        ].includes(
-            role
-        )
+        !allowedRoles.includes(role)
     ) {
 
-        role =
-            "USER";
+        role = "USER";
 
     }
 
 
-    /* -----------------------------------------------------
-       ADMIN CAN ONLY CREATE USER
-    ----------------------------------------------------- */
-
     const currentRole =
         String(
-            userState.currentProfile?.role || ""
+            userState.currentProfile?.role ||
+            ""
         )
-            .trim()
-            .toUpperCase();
+        .trim()
+        .toUpperCase();
 
+
+    /*
+       ADMIN hanya boleh membuat USER.
+    */
 
     if (
         currentRole === "ADMIN"
     ) {
 
-        role =
-            "USER";
+        role = "USER";
 
     }
 
 
-    /* -----------------------------------------------------
-       OWNER CREATION IS NOT ALLOWED
-    ----------------------------------------------------- */
+    /*
+       OWNER tidak dapat dibuat melalui
+       User Management.
+    */
 
     if (
         role === "OWNER"
     ) {
 
         showMessage(
-            "Pembuatan akun OWNER tidak diizinkan.",
+            "Role OWNER tidak dapat dibuat dari User Management.",
             "error"
         );
 
@@ -267,14 +244,18 @@ export async function submitAddUser(
     }
 
 
-    /* -----------------------------------------------------
-       VALIDATE CREDITS
-    ----------------------------------------------------- */
+    /* =====================================================
+       VALIDASI CREDIT
+    ===================================================== */
+
+    const credits =
+        Number(
+            creditsRaw || 0
+        );
+
 
     if (
-        !Number.isFinite(
-            credits
-        ) ||
+        !Number.isFinite(credits) ||
         credits < 0
     ) {
 
@@ -290,35 +271,41 @@ export async function submitAddUser(
     }
 
 
-    /* -----------------------------------------------------
-       VALIDATE STATUS
-    ----------------------------------------------------- */
+    /* =====================================================
+       VALIDASI STATUS
+    ===================================================== */
 
-    const validStatuses = [
-
+    const allowedStatuses = [
         "active",
         "inactive",
         "suspended"
-
     ];
 
 
-    const normalizedStatus =
-        validStatuses.includes(
-            status
-        )
+    const finalStatus =
+        allowedStatuses.includes(status)
             ? status
             : "active";
 
 
-    /* -----------------------------------------------------
-       DISABLE SUBMIT
-    ----------------------------------------------------- */
+    /* =====================================================
+       BUTTON STATE
+    ===================================================== */
+
+    const submitButton =
+        form.querySelector(
+            'button[type="submit"]'
+        );
+
+
+    const originalText =
+        submitButton?.textContent ||
+        "CREATE USER";
+
 
     if (submitButton) {
 
-        submitButton.disabled =
-            true;
+        submitButton.disabled = true;
 
         submitButton.textContent =
             "MEMBUAT...";
@@ -328,9 +315,9 @@ export async function submitAddUser(
 
     try {
 
-        /* -------------------------------------------------
-           CREATE REQUEST
-        ------------------------------------------------- */
+        /* =================================================
+           CREATE USER
+        ================================================= */
 
         const result =
             await createUser({
@@ -345,56 +332,46 @@ export async function submitAddUser(
 
                 credits,
 
-                status:
-                    normalizedStatus
+                status: finalStatus
 
             });
 
 
-        /* -------------------------------------------------
+        /* =================================================
            CLOSE MODAL
-        ------------------------------------------------- */
+        ================================================= */
 
         closeAddModal();
 
 
-        /* -------------------------------------------------
-           RELOAD USER LIST
-        ------------------------------------------------- */
+        /* =================================================
+           REFRESH DATA
+        ================================================= */
 
         await loadUsers();
 
 
-        /* -------------------------------------------------
-           EMAIL RESULT
-        ------------------------------------------------- */
+        /* =================================================
+           RESULT MESSAGE
+        ================================================= */
 
         if (
             result?.emailSent === false
         ) {
 
             showMessage(
-
-                result?.message ||
-                "User berhasil dibuat, tetapi email konfirmasi gagal dikirim.",
-
+                "User berhasil dibuat, tetapi email konfirmasi belum berhasil dikirim.",
                 "warning"
-
             );
 
         } else {
 
             showMessage(
-
-                result?.message ||
                 "User berhasil dibuat.",
-
                 "success"
-
             );
 
         }
-
 
     } catch (error) {
 
@@ -405,28 +382,19 @@ export async function submitAddUser(
 
 
         showMessage(
-
             error?.message ||
             "Gagal membuat user.",
-
             "error"
-
         );
-
 
     } finally {
 
-        /* -------------------------------------------------
-           RESTORE BUTTON
-        ------------------------------------------------- */
-
         if (submitButton) {
 
-            submitButton.disabled =
-                false;
+            submitButton.disabled = false;
 
             submitButton.textContent =
-                "CREATE USER";
+                originalText;
 
         }
 
@@ -447,7 +415,7 @@ export async function confirmEmail(
     if (!userId) {
 
         showMessage(
-            "User ID tidak tersedia.",
+            "User ID tidak ditemukan.",
             "error"
         );
 
@@ -456,20 +424,20 @@ export async function confirmEmail(
     }
 
 
-    const confirmed =
-        window.confirm(
-            `Konfirmasi email ${email || "user ini"}?`
-        );
-
-
-    if (!confirmed) {
-
-        return;
-
-    }
-
-
     try {
+
+        const confirmed =
+            window.confirm(
+                `Konfirmasi email user:\n${email || userId}?`
+            );
+
+
+        if (!confirmed) {
+
+            return;
+
+        }
+
 
         await confirmUserEmail(
             userId
@@ -484,7 +452,6 @@ export async function confirmEmail(
             "success"
         );
 
-
     } catch (error) {
 
         console.error(
@@ -494,12 +461,9 @@ export async function confirmEmail(
 
 
         showMessage(
-
             error?.message ||
-            "Gagal mengonfirmasi email.",
-
+            "Gagal mengonfirmasi email user.",
             "error"
-
         );
 
     }
@@ -508,7 +472,7 @@ export async function confirmEmail(
 
 
 /* =========================================================
-   RESEND CONFIRMATION EMAIL
+   RESEND CONFIRMATION
 ========================================================= */
 
 export async function resendEmail(
@@ -519,14 +483,14 @@ export async function resendEmail(
         String(
             email || ""
         )
-            .trim()
-            .toLowerCase();
+        .trim()
+        .toLowerCase();
 
 
     if (!normalizedEmail) {
 
         showMessage(
-            "Email user tidak tersedia.",
+            "Email user tidak ditemukan.",
             "error"
         );
 
@@ -535,20 +499,20 @@ export async function resendEmail(
     }
 
 
-    const confirmed =
-        window.confirm(
-            `Kirim ulang email konfirmasi ke ${normalizedEmail}?`
-        );
-
-
-    if (!confirmed) {
-
-        return;
-
-    }
-
-
     try {
+
+        const confirmed =
+            window.confirm(
+                `Kirim ulang email konfirmasi ke:\n${normalizedEmail}?`
+            );
+
+
+        if (!confirmed) {
+
+            return;
+
+        }
+
 
         await resendConfirmation(
             normalizedEmail
@@ -560,7 +524,6 @@ export async function resendEmail(
             "success"
         );
 
-
     } catch (error) {
 
         console.error(
@@ -570,12 +533,9 @@ export async function resendEmail(
 
 
         showMessage(
-
             error?.message ||
             "Gagal mengirim ulang email konfirmasi.",
-
             "error"
-
         );
 
     }
@@ -585,6 +545,9 @@ export async function resendEmail(
 
 /* =========================================================
    DELETE USER
+   ---------------------------------------------------------
+   Tidak menggunakan window.confirm().
+   Konfirmasi dilakukan melalui deleteModal.
 ========================================================= */
 
 export async function confirmDeleteUser() {
@@ -593,49 +556,36 @@ export async function confirmDeleteUser() {
         userState.userToDelete;
 
 
-    if (
-        !target?.id
-    ) {
+    if (!target?.id) {
 
         showMessage(
-            "User yang akan dihapus tidak tersedia.",
+            "User yang akan dihapus tidak ditemukan.",
             "error"
         );
+
+        closeDeleteModal();
 
         return;
 
     }
 
 
-    const confirmButton =
+    const button =
         document.getElementById(
             "confirmDeleteButton"
         );
 
 
-    const confirmed =
-        window.confirm(
-            `Hapus user ${target.name || target.email || "ini"}? Tindakan ini tidak dapat dibatalkan.`
-        );
+    const originalText =
+        button?.textContent ||
+        "DELETE USER";
 
 
-    if (!confirmed) {
+    if (button) {
 
-        return;
+        button.disabled = true;
 
-    }
-
-
-    /* -----------------------------------------------------
-       DISABLE BUTTON
-    ----------------------------------------------------- */
-
-    if (confirmButton) {
-
-        confirmButton.disabled =
-            true;
-
-        confirmButton.textContent =
+        button.textContent =
             "MENGHAPUS...";
 
     }
@@ -648,25 +598,16 @@ export async function confirmDeleteUser() {
         );
 
 
-        /* -------------------------------------------------
-           CLOSE MODAL
-        ------------------------------------------------- */
-
         closeDeleteModal();
 
-
-        /* -------------------------------------------------
-           RELOAD USERS
-        ------------------------------------------------- */
 
         await loadUsers();
 
 
         showMessage(
-            "User berhasil dihapus.",
+            `User ${target.email || target.name || ""} berhasil dihapus.`,
             "success"
         );
-
 
     } catch (error) {
 
@@ -677,28 +618,19 @@ export async function confirmDeleteUser() {
 
 
         showMessage(
-
             error?.message ||
             "Gagal menghapus user.",
-
             "error"
-
         );
-
 
     } finally {
 
-        /* -------------------------------------------------
-           RESTORE BUTTON
-        ------------------------------------------------- */
+        if (button) {
 
-        if (confirmButton) {
+            button.disabled = false;
 
-            confirmButton.disabled =
-                false;
-
-            confirmButton.textContent =
-                "DELETE USER";
+            button.textContent =
+                originalText;
 
         }
 
