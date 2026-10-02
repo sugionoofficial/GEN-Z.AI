@@ -6,43 +6,24 @@
    admin-control/users/assets/js/user-state.js
 
    Fungsi:
-   - Menyimpan state halaman Users
-   - Tidak melakukan API request
-   - Tidak melakukan render
-   - Tidak melakukan authentication
+   - Shared state untuk seluruh Users module
 ========================================================= */
 
 
 /* =========================================================
-   CURRENT USER
+   SHARED USER STATE
 ========================================================= */
 
-let currentUser = null;
+export const userState = {
 
+    currentUser: null,
 
-/* =========================================================
-   CURRENT PROFILE
-========================================================= */
+    currentProfile: null,
 
-let currentProfile = null;
+    allUsers: [],
 
+    filteredUsers: [],
 
-/* =========================================================
-   ALL USERS
-========================================================= */
+    userToDelete: null
 
-let allUsers = [];
-
-
-/* =========================================================
-   FILTERED USERS
-========================================================= */
-
-let filteredUsers = [];
-
-
-/* =========================================================
-   USER TO DELETE
-========================================================= */
-
-let userToDelete = null;
+};
