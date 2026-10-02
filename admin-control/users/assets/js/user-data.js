@@ -1,33 +1,69 @@
 /* =========================================================
    GEN-Z.AI
-   USER MANAGEMENT - DATA
+   USER MANAGEMENT DATA
    ---------------------------------------------------------
    File:
    admin-control/users/assets/js/user-data.js
 
    Fungsi:
-   - Load users dari API
-   - Menyimpan data users ke state
-   - Filtering users
+   - Mengambil daftar user dari API
+   - Menyimpan data ke userState
+   - Filter user
    - Update statistik
-========================================================= */
+   - Render daftar user
+   - Tidak mengelola authentication
+   - Tidak mengelola modal
+   - Tidak mengelola action CRUD langsung
+   ========================================================= */
 
 import { userState } from "./user-state.js";
-
-import {
-    getUsers
-} from "./user-api.js";
-
-import {
-    renderUsers,
-    updateStats
-} from "./user-render.js";
-
+import { getUsers } from "./user-api.js";
+import { renderUsers, updateStats } from "./user-render.js";
 import {
     showMessage,
-    clearMessage,
-    escapeHtml
+    clearMessage
 } from "./user-utils.js";
+
+
+/* =========================================================
+   NORMALIZE USER LIST
+========================================================= */
+
+function normalizeUserList(result) {
+
+    /*
+       API dapat mengembalikan:
+       - array langsung
+       - { users: [...] }
+       - { data: [...] }
+    */
+
+    if (Array.isArray(result)) {
+
+        return result;
+    }
+
+
+    if (
+        result &&
+        Array.isArray(result.users)
+    ) {
+
+        return result.users;
+    }
+
+
+    if (
+        result &&
+        Array.isArray(result.data)
+    ) {
+
+        return result.data;
+    }
+
+
+    return [];
+}
 
 
 /* =========================================================
@@ -37,14 +73,10 @@ import {
 export async function loadUsers() {
 
     const container =
-        document.getElementById(
-            "userContainer"
-        );
+        document.getElementById("userContainer");
 
     const refreshButton =
-        document.getElementById(
-            "refreshButton"
-        );
+        document.getElementById("refreshButton");
 
 
     try {
@@ -52,9 +84,9 @@ export async function loadUsers() {
         clearMessage();
 
 
-        /* -------------------------------------------------
-           LOADING STATE
-        ------------------------------------------------- */
+        /*
+           Loading state.
+        */
 
         if (container) {
 
@@ -62,11 +94,11 @@ export async function loadUsers() {
                 <div class="empty-state">
 
                     <div class="empty-icon">
-                        ...
+                        ⟳
                     </div>
 
                     <div class="empty-title">
-                        Memuat Users
+                        Memuat User
                     </div>
 
                     <div class="empty-text">
@@ -75,88 +107,84 @@ export async function loadUsers() {
 
                 </div>
             `;
-
         }
 
 
         if (refreshButton) {
 
             refreshButton.disabled = true;
-
+            refreshButton.classList.add("loading");
         }
 
 
-        /* -------------------------------------------------
-           API REQUEST
-        ------------------------------------------------- */
+        /*
+           Request ke API.
+        */
 
         const result =
             await getUsers();
 
 
-        /* -------------------------------------------------
-           NORMALIZE RESPONSE
-        ------------------------------------------------- */
+        /*
+           Normalisasi response.
+        */
 
-        let users = [];
-
-
-        if (Array.isArray(result)) {
-
-            users = result;
-
-        } else if (
-            Array.isArray(result?.users)
-        ) {
-
-            users = result.users;
-
-        } else if (
-            Array.isArray(result?.data)
-        ) {
-
-            users = result.data;
-
-        }
+        const users =
+            normalizeUserList(result);
 
 
-        /* -------------------------------------------------
-           UPDATE STATE
-        ------------------------------------------------- */
+        /*
+           Simpan data asli.
+        */
 
         userState.allUsers =
-            users;
+            Array.isArray(users)
+                ? users
+                : [];
 
 
-        /* -------------------------------------------------
-           FILTER + RENDER
-        ------------------------------------------------- */
+        /*
+           Default filtered list = semua user.
+        */
 
-        filterUsers();
+        userState.filteredUsers =
+            [...userState.allUsers];
 
 
-        /* -------------------------------------------------
-           STATISTICS
-        ------------------------------------------------- */
+        /*
+           Update statistik.
+        */
 
         updateStats();
+
+
+        /*
+           Render tabel.
+        */
+
+        renderUsers();
+
+
+        console.log(
+            "[GEN-Z.AI UserData] Users loaded:",
+            userState.allUsers.length
+        );
+
 
     } catch (error) {
 
         console.error(
-            "[GEN-Z.AI] Load users error:",
+            "[GEN-Z.AI UserData] Gagal memuat users:",
             error
         );
 
 
         userState.allUsers = [];
-
         userState.filteredUsers = [];
 
 
-        /* -------------------------------------------------
-           ERROR STATE
-        ------------------------------------------------- */
+        updateStats();
+
 
         if (container) {
 
@@ -168,7 +196,7 @@ export async function loadUsers() {
                     </div>
 
                     <div class="empty-title">
-                        Gagal Memuat Users
+                        Gagal Memuat User
                     </div>
 
                     <div class="empty-text">
@@ -180,29 +208,24 @@ export async function loadUsers() {
 
                 </div>
             `;
-
         }
-
-
-        updateStats();
 
 
         showMessage(
             error?.message ||
-            "Gagal memuat data users.",
+            "Gagal memuat daftar user.",
             "error"
         );
+
 
     } finally {
 
         if (refreshButton) {
 
             refreshButton.disabled = false;
-
+            refreshButton.classList.remove("loading");
         }
-
     }
-
 }
 
 
@@ -213,104 +236,105 @@ export async function loadUsers() {
 export function filterUsers() {
 
     const searchInput =
-        document.getElementById(
-            "searchInput"
-        );
+        document.getElementById("searchInput");
 
 
     const keyword =
         String(
             searchInput?.value || ""
         )
-        .trim()
-        .toLowerCase();
+            .trim()
+            .toLowerCase();
 
 
-    const users =
-        Array.isArray(
-            userState.allUsers
-        )
-            ? userState.allUsers
-            : [];
-
-
-    /* -----------------------------------------------------
-       NO SEARCH
-    ----------------------------------------------------- */
+    /*
+       Tanpa keyword:
+       tampilkan semua user.
+    */
 
     if (!keyword) {
 
         userState.filteredUsers =
-            [...users];
+            [...userState.allUsers];
 
-    } else {
+        renderUsers();
 
-        /* -------------------------------------------------
-           SEARCH
-        ------------------------------------------------- */
-
-        userState.filteredUsers =
-            users.filter(
-                (user) => {
-
-                    const email =
-                        String(
-                            user?.email || ""
-                        )
-                        .toLowerCase();
-
-
-                    const name =
-                        String(
-                            user?.name || ""
-                        )
-                        .toLowerCase();
-
-
-                    const role =
-                        String(
-                            user?.role || ""
-                        )
-                        .toLowerCase();
-
-
-                    const status =
-                        String(
-                            user?.status || ""
-                        )
-                        .toLowerCase();
-
-
-                    return (
-                        email.includes(
-                            keyword
-                        ) ||
-
-                        name.includes(
-                            keyword
-                        ) ||
-
-                        role.includes(
-                            keyword
-                        ) ||
-
-                        status.includes(
-                            keyword
-                        )
-                    );
-
-                }
-            );
-
+        return;
     }
 
 
-    /* -----------------------------------------------------
-       RENDER FILTERED RESULT
-    ----------------------------------------------------- */
+    /*
+       Filter berdasarkan:
+       - email
+       - name
+       - role
+       - status
+    */
 
-    renderUsers(
-        userState.filteredUsers
-    );
+    userState.filteredUsers =
+        userState.allUsers.filter(user => {
 
+            const email =
+                String(
+                    user?.email || ""
+                ).toLowerCase();
+
+            const name =
+                String(
+                    user?.name || ""
+                ).toLowerCase();
+
+            const role =
+                String(
+                    user?.role || ""
+                ).toLowerCase();
+
+            const status =
+                String(
+                    user?.status || ""
+                ).toLowerCase();
+
+
+            return (
+                email.includes(keyword) ||
+                name.includes(keyword) ||
+                role.includes(keyword) ||
+                status.includes(keyword)
+            );
+        });
+
+
+    renderUsers();
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+   ---------------------------------------------------------
+   Digunakan hanya untuk pesan error dari API.
+========================================================= */
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* =========================================================
+   GLOBAL BRIDGE
+========================================================= */
+
+if (typeof window !== "undefined") {
+
+    window.GENZUserData = {
+
+        loadUsers,
+
+        filterUsers
+    };
 }
