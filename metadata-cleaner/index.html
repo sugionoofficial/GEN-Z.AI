@@ -290,21 +290,48 @@ document.title = "GEN-Z.AI Generator Web";
     ========================================================= */
 
     .genz-logo-wrapper {
+    position: fixed !important;
+    top: 18px !important;
+    left: 18px !important;
 
-        display: flex;
+    width: max-content !important;
+    height: max-content !important;
 
-        align-items: center;
-        justify-content: center;
+    z-index: 2147483647 !important;
 
-        min-height: 120px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 
-        background:
-            radial-gradient(
-                circle at center,
-                rgba(255, 0, 0, 0.06),
-                #050505 65%
-            );
+    margin: 0 !important;
+    padding: 0 !important;
+
+    background: transparent !important;
+
+    isolation: isolate !important;
+
+    pointer-events: none !important;
+}
+
+.genz-logo {
+    position: relative !important;
+    z-index: 2147483647 !important;
+
+    pointer-events: auto !important;
+}
+
+/* Pastikan elemen konten/blog tidak menutupi logo */
+body > *:not(.genz-logo-wrapper) {
+    position: relative;
+    z-index: 1;
+}
+
+@media (max-width: 480px) {
+    .genz-logo-wrapper {
+        top: 12px !important;
+        left: 12px !important;
     }
+}
 
 
     /* =========================================================
