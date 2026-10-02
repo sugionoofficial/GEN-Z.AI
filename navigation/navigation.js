@@ -11,11 +11,12 @@
    - Tidak menggunakan fixed logo terpisah di halaman
    - Tetap terlihat saat sidebar melakukan scroll
 
-   Fungsi lain:
+   Fungsi:
    - Supabase authentication
    - Profile loading
    - Role detection
    - User/Admin/Owner navigation
+   - Global compatibility bridge
    - Logout
    - Mobile navigation
    - Active menu
@@ -94,143 +95,196 @@
 
     let navigationReadyResolve;
 
+
     const navigationReadyPromise =
         new Promise(
             resolve => {
+
                 navigationReadyResolve =
                     resolve;
+
             }
         );
 
 
     /* =====================================================
-   SUPABASE
-===================================================== */
+       GLOBAL COMPATIBILITY BRIDGE
+       -----------------------------------------------------
+       Beberapa halaman lama GEN-Z.AI masih membaca:
 
-function getSupabaseClient() {
+       window.GENZ_NAVIGATION_USER
+       window.GENZ_NAVIGATION_PROFILE
+       window.GENZ_NAVIGATION_ROLE
 
-    /* -------------------------------------------------
-       1. Gunakan client yang sudah dibuat oleh project
-       ------------------------------------------------- */
+       Jangan hapus bridge ini.
+       ===================================================== */
 
-    if (
-        window.GENZ_SUPABASE
-    ) {
+    function syncNavigationGlobals() {
 
-        return window.GENZ_SUPABASE;
-
-    }
-
-
-    if (
-        window.supabaseClient
-    ) {
-
-        return window.supabaseClient;
-
-    }
+        window.GENZ_NAVIGATION_USER =
+            currentUser || null;
 
 
-    /* -------------------------------------------------
-       2. Ambil Supabase library
-       ------------------------------------------------- */
-
-    const supabaseGlobal =
-        window.supabase;
+        window.GENZ_NAVIGATION_PROFILE =
+            currentProfile || null;
 
 
-    const config =
-        window.GENZ_CONFIG;
-
-
-    if (
-        !supabaseGlobal ||
-        typeof supabaseGlobal.createClient !==
-            "function"
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] Supabase library tidak tersedia."
-        );
-
-        return null;
-
-    }
-
-
-    /* -------------------------------------------------
-       3. GEN-Z.AI menggunakan SUPABASE_KEY
-       
-       Kompatibilitas:
-       - SUPABASE_KEY
-       - SUPABASE_ANON_KEY
-       ------------------------------------------------- */
-
-    if (
-        !config ||
-        !config.SUPABASE_URL
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] SUPABASE_URL tidak tersedia."
-        );
-
-        return null;
-
-    }
-
-
-    const supabaseKey =
-        config.SUPABASE_KEY ||
-        config.SUPABASE_ANON_KEY;
-
-
-    if (
-        !supabaseKey
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] SUPABASE_KEY tidak tersedia."
-        );
-
-        return null;
-
-    }
-
-
-    /* -------------------------------------------------
-       4. Buat client
-       ------------------------------------------------- */
-
-    try {
-
-        const client =
-            supabaseGlobal.createClient(
-                config.SUPABASE_URL,
-                supabaseKey
+        window.GENZ_NAVIGATION_ROLE =
+            normalizeRole(
+                currentRole
             );
 
 
-        window.supabaseClient =
-            client;
+        /*
+         * Compatibility tambahan yang sudah
+         * digunakan beberapa modul Generate.
+         */
 
+        if (
+            currentProfile
+        ) {
 
-        return client;
+            window.GENZ_CURRENT_PROFILE =
+                currentProfile;
 
-    } catch (
-        error
-    ) {
+        } else {
 
-        console.error(
-            "[GEN-Z.AI] Supabase client error:",
-            error
-        );
+            window.GENZ_CURRENT_PROFILE =
+                null;
 
-        return null;
+        }
 
     }
 
-}
+
+    /* =====================================================
+       SUPABASE
+    ===================================================== */
+
+    function getSupabaseClient() {
+
+        /* -------------------------------------------------
+           1. Gunakan client yang sudah dibuat project
+           ------------------------------------------------- */
+
+        if (
+            window.GENZ_SUPABASE
+        ) {
+
+            return window.GENZ_SUPABASE;
+
+        }
+
+
+        if (
+            window.supabaseClient
+        ) {
+
+            return window.supabaseClient;
+
+        }
+
+
+        /* -------------------------------------------------
+           2. Ambil Supabase library
+           ------------------------------------------------- */
+
+        const supabaseGlobal =
+            window.supabase;
+
+
+        const config =
+            window.GENZ_CONFIG;
+
+
+        if (
+            !supabaseGlobal ||
+            typeof supabaseGlobal.createClient !==
+                "function"
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] Supabase library tidak tersedia."
+            );
+
+            return null;
+
+        }
+
+
+        /* -------------------------------------------------
+           3. GEN-Z.AI menggunakan SUPABASE_KEY
+           
+           Kompatibilitas:
+           - SUPABASE_KEY
+           - SUPABASE_ANON_KEY
+           ------------------------------------------------- */
+
+        if (
+            !config ||
+            !config.SUPABASE_URL
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] SUPABASE_URL tidak tersedia."
+            );
+
+            return null;
+
+        }
+
+
+        const supabaseKey =
+            config.SUPABASE_KEY ||
+            config.SUPABASE_ANON_KEY;
+
+
+        if (
+            !supabaseKey
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] SUPABASE_KEY tidak tersedia."
+            );
+
+            return null;
+
+        }
+
+
+        /* -------------------------------------------------
+           4. Buat client
+           ------------------------------------------------- */
+
+        try {
+
+            const client =
+                supabaseGlobal.createClient(
+                    config.SUPABASE_URL,
+                    supabaseKey
+                );
+
+
+            window.supabaseClient =
+                client;
+
+
+            return client;
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] Supabase client error:",
+                error
+            );
+
+            return null;
+
+        }
+
+    }
 
 
     /* =====================================================
@@ -422,6 +476,7 @@ function getSupabaseClient() {
                     return {
                         session:
                             data.session,
+
                         user:
                             data.session.user
                     };
@@ -522,11 +577,11 @@ function getSupabaseClient() {
 
 
                 /*
-                 * Some existing databases do not have
-                 * the status column.
+                 * Beberapa database lama tidak
+                 * mempunyai kolom status.
                  *
-                 * Keep compatibility without breaking
-                 * the navigation.
+                 * Jangan membuat navigation gagal
+                 * hanya karena kolom tersebut tidak ada.
                  */
 
                 if (
@@ -579,7 +634,6 @@ function getSupabaseClient() {
                 lastError =
                     result.error;
 
-
             } catch (
                 error
             ) {
@@ -630,65 +684,78 @@ function getSupabaseClient() {
     ) {
 
         const commonUserItems = [
+
             {
                 label: "Dashboard",
                 href: "/user/dashboard.html",
                 icon: "♻️ "
             },
+
             {
                 label: "Generate",
                 href: "/generate/index.html",
                 icon: "♻️ "
             },
+
             {
                 label: "History",
                 href: "/history/index.html",
                 icon: "♻️ "
             },
+
             {
                 label: "AI Metadata Cleaner",
                 href: "/metadata-cleaner/index.html",
                 icon: "🛡️ "
             },
+
             {
                 label: "Top Up",
                 href: "/user/topup.html",
                 icon: "♻️ "
             },
+
             {
                 label: "Hub Admin",
                 href: "/user/hub-admin.html",
                 icon: "♻️ "
             }
+
         ];
 
 
         const adminItems = [
+
             {
                 label: "Dashboard",
                 href: "/admin/dashboard/index.html",
                 icon: "♻️ "
             },
+
             {
                 label: "Generate",
                 href: "/generate/index.html",
                 icon: "♻️ "
             },
+
             {
                 label: "History",
                 href: "/history/index.html",
                 icon: "♻️ "
             },
+
             {
                 label: "AI Metadata Cleaner",
                 href: "/metadata-cleaner/index.html",
                 icon: "🛡️ "
             },
+
             {
                 label: "Admin Panel",
                 href: "/admin-control/admin-panel.html",
                 icon: "♻️ "
             }
+
         ];
 
 
@@ -968,6 +1035,15 @@ function getSupabaseClient() {
             return;
 
         }
+
+
+        /*
+         * Pastikan semua halaman yang masih memakai
+         * global lama mendapatkan state terbaru
+         * sebelum navigation dirender.
+         */
+
+        syncNavigationGlobals();
 
 
         const items =
@@ -1356,6 +1432,7 @@ function getSupabaseClient() {
 
                     event.preventDefault();
 
+
                     if (
                         sidebar &&
                         sidebar.classList.contains(
@@ -1503,6 +1580,13 @@ function getSupabaseClient() {
             "user";
 
 
+        /*
+         * Bersihkan global compatibility bridge.
+         */
+
+        syncNavigationGlobals();
+
+
         if (
             !isLoginPage()
         ) {
@@ -1563,11 +1647,16 @@ function getSupabaseClient() {
                         currentUser =
                             null;
 
+
                         currentProfile =
                             null;
 
+
                         currentRole =
                             "user";
+
+
+                        syncNavigationGlobals();
 
 
                         if (
@@ -1578,6 +1667,7 @@ function getSupabaseClient() {
                                 LOGIN_PATH;
 
                         }
+
 
                         return;
 
@@ -1618,6 +1708,14 @@ function getSupabaseClient() {
                             );
 
 
+                        /*
+                         * Update global bridge SEBELUM
+                         * render navigation.
+                         */
+
+                        syncNavigationGlobals();
+
+
                         if (
                             !isProfileActive(
                                 profile
@@ -1629,6 +1727,18 @@ function getSupabaseClient() {
                             return;
 
                         }
+
+                    } else {
+
+                        currentProfile =
+                            null;
+
+
+                        currentRole =
+                            "user";
+
+
+                        syncNavigationGlobals();
 
                     }
 
@@ -1674,11 +1784,16 @@ function getSupabaseClient() {
             currentUser =
                 null;
 
+
             currentProfile =
                 null;
 
+
             currentRole =
                 "user";
+
+
+            syncNavigationGlobals();
 
 
             if (
@@ -1720,6 +1835,21 @@ function getSupabaseClient() {
                 );
 
 
+            /*
+             * Ini bagian penting untuk Admin Panel.
+             *
+             * Admin Panel membaca:
+             *
+             * window.GENZ_NAVIGATION_PROFILE
+             * window.GENZ_NAVIGATION_ROLE
+             *
+             * Jadi keduanya harus sudah tersedia
+             * sebelum halaman admin melakukan pengecekan.
+             */
+
+            syncNavigationGlobals();
+
+
             if (
                 !isProfileActive(
                     profile
@@ -1735,16 +1865,21 @@ function getSupabaseClient() {
         } else {
 
             /*
-             * Keep the authenticated session.
-             * The profile may still be unavailable
-             * during initial database propagation.
+             * Keep authenticated session.
+             *
+             * Profile dapat belum tersedia saat
+             * propagasi database.
              */
 
             currentProfile =
                 null;
 
+
             currentRole =
                 "user";
+
+
+            syncNavigationGlobals();
 
         }
 
@@ -3084,65 +3219,155 @@ function getSupabaseClient() {
 
 
     /* =====================================================
-   INITIALIZE
-===================================================== */
+       INITIALIZE
+    ===================================================== */
 
-async function initialize() {
+    async function initialize() {
 
-    injectStyles();
+        injectStyles();
 
 
-    /*
-     * Do not initialize auth on login page.
-     * Login page does not need the protected sidebar.
-     */
-
-    if (
-        isLoginPage()
-    ) {
-
-        navigationReady =
-            true;
-
+        /*
+         * Login page tidak membutuhkan protected
+         * navigation.
+         */
 
         if (
-            navigationReadyResolve
+            isLoginPage()
         ) {
 
-            navigationReadyResolve(
-                true
-            );
+            navigationReady =
+                true;
 
-            navigationReadyResolve =
-                null;
+
+            if (
+                navigationReadyResolve
+            ) {
+
+                navigationReadyResolve(
+                    true
+                );
+
+                navigationReadyResolve =
+                    null;
+
+            }
+
+
+            return;
 
         }
 
 
-        return;
+        try {
 
-    }
-
-
-    try {
-
-        const authenticated =
-            await validateAuthentication();
+            const authenticated =
+                await validateAuthentication();
 
 
-        /*
-         * Authentication gagal.
-         *
-         * validateAuthentication()
-         * sudah menangani redirect ke login.
-         */
+            /*
+             * Authentication gagal.
+             *
+             * validateAuthentication()
+             * sudah menangani redirect.
+             */
 
-        if (
-            !authenticated
+            if (
+                !authenticated
+            ) {
+
+                navigationReady =
+                    false;
+
+
+                if (
+                    navigationReadyResolve
+                ) {
+
+                    navigationReadyResolve(
+                        false
+                    );
+
+                    navigationReadyResolve =
+                        null;
+
+                }
+
+
+                return;
+
+            }
+
+
+            /*
+             * Pastikan compatibility bridge
+             * sudah tersedia sebelum halaman lain
+             * mulai membaca state navigation.
+             */
+
+            syncNavigationGlobals();
+
+
+            /*
+             * Render navigation.
+             */
+
+            renderNavigation();
+
+
+            /*
+             * Pasang auth listener.
+             */
+
+            setupAuthListener();
+
+
+            /*
+             * Semua halaman yang menunggu:
+             *
+             * window.GENZNavigationReady
+             *
+             * akan mendapatkan hasil.
+             */
+
+            navigationReady =
+                true;
+
+
+            if (
+                navigationReadyResolve
+            ) {
+
+                navigationReadyResolve(
+                    true
+                );
+
+                navigationReadyResolve =
+                    null;
+
+            }
+
+        } catch (
+            error
         ) {
+
+            console.error(
+                "[GEN-Z.AI] Navigation initialization error:",
+                error
+            );
+
 
             navigationReady =
                 false;
+
+
+            /*
+             * Tetap sinkronkan global supaya
+             * halaman yang melakukan pengecekan
+             * tidak membaca state lama.
+             */
+
+            syncNavigationGlobals();
 
 
             if (
@@ -3158,85 +3383,9 @@ async function initialize() {
 
             }
 
-
-            return;
-
-        }
-
-
-        /*
-         * Render navigation setelah
-         * authentication berhasil.
-         */
-
-        renderNavigation();
-
-
-        /*
-         * Pasang auth listener.
-         */
-
-        setupAuthListener();
-
-
-        /*
-         * PENTING:
-         *
-         * Semua halaman yang menunggu:
-         *
-         * window.GENZNavigationReady
-         *
-         * harus mendapatkan hasil.
-         */
-
-        navigationReady =
-            true;
-
-
-        if (
-            navigationReadyResolve
-        ) {
-
-            navigationReadyResolve(
-                true
-            );
-
-            navigationReadyResolve =
-                null;
-
-        }
-
-
-    } catch (
-        error
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] Navigation initialization error:",
-            error
-        );
-
-
-        navigationReady =
-            false;
-
-
-        if (
-            navigationReadyResolve
-        ) {
-
-            navigationReadyResolve(
-                false
-            );
-
-            navigationReadyResolve =
-                null;
-
         }
 
     }
-
-}
 
 
     /* =====================================================
@@ -3271,6 +3420,14 @@ async function initialize() {
 
     window.GENZNavigationReady =
         navigationReadyPromise;
+
+
+    /*
+     * Initialize global bridge immediately
+     * dengan state default.
+     */
+
+    syncNavigationGlobals();
 
 
     /* =====================================================
