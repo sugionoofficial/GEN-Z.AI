@@ -7,6 +7,7 @@
 // Endpoint aman untuk:
 // - LIST users
 // - CREATE user
+// - UPDATE user
 // - DELETE user
 // - CONFIRM email
 // - RESEND confirmation email
@@ -268,13 +269,17 @@ const verifyAdmin = async (
     const role =
         String(
             profile.role || ""
-        ).toUpperCase();
+        )
+            .trim()
+            .toUpperCase();
 
 
     const status =
         String(
             profile.status || ""
-        ).toLowerCase();
+        )
+            .trim()
+            .toLowerCase();
 
 
     if (
@@ -386,7 +391,10 @@ const listAuthUsers = async (
 
         page++;
 
-        if (page > 100) {
+
+        if (
+            page > 100
+        ) {
 
             break;
 
@@ -414,7 +422,9 @@ const listProfiles = async (
             "/rest/v1/profiles?select=id,email,name,role,status,credits,created_at&order=created_at.desc",
             {
                 method: "GET",
+
                 headers: {
+
                     "apikey":
                         config.serviceRoleKey,
 
@@ -423,7 +433,9 @@ const listProfiles = async (
 
                     "Content-Type":
                         "application/json"
+
                 }
+
             }
         );
 
@@ -626,6 +638,294 @@ const upsertProfile = async (
 
 
 // ========================================
+// UPDATE PROFILE
+// ========================================
+
+const updateProfile = async (
+    config,
+    userId,
+    role,
+    status
+) => {
+
+    const result =
+        await supabaseRequest(
+            config.url,
+            `/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
+            {
+                method: "PATCH",
+
+                headers: {
+
+                    "apikey":
+                        config.serviceRoleKey,
+
+                    "Authorization":
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Prefer":
+                        "return=representation"
+
+                },
+
+                body:
+                    JSON.stringify({
+
+                        role,
+                        status
+
+                    })
+
+            }
+        );
+
+
+    if (
+        !result.response.ok
+    ) {
+
+        throw new Error(
+            result.data?.message ||
+            result.data?.details ||
+            result.data?.hint ||
+            "Gagal memperbarui profile user."
+        );
+
+    }
+
+
+    const updated =
+        Array.isArray(
+            result.data
+        )
+            ? result.data[0]
+            : null;
+
+
+    return updated;
+
+};
+
+
+// ========================================
+// UPDATE AUTH USER
+// ========================================
+//
+// Digunakan untuk:
+// - VERIFIED
+// - UNVERIFIED
+//
+// Tidak mengubah email/password/user metadata.
+// ========================================
+
+const updateAuthVerification = async (
+    config,
+    userId,
+    emailConfirmed
+) => {
+
+    const result =
+        await supabaseRequest(
+            config.url,
+            `/auth/v1/admin/users/${encodeURIComponent(userId)}`,
+            {
+                method: "PUT",
+
+                headers: {
+
+                    "apikey":
+                        config.serviceRoleKey,
+
+                    "Authorization":
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json"
+
+                },
+
+                body:
+                    JSON.stringify({
+
+                        email_confirm:
+                            Boolean(
+                                emailConfirmed
+                            )
+
+                    })
+
+            }
+        );
+
+
+    if (
+        !result.response.ok
+    ) {
+
+        throw new Error(
+            result.data?.msg ||
+            result.data?.message ||
+            result.data?.error_description ||
+            "Gagal memperbarui status verifikasi email."
+        );
+
+    }
+
+
+    return result.data;
+
+};
+
+
+// ========================================
+// LOAD TARGET PROFILE
+// ========================================
+
+const loadTargetProfile = async (
+    config,
+    userId
+) => {
+
+    const result =
+        await supabaseRequest(
+            config.url,
+            `/rest/v1/profiles?select=id,email,name,role,status,credits&id=eq.${encodeURIComponent(userId)}&limit=1`,
+            {
+                method: "GET",
+
+                headers: {
+
+                    "apikey":
+                        config.serviceRoleKey,
+
+                    "Authorization":
+                        `Bearer ${config.serviceRoleKey}`
+
+                }
+
+            }
+        );
+
+
+    if (
+        !result.response.ok
+    ) {
+
+        throw new Error(
+            result.data?.message ||
+            result.data?.hint ||
+            "Gagal mengambil profile target."
+        );
+
+    }
+
+
+    return Array.isArray(
+        result.data
+    )
+        ? result.data[0]
+        : null;
+
+};
+
+
+// ========================================
+// SECURITY CHECK TARGET
+// ========================================
+
+const validateTargetManagement = (
+    admin,
+    targetProfile
+) => {
+
+    if (!targetProfile) {
+
+        return {
+            ok: false,
+            status: 404,
+            error:
+                "User tidak ditemukan."
+        };
+
+    }
+
+
+    const targetRole =
+        String(
+            targetProfile.role || "USER"
+        )
+            .trim()
+            .toUpperCase();
+
+
+    // ------------------------------------
+    // ADMIN / OWNER TIDAK BOLEH EDIT DIRI
+    // ------------------------------------
+
+    if (
+        targetProfile.id ===
+        admin.userId
+    ) {
+
+        return {
+            ok: false,
+            status: 400,
+            error:
+                "Akun sendiri tidak dapat diedit melalui menu ini."
+        };
+
+    }
+
+
+    // ------------------------------------
+    // OWNER TIDAK BOLEH DIUBAH
+    // ------------------------------------
+
+    if (
+        targetRole === "OWNER"
+    ) {
+
+        return {
+            ok: false,
+            status: 403,
+            error:
+                "Akun OWNER tidak dapat diedit melalui halaman ini."
+        };
+
+    }
+
+
+    // ------------------------------------
+    // ADMIN HANYA USER
+    // ------------------------------------
+
+    if (
+        admin.profile.role === "ADMIN" &&
+        targetRole !== "USER"
+    ) {
+
+        return {
+            ok: false,
+            status: 403,
+            error:
+                "ADMIN hanya dapat mengelola user biasa."
+        };
+
+    }
+
+
+    return {
+        ok: true,
+        targetRole
+    };
+
+};
+
+
+// ========================================
 // SEND CONFIRMATION EMAIL
 // ========================================
 
@@ -730,7 +1030,9 @@ export default async function handler(
         req.method === "OPTIONS"
     ) {
 
-        return res.status(204).end();
+        return res
+            .status(204)
+            .end();
 
     }
 
@@ -829,8 +1131,6 @@ export default async function handler(
 
     // ====================================
     // GET
-    // ====================================
-    // Mengambil semua user Auth + Profile
     // ====================================
 
     if (
@@ -933,7 +1233,6 @@ export default async function handler(
     // action:
     // create
     // resend
-    //
     // ====================================
 
     if (
@@ -943,7 +1242,9 @@ export default async function handler(
         const action =
             String(
                 body.action || "create"
-            ).toLowerCase();
+            )
+                .trim()
+                .toLowerCase();
 
 
         // --------------------------------
@@ -1056,7 +1357,8 @@ export default async function handler(
         const name =
             String(
                 body.name || ""
-            ).trim();
+            )
+                .trim();
 
 
         const requestedRole =
@@ -1182,14 +1484,6 @@ export default async function handler(
 
         // --------------------------------
         // SECURITY ROLE
-        // --------------------------------
-        //
-        // ADMIN hanya boleh membuat USER.
-        //
-        // OWNER boleh membuat USER/ADMIN.
-        //
-        // OWNER baru tidak dibuat melalui
-        // halaman ini untuk mencegah eskalasi.
         // --------------------------------
 
         if (
@@ -1490,6 +1784,7 @@ export default async function handler(
     //
     // action:
     // confirm
+    // update
     //
     // ====================================
 
@@ -1500,8 +1795,280 @@ export default async function handler(
         const action =
             String(
                 body.action || ""
-            ).toLowerCase();
+            )
+                .trim()
+                .toLowerCase();
 
+
+        // ==================================
+        // UPDATE USER
+        // ==================================
+
+        if (
+            action === "update"
+        ) {
+
+            const userId =
+                String(
+                    body.userId || ""
+                )
+                    .trim();
+
+
+            const requestedRole =
+                String(
+                    body.role || ""
+                )
+                    .trim()
+                    .toUpperCase();
+
+
+            const requestedStatus =
+                String(
+                    body.status || ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            const requestedVerified =
+                body.emailConfirmed;
+
+
+            // --------------------------------
+            // BASIC VALIDATION
+            // --------------------------------
+
+            if (!userId) {
+
+                return json(
+                    res,
+                    400,
+                    {
+                        success: false,
+                        error:
+                            "ID user wajib diisi."
+                    }
+                );
+
+            }
+
+
+            if (
+                ![
+                    "USER",
+                    "ADMIN"
+                ].includes(
+                    requestedRole
+                )
+            ) {
+
+                return json(
+                    res,
+                    400,
+                    {
+                        success: false,
+                        error:
+                            "Role edit tidak valid. Role yang dapat dipilih adalah USER atau ADMIN."
+                    }
+                );
+
+            }
+
+
+            if (
+                ![
+                    "active",
+                    "inactive",
+                    "suspended"
+                ].includes(
+                    requestedStatus
+                )
+            ) {
+
+                return json(
+                    res,
+                    400,
+                    {
+                        success: false,
+                        error:
+                            "Status edit tidak valid."
+                    }
+                );
+
+            }
+
+
+            if (
+                typeof requestedVerified !==
+                "boolean"
+            ) {
+
+                return json(
+                    res,
+                    400,
+                    {
+                        success: false,
+                        error:
+                            "Status verifikasi tidak valid."
+                    }
+                );
+
+            }
+
+
+            // --------------------------------
+            // LOAD TARGET
+            // --------------------------------
+
+            try {
+
+                const targetProfile =
+                    await loadTargetProfile(
+                        config,
+                        userId
+                    );
+
+
+                const security =
+                    validateTargetManagement(
+                        admin,
+                        targetProfile
+                    );
+
+
+                if (
+                    !security.ok
+                ) {
+
+                    return json(
+                        res,
+                        security.status,
+                        {
+                            success: false,
+                            error:
+                                security.error
+                        }
+                    );
+
+                }
+
+
+                // --------------------------------
+                // ADMIN CANNOT PROMOTE USER
+                // --------------------------------
+
+                if (
+                    admin.profile.role === "ADMIN" &&
+                    requestedRole !== "USER"
+                ) {
+
+                    return json(
+                        res,
+                        403,
+                        {
+                            success: false,
+                            error:
+                                "ADMIN tidak dapat mengubah role user menjadi ADMIN."
+                        }
+                    );
+
+                }
+
+
+                // --------------------------------
+                // UPDATE AUTH VERIFICATION
+                // --------------------------------
+                //
+                // Email/password tidak disentuh.
+                // Hanya email_confirm.
+                // --------------------------------
+
+                await updateAuthVerification(
+                    config,
+                    userId,
+                    requestedVerified
+                );
+
+
+                // --------------------------------
+                // UPDATE PROFILE
+                // --------------------------------
+
+                const updatedProfile =
+                    await updateProfile(
+                        config,
+                        userId,
+                        requestedRole,
+                        requestedStatus
+                    );
+
+
+                return json(
+                    res,
+                    200,
+                    {
+                        success: true,
+
+                        user: {
+
+                            id:
+                                userId,
+
+                            email:
+                                targetProfile.email ||
+                                "",
+
+                            name:
+                                targetProfile.name ||
+                                "",
+
+                            role:
+                                updatedProfile?.role ||
+                                requestedRole,
+
+                            status:
+                                updatedProfile?.status ||
+                                requestedStatus,
+
+                            email_confirmed:
+                                requestedVerified
+
+                        },
+
+                        message:
+                            "Data user berhasil diperbarui."
+
+                    }
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "UPDATE USER ERROR:",
+                    error
+                );
+
+
+                return json(
+                    res,
+                    500,
+                    {
+                        success: false,
+                        error:
+                            error.message ||
+                            "Gagal memperbarui user."
+                    }
+                );
+
+            }
+
+        }
+
+
+        // ==================================
+        // CONFIRM EMAIL
+        // ==================================
 
         if (
             action !== "confirm"
@@ -1523,7 +2090,8 @@ export default async function handler(
         const userId =
             String(
                 body.userId || ""
-            ).trim();
+            )
+                .trim();
 
 
         if (!userId) {
@@ -1542,7 +2110,8 @@ export default async function handler(
 
 
         if (
-            userId === admin.userId
+            userId ===
+            admin.userId
         ) {
 
             return json(
@@ -1564,83 +2133,31 @@ export default async function handler(
             // LOAD TARGET PROFILE
             // --------------------------------
 
-            const profileResult =
-                await supabaseRequest(
-                    config.url,
-                    `/rest/v1/profiles?select=id,email,name,role,status&id=eq.${encodeURIComponent(userId)}&limit=1`,
-                    {
-                        method: "GET",
-
-                        headers: {
-
-                            "apikey":
-                                config.serviceRoleKey,
-
-                            "Authorization":
-                                `Bearer ${config.serviceRoleKey}`
-
-                        }
-
-                    }
-                );
-
-
-            if (
-                !profileResult.response.ok
-            ) {
-
-                throw new Error(
-                    "Gagal mengambil profile target."
-                );
-
-            }
-
-
             const targetProfile =
-                Array.isArray(
-                    profileResult.data
-                )
-                    ? profileResult.data[0]
-                    : null;
-
-
-            if (!targetProfile) {
-
-                return json(
-                    res,
-                    404,
-                    {
-                        success: false,
-                        error:
-                            "Profile user tidak ditemukan."
-                    }
+                await loadTargetProfile(
+                    config,
+                    userId
                 );
 
-            }
 
+            const security =
+                validateTargetManagement(
+                    admin,
+                    targetProfile
+                );
 
-            const targetRole =
-                String(
-                    targetProfile.role || "USER"
-                ).toUpperCase();
-
-
-            // --------------------------------
-            // ADMIN SECURITY
-            // --------------------------------
 
             if (
-                admin.profile.role === "ADMIN" &&
-                targetRole !== "USER"
+                !security.ok
             ) {
 
                 return json(
                     res,
-                    403,
+                    security.status,
                     {
                         success: false,
                         error:
-                            "ADMIN hanya dapat mengelola user biasa."
+                            security.error
                     }
                 );
 
@@ -1651,49 +2168,11 @@ export default async function handler(
             // CONFIRM EMAIL
             // --------------------------------
 
-            const confirmResult =
-                await supabaseRequest(
-                    config.url,
-                    `/auth/v1/admin/users/${encodeURIComponent(userId)}`,
-                    {
-                        method: "PUT",
-
-                        headers: {
-
-                            "apikey":
-                                config.serviceRoleKey,
-
-                            "Authorization":
-                                `Bearer ${config.serviceRoleKey}`,
-
-                            "Content-Type":
-                                "application/json"
-
-                        },
-
-                        body:
-                            JSON.stringify({
-
-                                email_confirm:
-                                    true
-
-                            })
-
-                    }
-                );
-
-
-            if (
-                !confirmResult.response.ok
-            ) {
-
-                throw new Error(
-                    confirmResult.data?.msg ||
-                    confirmResult.data?.message ||
-                    "Gagal mengonfirmasi email user."
-                );
-
-            }
+            await updateAuthVerification(
+                config,
+                userId,
+                true
+            );
 
 
             return json(
@@ -1747,7 +2226,8 @@ export default async function handler(
                 body.userId ||
                 req.query?.userId ||
                 ""
-            ).trim();
+            )
+                .trim();
 
 
         if (!userId) {
@@ -1766,7 +2246,8 @@ export default async function handler(
 
 
         if (
-            userId === admin.userId
+            userId ===
+            admin.userId
         ) {
 
             return json(
@@ -1788,100 +2269,31 @@ export default async function handler(
             // LOAD TARGET PROFILE
             // --------------------------------
 
-            const profileResult =
-                await supabaseRequest(
-                    config.url,
-                    `/rest/v1/profiles?select=id,email,name,role,status&id=eq.${encodeURIComponent(userId)}&limit=1`,
-                    {
-                        method: "GET",
-
-                        headers: {
-
-                            "apikey":
-                                config.serviceRoleKey,
-
-                            "Authorization":
-                                `Bearer ${config.serviceRoleKey}`
-
-                        }
-
-                    }
-                );
-
-
-            if (
-                !profileResult.response.ok
-            ) {
-
-                throw new Error(
-                    "Gagal mengambil profile user."
-                );
-
-            }
-
-
             const targetProfile =
-                Array.isArray(
-                    profileResult.data
-                )
-                    ? profileResult.data[0]
-                    : null;
-
-
-            if (!targetProfile) {
-
-                return json(
-                    res,
-                    404,
-                    {
-                        success: false,
-                        error:
-                            "User tidak ditemukan."
-                    }
+                await loadTargetProfile(
+                    config,
+                    userId
                 );
 
-            }
 
+            const security =
+                validateTargetManagement(
+                    admin,
+                    targetProfile
+                );
 
-            const targetRole =
-                String(
-                    targetProfile.role || "USER"
-                ).toUpperCase();
-
-
-            // --------------------------------
-            // SECURITY
-            // --------------------------------
 
             if (
-                targetRole === "OWNER"
+                !security.ok
             ) {
 
                 return json(
                     res,
-                    403,
+                    security.status,
                     {
                         success: false,
                         error:
-                            "OWNER tidak dapat dihapus dari halaman ini."
-                    }
-                );
-
-            }
-
-
-            if (
-                admin.profile.role === "ADMIN" &&
-                targetRole !== "USER"
-            ) {
-
-                return json(
-                    res,
-                    403,
-                    {
-                        success: false,
-                        error:
-                            "ADMIN hanya dapat menghapus user biasa."
+                            security.error
                     }
                 );
 
@@ -1932,27 +2344,40 @@ export default async function handler(
 
             try {
 
-                await supabaseRequest(
-                    config.url,
-                    `/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
-                    {
-                        method: "DELETE",
+                const profileDeleteResult =
+                    await supabaseRequest(
+                        config.url,
+                        `/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
+                        {
+                            method: "DELETE",
 
-                        headers: {
+                            headers: {
 
-                            "apikey":
-                                config.serviceRoleKey,
+                                "apikey":
+                                    config.serviceRoleKey,
 
-                            "Authorization":
-                                `Bearer ${config.serviceRoleKey}`,
+                                "Authorization":
+                                    `Bearer ${config.serviceRoleKey}`,
 
-                            "Prefer":
-                                "return=minimal"
+                                "Prefer":
+                                    "return=minimal"
+
+                            }
 
                         }
+                    );
 
-                    }
-                );
+
+                if (
+                    !profileDeleteResult.response.ok
+                ) {
+
+                    console.error(
+                        "PROFILE DELETE RESPONSE:",
+                        profileDeleteResult.data
+                    );
+
+                }
 
             } catch (
                 profileDeleteError
