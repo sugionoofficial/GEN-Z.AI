@@ -596,6 +596,286 @@
 
 
     <!-- =====================================================
+         EDIT USER MODAL
+    ====================================================== -->
+
+    <div
+        id="editModal"
+        class="modal"
+        aria-hidden="true"
+    >
+
+        <div
+            class="modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="editUserTitle"
+        >
+
+            <div
+                class="modal-header"
+            >
+
+                <div>
+
+                    <div
+                        id="editUserTitle"
+                        class="modal-title"
+                    >
+                        Edit User
+                    </div>
+
+                    <div
+                        class="modal-subtitle"
+                    >
+                        Perbarui data akun user.
+                    </div>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    id="closeEditButton"
+                    class="modal-close"
+                    aria-label="Tutup"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <form
+                id="editUserForm"
+            >
+
+                <!-- =================================================
+                     USER ID
+                ================================================== -->
+
+                <input
+                    type="hidden"
+                    id="editUserId"
+                    name="userId"
+                >
+
+
+                <!-- =================================================
+                     EMAIL
+                ================================================== -->
+
+                <div
+                    class="form-group"
+                >
+
+                    <label
+                        for="editEmail"
+                    >
+                        Email
+                    </label>
+
+                    <input
+                        type="email"
+                        id="editEmail"
+                        name="email"
+                        autocomplete="off"
+                        readonly
+                    >
+
+                </div>
+
+
+                <!-- =================================================
+                     NAME
+                ================================================== -->
+
+                <div
+                    class="form-group"
+                >
+
+                    <label
+                        for="editName"
+                    >
+                        Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="editName"
+                        name="name"
+                        autocomplete="name"
+                        maxlength="120"
+                    >
+
+                </div>
+
+
+                <!-- =================================================
+                     ROLE
+                ================================================== -->
+
+                <div
+                    class="form-group"
+                >
+
+                    <label
+                        for="editRole"
+                    >
+                        Role
+                    </label>
+
+                    <select
+                        id="editRole"
+                        name="role"
+                    >
+
+                        <option
+                            value="USER"
+                        >
+                            USER
+                        </option>
+
+                        <option
+                            id="editAdminRoleOption"
+                            value="ADMIN"
+                        >
+                            ADMIN
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- =================================================
+                     CREDITS
+                ================================================== -->
+
+                <div
+                    class="form-group"
+                >
+
+                    <label
+                        for="editCredits"
+                    >
+                        Credits
+                    </label>
+
+                    <input
+                        type="number"
+                        id="editCredits"
+                        name="credits"
+                        min="0"
+                        step="1"
+                        inputmode="numeric"
+                        value="0"
+                    >
+
+                </div>
+
+
+                <!-- =================================================
+                     STATUS
+                ================================================== -->
+
+                <div
+                    class="form-group"
+                >
+
+                    <label
+                        for="editStatus"
+                    >
+                        Status
+                    </label>
+
+                    <select
+                        id="editStatus"
+                        name="status"
+                    >
+
+                        <option
+                            value="active"
+                        >
+                            Active
+                        </option>
+
+                        <option
+                            value="inactive"
+                        >
+                            Inactive
+                        </option>
+
+                        <option
+                            value="suspended"
+                        >
+                            Suspended
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- =================================================
+                     EMAIL CONFIRMATION
+                ================================================== -->
+
+                <div
+                    class="form-group"
+                >
+
+                    <label
+                        for="editEmailConfirmed"
+                    >
+
+                        <input
+                            type="checkbox"
+                            id="editEmailConfirmed"
+                            name="emailConfirmed"
+                        >
+
+                        Email terverifikasi
+
+                    </label>
+
+                </div>
+
+
+                <!-- =================================================
+                     FORM ACTIONS
+                ================================================== -->
+
+                <div
+                    class="modal-actions"
+                >
+
+                    <button
+                        type="button"
+                        id="cancelEditButton"
+                        class="secondary-button"
+                    >
+                        Cancel
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Save Changes
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
          DELETE USER MODAL
     ====================================================== -->
 
