@@ -6,52 +6,58 @@
    admin-control/users/assets/js/user-api.js
 
    Fungsi:
-   - Mendapatkan session access token
-   - Request ke /api/admin-users
-   - GET    users
-   - POST   create / resend
-   - PATCH  confirm
+   - Komunikasi dengan /api/admin-users
+   - GET users
+   - CREATE user
+   - RESEND confirmation
+   - CONFIRM email
    - DELETE user
 
    Catatan:
-   - Tidak menyimpan state user
-   - Tidak melakukan render
-   - Tidak menangani modal
-   - Tidak melakukan authentication page
-   - Tidak mengubah api/admin-users.js
+   - Tidak mengubah API server
+   - Mengikuti posisi:
+       admin-control/
+       └── users/
+           └── assets/
+               └── js/
+                   └── user-api.js
+
+   - API berada di:
+       /api/admin-users
 ========================================================= */
 
 
 /* =========================================================
-   API URL
+   API CONFIG
 ========================================================= */
 
-const API_URL =
-    "../api/admin-users";
+const API_URL = "../../api/admin-users";
 
 
 /* =========================================================
-   GET SUPABASE CLIENT
+   SUPABASE
 ========================================================= */
 
 function getSupabaseClient() {
 
-    return window.GENZ_SUPABASE || null;
+    return (
+        window.GENZ_SUPABASE ||
+        window.supabaseClient ||
+        null
+    );
 
 }
 
 
 /* =========================================================
-   GET ACCESS TOKEN
+   ACCESS TOKEN
 ========================================================= */
 
 async function getAccessToken() {
 
-    const supabaseClient =
-        getSupabaseClient();
+    const supabase = getSupabaseClient();
 
-
-    if (!supabaseClient) {
+    if (!supabase) {
 
         throw new Error(
             "Supabase client tidak tersedia."
@@ -63,8 +69,7 @@ async function getAccessToken() {
     const {
         data,
         error
-    } =
-        await supabaseClient.auth.getSession();
+    } = await supabase.auth.getSession();
 
 
     if (error) {
@@ -78,32 +83,19 @@ async function getAccessToken() {
 
 
     const session =
-        data?.session;
+        data?.session || null;
 
 
-    if (!session) {
+    if (!session?.access_token) {
 
         throw new Error(
-            "Session tidak tersedia. Silakan login kembali."
+            "Session login tidak ditemukan."
         );
 
     }
 
 
-    const accessToken =
-        session.access_token;
-
-
-    if (!accessToken) {
-
-        throw new Error(
-            "Access token tidak tersedia."
-        );
-
-    }
-
-
-    return accessToken;
+    return session.access_token;
 
 }
 
@@ -112,12 +104,12 @@ async function getAccessToken() {
    API REQUEST
 ========================================================= */
 
-export async function apiRequest(
-    method,
+async function apiRequest(
+    method = "GET",
     body = null
 ) {
 
-    const accessToken =
+    const token =
         await getAccessToken();
 
 
@@ -128,7 +120,7 @@ export async function apiRequest(
         headers: {
 
             "Authorization":
-                `Bearer ${accessToken}`,
+                `Bearer ${token}`,
 
             "Content-Type":
                 "application/json"
@@ -138,11 +130,10 @@ export async function apiRequest(
     };
 
 
-    /* -----------------------------------------------------
-       REQUEST BODY
-    ----------------------------------------------------- */
-
-    if (body !== null) {
+    if (
+        body !== null &&
+        body !== undefined
+    ) {
 
         options.body =
             JSON.stringify(body);
@@ -150,39 +141,15 @@ export async function apiRequest(
     }
 
 
-    /* -----------------------------------------------------
-       FETCH API
-    ----------------------------------------------------- */
-
-    let response;
-
-    try {
-
-        response =
-            await fetch(
-                API_URL,
-                options
-            );
-
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI] API network error:",
-            error
+    const response =
+        await fetch(
+            API_URL,
+            options
         );
 
-        throw new Error(
-            "Tidak dapat terhubung ke server."
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       PARSE RESPONSE
-    ----------------------------------------------------- */
 
     let result = null;
+
 
     try {
 
@@ -196,27 +163,18 @@ export async function apiRequest(
     }
 
 
-    /* -----------------------------------------------------
-       HTTP ERROR
-    ----------------------------------------------------- */
-
     if (!response.ok) {
 
-        const errorMessage =
-            result?.message ||
+        const message =
             result?.error ||
+            result?.message ||
             `Request gagal (${response.status}).`;
 
-        throw new Error(
-            errorMessage
-        );
+
+        throw new Error(message);
 
     }
 
-
-    /* -----------------------------------------------------
-       APPLICATION ERROR
-    ----------------------------------------------------- */
 
     if (
         result &&
@@ -224,17 +182,13 @@ export async function apiRequest(
     ) {
 
         throw new Error(
-            result.message ||
             result.error ||
+            result.message ||
             "Request gagal."
         );
 
     }
 
-
-    /* -----------------------------------------------------
-       RETURN RESULT
-    ----------------------------------------------------- */
 
     return result;
 
@@ -247,7 +201,7 @@ export async function apiRequest(
 
 export async function getUsers() {
 
-    return apiRequest(
+    return await apiRequest(
         "GET"
     );
 
@@ -259,18 +213,14 @@ export async function getUsers() {
 ========================================================= */
 
 export async function createUser(
-    userData
+    userData = {}
 ) {
 
-    return apiRequest(
+    return await apiRequest(
         "POST",
         {
-
-            action:
-                "create",
-
+            action: "create",
             ...userData
-
         }
     );
 
@@ -285,15 +235,11 @@ export async function resendConfirmation(
     email
 ) {
 
-    return apiRequest(
+    return await apiRequest(
         "POST",
         {
-
-            action:
-                "resend",
-
+            action: "resend",
             email
-
         }
     );
 
@@ -301,22 +247,18 @@ export async function resendConfirmation(
 
 
 /* =========================================================
-   CONFIRM EMAIL
+   CONFIRM USER EMAIL
 ========================================================= */
 
 export async function confirmUserEmail(
     userId
 ) {
 
-    return apiRequest(
+    return await apiRequest(
         "PATCH",
         {
-
-            action:
-                "confirm",
-
+            action: "confirm",
             userId
-
         }
     );
 
@@ -331,13 +273,47 @@ export async function deleteUser(
     userId
 ) {
 
-    return apiRequest(
+    return await apiRequest(
         "DELETE",
         {
-
             userId
-
         }
     );
+
+}
+
+
+/* =========================================================
+   EXPORT OPTIONAL API OBJECT
+   ---------------------------------------------------------
+   Tidak wajib digunakan oleh module lain.
+   Disediakan supaya debugging lebih mudah.
+========================================================= */
+
+export const GENZUserAPI = {
+
+    getUsers,
+
+    createUser,
+
+    resendConfirmation,
+
+    confirmUserEmail,
+
+    deleteUser
+
+};
+
+
+/* =========================================================
+   DEBUG
+========================================================= */
+
+if (
+    typeof window !== "undefined"
+) {
+
+    window.GENZUserAPI =
+        GENZUserAPI;
 
 }
