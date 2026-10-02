@@ -20,6 +20,15 @@
    - Cleaner berjalan lokal
    - metadata-preview.js menerima Blob/File
    - Module ini TIDAK membuat Object URL sendiri
+
+   PENTING:
+   - cleanImage berasal dari metadata-cleaner-image.js
+   - cleanVideo berasal dari metadata-cleaner-video.js
+========================================================= */
+
+
+/* =========================================================
+   STATE
 ========================================================= */
 
 import {
@@ -27,15 +36,36 @@ import {
 } from "./metadata-state.js";
 
 
+/* =========================================================
+   DOM
+========================================================= */
+
 import {
     elements
 } from "./metadata-dom.js";
 
 
+/* =========================================================
+   IMAGE CLEANER
+========================================================= */
+
 import {
     cleanImage
 } from "./metadata-cleaner-image.js";
 
+
+/* =========================================================
+   VIDEO CLEANER
+========================================================= */
+
+import {
+    cleanVideo
+} from "./metadata-cleaner-video.js";
+
+
+/* =========================================================
+   PREVIEW
+========================================================= */
 
 import {
     renderCleanedPreview,
@@ -43,6 +73,10 @@ import {
     hideElement
 } from "./metadata-preview.js";
 
+
+/* =========================================================
+   CHECK ERROR HELPER
+========================================================= */
 
 import {
     getReadableError
@@ -582,8 +616,10 @@ function resetCleanPreviewElements() {
         image.onload =
             null;
 
+
         image.onerror =
             null;
+
 
         image.removeAttribute(
             "src"
@@ -902,9 +938,9 @@ export async function cleanMetadata() {
         let rawResult;
 
 
-        /*
+        /* =====================================================
            IMAGE CLEANER
-        */
+        ===================================================== */
 
         if (
             isImage
@@ -918,9 +954,9 @@ export async function cleanMetadata() {
         }
 
 
-        /*
+        /* =====================================================
            VIDEO CLEANER
-        */
+        ===================================================== */
 
         else {
 
