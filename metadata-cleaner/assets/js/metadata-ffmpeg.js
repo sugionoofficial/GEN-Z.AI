@@ -8,11 +8,18 @@
    Fungsi:
    - Load FFmpeg browser library
    - Initialize FFmpeg WASM
-   - Wait for concurrent loading
-   - Prevent duplicate FFmpeg script loading
+   - Load FFmpeg core + WASM + worker
+   - Prevent duplicate loading
+   - Support concurrent callers
    - Create FFmpeg filenames
    - Cleanup virtual filesystem
+   - Tidak bergantung pada config FFmpeg eksternal
+
+   FFmpeg:
+   @ffmpeg/ffmpeg 0.12.15
+   @ffmpeg/core   0.12.10
 ========================================================= */
+
 
 import {
     APP,
@@ -21,12 +28,42 @@ import {
 
 
 /* =========================================================
+   FFMPEG CDN CONFIGURATION
+   ---------------------------------------------------------
+   Jangan bergantung pada:
+   APP.FFMPEG_PACKAGE_URL
+   APP.FFMPEG_BASE_URL
+
+   Karena konfigurasi tersebut tidak tersedia
+   di metadata-state.js.
+========================================================= */
+
+const FFMPEG_VERSION =
+    "0.12.15";
+
+
+const FFMPEG_CORE_VERSION =
+    "0.12.10";
+
+
+const FFMPEG_PACKAGE_URL =
+    `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/umd/ffmpeg.js`;
+
+
+const FFMPEG_CORE_BASE_URL =
+    `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/umd`;
+
+
+/* =========================================================
    INTERNAL LOADING STATE
 ========================================================= */
 
-let ffmpegLoadPromise = null;
+let ffmpegLoadPromise =
+    null;
 
-let ffmpegScriptPromise = null;
+
+let ffmpegScriptPromise =
+    null;
 
 
 /* =========================================================
@@ -36,7 +73,7 @@ let ffmpegScriptPromise = null;
 export async function ensureFFmpeg() {
 
     /* -----------------------------------------------------
-       Already loaded
+       Already initialized
     ----------------------------------------------------- */
 
     if (
@@ -49,7 +86,7 @@ export async function ensureFFmpeg() {
 
 
     /* -----------------------------------------------------
-       Existing loading operation
+       Existing initialization
     ----------------------------------------------------- */
 
     if (
@@ -61,7 +98,7 @@ export async function ensureFFmpeg() {
 
 
     /* -----------------------------------------------------
-       Create one shared loading promise
+       Create shared initialization promise
     ----------------------------------------------------- */
 
     ffmpegLoadPromise =
@@ -101,7 +138,7 @@ async function initializeFFmpeg() {
     try {
 
         /* -------------------------------------------------
-           Load browser library
+           Load browser wrapper
         ------------------------------------------------- */
 
         await loadFFmpegScripts();
@@ -117,13 +154,13 @@ async function initializeFFmpeg() {
         ) {
 
             throw new Error(
-                "FFmpeg browser library tidak tersedia."
+                "Global FFmpeg tidak tersedia setelah library dimuat."
             );
         }
 
 
         /* -------------------------------------------------
-           Resolve constructor
+           Resolve FFmpeg constructor
         ------------------------------------------------- */
 
         const FFmpegClass =
@@ -136,13 +173,13 @@ async function initializeFFmpeg() {
         ) {
 
             throw new Error(
-                "FFmpeg constructor tidak tersedia."
+                "Constructor window.FFmpeg.FFmpeg tidak tersedia."
             );
         }
 
 
         /* -------------------------------------------------
-           Create instance
+           Create FFmpeg instance
         ------------------------------------------------- */
 
         const ffmpeg =
@@ -150,7 +187,7 @@ async function initializeFFmpeg() {
 
 
         /* -------------------------------------------------
-           FFmpeg log listener
+           Log listener
         ------------------------------------------------- */
 
         if (
@@ -168,34 +205,23 @@ async function initializeFFmpeg() {
                         "[FFmpeg]",
                         message
                     );
+
                 }
             );
+
         }
 
 
         /* -------------------------------------------------
-           Resolve core URLs
+           Resolve core resources
         ------------------------------------------------- */
 
         const baseURL =
-            String(
-                APP.FFMPEG_BASE_URL ||
-                ""
-            )
-            .replace(
-                /\/+$/,
-                ""
-            );
-
-
-        if (
-            !baseURL
-        ) {
-
-            throw new Error(
-                "FFmpeg core base URL tidak dikonfigurasi."
-            );
-        }
+            FFMPEG_CORE_BASE_URL
+                .replace(
+                    /\/+$/,
+                    ""
+                );
 
 
         const coreURL =
@@ -206,8 +232,22 @@ async function initializeFFmpeg() {
             `${baseURL}/ffmpeg-core.wasm`;
 
 
+        const workerURL =
+            `${baseURL}/ffmpeg-core.worker.js`;
+
+
+        console.debug(
+            "[GEN-Z.AI][FFmpeg] Core:",
+            baseURL
+        );
+
+
         /* -------------------------------------------------
-           Convert resources to Blob URLs
+           Download core resources through fetch
+           and convert them to blob URLs.
+
+           This avoids browser cross-origin restrictions
+           when FFmpeg internally creates workers.
         ------------------------------------------------- */
 
         const coreBlobURL =
@@ -224,6 +264,13 @@ async function initializeFFmpeg() {
             );
 
 
+        const workerBlobURL =
+            await toBlobURL(
+                workerURL,
+                "text/javascript"
+            );
+
+
         try {
 
             /* ---------------------------------------------
@@ -236,7 +283,10 @@ async function initializeFFmpeg() {
                     coreBlobURL,
 
                 wasmURL:
-                    wasmBlobURL
+                    wasmBlobURL,
+
+                workerURL:
+                    workerBlobURL
 
             });
 
@@ -255,7 +305,7 @@ async function initializeFFmpeg() {
         } finally {
 
             /* ---------------------------------------------
-               Blob URLs are no longer needed after load
+               Blob URLs are no longer required
             --------------------------------------------- */
 
             revokeObjectURL(
@@ -266,11 +316,36 @@ async function initializeFFmpeg() {
             revokeObjectURL(
                 wasmBlobURL
             );
+
+
+            revokeObjectURL(
+                workerBlobURL
+            );
+
         }
 
 
         /* -------------------------------------------------
-           Validate successful initialization
+           Final validation
+        ------------------------------------------------- */
+
+        if (
+            typeof ffmpeg.writeFile !==
+            "function" ||
+            typeof ffmpeg.readFile !==
+            "function" ||
+            typeof ffmpeg.exec !==
+            "function"
+        ) {
+
+            throw new Error(
+                "FFmpeg berhasil dimuat tetapi API writeFile/readFile/exec tidak lengkap."
+            );
+        }
+
+
+        /* -------------------------------------------------
+           Save shared instance
         ------------------------------------------------- */
 
         state.ffmpeg =
@@ -288,7 +363,7 @@ async function initializeFFmpeg() {
     ) {
 
         /* -------------------------------------------------
-           Keep shared state consistent after failure
+           Reset failed state
         ------------------------------------------------- */
 
         state.ffmpeg =
@@ -307,18 +382,19 @@ async function initializeFFmpeg() {
 
         state.ffmpegLoading =
             false;
+
     }
 }
 
 
 /* =========================================================
-   FFMPEG SCRIPT LOADER
+   LOAD FFMPEG BROWSER LIBRARY
 ========================================================= */
 
 async function loadFFmpegScripts() {
 
     /* -----------------------------------------------------
-       Already loaded
+       Already available
     ----------------------------------------------------- */
 
     if (
@@ -332,7 +408,7 @@ async function loadFFmpegScripts() {
 
 
     /* -----------------------------------------------------
-       Existing shared script-loading operation
+       Another caller is loading it
     ----------------------------------------------------- */
 
     if (
@@ -346,7 +422,7 @@ async function loadFFmpegScripts() {
 
 
     /* -----------------------------------------------------
-       Check for existing script in document
+       Check for existing GEN-Z.AI script
     ----------------------------------------------------- */
 
     const existingScript =
@@ -380,6 +456,7 @@ async function loadFFmpegScripts() {
 
         ffmpegScriptPromise =
             createFFmpegScript();
+
     }
 
 
@@ -394,7 +471,7 @@ async function loadFFmpegScripts() {
         ) {
 
             throw new Error(
-                "FFmpeg script berhasil dimuat tetapi global FFmpeg tidak ditemukan."
+                "FFmpeg library berhasil dimuat tetapi global FFmpeg tidak ditemukan."
             );
         }
 
@@ -407,6 +484,7 @@ async function loadFFmpegScripts() {
         ffmpegScriptPromise =
             null;
     }
+
 }
 
 
@@ -429,53 +507,63 @@ function createFFmpegScript() {
 
 
             script.src =
-                APP.FFMPEG_PACKAGE_URL;
+                FFMPEG_PACKAGE_URL;
 
 
             script.async =
-                false;
+                true;
+
+
+            script.crossOrigin =
+                "anonymous";
 
 
             script.dataset.genzFfmpeg =
                 "true";
 
 
-            script.onload = () => {
+            script.onload =
+                () => {
 
-                if (
-                    typeof window.FFmpeg ===
-                    "undefined"
-                ) {
+                    if (
+                        typeof window.FFmpeg ===
+                        "undefined"
+                    ) {
+
+                        reject(
+                            new Error(
+                                "FFmpeg library dimuat tetapi window.FFmpeg tidak tersedia."
+                            )
+                        );
+
+                        return;
+                    }
+
+
+                    resolve();
+
+                };
+
+
+            script.onerror =
+                () => {
 
                     reject(
                         new Error(
-                            "FFmpeg script berhasil dimuat tetapi global FFmpeg tidak ditemukan."
+                            `FFmpeg browser library gagal dimuat dari CDN: ${FFMPEG_PACKAGE_URL}`
                         )
                     );
 
-                    return;
-                }
-
-
-                resolve();
-            };
-
-
-            script.onerror = () => {
-
-                reject(
-                    new Error(
-                        "FFmpeg browser library gagal dimuat."
-                    )
-                );
-            };
+                };
 
 
             document.head.appendChild(
                 script
             );
+
         }
     );
+
 }
 
 
@@ -510,6 +598,7 @@ function waitForExistingFFmpegScript(
                         "error",
                         handleError
                     );
+
                 };
 
 
@@ -538,7 +627,7 @@ function waitForExistingFFmpegScript(
 
                         reject(
                             new Error(
-                                "FFmpeg script berhasil dimuat tetapi global FFmpeg tidak ditemukan."
+                                "FFmpeg existing script selesai loading tetapi window.FFmpeg tidak tersedia."
                             )
                         );
 
@@ -547,6 +636,7 @@ function waitForExistingFFmpegScript(
 
 
                     resolve();
+
                 };
 
 
@@ -570,9 +660,10 @@ function waitForExistingFFmpegScript(
 
                     reject(
                         new Error(
-                            "FFmpeg browser library gagal dimuat."
+                            "Existing FFmpeg browser script gagal dimuat."
                         )
                     );
+
                 };
 
 
@@ -580,7 +671,8 @@ function waitForExistingFFmpegScript(
                 "load",
                 handleLoad,
                 {
-                    once: true
+                    once:
+                        true
                 }
             );
 
@@ -589,15 +681,14 @@ function waitForExistingFFmpegScript(
                 "error",
                 handleError,
                 {
-                    once: true
+                    once:
+                        true
                 }
             );
 
 
             /* -------------------------------------------------
-               Race protection:
-               script may already have completed before
-               listeners were attached.
+               Script mungkin selesai sebelum listener terpasang.
             ------------------------------------------------- */
 
             if (
@@ -633,6 +724,7 @@ function waitForExistingFFmpegScript(
 
 
                     resolve();
+
                 }
             )
             .catch(
@@ -658,15 +750,18 @@ function waitForExistingFFmpegScript(
                     reject(
                         error
                     );
+
                 }
             );
+
         }
     );
+
 }
 
 
 /* =========================================================
-   WAIT FOR FFMPEG GLOBAL
+   WAIT FOR GLOBAL FFMPEG
 ========================================================= */
 
 function waitForGlobalFFmpeg(
@@ -719,18 +814,21 @@ function waitForGlobalFFmpeg(
                                     "FFmpeg browser library membutuhkan waktu terlalu lama untuk dimuat."
                                 )
                             );
+
                         }
 
                     },
                     100
                 );
+
         }
     );
+
 }
 
 
 /* =========================================================
-   BLOB URL HELPER
+   FETCH RESOURCE → BLOB URL
 ========================================================= */
 
 async function toBlobURL(
@@ -743,7 +841,7 @@ async function toBlobURL(
     ) {
 
         throw new Error(
-            "URL resource FFmpeg tidak tersedia."
+            "URL resource FFmpeg kosong."
         );
     }
 
@@ -755,7 +853,20 @@ async function toBlobURL(
 
         response =
             await fetch(
-                url
+                url,
+                {
+                    method:
+                        "GET",
+
+                    mode:
+                        "cors",
+
+                    credentials:
+                        "omit",
+
+                    cache:
+                        "no-store"
+                }
             );
 
     } catch (
@@ -763,12 +874,13 @@ async function toBlobURL(
     ) {
 
         throw new Error(
-            `Gagal mengambil FFmpeg resource: ${
+            `Gagal mengambil FFmpeg resource (${url}): ${
                 getErrorMessage(
                     error
                 )
             }`
         );
+
     }
 
 
@@ -777,30 +889,25 @@ async function toBlobURL(
     ) {
 
         throw new Error(
-            `Gagal mengambil FFmpeg resource: ${response.status} ${response.statusText || ""}`.trim()
+            `FFmpeg resource HTTP ${response.status}: ${url}`
         );
+
     }
 
 
-    let blob;
+    const blob =
+        await response.blob();
 
 
-    try {
-
-        blob =
-            await response.blob();
-
-    } catch (
-        error
+    if (
+        !blob ||
+        blob.size === 0
     ) {
 
         throw new Error(
-            `Gagal membaca FFmpeg resource: ${
-                getErrorMessage(
-                    error
-                )
-            }`
+            `FFmpeg resource kosong: ${url}`
         );
+
     }
 
 
@@ -815,6 +922,7 @@ async function toBlobURL(
             }
         )
     );
+
 }
 
 
@@ -843,19 +951,16 @@ function revokeObjectURL(
     } catch {
 
         /*
-         * Ignore object URL cleanup errors.
+         * Ignore cleanup errors.
          */
+
     }
+
 }
 
 
 /* =========================================================
    FFMPEG WAIT
-   ---------------------------------------------------------
-   Compatibility helper.
-   ensureFFmpeg() now uses a shared Promise, but this
-   function remains available internally for the existing
-   architecture.
 ========================================================= */
 
 function waitForFFmpeg() {
@@ -880,11 +985,12 @@ function waitForFFmpeg() {
 
 
     return ensureFFmpeg();
+
 }
 
 
 /* =========================================================
-   FFMPEG FILE NAME
+   CREATE FFMPEG FILENAME
 ========================================================= */
 
 export function createFFmpegFilename(
@@ -905,11 +1011,12 @@ export function createFFmpegFilename(
     return (
         `input.${safeExtension}`
     );
+
 }
 
 
 /* =========================================================
-   VIDEO MIME
+   VIDEO MIME TYPE
 ========================================================= */
 
 export function getCleanVideoMimeType(
@@ -919,14 +1026,15 @@ export function getCleanVideoMimeType(
     const extension =
         getExtension(
             file?.name
-        ).toLowerCase();
+        );
 
 
     const fileType =
         String(
             file?.type ||
             ""
-        ).toLowerCase();
+        )
+        .toLowerCase();
 
 
     if (
@@ -935,6 +1043,7 @@ export function getCleanVideoMimeType(
     ) {
 
         return "video/webm";
+
     }
 
 
@@ -944,6 +1053,7 @@ export function getCleanVideoMimeType(
     ) {
 
         return "video/quicktime";
+
     }
 
 
@@ -953,6 +1063,7 @@ export function getCleanVideoMimeType(
     ) {
 
         return "video/x-matroska";
+
     }
 
 
@@ -962,6 +1073,7 @@ export function getCleanVideoMimeType(
     ) {
 
         return "video/x-msvideo";
+
     }
 
 
@@ -971,6 +1083,7 @@ export function getCleanVideoMimeType(
     ) {
 
         return "video/ogg";
+
     }
 
 
@@ -980,15 +1093,17 @@ export function getCleanVideoMimeType(
     ) {
 
         return "video/mpeg";
+
     }
 
 
     return "video/mp4";
+
 }
 
 
 /* =========================================================
-   MOV / MP4 CONTAINER CHECK
+   MOV / MP4 CHECK
 ========================================================= */
 
 export function isMovLikeVideo(
@@ -998,28 +1113,36 @@ export function isMovLikeVideo(
     const extension =
         getExtension(
             file?.name
-        ).toLowerCase();
+        );
 
 
     const fileType =
         String(
             file?.type ||
             ""
-        ).toLowerCase();
+        )
+        .toLowerCase();
 
 
     return (
+
         extension === "mp4" ||
+
         extension === "m4v" ||
+
         extension === "mov" ||
+
         fileType === "video/mp4" ||
+
         fileType === "video/quicktime"
+
     );
+
 }
 
 
 /* =========================================================
-   FFMPEG DELETE
+   DELETE FFMPEG FILE
 ========================================================= */
 
 export async function safeDeleteFFmpegFile(
@@ -1038,16 +1161,26 @@ export async function safeDeleteFFmpegFile(
 
     try {
 
-        await ffmpeg.deleteFile(
-            filename
-        );
+        if (
+            typeof ffmpeg.deleteFile ===
+            "function"
+        ) {
+
+            await ffmpeg.deleteFile(
+                filename
+            );
+
+        }
 
     } catch {
 
         /*
-         * Ignore cleanup errors.
+         * Cleanup failure should never
+         * invalidate the cleaned output.
          */
+
     }
+
 }
 
 
@@ -1101,15 +1234,17 @@ function getErrorMessage(
         /*
          * Ignore serialization errors.
          */
+
     }
 
 
     return "Unknown error";
+
 }
 
 
 /* =========================================================
-   NORMALIZE FFMPEG ERROR
+   NORMALIZE ERROR
 ========================================================= */
 
 function normalizeFFmpegError(
@@ -1129,11 +1264,15 @@ function normalizeFFmpegError(
             error
         )
     );
+
 }
 
 
 /* =========================================================
-   LOCAL EXTENSION HELPER
+   GET EXTENSION
+   ---------------------------------------------------------
+   Hanya satu fungsi.
+   Tidak ada duplicate declaration.
 ========================================================= */
 
 function getExtension(
@@ -1145,7 +1284,8 @@ function getExtension(
             filename || ""
         )
         .split("?")[0]
-        .split("#")[0];
+        .split("#")[0]
+        .trim();
 
 
     const dot =
@@ -1159,6 +1299,17 @@ function getExtension(
     ) {
 
         return "";
+
+    }
+
+
+    if (
+        dot ===
+        clean.length - 1
+    ) {
+
+        return "";
+
     }
 
 
@@ -1167,4 +1318,60 @@ function getExtension(
             dot + 1
         )
         .toLowerCase();
+
 }
+
+
+/* =========================================================
+   PUBLIC DIAGNOSTIC
+   ---------------------------------------------------------
+   Bisa dipanggil dari Console:
+   window.GENZFFmpegDiagnostic()
+========================================================= */
+
+window.GENZFFmpegDiagnostic =
+    () => {
+
+        return {
+
+            libraryURL:
+                FFMPEG_PACKAGE_URL,
+
+            coreURL:
+                FFMPEG_CORE_BASE_URL,
+
+            libraryVersion:
+                FFMPEG_VERSION,
+
+            coreVersion:
+                FFMPEG_CORE_VERSION,
+
+            globalAvailable:
+                typeof window.FFmpeg !==
+                "undefined",
+
+            constructorAvailable:
+                Boolean(
+                    window.FFmpeg &&
+                    typeof window.FFmpeg.FFmpeg ===
+                    "function"
+                ),
+
+            stateLoaded:
+                Boolean(
+                    state.ffmpegLoaded
+                ),
+
+            stateLoading:
+                Boolean(
+                    state.ffmpegLoading
+                ),
+
+            instanceAvailable:
+                Boolean(
+                    state.ffmpeg
+                )
+
+        };
+
+    };
