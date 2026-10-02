@@ -11,6 +11,8 @@
    - FFprobe metadata
    - MP4/MOV fallback scan
    - FFmpeg timeout protection
+   - FFprobe output validation
+   - Tolerant FFprobe return-code handling
 ========================================================= */
 
 import {
@@ -375,13 +377,6 @@ export async function readVideoMetadataWithFFprobe(
         }
 
 
-        /*
-         * FFprobe bukan bagian yang selalu tersedia
-         * pada instance @ffmpeg/ffmpeg.
-         *
-         * Jangan memanggil method yang tidak ada.
-         */
-
         if (
             typeof ffmpeg.ffprobe !==
             "function"
@@ -419,6 +414,16 @@ export async function readVideoMetadataWithFFprobe(
             );
 
 
+        if (
+            inputData.byteLength === 0
+        ) {
+
+            throw new Error(
+                "Video kosong atau tidak memiliki data."
+            );
+        }
+
+
         /* =================================================
            WRITE INPUT TO FFMPEG FS
         ================================================= */
@@ -435,80 +440,260 @@ export async function readVideoMetadataWithFFprobe(
 
         /* =================================================
            FFPROBE
-        ================================================= */
+           
+           Catatan:
+           ffprobe() dapat mengembalikan status non-zero
+           pada beberapa kombinasi FFmpeg WASM/core walaupun
+           output JSON sudah berhasil dibuat.
 
-        const result =
-            await withTimeout(
-                ffmpeg.ffprobe(
-                    [
+           Karena itu status return TIDAK langsung dianggap
+           gagal. Output JSON adalah sumber validasi utama.
+        ===================================================== */
 
-                        "-v",
-                        "quiet",
+        let ffprobeResult =
+            null;
 
-                        "-print_format",
-                        "json",
-
-                        "-show_format",
-
-                        "-show_streams",
-
-                        "-show_chapters",
-
-                        inputName,
-
-                        "-o",
-                        probeName
-
-                    ]
-                ),
-                FFMPEG_METADATA_TIMEOUT,
-                "FFprobe execution timeout"
-            );
+        let ffprobeExecutionError =
+            null;
 
 
-        if (
-            result !== 0
+        try {
+
+            ffprobeResult =
+                await withTimeout(
+                    ffmpeg.ffprobe(
+                        [
+
+                            "-v",
+                            "error",
+
+                            "-print_format",
+                            "json",
+
+                            "-show_format",
+
+                            "-show_streams",
+
+                            "-show_chapters",
+
+                            inputName,
+
+                            "-o",
+                            probeName
+
+                        ]
+                    ),
+                    FFMPEG_METADATA_TIMEOUT,
+                    "FFprobe execution timeout"
+                );
+
+        } catch (
+            error
         ) {
 
+            ffprobeExecutionError =
+                error;
+
+        }
+
+
+        /* =================================================
+           READ FFPROBE JSON
+           
+           Bahkan jika return code non-zero atau promise
+           melempar error, coba baca output terlebih dahulu.
+        ===================================================== */
+
+        let probeData =
+            null;
+
+        let readProbeError =
+            null;
+
+
+        try {
+
+            probeData =
+                await withTimeout(
+                    ffmpeg.readFile(
+                        probeName,
+                        "utf8"
+                    ),
+                    FFMPEG_METADATA_TIMEOUT,
+                    "FFprobe readFile timeout"
+                );
+
+        } catch (
+            error
+        ) {
+
+            readProbeError =
+                error;
+
+        }
+
+
+        /* =================================================
+           HANDLE MISSING OUTPUT
+        ===================================================== */
+
+        if (
+            probeData === null ||
+            probeData === undefined
+        ) {
+
+            if (
+                ffprobeExecutionError
+            ) {
+
+                throw new Error(
+                    `FFprobe gagal dan tidak menghasilkan output JSON: ${
+                        getErrorMessage(
+                            ffprobeExecutionError
+                        )
+                    }`
+                );
+            }
+
+
+            if (
+                readProbeError
+            ) {
+
+                throw new Error(
+                    `FFprobe tidak menghasilkan file output: ${
+                        getErrorMessage(
+                            readProbeError
+                        )
+                    }`
+                );
+            }
+
+
             throw new Error(
-                "FFprobe gagal membaca metadata video."
+                `FFprobe tidak menghasilkan output JSON. Return code: ${
+                    String(
+                        ffprobeResult
+                    )
+                }`
             );
         }
 
 
         /* =================================================
-           READ JSON
+           CONVERT OUTPUT TO STRING
         ================================================= */
 
-        const probeData =
-            await withTimeout(
-                ffmpeg.readFile(
-                    probeName,
-                    "utf8"
-                ),
-                FFMPEG_METADATA_TIMEOUT,
-                "FFprobe readFile timeout"
-            );
-
-
-        const jsonText =
-            typeof probeData === "string"
-                ? probeData
-                : new TextDecoder().decode(
-                    probeData
-                );
+        let jsonText =
+            "";
 
 
         if (
-            !jsonText ||
-            !jsonText.trim()
+            typeof probeData === "string"
         ) {
 
+            jsonText =
+                probeData;
+
+        } else if (
+            probeData instanceof Uint8Array
+        ) {
+
+            jsonText =
+                new TextDecoder(
+                    "utf-8"
+                ).decode(
+                    probeData
+                );
+
+        } else if (
+            probeData instanceof ArrayBuffer
+        ) {
+
+            jsonText =
+                new TextDecoder(
+                    "utf-8"
+                ).decode(
+                    new Uint8Array(
+                        probeData
+                    )
+                );
+
+        } else if (
+            probeData &&
+            probeData.buffer instanceof ArrayBuffer
+        ) {
+
+            jsonText =
+                new TextDecoder(
+                    "utf-8"
+                ).decode(
+                    new Uint8Array(
+                        probeData.buffer,
+                        probeData.byteOffset || 0,
+                        probeData.byteLength
+                    )
+                );
+
+        } else {
+
+            jsonText =
+                String(
+                    probeData
+                );
+        }
+
+
+        /* =================================================
+           CLEAN JSON TEXT
+        ================================================= */
+
+        jsonText =
+            String(
+                jsonText || ""
+            )
+            .replace(
+                /^\uFEFF/,
+                ""
+            )
+            .trim();
+
+
+        /* =================================================
+           EMPTY OUTPUT
+        ================================================= */
+
+        if (
+            !jsonText
+        ) {
+
+            if (
+                ffprobeExecutionError
+            ) {
+
+                throw new Error(
+                    `FFprobe menghasilkan output kosong: ${
+                        getErrorMessage(
+                            ffprobeExecutionError
+                        )
+                    }`
+                );
+            }
+
+
             throw new Error(
-                "FFprobe tidak menghasilkan JSON metadata."
+                `FFprobe tidak menghasilkan JSON metadata. Return code: ${
+                    String(
+                        ffprobeResult
+                    )
+                }`
             );
         }
 
+
+        /* =================================================
+           PARSE JSON
+        ================================================= */
 
         let parsed;
 
@@ -524,14 +709,111 @@ export async function readVideoMetadataWithFFprobe(
             error
         ) {
 
+            /*
+             * Kalau output bukan JSON valid, jangan diam-diam
+             * menganggap FFprobe berhasil hanya karena file
+             * output ada.
+             */
+
+            const preview =
+                jsonText
+                    .slice(
+                        0,
+                        300
+                    )
+                    .replace(
+                        /\s+/g,
+                        " "
+                    );
+
+
             throw new Error(
                 `JSON FFprobe tidak valid: ${
                     error?.message ||
                     "Unknown error"
+                }. Output: ${preview}`
+            );
+        }
+
+
+        /* =================================================
+           VALIDATE PARSED RESULT
+        ================================================= */
+
+        if (
+            !parsed ||
+            typeof parsed !== "object" ||
+            Array.isArray(parsed)
+        ) {
+
+            throw new Error(
+                "Struktur JSON FFprobe tidak valid."
+            );
+        }
+
+
+        const hasFormat =
+            parsed.format &&
+            typeof parsed.format === "object";
+
+
+        const hasStreams =
+            Array.isArray(
+                parsed.streams
+            );
+
+
+        const hasChapters =
+            Array.isArray(
+                parsed.chapters
+            );
+
+
+        if (
+            !hasFormat &&
+            !hasStreams &&
+            !hasChapters
+        ) {
+
+            throw new Error(
+                `JSON FFprobe tidak memiliki format, streams, atau chapters. Return code: ${
+                    String(
+                        ffprobeResult
+                    )
                 }`
             );
         }
 
+
+        /* =================================================
+           DIAGNOSTIC LOG
+        ================================================= */
+
+        if (
+            ffprobeExecutionError
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][FFprobe] Execution reported an error, tetapi output JSON valid dan akan digunakan:",
+                getErrorMessage(
+                    ffprobeExecutionError
+                )
+            );
+
+        } else if (
+            ffprobeResult !== 0
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][FFprobe] Return code non-zero, tetapi output JSON valid dan akan digunakan:",
+                ffprobeResult
+            );
+        }
+
+
+        /* =================================================
+           SUCCESS
+        ================================================= */
 
         return parsed;
 
@@ -904,11 +1186,6 @@ export function getVideoElementMetadata(
             video.src =
                 url;
 
-
-            /*
-             * Beberapa browser membutuhkan load()
-             * setelah src ditetapkan.
-             */
 
             try {
 
@@ -1368,6 +1645,51 @@ function getExtension(
             dot + 1
         )
         .toLowerCase();
+}
+
+
+/* =========================================================
+   ERROR MESSAGE
+========================================================= */
+
+function getErrorMessage(
+    error
+) {
+
+    if (
+        error instanceof Error
+    ) {
+
+        return (
+            error.message ||
+            error.name ||
+            "Unknown error"
+        );
+    }
+
+
+    if (
+        typeof error === "string"
+    ) {
+
+        return error;
+    }
+
+
+    try {
+
+        return JSON.stringify(
+            error
+        );
+
+    } catch (
+        stringifyError
+    ) {
+
+        return String(
+            error
+        );
+    }
 }
 
 
