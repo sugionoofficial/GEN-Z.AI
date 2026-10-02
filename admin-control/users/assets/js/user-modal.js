@@ -8,17 +8,14 @@
    Fungsi:
    - Open Add User modal
    - Close Add User modal
-   - Reset Add User form
    - Open Delete User modal
    - Close Delete User modal
-   - Menyimpan target user yang akan dihapus
+   - Menyimpan user target untuk proses DELETE
 
-   Tidak menangani:
-   - API
-   - Authentication
-   - Create user
-   - Delete user
-   - Render table
+   Catatan:
+   - Tidak melakukan API request
+   - Tidak melakukan authentication
+   - Tidak melakukan render tabel
 ========================================================= */
 
 import {
@@ -27,38 +24,33 @@ import {
 
 
 /* =========================================================
-   GET ELEMENT
-========================================================= */
-
-function getElement(id) {
-
-    return document.getElementById(
-        id
-    );
-
-}
-
-
-/* =========================================================
-   OPEN ADD USER MODAL
+   ADD USER MODAL
 ========================================================= */
 
 export function openAddModal() {
 
     const modal =
-        getElement(
+        document.getElementById(
             "addModal"
         );
 
+
     const form =
-        getElement(
+        document.getElementById(
             "addUserForm"
         );
 
 
-    /* -----------------------------------------------------
+    if (!modal) {
+
+        return;
+
+    }
+
+
+    /* =====================================================
        RESET FORM
-    ----------------------------------------------------- */
+    ====================================================== */
 
     if (form) {
 
@@ -67,81 +59,78 @@ export function openAddModal() {
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        DEFAULT VALUES
-    ----------------------------------------------------- */
+    ====================================================== */
 
-    const credits =
-        getElement(
+    const creditsInput =
+        document.getElementById(
             "newCredits"
         );
 
-    const role =
-        getElement(
+
+    if (creditsInput) {
+
+        creditsInput.value = "0";
+
+    }
+
+
+    const roleInput =
+        document.getElementById(
             "newRole"
         );
 
-    const status =
-        getElement(
+
+    if (roleInput) {
+
+        roleInput.value = "USER";
+
+    }
+
+
+    const statusInput =
+        document.getElementById(
             "newStatus"
         );
 
 
-    if (credits) {
+    if (statusInput) {
 
-        credits.value =
-            "0";
-
-    }
-
-
-    if (role) {
-
-        role.value =
-            "USER";
+        statusInput.value = "active";
 
     }
 
 
-    if (status) {
+    /* =====================================================
+       OPEN
+    ====================================================== */
 
-        status.value =
-            "active";
-
-    }
-
-
-    /* -----------------------------------------------------
-       OPEN MODAL
-    ----------------------------------------------------- */
-
-    if (modal) {
-
-        modal.classList.add(
-            "open"
-        );
-
-    }
+    modal.classList.add(
+        "show"
+    );
 
 
-    /* -----------------------------------------------------
-       FOCUS EMAIL
-    ----------------------------------------------------- */
+    modal.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+
+    /* =====================================================
+       FOCUS
+    ====================================================== */
 
     window.setTimeout(
         () => {
 
-            const email =
-                getElement(
+            const emailInput =
+                document.getElementById(
                     "newEmail"
                 );
 
 
-            if (email) {
-
-                email.focus();
-
-            }
+            emailInput?.focus();
 
         },
         100
@@ -157,24 +146,33 @@ export function openAddModal() {
 export function closeAddModal() {
 
     const modal =
-        getElement(
+        document.getElementById(
             "addModal"
         );
 
 
-    if (modal) {
+    if (!modal) {
 
-        modal.classList.remove(
-            "open"
-        );
+        return;
 
     }
+
+
+    modal.classList.remove(
+        "show"
+    );
+
+
+    modal.setAttribute(
+        "aria-hidden",
+        "true"
+    );
 
 }
 
 
 /* =========================================================
-   OPEN DELETE USER MODAL
+   DELETE USER MODAL
 ========================================================= */
 
 export function openDeleteModal(
@@ -183,56 +181,86 @@ export function openDeleteModal(
     name = ""
 ) {
 
+    const modal =
+        document.getElementById(
+            "deleteModal"
+        );
+
+
+    if (!modal) {
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       VALIDATE USER ID
+    ====================================================== */
+
+    if (!userId) {
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       SAVE TARGET
+    ====================================================== */
+
     userState.userToDelete = {
 
-        id:
-            userId,
+        id: String(userId),
 
         email:
-            email,
+            String(email || "")
+            .trim(),
 
         name:
-            name
+            String(name || "")
+            .trim()
 
     };
 
 
-    const modal =
-        getElement(
-            "deleteModal"
-        );
+    /* =====================================================
+       DISPLAY TARGET
+    ====================================================== */
 
-    const userName =
-        getElement(
+    const nameElement =
+        document.getElementById(
             "deleteUserName"
         );
 
 
-    /* -----------------------------------------------------
-       DISPLAY TARGET USER
-    ----------------------------------------------------- */
+    if (nameElement) {
 
-    if (userName) {
-
-        userName.textContent =
-            name ||
-            email ||
-            "user";
-
-    }
+        const displayName =
+            userState.userToDelete.name ||
+            userState.userToDelete.email ||
+            userState.userToDelete.id;
 
 
-    /* -----------------------------------------------------
-       OPEN MODAL
-    ----------------------------------------------------- */
-
-    if (modal) {
-
-        modal.classList.add(
-            "open"
-        );
+        nameElement.textContent =
+            displayName;
 
     }
+
+
+    /* =====================================================
+       OPEN
+    ====================================================== */
+
+    modal.classList.add(
+        "show"
+    );
+
+
+    modal.setAttribute(
+        "aria-hidden",
+        "false"
+    );
 
 }
 
@@ -244,7 +272,7 @@ export function openDeleteModal(
 export function closeDeleteModal() {
 
     const modal =
-        getElement(
+        document.getElementById(
             "deleteModal"
         );
 
@@ -252,11 +280,21 @@ export function closeDeleteModal() {
     if (modal) {
 
         modal.classList.remove(
-            "open"
+            "show"
+        );
+
+
+        modal.setAttribute(
+            "aria-hidden",
+            "true"
         );
 
     }
 
+
+    /* =====================================================
+       CLEAR TARGET
+    ====================================================== */
 
     userState.userToDelete =
         null;
