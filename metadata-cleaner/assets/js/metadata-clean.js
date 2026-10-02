@@ -35,7 +35,7 @@ import {
 import {
     cleanImage,
     cleanVideo
-} from "./metadata-clean-image.js";
+} from "./metadata-cleaner-image.js";
 
 
 import {
