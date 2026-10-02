@@ -10,6 +10,7 @@
    - Browser video metadata
    - FFprobe metadata
    - MP4/MOV fallback scan
+   - FFmpeg timeout protection
 ========================================================= */
 
 import {
@@ -21,6 +22,15 @@ import {
     createFFmpegFilename,
     safeDeleteFFmpegFile
 } from "./metadata-ffmpeg.js";
+
+
+/* =========================================================
+   CONFIGURATION
+========================================================= */
+
+const VIDEO_METADATA_TIMEOUT = 12000;
+
+const FFMPEG_METADATA_TIMEOUT = 15000;
 
 
 /* =========================================================
@@ -37,6 +47,17 @@ export async function readVideoMetadata(
     /* =====================================================
        BASIC FILE INFORMATION
     ===================================================== */
+
+    if (
+        !file ||
+        !(file instanceof Blob)
+    ) {
+
+        throw new Error(
+            "File video tidak valid."
+        );
+    }
+
 
     result.push({
 
@@ -89,9 +110,13 @@ export async function readVideoMetadata(
             "Last Modified",
 
         value:
-            new Date(
+            Number.isFinite(
                 file.lastModified
-            ).toISOString(),
+            )
+                ? new Date(
+                    file.lastModified
+                ).toISOString()
+                : "Unknown",
 
         source:
             "File"
@@ -103,10 +128,31 @@ export async function readVideoMetadata(
        BROWSER MEDIA INFORMATION
     ===================================================== */
 
-    const mediaInfo =
-        await getVideoElementMetadata(
-            file
+    let mediaInfo =
+        null;
+
+
+    try {
+
+        mediaInfo =
+            await withTimeout(
+                getVideoElementMetadata(
+                    file
+                ),
+                VIDEO_METADATA_TIMEOUT,
+                "Browser video metadata timeout"
+            );
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Browser video metadata unavailable:",
+            error
         );
+
+    }
 
 
     if (
@@ -186,6 +232,7 @@ export async function readVideoMetadata(
             "[GEN-Z.AI] FFprobe metadata unavailable:",
             error
         );
+
     }
 
 
@@ -251,6 +298,7 @@ export async function readVideoMetadata(
                 "[GEN-Z.AI] MP4 container scan failed:",
                 error
             );
+
         }
     }
 
@@ -267,56 +315,154 @@ export async function readVideoMetadataWithFFprobe(
     file
 ) {
 
-    const ffmpeg =
-        await ensureFFmpeg();
+    let ffmpeg =
+        null;
 
+    let inputName =
+        "";
 
-    const inputName =
-        createFFmpegFilename(
-            file.name
-        );
-
-
-    const probeName =
-        `probe_${Date.now()}.json`;
-
-
-    const inputData =
-        new Uint8Array(
-            await file.arrayBuffer()
-        );
+    let probeName =
+        "";
 
 
     try {
 
-        await ffmpeg.writeFile(
-            inputName,
-            inputData
+        /* =================================================
+           ENSURE FFMPEG WITH TIMEOUT
+        ================================================= */
+
+        ffmpeg =
+            await withTimeout(
+                ensureFFmpeg(),
+                FFMPEG_METADATA_TIMEOUT,
+                "FFmpeg initialization timeout"
+            );
+
+
+        if (
+            !ffmpeg
+        ) {
+
+            throw new Error(
+                "FFmpeg instance tidak tersedia."
+            );
+        }
+
+
+        /* =================================================
+           CHECK REQUIRED API
+        ================================================= */
+
+        if (
+            typeof ffmpeg.writeFile !==
+            "function"
+        ) {
+
+            throw new Error(
+                "FFmpeg writeFile() tidak tersedia."
+            );
+        }
+
+
+        if (
+            typeof ffmpeg.readFile !==
+            "function"
+        ) {
+
+            throw new Error(
+                "FFmpeg readFile() tidak tersedia."
+            );
+        }
+
+
+        /*
+         * FFprobe bukan bagian yang selalu tersedia
+         * pada instance @ffmpeg/ffmpeg.
+         *
+         * Jangan memanggil method yang tidak ada.
+         */
+
+        if (
+            typeof ffmpeg.ffprobe !==
+            "function"
+        ) {
+
+            throw new Error(
+                "FFprobe API tidak tersedia pada instance FFmpeg."
+            );
+        }
+
+
+        /* =================================================
+           FILE NAMES
+        ================================================= */
+
+        inputName =
+            createFFmpegFilename(
+                file.name
+            );
+
+
+        probeName =
+            `probe_${Date.now()}_${Math.random()
+                .toString(36)
+                .slice(2, 8)}.json`;
+
+
+        /* =================================================
+           READ INPUT
+        ================================================= */
+
+        const inputData =
+            new Uint8Array(
+                await file.arrayBuffer()
+            );
+
+
+        /* =================================================
+           WRITE INPUT TO FFMPEG FS
+        ================================================= */
+
+        await withTimeout(
+            ffmpeg.writeFile(
+                inputName,
+                inputData
+            ),
+            FFMPEG_METADATA_TIMEOUT,
+            "FFmpeg writeFile timeout"
         );
 
 
+        /* =================================================
+           FFPROBE
+        ================================================= */
+
         const result =
-            await ffmpeg.ffprobe(
-                [
+            await withTimeout(
+                ffmpeg.ffprobe(
+                    [
 
-                    "-v",
-                    "quiet",
+                        "-v",
+                        "quiet",
 
-                    "-print_format",
-                    "json",
+                        "-print_format",
+                        "json",
 
-                    "-show_format",
+                        "-show_format",
 
-                    "-show_streams",
+                        "-show_streams",
 
-                    "-show_chapters",
+                        "-show_chapters",
 
-                    inputName,
+                        inputName,
 
-                    "-o",
-                    probeName
+                        "-o",
+                        probeName
 
-                ]
+                    ]
+                ),
+                FFMPEG_METADATA_TIMEOUT,
+                "FFprobe execution timeout"
             );
 
 
@@ -330,10 +476,18 @@ export async function readVideoMetadataWithFFprobe(
         }
 
 
+        /* =================================================
+           READ JSON
+        ================================================= */
+
         const probeData =
-            await ffmpeg.readFile(
-                probeName,
-                "utf8"
+            await withTimeout(
+                ffmpeg.readFile(
+                    probeName,
+                    "utf8"
+                ),
+                FFMPEG_METADATA_TIMEOUT,
+                "FFprobe readFile timeout"
             );
 
 
@@ -356,22 +510,89 @@ export async function readVideoMetadataWithFFprobe(
         }
 
 
-        return JSON.parse(
-            jsonText
-        );
+        let parsed;
+
+
+        try {
+
+            parsed =
+                JSON.parse(
+                    jsonText
+                );
+
+        } catch (
+            error
+        ) {
+
+            throw new Error(
+                `JSON FFprobe tidak valid: ${
+                    error?.message ||
+                    "Unknown error"
+                }`
+            );
+        }
+
+
+        return parsed;
 
     } finally {
 
-        await safeDeleteFFmpegFile(
-            ffmpeg,
+        /* =================================================
+           CLEAN FFMPEG INPUT
+        ================================================= */
+
+        if (
+            ffmpeg &&
             inputName
-        );
+        ) {
+
+            try {
+
+                await safeDeleteFFmpegFile(
+                    ffmpeg,
+                    inputName
+                );
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI] Gagal menghapus file FFmpeg input:",
+                    error
+                );
+
+            }
+        }
 
 
-        await safeDeleteFFmpegFile(
-            ffmpeg,
+        /* =================================================
+           CLEAN FFPROBE OUTPUT
+        ================================================= */
+
+        if (
+            ffmpeg &&
             probeName
-        );
+        ) {
+
+            try {
+
+                await safeDeleteFFmpegFile(
+                    ffmpeg,
+                    probeName
+                );
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI] Gagal menghapus file FFprobe:",
+                    error
+                );
+
+            }
+        }
     }
 }
 
@@ -428,7 +649,7 @@ export function appendFFprobeMetadata(
             ) => {
 
                 const streamType =
-                    stream.codec_type ||
+                    stream?.codec_type ||
                     "unknown";
 
 
@@ -441,6 +662,7 @@ export function appendFFprobeMetadata(
                     stream,
                     prefix
                 );
+
             }
         );
     }
@@ -467,6 +689,7 @@ export function appendFFprobeMetadata(
                     chapter,
                     `Chapter ${index}`
                 );
+
             }
         );
     }
@@ -484,6 +707,19 @@ export function getVideoElementMetadata(
     return new Promise(
         resolve => {
 
+            if (
+                !file ||
+                !(file instanceof Blob)
+            ) {
+
+                resolve(
+                    null
+                );
+
+                return;
+            }
+
+
             const video =
                 document.createElement(
                     "video"
@@ -500,11 +736,52 @@ export function getVideoElementMetadata(
                 false;
 
 
+            let timeoutId =
+                null;
+
+
             const cleanup = () => {
 
-                URL.revokeObjectURL(
-                    url
-                );
+                if (
+                    timeoutId
+                ) {
+
+                    clearTimeout(
+                        timeoutId
+                    );
+
+                    timeoutId =
+                        null;
+                }
+
+
+                try {
+
+                    URL.revokeObjectURL(
+                        url
+                    );
+
+                } catch (
+                    error
+                ) {
+
+                    console.warn(
+                        "[GEN-Z.AI] Failed to revoke video URL:",
+                        error
+                    );
+
+                }
+
+
+                try {
+
+                    video.pause();
+
+                } catch (
+                    error
+                ) {
+                    /* Ignore */
+                }
 
 
                 video.removeAttribute(
@@ -512,7 +789,15 @@ export function getVideoElementMetadata(
                 );
 
 
-                video.load();
+                try {
+
+                    video.load();
+
+                } catch (
+                    error
+                ) {
+                    /* Ignore */
+                }
             };
 
 
@@ -603,20 +888,43 @@ export function getVideoElementMetadata(
             );
 
 
-            setTimeout(
-                () => {
+            timeoutId =
+                setTimeout(
+                    () => {
 
-                    finish(
-                        null
-                    );
+                        finish(
+                            null
+                        );
 
-                },
-                10000
-            );
+                    },
+                    VIDEO_METADATA_TIMEOUT
+                );
 
 
             video.src =
                 url;
+
+
+            /*
+             * Beberapa browser membutuhkan load()
+             * setelah src ditetapkan.
+             */
+
+            try {
+
+                video.load();
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI] Video metadata load failed:",
+                    error
+                );
+
+            }
+
         }
     );
 }
@@ -631,6 +939,15 @@ export async function readMp4ContainerMetadata(
 ) {
 
     const result = {};
+
+
+    if (
+        !file ||
+        !(file instanceof Blob)
+    ) {
+
+        return result;
+    }
 
 
     const maxRead =
@@ -661,15 +978,21 @@ export async function readMp4ContainerMetadata(
         );
 
 
+    /* =====================================================
+       SOFTWARE
+    ===================================================== */
+
     const software =
         findMetadataString(
             strings,
             [
+
                 "software",
                 "encoder",
                 "handler",
                 "writing application",
                 "encoded"
+
             ]
         );
 
@@ -683,12 +1006,18 @@ export async function readMp4ContainerMetadata(
     }
 
 
+    /* =====================================================
+       CREATION
+    ===================================================== */
+
     const creation =
         findMetadataString(
             strings,
             [
+
                 "creation",
                 "created"
+
             ]
         );
 
@@ -702,11 +1031,17 @@ export async function readMp4ContainerMetadata(
     }
 
 
+    /* =====================================================
+       COPYRIGHT
+    ===================================================== */
+
     const copyright =
         findMetadataString(
             strings,
             [
+
                 "copyright"
+
             ]
         );
 
@@ -720,14 +1055,20 @@ export async function readMp4ContainerMetadata(
     }
 
 
+    /* =====================================================
+       LOCATION
+    ===================================================== */
+
     const location =
         findMetadataString(
             strings,
             [
+
                 "location",
                 "latitude",
                 "longitude",
                 "gps"
+
             ]
         );
 
@@ -741,10 +1082,15 @@ export async function readMp4ContainerMetadata(
     }
 
 
+    /* =====================================================
+       ENCODER
+    ===================================================== */
+
     const encoder =
         findMetadataString(
             strings,
             [
+
                 "lavf",
                 "ffmpeg",
                 "libav",
@@ -755,6 +1101,7 @@ export async function readMp4ContainerMetadata(
                 "vp8",
                 "vp9",
                 "av01"
+
             ]
         );
 
@@ -780,6 +1127,14 @@ export function isLikelyMp4(
     file
 ) {
 
+    if (
+        !file
+    ) {
+
+        return false;
+    }
+
+
     const extension =
         getExtension(
             file.name
@@ -787,15 +1142,21 @@ export function isLikelyMp4(
 
 
     return (
+
         file.type === "video/mp4" ||
+
         file.type === "video/quicktime" ||
+
         [
+
             "mp4",
             "m4v",
             "mov"
+
         ].includes(
             extension
         )
+
     );
 }
 
@@ -809,6 +1170,7 @@ function extractAsciiStrings(
 ) {
 
     const output = [];
+
 
     let current =
         "";
@@ -828,8 +1190,10 @@ function extractAsciiStrings(
 
         const valid =
             (
+
                 value >= 32 &&
                 value <= 126
+
             );
 
 
@@ -929,11 +1293,13 @@ function formatBytes(
 
 
     const units = [
+
         "B",
         "KB",
         "MB",
         "GB",
         "TB"
+
     ];
 
 
@@ -1002,4 +1368,121 @@ function getExtension(
             dot + 1
         )
         .toLowerCase();
+}
+
+
+/* =========================================================
+   GENERIC TIMEOUT
+========================================================= */
+
+function withTimeout(
+    promise,
+    milliseconds,
+    label
+) {
+
+    const timeout =
+        Math.max(
+            1,
+            Number(
+                milliseconds
+            ) || 1
+        );
+
+
+    return new Promise(
+        (
+            resolve,
+            reject
+        ) => {
+
+            let settled =
+                false;
+
+
+            const timer =
+                setTimeout(
+                    () => {
+
+                        if (
+                            settled
+                        ) {
+
+                            return;
+                        }
+
+
+                        settled =
+                            true;
+
+
+                        reject(
+                            new Error(
+                                `${label} (${timeout} ms)`
+                            )
+                        );
+
+                    },
+                    timeout
+                );
+
+
+            Promise.resolve(
+                promise
+            )
+            .then(
+                value => {
+
+                    if (
+                        settled
+                    ) {
+
+                        return;
+                    }
+
+
+                    settled =
+                        true;
+
+
+                    clearTimeout(
+                        timer
+                    );
+
+
+                    resolve(
+                        value
+                    );
+
+                }
+            )
+            .catch(
+                error => {
+
+                    if (
+                        settled
+                    ) {
+
+                        return;
+                    }
+
+
+                    settled =
+                        true;
+
+
+                    clearTimeout(
+                        timer
+                    );
+
+
+                    reject(
+                        error
+                    );
+
+                }
+            );
+
+        }
+    );
 }
