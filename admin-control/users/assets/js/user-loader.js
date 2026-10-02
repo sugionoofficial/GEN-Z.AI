@@ -1,161 +1,39 @@
- /* =========================================================
-    GEN-Z.AI
-    USER MANAGEMENT LOADER
-    ---------------------------------------------------------
-    File:
-    admin-control/users/assets/js/user-loader.js
-
-    Fungsi:
-    - Menunggu shared navigation
-    - Tidak membuat authentication sendiri
-    - Tidak melakukan redirect sendiri
-    - Menginisialisasi event User Management
-    - Memuat daftar user setelah navigation siap
-
-    AUTH OWNER:
-    /navigation/navigation.js
-    ========================================================= */
-
-import {
-    initUserEvents
-} from "./user-events.js";
-
-import {
-    checkAuth
-} from "./user-auth.js";
-
-import {
-    loadUsers
-} from "./user-data.js";
-
-
 /* =========================================================
-   WAIT FOR SHARED NAVIGATION
-========================================================= */
+   GEN-Z.AI
+   USER MANAGEMENT LOADER
+   ---------------------------------------------------------
+   File:
+   admin-control/users/assets/js/user-loader.js
 
-async function waitForNavigation() {
+   Fungsi:
+   - Menunggu shared navigation
+   - Tidak membuat authentication sendiri
+   - Tidak melakukan redirect sendiri
+   - Tidak melakukan logout sendiri
+   - Menginisialisasi User Management
+   - Memuat daftar user setelah authentication siap
+   ========================================================= */
 
-    /*
-     * navigation.js sudah menyediakan Promise global:
-     *
-     * window.GENZNavigationReady
-     *
-     * Jangan membuat timeout redirect sendiri di sini.
-     */
-
-    if (
-        window.GENZNavigationReady &&
-        typeof window.GENZNavigationReady.then ===
-            "function"
-    ) {
-
-        try {
-
-            const result =
-                await window.GENZNavigationReady;
-
-            return result !== false;
-
-        } catch (
-            error
-        ) {
-
-            console.error(
-                "[GEN-Z.AI] Navigation ready error:",
-                error
-            );
-
-            return false;
-
-        }
-
-    }
-
-
-    /*
-     * Fallback jika navigation API belum tersedia
-     * saat module pertama kali dieksekusi.
-     */
-
-    for (
-        let attempt = 0;
-        attempt < 30;
-        attempt++
-    ) {
-
-        if (
-            window.GENZNavigation &&
-            window.GENZNavigationReady
-        ) {
-
-            try {
-
-                const result =
-                    await window.GENZNavigationReady;
-
-                return result !== false;
-
-            } catch (
-                error
-            ) {
-
-                console.error(
-                    "[GEN-Z.AI] Navigation wait error:",
-                    error
-                );
-
-                return false;
-
-            }
-
-        }
-
-
-        await new Promise(
-            resolve =>
-                setTimeout(
-                    resolve,
-                    100
-                )
-        );
-
-    }
-
-
-    console.error(
-        "[GEN-Z.AI] Shared navigation tidak tersedia."
-    );
-
-
-    return false;
-
-}
+import { initUserEvents } from "./user-events.js";
+import { checkAuth } from "./user-auth.js";
+import { loadUsers } from "./user-data.js";
 
 
 /* =========================================================
    PAGE ERROR
 ========================================================= */
 
-function showPageError(
-    message
-) {
+function showPageError(message) {
 
     const container =
-        document.getElementById(
-            "userContainer"
-        );
+        document.getElementById("userContainer");
 
-
-    if (
-        !container
-    ) {
-
+    if (!container) {
         return;
-
     }
 
 
-    const safeMessage =
+    const text =
         String(
             message ||
             "Terjadi kesalahan saat memuat User Management."
@@ -163,7 +41,6 @@ function showPageError(
 
 
     container.innerHTML = `
-
         <div class="empty-state">
 
             <div class="empty-icon">
@@ -175,112 +52,182 @@ function showPageError(
             </div>
 
             <div class="empty-text">
-                ${safeMessage}
+                ${escapeHtml(text)}
             </div>
 
         </div>
-
     `;
-
 }
 
 
 /* =========================================================
-   INITIALIZE
+   ESCAPE HTML
+========================================================= */
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* =========================================================
+   WAIT FOR NAVIGATION
+========================================================= */
+
+async function waitForNavigation() {
+
+    /*
+       Shared navigation sudah membuat Promise
+       window.GENZNavigationReady.
+    */
+
+    if (
+        window.GENZNavigationReady &&
+        typeof window.GENZNavigationReady.then === "function"
+    ) {
+
+        try {
+
+            const result =
+                await window.GENZNavigationReady;
+
+            return result !== false;
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI UserLoader] Navigation gagal:",
+                error
+            );
+
+            return false;
+        }
+    }
+
+
+    /*
+       Fallback apabila navigation.js belum selesai
+       membuat global promise.
+    */
+
+    for (
+        let attempt = 0;
+        attempt < 50;
+        attempt++
+    ) {
+
+        if (
+            window.GENZNavigationReady &&
+            typeof window.GENZNavigationReady.then === "function"
+        ) {
+
+            try {
+
+                const result =
+                    await window.GENZNavigationReady;
+
+                return result !== false;
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI UserLoader] Navigation wait error:",
+                    error
+                );
+
+                return false;
+            }
+        }
+
+
+        await new Promise(
+            resolve =>
+                setTimeout(resolve, 100)
+        );
+    }
+
+
+    console.error(
+        "[GEN-Z.AI UserLoader] Shared navigation tidak tersedia."
+    );
+
+    return false;
+}
+
+
+/* =========================================================
+   INITIALIZE PAGE
 ========================================================= */
 
 export async function initUsersPage() {
 
-    try {
-
-        /*
-         * =====================================================
-         * 1. TUNGGU NAVIGATION
-         * =====================================================
-         */
-
-        const navigationReady =
-            await waitForNavigation();
+    console.log(
+        "[GEN-Z.AI UserLoader] Initializing User Management..."
+    );
 
 
-        /*
-         * Jika navigation gagal karena session invalid,
-         * navigation.js sendiri yang menangani redirect.
-         *
-         * User Management tidak melakukan redirect kedua.
-         */
+    /*
+       STEP 1
+       Tunggu shared navigation.
+    */
 
-        if (
-            !navigationReady
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] User Management menunggu authentication navigation."
-            );
-
-            return;
-
-        }
+    const navigationReady =
+        await waitForNavigation();
 
 
-        /*
-         * =====================================================
-         * 2. CHECK AUTH BRIDGE
-         * =====================================================
-         */
+    if (!navigationReady) {
 
-        const authenticated =
-            await checkAuth();
-
-
-        if (
-            !authenticated
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI] User Management tidak dapat memperoleh authentication state."
-            );
-
-            return;
-
-        }
-
-
-        /*
-         * =====================================================
-         * 3. INIT PAGE EVENTS
-         * =====================================================
-         *
-         * Event hanya dipasang setelah auth valid.
-         */
-
-        initUserEvents();
-
-
-        /*
-         * =====================================================
-         * 4. LOAD USERS
-         * =====================================================
-         */
-
-        await loadUsers();
-
-    } catch (
-        error
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] Users page initialization error:",
-            error
+        console.warn(
+            "[GEN-Z.AI UserLoader] Navigation belum authenticated."
         );
 
-
-        showPageError(
-            "Terjadi kesalahan saat memuat User Management."
-        );
-
+        return;
     }
 
+
+    /*
+       STEP 2
+       Ambil authentication state dari navigation.
+    */
+
+    const authenticated =
+        await checkAuth();
+
+
+    if (!authenticated) {
+
+        console.warn(
+            "[GEN-Z.AI UserLoader] User Management tidak memiliki akses."
+        );
+
+        return;
+    }
+
+
+    /*
+       STEP 3
+       Event hanya dipasang sekali.
+    */
+
+    initUserEvents();
+
+
+    /*
+       STEP 4
+       Ambil data user dari API.
+    */
+
+    await loadUsers();
+
+
+    console.log(
+        "[GEN-Z.AI UserLoader] ✓ User Management siap."
+    );
 }
 
 
@@ -289,13 +236,14 @@ export async function initUsersPage() {
 ========================================================= */
 
 initUsersPage()
-    .catch(
-        error => {
+    .catch(error => {
 
-            console.error(
-                "[GEN-Z.AI] Fatal Users loader error:",
-                error
-            );
+        console.error(
+            "[GEN-Z.AI UserLoader] Fatal initialization error:",
+            error
+        );
 
-        }
-    );
+        showPageError(
+            "Terjadi kesalahan saat memuat halaman User Management."
+        );
+    });
