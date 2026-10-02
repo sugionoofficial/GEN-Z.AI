@@ -5,43 +5,49 @@
    File:
    navigation/navigation.js
 
-   Tanggung jawab:
-   - Membaca session Supabase
-   - Membaca profile dari Supabase
-   - Menentukan role USER / ADMIN / OWNER
-   - Render navigasi berdasarkan role
-   - Menyediakan global navigation state
-   - Menjaga auth tanpa menyebabkan login loop
-   - Menyediakan GENZNavigationReady
+   Logo:
+   - GEN-Z.AI neon logo
+   - Menjadi satu-satunya logo navigation
+   - Tidak menggunakan fixed logo terpisah di halaman
+   - Tetap terlihat saat sidebar melakukan scroll
 
-   Catatan:
-   - Tidak melakukan signOut otomatis
-   - Tidak menganggap profile.status kosong sebagai inactive
-   - Tidak redirect pada setiap auth event
-   - Login page tidak dikenakan auth guard
-   - Menggunakan SATU shared Supabase client
+   Fungsi lain:
+   - Supabase authentication
+   - Profile loading
+   - Role detection
+   - User/Admin/Owner navigation
+   - Logout
+   - Mobile navigation
+   - Active menu
    ========================================================= */
 
 (() => {
+
     "use strict";
 
 
-    /* =========================================================
+    /* =====================================================
        PREVENT DOUBLE INITIALIZATION
-       ========================================================= */
+    ===================================================== */
 
-    if (window.__GENZ_NAVIGATION_STARTED === true) {
+    if (
+        window.__GENZ_NAVIGATION_STARTED
+    ) {
+
         return;
+
     }
 
     window.__GENZ_NAVIGATION_STARTED = true;
 
 
-    /* =========================================================
+    /* =====================================================
        CONFIG
-       ========================================================= */
+    ===================================================== */
 
-    const STYLE_ID = "genz-shared-navigation-style";
+    const STYLE_ID =
+        "genz-shared-navigation-style";
+
 
     const NAVIGATION_CONTAINER_IDS = [
         "genz-navigation",
@@ -49,563 +55,199 @@
         "adminNavigation"
     ];
 
-    const LOGIN_PATH = "/login.html";
 
-    const SESSION_RETRY_COUNT = 8;
-    const SESSION_RETRY_DELAY = 250;
-
-    const PROFILE_RETRY_COUNT = 3;
-    const PROFILE_RETRY_DELAY = 300;
+    const LOGIN_PATH =
+        "/login.html";
 
 
-    /* =========================================================
-       INTERNAL STATE
-       ========================================================= */
+    const SESSION_RETRY_COUNT =
+        5;
+
+
+    const SESSION_RETRY_DELAY =
+        500;
+
+
+    const PROFILE_RETRY_COUNT =
+        3;
+
+
+    const PROFILE_RETRY_DELAY =
+        500;
+
+
+    /* =====================================================
+       STATE
+    ===================================================== */
 
     let currentUser = null;
+
     let currentProfile = null;
-    let currentRole = null;
+
+    let currentRole = "user";
 
     let authSubscription = null;
-    let authListenerBound = false;
-    let initializationStarted = false;
-    let redirectingToLogin = false;
 
-    let navigationReadyResolved = false;
-    let navigationReadyResolve = null;
+    let authListenerReady = false;
 
+    let navigationReady = false;
 
-    /* =========================================================
-       NAVIGATION READY PROMISE
-       ========================================================= */
+    let navigationReadyResolve;
 
-    window.GENZNavigationReady = new Promise((resolve) => {
-        navigationReadyResolve = resolve;
-    });
-
-
-    function resolveNavigationReady(value) {
-        if (navigationReadyResolved) {
-            return;
-        }
-
-        navigationReadyResolved = true;
-
-        if (typeof navigationReadyResolve === "function") {
-            navigationReadyResolve(value);
-        }
-    }
-
-
-    /* =========================================================
-       UTILITY
-       ========================================================= */
-
-    function delay(ms) {
-        return new Promise((resolve) => {
-            setTimeout(resolve, ms);
-        });
-    }
-
-
-    function normalizePath(path) {
-        if (!path) {
-            return "/";
-        }
-
-        let normalized = String(path);
-
-        if (!normalized.startsWith("/")) {
-            normalized = "/" + normalized;
-        }
-
-        if (
-            normalized.length > 1 &&
-            normalized.endsWith("/")
-        ) {
-            normalized = normalized.slice(0, -1);
-        }
-
-        return normalized;
-    }
-
-
-    function getCurrentPath() {
-        return normalizePath(
-            window.location.pathname || "/"
-        );
-    }
-
-
-    function isLoginPage() {
-        const currentPath = getCurrentPath();
-
-        const loginPath = normalizePath(
-            LOGIN_PATH
+    const navigationReadyPromise =
+        new Promise(
+            resolve => {
+                navigationReadyResolve =
+                    resolve;
+            }
         );
 
-        return (
-            currentPath === loginPath ||
-            currentPath.endsWith("/login.html")
-        );
-    }
 
-
-    /* =========================================================
-       SUPABASE CLIENT
-       ---------------------------------------------------------
-       PENTING:
-
-       window.supabase adalah library Supabase JS.
-
-       Contoh:
-           window.supabase.createClient(...)
-
-       BUKAN authenticated Supabase client.
-
-       Karena itu jangan memasukkan window.supabase
-       ke dalam daftar authenticated client.
-
-       Navigation membuat SATU shared client apabila
-       client belum tersedia.
-       ========================================================= */
+    /* =====================================================
+       SUPABASE
+    ===================================================== */
 
     function getSupabaseClient() {
 
-        /*
-         * PRIORITAS 1
-         *
-         * Client global yang sudah dibuat oleh aplikasi.
-         */
+        if (
+            window.GENZ_SUPABASE
+        ) {
 
-        const existingClients = [
-            window.GENZ_SUPABASE,
-            window.supabaseClient
-        ];
+            return window.GENZ_SUPABASE;
 
-
-        for (const client of existingClients) {
-
-            if (
-                client &&
-                client.auth &&
-                typeof client.auth.getSession === "function"
-            ) {
-
-                /*
-                 * Pastikan dua alias menunjuk ke
-                 * client yang sama.
-                 */
-
-                window.GENZ_SUPABASE = client;
-                window.supabaseClient = client;
-
-                return client;
-            }
         }
 
 
-        /*
-         * PRIORITAS 2
-         *
-         * Buat client dari GENZ_CONFIG.
-         *
-         * Supabase library harus sudah tersedia
-         * melalui script CDN pada halaman.
-         */
+        if (
+            window.supabaseClient
+        ) {
 
-        const supabaseLibrary =
+            return window.supabaseClient;
+
+        }
+
+
+        const supabaseGlobal =
             window.supabase;
+
 
         const config =
             window.GENZ_CONFIG;
 
 
         if (
-            !supabaseLibrary ||
-            typeof supabaseLibrary.createClient !== "function"
+            !supabaseGlobal ||
+            typeof supabaseGlobal.createClient !==
+                "function"
         ) {
 
-            console.error(
-                "[GENZ Navigation] Supabase JS library tidak tersedia."
-            );
-
             return null;
+
         }
-
-
-        if (!config) {
-
-            console.error(
-                "[GENZ Navigation] GENZ_CONFIG tidak tersedia."
-            );
-
-            return null;
-        }
-
-
-        const supabaseUrl =
-            String(
-                config.SUPABASE_URL || ""
-            ).trim();
-
-        const supabaseKey =
-            String(
-                config.SUPABASE_KEY || ""
-            ).trim();
 
 
         if (
-            !supabaseUrl ||
-            !supabaseKey
+            !config ||
+            !config.SUPABASE_URL ||
+            !config.SUPABASE_ANON_KEY
         ) {
 
-            console.error(
-                "[GENZ Navigation] SUPABASE_URL atau SUPABASE_KEY tidak tersedia."
-            );
-
             return null;
+
         }
 
-
-        /*
-         * Buat SATU client.
-         */
 
         try {
 
             const client =
-                supabaseLibrary.createClient(
-                    supabaseUrl,
-                    supabaseKey,
-                    {
-                        auth: {
-                            persistSession: true,
-                            autoRefreshToken: true,
-                            detectSessionInUrl: true
-                        }
-                    }
+                supabaseGlobal.createClient(
+                    config.SUPABASE_URL,
+                    config.SUPABASE_ANON_KEY
                 );
 
-
-            /*
-             * Simpan sebagai shared client.
-             */
-
-            window.GENZ_SUPABASE =
-                client;
 
             window.supabaseClient =
                 client;
 
 
-            console.log(
-                "[GENZ Navigation] Shared Supabase client initialized."
-            );
-
-
             return client;
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             console.error(
-                "[GENZ Navigation] Gagal membuat Supabase client:",
+                "[GEN-Z.AI] Supabase client error:",
                 error
             );
 
             return null;
+
         }
+
     }
 
 
-    /* =========================================================
-       SESSION
-       ---------------------------------------------------------
-       Supabase kadang membutuhkan beberapa saat untuk
-       memulihkan session dari storage / refresh token.
-       Jangan langsung menyimpulkan user belum login.
-       ========================================================= */
+    /* =====================================================
+       DELAY
+    ===================================================== */
 
-    async function getAuthenticatedUser() {
+    function delay(
+        milliseconds
+    ) {
 
-        const supabase =
-            getSupabaseClient();
+        return new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    milliseconds
+                )
+        );
 
-
-        if (!supabase) {
-
-            console.error(
-                "[GENZ Navigation] Supabase client tidak ditemukan."
-            );
-
-            return null;
-        }
-
-
-        let lastError = null;
-
-
-        for (
-            let attempt = 1;
-            attempt <= SESSION_RETRY_COUNT;
-            attempt++
-        ) {
-
-            try {
-
-                const result =
-                    await supabase.auth.getSession();
-
-
-                const session =
-                    result?.data?.session || null;
-
-
-                if (
-                    session &&
-                    session.user
-                ) {
-
-                    return session.user;
-                }
-
-
-                if (result?.error) {
-
-                    lastError =
-                        result.error;
-
-
-                    console.warn(
-                        `[GENZ Navigation] getSession attempt ${attempt}:`,
-                        result.error
-                    );
-                }
-
-            } catch (error) {
-
-                lastError =
-                    error;
-
-
-                console.warn(
-                    `[GENZ Navigation] getSession exception attempt ${attempt}:`,
-                    error
-                );
-            }
-
-
-            if (
-                attempt < SESSION_RETRY_COUNT
-            ) {
-
-                await delay(
-                    SESSION_RETRY_DELAY
-                );
-            }
-        }
-
-
-        if (lastError) {
-
-            console.error(
-                "[GENZ Navigation] Session gagal dibaca:",
-                lastError
-            );
-        }
-
-
-        return null;
     }
 
 
-    /* =========================================================
-       PROFILE QUERY
-       ========================================================= */
+    /* =====================================================
+       CURRENT PATH
+    ===================================================== */
 
-    function isMissingStatusColumnError(error) {
+    function getCurrentPath() {
 
-        const message =
-            String(
-                error?.message ||
-                error?.details ||
-                ""
-            ).toLowerCase();
+        return (
+            window.location.pathname ||
+            "/"
+        );
+
+    }
+
+
+    /* =====================================================
+       LOGIN PATH CHECK
+    ===================================================== */
+
+    function isLoginPage() {
+
+        const path =
+            getCurrentPath()
+                .toLowerCase();
 
 
         return (
-            (
-                message.includes("status") &&
-                message.includes("column")
-            ) ||
-            message.includes("schema cache") ||
-            message.includes("could not find")
+            path === LOGIN_PATH ||
+            path === "/login" ||
+            path.endsWith("/login.html")
         );
+
     }
 
 
-    async function queryUserProfile(
-        supabase,
-        userId
+    /* =====================================================
+       ROLE NORMALIZATION
+    ===================================================== */
+
+    function normalizeRole(
+        role
     ) {
-
-        /*
-         * Percobaan pertama.
-         *
-         * Status tetap dibaca jika memang tersedia.
-         */
-
-        let result =
-            await supabase
-                .from("profiles")
-                .select(
-                    [
-                        "id",
-                        "email",
-                        "name",
-                        "role",
-                        "credits",
-                        "status"
-                    ].join(",")
-                )
-                .eq("id", userId)
-                .maybeSingle();
-
-
-        /*
-         * Kalau kolom status ternyata tidak ada,
-         * ulangi tanpa status.
-         */
-
-        if (
-            result?.error &&
-            isMissingStatusColumnError(
-                result.error
-            )
-        ) {
-
-            console.warn(
-                "[GENZ Navigation] Kolom profiles.status tidak tersedia. Melanjutkan tanpa status."
-            );
-
-
-            result =
-                await supabase
-                    .from("profiles")
-                    .select(
-                        [
-                            "id",
-                            "email",
-                            "name",
-                            "role",
-                            "credits"
-                        ].join(",")
-                    )
-                    .eq("id", userId)
-                    .maybeSingle();
-        }
-
-
-        return result;
-    }
-
-
-    async function getUserProfile(userId) {
-
-        const supabase =
-            getSupabaseClient();
-
-
-        if (
-            !supabase ||
-            !userId
-        ) {
-
-            return {
-                profile: null,
-
-                error:
-                    new Error(
-                        "Supabase client atau user ID tidak tersedia."
-                    )
-            };
-        }
-
-
-        let lastError = null;
-
-
-        for (
-            let attempt = 1;
-            attempt <= PROFILE_RETRY_COUNT;
-            attempt++
-        ) {
-
-            try {
-
-                const result =
-                    await queryUserProfile(
-                        supabase,
-                        userId
-                    );
-
-
-                if (!result?.error) {
-
-                    return {
-                        profile:
-                            result?.data || null,
-
-                        error: null
-                    };
-                }
-
-
-                lastError =
-                    result.error;
-
-
-                console.warn(
-                    `[GENZ Navigation] Profile query attempt ${attempt}:`,
-                    result.error
-                );
-
-            } catch (error) {
-
-                lastError =
-                    error;
-
-
-                console.warn(
-                    `[GENZ Navigation] Profile exception attempt ${attempt}:`,
-                    error
-                );
-            }
-
-
-            if (
-                attempt < PROFILE_RETRY_COUNT
-            ) {
-
-                await delay(
-                    PROFILE_RETRY_DELAY
-                );
-            }
-        }
-
-
-        return {
-            profile: null,
-            error: lastError
-        };
-    }
-
-
-    /* =========================================================
-       ROLE
-       ========================================================= */
-
-    function normalizeRole(role) {
 
         const value =
             String(
@@ -616,11 +258,11 @@
 
 
         if (
-            value === "owner" ||
-            value === "pemilik"
+            value === "owner"
         ) {
 
             return "owner";
+
         }
 
 
@@ -630,499 +272,428 @@
         ) {
 
             return "admin";
+
         }
 
 
         return "user";
+
     }
 
 
-    /* =========================================================
-       PROFILE STATUS
-       ========================================================= */
+    /* =====================================================
+       PROFILE ACTIVE CHECK
+    ===================================================== */
 
-    function isProfileActive(profile) {
+    function isProfileActive(
+        profile
+    ) {
 
-        /*
-         * Kalau status tidak tersedia,
-         * jangan anggap user inactive.
-         */
+        if (
+            !profile
+        ) {
+
+            return false;
+
+        }
+
+
+        if (
+            profile.status ===
+                undefined ||
+            profile.status ===
+                null ||
+            String(
+                profile.status
+            ).trim() === ""
+        ) {
+
+            return true;
+
+        }
+
 
         const status =
             String(
-                profile?.status ?? ""
+                profile.status
             )
                 .trim()
                 .toLowerCase();
 
 
-        if (!status) {
-            return true;
-        }
-
-
-        return [
-            "active",
-            "aktif",
-            "enabled"
-        ].includes(status);
-    }
-
-
-    /* =========================================================
-       ALLOWED ROLE
-       ========================================================= */
-
-    function isAllowedRole(role) {
-
-        return [
-            "user",
-            "admin",
-            "owner"
-        ].includes(role);
-    }
-
-
-    /* =========================================================
-       REDIRECT
-       ========================================================= */
-
-    function redirectToLogin() {
-
-        if (isLoginPage()) {
-            return;
-        }
-
-
-        if (redirectingToLogin) {
-            return;
-        }
-
-
-        redirectingToLogin = true;
-
-
-        console.warn(
-            "[GENZ Navigation] Session tidak valid. Redirect ke login."
+        return (
+            status === "active" ||
+            status === "approved" ||
+            status === "enabled"
         );
 
-
-        window.location.replace(
-            LOGIN_PATH
-        );
     }
 
 
-    /* =========================================================
-       AUTH VALIDATION
-       ========================================================= */
+    /* =====================================================
+       SESSION
+    ===================================================== */
 
-    async function validateAuthentication() {
+    async function getSessionWithRetry() {
 
-        /*
-         * LOGIN PAGE
-         *
-         * Jangan pernah menjalankan auth guard
-         * di login.html.
-         */
+        const supabase =
+            getSupabaseClient();
 
-        if (isLoginPage()) {
-            return false;
-        }
-
-
-        const user =
-            await getAuthenticatedUser();
-
-
-        /*
-         * Session benar-benar tidak ditemukan
-         * setelah retry.
-         */
-
-        if (!user) {
-
-            console.warn(
-                "[GENZ Navigation] User session tidak ditemukan."
-            );
-
-
-            redirectToLogin();
-
-
-            return false;
-        }
-
-
-        /*
-         * Ambil profile.
-         */
-
-        const profileResult =
-            await getUserProfile(
-                user.id
-            );
-
-
-        /*
-         * PENTING:
-         *
-         * Error query profile BUKAN berarti
-         * session Auth invalid.
-         *
-         * Jangan redirect ke login hanya karena
-         * Supabase database / RLS / jaringan bermasalah.
-         *
-         * Halaman Generate masih dapat melakukan
-         * validasi profile sendiri menggunakan
-         * shared client yang sama.
-         */
-
-        if (profileResult.error) {
-
-            console.error(
-                "[GENZ Navigation] Gagal membaca profile:",
-                profileResult.error
-            );
-
-
-            /*
-             * Simpan minimal user Auth.
-             *
-             * Jangan menghapus session.
-             */
-
-            currentUser =
-                user;
-
-            currentProfile =
-                null;
-
-            currentRole =
-                null;
-
-
-            window.GENZ_NAVIGATION_USER =
-                currentUser;
-
-            window.GENZ_NAVIGATION_PROFILE =
-                null;
-
-            window.GENZ_NAVIGATION_ROLE =
-                null;
-
-
-            /*
-             * Return false tanpa redirect.
-             *
-             * Ini mencegah login loop.
-             */
-
-            return false;
-        }
-
-
-        const profile =
-            profileResult.profile;
-
-
-        /*
-         * Profile benar-benar tidak ditemukan.
-         */
-
-        if (!profile) {
-
-            console.error(
-                "[GENZ Navigation] Profile user tidak ditemukan:",
-                user.id
-            );
-
-
-            /*
-             * Session Auth tetap valid.
-             * Jangan signOut dan jangan membuat login loop.
-             */
-
-            currentUser =
-                user;
-
-            currentProfile =
-                null;
-
-            currentRole =
-                null;
-
-
-            window.GENZ_NAVIGATION_USER =
-                currentUser;
-
-            window.GENZ_NAVIGATION_PROFILE =
-                null;
-
-            window.GENZ_NAVIGATION_ROLE =
-                null;
-
-
-            return false;
-        }
-
-
-        /*
-         * Pastikan profile memang milik user
-         * yang sedang login.
-         */
 
         if (
-            profile.id &&
-            String(profile.id) !==
-            String(user.id)
+            !supabase ||
+            !supabase.auth
+        ) {
+
+            return {
+                session: null,
+                user: null
+            };
+
+        }
+
+
+        for (
+            let attempt = 0;
+            attempt < SESSION_RETRY_COUNT;
+            attempt++
+        ) {
+
+            try {
+
+                const {
+                    data,
+                    error
+                } =
+                    await supabase.auth.getSession();
+
+
+                if (
+                    !error &&
+                    data &&
+                    data.session
+                ) {
+
+                    return {
+                        session:
+                            data.session,
+                        user:
+                            data.session.user
+                    };
+
+                }
+
+
+                if (
+                    attempt <
+                    SESSION_RETRY_COUNT - 1
+                ) {
+
+                    await delay(
+                        SESSION_RETRY_DELAY
+                    );
+
+                }
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI] Session error:",
+                    error
+                );
+
+
+                if (
+                    attempt <
+                    SESSION_RETRY_COUNT - 1
+                ) {
+
+                    await delay(
+                        SESSION_RETRY_DELAY
+                    );
+
+                }
+
+            }
+
+        }
+
+
+        return {
+            session: null,
+            user: null
+        };
+
+    }
+
+
+    /* =====================================================
+       LOAD PROFILE
+    ===================================================== */
+
+    async function loadProfile(
+        userId
+    ) {
+
+        const supabase =
+            getSupabaseClient();
+
+
+        if (
+            !supabase ||
+            !userId
+        ) {
+
+            return null;
+
+        }
+
+
+        let lastError =
+            null;
+
+
+        for (
+            let attempt = 0;
+            attempt < PROFILE_RETRY_COUNT;
+            attempt++
+        ) {
+
+            try {
+
+                let result =
+                    await supabase
+                        .from("profiles")
+                        .select(
+                            "id,email,name,role,credits,status"
+                        )
+                        .eq(
+                            "id",
+                            userId
+                        )
+                        .maybeSingle();
+
+
+                /*
+                 * Some existing databases do not have
+                 * the status column.
+                 *
+                 * Keep compatibility without breaking
+                 * the navigation.
+                 */
+
+                if (
+                    result.error &&
+                    (
+                        String(
+                            result.error.message || ""
+                        )
+                            .toLowerCase()
+                            .includes(
+                                "status"
+                            ) ||
+                        String(
+                            result.error.message || ""
+                        )
+                            .toLowerCase()
+                            .includes(
+                                "schema cache"
+                            )
+                    )
+                ) {
+
+                    result =
+                        await supabase
+                            .from("profiles")
+                            .select(
+                                "id,email,name,role,credits"
+                            )
+                            .eq(
+                                "id",
+                                userId
+                            )
+                            .maybeSingle();
+
+                }
+
+
+                if (
+                    !result.error
+                ) {
+
+                    return (
+                        result.data ||
+                        null
+                    );
+
+                }
+
+
+                lastError =
+                    result.error;
+
+
+            } catch (
+                error
+            ) {
+
+                lastError =
+                    error;
+
+            }
+
+
+            if (
+                attempt <
+                PROFILE_RETRY_COUNT - 1
+            ) {
+
+                await delay(
+                    PROFILE_RETRY_DELAY
+                );
+
+            }
+
+        }
+
+
+        if (
+            lastError
         ) {
 
             console.error(
-                "[GENZ Navigation] Profile ID tidak cocok dengan Auth User."
+                "[GEN-Z.AI] Profile load error:",
+                lastError
             );
 
-
-            return false;
         }
 
 
-        /*
-         * Status.
-         *
-         * Status kosong = dianggap aktif.
-         */
+        return null;
 
-        if (
-            !isProfileActive(profile)
-        ) {
-
-            console.error(
-                "[GENZ Navigation] Profile user tidak aktif:",
-                profile.status
-            );
-
-
-            redirectToLogin();
-
-
-            return false;
-        }
-
-
-        /*
-         * Role.
-         */
-
-        const role =
-            normalizeRole(
-                profile.role
-            );
-
-
-        if (!isAllowedRole(role)) {
-
-            console.error(
-                "[GENZ Navigation] Role tidak diizinkan:",
-                profile.role
-            );
-
-
-            return false;
-        }
-
-
-        /*
-         * Simpan state.
-         */
-
-        currentUser =
-            user;
-
-        currentProfile =
-            profile;
-
-        currentRole =
-            role;
-
-
-        /*
-         * Global state untuk halaman lain.
-         */
-
-        window.GENZ_NAVIGATION_USER =
-            currentUser;
-
-        window.GENZ_NAVIGATION_PROFILE =
-            currentProfile;
-
-        window.GENZ_NAVIGATION_ROLE =
-            currentRole;
-
-
-        /*
-         * Compatibility aliases.
-         */
-
-        window.GENZ_CURRENT_USER =
-            currentUser;
-
-        window.GENZ_CURRENT_PROFILE =
-            currentProfile;
-
-        window.GENZ_CURRENT_ROLE =
-            currentRole;
-
-
-        return true;
     }
 
 
-    /* =========================================================
+    /* =====================================================
        NAVIGATION CONFIG
-       ========================================================= */
+    ===================================================== */
 
-    const NAVIGATION_BY_ROLE = {
+    function getNavigationConfig(
+        role
+    ) {
 
-        user: [
-
+        const commonUserItems = [
             {
                 label: "Dashboard",
                 href: "/user/dashboard.html",
                 icon: "♻️ "
             },
-
             {
                 label: "Generate",
                 href: "/generate/index.html",
                 icon: "♻️ "
             },
-
             {
                 label: "History",
                 href: "/history/index.html",
                 icon: "♻️ "
             },
-
-           {
-    label: "AI Metadata Cleaner",
-    href: "/metadata-cleaner/index.html",
-    icon: "🛡️ "
-},
-
             {
-                label: "Top-Up",
+                label: "AI Metadata Cleaner",
+                href: "/metadata-cleaner/index.html",
+                icon: "🛡️ "
+            },
+            {
+                label: "Top Up",
                 href: "/user/topup.html",
                 icon: "♻️ "
             },
-
-           {
+            {
                 label: "Hub Admin",
                 href: "/user/hub-admin.html",
                 icon: "♻️ "
             }
+        ];
 
-        ],
 
-
-        admin: [
-
+        const adminItems = [
             {
                 label: "Dashboard",
                 href: "/admin/dashboard/index.html",
                 icon: "♻️ "
             },
-
             {
                 label: "Generate",
                 href: "/generate/index.html",
                 icon: "♻️ "
             },
-
             {
                 label: "History",
                 href: "/history/index.html",
                 icon: "♻️ "
             },
-
-           {
-    label: "AI Metadata Cleaner",
-    href: "/metadata-cleaner/index.html",
-    icon: "🛡️ "
-},
-
+            {
+                label: "AI Metadata Cleaner",
+                href: "/metadata-cleaner/index.html",
+                icon: "🛡️ "
+            },
             {
                 label: "Admin Panel",
                 href: "/admin-control/admin-panel.html",
                 icon: "♻️ "
             }
-
-        ],
-
-
-        owner: [
-
-            {
-                label: "Dashboard",
-                href: "/admin/dashboard/index.html",
-                icon: "♻️ "
-            },
-
-            {
-                label: "Generate",
-                href: "/generate/index.html",
-                icon: "♻️ "
-            },
-
-            {
-                label: "History",
-                href: "/history/index.html",
-                icon: "♻️ "
-            },
-
-           {
-    label: "AI Metadata Cleaner",
-    href: "/metadata-cleaner/index.html",
-    icon: "🛡️ "
-},
-
-            {
-                label: "Admin Panel",
-                href: "/admin-control/admin-panel.html",
-                icon: "♻️ "
-            }
-
-        ]
-    };
+        ];
 
 
-    /* =========================================================
+        if (
+            role === "admin" ||
+            role === "owner"
+        ) {
+
+            return adminItems;
+
+        }
+
+
+        return commonUserItems;
+
+    }
+
+
+    /* =====================================================
        NAVIGATION CONTAINER
-       ========================================================= */
+    ===================================================== */
 
     function getNavigationContainer() {
 
         for (
-            const id of NAVIGATION_CONTAINER_IDS
+            const id of
+            NAVIGATION_CONTAINER_IDS
         ) {
 
             const existing =
-                document.getElementById(id);
+                document.getElementById(
+                    id
+                );
 
 
-            if (existing) {
+            if (
+                existing
+            ) {
+
                 return existing;
+
             }
+
         }
 
 
-        /*
-         * Jika halaman belum menyediakan container,
-         * buat otomatis.
-         */
-
         const container =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
 
         container.id =
@@ -1135,14 +706,31 @@
 
 
         return container;
+
     }
 
 
-    /* =========================================================
+    /* =====================================================
        ACTIVE LINK
-       ========================================================= */
+    ===================================================== */
 
-    function isActiveLink(href) {
+    function isActiveLink(
+        href
+    ) {
+
+        const currentPath =
+            getCurrentPath();
+
+
+        if (
+            href ===
+            currentPath
+        ) {
+
+            return true;
+
+        }
+
 
         try {
 
@@ -1153,43 +741,174 @@
                 );
 
 
-            const current =
-                normalizePath(
-                    window.location.pathname
-                );
-
-
             const targetPath =
-                normalizePath(
-                    target.pathname
-                );
+                target.pathname;
 
 
             if (
-                targetPath === "/"
+                targetPath ===
+                currentPath
             ) {
 
-                return current === "/";
+                return true;
+
             }
 
 
             return (
-                current === targetPath ||
-                current.startsWith(
-                    targetPath + "/"
-                )
+                currentPath.startsWith(
+                    targetPath
+                ) &&
+                targetPath !== "/"
             );
 
-        } catch {
+        } catch (
+            error
+        ) {
 
             return false;
+
         }
+
     }
 
 
-    /* =========================================================
-       RENDER
-       ========================================================= */
+    /* =====================================================
+       ESCAPE HTML
+    ===================================================== */
+
+    function escapeHTML(
+        value
+    ) {
+
+        return String(
+            value ??
+            ""
+        )
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
+            );
+
+    }
+
+
+    /* =====================================================
+       DISPLAY NAME
+    ===================================================== */
+
+    function getDisplayName() {
+
+        const profile =
+            currentProfile;
+
+
+        if (
+            profile &&
+            profile.name &&
+            String(
+                profile.name
+            ).trim()
+        ) {
+
+            return String(
+                profile.name
+            ).trim();
+
+        }
+
+
+        if (
+            currentUser &&
+            currentUser.user_metadata
+        ) {
+
+            const metadata =
+                currentUser.user_metadata;
+
+
+            if (
+                metadata.full_name
+            ) {
+
+                return String(
+                    metadata.full_name
+                ).trim();
+
+            }
+
+
+            if (
+                metadata.name
+            ) {
+
+                return String(
+                    metadata.name
+                ).trim();
+
+            }
+
+        }
+
+
+        if (
+            currentUser &&
+            currentUser.email
+        ) {
+
+            return String(
+                currentUser.email
+            )
+                .split("@")[0];
+
+        }
+
+
+        return "User";
+
+    }
+
+
+    /* =====================================================
+       AVATAR LETTER
+    ===================================================== */
+
+    function getAvatarLetter() {
+
+        const name =
+            getDisplayName()
+                .trim();
+
+
+        return (
+            name
+                .charAt(0)
+                .toUpperCase() ||
+            "U"
+        );
+
+    }
+
+
+    /* =====================================================
+       RENDER NAVIGATION
+    ===================================================== */
 
     function renderNavigation() {
 
@@ -1197,76 +916,117 @@
             getNavigationContainer();
 
 
-        if (!container) {
+        if (
+            !container
+        ) {
+
             return;
+
         }
 
 
-        const role =
-            currentRole || "user";
-
-
-        const profile =
-            currentProfile || {};
-
-
         const items =
-            NAVIGATION_BY_ROLE[role] ||
-            NAVIGATION_BY_ROLE.user;
+            getNavigationConfig(
+                currentRole
+            );
 
 
         const displayName =
-            profile.name ||
-            profile.email ||
-            currentUser?.email ||
-            "User";
+            getDisplayName();
+
+
+        const email =
+            currentUser &&
+            currentUser.email
+                ? currentUser.email
+                : (
+                    currentProfile &&
+                    currentProfile.email
+                        ? currentProfile.email
+                        : ""
+                );
 
 
         const roleLabel =
-            role.toUpperCase();
+            currentRole === "owner"
+                ? "OWNER"
+                : currentRole === "admin"
+                    ? "ADMIN"
+                    : "USER";
 
 
         const navigationItems =
             items
-                .map((item) => {
+                .map(
+                    item => {
 
-                    const active =
-                        isActiveLink(
-                            item.href
-                        );
+                        const active =
+                            isActiveLink(
+                                item.href
+                            );
 
 
-                    return `
-                        <a
-                            href="${item.href}"
-                            class="genz-nav-item ${active ? "active" : ""}"
-                        >
-                            <span class="genz-nav-icon">
-                                ${item.icon}
-                            </span>
+                        return `
+                            <a
+                                class="genz-nav-item${active ? " active" : ""}"
+                                href="${escapeHTML(item.href)}"
+                                data-genz-nav-link="true"
+                            >
+                                <span class="genz-nav-icon">
+                                    ${item.icon || ""}
+                                </span>
 
-                            <span class="genz-nav-label">
-                                ${item.label}
-                            </span>
-                        </a>
-                    `;
-                })
+                                <span class="genz-nav-label">
+                                    ${escapeHTML(item.label)}
+                                </span>
+                            </a>
+                        `;
+
+                    }
+                )
                 .join("");
 
 
         container.innerHTML = `
-
             <aside
                 class="genz-sidebar"
                 id="genz-sidebar"
+                aria-label="GEN-Z.AI Navigation"
             >
+
+                <!-- =================================================
+                     SIDEBAR HEADER
+                     ================================================= -->
 
                 <div class="genz-sidebar-header">
 
                     <div class="genz-brand">
 
-                        <div class="genz-brand-title">
-                            GEN-Z.AI
+                        <div
+                            class="genz-logo"
+                            aria-label="GEN-Z.AI"
+                            title="GEN-Z.AI"
+                        >
+
+                            <div
+                                class="genz-logo-mark"
+                                aria-hidden="true"
+                            >
+                                AI
+                            </div>
+
+                            <div class="genz-logo-text">
+
+                                <span class="genz-logo-main">
+                                    GEN-<strong>Z</strong>
+                                </span>
+
+                                <span class="genz-logo-ai">
+                                    .AI
+                                </span>
+
+                            </div>
+
                         </div>
 
                         <div class="genz-brand-subtitle">
@@ -1288,21 +1048,36 @@
                 </div>
 
 
+                <!-- =================================================
+                     USER
+                     ================================================= -->
+
                 <div class="genz-user-box">
 
                     <div class="genz-user-avatar">
-                        ${String(displayName).charAt(0).toUpperCase()}
+                        ${escapeHTML(
+                            getAvatarLetter()
+                        )}
                     </div>
-
 
                     <div class="genz-user-info">
 
                         <div class="genz-user-name">
-                            ${displayName}
+                            ${escapeHTML(
+                                displayName
+                            )}
+                        </div>
+
+                        <div class="genz-user-email">
+                            ${escapeHTML(
+                                email
+                            )}
                         </div>
 
                         <div class="genz-user-role">
-                            ${roleLabel}
+                            ${escapeHTML(
+                                roleLabel
+                            )}
                         </div>
 
                     </div>
@@ -1310,27 +1085,38 @@
                 </div>
 
 
-                <nav class="genz-nav-menu">
+                <!-- =================================================
+                     NAVIGATION
+                     ================================================= -->
+
+                <nav
+                    class="genz-nav"
+                    aria-label="Main navigation"
+                >
+
                     ${navigationItems}
+
                 </nav>
 
+
+                <!-- =================================================
+                     FOOTER
+                     ================================================= -->
 
                 <div class="genz-sidebar-footer">
 
                     <button
                         type="button"
-                        id="genz-logout"
                         class="genz-logout-button"
+                        id="genz-logout-button"
                     >
-
                         <span class="genz-nav-icon">
-                            ⇥
+                            ↪
                         </span>
 
                         <span>
                             Logout
                         </span>
-
                     </button>
 
                 </div>
@@ -1338,33 +1124,69 @@
             </aside>
 
 
+            <!-- =====================================================
+                 MOBILE TOGGLE
+                 ===================================================== -->
+
             <button
                 type="button"
                 class="genz-mobile-toggle"
                 id="genz-mobile-toggle"
                 aria-label="Open menu"
+                aria-controls="genz-sidebar"
+                aria-expanded="false"
             >
-                ☰
+                <span></span>
+                <span></span>
+                <span></span>
             </button>
 
+
+            <!-- =====================================================
+                 MOBILE OVERLAY
+                 ===================================================== -->
 
             <div
                 class="genz-sidebar-overlay"
                 id="genz-sidebar-overlay"
             ></div>
-
         `;
 
 
         bindNavigationEvents();
+
+
+        navigationReady =
+            true;
+
+
+        if (
+            navigationReadyResolve
+        ) {
+
+            navigationReadyResolve(
+                true
+            );
+
+            navigationReadyResolve =
+                null;
+
+        }
+
     }
 
 
-    /* =========================================================
-       EVENTS
-       ========================================================= */
+    /* =====================================================
+       NAVIGATION EVENTS
+    ===================================================== */
 
     function bindNavigationEvents() {
+
+        const sidebar =
+            document.getElementById(
+                "genz-sidebar"
+            );
+
 
         const toggle =
             document.getElementById(
@@ -1372,15 +1194,9 @@
             );
 
 
-        const close =
+        const closeButton =
             document.getElementById(
                 "genz-mobile-close"
-            );
-
-
-        const sidebar =
-            document.getElementById(
-                "genz-sidebar"
             );
 
 
@@ -1390,104 +1206,216 @@
             );
 
 
-        const logout =
+        const logoutButton =
             document.getElementById(
-                "genz-logout"
+                "genz-logout-button"
             );
 
 
-        function openMenu() {
+        function openMobileNavigation() {
 
-            sidebar?.classList.add(
+            if (
+                !sidebar
+            ) {
+
+                return;
+
+            }
+
+
+            sidebar.classList.add(
                 "open"
             );
 
 
-            overlay?.classList.add(
-                "open"
-            );
+            if (
+                overlay
+            ) {
+
+                overlay.classList.add(
+                    "active"
+                );
+
+            }
+
+
+            if (
+                toggle
+            ) {
+
+                toggle.setAttribute(
+                    "aria-expanded",
+                    "true"
+                );
+
+            }
 
 
             document.body.classList.add(
-                "genz-menu-open"
+                "genz-nav-open"
             );
+
         }
 
 
-        function closeMenu() {
+        function closeMobileNavigation() {
 
-            sidebar?.classList.remove(
-                "open"
-            );
+            if (
+                sidebar
+            ) {
+
+                sidebar.classList.remove(
+                    "open"
+                );
+
+            }
 
 
-            overlay?.classList.remove(
-                "open"
-            );
+            if (
+                overlay
+            ) {
+
+                overlay.classList.remove(
+                    "active"
+                );
+
+            }
+
+
+            if (
+                toggle
+            ) {
+
+                toggle.setAttribute(
+                    "aria-expanded",
+                    "false"
+                );
+
+            }
 
 
             document.body.classList.remove(
-                "genz-menu-open"
+                "genz-nav-open"
             );
+
         }
 
 
-        toggle?.addEventListener(
-            "click",
-            openMenu
-        );
+        if (
+            toggle
+        ) {
+
+            toggle.addEventListener(
+                "click",
+                event => {
+
+                    event.preventDefault();
+
+                    if (
+                        sidebar &&
+                        sidebar.classList.contains(
+                            "open"
+                        )
+                    ) {
+
+                        closeMobileNavigation();
+
+                    } else {
+
+                        openMobileNavigation();
+
+                    }
+
+                }
+            );
+
+        }
 
 
-        close?.addEventListener(
-            "click",
-            closeMenu
-        );
+        if (
+            closeButton
+        ) {
+
+            closeButton.addEventListener(
+                "click",
+                event => {
+
+                    event.preventDefault();
+
+                    closeMobileNavigation();
+
+                }
+            );
+
+        }
 
 
-        overlay?.addEventListener(
-            "click",
-            closeMenu
-        );
+        if (
+            overlay
+        ) {
+
+            overlay.addEventListener(
+                "click",
+                closeMobileNavigation
+            );
+
+        }
 
 
         document
             .querySelectorAll(
-                ".genz-nav-item"
+                "[data-genz-nav-link='true']"
             )
-            .forEach((item) => {
+            .forEach(
+                link => {
 
-                item.addEventListener(
-                    "click",
-                    closeMenu
-                );
+                    link.addEventListener(
+                        "click",
+                        () => {
 
-            });
+                            closeMobileNavigation();
+
+                        }
+                    );
+
+                }
+            );
 
 
-        logout?.addEventListener(
-            "click",
-            async () => {
-                await logoutUser();
+        if (
+            logoutButton
+        ) {
+
+            logoutButton.addEventListener(
+                "click",
+                logoutUser
+            );
+
+        }
+
+
+        document.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key ===
+                    "Escape"
+                ) {
+
+                    closeMobileNavigation();
+
+                }
+
             }
         );
 
-
-        /*
-         * Compatibility global functions.
-         */
-
-        window.toggleMenu =
-            openMenu;
-
-
-        window.closeMenu =
-            closeMenu;
     }
 
 
-    /* =========================================================
+    /* =====================================================
        LOGOUT
-       ========================================================= */
+    ===================================================== */
 
     async function logoutUser() {
 
@@ -1497,72 +1425,63 @@
 
         try {
 
-            if (supabase) {
+            if (
+                supabase &&
+                supabase.auth
+            ) {
 
                 await supabase.auth.signOut();
+
             }
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             console.error(
-                "[GENZ Navigation] Logout error:",
+                "[GEN-Z.AI] Logout error:",
                 error
             );
 
-        } finally {
-
-            currentUser =
-                null;
-
-            currentProfile =
-                null;
-
-            currentRole =
-                null;
-
-
-            window.GENZ_NAVIGATION_USER =
-                null;
-
-            window.GENZ_NAVIGATION_PROFILE =
-                null;
-
-            window.GENZ_NAVIGATION_ROLE =
-                null;
-
-
-            window.GENZ_CURRENT_USER =
-                null;
-
-            window.GENZ_CURRENT_PROFILE =
-                null;
-
-            window.GENZ_CURRENT_ROLE =
-                null;
-
-
-            window.location.replace(
-                LOGIN_PATH
-            );
         }
+
+
+        currentUser =
+            null;
+
+
+        currentProfile =
+            null;
+
+
+        currentRole =
+            "user";
+
+
+        if (
+            !isLoginPage()
+        ) {
+
+            window.location.href =
+                LOGIN_PATH;
+
+        }
+
     }
 
 
-    window.logout =
-        logoutUser;
+    /* =====================================================
+       AUTH STATE
+    ===================================================== */
 
+    function setupAuthListener() {
 
-    /* =========================================================
-       AUTH STATE LISTENER
-       ---------------------------------------------------------
-       Jangan redirect hanya karena session null pada event
-       yang bukan SIGNED_OUT.
-       ========================================================= */
+        if (
+            authListenerReady
+        ) {
 
-    function bindAuthStateListener() {
-
-        if (authListenerBound) {
             return;
+
         }
 
 
@@ -1570,36 +1489,30 @@
             getSupabaseClient();
 
 
-        if (!supabase) {
-
-            console.error(
-                "[GENZ Navigation] Tidak dapat bind auth listener karena Supabase tidak tersedia."
-            );
+        if (
+            !supabase ||
+            !supabase.auth
+        ) {
 
             return;
+
         }
 
 
-        authListenerBound = true;
+        authListenerReady =
+            true;
 
 
         const result =
             supabase.auth.onAuthStateChange(
-                (event, session) => {
-
-                    console.log(
-                        "[GENZ Navigation] Auth event:",
-                        event
-                    );
-
-
-                    /*
-                     * HANYA SIGNED_OUT yang secara eksplisit
-                     * menyebabkan redirect.
-                     */
+                async (
+                    event,
+                    session
+                ) => {
 
                     if (
-                        event === "SIGNED_OUT"
+                        event ===
+                        "SIGNED_OUT"
                     ) {
 
                         currentUser =
@@ -1609,113 +1522,196 @@
                             null;
 
                         currentRole =
-                            null;
+                            "user";
 
 
-                        window.GENZ_NAVIGATION_USER =
-                            null;
+                        if (
+                            !isLoginPage()
+                        ) {
 
-                        window.GENZ_NAVIGATION_PROFILE =
-                            null;
+                            window.location.href =
+                                LOGIN_PATH;
 
-                        window.GENZ_NAVIGATION_ROLE =
-                            null;
-
-
-                        window.GENZ_CURRENT_USER =
-                            null;
-
-                        window.GENZ_CURRENT_PROFILE =
-                            null;
-
-                        window.GENZ_CURRENT_ROLE =
-                            null;
-
-
-                        redirectToLogin();
-
-
-                        return;
-                    }
-
-
-                    /*
-                     * INITIAL_SESSION
-                     */
-
-                    if (
-                        event === "INITIAL_SESSION"
-                    ) {
-
-                        return;
-                    }
-
-
-                    /*
-                     * TOKEN_REFRESHED
-                     */
-
-                    if (
-                        event === "TOKEN_REFRESHED"
-                    ) {
-
-                        if (session?.user) {
-
-                            currentUser =
-                                session.user;
-
-
-                            window.GENZ_NAVIGATION_USER =
-                                currentUser;
-
-
-                            window.GENZ_CURRENT_USER =
-                                currentUser;
                         }
 
-
                         return;
+
                     }
 
-
-                    /*
-                     * SIGNED_IN
-                     */
 
                     if (
-                        event === "SIGNED_IN"
+                        !session ||
+                        !session.user
                     ) {
 
-                        if (session?.user) {
+                        return;
 
-                            currentUser =
-                                session.user;
-
-
-                            window.GENZ_NAVIGATION_USER =
-                                currentUser;
+                    }
 
 
-                            window.GENZ_CURRENT_USER =
-                                currentUser;
+                    currentUser =
+                        session.user;
+
+
+                    const profile =
+                        await loadProfile(
+                            session.user.id
+                        );
+
+
+                    if (
+                        profile
+                    ) {
+
+                        currentProfile =
+                            profile;
+
+
+                        currentRole =
+                            normalizeRole(
+                                profile.role
+                            );
+
+
+                        if (
+                            !isProfileActive(
+                                profile
+                            )
+                        ) {
+
+                            await logoutUser();
+
+                            return;
+
                         }
 
-
-                        return;
                     }
+
+
+                    renderNavigation();
+
                 }
             );
 
 
-        authSubscription =
-            result?.data?.subscription ||
-            null;
+        if (
+            result &&
+            result.data &&
+            result.data.subscription
+        ) {
+
+            authSubscription =
+                result.data.subscription;
+
+        }
+
     }
 
 
-    /* =========================================================
-       STYLE
-       ========================================================= */
+    /* =====================================================
+       AUTH VALIDATION
+    ===================================================== */
+
+    async function validateAuthentication() {
+
+        const {
+            session,
+            user
+        } =
+            await getSessionWithRetry();
+
+
+        if (
+            !session ||
+            !user
+        ) {
+
+            currentUser =
+                null;
+
+            currentProfile =
+                null;
+
+            currentRole =
+                "user";
+
+
+            if (
+                !isLoginPage()
+            ) {
+
+                window.location.href =
+                    LOGIN_PATH;
+
+            }
+
+
+            return false;
+
+        }
+
+
+        currentUser =
+            user;
+
+
+        const profile =
+            await loadProfile(
+                user.id
+            );
+
+
+        if (
+            profile
+        ) {
+
+            currentProfile =
+                profile;
+
+
+            currentRole =
+                normalizeRole(
+                    profile.role
+                );
+
+
+            if (
+                !isProfileActive(
+                    profile
+                )
+            ) {
+
+                await logoutUser();
+
+                return false;
+
+            }
+
+        } else {
+
+            /*
+             * Keep the authenticated session.
+             * The profile may still be unavailable
+             * during initial database propagation.
+             */
+
+            currentProfile =
+                null;
+
+            currentRole =
+                "user";
+
+        }
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       INJECT SHARED CSS
+    ===================================================== */
 
     function injectStyles() {
 
@@ -1726,11 +1722,14 @@
         ) {
 
             return;
+
         }
 
 
         const style =
-            document.createElement("style");
+            document.createElement(
+                "style"
+            );
 
 
         style.id =
@@ -1739,655 +1738,1423 @@
 
         style.textContent = `
 
-            .genz-sidebar {
-                position: fixed;
-                top: 0;
-                left: 0;
-                bottom: 0;
-                width: 260px;
-                z-index: 9999;
-                background: #0f1117;
-                color: #ffffff;
-                border-right: 1px solid rgba(255,255,255,.08);
-                display: flex;
-                flex-direction: column;
-                overflow-y: auto;
-                transition: transform .25s ease;
+            /* =================================================
+               GLOBAL
+               ================================================= */
+
+            :root {
+
+                --genz-sidebar-width:
+                    260px;
+
+                --genz-red:
+                    #ff2424;
+
+                --genz-red-bright:
+                    #ff3b3b;
+
+                --genz-red-dark:
+                    #760000;
+
+                --genz-bg:
+                    #0f1117;
+
+                --genz-bg-soft:
+                    #141720;
+
+                --genz-border:
+                    rgba(
+                        255,
+                        50,
+                        50,
+                        .18
+                    );
+
             }
 
+
+            /* =================================================
+               SIDEBAR
+               ================================================= */
+
+            .genz-sidebar {
+
+                position: fixed;
+
+                top: 0;
+
+                left: 0;
+
+                bottom: 0;
+
+                width:
+                    var(
+                        --genz-sidebar-width
+                    );
+
+                z-index: 9999;
+
+                display: flex;
+
+                flex-direction: column;
+
+                box-sizing: border-box;
+
+                background:
+                    linear-gradient(
+                        180deg,
+                        #101218 0%,
+                        #0b0d12 100%
+                    );
+
+                border-right:
+                    1px solid
+                    rgba(
+                        255,
+                        40,
+                        40,
+                        .16
+                    );
+
+                box-shadow:
+                    8px 0 30px
+                    rgba(
+                        0,
+                        0,
+                        0,
+                        .35
+                    );
+
+                overflow-x: hidden;
+
+                overflow-y: auto;
+
+                scrollbar-width: thin;
+
+                scrollbar-color:
+                    rgba(
+                        255,
+                        40,
+                        40,
+                        .35
+                    )
+                    transparent;
+
+            }
+
+
+            /* =================================================
+               SIDEBAR HEADER
+               ================================================= */
 
             .genz-sidebar-header {
+
+                position: sticky;
+
+                top: 0;
+
+                z-index: 20;
+
+                flex: 0 0 auto;
+
                 display: flex;
+
                 align-items: center;
+
                 justify-content: space-between;
-                padding: 22px 18px;
-                border-bottom: 1px solid rgba(255,255,255,.07);
+
+                min-height: 76px;
+
+                padding:
+                    15px 14px;
+
+                box-sizing: border-box;
+
+                background:
+                    linear-gradient(
+                        180deg,
+                        rgba(
+                            15,
+                            17,
+                            23,
+                            .99
+                        ),
+                        rgba(
+                            15,
+                            17,
+                            23,
+                            .96
+                        )
+                    );
+
+                border-bottom:
+                    1px solid
+                    rgba(
+                        255,
+                        40,
+                        40,
+                        .14
+                    );
+
+                backdrop-filter:
+                    blur(12px);
+
             }
 
 
-            .genz-brand-title {
-                font-size: 20px;
-                font-weight: 800;
+            /* =================================================
+               BRAND
+               ================================================= */
+
+            .genz-brand {
+
+                min-width: 0;
+
+                display: flex;
+
+                flex-direction: column;
+
+                align-items: flex-start;
+
+                gap: 6px;
+
+            }
+
+
+            /* =================================================
+               NEW GEN-Z.AI LOGO
+               ================================================= */
+
+            .genz-logo {
+
+                position: relative;
+
+                display: inline-flex;
+
+                align-items: center;
+
+                gap: 9px;
+
+                min-height: 42px;
+
+                max-width: 100%;
+
+                padding:
+                    6px 11px 6px 7px;
+
+                box-sizing: border-box;
+
+                border:
+                    1px solid
+                    rgba(
+                        255,
+                        55,
+                        55,
+                        .68
+                    );
+
+                border-radius: 12px;
+
+                background:
+                    linear-gradient(
+                        135deg,
+                        rgba(
+                            255,
+                            0,
+                            0,
+                            .14
+                        ),
+                        rgba(
+                            0,
+                            0,
+                            0,
+                            .78
+                        )
+                    );
+
+                box-shadow:
+                    0 0 8px
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .25
+                    ),
+                    inset 0 0 14px
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .08
+                    );
+
+                overflow: hidden;
+
+                isolation: isolate;
+
+            }
+
+
+            .genz-logo::before {
+
+                content: "";
+
+                position: absolute;
+
+                left: -30%;
+
+                right: -30%;
+
+                top: 0;
+
+                height: 1px;
+
+                background:
+                    linear-gradient(
+                        90deg,
+                        transparent,
+                        rgba(
+                            255,
+                            80,
+                            80,
+                            .95
+                        ),
+                        transparent
+                    );
+
+                opacity: .8;
+
+                animation:
+                    genzLogoScan
+                    3.2s
+                    linear
+                    infinite;
+
+                pointer-events: none;
+
+                z-index: 1;
+
+            }
+
+
+            @keyframes genzLogoScan {
+
+                0% {
+
+                    transform:
+                        translateY(0);
+
+                    opacity: 0;
+
+                }
+
+                15% {
+
+                    opacity: .8;
+
+                }
+
+                70% {
+
+                    opacity: .8;
+
+                }
+
+                100% {
+
+                    transform:
+                        translateY(42px);
+
+                    opacity: 0;
+
+                }
+
+            }
+
+
+            .genz-logo-mark {
+
+                position: relative;
+
+                z-index: 2;
+
+                width: 34px;
+
+                height: 34px;
+
+                flex: 0 0 34px;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content: center;
+
+                box-sizing: border-box;
+
+                border:
+                    1px solid
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .18
+                    );
+
+                border-radius: 9px;
+
+                background:
+                    linear-gradient(
+                        135deg,
+                        #ff2525,
+                        #760000
+                    );
+
+                color: #ffffff;
+
+                font-size: 12px;
+
+                line-height: 1;
+
+                font-weight: 900;
+
                 letter-spacing: .5px;
+
+                box-shadow:
+                    0 0 12px
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .45
+                    );
+
+            }
+
+
+            .genz-logo-text {
+
+                position: relative;
+
+                z-index: 2;
+
+                display: flex;
+
+                align-items: baseline;
+
+                min-width: 0;
+
+                white-space: nowrap;
+
+                font-size: 18px;
+
+                line-height: 1;
+
+                font-weight: 900;
+
+                letter-spacing: .3px;
+
+            }
+
+
+            .genz-logo-main {
+
+                color: #ffffff;
+
+                text-shadow:
+                    0 0 8px
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .16
+                    );
+
+            }
+
+
+            .genz-logo-main strong {
+
+                color:
+                    var(
+                        --genz-red-bright
+                    );
+
+                text-shadow:
+                    0 0 10px
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .75
+                    );
+
+            }
+
+
+            .genz-logo-ai {
+
+                margin-left: 1px;
+
+                color:
+                    #ff4a4a;
+
+                text-shadow:
+                    0 0 8px
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .55
+                    );
+
             }
 
 
             .genz-brand-subtitle {
-                margin-top: 3px;
-                font-size: 11px;
-                color: rgba(255,255,255,.5);
+
+                padding-left: 4px;
+
+                color:
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .45
+                    );
+
+                font-size: 10px;
+
+                line-height: 1;
+
+                font-weight: 600;
+
+                letter-spacing:
+                    1.2px;
+
+                text-transform:
+                    uppercase;
+
             }
 
+
+            /* =================================================
+               MOBILE CLOSE
+               ================================================= */
 
             .genz-mobile-close {
+
                 display: none;
+
+                width: 36px;
+
+                height: 36px;
+
+                padding: 0;
+
                 border: 0;
-                background: transparent;
+
+                border-radius: 10px;
+
+                background:
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .05
+                    );
+
                 color: #ffffff;
-                font-size: 26px;
+
+                font-size: 25px;
+
+                line-height: 1;
+
                 cursor: pointer;
+
             }
 
 
+            .genz-mobile-close:hover {
+
+                background:
+                    rgba(
+                        255,
+                        40,
+                        40,
+                        .15
+                    );
+
+                color:
+                    var(
+                        --genz-red-bright
+                    );
+
+            }
+
+
+            /* =================================================
+               USER BOX
+               ================================================= */
+
             .genz-user-box {
+
                 display: flex;
+
                 align-items: center;
-                gap: 12px;
-                margin: 16px;
-                padding: 12px;
+
+                gap: 10px;
+
+                margin:
+                    14px 12px 8px;
+
+                padding: 11px;
+
+                box-sizing: border-box;
+
+                border:
+                    1px solid
+                    var(
+                        --genz-border
+                    );
+
                 border-radius: 12px;
-                background: rgba(255,255,255,.05);
+
+                background:
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .025
+                    );
+
             }
 
 
             .genz-user-avatar {
+
                 width: 38px;
+
                 height: 38px;
+
                 flex: 0 0 38px;
-                border-radius: 50%;
+
                 display: flex;
+
                 align-items: center;
+
                 justify-content: center;
-                background: rgba(255,255,255,.1);
-                font-weight: 700;
+
+                border-radius: 11px;
+
+                background:
+                    linear-gradient(
+                        135deg,
+                        #ff2525,
+                        #680000
+                    );
+
+                color: #ffffff;
+
+                font-size: 15px;
+
+                font-weight: 800;
+
+                box-shadow:
+                    0 0 12px
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .2
+                    );
+
             }
 
 
             .genz-user-info {
+
                 min-width: 0;
+
+                flex: 1;
+
             }
 
 
             .genz-user-name {
-                font-size: 13px;
-                font-weight: 700;
-                white-space: nowrap;
+
                 overflow: hidden;
+
+                color: #ffffff;
+
+                font-size: 13px;
+
+                font-weight: 700;
+
+                line-height: 1.35;
+
                 text-overflow: ellipsis;
+
+                white-space: nowrap;
+
+            }
+
+
+            .genz-user-email {
+
+                margin-top: 2px;
+
+                overflow: hidden;
+
+                color:
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .42
+                    );
+
+                font-size: 10px;
+
+                line-height: 1.3;
+
+                text-overflow: ellipsis;
+
+                white-space: nowrap;
+
             }
 
 
             .genz-user-role {
-                margin-top: 3px;
-                font-size: 10px;
-                color: rgba(255,255,255,.5);
-                letter-spacing: .5px;
+
+                display: inline-block;
+
+                margin-top: 5px;
+
+                padding:
+                    2px 6px;
+
+                border:
+                    1px solid
+                    rgba(
+                        255,
+                        50,
+                        50,
+                        .28
+                    );
+
+                border-radius: 5px;
+
+                color:
+                    #ff6565;
+
+                background:
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .06
+                    );
+
+                font-size: 8px;
+
+                line-height: 1.3;
+
+                font-weight: 800;
+
+                letter-spacing:
+                    .8px;
+
             }
 
 
-            .genz-nav-menu {
-                flex: 1;
-                padding: 4px 12px;
+            /* =================================================
+               NAV
+               ================================================= */
+
+            .genz-nav {
+
+                display: flex;
+
+                flex-direction: column;
+
+                gap: 4px;
+
+                padding:
+                    8px 10px 16px;
+
+                box-sizing: border-box;
+
             }
 
 
             .genz-nav-item {
+
+                position: relative;
+
                 display: flex;
+
                 align-items: center;
-                gap: 12px;
+
+                gap: 10px;
+
                 min-height: 44px;
-                margin-bottom: 4px;
-                padding: 0 12px;
+
+                padding:
+                    9px 11px;
+
+                box-sizing: border-box;
+
+                border:
+                    1px solid
+                    transparent;
+
                 border-radius: 10px;
-                color: rgba(255,255,255,.72);
+
+                color:
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .66
+                    );
+
+                background:
+                    transparent;
+
                 text-decoration: none;
+
                 transition:
-                    background .15s ease,
-                    color .15s ease;
+                    background .18s ease,
+                    border-color .18s ease,
+                    color .18s ease,
+                    box-shadow .18s ease,
+                    transform .18s ease;
+
             }
 
 
             .genz-nav-item:hover {
-                background: rgba(255,255,255,.06);
+
                 color: #ffffff;
+
+                background:
+                    rgba(
+                        255,
+                        35,
+                        35,
+                        .07
+                    );
+
+                border-color:
+                    rgba(
+                        255,
+                        45,
+                        45,
+                        .16
+                    );
+
+                transform:
+                    translateX(2px);
+
             }
 
 
             .genz-nav-item.active {
-                background: rgba(255,255,255,.1);
+
                 color: #ffffff;
+
+                background:
+                    linear-gradient(
+                        90deg,
+                        rgba(
+                            255,
+                            35,
+                            35,
+                            .15
+                        ),
+                        rgba(
+                            255,
+                            35,
+                            35,
+                            .04
+                        )
+                    );
+
+                border-color:
+                    rgba(
+                        255,
+                        50,
+                        50,
+                        .28
+                    );
+
+                box-shadow:
+                    inset 3px 0 0
+                    var(
+                        --genz-red
+                    ),
+                    0 0 14px
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .05
+                    );
+
             }
 
 
             .genz-nav-icon {
-                width: 22px;
-                min-width: 22px;
-                text-align: center;
-                font-size: 16px;
+
+                width: 23px;
+
+                flex: 0 0 23px;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content: center;
+
+                font-size: 15px;
+
+                line-height: 1;
+
             }
 
 
             .genz-nav-label {
-                font-size: 13px;
+
+                min-width: 0;
+
+                font-size: 12px;
+
                 font-weight: 600;
+
+                line-height: 1.3;
+
             }
 
 
+            /* =================================================
+               FOOTER
+               ================================================= */
+
             .genz-sidebar-footer {
-                padding: 14px 12px 18px;
-                border-top: 1px solid rgba(255,255,255,.07);
+
+                margin-top: auto;
+
+                padding:
+                    10px 10px 14px;
+
+                box-sizing: border-box;
+
+                border-top:
+                    1px solid
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .05
+                    );
+
             }
 
 
             .genz-logout-button {
+
                 width: 100%;
-                min-height: 44px;
+
+                min-height: 42px;
+
                 display: flex;
+
                 align-items: center;
-                gap: 12px;
-                padding: 0 12px;
-                border: 0;
+
+                gap: 10px;
+
+                padding:
+                    9px 11px;
+
+                box-sizing: border-box;
+
+                border:
+                    1px solid
+                    rgba(
+                        255,
+                        50,
+                        50,
+                        .14
+                    );
+
                 border-radius: 10px;
-                background: transparent;
-                color: rgba(255,255,255,.65);
+
+                color:
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .6
+                    );
+
+                background:
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .025
+                    );
+
                 font: inherit;
-                font-size: 13px;
+
+                font-size: 12px;
+
                 font-weight: 600;
+
                 cursor: pointer;
-                text-align: left;
+
+                transition:
+                    background .18s ease,
+                    border-color .18s ease,
+                    color .18s ease;
+
             }
 
 
             .genz-logout-button:hover {
-                background: rgba(255,255,255,.06);
+
                 color: #ffffff;
+
+                background:
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .09
+                    );
+
+                border-color:
+                    rgba(
+                        255,
+                        50,
+                        50,
+                        .3
+                    );
+
             }
 
+
+            /* =================================================
+               MOBILE TOGGLE
+               ================================================= */
 
             .genz-mobile-toggle {
+
                 display: none;
+
                 position: fixed;
-                top: 14px;
-                left: 14px;
-                z-index: 9998;
-                width: 42px;
-                height: 42px;
-                border: 1px solid rgba(255,255,255,.1);
-                border-radius: 10px;
-                background: #0f1117;
-                color: #ffffff;
+
+                top: 12px;
+
+                left: 12px;
+
+                z-index: 10001;
+
+                width: 44px;
+
+                height: 44px;
+
+                padding: 9px;
+
+                box-sizing: border-box;
+
+                flex-direction: column;
+
+                align-items: center;
+
+                justify-content: center;
+
+                gap: 5px;
+
+                border:
+                    1px solid
+                    rgba(
+                        255,
+                        50,
+                        50,
+                        .32
+                    );
+
+                border-radius: 11px;
+
+                background:
+                    rgba(
+                        10,
+                        11,
+                        15,
+                        .94
+                    );
+
+                box-shadow:
+                    0 0 18px
+                    rgba(
+                        255,
+                        0,
+                        0,
+                        .12
+                    );
+
                 cursor: pointer;
-                font-size: 20px;
+
+                backdrop-filter:
+                    blur(12px);
+
             }
 
+
+            .genz-mobile-toggle span {
+
+                display: block;
+
+                width: 20px;
+
+                height: 2px;
+
+                border-radius: 2px;
+
+                background:
+                    #ffffff;
+
+            }
+
+
+            /* =================================================
+               OVERLAY
+               ================================================= */
 
             .genz-sidebar-overlay {
+
                 display: none;
+
                 position: fixed;
+
                 inset: 0;
-                z-index: 9997;
-                background: rgba(0,0,0,.55);
+
+                z-index: 9998;
+
+                background:
+                    rgba(
+                        0,
+                        0,
+                        0,
+                        .62
+                    );
+
+                backdrop-filter:
+                    blur(2px);
+
             }
 
 
-            body.genz-menu-open {
-                overflow: hidden;
+            .genz-sidebar-overlay.active {
+
+                display: block;
+
             }
 
 
-            @media (max-width: 768px) {
+            /* =================================================
+               DESKTOP BODY OFFSET
+               ================================================= */
+
+            @media (
+                min-width: 769px
+            ) {
+
+                body {
+
+                    padding-left:
+                        var(
+                            --genz-sidebar-width
+                        );
+
+                }
+
+            }
+
+
+            /* =================================================
+               MOBILE
+               ================================================= */
+
+            @media (
+                max-width: 768px
+            ) {
 
                 .genz-sidebar {
-                    transform: translateX(-100%);
+
+                    width:
+                        min(
+                            290px,
+                            86vw
+                        );
+
+                    transform:
+                        translateX(-105%);
+
+                    transition:
+                        transform .22s
+                        ease;
+
+                    z-index: 10000;
+
                 }
 
 
                 .genz-sidebar.open {
-                    transform: translateX(0);
+
+                    transform:
+                        translateX(0);
+
+                }
+
+
+                .genz-sidebar-header {
+
+                    min-height: 72px;
+
                 }
 
 
                 .genz-mobile-close {
-                    display: block;
+
+                    display: flex;
+
+                    align-items: center;
+
+                    justify-content: center;
+
                 }
 
 
                 .genz-mobile-toggle {
+
                     display: flex;
-                    align-items: center;
-                    justify-content: center;
+
                 }
 
-
-                .genz-sidebar-overlay.open {
-                    display: block;
-                }
-            }
-
-
-            @media (min-width: 769px) {
 
                 body {
-                    padding-left: 260px;
+
+                    padding-left: 0 !important;
+
                 }
+
+
+                body.genz-nav-open {
+
+                    overflow: hidden;
+
+                }
+
             }
+
+
+            /* =================================================
+               SMALL MOBILE
+               ================================================= */
+
+            @media (
+                max-width: 480px
+            ) {
+
+                .genz-sidebar-header {
+
+                    padding:
+                        13px 11px;
+
+                }
+
+
+                .genz-logo {
+
+                    gap: 8px;
+
+                    min-height: 40px;
+
+                    padding:
+                        5px 9px 5px 6px;
+
+                }
+
+
+                .genz-logo-mark {
+
+                    width: 32px;
+
+                    height: 32px;
+
+                    flex-basis: 32px;
+
+                    border-radius: 8px;
+
+                    font-size: 11px;
+
+                }
+
+
+                .genz-logo-text {
+
+                    font-size: 17px;
+
+                }
+
+
+                .genz-user-box {
+
+                    margin:
+                        12px 10px 7px;
+
+                }
+
+
+                .genz-nav {
+
+                    padding:
+                        7px 8px 14px;
+
+                }
+
+            }
+
         `;
 
 
         document.head.appendChild(
             style
         );
+
     }
 
 
-    /* =========================================================
-       LOADING
-       ========================================================= */
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
 
-    function showLoading() {
-
-        let loading =
-            document.getElementById(
-                "genz-navigation-loading"
-            );
-
-
-        if (loading) {
-            return;
-        }
-
-
-        loading =
-            document.createElement("div");
-
-
-        loading.id =
-            "genz-navigation-loading";
-
-
-        loading.innerHTML = `
-            <div class="genz-navigation-loading-spinner"></div>
-        `;
-
-
-        loading.style.cssText = `
-            position: fixed;
-            inset: 0;
-            z-index: 999999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #0b0d12;
-        `;
-
-
-        const spinner =
-            loading.querySelector(
-                ".genz-navigation-loading-spinner"
-            );
-
-
-        if (spinner) {
-
-            spinner.style.cssText = `
-                width: 30px;
-                height: 30px;
-                border: 3px solid rgba(255,255,255,.15);
-                border-top-color: rgba(255,255,255,.85);
-                border-radius: 50%;
-                animation: genz-navigation-spin .8s linear infinite;
-            `;
-        }
-
-
-        if (
-            !document.getElementById(
-                "genz-navigation-loading-style"
-            )
-        ) {
-
-            const style =
-                document.createElement("style");
-
-
-            style.id =
-                "genz-navigation-loading-style";
-
-
-            style.textContent = `
-                @keyframes genz-navigation-spin {
-
-                    from {
-                        transform: rotate(0deg);
-                    }
-
-                    to {
-                        transform: rotate(360deg);
-                    }
-
-                }
-            `;
-
-
-            document.head.appendChild(
-                style
-            );
-        }
-
-
-        document.body.appendChild(
-            loading
-        );
-    }
-
-
-    function hideLoading() {
-
-        const loading =
-            document.getElementById(
-                "genz-navigation-loading"
-            );
-
-
-        if (!loading) {
-            return;
-        }
-
-
-        loading.remove();
-    }
-
-
-    /* =========================================================
-       INITIALIZATION
-       ========================================================= */
-
-    async function initNavigation() {
-
-        if (initializationStarted) {
-            return;
-        }
-
-
-        initializationStarted = true;
-
-
-        /*
-         * Jangan jalankan navigation auth guard
-         * pada login page.
-         */
-
-        if (isLoginPage()) {
-
-            resolveNavigationReady(
-                false
-            );
-
-            return;
-        }
-
+    async function initialize() {
 
         injectStyles();
 
-        showLoading();
 
+        /*
+         * Do not initialize auth on login page.
+         * Login page does not need the protected sidebar.
+         */
 
-        try {
+        if (
+            isLoginPage()
+        ) {
 
-            /*
-             * Pastikan shared Supabase client tersedia
-             * sebelum auth listener dan validation.
-             */
-
-            const supabase =
-                getSupabaseClient();
-
-
-            if (!supabase) {
-
-                console.error(
-                    "[GENZ Navigation] Shared Supabase client tidak tersedia."
-                );
-
-
-                hideLoading();
-
-
-                resolveNavigationReady(
-                    false
-                );
-
-
-                /*
-                 * Jangan redirect di sini.
-                 *
-                 * Redirect tanpa mengetahui apakah masalah
-                 * berasal dari session atau library hanya
-                 * akan menciptakan login loop.
-                 */
-
-                return;
-            }
-
-
-            /*
-             * Validasi auth.
-             */
-
-            const authenticated =
-                await validateAuthentication();
-
-
-            if (!authenticated) {
-
-                hideLoading();
-
-
-                resolveNavigationReady(
-                    false
-                );
-
-
-                return;
-            }
-
-
-            /*
-             * Render navigation.
-             */
-
-            renderNavigation();
-
-
-            /*
-             * Pastikan global state tersedia.
-             */
-
-            window.GENZ_NAVIGATION_USER =
-                currentUser;
-
-            window.GENZ_NAVIGATION_PROFILE =
-                currentProfile;
-
-            window.GENZ_NAVIGATION_ROLE =
-                currentRole;
-
-
-            window.GENZ_CURRENT_USER =
-                currentUser;
-
-            window.GENZ_CURRENT_PROFILE =
-                currentProfile;
-
-            window.GENZ_CURRENT_ROLE =
-                currentRole;
-
-            window.GENZ_NAVIGATION_READY =
+            navigationReady =
                 true;
 
-            hideLoading();
 
-            resolveNavigationReady(
-                true
-            );
+            if (
+                navigationReadyResolve
+            ) {
 
+                navigationReadyResolve(
+                    true
+                );
 
-            console.log(
-                "[GENZ Navigation] Ready:",
-                {
-                    user:
-                        currentUser?.email,
+                navigationReadyResolve =
+                    null;
 
-                    role:
-                        currentRole,
+            }
 
-                    credits:
-                        currentProfile?.credits
-                }
-            );
-
-        } catch (error) {
-
-            console.error(
-                "[GENZ Navigation] Initialization error:",
-                error
-            );
-
-
-            hideLoading();
-
-
-            resolveNavigationReady(
-                false
-            );
-
-
-            /*
-             * Jangan signOut atau redirect otomatis
-             * hanya karena initialization error.
-             *
-             * Session Auth tetap dipertahankan.
-             */
-        }
-    }
-
-
-    /* =========================================================
-       START
-       ========================================================= */
-
-    function start() {
-
-        /*
-         * Login page tidak membutuhkan navigation.
-         */
-
-        if (isLoginPage()) {
-
-            resolveNavigationReady(
-                false
-            );
 
             return;
+
         }
 
 
-        /*
-         * Bind listener sekali.
-         */
-
-        bindAuthStateListener();
+        const authenticated =
+            await validateAuthentication();
 
 
         if (
-            document.readyState ===
-            "loading"
+            !authenticated
         ) {
 
-            document.addEventListener(
-                "DOMContentLoaded",
-                () => {
-                    initNavigation();
-                },
-                {
-                    once: true
-                }
-            );
-
-
             return;
+
         }
 
 
-        initNavigation();
+        renderNavigation();
+
+
+        setupAuthListener();
+
     }
 
 
-    /* =========================================================
+    /* =====================================================
        PUBLIC API
-       ========================================================= */
+    ===================================================== */
 
     window.GENZNavigation = {
 
-        getUser: () =>
-            currentUser,
+        init:
+            initialize,
 
-
-        getProfile: () =>
-            currentProfile,
-
-
-        getRole: () =>
-            currentRole,
-
-
-        isAuthenticated: () =>
-            !!currentUser,
-
+        render:
+            renderNavigation,
 
         logout:
             logoutUser,
 
+        getUser:
+            () => currentUser,
 
-        refresh: async () => {
+        getProfile:
+            () => currentProfile,
 
-            /*
-             * Reset initialization flag agar refresh
-             * dapat menjalankan validation kembali.
-             */
+        getRole:
+            () => currentRole,
 
-            initializationStarted =
-                false;
-
-
-            /*
-             * Reset redirect guard.
-             */
-
-            redirectingToLogin =
-                false;
-
-
-            await initNavigation();
-        }
+        ready:
+            navigationReadyPromise
 
     };
 
 
-    /* =========================================================
-       START
-       ========================================================= */
+    window.GENZNavigationReady =
+        navigationReadyPromise;
 
-    start();
+
+    /* =====================================================
+       DOM READY
+    ===================================================== */
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            initialize,
+            {
+                once: true
+            }
+        );
+
+    } else {
+
+        initialize();
+
+    }
 
 })();
