@@ -3,6 +3,7 @@
 // PROVIDERS - ACTIONS MODULE
 // File: admin-control/providers/actions.js
 // ========================================
+//action?v=1
 
 (function () {
     "use strict";
