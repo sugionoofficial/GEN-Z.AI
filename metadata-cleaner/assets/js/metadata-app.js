@@ -1,4 +1,3 @@
-
 // deployment trigger 2026-10-01
 /* =========================================================
    GEN-Z.AI
@@ -36,8 +35,13 @@
    - CHECK logic berada di metadata-check.js
    - Provenance inspection berada di metadata-check.js
    - Readable error helper berada di metadata-check.js
-========================================================= */
 
+   LOADING:
+   - CHECK mempunyai loader sendiri
+   - CLEAN mempunyai loader sendiri
+   - Loader aktif selama Promise benar-benar berjalan
+   - Loader tidak bergantung pada delay buatan
+========================================================= */
 
 import {
     APP,
@@ -86,6 +90,7 @@ import {
     downloadCleanedFile
 } from "./metadata-download.js";
 
+
 import {
     openFilePicker,
     handleFileInput,
@@ -94,10 +99,13 @@ import {
     handleDrop
 } from "./metadata-file.js";
 
+
 import {
     resetForNewFile,
     resetApplication
 } from "./metadata-reset.js";
+
+
 /* =========================================================
    CONSTANTS
 ========================================================= */
@@ -165,6 +173,1059 @@ const CLEANING_STAGES = [
 
 
 /* =========================================================
+   LOADING STATE
+========================================================= */
+
+let metadataLoader = null;
+
+let metadataLoaderTimer = null;
+
+let metadataLoaderStartedAt = 0;
+
+let metadataLoaderMode = null;
+
+let metadataLoaderRunning = false;
+
+
+/* =========================================================
+   LOADER DOM
+========================================================= */
+
+function ensureMetadataLoader() {
+
+    if (
+        metadataLoader &&
+        document.body.contains(
+            metadataLoader
+        )
+    ) {
+
+        return metadataLoader;
+    }
+
+
+    const loader =
+        document.createElement(
+            "div"
+        );
+
+
+    loader.id =
+        "genzMetadataCleaningLoader";
+
+
+    loader.className =
+        "genz-metadata-cleaning-loader";
+
+
+    loader.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+
+    loader.innerHTML = `
+
+        <div
+            class="genz-clean-loader-panel"
+            role="status"
+            aria-live="polite"
+        >
+
+            <div
+                class="genz-clean-loader-orbit"
+            >
+
+                <div
+                    class="genz-clean-loader-core"
+                >
+
+                    <span>
+                        AI
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div
+                class="genz-clean-loader-brand"
+            >
+                GEN-Z.AI
+            </div>
+
+
+            <div
+                class="genz-clean-loader-title"
+                data-metadata-loader-title
+            >
+                PROCESSING
+            </div>
+
+
+            <div
+                class="genz-clean-loader-stage"
+                data-metadata-loader-stage
+            >
+                INITIALIZING
+            </div>
+
+
+            <div
+                class="genz-clean-loader-message"
+                data-metadata-loader-message
+            >
+                Menyiapkan proses...
+            </div>
+
+
+            <div
+                class="genz-clean-loader-progress"
+            >
+
+                <div
+                    class="genz-clean-loader-progress-bar"
+                    data-metadata-loader-progress
+                ></div>
+
+            </div>
+
+
+            <div
+                class="genz-clean-loader-footer"
+            >
+
+                <span>
+                    METADATA PROCESSING
+                </span>
+
+                <strong
+                    data-metadata-loader-percent
+                >
+                    0%
+                </strong>
+
+            </div>
+
+        </div>
+
+    `;
+
+
+    document.body.appendChild(
+        loader
+    );
+
+
+    metadataLoader =
+        loader;
+
+
+    return loader;
+}
+
+
+/* =========================================================
+   LOADER ELEMENTS
+========================================================= */
+
+function getMetadataLoaderElements() {
+
+    const loader =
+        ensureMetadataLoader();
+
+
+    return {
+
+        loader,
+
+        title:
+            loader.querySelector(
+                "[data-metadata-loader-title]"
+            ),
+
+        stage:
+            loader.querySelector(
+                "[data-metadata-loader-stage]"
+            ),
+
+        message:
+            loader.querySelector(
+                "[data-metadata-loader-message]"
+            ),
+
+        progress:
+            loader.querySelector(
+                "[data-metadata-loader-progress]"
+            ),
+
+        percent:
+            loader.querySelector(
+                "[data-metadata-loader-percent]"
+            )
+
+    };
+}
+
+
+/* =========================================================
+   LOADER PROGRESS
+========================================================= */
+
+function setMetadataLoaderProgress(
+    progress
+) {
+
+    const {
+
+        progress:
+            progressBar,
+
+        percent
+
+    } =
+        getMetadataLoaderElements();
+
+
+    const safeProgress =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(
+                    progress
+                ) || 0
+            )
+        );
+
+
+    if (
+        progressBar
+    ) {
+
+        progressBar.style.width =
+            `${safeProgress}%`;
+    }
+
+
+    if (
+        percent
+    ) {
+
+        percent.textContent =
+            `${Math.round(
+                safeProgress
+            )}%`;
+    }
+}
+
+
+/* =========================================================
+   LOADER CONTENT
+========================================================= */
+
+function setMetadataLoaderContent(
+    options = {}
+) {
+
+    const {
+
+        title =
+            "PROCESSING",
+
+        stage =
+            "INITIALIZING",
+
+        message =
+            "Menyiapkan proses...",
+
+        progress =
+            0
+
+    } =
+        options;
+
+
+    const {
+
+        title:
+            titleElement,
+
+        stage:
+            stageElement,
+
+        message:
+            messageElement
+
+    } =
+        getMetadataLoaderElements();
+
+
+    if (
+        titleElement
+    ) {
+
+        titleElement.textContent =
+            title;
+    }
+
+
+    if (
+        stageElement
+    ) {
+
+        stageElement.textContent =
+            stage;
+    }
+
+
+    if (
+        messageElement
+    ) {
+
+        messageElement.textContent =
+            message;
+    }
+
+
+    setMetadataLoaderProgress(
+        progress
+    );
+}
+
+
+/* =========================================================
+   LOADER STAGE
+========================================================= */
+
+function getCleaningStage(
+    elapsed
+) {
+
+    const ratio =
+        CLEANING_DURATION > 0
+            ? elapsed /
+              CLEANING_DURATION
+            : 0;
+
+
+    const clampedRatio =
+        Math.max(
+            0,
+            Math.min(
+                0.94,
+                ratio * 0.94
+            )
+        );
+
+
+    const simulatedProgress =
+        Math.round(
+            clampedRatio * 100
+        );
+
+
+    let currentStage =
+        CLEANING_STAGES[0];
+
+
+    for (
+        const stage
+        of CLEANING_STAGES
+    ) {
+
+        if (
+            simulatedProgress >=
+            stage.progress
+        ) {
+
+            currentStage =
+                stage;
+        }
+    }
+
+
+    return {
+
+        ...currentStage,
+
+        progress:
+            Math.min(
+                94,
+                Math.max(
+                    8,
+                    simulatedProgress
+                )
+            )
+
+    };
+}
+
+
+/* =========================================================
+   START LOADER
+========================================================= */
+
+function startMetadataLoader(
+    mode = "clean"
+) {
+
+    const loader =
+        ensureMetadataLoader();
+
+
+    metadataLoaderMode =
+        mode;
+
+
+    metadataLoaderRunning =
+        true;
+
+
+    metadataLoaderStartedAt =
+        Date.now();
+
+
+    if (
+        metadataLoaderTimer
+    ) {
+
+        clearInterval(
+            metadataLoaderTimer
+        );
+
+        metadataLoaderTimer =
+            null;
+    }
+
+
+    loader.classList.add(
+        "is-visible"
+    );
+
+
+    loader.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+
+    if (
+        mode === "check"
+    ) {
+
+        setMetadataLoaderContent({
+
+            title:
+                "CHECKING METADATA",
+
+            stage:
+                "ANALYZING",
+
+            message:
+                "Membaca metadata dan provenance file...",
+
+            progress:
+                8
+
+        });
+
+    } else {
+
+        setMetadataLoaderContent({
+
+            title:
+                "CLEANING METADATA",
+
+            stage:
+                "INITIALIZING",
+
+            message:
+                "Menyiapkan proses pembersihan...",
+
+            progress:
+                8
+
+        });
+    }
+
+
+    metadataLoaderTimer =
+        setInterval(
+            function metadataLoaderTick() {
+
+                if (
+                    !metadataLoaderRunning
+                ) {
+
+                    return;
+                }
+
+
+                const elapsed =
+                    Date.now() -
+                    metadataLoaderStartedAt;
+
+
+                if (
+                    metadataLoaderMode ===
+                    "check"
+                ) {
+
+                    const checkProgress =
+                        Math.min(
+                            92,
+                            8 +
+                            Math.round(
+                                (
+                                    elapsed /
+                                    5000
+                                ) *
+                                84
+                            )
+                        );
+
+
+                    setMetadataLoaderProgress(
+                        checkProgress
+                    );
+
+
+                    const {
+
+                        stage,
+
+                        message
+
+                    } =
+                        getCheckStage(
+                            elapsed
+                        );
+
+
+                    const {
+
+                        stage:
+                            stageElement,
+
+                        message:
+                            messageElement
+
+                    } =
+                        getMetadataLoaderElements();
+
+
+                    if (
+                        stageElement
+                    ) {
+
+                        stageElement.textContent =
+                            stage;
+                    }
+
+
+                    if (
+                        messageElement
+                    ) {
+
+                        messageElement.textContent =
+                            message;
+                    }
+
+
+                    return;
+                }
+
+
+                const stage =
+                    getCleaningStage(
+                        elapsed
+                    );
+
+
+                setMetadataLoaderContent({
+
+                    title:
+                        "CLEANING METADATA",
+
+                    stage:
+                        stage.title,
+
+                    message:
+                        stage.message,
+
+                    progress:
+                        stage.progress
+
+                });
+
+            },
+            CLEANING_TICK
+        );
+}
+
+
+/* =========================================================
+   CHECK LOADER STAGE
+========================================================= */
+
+function getCheckStage(
+    elapsed
+) {
+
+    if (
+        elapsed < 700
+    ) {
+
+        return {
+
+            stage:
+                "INITIALIZING",
+
+            message:
+                "Menyiapkan pemeriksaan file..."
+
+        };
+    }
+
+
+    if (
+        elapsed < 1800
+    ) {
+
+        return {
+
+            stage:
+                "READING",
+
+            message:
+                "Membaca struktur dan metadata media..."
+
+        };
+    }
+
+
+    if (
+        elapsed < 3000
+    ) {
+
+        return {
+
+            stage:
+                "ANALYZING",
+
+            message:
+                "Menganalisis indikator metadata..."
+
+        };
+    }
+
+
+    if (
+        elapsed < 4200
+    ) {
+
+        return {
+
+            stage:
+                "PROVENANCE",
+
+            message:
+                "Memeriksa C2PA / Content Credentials..."
+
+        };
+    }
+
+
+    return {
+
+        stage:
+            "VERIFYING",
+
+        message:
+            "Menyelesaikan pemeriksaan metadata..."
+
+    };
+}
+
+
+/* =========================================================
+   STOP LOADER
+========================================================= */
+
+function stopMetadataLoader(
+    success = true,
+    options = {}
+) {
+
+    const {
+
+        title,
+        message
+    } =
+        options;
+
+
+    metadataLoaderRunning =
+        false;
+
+
+    if (
+        metadataLoaderTimer
+    ) {
+
+        clearInterval(
+            metadataLoaderTimer
+        );
+
+        metadataLoaderTimer =
+            null;
+    }
+
+
+    const {
+
+        loader
+
+    } =
+        getMetadataLoaderElements();
+
+
+    if (
+        success
+    ) {
+
+        setMetadataLoaderContent({
+
+            title:
+                title ||
+                (
+                    metadataLoaderMode ===
+                    "check"
+                        ? "CHECK COMPLETE"
+                        : "CLEANING COMPLETE"
+                ),
+
+            stage:
+                "READY",
+
+            message:
+                message ||
+                (
+                    metadataLoaderMode ===
+                    "check"
+                        ? "Pemeriksaan metadata selesai."
+                        : "File cleaned siap digunakan."
+                ),
+
+            progress:
+                100
+
+        });
+
+    } else {
+
+        setMetadataLoaderContent({
+
+            title:
+                title ||
+                "PROCESS FAILED",
+
+            stage:
+                "ERROR",
+
+            message:
+                message ||
+                "Proses tidak dapat diselesaikan.",
+
+            progress:
+                100
+
+        });
+    }
+
+
+    /*
+       Beri waktu sangat singkat agar
+       status READY / ERROR sempat terlihat,
+       lalu tutup loader.
+    */
+
+    window.setTimeout(
+        function hideMetadataLoader() {
+
+            if (
+                loader
+            ) {
+
+                loader.classList.remove(
+                    "is-visible"
+                );
+
+                loader.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+            }
+
+
+            metadataLoaderMode =
+                null;
+
+        },
+        success
+            ? 420
+            : 700
+    );
+}
+
+
+/* =========================================================
+   READABLE ERROR
+========================================================= */
+
+function getMetadataProcessError(
+    error
+) {
+
+    try {
+
+        if (
+            typeof getReadableError ===
+            "function"
+        ) {
+
+            const readable =
+                getReadableError(
+                    error
+                );
+
+
+            if (
+                readable
+            ) {
+
+                return String(
+                    readable
+                );
+            }
+        }
+
+    } catch (
+        readableError
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][METADATA] Failed to format error:",
+            readableError
+        );
+    }
+
+
+    if (
+        error instanceof Error &&
+        error.message
+    ) {
+
+        return error.message;
+    }
+
+
+    if (
+        typeof error ===
+        "string"
+    ) {
+
+        return error;
+    }
+
+
+    try {
+
+        return JSON.stringify(
+            error
+        );
+
+    } catch (
+        jsonError
+    ) {
+
+        return "Terjadi kesalahan saat memproses metadata.";
+    }
+}
+
+
+/* =========================================================
+   CHECK WRAPPER
+   ---------------------------------------------------------
+   Wrapper ini sengaja berada di APP agar:
+   - metadata-check.js tetap fokus pada logic CHECK
+   - loader hanya mengatur UI
+   - fungsi CHECK asli tidak perlu diubah
+========================================================= */
+
+async function handleMetadataCheck(
+    ...args
+) {
+
+    if (
+        metadataLoaderRunning
+    ) {
+
+        return;
+    }
+
+
+    startMetadataLoader(
+        "check"
+    );
+
+
+    try {
+
+        const result =
+            await checkMetadata(
+                ...args
+            );
+
+
+        stopMetadataLoader(
+            true,
+            {
+
+                title:
+                    "CHECK COMPLETE",
+
+                message:
+                    "Metadata dan provenance berhasil diperiksa."
+
+            }
+        );
+
+
+        return result;
+
+    } catch (
+        error
+    ) {
+
+        const message =
+            getMetadataProcessError(
+                error
+            );
+
+
+        console.error(
+            "[GEN-Z.AI][METADATA] CHECK ERROR:",
+            error
+        );
+
+
+        stopMetadataLoader(
+            false,
+            {
+
+                title:
+                    "CHECK FAILED",
+
+                message:
+                    message
+
+            }
+        );
+
+
+        throw error;
+    }
+}
+
+
+/* =========================================================
+   CLEAN WRAPPER
+   ---------------------------------------------------------
+   Wrapper ini TIDAK mengubah cleaning logic.
+   Ia hanya mengontrol loader selama cleanMetadata()
+   benar-benar berjalan.
+========================================================= */
+
+async function handleMetadataClean(
+    ...args
+) {
+
+    if (
+        metadataLoaderRunning
+    ) {
+
+        return;
+    }
+
+
+    startMetadataLoader(
+        "clean"
+    );
+
+
+    try {
+
+        const result =
+            await cleanMetadata(
+                ...args
+            );
+
+
+        stopMetadataLoader(
+            true,
+            {
+
+                title:
+                    "CLEANING COMPLETE",
+
+                message:
+                    "Metadata berhasil dibersihkan dan file hasil telah diverifikasi."
+
+            }
+        );
+
+
+        return result;
+
+    } catch (
+        error
+    ) {
+
+        const message =
+            getMetadataProcessError(
+                error
+            );
+
+
+        console.error(
+            "[GEN-Z.AI][METADATA] CLEAN ERROR:",
+            error
+        );
+
+
+        stopMetadataLoader(
+            false,
+            {
+
+                title:
+                    "CLEANING FAILED",
+
+                message:
+                    message
+
+            }
+        );
+
+
+        throw error;
+    }
+}
+
+
+/* =========================================================
    INIT
 ========================================================= */
 
@@ -173,15 +1234,35 @@ function init() {
     cacheElements();
 
 
+    /*
+       Pastikan loader sudah tersedia sebelum
+       event binding dilakukan.
+    */
+
+    ensureMetadataLoader();
+
+
     bindMetadataEvents({
 
         handleFileInput,
 
         openFilePicker,
 
-        checkMetadata,
+        /*
+           Gunakan wrapper, bukan fungsi asli,
+           supaya CHECK mempunyai loading state.
+        */
 
-        cleanMetadata,
+        checkMetadata:
+            handleMetadataCheck,
+
+        /*
+           Gunakan wrapper, bukan fungsi asli,
+           supaya CLEAN mempunyai loading state.
+        */
+
+        cleanMetadata:
+            handleMetadataClean,
 
         downloadCleanedFile,
 
@@ -204,6 +1285,7 @@ function init() {
         "[GEN-Z.AI] AI Metadata Cleaner initialized."
     );
 }
+
 
 /* =========================================================
    PREMIUM LOADER CSS
@@ -719,6 +1801,7 @@ function injectPremiumCleaningStyles() {
     );
 }
 
+
 /* =========================================================
    PUBLIC APP
 ========================================================= */
@@ -764,12 +1847,55 @@ window.GENZMetadataCleaner =
 
                 cleanedFile:
                     state.cleanedFile ||
-                    null
+                    null,
+
+                loading:
+                    metadataLoaderRunning,
+
+                loadingMode:
+                    metadataLoaderMode
+
             };
         },
 
 
         reset() {
+
+            if (
+                metadataLoaderTimer
+            ) {
+
+                clearInterval(
+                    metadataLoaderTimer
+                );
+
+                metadataLoaderTimer =
+                    null;
+            }
+
+
+            metadataLoaderRunning =
+                false;
+
+
+            metadataLoaderMode =
+                null;
+
+
+            if (
+                metadataLoader
+            ) {
+
+                metadataLoader.classList.remove(
+                    "is-visible"
+                );
+
+                metadataLoader.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+            }
+
 
             resetApplication();
         }
@@ -799,6 +1925,7 @@ if (
     init();
 }
 
+
 /* =========================================================
    GEN-Z.AI
    METADATA CLEANER DEPLOY DIAGNOSTIC
@@ -818,10 +1945,12 @@ if (
         "font-weight:bold;font-size:14px;"
     );
 
+
     console.log(
         "[GEN-Z.AI][METADATA] URL:",
         window.location.href
     );
+
 
     console.log(
         "[GEN-Z.AI][METADATA] metadata-app.js loaded:",
@@ -838,10 +1967,12 @@ if (
             "metadata-clean-button"
         );
 
+
     const checkButton =
         document.getElementById(
             "metadata-check-button"
         );
+
 
     const fileInput =
         document.getElementById(
@@ -852,9 +1983,14 @@ if (
     console.log(
         "[GEN-Z.AI][METADATA] DOM CHECK:",
         {
-            cleanButton: !!cleanButton,
-            checkButton: !!checkButton,
-            fileInput: !!fileInput
+            cleanButton:
+                !!cleanButton,
+
+            checkButton:
+                !!checkButton,
+
+            fileInput:
+                !!fileInput
         }
     );
 
@@ -876,10 +2012,23 @@ if (
                     "font-weight:bold;"
                 );
 
+
+                console.log(
+                    "[GEN-Z.AI][METADATA] loader:",
+                    {
+                        running:
+                            metadataLoaderRunning,
+
+                        mode:
+                            metadataLoaderMode
+                    }
+                );
+
+
                 console.log(
                     "[GEN-Z.AI][METADATA] state:",
                     window.GENZMetadataCleaner
-                        ?.state
+                        ?.getState?.()
                 );
 
             },
@@ -891,7 +2040,6 @@ if (
         console.error(
             "[GEN-Z.AI][METADATA] CLEAN BUTTON TIDAK DITEMUKAN!"
         );
-
     }
 
 
@@ -911,10 +2059,21 @@ if (
                     "[GEN-Z.AI][METADATA] CHECK BUTTON CLICK TERDETEKSI"
                 );
 
+
+                console.log(
+                    "[GEN-Z.AI][METADATA] loader:",
+                    {
+                        running:
+                            metadataLoaderRunning,
+
+                        mode:
+                            metadataLoaderMode
+                    }
+                );
+
             },
             true
         );
-
     }
 
 
@@ -957,10 +2116,8 @@ if (
                     }
                 );
 
-            },
-            true
+            }
         );
-
     }
 
 
