@@ -1360,18 +1360,3 @@ export async function renderCleanedPreview(
     return true;
 
 }
-
-
-/* =========================================================
-   PUBLIC API
-========================================================= */
-
-export {
-    renderOriginalPreview,
-    renderCleanedPreview,
-    clearOriginalPreview,
-    clearCleanedPreview,
-    setPreviewStatus,
-    showElement,
-    hideElement
-};
