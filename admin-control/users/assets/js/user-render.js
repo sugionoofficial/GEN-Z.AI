@@ -6,18 +6,10 @@
    admin-control/users/assets/js/user-render.js
 
    Fungsi:
-   - Render tabel users
-   - Render empty state
-   - Render action buttons
-   - Update statistics
-
-   Tidak menangani:
-   - Authentication
-   - API request
-   - Create user
-   - Delete user
-   - Modal
-   - Event listener
+   - Render statistik
+   - Render daftar users
+   - Menentukan permission action
+   - Render tombol Confirm / Resend / Delete
 ========================================================= */
 
 import {
@@ -38,32 +30,39 @@ import {
 
 export function updateStats() {
 
-    const totalUsers =
-        userState.allUsers.length;
+    const users =
+        Array.isArray(
+            userState.allUsers
+        )
+            ? userState.allUsers
+            : [];
 
 
-    const activeUsers =
-        userState.allUsers.filter(
-            user =>
+    const total =
+        users.length;
+
+
+    const active =
+        users.filter(
+            (user) =>
                 String(
                     user?.status || ""
                 )
-                    .trim()
-                    .toLowerCase() ===
-                "active"
+                .trim()
+                .toLowerCase() === "active"
         ).length;
 
 
-    const adminUsers =
-        userState.allUsers.filter(
-            user => {
+    const admins =
+        users.filter(
+            (user) => {
 
                 const role =
                     String(
                         user?.role || ""
                     )
-                        .trim()
-                        .toUpperCase();
+                    .trim()
+                    .toUpperCase();
 
 
                 return (
@@ -80,10 +79,12 @@ export function updateStats() {
             "totalUsers"
         );
 
+
     const activeElement =
         document.getElementById(
             "activeUsers"
         );
+
 
     const adminElement =
         document.getElementById(
@@ -94,9 +95,7 @@ export function updateStats() {
     if (totalElement) {
 
         totalElement.textContent =
-            formatNumber(
-                totalUsers
-            );
+            formatNumber(total);
 
     }
 
@@ -104,9 +103,7 @@ export function updateStats() {
     if (activeElement) {
 
         activeElement.textContent =
-            formatNumber(
-                activeUsers
-            );
+            formatNumber(active);
 
     }
 
@@ -114,9 +111,7 @@ export function updateStats() {
     if (adminElement) {
 
         adminElement.textContent =
-            formatNumber(
-                adminUsers
-            );
+            formatNumber(admins);
 
     }
 
@@ -144,18 +139,33 @@ export function renderUsers(
     }
 
 
-    /* -----------------------------------------------------
-       EMPTY STATE
-    ----------------------------------------------------- */
+    const list =
+        Array.isArray(users)
+            ? users
+            : [];
 
-    if (
-        !Array.isArray(users) ||
-        users.length === 0
-    ) {
+
+    /* =====================================================
+       EMPTY STATE
+    ====================================================== */
+
+    if (list.length === 0) {
 
         container.innerHTML = `
-            <div class="empty">
-                Tidak ada pengguna ditemukan.
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    ◌
+                </div>
+
+                <div class="empty-title">
+                    Tidak Ada User
+                </div>
+
+                <div class="empty-text">
+                    Tidak ditemukan user yang sesuai.
+                </div>
+
             </div>
         `;
 
@@ -164,35 +174,32 @@ export function renderUsers(
     }
 
 
-    /* -----------------------------------------------------
-       CURRENT PROFILE
-    ----------------------------------------------------- */
-
-    const currentProfile =
-        userState.currentProfile;
-
+    /* =====================================================
+       CURRENT USER
+    ====================================================== */
 
     const currentUserId =
         userState.currentUser?.id ||
-        currentProfile?.id ||
+        userState.currentProfile?.id ||
         "";
 
 
     const currentRole =
         String(
-            currentProfile?.role || ""
+            userState.currentProfile?.role ||
+            ""
         )
-            .trim()
-            .toUpperCase();
+        .trim()
+        .toUpperCase();
 
 
-    /* -----------------------------------------------------
-       BUILD TABLE
-    ----------------------------------------------------- */
+    /* =====================================================
+       TABLE ROWS
+    ====================================================== */
 
     const rows =
-        users.map(
-            user => {
+        list.map(
+            (user) => {
 
                 const userId =
                     String(
@@ -201,27 +208,31 @@ export function renderUsers(
 
 
                 const email =
-                    user?.email || "";
+                    String(
+                        user?.email || ""
+                    );
 
 
                 const name =
-                    user?.name || "-";
+                    String(
+                        user?.name || ""
+                    );
 
 
                 const role =
                     String(
                         user?.role || "USER"
                     )
-                        .trim()
-                        .toUpperCase();
+                    .trim()
+                    .toUpperCase();
 
 
                 const status =
                     String(
                         user?.status || "active"
                     )
-                        .trim()
-                        .toLowerCase();
+                    .trim()
+                    .toLowerCase();
 
 
                 const credits =
@@ -236,14 +247,15 @@ export function renderUsers(
                     );
 
 
-                /* -----------------------------------------
-                   PERMISSION FLAGS
-                ----------------------------------------- */
+                /* =========================================
+                   PERMISSION
+                ========================================== */
 
                 const isSelf =
                     Boolean(
                         currentUserId &&
-                        userId === currentUserId
+                        userId &&
+                        currentUserId === userId
                     );
 
 
@@ -251,9 +263,16 @@ export function renderUsers(
                     role === "OWNER";
 
 
+                /*
+                   OWNER:
+                   dapat mengelola USER dan ADMIN.
+
+                   ADMIN:
+                   hanya dapat mengelola USER.
+                */
+
                 const adminCanManage =
                     currentRole === "OWNER" ||
-
                     (
                         currentRole === "ADMIN" &&
                         role === "USER"
@@ -273,49 +292,25 @@ export function renderUsers(
                     !emailConfirmed;
 
 
-                /* -----------------------------------------
+                /* =========================================
                    ROLE BADGE
-                ----------------------------------------- */
+                ========================================== */
 
                 const roleClass =
-                    getRoleClass(
-                        role
-                    );
+                    getRoleClass(role);
 
 
-                /* -----------------------------------------
+                /* =========================================
                    STATUS BADGE
-                ----------------------------------------- */
+                ========================================== */
 
                 const statusClass =
-                    getStatusClass(
-                        status
-                    );
+                    getStatusClass(status);
 
 
-                /* -----------------------------------------
-                   EMAIL STATUS
-                ----------------------------------------- */
-
-                const verificationHtml =
-                    emailConfirmed
-
-                        ? `
-                            <span class="verified">
-                                VERIFIED
-                            </span>
-                        `
-
-                        : `
-                            <span class="unverified">
-                                UNVERIFIED
-                            </span>
-                        `;
-
-
-                /* -----------------------------------------
+                /* =========================================
                    ACTIONS
-                ----------------------------------------- */
+                ========================================== */
 
                 const actions = [];
 
@@ -351,9 +346,7 @@ export function renderUsers(
                 }
 
 
-                if (
-                    canDelete
-                ) {
+                if (canDelete) {
 
                     actions.push(`
                         <button
@@ -371,12 +364,10 @@ export function renderUsers(
                 }
 
 
-                if (
-                    actions.length === 0
-                ) {
+                if (actions.length === 0) {
 
                     actions.push(`
-                        <span class="no-action">
+                        <span class="action-disabled">
                             —
                         </span>
                     `);
@@ -384,67 +375,100 @@ export function renderUsers(
                 }
 
 
-                /* -----------------------------------------
-                   TABLE ROW
-                ----------------------------------------- */
+                /* =========================================
+                   RETURN ROW
+                ========================================== */
 
                 return `
                     <tr>
 
                         <td>
-                            <div class="email-cell">
+
+                            <div class="user-email">
                                 ${escapeHtml(email)}
                             </div>
+
                         </td>
 
+
                         <td>
-                            <div class="name-cell">
-                                ${escapeHtml(name)}
+
+                            <div class="user-name">
+                                ${escapeHtml(name || "—")}
                             </div>
+
                         </td>
 
+
                         <td>
+
                             <span
-                                class="badge role-${escapeHtml(roleClass)}"
+                                class="role-badge ${escapeHtml(roleClass)}"
                             >
                                 ${escapeHtml(role)}
                             </span>
+
                         </td>
 
+
                         <td>
+
                             <span class="credit-value">
                                 ${formatNumber(credits)}
                             </span>
+
                         </td>
 
+
                         <td>
+
                             <span
-                                class="badge status-${escapeHtml(statusClass)}"
+                                class="status-badge ${escapeHtml(statusClass)}"
                             >
-                                ${escapeHtml(status.toUpperCase())}
+                                ${escapeHtml(status)}
                             </span>
+
                         </td>
 
-                        <td>
-                            ${verificationHtml}
-                        </td>
 
                         <td>
+
+                            ${
+                                emailConfirmed
+                                    ? `
+                                        <span class="email-badge verified">
+                                            VERIFIED
+                                        </span>
+                                      `
+                                    : `
+                                        <span class="email-badge unverified">
+                                            UNVERIFIED
+                                        </span>
+                                      `
+                            }
+
+                        </td>
+
+
+                        <td>
+
                             <div class="actions">
                                 ${actions.join("")}
                             </div>
+
                         </td>
 
                     </tr>
                 `;
 
             }
-        ).join("");
+        )
+        .join("");
 
 
-    /* -----------------------------------------------------
-       FINAL TABLE
-    ----------------------------------------------------- */
+    /* =====================================================
+       TABLE
+    ====================================================== */
 
     container.innerHTML = `
 
@@ -488,8 +512,11 @@ export function renderUsers(
 
                 </thead>
 
+
                 <tbody>
+
                     ${rows}
+
                 </tbody>
 
             </table>
