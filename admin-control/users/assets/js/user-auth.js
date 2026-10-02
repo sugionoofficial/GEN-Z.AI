@@ -6,17 +6,17 @@
    admin-control/users/assets/js/user-auth.js
 
    Fungsi:
-   - Cek session Supabase
-   - Ambil profile admin
-   - Validasi role ADMIN / OWNER
-   - Validasi status active
-   - Simpan current user/profile ke userState
-   - Update userInfo
+   - Memastikan Supabase tersedia
+   - Memeriksa session login
+   - Membaca profile admin
+   - Memvalidasi role ADMIN / OWNER
+   - Memvalidasi status active
+   - Menampilkan identitas admin
 
-   Catatan:
-   - Tidak mengatur sidebar/navigation
-   - Tidak melakukan logout
-   - Tidak mengubah API server
+   CATATAN:
+   - Navigation tetap ditangani oleh:
+     /navigation/navigation.js
+   - File ini tidak membuat sidebar/menu/logout.
 ========================================================= */
 
 import {
@@ -43,9 +43,12 @@ function getSupabaseClient() {
    REDIRECT
 ========================================================= */
 
-function redirectTo(path) {
+function redirectTo(
+    path
+) {
 
-    window.location.href = path;
+    window.location.href =
+        path;
 
 }
 
@@ -60,9 +63,9 @@ export async function checkAuth() {
         getSupabaseClient();
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        SUPABASE CHECK
-    ====================================================== */
+    ----------------------------------------------------- */
 
     if (!supabase) {
 
@@ -81,9 +84,9 @@ export async function checkAuth() {
 
     try {
 
-        /* =================================================
-           SESSION
-        ================================================== */
+        /* -------------------------------------------------
+           GET SESSION
+        ------------------------------------------------- */
 
         const {
             data,
@@ -103,7 +106,13 @@ export async function checkAuth() {
             data?.session || null;
 
 
-        if (!session?.user) {
+        /* -------------------------------------------------
+           SESSION CHECK
+        ------------------------------------------------- */
+
+        if (
+            !session?.user
+        ) {
 
             redirectTo(
                 "../index.html"
@@ -118,9 +127,9 @@ export async function checkAuth() {
             session.user;
 
 
-        /* =================================================
-           PROFILE
-        ================================================== */
+        /* -------------------------------------------------
+           LOAD PROFILE
+        ------------------------------------------------- */
 
         const {
             data: profile,
@@ -145,6 +154,10 @@ export async function checkAuth() {
         }
 
 
+        /* -------------------------------------------------
+           PROFILE CHECK
+        ------------------------------------------------- */
+
         if (!profile) {
 
             console.error(
@@ -160,33 +173,31 @@ export async function checkAuth() {
         }
 
 
-        /* =================================================
-           NORMALIZE ROLE
-        ================================================== */
+        /* -------------------------------------------------
+           NORMALIZE ROLE + STATUS
+        ------------------------------------------------- */
 
         const role =
             String(
-                profile.role || "USER"
+                profile.role ||
+                "USER"
             )
-            .trim()
-            .toUpperCase();
+                .trim()
+                .toUpperCase();
 
-
-        /* =================================================
-           NORMALIZE STATUS
-        ================================================== */
 
         const status =
             String(
-                profile.status || "active"
+                profile.status ||
+                "active"
             )
-            .trim()
-            .toLowerCase();
+                .trim()
+                .toLowerCase();
 
 
-        /* =================================================
-           ROLE VALIDATION
-        ================================================== */
+        /* -------------------------------------------------
+           ROLE CHECK
+        ------------------------------------------------- */
 
         if (
             role !== "ADMIN" &&
@@ -202,9 +213,9 @@ export async function checkAuth() {
         }
 
 
-        /* =================================================
-           STATUS VALIDATION
-        ================================================== */
+        /* -------------------------------------------------
+           STATUS CHECK
+        ------------------------------------------------- */
 
         if (
             status !== "active"
@@ -219,9 +230,9 @@ export async function checkAuth() {
         }
 
 
-        /* =================================================
+        /* -------------------------------------------------
            SAVE PROFILE STATE
-        ================================================== */
+        ------------------------------------------------- */
 
         userState.currentProfile = {
 
@@ -234,9 +245,9 @@ export async function checkAuth() {
         };
 
 
-        /* =================================================
-           USER INFO
-        ================================================== */
+        /* -------------------------------------------------
+           ADMIN IDENTITY
+        ------------------------------------------------- */
 
         const userInfo =
             document.getElementById(
@@ -247,16 +258,20 @@ export async function checkAuth() {
         if (userInfo) {
 
             userInfo.textContent =
-                `${profile.email || session.user.email || ""} • ${role}`;
+                `${
+                    profile.email ||
+                    session.user.email ||
+                    ""
+                } • ${role}`;
 
         }
 
 
-        /* =================================================
+        /* -------------------------------------------------
            ADMIN ROLE OPTION
            -------------------------------------------------
-           ADMIN tidak boleh membuat ADMIN / OWNER.
-        ================================================== */
+           ADMIN tidak boleh membuat ADMIN.
+        ----------------------------------------------------- */
 
         const adminRoleOption =
             document.getElementById(
@@ -273,10 +288,6 @@ export async function checkAuth() {
 
         }
 
-
-        /* =================================================
-           AUTH SUCCESS
-        ================================================== */
 
         return true;
 
@@ -300,7 +311,7 @@ export async function checkAuth() {
 
 
 /* =========================================================
-   GET CURRENT PROFILE
+   CURRENT PROFILE
 ========================================================= */
 
 export function getCurrentProfile() {
@@ -314,7 +325,7 @@ export function getCurrentProfile() {
 
 
 /* =========================================================
-   GET CURRENT ROLE
+   CURRENT ROLE
 ========================================================= */
 
 export function getCurrentRole() {
@@ -323,41 +334,35 @@ export function getCurrentRole() {
         userState.currentProfile?.role ||
         ""
     )
-    .trim()
-    .toUpperCase();
+        .trim()
+        .toUpperCase();
 
 }
 
 
 /* =========================================================
-   ADMIN CHECK
+   ROLE HELPERS
 ========================================================= */
 
 export function isAdmin() {
 
     return (
-        getCurrentRole() === "ADMIN"
+        getCurrentRole() ===
+        "ADMIN"
     );
 
 }
 
-
-/* =========================================================
-   OWNER CHECK
-========================================================= */
 
 export function isOwner() {
 
     return (
-        getCurrentRole() === "OWNER"
+        getCurrentRole() ===
+        "OWNER"
     );
 
 }
 
-
-/* =========================================================
-   MANAGEMENT CHECK
-========================================================= */
 
 export function canManageUsers() {
 
