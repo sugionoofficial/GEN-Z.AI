@@ -1,20 +1,25 @@
 /* =========================================================
    GEN-Z.AI
-   FFMPEG WASM ENGINE - DIAGNOSTIC BUILD
+   METADATA CLEANER
    ---------------------------------------------------------
    File:
    metadata-cleaner/assets/js/metadata-ffmpeg.js
 
-   Tujuan versi ini:
-   - Memastikan @ffmpeg/ffmpeg dapat dimuat
-   - Memastikan class worker dapat dibuat
-   - Memastikan core JS dapat diakses
-   - Memastikan core WASM dapat diakses
-   - Menampilkan error asli dari FFmpeg
-   - Tidak menutupi error internal ffmpeg-core.js
-========================================================= */
+   FFmpeg WASM loader
+   ---------------------------------------------------------
+   Compatible:
+   - @ffmpeg/ffmpeg 0.12.15
+   - @ffmpeg/core   0.12.10
 
-import { state } from "./metadata-state.js";
+   Tanggung jawab:
+   - Load FFmpeg WASM
+   - Menangani CORS/CDN
+   - Menangani module worker
+   - Menyediakan singleton FFmpeg instance
+   - Menyediakan helper video filename / mime
+   - Tidak menangani UI
+   - Tidak menangani metadata scanning
+========================================================= */
 
 
 /* =========================================================
@@ -27,42 +32,55 @@ const FFMPEG_VERSION =
 const FFMPEG_CORE_VERSION =
     "0.12.10";
 
-
-/* =========================================================
-   URL
-========================================================= */
-
 const FFMPEG_MODULE_URL =
     `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm/index.js`;
-
 
 const FFMPEG_WORKER_URL =
     `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm/worker.js`;
 
-
 const FFMPEG_CONST_URL =
     `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm/const.js`;
-
 
 const FFMPEG_ERRORS_URL =
     `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm/errors.js`;
 
 
-const FFMPEG_CORE_BASE_URL =
-    `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/umd`;
+/*
+   PENTING
 
+   Gunakan ESM core.
+
+   Official package:
+   @ffmpeg/core@0.12.10
+   exports:
+      dist/esm/ffmpeg-core.js
+      dist/esm/ffmpeg-core.wasm
+*/
+
+const FFMPEG_CORE_BASE_URL =
+    `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/esm`;
 
 const FFMPEG_CORE_JS_URL =
     `${FFMPEG_CORE_BASE_URL}/ffmpeg-core.js`;
-
 
 const FFMPEG_CORE_WASM_URL =
     `${FFMPEG_CORE_BASE_URL}/ffmpeg-core.wasm`;
 
 
 /* =========================================================
+   TIMEOUT
+========================================================= */
+
+const FFMPEG_LOAD_TIMEOUT =
+    30000;
+
+
+/* =========================================================
    INTERNAL STATE
 ========================================================= */
+
+let ffmpegInstance =
+    null;
 
 let ffmpegLoadPromise =
     null;
@@ -70,9 +88,476 @@ let ffmpegLoadPromise =
 let ffmpegModulePromise =
     null;
 
+let ffmpegClassWorkerBlobURL =
+    null;
+
+let ffmpegCoreBlobURL =
+    null;
+
+let ffmpegWasmBlobURL =
+    null;
+
 
 /* =========================================================
-   LOAD FFMPEG MODULE
+   DIAGNOSTIC STATE
+========================================================= */
+
+const ffmpegDiagnostic =
+    {
+        moduleURL:
+            FFMPEG_MODULE_URL,
+
+        workerURL:
+            FFMPEG_WORKER_URL,
+
+        constURL:
+            FFMPEG_CONST_URL,
+
+        errorsURL:
+            FFMPEG_ERRORS_URL,
+
+        coreURL:
+            FFMPEG_CORE_JS_URL,
+
+        wasmURL:
+            FFMPEG_CORE_WASM_URL,
+
+        moduleLoaded:
+            false,
+
+        workerCreated:
+            false,
+
+        coreFetched:
+            false,
+
+        wasmFetched:
+            false,
+
+        coreBlobCreated:
+            false,
+
+        wasmBlobCreated:
+            false,
+
+        workerBlobCreated:
+            false,
+
+        loaded:
+            false,
+
+        lastError:
+            null
+    };
+
+
+/* =========================================================
+   LOGGER
+========================================================= */
+
+function log(
+    ...args
+) {
+
+    console.log(
+        "[GEN-Z.AI][FFmpeg]",
+        ...args
+    );
+
+}
+
+
+/* =========================================================
+   WARN
+========================================================= */
+
+function warn(
+    ...args
+) {
+
+    console.warn(
+        "[GEN-Z.AI][FFmpeg]",
+        ...args
+    );
+
+}
+
+
+/* =========================================================
+   ERROR
+========================================================= */
+
+function logError(
+    ...args
+) {
+
+    console.error(
+        "[GEN-Z.AI][FFmpeg]",
+        ...args
+    );
+
+}
+
+
+/* =========================================================
+   ERROR NORMALIZER
+========================================================= */
+
+function getErrorMessage(
+    error
+) {
+
+    if (
+        error === null ||
+        error === undefined
+    ) {
+
+        return "Unknown FFmpeg error.";
+
+    }
+
+
+    if (
+        typeof error === "string"
+    ) {
+
+        return error;
+
+    }
+
+
+    if (
+        error instanceof Error
+    ) {
+
+        return (
+            error.message ||
+            error.toString()
+        );
+
+    }
+
+
+    if (
+        typeof error.message === "string" &&
+        error.message
+    ) {
+
+        return error.message;
+
+    }
+
+
+    try {
+
+        const json =
+            JSON.stringify(
+                error
+            );
+
+        if (
+            json &&
+            json !== "{}"
+        ) {
+
+            return json;
+
+        }
+
+    }
+    catch (
+        _
+    ) {
+        /* ignore */
+    }
+
+
+    return String(
+        error
+    );
+
+}
+
+
+/* =========================================================
+   DETAILED ERROR LOG
+========================================================= */
+
+function logDetailedError(
+    error
+) {
+
+    ffmpegDiagnostic.lastError =
+        error;
+
+
+    logError(
+        "RAW LOAD ERROR"
+    );
+
+    logError(
+        "Error object:",
+        error
+    );
+
+    if (
+        error &&
+        typeof error === "object"
+    ) {
+
+        logError(
+            "Error name:",
+            error.name
+        );
+
+        logError(
+            "Error message:",
+            error.message
+        );
+
+        logError(
+            "Error stack:",
+            error.stack
+        );
+
+        logError(
+            "Error cause:",
+            error.cause
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   FETCH RESOURCE
+========================================================= */
+
+async function fetchResource(
+    url,
+    expectedType
+) {
+
+    log(
+        "Fetching resource:",
+        url
+    );
+
+
+    const response =
+        await fetch(
+            url,
+            {
+                method:
+                    "GET",
+
+                mode:
+                    "cors",
+
+                credentials:
+                    "omit",
+
+                cache:
+                    "force-cache"
+            }
+        );
+
+
+    if (
+        !response.ok
+    ) {
+
+        throw new Error(
+            `FFmpeg resource HTTP ${response.status}: ${url}`
+        );
+
+    }
+
+
+    const contentType =
+        response.headers.get(
+            "content-type"
+        ) ||
+        "";
+
+
+    log(
+        "Resource fetched:",
+        {
+            url,
+            status:
+                response.status,
+            contentType
+        }
+    );
+
+
+    const blob =
+        await response.blob();
+
+
+    if (
+        !blob ||
+        blob.size <= 0
+    ) {
+
+        throw new Error(
+            `FFmpeg resource is empty: ${url}`
+        );
+
+    }
+
+
+    /*
+       Jangan terlalu ketat terhadap content-type.
+
+       CDN kadang mengirim:
+       application/javascript
+       text/javascript
+       application/octet-stream
+
+       Browser masih bisa menjalankan Blob
+       dengan MIME yang kita tentukan sendiri.
+    */
+
+    let mime =
+        expectedType ||
+        contentType ||
+        "application/octet-stream";
+
+
+    if (
+        expectedType ===
+        "text/javascript"
+    ) {
+
+        mime =
+            "text/javascript";
+
+    }
+
+
+    if (
+        expectedType ===
+        "application/wasm"
+    ) {
+
+        mime =
+            "application/wasm";
+
+    }
+
+
+    return new Blob(
+        [
+            await blob.arrayBuffer()
+        ],
+        {
+            type:
+                mime
+        }
+    );
+
+}
+
+
+/* =========================================================
+   CREATE CORE BLOB
+========================================================= */
+
+async function createCoreBlobURL() {
+
+    if (
+        ffmpegCoreBlobURL
+    ) {
+
+        return ffmpegCoreBlobURL;
+
+    }
+
+
+    const blob =
+        await fetchResource(
+            FFMPEG_CORE_JS_URL,
+            "text/javascript"
+        );
+
+
+    ffmpegDiagnostic.coreFetched =
+        true;
+
+
+    ffmpegCoreBlobURL =
+        URL.createObjectURL(
+            blob
+        );
+
+
+    ffmpegDiagnostic.coreBlobCreated =
+        true;
+
+
+    log(
+        "Core Blob URL created:",
+        ffmpegCoreBlobURL
+    );
+
+
+    return ffmpegCoreBlobURL;
+
+}
+
+
+/* =========================================================
+   CREATE WASM BLOB
+========================================================= */
+
+async function createWasmBlobURL() {
+
+    if (
+        ffmpegWasmBlobURL
+    ) {
+
+        return ffmpegWasmBlobURL;
+
+    }
+
+
+    const blob =
+        await fetchResource(
+            FFMPEG_CORE_WASM_URL,
+            "application/wasm"
+        );
+
+
+    ffmpegDiagnostic.wasmFetched =
+        true;
+
+
+    ffmpegWasmBlobURL =
+        URL.createObjectURL(
+            blob
+        );
+
+
+    ffmpegDiagnostic.wasmBlobCreated =
+        true;
+
+
+    log(
+        "WASM Blob URL created:",
+        ffmpegWasmBlobURL
+    );
+
+
+    return ffmpegWasmBlobURL;
+
+}
+
+
+/* =========================================================
+   LOAD FFmpeg MODULE
 ========================================================= */
 
 async function loadFFmpegModule() {
@@ -86,90 +571,873 @@ async function loadFFmpegModule() {
     }
 
 
-    console.info(
-        "[GEN-Z.AI][FFmpeg] Loading module..."
-    );
-
-
-    console.info(
-        "[GEN-Z.AI][FFmpeg] Module URL:",
-        FFMPEG_MODULE_URL
-    );
-
-
     ffmpegModulePromise =
-        import(
-            FFMPEG_MODULE_URL
-        );
+        (async () => {
 
-
-    try {
-
-        const module =
-            await ffmpegModulePromise;
-
-
-        if (
-            !module
-        ) {
-
-            throw new Error(
-                "Module kosong."
+            log(
+                "Importing @ffmpeg/ffmpeg:",
+                FFMPEG_MODULE_URL
             );
 
-        }
+
+            const module =
+                await import(
+                    FFMPEG_MODULE_URL
+                );
 
 
-        if (
-            typeof module.FFmpeg !==
-            "function"
-        ) {
+            if (
+                !module
+            ) {
 
-            throw new Error(
-                "Export FFmpeg tidak ditemukan."
+                throw new Error(
+                    "FFmpeg module returned empty module."
+                );
+
+            }
+
+
+            if (
+                typeof module.FFmpeg !==
+                "function"
+            ) {
+
+                throw new Error(
+                    "FFmpeg constructor was not exported by @ffmpeg/ffmpeg."
+                );
+
+            }
+
+
+            ffmpegDiagnostic.moduleLoaded =
+                true;
+
+
+            log(
+                "FFmpeg module loaded successfully."
             );
 
-        }
 
+            return module;
 
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Module loaded."
+        })()
+        .catch(
+            error => {
+
+                ffmpegModulePromise =
+                    null;
+
+                throw error;
+
+            }
         );
 
 
-        return module;
-
-    } catch (error) {
-
-        ffmpegModulePromise =
-            null;
-
-
-        console.error(
-            "[GEN-Z.AI][FFmpeg] Module error:",
-            error
-        );
-
-
-        throw error;
-
-    }
+    return ffmpegModulePromise;
 
 }
 
 
 /* =========================================================
-   ENSURE FFMPEG
+   CREATE CLASS WORKER SOURCE
 ========================================================= */
 
-export async function ensureFFmpeg() {
+function buildClassWorkerSource() {
 
-    if (
-        state.ffmpeg &&
-        state.ffmpegLoaded
+    /*
+       @ffmpeg/ffmpeg worker.js menggunakan:
+
+          import { CORE_URL, FFMessageType }
+          from "./const.js";
+
+          import {
+             ERROR_UNKNOWN_MESSAGE_TYPE,
+             ERROR_NOT_LOADED,
+             ERROR_IMPORT_FAILURE
+          } from "./errors.js";
+
+       Karena worker akan dibuat dari Blob,
+       relative imports "./const.js" dan "./errors.js"
+       tidak boleh dibiarkan.
+
+       Kita ubah menjadi absolute CDN URL.
+    */
+
+    return `
+/*
+ * GEN-Z.AI FFmpeg class worker bridge
+ * Generated dynamically.
+ */
+
+import {
+    CORE_URL,
+    FFMessageType
+} from "${FFMPEG_CONST_URL}";
+
+import {
+    ERROR_UNKNOWN_MESSAGE_TYPE,
+    ERROR_NOT_LOADED,
+    ERROR_IMPORT_FAILURE
+} from "${FFMPEG_ERRORS_URL}";
+
+let ffmpeg = null;
+
+const load = async ({
+    coreURL: _coreURL,
+    wasmURL: _wasmURL,
+    workerURL: _workerURL
+}) => {
+
+    const first =
+        !ffmpeg;
+
+    try {
+
+        /*
+         * Jangan gunakan importScripts() terhadap
+         * cross-origin CDN di Blob worker.
+
+         * Gunakan dynamic import untuk ESM core.
+         */
+
+        if (
+            !_coreURL
+        ) {
+
+            _coreURL =
+                CORE_URL
+                    .replace(
+                        "/umd/",
+                        "/esm/"
+                    );
+
+        }
+
+
+        const imported =
+            await import(
+                /* @vite-ignore */
+                _coreURL
+            );
+
+
+        if (
+            imported &&
+            imported.default
+        ) {
+
+            self.createFFmpegCore =
+                imported.default;
+
+        }
+        else if (
+            imported
+        ) {
+
+            self.createFFmpegCore =
+                imported;
+
+        }
+
+
+        if (
+            typeof self.createFFmpegCore !==
+            "function"
+        ) {
+
+            throw ERROR_IMPORT_FAILURE;
+
+        }
+
+    }
+    catch (
+        error
     ) {
 
-        return state.ffmpeg;
+        console.error(
+            "[GEN-Z.AI][FFmpeg Worker] Core import failed:",
+            error
+        );
+
+        throw error;
+
+    }
+
+
+    const coreURL =
+        _coreURL;
+
+
+    const wasmURL =
+        _wasmURL
+            ? _wasmURL
+            : coreURL.replace(
+                /\\.js$/g,
+                ".wasm"
+            );
+
+
+    const workerURL =
+        _workerURL
+            ? _workerURL
+            : coreURL.replace(
+                /\\.js$/g,
+                ".worker.js"
+            );
+
+
+    /*
+       FFmpeg core expects these URLs encoded
+       into mainScriptUrlOrBlob.
+
+       This is the mechanism used by the
+       official ffmpeg.wasm worker.
+    */
+
+    ffmpeg =
+        await self.createFFmpegCore(
+            {
+                mainScriptUrlOrBlob:
+                    coreURL +
+                    "#" +
+                    btoa(
+                        JSON.stringify(
+                            {
+                                wasmURL,
+                                workerURL
+                            }
+                        )
+                    )
+            }
+        );
+
+
+    ffmpeg.setLogger(
+        data => {
+
+            self.postMessage(
+                {
+                    type:
+                        FFMessageType.LOG,
+
+                    data
+                }
+            );
+
+        }
+    );
+
+
+    ffmpeg.setProgress(
+        data => {
+
+            self.postMessage(
+                {
+                    type:
+                        FFMessageType.PROGRESS,
+
+                    data
+                }
+            );
+
+        }
+    );
+
+
+    return first;
+
+};
+
+
+/* =========================================================
+   EXEC
+========================================================= */
+
+const exec = ({
+    args,
+    timeout = -1
+}) => {
+
+    ffmpeg.setTimeout(
+        timeout
+    );
+
+    ffmpeg.exec(
+        ...args
+    );
+
+    const ret =
+        ffmpeg.ret;
+
+    ffmpeg.reset();
+
+    return ret;
+
+};
+
+
+/* =========================================================
+   FFPROBE
+========================================================= */
+
+const ffprobe = ({
+    args,
+    timeout = -1
+}) => {
+
+    ffmpeg.setTimeout(
+        timeout
+    );
+
+    ffmpeg.ffprobe(
+        ...args
+    );
+
+    const ret =
+        ffmpeg.ret;
+
+    ffmpeg.reset();
+
+    return ret;
+
+};
+
+
+/* =========================================================
+   FILE SYSTEM
+========================================================= */
+
+const writeFile = ({
+    path,
+    data
+}) => {
+
+    ffmpeg.FS.writeFile(
+        path,
+        data
+    );
+
+    return true;
+
+};
+
+
+const readFile = ({
+    path,
+    encoding
+}) => {
+
+    return ffmpeg.FS.readFile(
+        path,
+        {
+            encoding
+        }
+    );
+
+};
+
+
+const deleteFile = ({
+    path
+}) => {
+
+    ffmpeg.FS.unlink(
+        path
+    );
+
+    return true;
+
+};
+
+
+const rename = ({
+    oldPath,
+    newPath
+}) => {
+
+    ffmpeg.FS.rename(
+        oldPath,
+        newPath
+    );
+
+    return true;
+
+};
+
+
+const createDir = ({
+    path
+}) => {
+
+    ffmpeg.FS.mkdir(
+        path
+    );
+
+    return true;
+
+};
+
+
+const listDir = ({
+    path
+}) => {
+
+    const names =
+        ffmpeg.FS.readdir(
+            path
+        );
+
+    const nodes =
+        [];
+
+    for (
+        const name of names
+    ) {
+
+        const stat =
+            ffmpeg.FS.stat(
+                path +
+                "/" +
+                name
+            );
+
+        nodes.push(
+            {
+                name,
+
+                isDir:
+                    ffmpeg.FS.isDir(
+                        stat.mode
+                    )
+            }
+        );
+
+    }
+
+    return nodes;
+
+};
+
+
+const deleteDir = ({
+    path
+}) => {
+
+    ffmpeg.FS.rmdir(
+        path
+    );
+
+    return true;
+
+};
+
+
+const mount = ({
+    fsType,
+    options,
+    mountPoint
+}) => {
+
+    const str =
+        fsType;
+
+    const fs =
+        ffmpeg
+            .FS
+            .filesystems[
+                str
+            ];
+
+    if (
+        !fs
+    ) {
+
+        return false;
+
+    }
+
+
+    ffmpeg.FS.mount(
+        fs,
+        options,
+        mountPoint
+    );
+
+    return true;
+
+};
+
+
+const unmount = ({
+    mountPoint
+}) => {
+
+    ffmpeg.FS.unmount(
+        mountPoint
+    );
+
+    return true;
+
+};
+
+
+/* =========================================================
+   MESSAGE HANDLER
+========================================================= */
+
+self.onmessage =
+    async event => {
+
+        const {
+            id,
+            type,
+            data: _data
+        } =
+            event.data;
+
+
+        const trans =
+            [];
+
+
+        let data;
+
+
+        try {
+
+            if (
+                type !==
+                    FFMessageType.LOAD &&
+                !ffmpeg
+            ) {
+
+                throw ERROR_NOT_LOADED;
+
+            }
+
+
+            switch (
+                type
+            ) {
+
+                case FFMessageType.LOAD:
+
+                    data =
+                        await load(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.EXEC:
+
+                    data =
+                        exec(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.FFPROBE:
+
+                    data =
+                        ffprobe(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.WRITE_FILE:
+
+                    data =
+                        writeFile(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.READ_FILE:
+
+                    data =
+                        readFile(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.DELETE_FILE:
+
+                    data =
+                        deleteFile(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.RENAME:
+
+                    data =
+                        rename(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.CREATE_DIR:
+
+                    data =
+                        createDir(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.LIST_DIR:
+
+                    data =
+                        listDir(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.DELETE_DIR:
+
+                    data =
+                        deleteDir(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.MOUNT:
+
+                    data =
+                        mount(
+                            _data
+                        );
+
+                    break;
+
+
+                case FFMessageType.UNMOUNT:
+
+                    data =
+                        unmount(
+                            _data
+                        );
+
+                    break;
+
+
+                default:
+
+                    throw ERROR_UNKNOWN_MESSAGE_TYPE;
+
+            }
+
+        }
+        catch (
+            error
+        ) {
+
+            console.error(
+                "[GEN-Z.AI][FFmpeg Worker] Error:",
+                error
+            );
+
+
+            self.postMessage(
+                {
+                    id,
+
+                    type:
+                        FFMessageType.ERROR,
+
+                    data:
+                        error instanceof Error
+                            ? error.toString()
+                            : String(
+                                error
+                            )
+                }
+            );
+
+
+            return;
+
+        }
+
+
+        if (
+            data instanceof Uint8Array
+        ) {
+
+            trans.push(
+                data.buffer
+            );
+
+        }
+
+
+        self.postMessage(
+            {
+                id,
+
+                type,
+
+                data
+            },
+            trans
+        );
+
+    };
+`;
+
+}
+
+
+/* =========================================================
+   CREATE CLASS WORKER
+========================================================= */
+
+async function createClassWorkerBlobURL() {
+
+    if (
+        ffmpegClassWorkerBlobURL
+    ) {
+
+        return ffmpegClassWorkerBlobURL;
+
+    }
+
+
+    const source =
+        buildClassWorkerSource();
+
+
+    const blob =
+        new Blob(
+            [
+                source
+            ],
+            {
+                type:
+                    "text/javascript"
+            }
+        );
+
+
+    ffmpegClassWorkerBlobURL =
+        URL.createObjectURL(
+            blob
+        );
+
+
+    ffmpegDiagnostic.workerBlobCreated =
+        true;
+
+
+    log(
+        "Class worker Blob URL created:",
+        ffmpegClassWorkerBlobURL
+    );
+
+
+    return ffmpegClassWorkerBlobURL;
+
+}
+
+
+/* =========================================================
+   CREATE FFmpeg INSTANCE
+========================================================= */
+
+async function createFFmpegInstance() {
+
+    const {
+        FFmpeg
+    } =
+        await loadFFmpegModule();
+
+
+    const ffmpeg =
+        new FFmpeg();
+
+
+    ffmpeg.on(
+        "log",
+        ({
+            message
+        }) => {
+
+            console.log(
+                "[GEN-Z.AI][FFmpeg LOG]",
+                message
+            );
+
+        }
+    );
+
+
+    ffmpeg.on(
+        "progress",
+        ({
+            progress,
+            time
+        }) => {
+
+            /*
+               Jangan terlalu verbose.
+            */
+
+            if (
+                typeof progress ===
+                "number"
+            ) {
+
+                console.log(
+                    "[GEN-Z.AI][FFmpeg PROGRESS]",
+                    Math.round(
+                        progress *
+                        100
+                    ) + "%",
+                    time
+                );
+
+            }
+
+        }
+    );
+
+
+    return ffmpeg;
+
+}
+
+
+/* =========================================================
+   INITIALIZE FFmpeg
+========================================================= */
+
+async function initializeFFmpeg() {
+
+    if (
+        ffmpegInstance &&
+        ffmpegInstance.loaded
+    ) {
+
+        return ffmpegInstance;
 
     }
 
@@ -184,769 +1452,416 @@ export async function ensureFFmpeg() {
 
 
     ffmpegLoadPromise =
-        initializeFFmpeg();
+        (async () => {
 
+            try {
 
-    try {
+                log(
+                    "Initializing FFmpeg..."
+                );
 
-        return await ffmpegLoadPromise;
 
-    } catch (error) {
+                /*
+                   1.
+                   Load FFmpeg JS module.
+                */
 
-        ffmpegLoadPromise =
-            null;
+                await loadFFmpegModule();
 
 
-        state.ffmpeg =
-            null;
+                /*
+                   2.
+                   Fetch core JS.
 
-        state.ffmpegLoaded =
-            false;
+                   Harus selesai sebelum worker dibuat.
+                */
 
-        state.ffmpegLoading =
-            false;
+                const coreURL =
+                    await createCoreBlobURL();
 
 
-        throw error;
+                /*
+                   3.
+                   Fetch WASM.
+                */
 
-    }
+                const wasmURL =
+                    await createWasmBlobURL();
 
-}
 
+                /*
+                   4.
+                   Create class worker Blob.
+                */
 
-/* =========================================================
-   INITIALIZE
-========================================================= */
+                const classWorkerURL =
+                    await createClassWorkerBlobURL();
 
-async function initializeFFmpeg() {
 
-    state.ffmpegLoading =
-        true;
+                /*
+                   5.
+                   Create FFmpeg instance.
+                */
 
-    state.ffmpegLoaded =
-        false;
+                const ffmpeg =
+                    await createFFmpegInstance();
 
-    state.ffmpeg =
-        null;
 
+                ffmpegDiagnostic.workerCreated =
+                    true;
 
-    let classWorkerBlobURL =
-        null;
 
+                log(
+                    "Calling ffmpeg.load()..."
+                );
 
-    try {
 
-        /* =================================================
-           STEP 1
-        ================================================= */
+                log(
+                    "Load configuration:",
+                    {
+                        coreURL,
+                        wasmURL,
+                        classWorkerURL
+                    }
+                );
 
-        console.group(
-            "[GEN-Z.AI][FFmpeg] Initialization"
-        );
 
+                /*
+                   6.
+                   Actual FFmpeg load.
 
-        console.info(
-            "Library:",
-            FFMPEG_VERSION
-        );
+                   Timeout dibuat 30 detik.
+                   15 detik terlalu agresif untuk
+                   first-load WASM di browser.
+                */
 
-
-        console.info(
-            "Core:",
-            FFMPEG_CORE_VERSION
-        );
-
-
-        console.info(
-            "Core JS:",
-            FFMPEG_CORE_JS_URL
-        );
-
-
-        console.info(
-            "Core WASM:",
-            FFMPEG_CORE_WASM_URL
-        );
-
-
-        /* =================================================
-           STEP 2
-           Test core JS HTTP access
-        ================================================= */
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Testing core JS access..."
-        );
-
-
-        const coreResponse =
-            await fetch(
-                FFMPEG_CORE_JS_URL,
-                {
-                    method:
-                        "GET",
-
-                    mode:
-                        "cors",
-
-                    cache:
-                        "no-store"
-                }
-            );
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Core JS HTTP status:",
-            coreResponse.status
-        );
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Core JS content-type:",
-            coreResponse.headers.get(
-                "content-type"
-            )
-        );
-
-
-        if (
-            !coreResponse.ok
-        ) {
-
-            throw new Error(
-                `Core JS HTTP ${coreResponse.status} ${coreResponse.statusText}`
-            );
-
-        }
-
-
-        const coreSource =
-            await coreResponse.text();
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Core JS size:",
-            coreSource.length
-        );
-
-
-        if (
-            !coreSource
-        ) {
-
-            throw new Error(
-                "ffmpeg-core.js kosong."
-            );
-
-        }
-
-
-        /* =================================================
-           STEP 3
-           Test WASM HTTP access
-        ================================================= */
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Testing core WASM access..."
-        );
-
-
-        const wasmResponse =
-            await fetch(
-                FFMPEG_CORE_WASM_URL,
-                {
-                    method:
-                        "GET",
-
-                    mode:
-                        "cors",
-
-                    cache:
-                        "no-store"
-                }
-            );
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Core WASM HTTP status:",
-            wasmResponse.status
-        );
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Core WASM content-type:",
-            wasmResponse.headers.get(
-                "content-type"
-            )
-        );
-
-
-        if (
-            !wasmResponse.ok
-        ) {
-
-            throw new Error(
-                `Core WASM HTTP ${wasmResponse.status} ${wasmResponse.statusText}`
-            );
-
-        }
-
-
-        const wasmBlob =
-            await wasmResponse.blob();
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Core WASM size:",
-            wasmBlob.size
-        );
-
-
-        if (
-            wasmBlob.size <= 0
-        ) {
-
-            throw new Error(
-                "ffmpeg-core.wasm kosong."
-            );
-
-        }
-
-
-        /* =================================================
-           STEP 4
-           Load FFmpeg library
-        ================================================= */
-
-        const module =
-            await loadFFmpegModule();
-
-
-        const FFmpegClass =
-            module.FFmpeg;
-
-
-        const ffmpeg =
-            new FFmpegClass();
-
-
-        if (
-            !ffmpeg
-        ) {
-
-            throw new Error(
-                "FFmpeg instance gagal dibuat."
-            );
-
-        }
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] FFmpeg instance created."
-        );
-
-
-        /* =================================================
-           STEP 5
-           Events
-        ================================================= */
-
-        if (
-            typeof ffmpeg.on ===
-            "function"
-        ) {
-
-            ffmpeg.on(
-                "log",
-                ({ message }) => {
-
-                    console.debug(
-                        "[GEN-Z.AI][FFmpeg][LOG]",
-                        message
+                const loadPromise =
+                    ffmpeg.load(
+                        {
+                            coreURL,
+                            wasmURL,
+                            classWorkerURL
+                        }
                     );
 
-                }
-            );
 
+                const timeoutPromise =
+                    new Promise(
+                        (
+                            _resolve,
+                            reject
+                        ) => {
 
-            ffmpeg.on(
-                "progress",
-                ({ progress }) => {
+                            setTimeout(
+                                () => {
 
-                    if (
-                        Number.isFinite(
-                            progress
-                        )
-                    ) {
+                                    reject(
+                                        new Error(
+                                            `FFmpeg initialization timeout (${FFMPEG_LOAD_TIMEOUT} ms)`
+                                        )
+                                    );
 
-                        console.debug(
-                            "[GEN-Z.AI][FFmpeg][PROGRESS]",
-                            Math.round(
-                                progress * 100
-                            ) + "%"
-                        );
+                                },
+                                FFMPEG_LOAD_TIMEOUT
+                            );
 
-                    }
+                        }
+                    );
 
-                }
-            );
 
-        }
+                await Promise.race(
+                    [
+                        loadPromise,
+                        timeoutPromise
+                    ]
+                );
 
 
-        /* =================================================
-           STEP 6
-           Worker
-        ================================================= */
+                ffmpegInstance =
+                    ffmpeg;
 
-        classWorkerBlobURL =
-            await createFFmpegClassWorker();
 
+                ffmpegDiagnostic.loaded =
+                    true;
 
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Class worker Blob:",
-            classWorkerBlobURL
-        );
 
+                log(
+                    "FFmpeg initialized successfully."
+                );
 
-        /* =================================================
-           STEP 7
-           FFmpeg.load
-        ================================================= */
 
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Calling ffmpeg.load()..."
-        );
+                return ffmpegInstance;
 
-
-        try {
-
-            await ffmpeg.load({
-
-                coreURL:
-                    FFMPEG_CORE_JS_URL,
-
-                wasmURL:
-                    FFMPEG_CORE_WASM_URL,
-
-                classWorkerURL:
-                    classWorkerBlobURL
-
-            });
-
-        } catch (loadError) {
-
-            console.group(
-                "[GEN-Z.AI][FFmpeg] RAW LOAD ERROR"
-            );
-
-
-            console.error(
-                "Error object:",
-                loadError
-            );
-
-
-            console.error(
-                "Error name:",
-                loadError?.name
-            );
-
-
-            console.error(
-                "Error message:",
-                loadError?.message
-            );
-
-
-            console.error(
-                "Error stack:",
-                loadError?.stack
-            );
-
-
-            console.error(
-                "Error cause:",
-                loadError?.cause
-            );
-
-
-            console.groupEnd();
-
-
-            throw loadError;
-
-        }
-
-
-        /* =================================================
-           STEP 8
-        ================================================= */
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] ffmpeg.load() SUCCESS."
-        );
-
-
-        if (
-            typeof ffmpeg.writeFile !==
-            "function"
-        ) {
-
-            throw new Error(
-                "writeFile() tidak tersedia."
-            );
-
-        }
-
-
-        if (
-            typeof ffmpeg.readFile !==
-            "function"
-        ) {
-
-            throw new Error(
-                "readFile() tidak tersedia."
-            );
-
-        }
-
-
-        if (
-            typeof ffmpeg.exec !==
-            "function"
-        ) {
-
-            throw new Error(
-                "exec() tidak tersedia."
-            );
-
-        }
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] writeFile(): OK"
-        );
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] readFile(): OK"
-        );
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] exec(): OK"
-        );
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] ffprobe():",
-            typeof ffmpeg.ffprobe ===
-                "function"
-                ? "AVAILABLE"
-                : "NOT AVAILABLE"
-        );
-
-
-        /* =================================================
-           STEP 9
-        ================================================= */
-
-        state.ffmpeg =
-            ffmpeg;
-
-        state.ffmpegLoaded =
-            true;
-
-        state.ffmpegLoading =
-            false;
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] READY."
-        );
-
-
-        console.groupEnd();
-
-
-        return ffmpeg;
-
-    } catch (error) {
-
-        state.ffmpeg =
-            null;
-
-        state.ffmpegLoaded =
-            false;
-
-        state.ffmpegLoading =
-            false;
-
-
-        console.error(
-            "[GEN-Z.AI][FFmpeg] Initialization failed."
-        );
-
-
-        console.error(
-            "NAME:",
-            error?.name
-        );
-
-
-        console.error(
-            "MESSAGE:",
-            error?.message
-        );
-
-
-        console.error(
-            "STACK:",
-            error?.stack
-        );
-
-
-        console.error(
-            "RAW:",
-            error
-        );
-
-
-        throw normalizeFFmpegError(
-            error
-        );
-
-    } finally {
-
-        revokeObjectURL(
-            classWorkerBlobURL
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   CREATE CLASS WORKER
-========================================================= */
-
-async function createFFmpegClassWorker() {
-
-    console.info(
-        "[GEN-Z.AI][FFmpeg] Fetching worker..."
-    );
-
-
-    const response =
-        await fetch(
-            FFMPEG_WORKER_URL,
-            {
-                method:
-                    "GET",
-
-                mode:
-                    "cors",
-
-                cache:
-                    "no-store"
             }
-        );
+            catch (
+                error
+            ) {
+
+                ffmpegDiagnostic.loaded =
+                    false;
 
 
-    if (
-        !response.ok
-    ) {
-
-        throw new Error(
-            `Worker HTTP ${response.status} ${response.statusText}`
-        );
-
-    }
+                logDetailedError(
+                    error
+                );
 
 
-    let source =
-        await response.text();
+                logError(
+                    "Initialization failed."
+                );
 
 
-    if (
-        !source
-    ) {
-
-        throw new Error(
-            "worker.js kosong."
-        );
-
-    }
+                logError(
+                    "NAME:",
+                    error?.name
+                );
 
 
-    console.info(
-        "[GEN-Z.AI][FFmpeg] Worker size:",
-        source.length
-    );
+                logError(
+                    "MESSAGE:",
+                    error?.message
+                );
 
 
-    /* -----------------------------------------------------
-       Relative imports -> absolute CDN imports
-    ----------------------------------------------------- */
-
-    source =
-        source.replace(
-            /from\s+["']\.\/const\.js["']/g,
-            `from "${FFMPEG_CONST_URL}"`
-        );
+                logError(
+                    "STACK:",
+                    error?.stack
+                );
 
 
-    source =
-        source.replace(
-            /from\s+["']\.\/errors\.js["']/g,
-            `from "${FFMPEG_ERRORS_URL}"`
-        );
+                logError(
+                    "RAW:",
+                    error
+                );
 
 
-    source =
-        source.replace(
-            /import\s*\(\s*["']\.\/const\.js["']\s*\)/g,
-            `import("${FFMPEG_CONST_URL}")`
-        );
+                /*
+                   Jangan menyimpan Promise reject.
+                   Percobaan berikutnya harus bisa
+                   mencoba ulang.
+                */
+
+                ffmpegLoadPromise =
+                    null;
 
 
-    source =
-        source.replace(
-            /import\s*\(\s*["']\.\/errors\.js["']\s*\)/g,
-            `import("${FFMPEG_ERRORS_URL}")`
-        );
+                /*
+                   Instance gagal jangan dipakai.
+                */
+
+                ffmpegInstance =
+                    null;
 
 
-    const blob =
-        new Blob(
-            [source],
-            {
-                type:
-                    "text/javascript"
+                throw error;
+
             }
-        );
+
+        })();
 
 
-    if (
-        blob.size <= 0
-    ) {
-
-        throw new Error(
-            "Blob worker kosong."
-        );
-
-    }
-
-
-    return URL.createObjectURL(
-        blob
-    );
+    return ffmpegLoadPromise;
 
 }
 
 
 /* =========================================================
-   WAIT
+   PUBLIC:
+   ENSURE FFmpeg
 ========================================================= */
 
-export async function waitForFFmpeg() {
+export async function ensureFFmpeg() {
 
-    return ensureFFmpeg();
+    return initializeFFmpeg();
 
 }
 
 
 /* =========================================================
-   FILENAME
+   PUBLIC:
+   WAIT FOR FFmpeg
 ========================================================= */
 
-export function createFFmpegFilename(
-    originalName = "input.mp4",
-    prefix = "genz"
+export async function waitForFFmpeg(
+    timeout =
+        FFMPEG_LOAD_TIMEOUT
 ) {
 
-    const extension =
-        getExtension(
-            originalName
-        ) ||
-        "mp4";
+    if (
+        ffmpegInstance &&
+        ffmpegInstance.loaded
+    ) {
+
+        return ffmpegInstance;
+
+    }
 
 
-    const timestamp =
+    const started =
         Date.now();
 
 
-    const random =
-        Math.random()
-            .toString(36)
-            .slice(2, 9);
+    while (
+        Date.now() -
+        started <
+        timeout
+    ) {
+
+        if (
+            ffmpegInstance &&
+            ffmpegInstance.loaded
+        ) {
+
+            return ffmpegInstance;
+
+        }
 
 
-    return (
-        `${prefix}_${timestamp}_${random}.${extension}`
+        if (
+            !ffmpegLoadPromise
+        ) {
+
+            await initializeFFmpeg();
+
+        }
+
+
+        await new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    100
+                )
+        );
+
+    }
+
+
+    throw new Error(
+        `FFmpeg initialization timeout (${timeout} ms)`
     );
 
 }
 
 
 /* =========================================================
-   MIME TYPE
+   PUBLIC:
+   CREATE FFMPEG FILENAME
 ========================================================= */
 
-export function getCleanVideoMimeType(
-    originalName = ""
+export function createFFmpegFilename(
+    file,
+    fallbackName =
+        "input"
 ) {
 
-    const extension =
-        getExtension(
+    const originalName =
+        file?.name ||
+        fallbackName;
+
+
+    const cleanName =
+        String(
             originalName
-        );
+        )
+            .replace(
+                /[^\w.\-]+/g,
+                "_"
+            );
 
 
-    switch (
-        extension
+    if (
+        cleanName
     ) {
 
-        case "webm":
-
-            return "video/webm";
-
-
-        case "mov":
-
-        case "qt":
-
-            return "video/quicktime";
-
-
-        case "mkv":
-
-            return "video/x-matroska";
-
-
-        case "avi":
-
-            return "video/x-msvideo";
-
-
-        case "m4v":
-
-            return "video/x-m4v";
-
-
-        default:
-
-            return "video/mp4";
+        return cleanName;
 
     }
+
+
+    return fallbackName;
 
 }
 
 
 /* =========================================================
-   MOV
+   PUBLIC:
+   VIDEO MIME
+========================================================= */
+
+export function getCleanVideoMimeType(
+    file
+) {
+
+    const type =
+        String(
+            file?.type ||
+            ""
+        )
+            .toLowerCase();
+
+
+    if (
+        type ===
+        "video/quicktime"
+    ) {
+
+        return "video/mp4";
+
+    }
+
+
+    if (
+        type ===
+        "video/x-m4v"
+    ) {
+
+        return "video/mp4";
+
+    }
+
+
+    if (
+        type ===
+        "video/webm"
+    ) {
+
+        return "video/webm";
+
+    }
+
+
+    if (
+        type ===
+        "video/mp4"
+    ) {
+
+        return "video/mp4";
+
+    }
+
+
+    if (
+        type ===
+        "video/ogg"
+    ) {
+
+        return "video/ogg";
+
+    }
+
+
+    return (
+        type ||
+        "video/mp4"
+    );
+
+}
+
+
+/* =========================================================
+   PUBLIC:
+   MOV LIKE
 ========================================================= */
 
 export function isMovLikeVideo(
@@ -970,115 +1885,68 @@ export function isMovLikeVideo(
 
 
     return (
-
-        name.endsWith(
-            ".mov"
-        ) ||
-
-        name.endsWith(
-            ".qt"
-        ) ||
+        type ===
+            "video/quicktime" ||
 
         type ===
-            "video/quicktime"
+            "video/x-m4v" ||
 
+        /\.mov$/i.test(
+            name
+        ) ||
+
+        /\.m4v$/i.test(
+            name
+        )
     );
 
 }
 
 
 /* =========================================================
+   PUBLIC:
    SAFE DELETE
 ========================================================= */
 
 export async function safeDeleteFFmpegFile(
-    ffmpeg,
     filename
 ) {
 
     if (
-        !ffmpeg ||
         !filename
     ) {
 
-        return;
-
-    }
-
-
-    if (
-        typeof ffmpeg.deleteFile !==
-        "function"
-    ) {
-
-        return;
+        return false;
 
     }
 
 
     try {
+
+        const ffmpeg =
+            await ensureFFmpeg();
+
 
         await ffmpeg.deleteFile(
             filename
         );
 
-    } catch {
 
-        /* ignore */
+        return true;
 
     }
-
-}
-
-
-/* =========================================================
-   ERROR MESSAGE
-========================================================= */
-
-export function getErrorMessage(
-    error
-) {
-
-    if (
-        !error
+    catch (
+        error
     ) {
 
-        return "Unknown error";
-
-    }
-
-
-    if (
-        typeof error ===
-        "string"
-    ) {
-
-        return error;
-
-    }
-
-
-    if (
-        typeof error.message ===
-        "string"
-    ) {
-
-        return error.message;
-
-    }
-
-
-    try {
-
-        return JSON.stringify(
+        console.warn(
+            "[GEN-Z.AI][FFmpeg] Unable to delete file:",
+            filename,
             error
         );
 
-    } catch {
 
-        return String(
-            error
-        );
+        return false;
 
     }
 
@@ -1086,146 +1954,49 @@ export function getErrorMessage(
 
 
 /* =========================================================
-   NORMALIZE ERROR
-========================================================= */
-
-function normalizeFFmpegError(
-    error
-) {
-
-    if (
-        error instanceof Error
-    ) {
-
-        return error;
-
-    }
-
-
-    return new Error(
-        getErrorMessage(
-            error
-        )
-    );
-
-}
-
-
-/* =========================================================
-   EXTENSION
-========================================================= */
-
-function getExtension(
-    filename
-) {
-
-    const cleanName =
-        String(
-            filename ||
-            ""
-        )
-            .split("?")[0]
-            .split("#")[0];
-
-
-    const match =
-        cleanName.match(
-            /\.([a-z0-9]+)$/i
-        );
-
-
-    return match
-        ? match[1].toLowerCase()
-        : "";
-
-}
-
-
-/* =========================================================
+   PUBLIC:
    DIAGNOSTIC
 ========================================================= */
 
 export function getFFmpegDiagnostic() {
 
     return {
-
-        moduleURL:
-            FFMPEG_MODULE_URL,
-
-        coreBaseURL:
-            FFMPEG_CORE_BASE_URL,
-
-        coreJSURL:
-            FFMPEG_CORE_JS_URL,
-
-        coreWASMURL:
-            FFMPEG_CORE_WASM_URL,
-
-        workerURL:
-            FFMPEG_WORKER_URL,
-
-        constURL:
-            FFMPEG_CONST_URL,
-
-        errorsURL:
-            FFMPEG_ERRORS_URL,
-
-        libraryVersion:
-            FFMPEG_VERSION,
-
-        coreVersion:
-            FFMPEG_CORE_VERSION,
-
-        stateLoaded:
-            Boolean(
-                state.ffmpegLoaded
-            ),
-
-        stateLoading:
-            Boolean(
-                state.ffmpegLoading
-            ),
-
-        instanceAvailable:
-            Boolean(
-                state.ffmpeg
-            ),
-
-        writeFileAvailable:
-            Boolean(
-                state.ffmpeg &&
-                typeof state.ffmpeg.writeFile ===
-                "function"
-            ),
-
-        readFileAvailable:
-            Boolean(
-                state.ffmpeg &&
-                typeof state.ffmpeg.readFile ===
-                "function"
-            ),
-
-        execAvailable:
-            Boolean(
-                state.ffmpeg &&
-                typeof state.ffmpeg.exec ===
-                "function"
-            ),
-
-        ffprobeAvailable:
-            Boolean(
-                state.ffmpeg &&
-                typeof state.ffmpeg.ffprobe ===
-                "function"
-            )
-
+        ...ffmpegDiagnostic
     };
 
 }
 
 
 /* =========================================================
-   GLOBAL DIAGNOSTIC
+   PUBLIC:
+   GET INSTANCE
+========================================================= */
+
+export function getFFmpegInstance() {
+
+    return ffmpegInstance;
+
+}
+
+
+/* =========================================================
+   PUBLIC:
+   RESET INSTANCE
+========================================================= */
+
+export function resetFFmpegInstance() {
+
+    ffmpegInstance =
+        null;
+
+    ffmpegLoadPromise =
+        null;
+
+}
+
+
+/* =========================================================
+   GLOBAL DIAGNOSTIC HELPER
 ========================================================= */
 
 if (
@@ -1233,32 +2004,38 @@ if (
     "undefined"
 ) {
 
-    window.GENZFFmpegDiagnostic =
-        getFFmpegDiagnostic;
+    window.GENZ_FFMPEG =
+        {
+            ensure:
+                ensureFFmpeg,
+
+            wait:
+                waitForFFmpeg,
+
+            diagnostic:
+                getFFmpegDiagnostic,
+
+            instance:
+                getFFmpegInstance,
+
+            reset:
+                resetFFmpegInstance
+        };
 
 }
 
 
 /* =========================================================
-   DEFAULT EXPORT
+   INITIAL LOG
 ========================================================= */
 
-export default {
+log(
+    "metadata-ffmpeg.js loaded.",
+    {
+        ffmpeg:
+            FFMPEG_VERSION,
 
-    ensureFFmpeg,
-
-    waitForFFmpeg,
-
-    createFFmpegFilename,
-
-    getCleanVideoMimeType,
-
-    isMovLikeVideo,
-
-    safeDeleteFFmpegFile,
-
-    getErrorMessage,
-
-    getFFmpegDiagnostic
-
-};
+        core:
+            FFMPEG_CORE_VERSION
+    }
+);
