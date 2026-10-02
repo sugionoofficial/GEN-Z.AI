@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        GEN-Z.AI • User Management
+    </title>
+
+
+    <!-- =====================================================
+         SUPABASE
+    ====================================================== -->
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
+
+
+    <!-- =====================================================
+         GEN-Z.AI CONFIG
+    ====================================================== -->
+
+    <script
+        src="../assets/js/config.js"
+    ></script>
+
+
+    <!-- =====================================================
+         GEN-Z.AI SUPABASE
+    ====================================================== -->
+
+    <script
+        src="supabase.js"
+    ></script>
+
+
+    <!-- =====================================================
+         SHARED NAVIGATION
+    ====================================================== -->
+
+    <script
+        src="/navigation/navigation.js"
+    ></script>
+
+
+    <!-- =====================================================
+         GLOBAL GEN-Z.AI STYLE
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="../assets/css/genz-premium.css"
+    >
+
+
+    <!-- =====================================================
+         USER MANAGEMENT STYLE
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="./assets/css/user.css"
+    >
+
+</head>
+
+
+<body>
+
+    <!-- =====================================================
+         SHARED NAVIGATION
+         Navigation dikontrol oleh:
+         /navigation/navigation.js
+    ====================================================== -->
+
+    <div id="navigation"></div>
+
+
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
+
+    <main class="main">
+
+        <!-- =================================================
+             TOPBAR
+        ================================================== -->
+
+        <div class="topbar">
+
+            <div>
+
+                <div class="eyebrow">
+                    USER MANAGEMENT
+                </div>
+
+                <h1 class="page-title">
+                    Users
+                </h1>
+
+                <div class="page-subtitle">
+                    Kelola akun, verifikasi email, role, credit,
+                    dan status pengguna GEN-Z.AI.
+                </div>
+
+            </div>
+
+
+            <div class="top-actions">
+
+                <div
+                    class="user-info"
+                    id="userInfo"
+                >
+                    Memuat...
+                </div>
+
+
+                <a
+                    href="admin-panel.html"
+                    class="back-button"
+                >
+                    ← Back
+                </a>
+
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             CONTENT
+        ================================================== -->
+
+        <div class="container">
+
+
+            <!-- =============================================
+                 STATISTICS
+            ============================================== -->
+
+            <div class="stats">
+
+
+                <!-- TOTAL USERS -->
+
+                <div class="stat-card">
+
+                    <div class="stat-label">
+                        TOTAL USERS
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="totalUsers"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+
+                <!-- ACTIVE USERS -->
+
+                <div class="stat-card">
+
+                    <div class="stat-label">
+                        ACTIVE USERS
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="activeUsers"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+
+                <!-- ADMIN USERS -->
+
+                <div class="stat-card">
+
+                    <div class="stat-label">
+                        ADMIN / OWNER
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="adminUsers"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 USERS CARD
+            ================================================== -->
+
+            <section class="card">
+
+
+                <!-- =============================================
+                     CARD HEADER
+                ============================================== -->
+
+                <div class="card-header">
+
+                    <div>
+
+                        <div class="card-title">
+                            User Accounts
+                        </div>
+
+                        <div class="card-subtitle">
+                            Daftar seluruh akun yang terdaftar
+                            di GEN-Z.AI.
+                        </div>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        class="primary-button"
+                        id="addUserButton"
+                    >
+                        + ADD USER
+                    </button>
+
+                </div>
+
+
+                <!-- =============================================
+                     TOOLBAR
+                ============================================== -->
+
+                <div class="toolbar">
+
+                    <div class="search-wrapper">
+
+                        <input
+                            type="search"
+                            id="searchInput"
+                            class="search-input"
+                            placeholder="Cari email, nama, role, atau status..."
+                            autocomplete="off"
+                        >
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        class="secondary-button"
+                        id="refreshButton"
+                    >
+                        REFRESH
+                    </button>
+
+                </div>
+
+
+                <!-- =============================================
+                     MESSAGE
+                ============================================== -->
+
+                <div
+                    id="message"
+                    class="message"
+                    role="status"
+                    aria-live="polite"
+                ></div>
+
+
+                <!-- =============================================
+                     USER TABLE
+                ============================================== -->
+
+                <div
+                    id="userContainer"
+                    class="user-container"
+                >
+
+                    <div class="loading">
+                        Memuat data pengguna...
+                    </div>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <!-- =====================================================
+         ADD USER MODAL
+    ====================================================== -->
+
+    <div
+        class="modal"
+        id="addModal"
+        aria-hidden="true"
+    >
+
+        <div class="modal-content">
+
+
+            <!-- =============================================
+                 MODAL HEADER
+            ============================================== -->
+
+            <div class="modal-header">
+
+                <div>
+
+                    <div class="modal-title">
+                        Add User
+                    </div>
+
+                    <div class="modal-subtitle">
+                        Buat akun pengguna baru.
+                    </div>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="modal-close"
+                    id="closeAddButton"
+                    aria-label="Close"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <!-- =============================================
+                 ADD USER FORM
+            ============================================== -->
+
+            <form
+                id="addUserForm"
+                autocomplete="off"
+            >
+
+
+                <!-- EMAIL -->
+
+                <div class="form-group">
+
+                    <label
+                        for="newEmail"
+                        class="form-label"
+                    >
+                        EMAIL
+                    </label>
+
+                    <input
+                        type="email"
+                        id="newEmail"
+                        class="form-input"
+                        placeholder="user@example.com"
+                        autocomplete="email"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- PASSWORD -->
+
+                <div class="form-group">
+
+                    <label
+                        for="newPassword"
+                        class="form-label"
+                    >
+                        PASSWORD
+                    </label>
+
+                    <input
+                        type="password"
+                        id="newPassword"
+                        class="form-input"
+                        placeholder="Minimal 6 karakter"
+                        autocomplete="new-password"
+                        minlength="6"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- NAME -->
+
+                <div class="form-group">
+
+                    <label
+                        for="newName"
+                        class="form-label"
+                    >
+                        NAMA
+                    </label>
+
+                    <input
+                        type="text"
+                        id="newName"
+                        class="form-input"
+                        placeholder="Nama pengguna"
+                        autocomplete="name"
+                    >
+
+                </div>
+
+
+                <!-- ROLE -->
+
+                <div class="form-group">
+
+                    <label
+                        for="newRole"
+                        class="form-label"
+                    >
+                        ROLE
+                    </label>
+
+                    <select
+                        id="newRole"
+                        class="form-input"
+                    >
+
+                        <option
+                            value="USER"
+                        >
+                            USER
+                        </option>
+
+                        <option
+                            value="ADMIN"
+                            id="adminRoleOption"
+                        >
+                            ADMIN
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- CREDITS -->
+
+                <div class="form-group">
+
+                    <label
+                        for="newCredits"
+                        class="form-label"
+                    >
+                        CREDIT
+                    </label>
+
+                    <input
+                        type="number"
+                        id="newCredits"
+                        class="form-input"
+                        min="0"
+                        step="1"
+                        value="0"
+                        inputmode="numeric"
+                    >
+
+                </div>
+
+
+                <!-- STATUS -->
+
+                <div class="form-group">
+
+                    <label
+                        for="newStatus"
+                        class="form-label"
+                    >
+                        STATUS
+                    </label>
+
+                    <select
+                        id="newStatus"
+                        class="form-input"
+                    >
+
+                        <option
+                            value="active"
+                        >
+                            ACTIVE
+                        </option>
+
+                        <option
+                            value="inactive"
+                        >
+                            INACTIVE
+                        </option>
+
+                        <option
+                            value="suspended"
+                        >
+                            SUSPENDED
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- =========================================
+                     FORM ACTIONS
+                ========================================== -->
+
+                <div class="modal-actions">
+
+                    <button
+                        type="button"
+                        class="secondary-button"
+                        id="cancelAddButton"
+                    >
+                        CANCEL
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        CREATE USER
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         DELETE USER MODAL
+    ====================================================== -->
+
+    <div
+        class="modal"
+        id="deleteModal"
+        aria-hidden="true"
+    >
+
+        <div class="modal-content delete-modal">
+
+
+            <!-- =============================================
+                 MODAL HEADER
+            ============================================== -->
+
+            <div class="modal-header">
+
+                <div>
+
+                    <div class="modal-title">
+                        Delete User
+                    </div>
+
+                    <div class="modal-subtitle">
+                        Hapus akun pengguna dari GEN-Z.AI.
+                    </div>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="modal-close"
+                    id="closeDeleteButton"
+                    aria-label="Close"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <!-- =============================================
+                 DELETE WARNING
+            ============================================== -->
+
+            <div class="delete-warning">
+
+                <div class="delete-warning-title">
+                    PERINGATAN
+                </div>
+
+                <div class="delete-warning-text">
+
+                    User berikut akan dihapus:
+
+                    <strong
+                        id="deleteUserName"
+                    >
+                        -
+                    </strong>
+
+                    <br>
+
+                    Tindakan ini tidak dapat dibatalkan.
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 DELETE ACTIONS
+            ============================================== -->
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="secondary-button"
+                    id="cancelDeleteButton"
+                >
+                    CANCEL
+                </button>
+
+
+                <button
+                    type="button"
+                    class="danger-button"
+                    id="confirmDeleteButton"
+                >
+                    DELETE USER
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         USER MANAGEMENT ENTRY POINT
+    ====================================================== -->
+
+    <script
+        type="module"
+        src="./assets/js/user-loader.js"
+    ></script>
+
+</body>
+
+</html>
