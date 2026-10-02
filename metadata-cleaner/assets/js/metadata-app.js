@@ -1,4 +1,5 @@
-// deployment trigger 2026-10-01
+// deployment trigger 2026-10-02
+
 /* =========================================================
    GEN-Z.AI
    AI METADATA CLEANER
@@ -22,26 +23,14 @@
    - Download cleaned copy
    - Original file remains untouched
 
-   IMPORTANT:
-   - Cleaning tidak digunakan untuk mengubah pixel
-     demi menghindari AI detector.
-   - File hasil dibaca ulang setelah cleaning.
-   - Metadata UI selalu mengikuti file yang terakhir
-     benar-benar dibaca.
-   - C2PA / Content Credentials diperiksa langsung
-     saat CHECK dan setelah cleaning.
-
-   REFACTOR:
-   - CHECK logic berada di metadata-check.js
-   - Provenance inspection berada di metadata-check.js
-   - Readable error helper berada di metadata-check.js
-
    LOADING:
-   - CHECK mempunyai loader sendiri
-   - CLEAN mempunyai loader sendiri
-   - Loader aktif selama Promise benar-benar berjalan
-   - Loader tidak bergantung pada delay buatan
+   - CHECK minimum duration: 10 detik
+   - CLEAN minimum duration: 10 detik
+   - Loader menunggu proses asli selesai
+   - Loader tidak memotong proses yang sedang berjalan
+   - Error tetap menghentikan loader
 ========================================================= */
+
 
 import {
     APP,
@@ -110,6 +99,16 @@ import {
    CONSTANTS
 ========================================================= */
 
+
+/*
+   CHECK dan CLEAN sama-sama memiliki
+   minimum loading duration 10 detik.
+*/
+
+const CHECKING_DURATION =
+    10000;
+
+
 const CLEANING_DURATION =
     10000;
 
@@ -118,53 +117,80 @@ const CLEANING_TICK =
     100;
 
 
+/*
+   Stage visual CLEAN.
+   Stage ini hanya mengatur tampilan loader.
+   Tidak mengubah proses cleaning sebenarnya.
+*/
+
 const CLEANING_STAGES = [
 
     {
         progress: 8,
-        title: "INITIALIZING",
+
+        title:
+            "INITIALIZING",
+
         message:
             "Menyiapkan proses pembersihan..."
     },
 
     {
         progress: 22,
-        title: "ANALYZING",
+
+        title:
+            "ANALYZING",
+
         message:
             "Menganalisis struktur media..."
     },
 
     {
         progress: 42,
-        title: "CLEANING",
+
+        title:
+            "CLEANING",
+
         message:
             "Membersihkan metadata..."
     },
 
     {
         progress: 64,
-        title: "REBUILDING",
+
+        title:
+            "REBUILDING",
+
         message:
             "Membangun file hasil baru..."
     },
 
     {
         progress: 82,
-        title: "VERIFYING",
+
+        title:
+            "VERIFYING",
+
         message:
             "Memeriksa ulang file hasil..."
     },
 
     {
         progress: 94,
-        title: "FINALIZING",
+
+        title:
+            "FINALIZING",
+
         message:
             "Menyiapkan file untuk download..."
     },
 
     {
         progress: 100,
-        title: "READY",
+
+        title:
+            "READY",
+
         message:
             "File cleaned siap digunakan."
     }
@@ -176,15 +202,24 @@ const CLEANING_STAGES = [
    LOADING STATE
 ========================================================= */
 
-let metadataLoader = null;
+let metadataLoader =
+    null;
 
-let metadataLoaderTimer = null;
 
-let metadataLoaderStartedAt = 0;
+let metadataLoaderTimer =
+    null;
 
-let metadataLoaderMode = null;
 
-let metadataLoaderRunning = false;
+let metadataLoaderStartedAt =
+    0;
+
+
+let metadataLoaderMode =
+    null;
+
+
+let metadataLoaderRunning =
+    false;
 
 
 /* =========================================================
@@ -496,7 +531,7 @@ function setMetadataLoaderContent(
 
 
 /* =========================================================
-   LOADER STAGE
+   CLEANING STAGE
 ========================================================= */
 
 function getCleaningStage(
@@ -564,6 +599,150 @@ function getCleaningStage(
 
 
 /* =========================================================
+   CHECKING STAGE
+========================================================= */
+
+function getCheckStage(
+    elapsed
+) {
+
+    /*
+       CHECK berlangsung minimal 10 detik.
+
+       Progress dibuat bertahap dan tidak pernah
+       mencapai 100% sebelum proses asli selesai.
+    */
+
+    if (
+        elapsed < 1000
+    ) {
+
+        return {
+
+            progress:
+                8,
+
+            stage:
+                "INITIALIZING",
+
+            message:
+                "Menyiapkan pemeriksaan file..."
+
+        };
+    }
+
+
+    if (
+        elapsed < 2500
+    ) {
+
+        return {
+
+            progress:
+                20,
+
+            stage:
+                "READING",
+
+            message:
+                "Membaca struktur dan metadata media..."
+
+        };
+    }
+
+
+    if (
+        elapsed < 4500
+    ) {
+
+        return {
+
+            progress:
+                35,
+
+            stage:
+                "ANALYZING",
+
+            message:
+                "Menganalisis indikator metadata..."
+
+        };
+    }
+
+
+    if (
+        elapsed < 6500
+    ) {
+
+        return {
+
+            progress:
+                52,
+
+            stage:
+                "AI INDICATORS",
+
+            message:
+                "Memeriksa indikator metadata terkait AI..."
+
+        };
+    }
+
+
+    if (
+        elapsed < 8000
+    ) {
+
+        return {
+
+            progress:
+                68,
+
+            stage:
+                "PROVENANCE",
+
+            message:
+                "Memeriksa C2PA / Content Credentials..."
+
+        };
+    }
+
+
+    if (
+        elapsed < 9000
+    ) {
+
+        return {
+
+            progress:
+                82,
+
+            stage:
+                "VERIFYING",
+
+            message:
+                "Memverifikasi hasil pemeriksaan..."
+
+        };
+    }
+
+
+    return {
+
+        progress:
+            94,
+
+        stage:
+            "FINALIZING",
+
+        message:
+            "Menyelesaikan pemeriksaan metadata..."
+
+    };
+}
+
+
+/* =========================================================
    START LOADER
 ========================================================= */
 
@@ -595,6 +774,7 @@ function startMetadataLoader(
             metadataLoaderTimer
         );
 
+
         metadataLoaderTimer =
             null;
     }
@@ -621,10 +801,10 @@ function startMetadataLoader(
                 "CHECKING METADATA",
 
             stage:
-                "ANALYZING",
+                "INITIALIZING",
 
             message:
-                "Membaca metadata dan provenance file...",
+                "Menyiapkan pemeriksaan file...",
 
             progress:
                 8
@@ -652,7 +832,7 @@ function startMetadataLoader(
 
 
     metadataLoaderTimer =
-        setInterval(
+        window.setInterval(
             function metadataLoaderTick() {
 
                 if (
@@ -668,77 +848,51 @@ function startMetadataLoader(
                     metadataLoaderStartedAt;
 
 
+                /*
+                   ================================
+                   CHECK
+                   ================================
+                */
+
                 if (
                     metadataLoaderMode ===
                     "check"
                 ) {
 
-                    const checkProgress =
-                        Math.min(
-                            92,
-                            8 +
-                            Math.round(
-                                (
-                                    elapsed /
-                                    5000
-                                ) *
-                                84
-                            )
-                        );
-
-
-                    setMetadataLoaderProgress(
-                        checkProgress
-                    );
-
-
-                    const {
-
-                        stage,
-
-                        message
-
-                    } =
+                    const checkStage =
                         getCheckStage(
                             elapsed
                         );
 
 
-                    const {
+                    setMetadataLoaderContent({
+
+                        title:
+                            "CHECKING METADATA",
 
                         stage:
-                            stageElement,
+                            checkStage.stage,
 
                         message:
-                            messageElement
+                            checkStage.message,
 
-                    } =
-                        getMetadataLoaderElements();
+                        progress:
+                            checkStage.progress
 
-
-                    if (
-                        stageElement
-                    ) {
-
-                        stageElement.textContent =
-                            stage;
-                    }
-
-
-                    if (
-                        messageElement
-                    ) {
-
-                        messageElement.textContent =
-                            message;
-                    }
+                    });
 
 
                     return;
                 }
 
 
-                const stage =
+                /*
+                   ================================
+                   CLEAN
+                   ================================
+                */
+
+                const cleaningStage =
                     getCleaningStage(
                         elapsed
                     );
@@ -750,103 +904,19 @@ function startMetadataLoader(
                         "CLEANING METADATA",
 
                     stage:
-                        stage.title,
+                        cleaningStage.title,
 
                     message:
-                        stage.message,
+                        cleaningStage.message,
 
                     progress:
-                        stage.progress
+                        cleaningStage.progress
 
                 });
 
             },
             CLEANING_TICK
         );
-}
-
-
-/* =========================================================
-   CHECK LOADER STAGE
-========================================================= */
-
-function getCheckStage(
-    elapsed
-) {
-
-    if (
-        elapsed < 700
-    ) {
-
-        return {
-
-            stage:
-                "INITIALIZING",
-
-            message:
-                "Menyiapkan pemeriksaan file..."
-
-        };
-    }
-
-
-    if (
-        elapsed < 1800
-    ) {
-
-        return {
-
-            stage:
-                "READING",
-
-            message:
-                "Membaca struktur dan metadata media..."
-
-        };
-    }
-
-
-    if (
-        elapsed < 3000
-    ) {
-
-        return {
-
-            stage:
-                "ANALYZING",
-
-            message:
-                "Menganalisis indikator metadata..."
-
-        };
-    }
-
-
-    if (
-        elapsed < 4200
-    ) {
-
-        return {
-
-            stage:
-                "PROVENANCE",
-
-            message:
-                "Memeriksa C2PA / Content Credentials..."
-
-        };
-    }
-
-
-    return {
-
-        stage:
-            "VERIFYING",
-
-        message:
-            "Menyelesaikan pemeriksaan metadata..."
-
-    };
 }
 
 
@@ -863,6 +933,7 @@ function stopMetadataLoader(
 
         title,
         message
+
     } =
         options;
 
@@ -878,6 +949,7 @@ function stopMetadataLoader(
         clearInterval(
             metadataLoaderTimer
         );
+
 
         metadataLoaderTimer =
             null;
@@ -946,12 +1018,6 @@ function stopMetadataLoader(
     }
 
 
-    /*
-       Beri waktu sangat singkat agar
-       status READY / ERROR sempat terlihat,
-       lalu tutup loader.
-    */
-
     window.setTimeout(
         function hideMetadataLoader() {
 
@@ -962,6 +1028,7 @@ function stopMetadataLoader(
                 loader.classList.remove(
                     "is-visible"
                 );
+
 
                 loader.setAttribute(
                     "aria-hidden",
@@ -977,6 +1044,49 @@ function stopMetadataLoader(
         success
             ? 420
             : 700
+    );
+}
+
+
+/* =========================================================
+   WAIT FOR MINIMUM DURATION
+========================================================= */
+
+async function waitForMinimumLoaderDuration(
+    startedAt,
+    minimumDuration
+) {
+
+    const elapsed =
+        Date.now() -
+        startedAt;
+
+
+    const remaining =
+        Math.max(
+            0,
+            minimumDuration -
+            elapsed
+        );
+
+
+    if (
+        remaining <= 0
+    ) {
+
+        return;
+    }
+
+
+    await new Promise(
+        resolve => {
+
+            window.setTimeout(
+                resolve,
+                remaining
+            );
+
+        }
     );
 }
 
@@ -1059,10 +1169,8 @@ function getMetadataProcessError(
 /* =========================================================
    CHECK WRAPPER
    ---------------------------------------------------------
-   Wrapper ini sengaja berada di APP agar:
-   - metadata-check.js tetap fokus pada logic CHECK
-   - loader hanya mengatur UI
-   - fungsi CHECK asli tidak perlu diubah
+   CHECK ASLI TETAP BERADA DI metadata-check.js.
+   Wrapper hanya mengontrol loader.
 ========================================================= */
 
 async function handleMetadataCheck(
@@ -1073,6 +1181,11 @@ async function handleMetadataCheck(
         metadataLoaderRunning
     ) {
 
+        console.warn(
+            "[GEN-Z.AI][METADATA] CHECK sedang berjalan."
+        );
+
+
         return;
     }
 
@@ -1082,12 +1195,50 @@ async function handleMetadataCheck(
     );
 
 
+    const startedAt =
+        Date.now();
+
+
     try {
 
         const result =
             await checkMetadata(
                 ...args
             );
+
+
+        /*
+           Jangan tutup loader sebelum
+           minimum 10 detik tercapai.
+        */
+
+        await waitForMinimumLoaderDuration(
+            startedAt,
+            CHECKING_DURATION
+        );
+
+
+        /*
+           Setelah proses asli selesai dan
+           minimum 10 detik terpenuhi,
+           baru tampilkan READY.
+        */
+
+        setMetadataLoaderContent({
+
+            title:
+                "CHECK COMPLETE",
+
+            stage:
+                "READY",
+
+            message:
+                "Metadata dan provenance berhasil diperiksa.",
+
+            progress:
+                100
+
+        });
 
 
         stopMetadataLoader(
@@ -1144,9 +1295,8 @@ async function handleMetadataCheck(
 /* =========================================================
    CLEAN WRAPPER
    ---------------------------------------------------------
-   Wrapper ini TIDAK mengubah cleaning logic.
-   Ia hanya mengontrol loader selama cleanMetadata()
-   benar-benar berjalan.
+   CLEAN ASLI TETAP BERADA DI metadata-clean.js.
+   Wrapper hanya mengontrol loader.
 ========================================================= */
 
 async function handleMetadataClean(
@@ -1157,6 +1307,11 @@ async function handleMetadataClean(
         metadataLoaderRunning
     ) {
 
+        console.warn(
+            "[GEN-Z.AI][METADATA] CLEAN sedang berjalan."
+        );
+
+
         return;
     }
 
@@ -1166,12 +1321,49 @@ async function handleMetadataClean(
     );
 
 
+    const startedAt =
+        Date.now();
+
+
     try {
 
         const result =
             await cleanMetadata(
                 ...args
             );
+
+
+        /*
+           Jangan tutup loader sebelum
+           minimum 10 detik tercapai.
+
+           Jika FFmpeg / cleaning memerlukan
+           waktu lebih dari 10 detik,
+           fungsi ini langsung lanjut karena
+           proses asli sudah lebih lama.
+        */
+
+        await waitForMinimumLoaderDuration(
+            startedAt,
+            CLEANING_DURATION
+        );
+
+
+        setMetadataLoaderContent({
+
+            title:
+                "CLEANING COMPLETE",
+
+            stage:
+                "READY",
+
+            message:
+                "Metadata berhasil dibersihkan dan file hasil telah diverifikasi.",
+
+            progress:
+                100
+
+        });
 
 
         stopMetadataLoader(
@@ -1235,8 +1427,9 @@ function init() {
 
 
     /*
-       Pastikan loader sudah tersedia sebelum
-       event binding dilakukan.
+       Loader dibuat sebelum event binding.
+       Dengan demikian elemen selalu tersedia
+       ketika tombol ditekan.
     */
 
     ensureMetadataLoader();
@@ -1249,16 +1442,14 @@ function init() {
         openFilePicker,
 
         /*
-           Gunakan wrapper, bukan fungsi asli,
-           supaya CHECK mempunyai loading state.
+           CHECK menggunakan wrapper loader.
         */
 
         checkMetadata:
             handleMetadataCheck,
 
         /*
-           Gunakan wrapper, bukan fungsi asli,
-           supaya CLEAN mempunyai loading state.
+           CLEAN menggunakan wrapper loader.
         */
 
         cleanMetadata:
@@ -1822,14 +2013,16 @@ window.GENZMetadataCleaner =
                 metadata:
                     [
                         ...(
-                            state.metadata || []
+                            state.metadata ||
+                            []
                         )
                     ],
 
                 aiIndicators:
                     [
                         ...(
-                            state.aiIndicators || []
+                            state.aiIndicators ||
+                            []
                         )
                     ],
 
@@ -1869,6 +2062,7 @@ window.GENZMetadataCleaner =
                     metadataLoaderTimer
                 );
 
+
                 metadataLoaderTimer =
                     null;
             }
@@ -1889,6 +2083,7 @@ window.GENZMetadataCleaner =
                 metadataLoader.classList.remove(
                     "is-visible"
                 );
+
 
                 metadataLoader.setAttribute(
                     "aria-hidden",
@@ -1916,7 +2111,8 @@ if (
         "DOMContentLoaded",
         init,
         {
-            once: true
+            once:
+                true
         }
     );
 
@@ -1983,6 +2179,7 @@ if (
     console.log(
         "[GEN-Z.AI][METADATA] DOM CHECK:",
         {
+
             cleanButton:
                 !!cleanButton,
 
@@ -1991,6 +2188,7 @@ if (
 
             fileInput:
                 !!fileInput
+
         }
     );
 
@@ -2016,11 +2214,13 @@ if (
                 console.log(
                     "[GEN-Z.AI][METADATA] loader:",
                     {
+
                         running:
                             metadataLoaderRunning,
 
                         mode:
                             metadataLoaderMode
+
                     }
                 );
 
@@ -2063,11 +2263,13 @@ if (
                 console.log(
                     "[GEN-Z.AI][METADATA] loader:",
                     {
+
                         running:
                             metadataLoaderRunning,
 
                         mode:
                             metadataLoaderMode
+
                     }
                 );
 
@@ -2102,6 +2304,7 @@ if (
                 console.log(
                     "[GEN-Z.AI][METADATA] FILE INPUT TERDETEKSI:",
                     {
+
                         name:
                             file?.name ||
                             null,
@@ -2113,6 +2316,7 @@ if (
                         size:
                             file?.size ||
                             0
+
                     }
                 );
 
@@ -2135,6 +2339,7 @@ if (
                 "%c[GEN-Z.AI][METADATA] GLOBAL ERROR",
                 "font-weight:bold;color:red;",
                 {
+
                     message:
                         event.message,
 
@@ -2149,6 +2354,7 @@ if (
 
                     error:
                         event.error
+
                 }
             );
 
