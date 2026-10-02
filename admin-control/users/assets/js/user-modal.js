@@ -6,325 +6,670 @@
    admin-control/users/assets/js/user-modal.js
 
    Fungsi:
-   - Membuka modal Add User
-   - Menutup modal Add User
-   - Membuka modal Delete User
-   - Menutup modal Delete User
-   - Menyimpan user yang akan dihapus
-   - Tidak melakukan API request
-   - Tidak melakukan authentication
-   - Tidak melakukan redirect
-   ========================================================= */
+   - Open / close Add User modal
+   - Open / close Edit User modal
+   - Open / close Delete User modal
+   - Menjaga body modal lock
+========================================================= */
 
 import { userState } from "./user-state.js";
 
 
 /* =========================================================
-   ELEMENT HELPER
+   MODAL BODY LOCK
 ========================================================= */
 
-function getElement(id) {
+function updateBodyModalLock() {
 
-    return document.getElementById(id);
+    const modalIds = [
+
+        "addModal",
+
+        "editModal",
+
+        "deleteModal"
+
+    ];
+
+
+    const hasOpenModal =
+        modalIds.some(
+            (id) => {
+
+                const modal =
+                    document.getElementById(id);
+
+                return (
+                    modal &&
+                    modal.classList.contains("show")
+                );
+
+            }
+        );
+
+
+    document.body.classList.toggle(
+        "modal-open",
+        hasOpenModal
+    );
+
 }
 
 
 /* =========================================================
-   RESET ADD FORM
-========================================================= */
-
-function resetAddForm() {
-
-    const form =
-        getElement("addUserForm");
-
-    if (!form) {
-        return;
-    }
-
-
-    form.reset();
-
-
-    /*
-       Default values.
-    */
-
-    const role =
-        getElement("newRole");
-
-    if (role) {
-
-        role.value = "USER";
-    }
-
-
-    const credits =
-        getElement("newCredits");
-
-    if (credits) {
-
-        credits.value = "0";
-    }
-
-
-    const status =
-        getElement("newStatus");
-
-    if (status) {
-
-        status.value = "active";
-    }
-
-
-    /*
-       Pastikan field password kembali normal.
-    */
-
-    const password =
-        getElement("newPassword");
-
-    if (password) {
-
-        password.value = "";
-    }
-}
-
-
-/* =========================================================
-   OPEN ADD MODAL
+   OPEN ADD USER MODAL
 ========================================================= */
 
 export function openAddModal() {
 
     const modal =
-        getElement("addModal");
+        document.getElementById("addModal");
+
 
     if (!modal) {
 
         console.warn(
-            "[GEN-Z.AI UserModal] #addModal tidak ditemukan."
+            "[GEN-Z.AI UserModal] addModal tidak ditemukan."
         );
 
         return;
+
     }
 
 
-    resetAddForm();
+    const form =
+        document.getElementById("addUserForm");
+
+
+    if (form) {
+
+        form.reset();
+
+    }
 
 
     /*
-       Hapus state delete.
-    */
+     * Default values
+     */
 
-    userState.userToDelete = null;
+    const role =
+        document.getElementById("newRole");
+
+    if (role) {
+
+        role.value = "USER";
+
+    }
+
+
+    const credits =
+        document.getElementById("newCredits");
+
+    if (credits) {
+
+        credits.value = "0";
+
+    }
+
+
+    const status =
+        document.getElementById("newStatus");
+
+    if (status) {
+
+        status.value = "active";
+
+    }
 
 
     /*
-       Tampilkan modal.
-    */
+     * Pastikan role ADMIN mengikuti
+     * role operator saat ini.
+     */
+
+    const currentRole =
+
+        String(
+
+            userState.currentProfile?.role ||
+
+            window.GENZNavigation?.getRole?.() ||
+
+            window.GENZ_CURRENT_ROLE ||
+
+            "USER"
+
+        )
+            .trim()
+            .toUpperCase();
+
+
+    const adminOption =
+        document.getElementById(
+            "adminRoleOption"
+        );
+
+
+    if (adminOption) {
+
+        if (currentRole === "OWNER") {
+
+            adminOption.hidden = false;
+            adminOption.disabled = false;
+
+        } else {
+
+            adminOption.hidden = true;
+            adminOption.disabled = true;
+
+        }
+
+    }
+
 
     modal.classList.add("show");
 
 
-    /*
-       Lock body scroll.
-    */
-
-    document.body.classList.add(
-        "modal-open"
-    );
+    updateBodyModalLock();
 
 
-    /*
-       Focus email field.
-    */
+    setTimeout(() => {
 
-    window.setTimeout(() => {
-
-        const email =
-            getElement("newEmail");
-
-        if (email) {
-
-            email.focus();
-        }
+        document
+            .getElementById("newEmail")
+            ?.focus();
 
     }, 50);
+
 }
 
 
 /* =========================================================
-   CLOSE ADD MODAL
+   CLOSE ADD USER MODAL
 ========================================================= */
 
 export function closeAddModal() {
 
     const modal =
-        getElement("addModal");
+        document.getElementById("addModal");
 
-    if (!modal) {
-        return;
+
+    if (modal) {
+
+        modal.classList.remove("show");
+
     }
 
 
-    modal.classList.remove("show");
+    updateBodyModalLock();
 
-
-    /*
-       Hanya hapus modal-open jika
-       modal delete juga tidak terbuka.
-    */
-
-    const deleteModal =
-        getElement("deleteModal");
-
-
-    if (
-        !deleteModal ||
-        !deleteModal.classList.contains("show")
-    ) {
-
-        document.body.classList.remove(
-            "modal-open"
-        );
-    }
 }
 
 
 /* =========================================================
-   OPEN DELETE MODAL
+   OPEN EDIT USER MODAL
 ========================================================= */
 
-export function openDeleteModal(
-    userId,
-    email,
-    name
+export function openEditModal(
+    user
 ) {
 
-    const modal =
-        getElement("deleteModal");
-
-    if (!modal) {
+    if (!user || !user.id) {
 
         console.warn(
-            "[GEN-Z.AI UserModal] #deleteModal tidak ditemukan."
+            "[GEN-Z.AI UserModal] Target Edit User tidak valid."
         );
 
         return;
+
     }
 
 
     /*
-       Simpan target user.
-    */
+     * Simpan target edit ke state.
+     */
 
-    userState.userToDelete = {
-
-        id: String(userId || "").trim(),
-
-        email: String(email || "").trim(),
-
-        name: String(
-            name ||
-            email ||
-            "User"
-        ).trim()
+    userState.editingUser = {
+        ...user
     };
 
 
-    /*
-       Tampilkan nama user.
-    */
+    const modal =
+        document.getElementById("editModal");
 
-    const nameElement =
-        getElement("deleteUserName");
 
-    if (nameElement) {
+    if (!modal) {
 
-        nameElement.textContent =
-            userState.userToDelete.name;
+        console.error(
+            "[GEN-Z.AI UserModal] editModal tidak ditemukan."
+        );
+
+        return;
+
     }
 
 
     /*
-       Tampilkan email / ID bila element tersedia.
-       Tidak memaksa struktur HTML tertentu.
-    */
+     * ID
+     */
 
-    const emailElement =
-        getElement("deleteUserEmail");
-
-    if (emailElement) {
-
-        emailElement.textContent =
-            userState.userToDelete.email;
-    }
+    const idInput =
+        document.getElementById(
+            "editUserId"
+        );
 
 
-    const idElement =
-        getElement("deleteUserId");
+    if (idInput) {
 
-    if (idElement) {
+        idInput.value =
+            String(
+                user.id || ""
+            );
 
-        idElement.textContent =
-            userState.userToDelete.id;
     }
 
 
     /*
-       Tampilkan modal.
-    */
+     * Email
+     *
+     * Email dibuat readonly pada HTML.
+     * Kita hanya mengisi nilainya di sini.
+     */
+
+    const emailInput =
+        document.getElementById(
+            "editEmail"
+        );
+
+
+    if (emailInput) {
+
+        emailInput.value =
+            String(
+                user.email || ""
+            );
+
+    }
+
+
+    /*
+     * Name
+     */
+
+    const nameInput =
+        document.getElementById(
+            "editName"
+        );
+
+
+    if (nameInput) {
+
+        nameInput.value =
+            String(
+                user.name || ""
+            );
+
+    }
+
+
+    /*
+     * Role
+     */
+
+    const roleSelect =
+        document.getElementById(
+            "editRole"
+        );
+
+
+    const currentOperatorRole =
+
+        String(
+
+            userState.currentProfile?.role ||
+
+            window.GENZNavigation?.getRole?.() ||
+
+            window.GENZ_CURRENT_ROLE ||
+
+            "USER"
+
+        )
+            .trim()
+            .toUpperCase();
+
+
+    const targetRole =
+
+        String(
+            user.role || "USER"
+        )
+            .trim()
+            .toUpperCase();
+
+
+    if (roleSelect) {
+
+        roleSelect.value =
+            targetRole === "ADMIN"
+                ? "ADMIN"
+                : "USER";
+
+    }
+
+
+    /*
+     * ADMIN option
+     *
+     * OWNER:
+     * USER / ADMIN dapat dipilih.
+     *
+     * ADMIN:
+     * hanya USER.
+     */
+
+    const adminOption =
+        document.getElementById(
+            "editAdminRoleOption"
+        );
+
+
+    if (adminOption) {
+
+        if (
+            currentOperatorRole === "OWNER"
+        ) {
+
+            adminOption.hidden = false;
+            adminOption.disabled = false;
+
+        } else {
+
+            adminOption.hidden = true;
+            adminOption.disabled = true;
+
+            if (roleSelect) {
+
+                roleSelect.value =
+                    "USER";
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * Credits
+     */
+
+    const creditsInput =
+        document.getElementById(
+            "editCredits"
+        );
+
+
+    if (creditsInput) {
+
+        const credits =
+            Number(
+                user.credits ?? 0
+            );
+
+
+        creditsInput.value =
+            Number.isFinite(credits)
+                ? String(credits)
+                : "0";
+
+    }
+
+
+    /*
+     * Status
+     */
+
+    const statusSelect =
+        document.getElementById(
+            "editStatus"
+        );
+
+
+    if (statusSelect) {
+
+        const status =
+
+            String(
+                user.status || "active"
+            )
+                .trim()
+                .toLowerCase();
+
+
+        const allowedStatuses = [
+
+            "active",
+
+            "inactive",
+
+            "suspended"
+
+        ];
+
+
+        statusSelect.value =
+
+            allowedStatuses.includes(status)
+
+                ? status
+
+                : "active";
+
+    }
+
+
+    /*
+     * Email verification
+     */
+
+    const emailConfirmed =
+        document.getElementById(
+            "editEmailConfirmed"
+        );
+
+
+    if (emailConfirmed) {
+
+        emailConfirmed.checked =
+            Boolean(
+                user.email_confirmed
+            );
+
+    }
+
+
+    /*
+     * Tampilkan modal.
+     */
 
     modal.classList.add("show");
 
 
-    document.body.classList.add(
-        "modal-open"
-    );
+    updateBodyModalLock();
+
+
+    setTimeout(() => {
+
+        document
+            .getElementById("editName")
+            ?.focus();
+
+    }, 50);
+
 }
 
 
 /* =========================================================
-   CLOSE DELETE MODAL
+   CLOSE EDIT USER MODAL
+========================================================= */
+
+export function closeEditModal() {
+
+    const modal =
+        document.getElementById(
+            "editModal"
+        );
+
+
+    if (modal) {
+
+        modal.classList.remove("show");
+
+    }
+
+
+    userState.editingUser =
+        null;
+
+
+    updateBodyModalLock();
+
+}
+
+
+/* =========================================================
+   OPEN DELETE USER MODAL
+========================================================= */
+
+export function openDeleteModal(
+    userId,
+    email = "",
+    name = ""
+) {
+
+    if (!userId) {
+
+        console.warn(
+            "[GEN-Z.AI UserModal] Delete target tidak valid."
+        );
+
+        return;
+
+    }
+
+
+    userState.userToDelete = {
+
+        id:
+            String(userId),
+
+        email:
+            String(email || ""),
+
+        name:
+            String(name || "")
+
+    };
+
+
+    const modal =
+        document.getElementById(
+            "deleteModal"
+        );
+
+
+    if (!modal) {
+
+        console.warn(
+            "[GEN-Z.AI UserModal] deleteModal tidak ditemukan."
+        );
+
+        return;
+
+    }
+
+
+    const nameElement =
+        document.getElementById(
+            "deleteUserName"
+        );
+
+
+    if (nameElement) {
+
+        nameElement.textContent =
+
+            String(
+                name ||
+                email ||
+                "User"
+            );
+
+    }
+
+
+    const emailElement =
+        document.getElementById(
+            "deleteUserEmail"
+        );
+
+
+    if (emailElement) {
+
+        emailElement.textContent =
+            String(email || "");
+
+    }
+
+
+    const idElement =
+        document.getElementById(
+            "deleteUserId"
+        );
+
+
+    if (idElement) {
+
+        idElement.value =
+            String(userId);
+
+    }
+
+
+    modal.classList.add("show");
+
+
+    updateBodyModalLock();
+
+}
+
+
+/* =========================================================
+   CLOSE DELETE USER MODAL
 ========================================================= */
 
 export function closeDeleteModal() {
 
     const modal =
-        getElement("deleteModal");
+        document.getElementById(
+            "deleteModal"
+        );
+
 
     if (modal) {
 
         modal.classList.remove("show");
+
     }
 
 
-    /*
-       Hapus target.
-    */
-
-    userState.userToDelete = null;
+    userState.userToDelete =
+        null;
 
 
-    /*
-       Lepas body lock jika Add Modal
-       juga tidak sedang terbuka.
-    */
+    updateBodyModalLock();
 
-    const addModal =
-        getElement("addModal");
-
-
-    if (
-        !addModal ||
-        !addModal.classList.contains("show")
-    ) {
-
-        document.body.classList.remove(
-            "modal-open"
-        );
-    }
 }
 
 
@@ -334,8 +679,61 @@ export function closeDeleteModal() {
 
 export function closeAllModals() {
 
-    closeAddModal();
-    closeDeleteModal();
+    const addModal =
+        document.getElementById(
+            "addModal"
+        );
+
+
+    const editModal =
+        document.getElementById(
+            "editModal"
+        );
+
+
+    const deleteModal =
+        document.getElementById(
+            "deleteModal"
+        );
+
+
+    if (addModal) {
+
+        addModal.classList.remove(
+            "show"
+        );
+
+    }
+
+
+    if (editModal) {
+
+        editModal.classList.remove(
+            "show"
+        );
+
+    }
+
+
+    if (deleteModal) {
+
+        deleteModal.classList.remove(
+            "show"
+        );
+
+    }
+
+
+    userState.userToDelete =
+        null;
+
+
+    userState.editingUser =
+        null;
+
+
+    updateBodyModalLock();
+
 }
 
 
@@ -343,7 +741,9 @@ export function closeAllModals() {
    GLOBAL BRIDGE
 ========================================================= */
 
-if (typeof window !== "undefined") {
+if (
+    typeof window !== "undefined"
+) {
 
     window.GENZUserModal = {
 
@@ -351,10 +751,16 @@ if (typeof window !== "undefined") {
 
         closeAddModal,
 
+        openEditModal,
+
+        closeEditModal,
+
         openDeleteModal,
 
         closeDeleteModal,
 
         closeAllModals
+
     };
+
 }
