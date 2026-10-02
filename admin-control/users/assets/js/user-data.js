@@ -6,18 +6,11 @@
    admin-control/users/assets/js/user-data.js
 
    Fungsi:
-   - Load users dari API
-   - Menyimpan allUsers
+   - Load daftar users
+   - Simpan data ke userState
    - Filter users
-   - Menghitung statistics
-   - Mengontrol loading state dasar
-
-   Tidak menangani:
-   - Authentication
-   - API implementation
-   - HTML table rendering
-   - Modal
-   - Create / delete action
+   - Update tampilan users
+   - Update statistik
 ========================================================= */
 
 import {
@@ -50,142 +43,165 @@ export async function loadUsers() {
             "userContainer"
         );
 
+
     const refreshButton =
         document.getElementById(
             "refreshButton"
         );
 
 
-    /* -----------------------------------------------------
-       CLEAR PREVIOUS MESSAGE
-    ----------------------------------------------------- */
-
-    clearMessage();
-
-
-    /* -----------------------------------------------------
-       LOADING UI
-    ----------------------------------------------------- */
-
-    if (container) {
-
-        container.innerHTML = `
-            <div class="loading">
-                Memuat data pengguna...
-            </div>
-        `;
-
-    }
-
-
-    if (refreshButton) {
-
-        refreshButton.disabled =
-            true;
-
-        refreshButton.textContent =
-            "LOADING...";
-
-    }
-
-
     try {
 
-        /* -------------------------------------------------
-           API REQUEST
-        ------------------------------------------------- */
+        /* =================================================
+           CLEAR MESSAGE
+        ================================================== */
 
-        const result =
-            await getUsers();
-
-
-        /* -------------------------------------------------
-           EXTRACT USERS
-        ------------------------------------------------- */
-
-        const users =
-            Array.isArray(
-                result?.users
-            )
-                ? result.users
-                : [];
+        clearMessage();
 
 
-        /* -------------------------------------------------
-           STORE USERS
-        ------------------------------------------------- */
-
-        userState.allUsers =
-            users;
-
-
-        /* -------------------------------------------------
-           APPLY FILTER
-        ------------------------------------------------- */
-
-        filterUsers();
-
-
-        /* -------------------------------------------------
-           UPDATE STATISTICS
-        ------------------------------------------------- */
-
-        updateStats();
-
-
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI] Gagal memuat users:",
-            error
-        );
-
-
-        userState.allUsers =
-            [];
-
-        userState.filteredUsers =
-            [];
-
-
-        /* -------------------------------------------------
-           ERROR UI
-        ------------------------------------------------- */
+        /* =================================================
+           LOADING STATE
+        ================================================== */
 
         if (container) {
 
             container.innerHTML = `
-                <div class="empty">
-                    Gagal memuat data pengguna.
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        ...
+                    </div>
+
+                    <div class="empty-title">
+                        Memuat Users
+                    </div>
+
+                    <div class="empty-text">
+                        Mengambil data user...
+                    </div>
                 </div>
             `;
 
         }
 
 
-        showMessage(
+        if (refreshButton) {
 
-            error?.message ||
-            "Gagal memuat data pengguna.",
+            refreshButton.disabled = true;
 
-            "error"
+        }
 
+
+        /* =================================================
+           API
+        ================================================== */
+
+        const result =
+            await getUsers();
+
+
+        /* =================================================
+           NORMALIZE RESULT
+           -------------------------------------------------
+           API dapat mengembalikan:
+           - array langsung
+           - { users: [...] }
+           - { data: [...] }
+        ================================================== */
+
+        let users = [];
+
+
+        if (Array.isArray(result)) {
+
+            users = result;
+
+        } else if (
+            Array.isArray(result?.users)
+        ) {
+
+            users = result.users;
+
+        } else if (
+            Array.isArray(result?.data)
+        ) {
+
+            users = result.data;
+
+        }
+
+
+        /* =================================================
+           SAVE STATE
+        ================================================== */
+
+        userState.allUsers =
+            users;
+
+
+        /* =================================================
+           FILTER
+        ================================================== */
+
+        filterUsers();
+
+
+        /* =================================================
+           STATS
+        ================================================== */
+
+        updateStats();
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] Load users error:",
+            error
         );
 
 
-    } finally {
+        userState.allUsers = [];
 
-        /* -------------------------------------------------
-           RESTORE REFRESH BUTTON
-        ------------------------------------------------- */
+        userState.filteredUsers = [];
+
+
+        if (container) {
+
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        ⚠
+                    </div>
+
+                    <div class="empty-title">
+                        Gagal Memuat Users
+                    </div>
+
+                    <div class="empty-text">
+                        ${escapeMessage(
+                            error?.message ||
+                            "Terjadi kesalahan saat mengambil data user."
+                        )}
+                    </div>
+                </div>
+            `;
+
+        }
+
+
+        updateStats();
+
+
+        showMessage(
+            error?.message ||
+            "Gagal memuat data users.",
+            "error"
+        );
+
+    } finally {
 
         if (refreshButton) {
 
-            refreshButton.disabled =
-                false;
-
-            refreshButton.textContent =
-                "REFRESH";
+            refreshButton.disabled = false;
 
         }
 
@@ -206,105 +222,102 @@ export function filterUsers() {
         );
 
 
-    const search =
+    const keyword =
         String(
             searchInput?.value || ""
         )
-            .trim()
-            .toLowerCase();
+        .trim()
+        .toLowerCase();
 
 
-    /* -----------------------------------------------------
-       NO SEARCH
-    ----------------------------------------------------- */
+    const users =
+        Array.isArray(
+            userState.allUsers
+        )
+            ? userState.allUsers
+            : [];
 
-    if (!search) {
+
+    if (!keyword) {
 
         userState.filteredUsers =
-            [
-                ...userState.allUsers
-            ];
+            [...users];
 
-        renderUsers(
-            userState.filteredUsers
-        );
+    } else {
 
-        return;
+        userState.filteredUsers =
+            users.filter(
+                (user) => {
+
+                    const email =
+                        String(
+                            user?.email || ""
+                        )
+                        .toLowerCase();
+
+
+                    const name =
+                        String(
+                            user?.name || ""
+                        )
+                        .toLowerCase();
+
+
+                    const role =
+                        String(
+                            user?.role || ""
+                        )
+                        .toLowerCase();
+
+
+                    const status =
+                        String(
+                            user?.status || ""
+                        )
+                        .toLowerCase();
+
+
+                    return (
+                        email.includes(keyword) ||
+                        name.includes(keyword) ||
+                        role.includes(keyword) ||
+                        status.includes(keyword)
+                    );
+
+                }
+            );
 
     }
 
 
-    /* -----------------------------------------------------
-       FILTER
-       Search:
-       - email
-       - name
-       - role
-       - status
-    ----------------------------------------------------- */
-
-    userState.filteredUsers =
-        userState.allUsers.filter(
-            user => {
-
-                const email =
-                    String(
-                        user?.email || ""
-                    )
-                        .toLowerCase();
-
-
-                const name =
-                    String(
-                        user?.name || ""
-                    )
-                        .toLowerCase();
-
-
-                const role =
-                    String(
-                        user?.role || ""
-                    )
-                        .toLowerCase();
-
-
-                const status =
-                    String(
-                        user?.status || ""
-                    )
-                        .toLowerCase();
-
-
-                return (
-
-                    email.includes(
-                        search
-                    ) ||
-
-                    name.includes(
-                        search
-                    ) ||
-
-                    role.includes(
-                        search
-                    ) ||
-
-                    status.includes(
-                        search
-                    )
-
-                );
-
-            }
-        );
-
-
-    /* -----------------------------------------------------
-       RENDER FILTERED RESULT
-    ----------------------------------------------------- */
-
     renderUsers(
         userState.filteredUsers
     );
+
+}
+
+
+/* =========================================================
+   ESCAPE MESSAGE
+   ---------------------------------------------------------
+   Hanya untuk teks error yang berasal dari API.
+   Tidak menggunakan innerHTML secara langsung.
+========================================================= */
+
+function escapeMessage(value) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.textContent =
+        String(
+            value || ""
+        );
+
+
+    return div.innerHTML;
 
 }
