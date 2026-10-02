@@ -33,8 +33,7 @@ import {
 
 
 import {
-    cleanImage,
-    cleanVideo
+    cleanImage
 } from "./metadata-cleaner-image.js";
 
 
