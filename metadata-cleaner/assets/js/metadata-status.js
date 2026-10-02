@@ -3351,7 +3351,7 @@ export function renderDetectionResult() {
 
     setStatus(
         "CLEAR",
-        "TIDAK TERDETEKSI DARI METADATA",
+        "TIDAK TERDETEKSI AI",
         "Tidak ditemukan indikator AI yang dikenali pada metadata yang berhasil dibaca. Ini bukan bukti bahwa media bukan hasil AI."
     );
 
