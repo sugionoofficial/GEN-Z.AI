@@ -11,7 +11,7 @@
    - Menampilkan preview hasil cleaning
    - Menampilkan result panel
    - Mengaktifkan DOWNLOAD
-   - Loading state
+   - Premium cleaning loading 10 detik
    - Race protection
    - Error handling
 
@@ -24,6 +24,22 @@
    PENTING:
    - cleanImage berasal dari metadata-cleaner-image.js
    - cleanVideo berasal dari metadata-cleaner-video.js
+   - Premium loader berasal dari metadata-clean-loader.js
+
+   ALUR CLEANING:
+   CLEAN
+   ↓
+   Premium loader aktif
+   ↓
+   Cleaning + timer 10 detik berjalan
+   ↓
+   Keduanya selesai
+   ↓
+   Loader ditutup
+   ↓
+   Preview cleaned ditampilkan
+   ↓
+   DOWNLOAD aktif
 ========================================================= */
 
 
@@ -61,6 +77,18 @@ import {
 import {
     cleanVideo
 } from "./metadata-cleaner-video.js";
+
+
+/* =========================================================
+   PREMIUM CLEANING LOADER
+========================================================= */
+
+import {
+    CLEANING_DURATION,
+    createPremiumCleaningLoader,
+    runPremiumCleaningTimer,
+    removePremiumCleaningLoader
+} from "./metadata-clean-loader.js";
 
 
 /* =========================================================
@@ -850,6 +878,16 @@ export async function cleanMetadata() {
         sourceFile;
 
 
+    /*
+       Referensi premium loader.
+       Loader dibuat SATU KALI untuk setiap
+       proses cleaning.
+    */
+
+    let cleaningLoader =
+        null;
+
+
     state.cleaning =
         true;
 
@@ -903,14 +941,46 @@ export async function cleanMetadata() {
     disableDownload();
 
 
+    /*
+       Disable tombol CLEAN.
+    */
+
     setCleaningLoading(
         true
     );
 
 
+    /*
+       Tampilkan status lokal.
+    */
+
     setPreviewStatus(
         "MEMBERSIHKAN METADATA SECARA LOKAL..."
     );
+
+
+    /*
+       Buat premium loader.
+    */
+
+    try {
+
+        cleaningLoader =
+            createPremiumCleaningLoader();
+
+    } catch (
+        loaderError
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][CLEAN] Gagal membuat premium cleaning loader.",
+            loaderError
+        );
+
+        cleaningLoader =
+            null;
+
+    }
 
 
     console.info(
@@ -928,7 +998,10 @@ export async function cleanMetadata() {
             mode:
                 isImage
                     ? "IMAGE"
-                    : "VIDEO"
+                    : "VIDEO",
+
+            loadingDuration:
+                `${CLEANING_DURATION / 1000}s`
         }
     );
 
@@ -939,33 +1012,44 @@ export async function cleanMetadata() {
 
 
         /* =====================================================
-           IMAGE CLEANER
-        ===================================================== */
+           START REAL CLEANING + 10 SECOND TIMER
+           ===================================================== */
 
-        if (
+        const cleaningPromise =
             isImage
-        ) {
-
-            rawResult =
-                await cleanImage(
+                ? cleanImage(
+                    cleaningFile
+                )
+                : cleanVideo(
                     cleaningFile
                 );
 
-        }
+
+        const timerPromise =
+            cleaningLoader
+                ? runPremiumCleaningTimer(
+                    cleaningLoader,
+                    CLEANING_DURATION
+                )
+                : Promise.resolve();
 
 
-        /* =====================================================
-           VIDEO CLEANER
-        ===================================================== */
+        /*
+           Cleaning dan timer berjalan BERSAMA.
 
-        else {
+           Artinya:
+           - cleaner selesai cepat → tetap tunggu 10 detik
+           - cleaner lebih lama dari 10 detik → tunggu cleaner
+           - hasil tidak boleh ditampilkan sebelum keduanya selesai
+        */
 
-            rawResult =
-                await cleanVideo(
-                    cleaningFile
-                );
-
-        }
+        [
+            rawResult
+        ] =
+            await Promise.all([
+                cleaningPromise,
+                timerPromise
+            ]);
 
 
         console.info(
@@ -1003,6 +1087,89 @@ export async function cleanMetadata() {
         validateCleanedBlob(
             cleanedBlob
         );
+
+
+        /*
+           Update loader ke READY sebelum
+           menampilkan hasil.
+        */
+
+        if (
+            cleaningLoader
+        ) {
+
+            /*
+               runPremiumCleaningTimer()
+               selesai pada sekitar 10 detik.
+
+               Pastikan visual progress terakhir
+               berada pada tahap finalisasi.
+            */
+
+            const progressBar =
+                cleaningLoader.querySelector(
+                    "[data-clean-loader-progress]"
+                );
+
+
+            const percent =
+                cleaningLoader.querySelector(
+                    "[data-clean-loader-percent]"
+                );
+
+
+            const stage =
+                cleaningLoader.querySelector(
+                    "[data-clean-loader-stage]"
+                );
+
+
+            const message =
+                cleaningLoader.querySelector(
+                    "[data-clean-loader-message]"
+                );
+
+
+            if (
+                progressBar
+            ) {
+
+                progressBar.style.width =
+                    "100%";
+
+            }
+
+
+            if (
+                percent
+            ) {
+
+                percent.textContent =
+                    "100%";
+
+            }
+
+
+            if (
+                stage
+            ) {
+
+                stage.textContent =
+                    "READY";
+
+            }
+
+
+            if (
+                message
+            ) {
+
+                message.textContent =
+                    "File cleaned siap digunakan.";
+
+            }
+
+        }
 
 
         /*
@@ -1193,6 +1360,38 @@ export async function cleanMetadata() {
         return false;
 
     } finally {
+
+        /*
+           Loader HARUS ditutup di sini.
+
+           Jadi baik cleaning sukses,
+           gagal, maupun race protection terjadi,
+           overlay tidak akan tertinggal di layar.
+        */
+
+        if (
+            cleaningLoader
+        ) {
+
+            try {
+
+                removePremiumCleaningLoader(
+                    cleaningLoader
+                );
+
+            } catch (
+                loaderError
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI][CLEAN] Gagal menutup premium cleaning loader.",
+                    loaderError
+                );
+
+            }
+
+        }
+
 
         state.cleaning =
             false;
