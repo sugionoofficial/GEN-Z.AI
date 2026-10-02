@@ -11,6 +11,7 @@
    - Update stage
    - Run minimum loading timer
    - Remove loader
+   - Delay helper
 ========================================================= */
 
 
@@ -75,6 +76,44 @@ const CLEANING_STAGES = [
     }
 
 ];
+
+
+/* =========================================================
+   WAIT HELPER
+   ---------------------------------------------------------
+   FIX:
+   Sebelumnya runPremiumCleaningTimer()
+   memanggil wait(duration), tetapi fungsi wait()
+   tidak pernah didefinisikan.
+
+   Sekarang delay dibuat lokal di module ini.
+========================================================= */
+
+function wait(
+    milliseconds
+) {
+
+    const delay =
+        Math.max(
+            0,
+            Number(
+                milliseconds
+            ) || 0
+        );
+
+
+    return new Promise(
+        resolve => {
+
+            setTimeout(
+                resolve,
+                delay
+            );
+
+        }
+    );
+
+}
 
 
 /* =========================================================
@@ -176,6 +215,7 @@ function createPremiumCleaningLoader() {
             </div>
 
         </div>
+
     `;
 
 
@@ -196,6 +236,7 @@ function createPremiumCleaningLoader() {
 
 
     return overlay;
+
 }
 
 
@@ -253,6 +294,7 @@ function getCleaningStage(
 
 
     return CLEANING_STAGES[0];
+
 }
 
 
@@ -327,7 +369,9 @@ function updatePremiumCleaningLoader(
     ) {
 
         percent.textContent =
-            `${Math.round(safeProgress)}%`;
+            `${Math.round(
+                safeProgress
+            )}%`;
 
     }
 
@@ -356,6 +400,7 @@ function updatePremiumCleaningLoader(
             );
 
     }
+
 }
 
 
@@ -365,8 +410,17 @@ function updatePremiumCleaningLoader(
 
 async function runPremiumCleaningTimer(
     loader,
-    duration
+    duration = CLEANING_DURATION
 ) {
+
+    const safeDuration =
+        Math.max(
+            0,
+            Number(
+                duration
+            ) || CLEANING_DURATION
+        );
+
 
     const start =
         performance.now();
@@ -378,6 +432,10 @@ async function runPremiumCleaningTimer(
 
     try {
 
+        /* -------------------------------------------------
+           INITIAL STATE
+        ------------------------------------------------- */
+
         updatePremiumCleaningLoader(
             loader,
             8,
@@ -385,6 +443,10 @@ async function runPremiumCleaningTimer(
             "Menyiapkan proses pembersihan..."
         );
 
+
+        /* -------------------------------------------------
+           PROGRESS TIMER
+        ------------------------------------------------- */
 
         timerId =
             setInterval(
@@ -396,11 +458,13 @@ async function runPremiumCleaningTimer(
 
 
                     const ratio =
-                        Math.min(
-                            elapsed /
-                            duration,
-                            1
-                        );
+                        safeDuration > 0
+                            ? Math.min(
+                                elapsed /
+                                safeDuration,
+                                1
+                            )
+                            : 1;
 
 
                     const progress =
@@ -431,9 +495,29 @@ async function runPremiumCleaningTimer(
             );
 
 
+        /* -------------------------------------------------
+           WAIT MINIMUM CLEANING DURATION
+           ------------------------------------------------
+           FIX UTAMA:
+           wait() sekarang sudah didefinisikan.
+        ------------------------------------------------- */
+
         await wait(
-            duration
+            safeDuration
         );
+
+
+        /* -------------------------------------------------
+           FINAL TIMER STATE
+        ------------------------------------------------- */
+
+        updatePremiumCleaningLoader(
+            loader,
+            96,
+            "FINALIZING",
+            "Menyiapkan file untuk download..."
+        );
+
 
     } finally {
 
@@ -448,6 +532,7 @@ async function runPremiumCleaningTimer(
         }
 
     }
+
 }
 
 
@@ -464,6 +549,7 @@ function removePremiumCleaningLoader(
     ) {
 
         return;
+
     }
 
 
@@ -475,11 +561,19 @@ function removePremiumCleaningLoader(
     setTimeout(
         () => {
 
-            loader.remove();
+            if (
+                loader &&
+                loader.parentNode
+            ) {
+
+                loader.remove();
+
+            }
 
         },
         250
     );
+
 }
 
 
@@ -495,6 +589,8 @@ export {
 
     CLEANING_STAGES,
 
+    wait,
+
     createPremiumCleaningLoader,
 
     getCleaningStage,
@@ -508,6 +604,10 @@ export {
 };
 
 
+/* =========================================================
+   GLOBAL API
+========================================================= */
+
 window.GENZMetadataCleaningLoader = {
 
     CLEANING_DURATION,
@@ -515,6 +615,8 @@ window.GENZMetadataCleaningLoader = {
     CLEANING_TICK,
 
     CLEANING_STAGES,
+
+    wait,
 
     createPremiumCleaningLoader,
 
