@@ -1,5 +1,4 @@
 /* =========================================================
-
    GEN-Z.AI
    AI METADATA CLEANER
    ---------------------------------------------------------
@@ -50,11 +49,6 @@ export function showElement(
         "hidden"
     );
 
-
-    /*
-       WAJIB:
-       CSS GEN-Z.AI menggunakan class .hidden.
-    */
 
     element.classList.remove(
         "hidden"
@@ -186,6 +180,183 @@ export function setPreviewStatus(
         "display",
         "block",
         "important"
+    );
+
+}
+
+
+/* =========================================================
+   FILE / BLOB VALIDATION
+   ---------------------------------------------------------
+   Jangan hanya menggunakan instanceof Blob.
+
+   File dapat berasal dari:
+   - input[type=file]
+   - DataTransfer
+   - browser realm berbeda
+   - wrapper object
+   - library internal
+
+   Semua tetap harus diperlakukan sebagai media
+   selama memiliki API Blob yang valid.
+========================================================= */
+
+function isBlobLike(
+    value
+) {
+
+    if (
+        !value
+    ) {
+
+        return false;
+
+    }
+
+
+    /*
+       Jalur normal.
+    */
+
+    if (
+        typeof Blob !==
+        "undefined" &&
+        value instanceof Blob
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+       Jalur File.
+    */
+
+    if (
+        typeof File !==
+        "undefined" &&
+        value instanceof File
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+       Cross-realm / wrapper fallback.
+
+       Yang penting object tersebut memiliki:
+       - size
+       - type
+       - slice()
+       - arrayBuffer() atau stream()
+    */
+
+    if (
+        typeof value !==
+        "object"
+    ) {
+
+        return false;
+
+    }
+
+
+    const hasSize =
+        typeof value.size ===
+        "number";
+
+
+    const hasType =
+        typeof value.type ===
+        "string";
+
+
+    const hasSlice =
+        typeof value.slice ===
+        "function";
+
+
+    const hasArrayBuffer =
+        typeof value.arrayBuffer ===
+        "function";
+
+
+    const hasStream =
+        typeof value.stream ===
+        "function";
+
+
+    return (
+        hasSize &&
+        hasType &&
+        hasSlice &&
+        (
+            hasArrayBuffer ||
+            hasStream
+        )
+    );
+
+}
+
+
+/* =========================================================
+   GET SAFE MEDIA TYPE
+========================================================= */
+
+function getMediaType(
+    file
+) {
+
+    return String(
+        file?.type ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+}
+
+
+/* =========================================================
+   IS IMAGE
+========================================================= */
+
+function isImageFile(
+    file
+) {
+
+    const type =
+        getMediaType(
+            file
+        );
+
+
+    return type.startsWith(
+        "image/"
+    );
+
+}
+
+
+/* =========================================================
+   IS VIDEO
+========================================================= */
+
+function isVideoFile(
+    file
+) {
+
+    const type =
+        getMediaType(
+            file
+        );
+
+
+    return type.startsWith(
+        "video/"
     );
 
 }
@@ -475,13 +646,57 @@ export async function renderOriginalPreview(
     file
 ) {
 
+    /*
+       PERBAIKAN UTAMA:
+
+       Sebelumnya:
+
+       !(file instanceof Blob)
+
+       Sekarang memakai isBlobLike()
+       sehingga File valid tidak ditolak hanya
+       karena berasal dari realm / wrapper berbeda.
+    */
+
     if (
-        !file ||
-        !(file instanceof Blob)
+        !isBlobLike(
+            file
+        )
     ) {
 
         console.error(
-            "[GEN-Z.AI][PREVIEW] File original tidak valid."
+            "[GEN-Z.AI][PREVIEW] File original tidak valid.",
+            {
+                value: file,
+                constructor:
+                    file?.constructor?.name,
+                type:
+                    file?.type,
+                size:
+                    file?.size,
+                name:
+                    file?.name
+            }
+        );
+
+
+        return false;
+
+    }
+
+
+    /*
+       File kosong tetap tidak valid.
+    */
+
+    if (
+        typeof file.size ===
+            "number" &&
+        file.size <= 0
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][PREVIEW] File original kosong."
         );
 
 
@@ -534,19 +749,82 @@ export async function renderOriginalPreview(
 
 
     const type =
-        String(
-            file.type || ""
-        ).toLowerCase();
-
-
-    const url =
-        URL.createObjectURL(
+        getMediaType(
             file
         );
 
 
     /*
-       Simpan URL original.
+       Jika MIME kosong, coba tentukan dari nama file.
+    */
+
+    let mediaType =
+        type;
+
+
+    if (
+        !mediaType
+    ) {
+
+        const name =
+            String(
+                file?.name ||
+                ""
+            )
+                .toLowerCase();
+
+
+        if (
+            /\.(jpg|jpeg|png|gif|webp|bmp|avif|heic|heif)$/i
+                .test(name)
+        ) {
+
+            mediaType =
+                "image/*";
+
+        }
+
+
+        else if (
+            /\.(mp4|mov|webm|mkv|avi|m4v|mpeg|mpg)$/i
+                .test(name)
+        ) {
+
+            mediaType =
+                "video/*";
+
+        }
+
+    }
+
+
+    let url;
+
+
+    try {
+
+        url =
+            URL.createObjectURL(
+                file
+            );
+
+    } catch (
+        error
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][PREVIEW] Gagal membuat Object URL.",
+            error
+        );
+
+
+        return false;
+
+    }
+
+
+    /*
+       Revoke URL original lama.
     */
 
     if (
@@ -574,12 +852,12 @@ export async function renderOriginalPreview(
         url;
 
 
-    /*
+    /* =====================================================
        IMAGE
-    */
+    ===================================================== */
 
     if (
-        type.startsWith(
+        mediaType.startsWith(
             "image/"
         )
     ) {
@@ -649,6 +927,11 @@ export async function renderOriginalPreview(
                     "important"
                 );
 
+
+                console.info(
+                    "[GEN-Z.AI][PREVIEW] Original IMAGE preview OK."
+                );
+
             };
 
 
@@ -676,12 +959,12 @@ export async function renderOriginalPreview(
     }
 
 
-    /*
+    /* =====================================================
        VIDEO
-    */
+    ===================================================== */
 
     if (
-        type.startsWith(
+        mediaType.startsWith(
             "video/"
         )
     ) {
@@ -751,6 +1034,24 @@ export async function renderOriginalPreview(
                     "important"
                 );
 
+
+                console.info(
+                    "[GEN-Z.AI][PREVIEW] Original VIDEO preview OK."
+                );
+
+            };
+
+
+        video.onerror =
+            function (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][PREVIEW] Original video gagal ditampilkan.",
+                    error
+                );
+
             };
 
 
@@ -771,9 +1072,9 @@ export async function renderOriginalPreview(
     }
 
 
-    /*
-       Format tidak didukung.
-    */
+    /* =====================================================
+       UNSUPPORTED
+    ===================================================== */
 
     try {
 
@@ -792,6 +1093,17 @@ export async function renderOriginalPreview(
 
     state.originalPreviewUrl =
         null;
+
+
+    console.error(
+        "[GEN-Z.AI][PREVIEW] Format media tidak didukung.",
+        {
+            type:
+                type,
+            name:
+                file?.name
+        }
+    );
 
 
     return false;
@@ -818,7 +1130,9 @@ export async function renderCleanedPreview(
 
 
     if (
-        source instanceof Blob
+        isBlobLike(
+            source
+        )
     ) {
 
         blob =
@@ -829,7 +1143,9 @@ export async function renderCleanedPreview(
 
     else if (
         source &&
-        source.blob instanceof Blob
+        isBlobLike(
+            source.blob
+        )
     ) {
 
         blob =
@@ -840,7 +1156,9 @@ export async function renderCleanedPreview(
 
     else if (
         source &&
-        source.file instanceof Blob
+        isBlobLike(
+            source.file
+        )
     ) {
 
         blob =
@@ -874,7 +1192,9 @@ export async function renderCleanedPreview(
 
 
     else if (
-        blob instanceof Blob
+        isBlobLike(
+            blob
+        )
     ) {
 
         if (
@@ -891,14 +1211,29 @@ export async function renderCleanedPreview(
         }
 
 
-        url =
-            URL.createObjectURL(
-                blob
+        try {
+
+            url =
+                URL.createObjectURL(
+                    blob
+                );
+
+            ownsURL =
+                true;
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "[GEN-Z.AI][PREVIEW] Gagal membuat cleaned Object URL.",
+                error
             );
 
 
-        ownsURL =
-            true;
+            return false;
+
+        }
 
     }
 
@@ -970,7 +1305,6 @@ export async function renderCleanedPreview(
 
     /*
        Tentukan MIME type.
-       Untuk URL string, gunakan state.fileType.
     */
 
     const type =
@@ -978,14 +1312,12 @@ export async function renderCleanedPreview(
             blob?.type ||
             state?.fileType ||
             ""
-        ).toLowerCase();
+        )
+            .toLowerCase();
 
 
     /*
-       Simpan URL baru TERLEBIH DAHULU.
-       Jangan clearCleanedPreview() di sini karena
-       fungsi tersebut akan me-revoke URL yang sedang
-       dipakai.
+       Simpan URL baru terlebih dahulu.
     */
 
     const previousURL =
@@ -1002,9 +1334,9 @@ export async function renderCleanedPreview(
         url;
 
 
-    /*
+    /* =====================================================
        IMAGE
-    */
+    ===================================================== */
 
     if (
         type.startsWith(
@@ -1102,9 +1434,9 @@ export async function renderCleanedPreview(
     }
 
 
-    /*
+    /* =====================================================
        VIDEO
-    */
+    ===================================================== */
 
     else if (
         type.startsWith(
@@ -1205,19 +1537,18 @@ export async function renderCleanedPreview(
     }
 
 
+    /* =====================================================
+       FALLBACK MIME
+    ===================================================== */
+
     else {
-
-        /*
-           MIME tidak tersedia.
-
-           Coba berdasarkan original file type.
-        */
 
         const originalType =
             String(
                 state?.file?.type ||
                 ""
-            ).toLowerCase();
+            )
+                .toLowerCase();
 
 
         if (
@@ -1320,7 +1651,7 @@ export async function renderCleanedPreview(
 
 
     /*
-       Setelah URL baru sudah dipasang,
+       Setelah URL baru dipasang,
        revoke URL hasil lama.
     */
 
