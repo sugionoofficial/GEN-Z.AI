@@ -6,16 +6,13 @@
    admin-control/users/assets/js/user-data.js
 
    Fungsi:
-   - Load daftar users
-   - Simpan data ke userState
-   - Filter users
-   - Update tampilan users
+   - Load users dari API
+   - Menyimpan data users ke state
+   - Filtering users
    - Update statistik
 ========================================================= */
 
-import {
-    userState
-} from "./user-state.js";
+import { userState } from "./user-state.js";
 
 import {
     getUsers
@@ -28,7 +25,8 @@ import {
 
 import {
     showMessage,
-    clearMessage
+    clearMessage,
+    escapeHtml
 } from "./user-utils.js";
 
 
@@ -43,7 +41,6 @@ export async function loadUsers() {
             "userContainer"
         );
 
-
     const refreshButton =
         document.getElementById(
             "refreshButton"
@@ -52,21 +49,18 @@ export async function loadUsers() {
 
     try {
 
-        /* =================================================
-           CLEAR MESSAGE
-        ================================================== */
-
         clearMessage();
 
 
-        /* =================================================
+        /* -------------------------------------------------
            LOADING STATE
-        ================================================== */
+        ------------------------------------------------- */
 
         if (container) {
 
             container.innerHTML = `
                 <div class="empty-state">
+
                     <div class="empty-icon">
                         ...
                     </div>
@@ -78,6 +72,7 @@ export async function loadUsers() {
                     <div class="empty-text">
                         Mengambil data user...
                     </div>
+
                 </div>
             `;
 
@@ -91,22 +86,17 @@ export async function loadUsers() {
         }
 
 
-        /* =================================================
-           API
-        ================================================== */
+        /* -------------------------------------------------
+           API REQUEST
+        ------------------------------------------------- */
 
         const result =
             await getUsers();
 
 
-        /* =================================================
-           NORMALIZE RESULT
-           -------------------------------------------------
-           API dapat mengembalikan:
-           - array langsung
-           - { users: [...] }
-           - { data: [...] }
-        ================================================== */
+        /* -------------------------------------------------
+           NORMALIZE RESPONSE
+        ------------------------------------------------- */
 
         let users = [];
 
@@ -130,24 +120,24 @@ export async function loadUsers() {
         }
 
 
-        /* =================================================
-           SAVE STATE
-        ================================================== */
+        /* -------------------------------------------------
+           UPDATE STATE
+        ------------------------------------------------- */
 
         userState.allUsers =
             users;
 
 
-        /* =================================================
-           FILTER
-        ================================================== */
+        /* -------------------------------------------------
+           FILTER + RENDER
+        ------------------------------------------------- */
 
         filterUsers();
 
 
-        /* =================================================
-           STATS
-        ================================================== */
+        /* -------------------------------------------------
+           STATISTICS
+        ------------------------------------------------- */
 
         updateStats();
 
@@ -164,10 +154,15 @@ export async function loadUsers() {
         userState.filteredUsers = [];
 
 
+        /* -------------------------------------------------
+           ERROR STATE
+        ------------------------------------------------- */
+
         if (container) {
 
             container.innerHTML = `
                 <div class="empty-state">
+
                     <div class="empty-icon">
                         ⚠
                     </div>
@@ -177,11 +172,12 @@ export async function loadUsers() {
                     </div>
 
                     <div class="empty-text">
-                        ${escapeMessage(
+                        ${escapeHtml(
                             error?.message ||
                             "Terjadi kesalahan saat mengambil data user."
                         )}
                     </div>
+
                 </div>
             `;
 
@@ -238,12 +234,20 @@ export function filterUsers() {
             : [];
 
 
+    /* -----------------------------------------------------
+       NO SEARCH
+    ----------------------------------------------------- */
+
     if (!keyword) {
 
         userState.filteredUsers =
             [...users];
 
     } else {
+
+        /* -------------------------------------------------
+           SEARCH
+        ------------------------------------------------- */
 
         userState.filteredUsers =
             users.filter(
@@ -278,10 +282,21 @@ export function filterUsers() {
 
 
                     return (
-                        email.includes(keyword) ||
-                        name.includes(keyword) ||
-                        role.includes(keyword) ||
-                        status.includes(keyword)
+                        email.includes(
+                            keyword
+                        ) ||
+
+                        name.includes(
+                            keyword
+                        ) ||
+
+                        role.includes(
+                            keyword
+                        ) ||
+
+                        status.includes(
+                            keyword
+                        )
                     );
 
                 }
@@ -290,34 +305,12 @@ export function filterUsers() {
     }
 
 
+    /* -----------------------------------------------------
+       RENDER FILTERED RESULT
+    ----------------------------------------------------- */
+
     renderUsers(
         userState.filteredUsers
     );
-
-}
-
-
-/* =========================================================
-   ESCAPE MESSAGE
-   ---------------------------------------------------------
-   Hanya untuk teks error yang berasal dari API.
-   Tidak menggunakan innerHTML secara langsung.
-========================================================= */
-
-function escapeMessage(value) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-
-    div.textContent =
-        String(
-            value || ""
-        );
-
-
-    return div.innerHTML;
 
 }
