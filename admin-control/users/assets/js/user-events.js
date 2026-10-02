@@ -1,21 +1,22 @@
 /* =========================================================
    GEN-Z.AI
-   USER MANAGEMENT - EVENTS
+   USER MANAGEMENT EVENTS
    ---------------------------------------------------------
    File:
    admin-control/users/assets/js/user-events.js
 
    Fungsi:
-   - Bind seluruh event halaman Users
+   - Add User events
+   - Edit User events
+   - Delete User events
    - Search
    - Refresh
-   - Add User
-   - Delete User
-   - Confirm Email
-   - Resend Email
-   - Modal interaction
+   - Table action delegation
+   - Modal backdrop
    - Escape key
 ========================================================= */
+
+import { userState } from "./user-state.js";
 
 import {
     filterUsers,
@@ -25,12 +26,15 @@ import {
 import {
     openAddModal,
     closeAddModal,
+    openEditModal,
+    closeEditModal,
     openDeleteModal,
     closeDeleteModal
 } from "./user-modal.js";
 
 import {
     submitAddUser,
+    submitEditUser,
     confirmEmail,
     resendEmail,
     confirmDeleteUser
@@ -38,10 +42,12 @@ import {
 
 
 /* =========================================================
-   TABLE ACTION DELEGATION
+   TABLE ACTION HANDLER
 ========================================================= */
 
-function handleTableAction(event) {
+function handleTableAction(
+    event
+) {
 
     const button =
         event.target.closest(
@@ -74,7 +80,66 @@ function handleTableAction(event) {
 
     switch (action) {
 
-        case "confirm":
+        /* -------------------------------------------------
+           EDIT
+        ------------------------------------------------- */
+
+        case "edit": {
+
+            if (!userId) {
+
+                console.warn(
+                    "[GEN-Z.AI UserEvents] Edit user ID tidak ditemukan."
+                );
+
+                return;
+
+            }
+
+
+            /*
+             * Ambil data lengkap dari state.
+             *
+             * Jangan mengandalkan data-* untuk seluruh
+             * object user karena credits/status/email
+             * bisa mengandung format yang tidak perlu
+             * dipindahkan ke HTML.
+             */
+
+            const user =
+                userState.allUsers.find(
+                    item =>
+                        String(item.id) ===
+                        String(userId)
+                );
+
+
+            if (!user) {
+
+                console.warn(
+                    "[GEN-Z.AI UserEvents] User edit tidak ditemukan:",
+                    userId
+                );
+
+                return;
+
+            }
+
+
+            openEditModal(
+                user
+            );
+
+            break;
+
+        }
+
+
+        /* -------------------------------------------------
+           CONFIRM EMAIL
+        ------------------------------------------------- */
+
+        case "confirm": {
 
             confirmEmail(
                 userId,
@@ -83,8 +148,14 @@ function handleTableAction(event) {
 
             break;
 
+        }
 
-        case "resend":
+
+        /* -------------------------------------------------
+           RESEND EMAIL
+        ------------------------------------------------- */
+
+        case "resend": {
 
             resendEmail(
                 email
@@ -92,8 +163,14 @@ function handleTableAction(event) {
 
             break;
 
+        }
 
-        case "delete":
+
+        /* -------------------------------------------------
+           DELETE
+        ------------------------------------------------- */
+
+        case "delete": {
 
             openDeleteModal(
                 userId,
@@ -102,6 +179,8 @@ function handleTableAction(event) {
             );
 
             break;
+
+        }
 
 
         default:
@@ -117,7 +196,9 @@ function handleTableAction(event) {
    ESCAPE KEY
 ========================================================= */
 
-function handleEscapeKey(event) {
+function handleEscapeKey(
+    event
+) {
 
     if (
         event.key !== "Escape" &&
@@ -127,6 +208,12 @@ function handleEscapeKey(event) {
         return;
 
     }
+
+
+    const editModal =
+        document.getElementById(
+            "editModal"
+        );
 
 
     const addModal =
@@ -139,6 +226,24 @@ function handleEscapeKey(event) {
         document.getElementById(
             "deleteModal"
         );
+
+
+    /*
+     * Prioritas:
+     * Edit → Add → Delete
+     */
+
+    if (
+        editModal?.classList.contains(
+            "show"
+        )
+    ) {
+
+        closeEditModal();
+
+        return;
+
+    }
 
 
     if (
@@ -171,7 +276,9 @@ function handleEscapeKey(event) {
    ADD MODAL BACKDROP
 ========================================================= */
 
-function handleAddModalBackdrop(event) {
+function handleAddModalBackdrop(
+    event
+) {
 
     const modal =
         document.getElementById(
@@ -198,10 +305,44 @@ function handleAddModalBackdrop(event) {
 
 
 /* =========================================================
+   EDIT MODAL BACKDROP
+========================================================= */
+
+function handleEditModalBackdrop(
+    event
+) {
+
+    const modal =
+        document.getElementById(
+            "editModal"
+        );
+
+
+    if (!modal) {
+
+        return;
+
+    }
+
+
+    if (
+        event.target === modal
+    ) {
+
+        closeEditModal();
+
+    }
+
+}
+
+
+/* =========================================================
    DELETE MODAL BACKDROP
 ========================================================= */
 
-function handleDeleteModalBackdrop(event) {
+function handleDeleteModalBackdrop(
+    event
+) {
 
     const modal =
         document.getElementById(
@@ -228,14 +369,19 @@ function handleDeleteModalBackdrop(event) {
 
 
 /* =========================================================
-   INITIALIZE EVENTS
+   INIT USER EVENTS
 ========================================================= */
 
 export function initUserEvents() {
 
-    /* -----------------------------------------------------
-       ADD USER BUTTON
-    ----------------------------------------------------- */
+    console.log(
+        "[GEN-Z.AI UserEvents] Initializing events..."
+    );
+
+
+    /* =====================================================
+       ADD USER
+    ===================================================== */
 
     const addUserButton =
         document.getElementById(
@@ -252,10 +398,6 @@ export function initUserEvents() {
 
     }
 
-
-    /* -----------------------------------------------------
-       ADD MODAL CLOSE
-    ----------------------------------------------------- */
 
     const closeAddButton =
         document.getElementById(
@@ -289,10 +431,6 @@ export function initUserEvents() {
     }
 
 
-    /* -----------------------------------------------------
-       ADD USER FORM
-    ----------------------------------------------------- */
-
     const addUserForm =
         document.getElementById(
             "addUserForm"
@@ -309,9 +447,61 @@ export function initUserEvents() {
     }
 
 
-    /* -----------------------------------------------------
-       DELETE MODAL CLOSE
-    ----------------------------------------------------- */
+    /* =====================================================
+       EDIT USER
+    ===================================================== */
+
+    const closeEditButton =
+        document.getElementById(
+            "closeEditButton"
+        );
+
+
+    if (closeEditButton) {
+
+        closeEditButton.addEventListener(
+            "click",
+            closeEditModal
+        );
+
+    }
+
+
+    const cancelEditButton =
+        document.getElementById(
+            "cancelEditButton"
+        );
+
+
+    if (cancelEditButton) {
+
+        cancelEditButton.addEventListener(
+            "click",
+            closeEditModal
+        );
+
+    }
+
+
+    const editUserForm =
+        document.getElementById(
+            "editUserForm"
+        );
+
+
+    if (editUserForm) {
+
+        editUserForm.addEventListener(
+            "submit",
+            submitEditUser
+        );
+
+    }
+
+
+    /* =====================================================
+       DELETE USER
+    ===================================================== */
 
     const closeDeleteButton =
         document.getElementById(
@@ -345,10 +535,6 @@ export function initUserEvents() {
     }
 
 
-    /* -----------------------------------------------------
-       DELETE CONFIRM
-    ----------------------------------------------------- */
-
     const confirmDeleteButton =
         document.getElementById(
             "confirmDeleteButton"
@@ -365,9 +551,9 @@ export function initUserEvents() {
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        SEARCH
-    ----------------------------------------------------- */
+    ===================================================== */
 
     const searchInput =
         document.getElementById(
@@ -385,9 +571,9 @@ export function initUserEvents() {
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        REFRESH
-    ----------------------------------------------------- */
+    ===================================================== */
 
     const refreshButton =
         document.getElementById(
@@ -405,11 +591,9 @@ export function initUserEvents() {
     }
 
 
-    /* -----------------------------------------------------
-       USER TABLE ACTIONS
-       Event delegation karena tabel dirender
-       ulang setiap kali data berubah.
-    ----------------------------------------------------- */
+    /* =====================================================
+       TABLE DELEGATION
+    ===================================================== */
 
     const userContainer =
         document.getElementById(
@@ -427,9 +611,9 @@ export function initUserEvents() {
     }
 
 
-    /* -----------------------------------------------------
-       MODAL BACKDROP
-    ----------------------------------------------------- */
+    /* =====================================================
+       MODAL BACKDROPS
+    ===================================================== */
 
     const addModal =
         document.getElementById(
@@ -442,6 +626,22 @@ export function initUserEvents() {
         addModal.addEventListener(
             "click",
             handleAddModalBackdrop
+        );
+
+    }
+
+
+    const editModal =
+        document.getElementById(
+            "editModal"
+        );
+
+
+    if (editModal) {
+
+        editModal.addEventListener(
+            "click",
+            handleEditModalBackdrop
         );
 
     }
@@ -463,13 +663,18 @@ export function initUserEvents() {
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        ESCAPE
-    ----------------------------------------------------- */
+    ===================================================== */
 
     document.addEventListener(
         "keydown",
         handleEscapeKey
+    );
+
+
+    console.log(
+        "[GEN-Z.AI UserEvents] ✓ Events siap."
     );
 
 }
