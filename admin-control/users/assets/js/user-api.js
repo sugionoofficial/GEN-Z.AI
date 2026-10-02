@@ -1,38 +1,20 @@
 /* =========================================================
    GEN-Z.AI
-   USER MANAGEMENT - API
+   USER MANAGEMENT API
    ---------------------------------------------------------
    File:
    admin-control/users/assets/js/user-api.js
 
    Fungsi:
-   - Mengambil access token Supabase
-   - Request ke /api/admin-users
-   - LIST users
+   - GET users
    - CREATE user
+   - UPDATE user
    - RESEND confirmation
    - CONFIRM email
    - DELETE user
-
-   CATATAN:
-   - Tidak mengubah API server.
-   - Tidak mengandung logic permission.
-   - Permission tetap divalidasi oleh API server.
 ========================================================= */
 
-
-/* =========================================================
-   API ENDPOINT
-   ---------------------------------------------------------
-   Document:
-   admin-control/users/user.html
-
-   ../../api/admin-users
-   -> /api/admin-users
-========================================================= */
-
-const API_URL =
-    "../../api/admin-users";
+const API_URL = "../../api/admin-users";
 
 
 /* =========================================================
@@ -60,7 +42,9 @@ async function getAccessToken() {
         getSupabaseClient();
 
 
-    if (!supabase) {
+    if (
+        !supabase
+    ) {
 
         throw new Error(
             "Supabase client tidak tersedia."
@@ -76,7 +60,9 @@ async function getAccessToken() {
         await supabase.auth.getSession();
 
 
-    if (error) {
+    if (
+        error
+    ) {
 
         throw new Error(
             error.message ||
@@ -87,7 +73,8 @@ async function getAccessToken() {
 
 
     const session =
-        data?.session || null;
+        data?.session ||
+        null;
 
 
     if (
@@ -142,7 +129,9 @@ async function apiRequest(
     ) {
 
         options.body =
-            JSON.stringify(body);
+            JSON.stringify(
+                body
+            );
 
     }
 
@@ -153,10 +142,6 @@ async function apiRequest(
             options
         );
 
-
-    /* -----------------------------------------------------
-       RESPONSE PARSE
-    ----------------------------------------------------- */
 
     let result = null;
 
@@ -173,15 +158,16 @@ async function apiRequest(
     }
 
 
-    /* -----------------------------------------------------
-       HTTP ERROR
-    ----------------------------------------------------- */
-
-    if (!response.ok) {
+    if (
+        !response.ok
+    ) {
 
         const message =
+
             result?.error ||
+
             result?.message ||
+
             `Request gagal (${response.status}).`;
 
 
@@ -192,19 +178,19 @@ async function apiRequest(
     }
 
 
-    /* -----------------------------------------------------
-       APPLICATION ERROR
-    ----------------------------------------------------- */
-
     if (
         result &&
         result.success === false
     ) {
 
         throw new Error(
+
             result.error ||
+
             result.message ||
+
             "Request gagal."
+
         );
 
     }
@@ -217,8 +203,6 @@ async function apiRequest(
 
 /* =========================================================
    GET USERS
-   ---------------------------------------------------------
-   GET /api/admin-users
 ========================================================= */
 
 export async function getUsers() {
@@ -232,20 +216,6 @@ export async function getUsers() {
 
 /* =========================================================
    CREATE USER
-   ---------------------------------------------------------
-   POST /api/admin-users
-
-   Server contract:
-
-   {
-       action: "create",
-       email,
-       password,
-       name,
-       role,
-       credits,
-       status
-   }
 ========================================================= */
 
 export async function createUser(
@@ -255,7 +225,9 @@ export async function createUser(
     return await apiRequest(
         "POST",
         {
-            action: "create",
+            action:
+                "create",
+
             ...userData
         }
     );
@@ -265,13 +237,6 @@ export async function createUser(
 
 /* =========================================================
    RESEND CONFIRMATION
-   ---------------------------------------------------------
-   POST /api/admin-users
-
-   {
-       action: "resend",
-       email
-   }
 ========================================================= */
 
 export async function resendConfirmation(
@@ -281,8 +246,15 @@ export async function resendConfirmation(
     return await apiRequest(
         "POST",
         {
-            action: "resend",
-            email
+            action:
+                "resend",
+
+            email:
+                String(
+                    email || ""
+                )
+                    .trim()
+                    .toLowerCase()
         }
     );
 
@@ -290,14 +262,7 @@ export async function resendConfirmation(
 
 
 /* =========================================================
-   CONFIRM USER EMAIL
-   ---------------------------------------------------------
-   PATCH /api/admin-users
-
-   {
-       action: "confirm",
-       userId
-   }
+   CONFIRM EMAIL
 ========================================================= */
 
 export async function confirmUserEmail(
@@ -307,7 +272,9 @@ export async function confirmUserEmail(
     return await apiRequest(
         "PATCH",
         {
-            action: "confirm",
+            action:
+                "confirm",
+
             userId
         }
     );
@@ -316,13 +283,28 @@ export async function confirmUserEmail(
 
 
 /* =========================================================
-   DELETE USER
-   ---------------------------------------------------------
-   DELETE /api/admin-users
+   UPDATE USER
+========================================================= */
 
-   {
-       userId
-   }
+export async function updateUser(
+    userData = {}
+) {
+
+    return await apiRequest(
+        "PATCH",
+        {
+            action:
+                "update",
+
+            ...userData
+        }
+    );
+
+}
+
+
+/* =========================================================
+   DELETE USER
 ========================================================= */
 
 export async function deleteUser(
@@ -340,7 +322,7 @@ export async function deleteUser(
 
 
 /* =========================================================
-   PUBLIC API
+   PUBLIC API OBJECT
 ========================================================= */
 
 export const GENZUserAPI = {
@@ -353,19 +335,20 @@ export const GENZUserAPI = {
 
     confirmUserEmail,
 
+    updateUser,
+
     deleteUser
 
 };
 
 
 /* =========================================================
-   OPTIONAL GLOBAL
-   ---------------------------------------------------------
-   Dipertahankan untuk kompatibilitas/debugging.
+   GLOBAL BRIDGE
 ========================================================= */
 
 if (
-    typeof window !== "undefined"
+    typeof window !==
+    "undefined"
 ) {
 
     window.GENZUserAPI =
