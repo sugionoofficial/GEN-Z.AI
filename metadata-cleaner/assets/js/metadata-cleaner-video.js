@@ -11,28 +11,19 @@
    - Preserve media streams
    - Remove global/container metadata
    - Remove per-stream metadata
-   - Remove per-chapter metadata
-   - Remove per-program metadata
    - Remove chapters
-   - Avoid video/audio re-encoding
+   - Preserve video/audio without re-encoding
    - Original video remains untouched
 
-   CATATAN:
-   FFmpeg mempunyai beberapa konteks metadata:
-   - global/container
-   - stream
-   - chapter
-   - program
-
-   -map_metadata -1 saja tidak cukup untuk seluruh konteks.
-
-   PERBAIKAN:
-   - Jangan langsung menganggap exec() gagal hanya karena
-     return code bukan 0.
-   - Verifikasi output file secara langsung.
-   - Jika output valid, hasil cleaning tetap dianggap berhasil.
-   - Cleanup file virtual dibuat aman terhadap file yang sudah
-     tidak ada.
+   STRATEGY:
+   - Input dipertahankan apa adanya.
+   - Semua media stream dipetakan dengan -map 0.
+   - Metadata global tidak disalin.
+   - Metadata stream dibersihkan setelah mapping.
+   - Chapter tidak disalin.
+   - Video/audio tetap stream-copy.
+   - Output diverifikasi langsung dari FFmpeg VFS.
+   - FFmpeg log ditangkap agar kegagalan remux dapat didiagnosis.
 ========================================================= */
 
 
@@ -46,17 +37,115 @@ import {
 
 
 /* =========================================================
+   INTERNAL HELPERS
+========================================================= */
+
+
+/* =========================================================
+   GET ERROR MESSAGE
+========================================================= */
+
+function getErrorMessage(
+    error
+) {
+
+    if (
+        !error
+    ) {
+
+        return "";
+    }
+
+
+    if (
+        typeof error === "string"
+    ) {
+
+        return error;
+    }
+
+
+    if (
+        error?.message
+    ) {
+
+        return String(
+            error.message
+        );
+    }
+
+
+    try {
+
+        return JSON.stringify(
+            error
+        );
+
+    } catch (
+        stringifyError
+    ) {
+
+        return String(
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   NORMALIZE FFMPEG LOG ENTRY
+========================================================= */
+
+function getFFmpegLogMessage(
+    event
+) {
+
+    if (
+        !event
+    ) {
+
+        return "";
+    }
+
+
+    if (
+        typeof event === "string"
+    ) {
+
+        return event;
+    }
+
+
+    if (
+        typeof event.message === "string"
+    ) {
+
+        return event.message;
+    }
+
+
+    if (
+        typeof event.data === "string"
+    ) {
+
+        return event.data;
+    }
+
+
+    if (
+        typeof event.text === "string"
+    ) {
+
+        return event.text;
+    }
+
+
+    return "";
+}
+
+
+/* =========================================================
    CLEAN VIDEO
-   ---------------------------------------------------------
-   Strategy:
-   - preserve every media stream
-   - remove global metadata
-   - remove per-stream metadata
-   - remove per-chapter metadata
-   - remove per-program metadata
-   - remove chapters
-   - copy streams without video/audio re-encoding
-   - use faststart only for MP4/MOV containers
 ========================================================= */
 
 export async function cleanVideo(
@@ -116,11 +205,72 @@ export async function cleanVideo(
     }
 
 
+    /* =====================================================
+       FFMPEG LOG BUFFER
+       -----------------------------------------------------
+       Kita simpan log selama proses cleaning supaya apabila
+       remux gagal, penyebab sebenarnya dapat diketahui.
+    ===================================================== */
+
+    const ffmpegLogs = [];
+
+
+    let logHandler = null;
+
+
     try {
 
-        /* =================================================
+        /* ===================================================
+           ATTACH FFMPEG LOGGER
+           ---------------------------------------------------
+           FFmpeg 0.12.x menyediakan event "log".
+        =================================================== */
+
+        if (
+            typeof ffmpeg.on === "function"
+        ) {
+
+            logHandler =
+                (
+                    event
+                ) => {
+
+                    const message =
+                        getFFmpegLogMessage(
+                            event
+                        );
+
+
+                    if (
+                        !message
+                    ) {
+
+                        return;
+                    }
+
+
+                    ffmpegLogs.push(
+                        message
+                    );
+
+
+                    console.log(
+                        "[GEN-Z.AI][CLEAN][FFmpeg]",
+                        message
+                    );
+                };
+
+
+            ffmpeg.on(
+                "log",
+                logHandler
+            );
+        }
+
+
+        /* ===================================================
            WRITE INPUT TO FFMPEG VIRTUAL FILESYSTEM
-        ================================================= */
+        =================================================== */
 
         await ffmpeg.writeFile(
             inputName,
@@ -128,39 +278,50 @@ export async function cleanVideo(
         );
 
 
-        /* =================================================
+        console.log(
+            "[GEN-Z.AI][CLEAN] Input video ditulis ke FFmpeg:",
+            inputName
+        );
+
+
+        /* ===================================================
            FFMPEG ARGUMENTS
-           =================================================
+           ===================================================
 
-           -i inputName
-               Membaca file sumber.
+           INPUT:
+               -i inputName
 
-           -map 0
-               Mempertahankan seluruh media stream.
+           STREAM:
+               -map 0
 
-           -map_metadata -1
-               Mematikan automatic global/container metadata
-               mapping.
+               Semua stream dari input dipertahankan.
 
-           -map_metadata:s -1
-               Mematikan automatic per-stream metadata
-               mapping.
+           GLOBAL METADATA:
+               -map_metadata -1
 
-           -map_metadata:c -1
-               Mematikan automatic per-chapter metadata
-               mapping.
+               Tidak menyalin metadata global/container.
 
-           -map_metadata:p -1
-               Mematikan automatic per-program metadata
-               mapping.
+           CHAPTER:
+               -map_chapters -1
 
-           -map_chapters -1
                Tidak menyalin chapter.
 
-           -c copy
-               Tidak melakukan re-encode video/audio.
+           STREAM METADATA:
+               -map_metadata:s -1
 
-           ================================================= */
+               Tidak menyalin metadata stream dari input.
+
+           PROGRAM METADATA:
+               -map_metadata:p -1
+
+               Tidak menyalin metadata program.
+
+           CODEC:
+               -c copy
+
+               Tidak melakukan re-encoding.
+
+           =================================================== */
 
         const ffmpegArguments = [
 
@@ -173,7 +334,7 @@ export async function cleanVideo(
 
 
             /* -------------------------------------------------
-               PRESERVE ALL MEDIA STREAMS
+               MAP ALL MEDIA STREAMS
             ------------------------------------------------- */
 
             "-map",
@@ -181,7 +342,7 @@ export async function cleanVideo(
 
 
             /* -------------------------------------------------
-               REMOVE GLOBAL / CONTAINER METADATA
+               REMOVE GLOBAL METADATA
             ------------------------------------------------- */
 
             "-map_metadata",
@@ -189,7 +350,7 @@ export async function cleanVideo(
 
 
             /* -------------------------------------------------
-               REMOVE PER-STREAM METADATA
+               REMOVE STREAM METADATA
             ------------------------------------------------- */
 
             "-map_metadata:s",
@@ -197,15 +358,7 @@ export async function cleanVideo(
 
 
             /* -------------------------------------------------
-               REMOVE PER-CHAPTER METADATA
-            ------------------------------------------------- */
-
-            "-map_metadata:c",
-            "-1",
-
-
-            /* -------------------------------------------------
-               REMOVE PER-PROGRAM METADATA
+               REMOVE PROGRAM METADATA
             ------------------------------------------------- */
 
             "-map_metadata:p",
@@ -213,7 +366,7 @@ export async function cleanVideo(
 
 
             /* -------------------------------------------------
-               DO NOT COPY CHAPTERS
+               REMOVE CHAPTERS
             ------------------------------------------------- */
 
             "-map_chapters",
@@ -222,51 +375,41 @@ export async function cleanVideo(
 
             /* -------------------------------------------------
                STREAM COPY
-            -------------------------------------------------
-
-               Tidak melakukan re-encode video/audio.
-            */
+            ------------------------------------------------- */
 
             "-c",
-            "copy"
+            "copy",
+
+
+            /* -------------------------------------------------
+               OUTPUT
+            ------------------------------------------------- */
+
+            outputName
 
         ];
 
 
-        /* =====================================================
-           MP4 / MOV FASTSTART
-           ===================================================== */
+        /* ===================================================
+           LOG COMMAND
+        =================================================== */
 
-        if (
-            isMovLikeVideo(
-                file
-            )
-        ) {
-
-            ffmpegArguments.push(
-
-                "-movflags",
-                "+faststart"
-
-            );
-        }
-
-
-        /* =====================================================
-           OUTPUT
-        ===================================================== */
-
-        ffmpegArguments.push(
-            outputName
+        console.log(
+            "[GEN-Z.AI][CLEAN] FFmpeg command:",
+            ffmpegArguments
         );
 
 
-        /* =====================================================
+        /* ===================================================
            EXECUTE FFMPEG
-           ===================================================== */
+        =================================================== */
 
-        let execResult = null;
-        let execError = null;
+        let execResult =
+            null;
+
+
+        let execError =
+            null;
 
 
         try {
@@ -283,23 +426,27 @@ export async function cleanVideo(
             execError =
                 error;
 
+
+            console.error(
+                "[GEN-Z.AI][CLEAN][FFmpeg] Exec error:",
+                error
+            );
         }
 
 
-        /* =====================================================
+        /* ===================================================
            CHECK OUTPUT FILE
-           -----------------------------------------------------
-           Jangan hanya mengandalkan return code exec().
+           ---------------------------------------------------
+           Jangan langsung menganggap gagal hanya berdasarkan
+           return code. Periksa VFS secara langsung.
+        =================================================== */
 
-           Pada FFmpeg WASM tertentu, command dapat menghasilkan
-           output yang valid walaupun return code yang diterima
-           oleh wrapper bukan 0.
+        let outputData =
+            null;
 
-           Karena itu output filesystem menjadi pemeriksaan
-           keberhasilan utama.
-        ===================================================== */
 
-        let outputData = null;
+        let outputReadError =
+            null;
 
 
         try {
@@ -310,129 +457,209 @@ export async function cleanVideo(
                 );
 
         } catch (
-            readError
+            error
         ) {
 
-            outputData =
-                null;
+            outputReadError =
+                error;
 
 
-            if (
-                !execError
-            ) {
-
-                execError =
-                    readError;
-            }
+            console.error(
+                "[GEN-Z.AI][CLEAN][FFmpeg] Output read error:",
+                error
+            );
         }
 
 
-        /* =====================================================
-           NORMALIZE OUTPUT DATA
-        ===================================================== */
+        /* ===================================================
+           VALIDATE OUTPUT
+        =================================================== */
 
         if (
             outputData &&
             outputData.length > 0
         ) {
 
-            /*
-             * Output video benar-benar tersedia.
-             *
-             * Jika execResult bukan 0 tetapi file output valid,
-             * jangan menggagalkan cleaning.
-             */
+            console.log(
+                "[GEN-Z.AI][CLEAN] Output video berhasil dibuat:",
+                {
+                    name:
+                        outputName,
 
-        } else {
+                    size:
+                        outputData.length,
+
+                    returnCode:
+                        execResult
+                }
+            );
+
 
             /* =================================================
-               OUTPUT TIDAK ADA
+               OUTPUT MIME TYPE
             ================================================= */
 
-            let errorMessage =
-                "FFmpeg tidak menghasilkan file video.";
+            const outputType =
+                getCleanVideoMimeType(
+                    file
+                );
 
 
-            if (
-                execError
-            ) {
+            /* =================================================
+               RETURN CLEANED VIDEO
+            ================================================= */
 
-                const message =
-                    execError?.message ||
-                    String(
-                        execError
-                    );
+            return {
 
+                blob:
+                    new Blob(
+                        [
+                            outputData
+                        ],
+                        {
+                            type:
+                                outputType
+                        }
+                    ),
 
-                if (
-                    message
-                ) {
+                type:
+                    outputType
 
-                    errorMessage +=
-                        ` ${message}`;
-                }
-            }
-
-
-            if (
-                execResult !== null &&
-                execResult !== undefined
-            ) {
-
-                errorMessage +=
-                    ` Return code: ${execResult}.`;
-            }
-
-
-            throw new Error(
-                errorMessage
-            );
+            };
         }
 
 
         /* =====================================================
-           OUTPUT MIME TYPE
+           REMUX FAILED
         ===================================================== */
 
-        const outputType =
-            getCleanVideoMimeType(
-                file
-            );
+        let errorMessage =
+            "FFmpeg tidak menghasilkan file video.";
+
+
+        if (
+            execError
+        ) {
+
+            const message =
+                getErrorMessage(
+                    execError
+                );
+
+
+            if (
+                message
+            ) {
+
+                errorMessage +=
+                    ` ${message}`;
+            }
+        }
+
+
+        if (
+            outputReadError
+        ) {
+
+            const message =
+                getErrorMessage(
+                    outputReadError
+                );
+
+
+            if (
+                message
+            ) {
+
+                errorMessage +=
+                    ` ${message}`;
+            }
+        }
+
+
+        if (
+            execResult !== null &&
+            execResult !== undefined
+        ) {
+
+            errorMessage +=
+                ` Return code: ${execResult}.`;
+        }
 
 
         /* =====================================================
-           RETURN NEW BLOB
+           INCLUDE LAST FFMPEG LOGS
+           -----------------------------------------------------
+           Hanya beberapa baris terakhir supaya error tidak
+           menjadi ribuan karakter.
         ===================================================== */
 
-        return {
+        if (
+            ffmpegLogs.length > 0
+        ) {
 
-            blob:
-                new Blob(
-                    [
-                        outputData
-                    ],
-                    {
-                        type:
-                            outputType
-                    }
-                ),
+            const recentLogs =
+                ffmpegLogs
+                    .slice(-20)
+                    .join(
+                        "\n"
+                    );
 
-            type:
-                outputType
 
-        };
+            console.error(
+                "[GEN-Z.AI][CLEAN][FFmpeg] Last logs:\n" +
+                recentLogs
+            );
+
+
+            errorMessage +=
+                `\nFFmpeg log terakhir:\n${recentLogs}`;
+        }
+
+
+        throw new Error(
+            errorMessage
+        );
 
     } finally {
 
         /* =====================================================
-           CLEAN FFMPEG VIRTUAL FILES
+           REMOVE LOGGER
+           ---------------------------------------------------
+           Jangan meninggalkan listener setiap kali user
+           melakukan cleaning. Kalau tidak, satu video saja
+           bisa menghasilkan log berlipat-lipat.
+        ===================================================== */
+
+        if (
+            logHandler &&
+            typeof ffmpeg.off === "function"
+        ) {
+
+            try {
+
+                ffmpeg.off(
+                    "log",
+                    logHandler
+                );
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI][CLEAN] FFmpeg logger cleanup dilewati:",
+                    error
+                );
+            }
+        }
+
+
+        /* =====================================================
+           CLEAN INPUT FILE
            -----------------------------------------------------
            Cleanup tidak boleh mengubah hasil cleaning menjadi
            gagal.
-
-           Jika file sudah otomatis dihapus oleh FFmpeg atau
-           filesystem virtual, safeDeleteFFmpegFile menangani
-           kondisi tersebut.
         ===================================================== */
 
         try {
@@ -448,10 +675,19 @@ export async function cleanVideo(
 
             console.warn(
                 "[GEN-Z.AI][CLEAN] Input cleanup dilewati:",
-                error
+                getErrorMessage(
+                    error
+                )
             );
         }
 
+
+        /* =====================================================
+           CLEAN OUTPUT FILE
+           -----------------------------------------------------
+           Output sudah dibaca menjadi Uint8Array sebelum
+           cleanup, jadi aman untuk dihapus dari VFS.
+        ===================================================== */
 
         try {
 
@@ -466,7 +702,9 @@ export async function cleanVideo(
 
             console.warn(
                 "[GEN-Z.AI][CLEAN] Output cleanup dilewati:",
-                error
+                getErrorMessage(
+                    error
+                )
             );
         }
     }
