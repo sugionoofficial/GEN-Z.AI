@@ -800,17 +800,7 @@ export async function readVideoMetadataWithFFprobe(
                 )
             );
 
-        } else if (
-            ffprobeResult !== 0
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI][FFprobe] Return code non-zero, tetapi output JSON valid dan akan digunakan:",
-                ffprobeResult
-            );
-        }
-
-
+        
         /* =================================================
            SUCCESS
         ================================================= */
