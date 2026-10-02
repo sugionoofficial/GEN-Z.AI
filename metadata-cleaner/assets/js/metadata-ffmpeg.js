@@ -8,12 +8,9 @@
    Fungsi:
    - Load @ffmpeg/ffmpeg
    - Load @ffmpeg/core single-thread
-   - Load FFmpeg core melalui Blob URL
-   - Load FFmpeg worker melalui Blob URL
-   - Memperbaiki dependency relatif dari core/worker
+   - Mengatasi cross-origin class Worker
    - FFprobe
-   - FFmpeg video cleaning
-   - Tidak bergantung pada window.FFmpeg
+   - FFmpeg video processing
    - Tidak menggunakan ffmpeg-core.worker.js
 ========================================================= */
 
@@ -40,7 +37,7 @@ const FFMPEG_MODULE_URL =
 
 
 /* =========================================================
-   FFMPEG CLASS WORKER
+   CLASS WORKER
 ========================================================= */
 
 const FFMPEG_WORKER_URL =
@@ -54,7 +51,7 @@ const FFMPEG_ERRORS_URL =
 
 
 /* =========================================================
-   FFMPEG CORE
+   CORE
 ========================================================= */
 
 const FFMPEG_CORE_BASE_URL =
@@ -98,12 +95,6 @@ async function loadFFmpegModule() {
     );
 
 
-    console.info(
-        "[GEN-Z.AI][FFmpeg] Module:",
-        FFMPEG_MODULE_URL
-    );
-
-
     ffmpegModulePromise =
         import(
             FFMPEG_MODULE_URL
@@ -133,7 +124,7 @@ async function loadFFmpegModule() {
         ) {
 
             throw new Error(
-                "Export FFmpeg tidak ditemukan dari @ffmpeg/ffmpeg."
+                "Export FFmpeg tidak ditemukan."
             );
 
         }
@@ -153,7 +144,7 @@ async function loadFFmpegModule() {
 
 
         throw new Error(
-            `FFmpeg module gagal dimuat dari CDN: ${getErrorMessage(error)}`
+            `FFmpeg module gagal dimuat: ${getErrorMessage(error)}`
         );
 
     }
@@ -233,12 +224,6 @@ async function initializeFFmpeg() {
         null;
 
 
-    let coreBlobURL =
-        null;
-
-    let wasmBlobURL =
-        null;
-
     let classWorkerBlobURL =
         null;
 
@@ -246,7 +231,7 @@ async function initializeFFmpeg() {
     try {
 
         /* -------------------------------------------------
-           LOAD MODULE
+           MODULE
         ------------------------------------------------- */
 
         const module =
@@ -254,23 +239,11 @@ async function initializeFFmpeg() {
 
 
         const FFmpegClass =
-            module?.FFmpeg;
-
-
-        if (
-            typeof FFmpegClass !==
-            "function"
-        ) {
-
-            throw new Error(
-                "Export FFmpeg tidak ditemukan dari @ffmpeg/ffmpeg."
-            );
-
-        }
+            module.FFmpeg;
 
 
         /* -------------------------------------------------
-           CREATE INSTANCE
+           INSTANCE
         ------------------------------------------------- */
 
         const ffmpeg =
@@ -331,14 +304,11 @@ async function initializeFFmpeg() {
                         )
                     ) {
 
-                        const percent =
+                        console.debug(
+                            "[GEN-Z.AI][FFmpeg] Progress:",
                             Math.round(
                                 progress * 100
-                            );
-
-
-                        console.debug(
-                            `[GEN-Z.AI][FFmpeg] Progress: ${percent}%`
+                            ) + "%"
                         );
 
                     }
@@ -350,7 +320,29 @@ async function initializeFFmpeg() {
 
 
         /* -------------------------------------------------
-           LOAD WASM
+           CLASS WORKER
+           -------------------------------------------------
+           Hanya worker wrapper yang dibuat Blob.
+
+           Core JS tetap memakai URL CDN asli.
+        ------------------------------------------------- */
+
+        classWorkerBlobURL =
+            await createFFmpegClassWorker();
+
+
+        console.info(
+            "[GEN-Z.AI][FFmpeg] Class worker ready."
+        );
+
+
+        /* -------------------------------------------------
+           CORE URL
+           -------------------------------------------------
+           Jangan dibuat Blob.
+
+           @ffmpeg/core membutuhkan URL asli untuk
+           dependency internal Emscripten/WASM.
         ------------------------------------------------- */
 
         console.info(
@@ -366,60 +358,7 @@ async function initializeFFmpeg() {
 
 
         /* -------------------------------------------------
-           CREATE CORE JS BLOB
-           -------------------------------------------------
-           Penting:
-           ffmpeg-core.js menggunakan path relatif
-           menuju ffmpeg-core.wasm.
-
-           Karena core JS dijalankan dari Blob URL,
-           path relatif tersebut harus diganti menjadi
-           URL CDN absolut.
-        ------------------------------------------------- */
-
-        coreBlobURL =
-            await createFFmpegCoreBlob(
-                FFMPEG_CORE_JS_URL,
-                FFMPEG_CORE_WASM_URL
-            );
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Core JS Blob created."
-        );
-
-
-        /* -------------------------------------------------
-           CREATE WASM BLOB
-        ------------------------------------------------- */
-
-        wasmBlobURL =
-            await toBlobURL(
-                FFMPEG_CORE_WASM_URL,
-                "application/wasm"
-            );
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Core WASM Blob created."
-        );
-
-
-        /* -------------------------------------------------
-           CREATE CLASS WORKER
-        ------------------------------------------------- */
-
-        classWorkerBlobURL =
-            await createFFmpegClassWorker();
-
-
-        console.info(
-            "[GEN-Z.AI][FFmpeg] Class worker Blob created."
-        );
-
-
-        /* -------------------------------------------------
-           LOAD FFMPEG
+           LOAD
         ------------------------------------------------- */
 
         console.info(
@@ -430,10 +369,10 @@ async function initializeFFmpeg() {
         await ffmpeg.load({
 
             coreURL:
-                coreBlobURL,
+                FFMPEG_CORE_JS_URL,
 
             wasmURL:
-                wasmBlobURL,
+                FFMPEG_CORE_WASM_URL,
 
             classWorkerURL:
                 classWorkerBlobURL
@@ -447,7 +386,7 @@ async function initializeFFmpeg() {
 
 
         /* -------------------------------------------------
-           VERIFY API
+           VERIFY
         ------------------------------------------------- */
 
         if (
@@ -456,7 +395,7 @@ async function initializeFFmpeg() {
         ) {
 
             throw new Error(
-                "FFmpeg loaded tetapi writeFile() tidak tersedia."
+                "writeFile() tidak tersedia."
             );
 
         }
@@ -468,7 +407,7 @@ async function initializeFFmpeg() {
         ) {
 
             throw new Error(
-                "FFmpeg loaded tetapi readFile() tidak tersedia."
+                "readFile() tidak tersedia."
             );
 
         }
@@ -480,25 +419,25 @@ async function initializeFFmpeg() {
         ) {
 
             throw new Error(
-                "FFmpeg loaded tetapi exec() tidak tersedia."
+                "exec() tidak tersedia."
             );
 
         }
 
 
         if (
-            typeof ffmpeg.ffprobe !==
+            typeof ffmpeg.ffprobe ===
             "function"
         ) {
 
-            console.warn(
-                "[GEN-Z.AI][FFmpeg] ffprobe() tidak tersedia pada instance."
+            console.info(
+                "[GEN-Z.AI][FFmpeg] ffprobe() tersedia."
             );
 
         } else {
 
-            console.info(
-                "[GEN-Z.AI][FFmpeg] ffprobe() tersedia."
+            console.warn(
+                "[GEN-Z.AI][FFmpeg] ffprobe() tidak tersedia."
             );
 
         }
@@ -554,19 +493,10 @@ async function initializeFFmpeg() {
     } finally {
 
         /*
-         * Jangan biarkan Blob URL berserakan setelah
-         * FFmpeg selesai melakukan initialization.
+         * Blob worker hanya dibutuhkan saat
+         * initialization. Setelah Worker berhasil
+         * dibuat oleh FFmpeg, URL boleh dibersihkan.
          */
-
-        revokeObjectURL(
-            coreBlobURL
-        );
-
-
-        revokeObjectURL(
-            wasmBlobURL
-        );
-
 
         revokeObjectURL(
             classWorkerBlobURL
@@ -578,177 +508,7 @@ async function initializeFFmpeg() {
 
 
 /* =========================================================
-   CREATE FFMPEG CORE BLOB
-   ---------------------------------------------------------
-   Mengubah ffmpeg-core.js menjadi Blob URL lokal.
-
-   Dependency WASM yang semula relatif:
-       ffmpeg-core.wasm
-
-   diarahkan ke URL CDN absolut.
-========================================================= */
-
-async function createFFmpegCoreBlob(
-    coreURL,
-    wasmURL
-) {
-
-    if (
-        !coreURL
-    ) {
-
-        throw new Error(
-            "FFmpeg core JS URL kosong."
-        );
-
-    }
-
-
-    console.info(
-        "[GEN-Z.AI][FFmpeg] Fetching core JS..."
-    );
-
-
-    let response;
-
-
-    try {
-
-        response =
-            await fetch(
-                coreURL,
-                {
-                    method:
-                        "GET",
-
-                    mode:
-                        "cors",
-
-                    cache:
-                        "no-store"
-                }
-            );
-
-    } catch (error) {
-
-        throw new Error(
-            `Tidak dapat mengakses FFmpeg core JS: ${coreURL} | ${getErrorMessage(error)}`
-        );
-
-    }
-
-
-    if (
-        !response.ok
-    ) {
-
-        throw new Error(
-            `FFmpeg core JS gagal dimuat (${response.status} ${response.statusText}): ${coreURL}`
-        );
-
-    }
-
-
-    let source =
-        await response.text();
-
-
-    if (
-        !source
-    ) {
-
-        throw new Error(
-            "Isi ffmpeg-core.js kosong."
-        );
-
-    }
-
-
-    /* -----------------------------------------------------
-       IMPORTANT:
-       Core dijalankan dari blob: URL.
-
-       Path relatif terhadap WASM tidak boleh lagi
-       mengarah ke blob:.
-
-       Kita ubah berbagai bentuk referensi WASM
-       menjadi URL absolut.
-    ----------------------------------------------------- */
-
-    const escapedWasmURL =
-        wasmURL.replace(
-            /\\/g,
-            "\\\\"
-        );
-
-
-    source =
-        source.replace(
-            /(["'`])ffmpeg-core\.wasm\1/g,
-            `$1${escapedWasmURL}$1`
-        );
-
-
-    source =
-        source.replace(
-            /(["'`])\.\/ffmpeg-core\.wasm\1/g,
-            `$1${escapedWasmURL}$1`
-        );
-
-
-    source =
-        source.replace(
-            /(["'`])ffmpeg-core\.wasm\.js\1/g,
-            `$1${escapedWasmURL}.js$1`
-        );
-
-
-    /* -----------------------------------------------------
-       Beberapa build Emscripten menyimpan nama WASM
-       di variabel JavaScript.
-    ----------------------------------------------------- */
-
-    source =
-        source.replace(
-            /(["'`])\.\/ffmpeg-core\.wasm/g,
-            `$1${escapedWasmURL}`
-        );
-
-
-    /* -----------------------------------------------------
-       Pastikan source tetap valid.
-    ----------------------------------------------------- */
-
-    const blob =
-        new Blob(
-            [source],
-            {
-                type:
-                    "text/javascript"
-            }
-        );
-
-
-    if (
-        blob.size <= 0
-    ) {
-
-        throw new Error(
-            "Blob ffmpeg-core.js kosong."
-        );
-
-    }
-
-
-    return URL.createObjectURL(
-        blob
-    );
-
-}
-
-
-/* =========================================================
-   CREATE FFMPEG CLASS WORKER
+   CREATE CLASS WORKER
 ========================================================= */
 
 async function createFFmpegClassWorker() {
@@ -782,7 +542,7 @@ async function createFFmpegClassWorker() {
     } catch (error) {
 
         throw new Error(
-            `Tidak dapat mengakses FFmpeg class worker: ${FFMPEG_WORKER_URL} | ${getErrorMessage(error)}`
+            `Tidak dapat mengakses FFmpeg class worker: ${getErrorMessage(error)}`
         );
 
     }
@@ -793,7 +553,7 @@ async function createFFmpegClassWorker() {
     ) {
 
         throw new Error(
-            `FFmpeg class worker gagal dimuat (${response.status} ${response.statusText}): ${FFMPEG_WORKER_URL}`
+            `FFmpeg class worker gagal dimuat: ${response.status} ${response.statusText}`
         );
 
     }
@@ -815,7 +575,13 @@ async function createFFmpegClassWorker() {
 
 
     /* -----------------------------------------------------
-       Resolve worker dependencies.
+       Worker.js memiliki dependency relatif:
+
+       ./const.js
+       ./errors.js
+
+       Karena worker dijalankan dari Blob URL,
+       dependency tersebut harus diarahkan ke CDN.
     ----------------------------------------------------- */
 
     source =
@@ -846,7 +612,7 @@ async function createFFmpegClassWorker() {
         );
 
 
-    const workerBlob =
+    const blob =
         new Blob(
             [source],
             {
@@ -857,115 +623,18 @@ async function createFFmpegClassWorker() {
 
 
     if (
-        workerBlob.size <= 0
-    ) {
-
-        throw new Error(
-            "Blob FFmpeg class worker kosong."
-        );
-
-    }
-
-
-    return URL.createObjectURL(
-        workerBlob
-    );
-
-}
-
-
-/* =========================================================
-   TO BLOB URL
-========================================================= */
-
-async function toBlobURL(
-    url,
-    mimeType
-) {
-
-    if (
-        !url
-    ) {
-
-        throw new Error(
-            "FFmpeg resource URL kosong."
-        );
-
-    }
-
-
-    console.debug(
-        "[GEN-Z.AI][FFmpeg] Fetching:",
-        url
-    );
-
-
-    let response;
-
-
-    try {
-
-        response =
-            await fetch(
-                url,
-                {
-                    method:
-                        "GET",
-
-                    mode:
-                        "cors",
-
-                    cache:
-                        "no-store"
-                }
-            );
-
-    } catch (error) {
-
-        throw new Error(
-            `Tidak dapat mengakses FFmpeg resource: ${url} | ${getErrorMessage(error)}`
-        );
-
-    }
-
-
-    if (
-        !response.ok
-    ) {
-
-        throw new Error(
-            `FFmpeg resource gagal dimuat (${response.status} ${response.statusText}): ${url}`
-        );
-
-    }
-
-
-    const blob =
-        await response.blob();
-
-
-    if (
-        !blob ||
         blob.size <= 0
     ) {
 
         throw new Error(
-            `FFmpeg resource kosong: ${url}`
+            "Blob class worker kosong."
         );
 
     }
 
 
     return URL.createObjectURL(
-        new Blob(
-            [blob],
-            {
-                type:
-                    mimeType ||
-                    blob.type ||
-                    "application/octet-stream"
-            }
-        )
+        blob
     );
 
 }
@@ -996,7 +665,7 @@ function revokeObjectURL(
 
     } catch {
 
-        /* intentionally ignored */
+        /* ignore */
 
     }
 
@@ -1104,7 +773,7 @@ export function getCleanVideoMimeType(
 
 
 /* =========================================================
-   IS MOV LIKE
+   IS MOV LIKE VIDEO
 ========================================================= */
 
 export function isMovLikeVideo(
@@ -1146,7 +815,7 @@ export function isMovLikeVideo(
 
 
 /* =========================================================
-   SAFE DELETE FFMPEG FILE
+   SAFE DELETE
 ========================================================= */
 
 export async function safeDeleteFFmpegFile(
@@ -1182,7 +851,7 @@ export async function safeDeleteFFmpegFile(
 
     } catch {
 
-        /* File mungkin sudah dihapus. */
+        /* File mungkin sudah tidak ada. */
 
     }
 
@@ -1310,7 +979,7 @@ export function getFFmpegDiagnostic() {
         moduleURL:
             FFMPEG_MODULE_URL,
 
-        coreURL:
+        coreBaseURL:
             FFMPEG_CORE_BASE_URL,
 
         coreJSURL:
