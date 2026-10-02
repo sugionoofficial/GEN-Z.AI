@@ -1,23 +1,21 @@
 /* =========================================================
    GEN-Z.AI
-   USER MANAGEMENT - RENDER
+   USER MANAGEMENT RENDER
    ---------------------------------------------------------
    File:
    admin-control/users/assets/js/user-render.js
 
    Fungsi:
-   - Render tabel users
-   - Render badge role
-   - Render badge status
-   - Render status email
-   - Render action button
+   - Render tabel user
+   - Render empty state
    - Update statistik
-========================================================= */
+   - Menentukan action berdasarkan role
+   - Tidak melakukan API request
+   - Tidak melakukan authentication
+   - Tidak mengelola modal
+   ========================================================= */
 
-import {
-    userState
-} from "./user-state.js";
-
+import { userState } from "./user-state.js";
 import {
     escapeHtml,
     formatNumber,
@@ -33,447 +31,580 @@ import {
 export function updateStats() {
 
     const users =
-        Array.isArray(
-            userState.allUsers
-        )
+        Array.isArray(userState.allUsers)
             ? userState.allUsers
             : [];
 
 
     const totalUsers =
-        document.getElementById(
-            "totalUsers"
-        );
+        document.getElementById("totalUsers");
 
     const activeUsers =
-        document.getElementById(
-            "activeUsers"
-        );
+        document.getElementById("activeUsers");
 
     const adminUsers =
-        document.getElementById(
-            "adminUsers"
-        );
+        document.getElementById("adminUsers");
 
 
-    const total =
-        users.length;
-
-
-    const active =
-        users.filter(
-            (user) =>
-                String(
-                    user?.status || ""
-                )
-                    .trim()
-                    .toLowerCase() === "active"
-        ).length;
-
-
-    const admins =
-        users.filter(
-            (user) => {
-
-                const role =
-                    String(
-                        user?.role || ""
-                    )
-                        .trim()
-                        .toUpperCase();
-
-                return (
-                    role === "ADMIN" ||
-                    role === "OWNER"
-                );
-
-            }
-        ).length;
-
+    /*
+       Total user.
+    */
 
     if (totalUsers) {
 
         totalUsers.textContent =
-            formatNumber(total);
-
+            formatNumber(users.length);
     }
+
+
+    /*
+       Active user.
+    */
+
+    const activeCount =
+        users.filter(user => {
+
+            const status =
+                String(
+                    user?.status || ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+            return status === "active";
+
+        }).length;
 
 
     if (activeUsers) {
 
         activeUsers.textContent =
-            formatNumber(active);
-
+            formatNumber(activeCount);
     }
+
+
+    /*
+       ADMIN + OWNER.
+    */
+
+    const adminCount =
+        users.filter(user => {
+
+            const role =
+                String(
+                    user?.role || ""
+                )
+                    .trim()
+                    .toUpperCase();
+
+            return (
+                role === "ADMIN" ||
+                role === "OWNER"
+            );
+
+        }).length;
 
 
     if (adminUsers) {
 
         adminUsers.textContent =
-            formatNumber(admins);
-
+            formatNumber(adminCount);
     }
-
 }
 
 
 /* =========================================================
-   RENDER USERS
+   CURRENT ADMIN ROLE
 ========================================================= */
 
-export function renderUsers(
-    users = userState.filteredUsers
-) {
+function getCurrentRole() {
 
-    const container =
-        document.getElementById(
-            "userContainer"
-        );
-
-
-    if (!container) {
-
-        return;
-
-    }
+    return String(
+        userState.currentProfile?.role ||
+        window.GENZNavigation?.getRole?.() ||
+        window.GENZ_CURRENT_ROLE ||
+        "USER"
+    )
+        .trim()
+        .toUpperCase();
+}
 
 
-    const userList =
-        Array.isArray(users)
-            ? users
-            : [];
+/* =========================================================
+   CURRENT USER ID
+========================================================= */
+
+function getCurrentUserId() {
+
+    return String(
+        userState.currentUser?.id ||
+        window.GENZ_CURRENT_USER?.id ||
+        ""
+    ).trim();
+}
 
 
-    /* -----------------------------------------------------
-       EMPTY STATE
-    ----------------------------------------------------- */
+/* =========================================================
+   CAN MANAGE TARGET USER
+========================================================= */
 
-    if (
-        userList.length === 0
-    ) {
-
-        container.innerHTML = `
-            <div class="empty-state">
-
-                <div class="empty-icon">
-                    👥
-                </div>
-
-                <div class="empty-title">
-                    Tidak Ada User
-                </div>
-
-                <div class="empty-text">
-                    Belum ada user yang sesuai dengan pencarian.
-                </div>
-
-            </div>
-        `;
-
-        return;
-
-    }
-
-
-    /* -----------------------------------------------------
-       CURRENT USER
-    ----------------------------------------------------- */
-
-    const currentUserId =
-        String(
-            userState.currentUser?.id || ""
-        );
-
+function canManageTargetUser(user) {
 
     const currentRole =
+        getCurrentRole();
+
+    const targetRole =
         String(
-            userState.currentProfile?.role || ""
+            user?.role || "USER"
         )
             .trim()
             .toUpperCase();
 
 
-    /* -----------------------------------------------------
-       TABLE
-    ----------------------------------------------------- */
+    /*
+       OWNER:
+       dapat mengelola USER dan ADMIN.
+       OWNER sendiri tidak boleh dihapus.
+    */
 
-    const rows =
-        userList.map(
-            (user) => {
+    if (currentRole === "OWNER") {
 
-                const userId =
-                    String(
-                        user?.id || ""
-                    );
+        return targetRole !== "OWNER";
+    }
 
 
-                const email =
-                    String(
-                        user?.email || ""
-                    );
+    /*
+       ADMIN:
+       hanya dapat mengelola USER.
+    */
 
+    if (currentRole === "ADMIN") {
 
-                const name =
-                    String(
-                        user?.name || ""
-                    );
+        return targetRole === "USER";
+    }
 
 
-                const role =
-                    String(
-                        user?.role || "USER"
-                    )
-                        .trim()
-                        .toUpperCase();
+    return false;
+}
 
 
-                const status =
-                    String(
-                        user?.status || "active"
-                    )
-                        .trim()
-                        .toLowerCase();
+/* =========================================================
+   IS SELF
+========================================================= */
 
+function isCurrentUser(user) {
 
-                const credits =
-                    Number(
-                        user?.credits || 0
-                    );
+    const currentUserId =
+        getCurrentUserId();
 
+    const targetId =
+        String(
+            user?.id || ""
+        ).trim();
 
-                const emailConfirmed =
-                    Boolean(
-                        user?.email_confirmed
-                    );
 
+    return (
+        !!currentUserId &&
+        !!targetId &&
+        currentUserId === targetId
+    );
+}
 
-                /* -----------------------------------------
-                   PERMISSION
-                ----------------------------------------- */
 
-                const isSelf =
-                    userId === currentUserId;
+/* =========================================================
+   RENDER ACTIONS
+========================================================= */
 
+function renderActions(user) {
 
-                const isOwner =
-                    role === "OWNER";
+    const currentRole =
+        getCurrentRole();
 
+    const targetRole =
+        String(
+            user?.role || "USER"
+        )
+            .trim()
+            .toUpperCase();
 
-                /*
-                 * OWNER:
-                 * - dapat mengelola USER
-                 * - dapat mengelola ADMIN
-                 *
-                 * ADMIN:
-                 * - hanya dapat mengelola USER
-                 */
+    const status =
+        String(
+            user?.status || ""
+        )
+            .trim()
+            .toLowerCase();
 
-                const adminCanManage =
-                    currentRole === "OWNER" ||
-                    (
-                        currentRole === "ADMIN" &&
-                        role === "USER"
-                    );
 
+    const userId =
+        escapeHtml(user?.id || "");
 
-                const canDelete =
-                    !isSelf &&
-                    !isOwner &&
-                    adminCanManage;
+    const email =
+        escapeHtml(user?.email || "");
 
+    const name =
+        escapeHtml(
+            user?.name ||
+            user?.email ||
+            "User"
+        );
 
-                const canManageConfirmation =
-                    !isSelf &&
-                    !isOwner &&
-                    adminCanManage &&
-                    !emailConfirmed;
 
+    const encodedEmail =
+        escapeHtml(user?.email || "");
 
-                /* -----------------------------------------
-                   ACTION BUTTONS
-                ----------------------------------------- */
 
-                let actions = "";
+    /*
+       Self protection.
+    */
 
+    const self =
+        isCurrentUser(user);
 
-                if (
-                    canManageConfirmation
-                ) {
 
-                    actions += `
-                        <button
-                            type="button"
-                            class="action-button"
-                            data-action="confirm"
-                            data-user-id="${escapeHtml(userId)}"
-                            data-user-email="${escapeHtml(email)}"
-                        >
-                            Confirm
-                        </button>
+    /*
+       Permission.
+    */
 
-                        <button
-                            type="button"
-                            class="action-button"
-                            data-action="resend"
-                            data-user-email="${escapeHtml(email)}"
-                        >
-                            Resend
-                        </button>
-                    `;
+    const canManage =
+        canManageTargetUser(user);
 
-                }
 
+    /*
+       Tidak ada action untuk diri sendiri.
+    */
+
+    if (self) {
+
+        return `
+            <div class="actions">
+
+                <span class="action-disabled">
+                    Current User
+                </span>
+
+            </div>
+        `;
+    }
+
+
+    /*
+       Jika role tidak memiliki permission.
+    */
+
+    if (!canManage) {
+
+        return `
+            <div class="actions">
+
+                <span class="action-disabled">
+                    No Access
+                </span>
+
+            </div>
+        `;
+    }
+
+
+    const buttons = [];
+
+
+    /*
+       Confirm email.
+       Hanya jika belum verified.
+    */
+
+    const emailConfirmed =
+        Boolean(
+            user?.email_confirmed ||
+            user?.emailConfirmed ||
+            user?.confirmed_at
+        );
+
+
+    if (!emailConfirmed) {
+
+        buttons.push(`
+            <button
+                type="button"
+                class="action-button"
+                data-action="confirm"
+                data-user-id="${userId}"
+                data-user-email="${encodedEmail}"
+                title="Confirm email"
+            >
+                Confirm
+            </button>
+        `);
+
+
+        buttons.push(`
+            <button
+                type="button"
+                class="action-button"
+                data-action="resend"
+                data-user-email="${encodedEmail}"
+                title="Resend confirmation email"
+            >
+                Resend
+            </button>
+        `);
+    }
+
+
+    /*
+       Delete:
+       - OWNER dapat delete USER / ADMIN
+       - ADMIN hanya USER
+       - Tidak pernah delete OWNER
+    */
+
+    if (
+        currentRole === "OWNER" &&
+        targetRole !== "OWNER"
+    ) {
+
+        buttons.push(`
+            <button
+                type="button"
+                class="action-button danger-button"
+                data-action="delete"
+                data-user-id="${userId}"
+                data-user-email="${encodedEmail}"
+                data-user-name="${name}"
+                title="Delete user"
+            >
+                Delete
+            </button>
+        `);
+
+    } else if (
+        currentRole === "ADMIN" &&
+        targetRole === "USER"
+    ) {
+
+        buttons.push(`
+            <button
+                type="button"
+                class="action-button danger-button"
+                data-action="delete"
+                data-user-id="${userId}"
+                data-user-email="${encodedEmail}"
+                data-user-name="${name}"
+                title="Delete user"
+            >
+                Delete
+            </button>
+        `);
+    }
+
+
+    /*
+       Tidak ada action.
+    */
+
+    if (buttons.length === 0) {
+
+        return `
+            <div class="actions">
+
+                <span class="action-disabled">
+                    -
+                </span>
+
+            </div>
+        `;
+    }
+
+
+    return `
+        <div class="actions">
+            ${buttons.join("")}
+        </div>
+    `;
+}
+
 
-                if (canDelete) {
+/* =========================================================
+   RENDER USER ROW
+========================================================= */
 
-                    actions += `
-                        <button
-                            type="button"
-                            class="action-button danger"
-                            data-action="delete"
-                            data-user-id="${escapeHtml(userId)}"
-                            data-user-email="${escapeHtml(email)}"
-                            data-user-name="${escapeHtml(name)}"
-                        >
-                            Delete
-                        </button>
-                    `;
+function renderUserRow(user) {
 
-                }
+    const id =
+        escapeHtml(user?.id || "");
 
+    const email =
+        escapeHtml(
+            user?.email ||
+            "-"
+        );
 
-                if (!actions) {
+    const name =
+        escapeHtml(
+            user?.name ||
+            "-"
+        );
 
-                    actions = `
-                        <span class="action-disabled">
-                            -
-                        </span>
-                    `;
+    const role =
+        String(
+            user?.role ||
+            "USER"
+        )
+            .trim()
+            .toUpperCase();
 
-                }
+    const status =
+        String(
+            user?.status ||
+            "active"
+        )
+            .trim()
+            .toLowerCase();
 
 
-                /* -----------------------------------------
-                   DISPLAY NAME
-                ----------------------------------------- */
+    const credits =
+        formatNumber(
+            user?.credits ?? 0
+        );
 
-                const displayName =
-                    name.trim()
-                        ? name
-                        : "-";
 
+    const roleClass =
+        escapeHtml(
+            getRoleClass(role)
+        );
 
-                /* -----------------------------------------
-                   ROLE BADGE
-                ----------------------------------------- */
+    const statusClass =
+        escapeHtml(
+            getStatusClass(status)
+        );
 
-                const roleClass =
-                    getRoleClass(role);
 
+    /*
+       Email verification.
+    */
 
-                const roleLabel =
-                    escapeHtml(role);
+    const verified =
+        Boolean(
+            user?.email_confirmed ||
+            user?.emailConfirmed ||
+            user?.confirmed_at
+        );
 
 
-                /* -----------------------------------------
-                   STATUS BADGE
-                ----------------------------------------- */
+    const emailBadgeClass =
+        verified
+            ? "verified"
+            : "unverified";
 
-                const statusClass =
-                    getStatusClass(status);
 
+    const emailBadgeText =
+        verified
+            ? "Verified"
+            : "Unverified";
 
-                const statusLabel =
-                    status
-                        .charAt(0)
-                        .toUpperCase() +
-                    status.slice(1);
 
+    return `
+        <tr data-user-id="${id}">
 
-                /* -----------------------------------------
-                   EMAIL STATUS
-                ----------------------------------------- */
+            <td>
 
-                const emailBadge =
-                    emailConfirmed
-                        ? `
-                            <span class="email-badge verified">
-                                Verified
-                            </span>
-                        `
-                        : `
-                            <span class="email-badge unverified">
-                                Unverified
-                            </span>
-                        `;
+                <div class="user-email">
+                    ${email}
+                </div>
 
+                <span
+                    class="email-badge ${emailBadgeClass}"
+                >
+                    ${emailBadgeText}
+                </span>
 
-                /* -----------------------------------------
-                   ROW
-                ----------------------------------------- */
+            </td>
 
-                return `
-                    <tr>
 
-                        <td>
-                            <div class="user-email">
-                                ${escapeHtml(email)}
-                            </div>
+            <td>
 
-                            ${emailBadge}
-                        </td>
+                <div class="user-name">
+                    ${name}
+                </div>
 
+            </td>
 
-                        <td>
-                            <div class="user-name">
-                                ${escapeHtml(displayName)}
-                            </div>
-                        </td>
 
+            <td>
 
-                        <td>
-                            <span
-                                class="role-badge ${escapeHtml(roleClass)}"
-                            >
-                                ${roleLabel}
-                            </span>
-                        </td>
+                <span
+                    class="role-badge ${roleClass}"
+                >
+                    ${escapeHtml(role)}
+                </span>
 
+            </td>
 
-                        <td>
-                            <span class="credit-value">
-                                ${formatNumber(credits)}
-                            </span>
-                        </td>
 
+            <td>
 
-                        <td>
-                            <span
-                                class="status-badge ${escapeHtml(statusClass)}"
-                            >
-                                ${escapeHtml(statusLabel)}
-                            </span>
-                        </td>
+                <span class="credit-value">
+                    ${credits}
+                </span>
 
+            </td>
 
-                        <td>
-                            <div class="actions">
-                                ${actions}
-                            </div>
-                        </td>
 
-                    </tr>
-                `;
+            <td>
 
-            }
-        ).join("");
+                <span
+                    class="status-badge ${statusClass}"
+                >
+                    ${escapeHtml(status)}
+                </span>
 
+            </td>
 
-    /* -----------------------------------------------------
-       FINAL TABLE
-    ----------------------------------------------------- */
 
-    container.innerHTML = `
+            <td>
+
+                ${renderActions(user)}
+
+            </td>
+
+        </tr>
+    `;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+function renderEmptyState() {
+
+    return `
+        <div class="empty-state">
+
+            <div class="empty-icon">
+                👥
+            </div>
+
+            <div class="empty-title">
+                Tidak Ada User
+            </div>
+
+            <div class="empty-text">
+                Belum ada user yang cocok dengan pencarian.
+            </div>
+
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   TABLE HEADER
+========================================================= */
+
+function renderTable(users) {
+
+    return `
         <div class="table-wrapper">
 
             <table class="users-table">
@@ -487,7 +618,7 @@ export function renderUsers(
                         </th>
 
                         <th>
-                            Name
+                            Nama
                         </th>
 
                         <th>
@@ -510,13 +641,80 @@ export function renderUsers(
 
                 </thead>
 
+
                 <tbody>
-                    ${rows}
+
+                    ${users
+                        .map(renderUserRow)
+                        .join("")}
+
                 </tbody>
 
             </table>
 
         </div>
     `;
+}
 
+
+/* =========================================================
+   RENDER USERS
+========================================================= */
+
+export function renderUsers() {
+
+    const container =
+        document.getElementById("userContainer");
+
+
+    if (!container) {
+
+        console.warn(
+            "[GEN-Z.AI UserRender] #userContainer tidak ditemukan."
+        );
+
+        return;
+    }
+
+
+    const users =
+        Array.isArray(userState.filteredUsers)
+            ? userState.filteredUsers
+            : [];
+
+
+    /*
+       Tidak ada hasil.
+    */
+
+    if (users.length === 0) {
+
+        container.innerHTML =
+            renderEmptyState();
+
+        return;
+    }
+
+
+    /*
+       Render table.
+    */
+
+    container.innerHTML =
+        renderTable(users);
+}
+
+
+/* =========================================================
+   GLOBAL BRIDGE
+========================================================= */
+
+if (typeof window !== "undefined") {
+
+    window.GENZUserRender = {
+
+        renderUsers,
+
+        updateStats
+    };
 }
