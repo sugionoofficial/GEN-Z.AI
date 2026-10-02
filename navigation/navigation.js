@@ -1619,19 +1619,6 @@
                             session.user.id
                         );
 
-                   console.log(
-    "[GEN-Z.AI NAV DEBUG]",
-    {
-        pathname: window.location.pathname,
-        userId: user?.id || null,
-        email: user?.email || null,
-        profile: profile || null,
-        role: profile?.role || null,
-        status: profile?.status || null
-    }
-);
-
-
                     if (
                         profile
                     ) {
