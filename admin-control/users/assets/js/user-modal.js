@@ -1,302 +1,360 @@
 /* =========================================================
    GEN-Z.AI
-   USER MANAGEMENT - MODAL
+   USER MANAGEMENT MODAL
    ---------------------------------------------------------
    File:
    admin-control/users/assets/js/user-modal.js
 
    Fungsi:
-   - Open Add User modal
-   - Close Add User modal
-   - Open Delete User modal
-   - Close Delete User modal
-   - Menyimpan user target untuk proses DELETE
-
-   Catatan:
+   - Membuka modal Add User
+   - Menutup modal Add User
+   - Membuka modal Delete User
+   - Menutup modal Delete User
+   - Menyimpan user yang akan dihapus
    - Tidak melakukan API request
    - Tidak melakukan authentication
-   - Tidak melakukan render tabel
-========================================================= */
+   - Tidak melakukan redirect
+   ========================================================= */
 
-import {
-    userState
-} from "./user-state.js";
+import { userState } from "./user-state.js";
 
 
 /* =========================================================
-   ADD USER MODAL
+   ELEMENT HELPER
+========================================================= */
+
+function getElement(id) {
+
+    return document.getElementById(id);
+}
+
+
+/* =========================================================
+   RESET ADD FORM
+========================================================= */
+
+function resetAddForm() {
+
+    const form =
+        getElement("addUserForm");
+
+    if (!form) {
+        return;
+    }
+
+
+    form.reset();
+
+
+    /*
+       Default values.
+    */
+
+    const role =
+        getElement("newRole");
+
+    if (role) {
+
+        role.value = "USER";
+    }
+
+
+    const credits =
+        getElement("newCredits");
+
+    if (credits) {
+
+        credits.value = "0";
+    }
+
+
+    const status =
+        getElement("newStatus");
+
+    if (status) {
+
+        status.value = "active";
+    }
+
+
+    /*
+       Pastikan field password kembali normal.
+    */
+
+    const password =
+        getElement("newPassword");
+
+    if (password) {
+
+        password.value = "";
+    }
+}
+
+
+/* =========================================================
+   OPEN ADD MODAL
 ========================================================= */
 
 export function openAddModal() {
 
     const modal =
-        document.getElementById(
-            "addModal"
-        );
-
-
-    const form =
-        document.getElementById(
-            "addUserForm"
-        );
-
+        getElement("addModal");
 
     if (!modal) {
 
+        console.warn(
+            "[GEN-Z.AI UserModal] #addModal tidak ditemukan."
+        );
+
         return;
-
     }
 
 
-    /* =====================================================
-       RESET FORM
-    ====================================================== */
-
-    if (form) {
-
-        form.reset();
-
-    }
+    resetAddForm();
 
 
-    /* =====================================================
-       DEFAULT VALUES
-    ====================================================== */
+    /*
+       Hapus state delete.
+    */
 
-    const creditsInput =
-        document.getElementById(
-            "newCredits"
-        );
+    userState.userToDelete = null;
 
 
-    if (creditsInput) {
+    /*
+       Tampilkan modal.
+    */
 
-        creditsInput.value = "0";
-
-    }
-
-
-    const roleInput =
-        document.getElementById(
-            "newRole"
-        );
+    modal.classList.add("show");
 
 
-    if (roleInput) {
+    /*
+       Lock body scroll.
+    */
 
-        roleInput.value = "USER";
-
-    }
-
-
-    const statusInput =
-        document.getElementById(
-            "newStatus"
-        );
-
-
-    if (statusInput) {
-
-        statusInput.value = "active";
-
-    }
-
-
-    /* =====================================================
-       OPEN
-    ====================================================== */
-
-    modal.classList.add(
-        "show"
+    document.body.classList.add(
+        "modal-open"
     );
 
 
-    modal.setAttribute(
-        "aria-hidden",
-        "false"
-    );
+    /*
+       Focus email field.
+    */
 
+    window.setTimeout(() => {
 
-    /* =====================================================
-       FOCUS
-    ====================================================== */
+        const email =
+            getElement("newEmail");
 
-    window.setTimeout(
-        () => {
+        if (email) {
 
-            const emailInput =
-                document.getElementById(
-                    "newEmail"
-                );
+            email.focus();
+        }
 
-
-            emailInput?.focus();
-
-        },
-        100
-    );
-
+    }, 50);
 }
 
 
 /* =========================================================
-   CLOSE ADD USER MODAL
+   CLOSE ADD MODAL
 ========================================================= */
 
 export function closeAddModal() {
 
     const modal =
-        document.getElementById(
-            "addModal"
-        );
-
+        getElement("addModal");
 
     if (!modal) {
-
         return;
-
     }
 
 
-    modal.classList.remove(
-        "show"
-    );
+    modal.classList.remove("show");
 
 
-    modal.setAttribute(
-        "aria-hidden",
-        "true"
-    );
+    /*
+       Hanya hapus modal-open jika
+       modal delete juga tidak terbuka.
+    */
 
+    const deleteModal =
+        getElement("deleteModal");
+
+
+    if (
+        !deleteModal ||
+        !deleteModal.classList.contains("show")
+    ) {
+
+        document.body.classList.remove(
+            "modal-open"
+        );
+    }
 }
 
 
 /* =========================================================
-   DELETE USER MODAL
+   OPEN DELETE MODAL
 ========================================================= */
 
 export function openDeleteModal(
     userId,
     email,
-    name = ""
+    name
 ) {
 
     const modal =
-        document.getElementById(
-            "deleteModal"
-        );
-
+        getElement("deleteModal");
 
     if (!modal) {
 
-        return;
+        console.warn(
+            "[GEN-Z.AI UserModal] #deleteModal tidak ditemukan."
+        );
 
+        return;
     }
 
 
-    /* =====================================================
-       VALIDATE USER ID
-    ====================================================== */
-
-    if (!userId) {
-
-        return;
-
-    }
-
-
-    /* =====================================================
-       SAVE TARGET
-    ====================================================== */
+    /*
+       Simpan target user.
+    */
 
     userState.userToDelete = {
 
-        id: String(userId),
+        id: String(userId || "").trim(),
 
-        email:
-            String(email || "")
-            .trim(),
+        email: String(email || "").trim(),
 
-        name:
-            String(name || "")
-            .trim()
-
+        name: String(
+            name ||
+            email ||
+            "User"
+        ).trim()
     };
 
 
-    /* =====================================================
-       DISPLAY TARGET
-    ====================================================== */
+    /*
+       Tampilkan nama user.
+    */
 
     const nameElement =
-        document.getElementById(
-            "deleteUserName"
-        );
-
+        getElement("deleteUserName");
 
     if (nameElement) {
 
-        const displayName =
-            userState.userToDelete.name ||
-            userState.userToDelete.email ||
-            userState.userToDelete.id;
-
-
         nameElement.textContent =
-            displayName;
-
+            userState.userToDelete.name;
     }
 
 
-    /* =====================================================
-       OPEN
-    ====================================================== */
+    /*
+       Tampilkan email / ID bila element tersedia.
+       Tidak memaksa struktur HTML tertentu.
+    */
 
-    modal.classList.add(
-        "show"
+    const emailElement =
+        getElement("deleteUserEmail");
+
+    if (emailElement) {
+
+        emailElement.textContent =
+            userState.userToDelete.email;
+    }
+
+
+    const idElement =
+        getElement("deleteUserId");
+
+    if (idElement) {
+
+        idElement.textContent =
+            userState.userToDelete.id;
+    }
+
+
+    /*
+       Tampilkan modal.
+    */
+
+    modal.classList.add("show");
+
+
+    document.body.classList.add(
+        "modal-open"
     );
-
-
-    modal.setAttribute(
-        "aria-hidden",
-        "false"
-    );
-
 }
 
 
 /* =========================================================
-   CLOSE DELETE USER MODAL
+   CLOSE DELETE MODAL
 ========================================================= */
 
 export function closeDeleteModal() {
 
     const modal =
-        document.getElementById(
-            "deleteModal"
-        );
-
+        getElement("deleteModal");
 
     if (modal) {
 
-        modal.classList.remove(
-            "show"
-        );
-
-
-        modal.setAttribute(
-            "aria-hidden",
-            "true"
-        );
-
+        modal.classList.remove("show");
     }
 
 
-    /* =====================================================
-       CLEAR TARGET
-    ====================================================== */
+    /*
+       Hapus target.
+    */
 
-    userState.userToDelete =
-        null;
+    userState.userToDelete = null;
 
+
+    /*
+       Lepas body lock jika Add Modal
+       juga tidak sedang terbuka.
+    */
+
+    const addModal =
+        getElement("addModal");
+
+
+    if (
+        !addModal ||
+        !addModal.classList.contains("show")
+    ) {
+
+        document.body.classList.remove(
+            "modal-open"
+        );
+    }
+}
+
+
+/* =========================================================
+   CLOSE ALL MODALS
+========================================================= */
+
+export function closeAllModals() {
+
+    closeAddModal();
+    closeDeleteModal();
+}
+
+
+/* =========================================================
+   GLOBAL BRIDGE
+========================================================= */
+
+if (typeof window !== "undefined") {
+
+    window.GENZUserModal = {
+
+        openAddModal,
+
+        closeAddModal,
+
+        openDeleteModal,
+
+        closeDeleteModal,
+
+        closeAllModals
+    };
 }
