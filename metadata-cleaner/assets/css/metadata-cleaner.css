@@ -517,6 +517,17 @@
 
 /* =========================================================
    NATIVE FILE INPUT
+   ---------------------------------------------------------
+   Input native tidak lagi menutupi seluruh dropzone.
+
+   File picker dibuka melalui:
+   metadata-dropzone click
+        ↓
+   openFilePicker()
+        ↓
+   metadata-file-input.click()
+
+   Input tetap tersedia untuk menerima event CHANGE.
 ========================================================= */
 
 .metadata-native-file-input {
@@ -524,26 +535,20 @@
     position:
         absolute;
 
-    inset:
-        0;
-
-    display:
-        block;
-
     width:
-        100%;
+        1px;
 
     height:
-        100%;
+        1px;
 
     min-width:
-        100%;
+        1px;
 
     min-height:
-        100%;
+        1px;
 
     margin:
-        0;
+        -1px;
 
     padding:
         0;
@@ -551,26 +556,76 @@
     border:
         0;
 
-    outline:
-        none;
+    overflow:
+        hidden;
+
+    clip:
+        rect(
+            0,
+            0,
+            0,
+            0
+        );
+
+    clip-path:
+        inset(
+            50%
+        );
+
+    white-space:
+        nowrap;
 
     opacity:
         0;
 
-    cursor:
-        pointer;
+    pointer-events:
+        none;
 
     z-index:
-        50;
+        -1;
 
     appearance:
         none;
 
     -webkit-appearance:
         none;
+}
+
+
+/* =========================================================
+   DROPZONE CLICK TARGET
+========================================================= */
+
+.metadata-dropzone {
+
+    cursor:
+        pointer;
+
+    position:
+        relative;
+
+    z-index:
+        1;
+}
+
+
+/* =========================================================
+   DROPZONE VISUAL CONTENT
+========================================================= */
+
+.metadata-dropzone-icon,
+.metadata-dropzone-title,
+.metadata-dropzone-description,
+.metadata-dropzone-formats {
+
+    position:
+        relative;
+
+    z-index:
+        1;
 
     pointer-events:
-        auto;
+        none;
 }
 
 
