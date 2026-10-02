@@ -1,3 +1,4 @@
+//nav.js?v=1
 /* =========================================================
    GEN-Z.AI
    SHARED PREMIUM ADMIN NAVIGATION
