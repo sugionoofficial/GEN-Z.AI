@@ -3,9 +3,9 @@ const config = {
 
     name: "Grok Imagine Image to Video",
 
-    providerId: "kie_ai",
+    providerId: "kie",
 
-    providerName: "KIE.AI",
+    providerName: "GEN-Z.AI",
 
     type: "image-to-video",
 
