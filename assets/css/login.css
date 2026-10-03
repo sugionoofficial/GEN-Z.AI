@@ -2503,3 +2503,139 @@ input:focus-visible {
         height: 40px;
     }
 }
+
+/* =========================================================
+   LOGIN STATUS HOLOGRAM
+   ---------------------------------------------------------
+   Compact hologram:
+   - Lebih pendek secara horizontal
+   - Teks SUSPENDED / BANNED lebih besar
+   - Tetap berada di atas tombol LOGIN
+   - Tidak mengubah HTML / auth.js
+========================================================= */
+
+
+/* =========================================================
+   DESKTOP
+========================================================= */
+
+@media (min-width: 851px) {
+
+    #loginStatusHologram {
+
+        width: 112% !important;
+        height: 76px !important;
+
+        left: 50% !important;
+        top: 50% !important;
+
+        transform:
+            translate(-50%, -50%)
+            rotate(-8deg) !important;
+
+    }
+
+
+    #loginStatusHologramText {
+
+        font-size: 32px !important;
+        font-weight: 900 !important;
+
+        line-height: 1 !important;
+
+        letter-spacing: 2px !important;
+
+        white-space: nowrap !important;
+
+    }
+
+}
+
+
+/* =========================================================
+   TABLET / MOBILE
+========================================================= */
+
+@media (max-width: 850px) {
+
+    #loginStatusHologram {
+
+        width: 112% !important;
+        height: 66px !important;
+
+        left: 50% !important;
+        top: 50% !important;
+
+        transform:
+            translate(-50%, -50%)
+            rotate(-8deg) !important;
+
+    }
+
+
+    #loginStatusHologramText {
+
+        font-size: 27px !important;
+        font-weight: 900 !important;
+
+        line-height: 1 !important;
+
+        letter-spacing: 1.5px !important;
+
+        white-space: nowrap !important;
+
+    }
+
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 520px) {
+
+    #loginStatusHologram {
+
+        width: 110% !important;
+        height: 60px !important;
+
+    }
+
+
+    #loginStatusHologramText {
+
+        font-size: 24px !important;
+        font-weight: 900 !important;
+
+        letter-spacing: 1px !important;
+
+    }
+
+}
+
+
+/* =========================================================
+   EXTRA SMALL MOBILE
+========================================================= */
+
+@media (max-width: 360px) {
+
+    #loginStatusHologram {
+
+        width: 108% !important;
+        height: 56px !important;
+
+    }
+
+
+    #loginStatusHologramText {
+
+        font-size: 22px !important;
+        font-weight: 900 !important;
+
+        letter-spacing: 0.8px !important;
+
+    }
+
+}
