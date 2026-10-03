@@ -357,25 +357,57 @@
                              ===================================== -->
 
                         <button
-                            type="submit"
-                            id="loginButton"
-                            class="login-button"
-                        >
+    type="submit"
+    id="loginButton"
+    class="login-button"
+    aria-label="Login"
+>
+    <span id="loginButtonText">LOGIN</span>
 
-                            <span
-                                id="loginButtonText"
-                            >
-                                LOGIN
-                            </span>
+    <span
+        id="loginSpinner"
+        class="button-spinner"
+        aria-hidden="true"
+    ></span>
 
+    <!-- =================================================
+         LOGIN STATUS HOLOGRAM
+         Dibuat tersembunyi sampai auth.js mendeteksi
+         status akun suspended / banned.
+    ================================================== -->
+    <span
+        id="loginStatusHologram"
+        class="login-status-hologram"
+        aria-hidden="true"
+    >
+        <span
+            class="login-status-hologram-scan"
+            aria-hidden="true"
+        ></span>
 
-                            <span
-                                id="loginSpinner"
-                                class="button-spinner"
-                                aria-hidden="true"
-                            ></span>
+        <span
+            class="login-status-hologram-line"
+            aria-hidden="true"
+        ></span>
 
-                        </button>
+        <span
+            class="login-status-hologram-corner top"
+            aria-hidden="true"
+        ></span>
+
+        <span
+            class="login-status-hologram-corner bottom"
+            aria-hidden="true"
+        ></span>
+
+        <span
+            id="loginStatusHologramText"
+            class="login-status-hologram-text"
+        >
+            SUSPENDED
+        </span>
+    </span>
+</button>
 
 
                         <!-- =====================================
