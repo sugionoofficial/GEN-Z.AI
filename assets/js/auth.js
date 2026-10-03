@@ -104,221 +104,130 @@
 
 
     // ========================================
-    // LOGIN STATUS HOLOGRAM
-    // ========================================
+// LOGIN STATUS HOLOGRAM
+// ========================================
 
-    let loginStatusHologram = null;
-
-
-    function ensureLoginStatusHologram() {
-
-        if (!loginButton) {
-            return null;
-        }
+const loginStatusHologram =
+    document.getElementById(
+        "loginStatusHologram"
+    );
 
 
-        if (loginStatusHologram) {
-            return loginStatusHologram;
-        }
+function hideLoginStatusHologram() {
+
+    if (!loginStatusHologram) {
+        return;
+    }
+
+    loginStatusHologram.classList.remove(
+        "is-visible",
+        "is-suspended",
+        "is-banned"
+    );
+
+    loginStatusHologram.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+}
 
 
-        loginStatusHologram =
-            document.createElement("span");
+function showLoginStatusHologram(status) {
 
-        loginStatusHologram.id =
-            "loginStatusHologram";
-
-        loginStatusHologram.className =
-            "login-status-hologram";
-
-        loginStatusHologram.setAttribute(
-            "aria-hidden",
-            "true"
-        );
+    const normalizedStatus =
+        String(status || "")
+            .trim()
+            .toLowerCase();
 
 
-        const hologramText =
-            document.createElement("span");
+    if (
+        normalizedStatus !== "suspended" &&
+        normalizedStatus !== "banned"
+    ) {
 
-        hologramText.id =
-            "loginStatusHologramText";
+        hideLoginStatusHologram();
 
-        hologramText.className =
-            "login-status-hologram-text";
-
-
-        const hologramScan =
-            document.createElement("span");
-
-        hologramScan.className =
-            "login-status-hologram-scan";
-
-
-        const hologramLine =
-            document.createElement("span");
-
-        hologramLine.className =
-            "login-status-hologram-line";
-
-
-        const hologramCornerTop =
-            document.createElement("span");
-
-        hologramCornerTop.className =
-            "login-status-hologram-corner top";
-
-
-        const hologramCornerBottom =
-            document.createElement("span");
-
-        hologramCornerBottom.className =
-            "login-status-hologram-corner bottom";
-
-
-        loginStatusHologram.appendChild(
-            hologramScan
-        );
-
-        loginStatusHologram.appendChild(
-            hologramLine
-        );
-
-        loginStatusHologram.appendChild(
-            hologramCornerTop
-        );
-
-        loginStatusHologram.appendChild(
-            hologramCornerBottom
-        );
-
-        loginStatusHologram.appendChild(
-            hologramText
-        );
-
-
-        loginButton.appendChild(
-            loginStatusHologram
-        );
-
-
-        return loginStatusHologram;
+        return;
     }
 
 
-    function hideLoginStatusHologram() {
+    if (!loginStatusHologram) {
 
-        if (!loginStatusHologram) {
-            return;
+        console.warn(
+            "GEN-Z.AI: #loginStatusHologram tidak ditemukan."
+        );
+
+        return;
+    }
+
+
+    const text =
+        document.getElementById(
+            "loginStatusHologramText"
+        );
+
+
+    loginStatusHologram.classList.remove(
+        "is-suspended",
+        "is-banned"
+    );
+
+
+    if (normalizedStatus === "suspended") {
+
+        loginStatusHologram.classList.add(
+            "is-suspended"
+        );
+
+        if (text) {
+            text.textContent =
+                "SUSPENDED";
         }
 
-        loginStatusHologram.classList.remove(
-            "is-visible",
-            "is-suspended",
+    } else {
+
+        loginStatusHologram.classList.add(
             "is-banned"
         );
 
-        loginStatusHologram.setAttribute(
-            "aria-hidden",
-            "true"
-        );
+        if (text) {
+            text.textContent =
+                "BANNED";
+        }
     }
 
 
-    function showLoginStatusHologram(status) {
-
-        const normalizedStatus =
-            String(status || "")
-                .trim()
-                .toLowerCase();
+    loginStatusHologram.setAttribute(
+        "aria-hidden",
+        "false"
+    );
 
 
-        if (
-            normalizedStatus !== "suspended" &&
-            normalizedStatus !== "banned"
-        ) {
+    requestAnimationFrame(function () {
 
-            hideLoginStatusHologram();
-
-            return;
-        }
-
-
-        const hologram =
-            ensureLoginStatusHologram();
-
-
-        if (!hologram) {
-            return;
-        }
-
-
-        const text =
-            hologram.querySelector(
-                "#loginStatusHologramText"
-            );
-
-
-        hologram.classList.remove(
-            "is-suspended",
-            "is-banned"
+        loginStatusHologram.classList.add(
+            "is-visible"
         );
 
-
-        if (normalizedStatus === "suspended") {
-
-            hologram.classList.add(
-                "is-suspended"
-            );
-
-            if (text) {
-                text.textContent =
-                    "SUSPENDED";
-            }
-
-        } else {
-
-            hologram.classList.add(
-                "is-banned"
-            );
-
-            if (text) {
-                text.textContent =
-                    "BANNED";
-            }
-        }
+    });
+}
 
 
-        hologram.setAttribute(
-            "aria-hidden",
-            "false"
-        );
+// ========================================
+// EXPOSE HOLOGRAM
+// ========================================
 
+window.GENZLoginStatusHologram =
+    Object.freeze({
 
-        requestAnimationFrame(function () {
+        show: showLoginStatusHologram,
 
-            hologram.classList.add(
-                "is-visible"
-            );
+        hide: hideLoginStatusHologram,
 
-        });
-    }
+        setStatus:
+            showLoginStatusHologram
 
-
-    // ========================================
-    // EXPOSE HOLOGRAM
-    // ========================================
-
-    window.GENZLoginStatusHologram =
-        Object.freeze({
-
-            show: showLoginStatusHologram,
-
-            hide: hideLoginStatusHologram,
-
-            setStatus: showLoginStatusHologram
-
-        });
-
+    });
 
     // ========================================
     // HELPER
