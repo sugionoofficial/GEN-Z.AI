@@ -5,481 +5,602 @@
 
     <meta charset="UTF-8">
 
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>
         GEN-Z.AI - OpenKey Tool Loop Test
     </title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+
+            margin: 0;
+
+            padding: 40px 20px;
+
+            background:
+                #090909;
+
+            color:
+                #ffffff;
+
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+        }
+
+        .container {
+
+            width: 100%;
+
+            max-width: 900px;
+
+            margin: 0 auto;
+
+        }
+
+        h1 {
+
+            margin: 0 0 10px;
+
+            font-size: 28px;
+
+        }
+
+        .description {
+
+            margin-bottom: 30px;
+
+            color:
+                #a8a8a8;
+
+            line-height: 1.6;
+
+        }
+
+        .card {
+
+            padding: 24px;
+
+            border:
+                1px solid #292929;
+
+            border-radius: 14px;
+
+            background:
+                #111111;
+
+            box-shadow:
+                0 0 30px
+                rgba(255, 0, 0, 0.08);
+
+        }
+
+        button {
+
+            border: 0;
+
+            border-radius: 10px;
+
+            padding:
+                13px 20px;
+
+            background:
+                #d60000;
+
+            color:
+                #ffffff;
+
+            font-size: 15px;
+
+            font-weight: 700;
+
+            cursor: pointer;
+
+        }
+
+        button:hover {
+
+            background:
+                #f00000;
+
+        }
+
+        button:disabled {
+
+            opacity: 0.5;
+
+            cursor:
+                not-allowed;
+
+        }
+
+        .status {
+
+            margin-top: 20px;
+
+            padding: 15px;
+
+            border-radius: 10px;
+
+            background:
+                #181818;
+
+            color:
+                #cccccc;
+
+            white-space:
+                pre-wrap;
+
+            line-height:
+                1.6;
+
+        }
+
+        .result {
+
+            margin-top: 20px;
+
+            padding: 20px;
+
+            border-radius: 10px;
+
+            background:
+                #050505;
+
+            border:
+                1px solid #242424;
+
+            overflow-x:
+                auto;
+
+        }
+
+        pre {
+
+            margin: 0;
+
+            white-space:
+                pre-wrap;
+
+            word-break:
+                break-word;
+
+            color:
+                #d7d7d7;
+
+            line-height:
+                1.6;
+
+        }
+
+        .success {
+
+            color:
+                #62e66f;
+
+        }
+
+        .error {
+
+            color:
+                #ff5b5b;
+
+        }
+
+    </style>
 
 </head>
 
 
 <body>
 
+<div class="container">
+
     <h1>
         OpenKey Tool Loop Test
     </h1>
 
-    <pre id="output">
-Menjalankan test...
-    </pre>
+
+    <div class="description">
+
+        Pengujian internal GEN-Z.AI untuk memastikan
+        autentikasi Supabase, credential OpenKey,
+        OpenKey chat, tool calling, eksekusi tool,
+        dan final response bekerja dalam satu alur.
+
+    </div>
 
 
-<script type="module">
+    <div class="card">
 
-import OpenKeyChat
-    from "./provider/openkey/chat.js";
-
-
-/* =========================================================
-   OUTPUT
-========================================================= */
-
-const output =
-    document.getElementById(
-        "output"
-    );
+        <button
+            id="runTest"
+            type="button"
+        >
+            Jalankan Test
+        </button>
 
 
-function log(
-    ...args
-) {
-
-    output.textContent +=
-        args
-            .map(
-                value => {
-
-                    if (
-                        typeof value ===
-                        "string"
-                    ) {
-
-                        return value;
-
-                    }
+        <div
+            id="status"
+            class="status"
+        >
+            Siap menjalankan test.
+        </div>
 
 
-                    try {
+        <div
+            id="result"
+            class="result"
+            hidden
+        >
 
-                        return JSON.stringify(
-                            value,
-                            null,
-                            2
-                        );
+            <pre
+                id="resultOutput"
+            ></pre>
 
-                    }
-                    catch (_) {
+        </div>
 
-                        return String(
-                            value
-                        );
+    </div>
 
-                    }
+</div>
+
+
+<!-- =====================================================
+     SUPABASE
+===================================================== -->
+
+<script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+></script>
+
+
+<script>
+
+(function () {
+
+    "use strict";
+
+
+    /* =====================================================
+       CONFIG
+    ===================================================== */
+
+    const SUPABASE_URL =
+        "GANTI_DENGAN_SUPABASE_URL";
+
+
+    const SUPABASE_ANON_KEY =
+        "GANTI_DENGAN_SUPABASE_ANON_KEY";
+
+
+    /* =====================================================
+       ELEMENTS
+    ===================================================== */
+
+    const runButton =
+        document.getElementById(
+            "runTest"
+        );
+
+
+    const statusElement =
+        document.getElementById(
+            "status"
+        );
+
+
+    const resultElement =
+        document.getElementById(
+            "result"
+        );
+
+
+    const resultOutput =
+        document.getElementById(
+            "resultOutput"
+        );
+
+
+    /* =====================================================
+       VALIDATE CONFIG
+    ===================================================== */
+
+    if (
+        SUPABASE_URL.startsWith(
+            "GANTI_"
+        ) ||
+        SUPABASE_ANON_KEY.startsWith(
+            "GANTI_"
+        )
+    ) {
+
+        statusElement.innerHTML =
+            '<span class="error">' +
+            'Supabase URL / Anon Key belum diisi.' +
+            '</span>';
+
+        runButton.disabled =
+            true;
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       CREATE SUPABASE CLIENT
+    ===================================================== */
+
+    const supabase =
+        window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_ANON_KEY
+        );
+
+
+    /* =====================================================
+       STATUS HELPER
+    ===================================================== */
+
+    function setStatus(
+        message,
+        type = ""
+    ) {
+
+        statusElement.innerHTML =
+            type
+                ? `<span class="${type}">${message}</span>`
+                : message;
+
+    }
+
+
+    /* =====================================================
+       OUTPUT
+    ===================================================== */
+
+    function showResult(
+        data
+    ) {
+
+        resultElement.hidden =
+            false;
+
+        resultOutput.textContent =
+            JSON.stringify(
+                data,
+                null,
+                4
+            );
+
+    }
+
+
+    /* =====================================================
+       RUN TEST
+    ===================================================== */
+
+    runButton.addEventListener(
+        "click",
+        async function () {
+
+            runButton.disabled =
+                true;
+
+
+            resultElement.hidden =
+                true;
+
+
+            resultOutput.textContent =
+                "";
+
+
+            try {
+
+                setStatus(
+                    "Memeriksa Supabase session..."
+                );
+
+
+                /* =========================================
+                   GET SESSION
+                ========================================= */
+
+                const {
+                    data,
+                    error
+                } =
+                    await supabase.auth.getSession();
+
+
+                if (
+                    error
+                ) {
+
+                    throw new Error(
+                        `Supabase session error: ${error.message}`
+                    );
 
                 }
-            )
-            .join(" ") +
-        "\n";
 
-}
 
+                const session =
+                    data?.session;
 
-/* =========================================================
-   SUPABASE ACCESS TOKEN
-========================================================= */
 
-async function getAccessToken() {
+                if (
+                    !session ||
+                    !session.access_token
+                ) {
 
-    if (
-        !window.supabase
-    ) {
+                    throw new Error(
+                        "Tidak ada session Supabase aktif. Login ke GEN-Z.AI terlebih dahulu."
+                    );
 
-        throw new Error(
-            "Supabase client tidak tersedia."
-        );
+                }
 
-    }
 
+                setStatus(
+                    "Session Supabase ditemukan. Memanggil OpenKey Tool Loop..."
+                );
 
-    const {
-        data,
-        error
-    } =
-        await window.supabase.auth
-            .getSession();
 
+                /* =========================================
+                   CALL TEST API
+                ========================================= */
 
-    if (
-        error
-    ) {
+                const response =
+                    await fetch(
+                        "/api/test-openkey-tool-loop",
+                        {
 
-        throw error;
+                            method:
+                                "POST",
 
-    }
+                            headers: {
 
+                                "Content-Type":
+                                    "application/json",
 
-    const token =
-        data?.session?.access_token;
-
-
-    if (
-        !token
-    ) {
-
-        throw new Error(
-            "Supabase access token tidak ditemukan."
-        );
-
-    }
-
-
-    return token;
-
-}
-
-
-/* =========================================================
-   TEST TOOL
-========================================================= */
-
-async function executeTestTool(
-    toolCall,
-    context
-) {
-
-    log(
-        "[EXECUTE TOOL]",
-        toolCall.function.name
-    );
-
-
-    log(
-        "[TOOL ARGUMENTS]",
-        toolCall.function.parsed_arguments
-    );
-
-
-    if (
-        toolCall.function.name !==
-        "get_weather"
-    ) {
-
-        throw new Error(
-            "Tool tidak dikenal: " +
-            toolCall.function.name
-        );
-
-    }
-
-
-    const args =
-        toolCall.function
-            .parsed_arguments ||
-        {};
-
-
-    return {
-
-        city:
-            args.city ||
-            "Jakarta",
-
-        country:
-            args.country ||
-            "Indonesia",
-
-        temperature_c:
-            30,
-
-        condition:
-            "Berawan",
-
-        source:
-            "GEN-Z.AI TOOL LOOP TEST",
-
-        round:
-            context.round
-
-    };
-
-}
-
-
-/* =========================================================
-   MAIN TEST
-========================================================= */
-
-async function runTest() {
-
-    output.textContent =
-        "========== OPENKEY TOOL LOOP TEST ==========\n\n";
-
-
-    try {
-
-        /*
-         * TOKEN
-         */
-
-        const accessToken =
-            await getAccessToken();
-
-
-        log(
-            "[PASS] Supabase access token ditemukan."
-        );
-
-
-        /*
-         * TOOL DEFINITION
-         */
-
-        const tools = [
-
-            {
-
-                type:
-                    "function",
-
-                function: {
-
-                    name:
-                        "get_weather",
-
-                    description:
-                        "Mendapatkan informasi cuaca sebuah kota.",
-
-                    parameters: {
-
-                        type:
-                            "object",
-
-                        properties: {
-
-                            city: {
-
-                                type:
-                                    "string"
+                                Authorization:
+                                    `Bearer ${session.access_token}`
 
                             },
 
-                            country: {
+                            body:
+                                JSON.stringify({
 
-                                type:
-                                    "string"
+                                    test:
+                                        true
 
-                            }
+                                })
 
-                        },
+                        }
+                    );
 
-                        required: [
-                            "city",
-                            "country"
-                        ]
 
-                    }
+                const responseText =
+                    await response.text();
+
+
+                let responseData;
+
+
+                try {
+
+                    responseData =
+                        JSON.parse(
+                            responseText
+                        );
+
+                }
+                catch {
+
+                    responseData = {
+
+                        success:
+                            false,
+
+                        status:
+                            response.status,
+
+                        raw:
+                            responseText
+
+                    };
+
+                }
+
+
+                showResult(
+                    responseData
+                );
+
+
+                /* =========================================
+                   RESULT
+                ========================================= */
+
+                if (
+                    response.ok &&
+                    responseData.success ===
+                        true
+                ) {
+
+                    setStatus(
+                        "OPENKEY TOOL LOOP BERHASIL.",
+                        "success"
+                    );
+
+                }
+                else {
+
+                    setStatus(
+                        "OPENKEY TOOL LOOP GAGAL.",
+                        "error"
+                    );
 
                 }
 
             }
+            catch (error) {
 
-        ];
-
-
-        /*
-         * RUN FULL LOOP
-         */
-
-        log(
-            "\n========== RUN TOOL LOOP =========="
-        );
+                console.error(
+                    "[OpenKey Tool Loop Test]",
+                    error
+                );
 
 
-        const response =
-            await OpenKeyChat
-                .runToolLoop({
+                showResult({
 
-                    apiKey:
-                        accessToken,
+                    success:
+                        false,
 
-                    model:
-                        "gpt-4o-mini",
-
-                    messages: [
-
-                        {
-
-                            role:
-                                "user",
-
-                            content:
-                                "Gunakan tool get_weather untuk mencari cuaca Jakarta Indonesia."
-
-                        }
-
-                    ],
-
-                    tools,
-
-                    tool_choice: {
-
-                        type:
-                            "function",
-
-                        function: {
-
-                            name:
-                                "get_weather"
-
-                        }
-
-                    },
-
-                    maxToolRounds:
-                        4,
-
-                    executeTool:
-                        executeTestTool
+                    error:
+                        error.message ||
+                        String(
+                            error
+                        )
 
                 });
 
 
-        /*
-         * FINAL RESPONSE
-         */
+                setStatus(
+                    "Test gagal: " +
+                    (
+                        error.message ||
+                        String(
+                            error
+                        )
+                    ),
+                    "error"
+                );
 
-        log(
-            "\n========== FINAL RESPONSE =========="
-        );
+            }
+            finally {
 
+                runButton.disabled =
+                    false;
 
-        log(
-            "[MODEL]",
-            response.model
-        );
-
-
-        log(
-            "[CONTENT]",
-            response.content
-        );
-
-
-        log(
-            "[FINISH]",
-            response.finish_reason
-        );
-
-
-        log(
-            "[TOOL CALLS]",
-            response.tool_calls
-        );
-
-
-        log(
-            "[USAGE]",
-            response.usage
-        );
-
-
-        /*
-         * ASSERTIONS
-         */
-
-        if (
-            !response
-        ) {
-
-            throw new Error(
-                "Response kosong."
-            );
+            }
 
         }
+    );
 
-
-        if (
-            !response.content
-        ) {
-
-            throw new Error(
-                "Response final tidak memiliki content."
-            );
-
-        }
-
-
-        if (
-            response.tool_calls.length !==
-            0
-        ) {
-
-            throw new Error(
-                "Response akhir masih memiliki tool call."
-            );
-
-        }
-
-
-        if (
-            response.finish_reason !==
-            "stop"
-        ) {
-
-            throw new Error(
-                "finish_reason bukan stop."
-            );
-
-        }
-
-
-        log(
-            "\n[PASS] OPENKEY RUN TOOL LOOP BERHASIL."
-        );
-
-
-        log(
-            "[PASS] Tool berhasil dieksekusi."
-        );
-
-
-        log(
-            "[PASS] Tool result dikirim kembali."
-        );
-
-
-        log(
-            "[PASS] Model menghasilkan response final."
-        );
-
-
-        log(
-            "[PASS] Tidak ada tool call lanjutan."
-        );
-
-    }
-    catch (error) {
-
-        log(
-            "\n[FAIL]",
-            error?.message ||
-            String(error)
-        );
-
-
-        console.error(
-            error
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   START
-========================================================= */
-
-runTest();
+})();
 
 </script>
 
