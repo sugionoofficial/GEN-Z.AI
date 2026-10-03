@@ -10,6 +10,7 @@
    - Open / close Edit User modal
    - Open / close Delete User modal
    - Menjaga body modal lock
+   - Sinkronisasi visual status Edit User
 ========================================================= */
 
 import { userState } from "./user-state.js";
@@ -51,6 +52,162 @@ function updateBodyModalLock() {
     document.body.classList.toggle(
         "modal-open",
         hasOpenModal
+    );
+
+}
+
+
+/* =========================================================
+   EDIT STATUS VISUAL SYNC
+   ---------------------------------------------------------
+   Sinkronisasi class warna pada:
+
+   #editStatus
+
+   Class yang digunakan CSS:
+
+   status-active
+   status-suspended
+   status-banned
+========================================================= */
+
+function syncEditStatusVisual(
+    statusSelect
+) {
+
+    if (!statusSelect) {
+
+        return;
+
+    }
+
+
+    /*
+     * Bersihkan semua class status
+     * sebelum menerapkan status terbaru.
+     */
+
+    statusSelect.classList.remove(
+
+        "status-active",
+
+        "status-suspended",
+
+        "status-banned"
+
+    );
+
+
+    /*
+     * Normalisasi value.
+     */
+
+    const status =
+
+        String(
+            statusSelect.value || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    /*
+     * Hanya status database yang valid.
+     */
+
+    const allowedStatuses = [
+
+        "active",
+
+        "suspended",
+
+        "banned"
+
+    ];
+
+
+    if (
+        !allowedStatuses.includes(status)
+    ) {
+
+        return;
+
+    }
+
+
+    /*
+     * Terapkan class sesuai status.
+     */
+
+    statusSelect.classList.add(
+        `status-${status}`
+    );
+
+}
+
+
+/* =========================================================
+   EDIT STATUS CHANGE LISTENER
+   ---------------------------------------------------------
+   Pastikan warna berubah ketika operator
+   mengganti status secara manual.
+========================================================= */
+
+function bindEditStatusVisual() {
+
+    const statusSelect =
+        document.getElementById(
+            "editStatus"
+        );
+
+
+    if (!statusSelect) {
+
+        return;
+
+    }
+
+
+    /*
+     * Hindari listener ganda jika fungsi ini
+     * dipanggil lebih dari satu kali.
+     */
+
+    if (
+        statusSelect.dataset.visualSyncBound === "true"
+    ) {
+
+        syncEditStatusVisual(
+            statusSelect
+        );
+
+        return;
+
+    }
+
+
+    statusSelect.addEventListener(
+        "change",
+        () => {
+
+            syncEditStatusVisual(
+                statusSelect
+            );
+
+        }
+    );
+
+
+    statusSelect.dataset.visualSyncBound =
+        "true";
+
+
+    /*
+     * Sinkronisasi awal.
+     */
+
+    syncEditStatusVisual(
+        statusSelect
     );
 
 }
@@ -478,6 +635,24 @@ export function openEditModal(
 
 
         /*
+         * Sinkronkan warna berdasarkan
+         * status yang benar-benar terpilih.
+         */
+
+        syncEditStatusVisual(
+            statusSelect
+        );
+
+
+        /*
+         * Pastikan perubahan manual pada
+         * dropdown juga mengubah warna.
+         */
+
+        bindEditStatusVisual();
+
+
+        /*
          * Debug ringan untuk memastikan nilai status
          * yang diterima dari database sesuai dengan
          * option yang tersedia pada select.
@@ -489,7 +664,9 @@ export function openEditModal(
                 userId: user.id,
                 databaseStatus: user.status,
                 normalizedStatus: status,
-                selectedStatus: statusSelect.value
+                selectedStatus: statusSelect.value,
+                visualClasses:
+                    statusSelect.className
             }
         );
 
