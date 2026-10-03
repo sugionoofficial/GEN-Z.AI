@@ -13,6 +13,8 @@
      jawaban user
    - Menangani tool-call fragments
    - Menggabungkan function.arguments yang terpecah
+   - Tool-call SSE yang keluar adalah DELTA, bukan cumulative
+   - Final tool-call tetap dapat direkonstruksi dari accumulator
    - Tidak menangani KIE
    - Tidak menangani video generation
    - Tidak menangani generation credit
@@ -27,14 +29,15 @@ import openKeyClient from "./client.js";
 ========================================================= */
 
 const OPENKEY_STREAM_VERSION =
-    "2026-10-03-openkey-stream-v1";
+    "2026-10-03-openkey-stream-v2";
 
 
 /* =========================================================
    DEFAULTS
 ========================================================= */
 
-const DEFAULT_MODEL = "auto";
+const DEFAULT_MODEL =
+    "auto";
 
 
 /* =========================================================
@@ -81,7 +84,9 @@ function asString(value) {
    MESSAGE NORMALIZATION
 ========================================================= */
 
-function normalizeMessage(message) {
+function normalizeMessage(
+    message
+) {
 
     if (!isObject(message)) {
 
@@ -89,10 +94,14 @@ function normalizeMessage(message) {
 
     }
 
+
     const normalized = {
 
         role:
-            asString(message.role || "user"),
+            asString(
+                message.role ||
+                "user"
+            ),
 
         content:
             message.content === undefined
@@ -123,7 +132,9 @@ function normalizeMessage(message) {
 
 
     if (
-        Array.isArray(message.tool_calls)
+        Array.isArray(
+            message.tool_calls
+        )
     ) {
 
         normalized.tool_calls =
@@ -132,16 +143,9 @@ function normalizeMessage(message) {
     }
 
 
-    /*
-       OpenKey reasoning models may return
-       reasoning_content.
-
-       Keep it available for protocol continuity,
-       but never render it as normal answer text.
-    */
-
     if (
-        message.reasoning_content !== undefined
+        message.reasoning_content !==
+        undefined
     ) {
 
         normalized.reasoning_content =
@@ -155,7 +159,9 @@ function normalizeMessage(message) {
 }
 
 
-function normalizeMessages(messages) {
+function normalizeMessages(
+    messages
+) {
 
     return asArray(messages)
         .map(normalizeMessage)
@@ -168,17 +174,24 @@ function normalizeMessages(messages) {
    TOOL NORMALIZATION
 ========================================================= */
 
-function normalizeTools(tools) {
+function normalizeTools(
+    tools
+) {
 
-    if (!Array.isArray(tools)) {
+    if (
+        !Array.isArray(tools)
+    ) {
 
         return undefined;
 
     }
 
+
     return tools
         .filter(Boolean)
-        .map(tool => tool);
+        .map(
+            tool => tool
+        );
 
 }
 
@@ -187,7 +200,9 @@ function normalizeTools(tools) {
    STREAM PAYLOAD
 ========================================================= */
 
-function buildStreamPayload(options = {}) {
+function buildStreamPayload(
+    options = {}
+) {
 
     const {
 
@@ -228,12 +243,18 @@ function buildStreamPayload(options = {}) {
     const payload = {
 
         model:
-            asString(model || DEFAULT_MODEL),
+            asString(
+                model ||
+                DEFAULT_MODEL
+            ),
 
         messages:
-            normalizeMessages(messages),
+            normalizeMessages(
+                messages
+            ),
 
-        stream: true
+        stream:
+            true
 
     };
 
@@ -259,7 +280,8 @@ function buildStreamPayload(options = {}) {
 
 
     if (
-        max_completion_tokens !== undefined
+        max_completion_tokens !==
+        undefined
     ) {
 
         payload.max_completion_tokens =
@@ -279,7 +301,9 @@ function buildStreamPayload(options = {}) {
 
 
     const normalizedTools =
-        normalizeTools(tools);
+        normalizeTools(
+            tools
+        );
 
 
     if (
@@ -363,12 +387,6 @@ function buildStreamPayload(options = {}) {
     }
 
 
-    /*
-       Preserve provider-specific options.
-
-       stream is deliberately protected.
-    */
-
     for (
         const [key, value]
         of Object.entries(extra)
@@ -381,6 +399,7 @@ function buildStreamPayload(options = {}) {
             continue;
 
         }
+
 
         if (
             value !== undefined
@@ -428,7 +447,9 @@ function getToolCallKey(
         toolCall?.id
     ) {
 
-        return `id:${toolCall.id}`;
+        return (
+            `id:${toolCall.id}`
+        );
 
     }
 
@@ -437,12 +458,16 @@ function getToolCallKey(
         toolCall?.index !== undefined
     ) {
 
-        return `index:${toolCall.index}`;
+        return (
+            `index:${toolCall.index}`
+        );
 
     }
 
 
-    return `index:${fallbackIndex}`;
+    return (
+        `index:${fallbackIndex}`
+    );
 
 }
 
@@ -473,21 +498,26 @@ function ensureToolCall(
             {
 
                 index:
-                    toolCall?.index !== undefined
+                    toolCall?.index !==
+                    undefined
                         ? toolCall.index
                         : fallbackIndex,
 
                 id:
-                    toolCall?.id || "",
+                    toolCall?.id ||
+                    "",
 
                 type:
-                    toolCall?.type || "function",
+                    toolCall?.type ||
+                    "function",
 
                 function: {
 
-                    name: "",
+                    name:
+                        "",
 
-                    arguments: ""
+                    arguments:
+                        ""
 
                 }
 
@@ -497,7 +527,9 @@ function ensureToolCall(
     }
 
 
-    return accumulator.calls.get(key);
+    return accumulator.calls.get(
+        key
+    );
 
 }
 
@@ -512,7 +544,9 @@ function appendToolCallDelta(
     fallbackIndex = 0
 ) {
 
-    if (!isObject(delta)) {
+    if (
+        !isObject(delta)
+    ) {
 
         return null;
 
@@ -527,6 +561,10 @@ function appendToolCallDelta(
         );
 
 
+    /*
+     * ID
+     */
+
     if (
         delta.id
     ) {
@@ -536,6 +574,10 @@ function appendToolCallDelta(
 
     }
 
+
+    /*
+     * TYPE
+     */
 
     if (
         delta.type
@@ -548,31 +590,55 @@ function appendToolCallDelta(
 
 
     const fn =
-        isObject(delta.function)
+        isObject(
+            delta.function
+        )
             ? delta.function
             : null;
 
 
-    if (fn) {
+    if (!fn) {
 
-        if (
-            fn.name
-        ) {
+        return toolCall;
 
-            toolCall.function.name +=
-                String(fn.name);
-
-        }
+    }
 
 
-        if (
-            fn.arguments
-        ) {
+    /*
+     * FUNCTION NAME
+     *
+     * Name biasanya muncul pada chunk awal.
+     *
+     * Hanya delta yang ditambahkan ke accumulator.
+     */
 
-            toolCall.function.arguments +=
-                String(fn.arguments);
+    if (
+        typeof fn.name ===
+        "string" &&
+        fn.name
+    ) {
 
-        }
+        toolCall.function.name +=
+            fn.name;
+
+    }
+
+
+    /*
+     * FUNCTION ARGUMENTS
+     *
+     * Arguments dapat datang sebagai
+     * beberapa fragment.
+     */
+
+    if (
+        typeof fn.arguments ===
+        "string" &&
+        fn.arguments
+    ) {
+
+        toolCall.function.arguments +=
+            fn.arguments;
 
     }
 
@@ -592,7 +658,9 @@ function accumulateToolCalls(
 ) {
 
     const choices =
-        asArray(chunk?.choices);
+        asArray(
+            chunk?.choices
+        );
 
 
     for (
@@ -615,7 +683,8 @@ function accumulateToolCalls(
             appendToolCallDelta(
                 accumulator,
                 toolCalls[i],
-                toolCalls[i]?.index ?? i
+                toolCalls[i]?.index ??
+                    i
             );
 
         }
@@ -629,6 +698,149 @@ function accumulateToolCalls(
 
 
 /* =========================================================
+   ACCUMULATE DIRECT TOOL DELTA
+   ---------------------------------------------------------
+   Menghasilkan delta yang BENAR-BENAR berasal
+   dari chunk saat ini.
+
+   Tidak pernah mengembalikan accumulator penuh.
+========================================================= */
+
+function extractToolCallDeltas(
+    chunk
+) {
+
+    const result = [];
+
+    const choices =
+        asArray(
+            chunk?.choices
+        );
+
+
+    for (
+        const choice
+        of choices
+    ) {
+
+        const toolCalls =
+            asArray(
+                choice?.delta?.tool_calls
+            );
+
+
+        for (
+            let i = 0;
+            i < toolCalls.length;
+            i++
+        ) {
+
+            const call =
+                toolCalls[i];
+
+
+            if (
+                !isObject(call)
+            ) {
+
+                continue;
+
+            }
+
+
+            const delta = {
+
+                index:
+                    call.index !==
+                    undefined
+                        ? call.index
+                        : i,
+
+                id:
+                    call.id ||
+                    "",
+
+                type:
+                    call.type ||
+                    "function",
+
+                function: {
+
+                    name:
+                        "",
+
+                    arguments:
+                        ""
+
+                }
+
+            };
+
+
+            const fn =
+                isObject(
+                    call.function
+                )
+                    ? call.function
+                    : null;
+
+
+            if (fn) {
+
+                if (
+                    typeof fn.name ===
+                    "string"
+                ) {
+
+                    delta.function.name =
+                        fn.name;
+
+                }
+
+
+                if (
+                    typeof fn.arguments ===
+                    "string"
+                ) {
+
+                    delta.function.arguments =
+                        fn.arguments;
+
+                }
+
+            }
+
+
+            /*
+             * Jangan membuang delta yang hanya
+             * berisi id/type/name.
+             *
+             * Itu tetap bagian dari tool call.
+             */
+
+            if (
+                delta.id ||
+                delta.function.name ||
+                delta.function.arguments
+            ) {
+
+                result.push(
+                    delta
+                );
+
+            }
+
+        }
+
+    }
+
+
+    return result;
+
+}
+
+
+/* =========================================================
    PARSE TOOL ARGUMENTS
 ========================================================= */
 
@@ -637,7 +849,9 @@ function parseToolArguments(
 ) {
 
     const raw =
-        asString(value);
+        asString(
+            value
+        );
 
 
     if (!raw) {
@@ -649,16 +863,11 @@ function parseToolArguments(
 
     try {
 
-        return JSON.parse(raw);
+        return JSON.parse(
+            raw
+        );
 
     } catch {
-
-        /*
-           Some providers can theoretically emit
-           incomplete JSON.
-
-           Do not destroy the accumulated data.
-        */
 
         return {
 
@@ -688,36 +897,47 @@ function finalizeToolCalls(
     )
         .sort(
             (a, b) =>
-                Number(a.index ?? 0) -
-                Number(b.index ?? 0)
+                Number(
+                    a.index ??
+                    0
+                ) -
+                Number(
+                    b.index ??
+                    0
+                )
         )
-        .map(call => ({
+        .map(
+            call => ({
 
-            index:
-                call.index,
+                index:
+                    call.index,
 
-            id:
-                call.id,
+                id:
+                    call.id,
 
-            type:
-                call.type || "function",
+                type:
+                    call.type ||
+                    "function",
 
-            function: {
+                function: {
 
-                name:
-                    call.function?.name || "",
+                    name:
+                        call.function?.name ||
+                        "",
 
-                arguments:
-                    call.function?.arguments || "",
+                    arguments:
+                        call.function?.arguments ||
+                        "",
 
-                parsed_arguments:
-                    parseToolArguments(
-                        call.function?.arguments
-                    )
+                    parsed_arguments:
+                        parseToolArguments(
+                            call.function?.arguments
+                        )
 
-            }
+                }
 
-        }));
+            })
+        );
 
 }
 
@@ -730,22 +950,29 @@ function createStreamState() {
 
     return {
 
-        content: "",
+        content:
+            "",
 
-        reasoningContent: "",
+        reasoningContent:
+            "",
 
-        finishReason: null,
+        finishReason:
+            null,
 
-        model: null,
+        model:
+            null,
 
-        usage: null,
+        usage:
+            null,
 
         toolAccumulator:
             createToolAccumulator(),
 
-        chunks: 0,
+        chunks:
+            0,
 
-        done: false
+        done:
+            false
 
     };
 
@@ -761,15 +988,20 @@ function processChunk(
     chunk
 ) {
 
-    if (!isObject(chunk)) {
+    if (
+        !isObject(chunk)
+    ) {
 
         return {
 
-            content: "",
+            content:
+                "",
 
-            reasoning_content: "",
+            reasoning_content:
+                "",
 
-            tool_calls: []
+            tool_calls:
+                []
 
         };
 
@@ -790,12 +1022,16 @@ function processChunk(
 
 
     const choices =
-        asArray(chunk.choices);
+        asArray(
+            chunk.choices
+        );
 
 
-    let content = "";
+    let content =
+        "";
 
-    let reasoningContent = "";
+    let reasoningContent =
+        "";
 
 
     for (
@@ -804,22 +1040,18 @@ function processChunk(
     ) {
 
         const delta =
-            choice?.delta || {};
+            choice?.delta ||
+            {};
 
 
         /*
-           IMPORTANT:
-
-           Only delta.content is normal
-           user-visible answer content.
-
-           reasoning_content is collected
-           separately and NEVER merged into
-           content.
-        */
+         * HANYA delta.content
+         * yang menjadi text jawaban.
+         */
 
         if (
-            typeof delta.content === "string"
+            typeof delta.content ===
+            "string"
         ) {
 
             content +=
@@ -828,8 +1060,13 @@ function processChunk(
         }
 
 
+        /*
+         * Reasoning dipisahkan.
+         */
+
         if (
-            typeof delta.reasoning_content === "string"
+            typeof delta.reasoning_content ===
+            "string"
         ) {
 
             reasoningContent +=
@@ -850,7 +1087,14 @@ function processChunk(
     }
 
 
-    if (content) {
+    /*
+     * Simpan content cumulative
+     * hanya di STATE.
+     */
+
+    if (
+        content
+    ) {
 
         state.content +=
             content;
@@ -858,13 +1102,35 @@ function processChunk(
     }
 
 
-    if (reasoningContent) {
+    if (
+        reasoningContent
+    ) {
 
         state.reasoningContent +=
             reasoningContent;
 
     }
 
+
+    /*
+     * Ambil DELTA tool call dari chunk.
+     *
+     * Ini penting.
+     *
+     * result.tool_calls tidak lagi berisi
+     * seluruh accumulator.
+     */
+
+    const toolCallDeltas =
+        extractToolCallDeltas(
+            chunk
+        );
+
+
+    /*
+     * Accumulator internal tetap berjalan
+     * seperti sebelumnya.
+     */
 
     accumulateToolCalls(
         state.toolAccumulator,
@@ -884,15 +1150,18 @@ function processChunk(
 
     return {
 
-        content,
+        /*
+         * DELTA
+         */
+
+        content:
+            content,
 
         reasoning_content:
             reasoningContent,
 
         tool_calls:
-            finalizeToolCalls(
-                state.toolAccumulator
-            ),
+            toolCallDeltas,
 
         finish_reason:
             state.finishReason,
@@ -936,7 +1205,8 @@ async function* streamChat(
 
 
     if (
-        messages.length === 0
+        messages.length ===
+        0
     ) {
 
         throw new Error(
@@ -968,15 +1238,18 @@ async function* streamChat(
     } catch (error) {
 
         if (
-            typeof onError === "function"
+            typeof onError ===
+            "function"
         ) {
 
             try {
 
-                await onError(error);
+                await onError(
+                    error
+                );
 
             } catch {
-                /* ignore callback error */
+                /* ignore */
             }
 
         }
@@ -993,35 +1266,14 @@ async function* streamChat(
     try {
 
         /*
-         * =====================================================
-         * PENTING
-         * -----------------------------------------------------
-         * client.consumeSSE() mengembalikan:
+         * consumeSSE() mengembalikan wrapper:
          *
          * {
-         *     done: false,
-         *     data: {
-         *         choices: [...]
-         *     }
+         *     done,
+         *     data
          * }
          *
-         * Jadi processChunk() HARUS menerima:
-         *
-         * sseEvent.data
-         *
-         * bukan object wrapper SSE.
-         *
-         * Bug sebelumnya mengirim seluruh wrapper ke
-         * processChunk(), sehingga:
-         *
-         * chunk.choices
-         *
-         * selalu undefined.
-         *
-         * Akibatnya semua content menjadi:
-         *
-         * ""
-         * =====================================================
+         * processChunk() menerima data OpenKey.
          */
 
         for await (
@@ -1030,10 +1282,6 @@ async function* streamChat(
                 response
             )
         ) {
-
-            /*
-             * [DONE] dari consumeSSE()
-             */
 
             if (
                 sseEvent?.done
@@ -1044,17 +1292,9 @@ async function* streamChat(
             }
 
 
-            /*
-             * Ambil payload OpenKey sebenarnya.
-             */
-
             const chunk =
                 sseEvent?.data;
 
-
-            /*
-             * Abaikan payload yang tidak valid.
-             */
 
             if (
                 !isObject(chunk)
@@ -1065,11 +1305,6 @@ async function* streamChat(
             }
 
 
-            /*
-             * Sekarang processChunk() menerima
-             * object OpenKey yang sebenarnya.
-             */
-
             const result =
                 processChunk(
                     state,
@@ -1078,7 +1313,8 @@ async function* streamChat(
 
 
             if (
-                typeof onChunk === "function"
+                typeof onChunk ===
+                "function"
             ) {
 
                 await onChunk(
@@ -1094,8 +1330,17 @@ async function* streamChat(
         }
 
 
-        state.done = true;
+        state.done =
+            true;
 
+
+        /*
+         * Final result menggunakan
+         * ACCUMULATOR LENGKAP.
+         *
+         * Ini berbeda dengan result chunk
+         * yang menggunakan DELTA.
+         */
 
         const finalResult = {
 
@@ -1129,7 +1374,8 @@ async function* streamChat(
 
 
         if (
-            typeof onComplete === "function"
+            typeof onComplete ===
+            "function"
         ) {
 
             await onComplete(
@@ -1145,15 +1391,18 @@ async function* streamChat(
     } catch (error) {
 
         if (
-            typeof onError === "function"
+            typeof onError ===
+            "function"
         ) {
 
             try {
 
-                await onError(error);
+                await onError(
+                    error
+                );
 
             } catch {
-                /* ignore callback error */
+                /* ignore */
             }
 
         }
@@ -1166,10 +1415,46 @@ async function* streamChat(
 
 
 /* =========================================================
-   STREAM TO CALLBACK
+   TOOL CALL ACCUMULATION HELPER
    ---------------------------------------------------------
-   Utility untuk caller yang tidak ingin memakai
-   async generator secara langsung.
+   Dipakai oleh consumeStream / collectStream
+   agar caller memperoleh hasil lengkap.
+========================================================= */
+
+function mergeToolCallDeltas(
+    accumulator,
+    deltas
+) {
+
+    if (
+        !Array.isArray(deltas)
+    ) {
+
+        return;
+
+    }
+
+
+    for (
+        let i = 0;
+        i < deltas.length;
+        i++
+    ) {
+
+        appendToolCallDelta(
+            accumulator,
+            deltas[i],
+            deltas[i]?.index ??
+                i
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   STREAM TO CALLBACK
 ========================================================= */
 
 async function consumeStream(
@@ -1179,16 +1464,26 @@ async function consumeStream(
     const {
 
         onContent,
+
         onReasoning,
+
         onToolCalls,
+
         onChunk,
+
         onComplete,
+
         onError
 
     } = options;
 
 
-    let finalResult = null;
+    const localToolAccumulator =
+        createToolAccumulator();
+
+
+    let finalResult =
+        null;
 
 
     try {
@@ -1196,6 +1491,7 @@ async function consumeStream(
         for await (
             const chunk
             of streamChat({
+
                 ...options,
 
                 onChunk:
@@ -1204,9 +1500,21 @@ async function consumeStream(
                         state
                     ) => {
 
+                        /*
+                         * Simpan DELTA tool call
+                         * secara lokal.
+                         */
+
+                        mergeToolCallDeltas(
+                            localToolAccumulator,
+                            result.tool_calls
+                        );
+
+
                         if (
                             result.content &&
-                            typeof onContent === "function"
+                            typeof onContent ===
+                            "function"
                         ) {
 
                             await onContent(
@@ -1219,7 +1527,8 @@ async function consumeStream(
 
                         if (
                             result.reasoning_content &&
-                            typeof onReasoning === "function"
+                            typeof onReasoning ===
+                            "function"
                         ) {
 
                             await onReasoning(
@@ -1232,7 +1541,8 @@ async function consumeStream(
 
                         if (
                             result.tool_calls?.length &&
-                            typeof onToolCalls === "function"
+                            typeof onToolCalls ===
+                            "function"
                         ) {
 
                             await onToolCalls(
@@ -1244,7 +1554,8 @@ async function consumeStream(
 
 
                         if (
-                            typeof onChunk === "function"
+                            typeof onChunk ===
+                            "function"
                         ) {
 
                             await onChunk(
@@ -1271,8 +1582,42 @@ async function consumeStream(
         }
 
 
+        /*
+         * streamChat() final return
+         * sudah memiliki accumulator lengkap.
+         */
+
         if (
-            typeof onComplete === "function"
+            finalResult &&
+            Array.isArray(
+                finalResult.tool_calls
+            ) &&
+            finalResult.tool_calls.length
+        ) {
+
+            localToolAccumulator.calls
+                .clear();
+
+
+            for (
+                const call
+                of finalResult.tool_calls
+            ) {
+
+                appendToolCallDelta(
+                    localToolAccumulator,
+                    call,
+                    call.index ?? 0
+                );
+
+            }
+
+        }
+
+
+        if (
+            typeof onComplete ===
+            "function"
         ) {
 
             await onComplete(
@@ -1287,15 +1632,18 @@ async function consumeStream(
     } catch (error) {
 
         if (
-            typeof onError === "function"
+            typeof onError ===
+            "function"
         ) {
 
             try {
 
-                await onError(error);
+                await onError(
+                    error
+                );
 
             } catch {
-                /* ignore callback error */
+                /* ignore */
             }
 
         }
@@ -1309,9 +1657,6 @@ async function consumeStream(
 
 /* =========================================================
    SIMPLE STREAM
-   ---------------------------------------------------------
-   Hanya mengembalikan text jawaban.
-   Reasoning dan tool-call tidak dicampur.
 ========================================================= */
 
 async function streamText(
@@ -1319,12 +1664,15 @@ async function streamText(
     onText
 ) {
 
-    let text = "";
+    let text =
+        "";
 
 
     for await (
         const chunk
-        of streamChat(options)
+        of streamChat(
+            options
+        )
     ) {
 
         if (
@@ -1336,7 +1684,8 @@ async function streamText(
 
 
             if (
-                typeof onText === "function"
+                typeof onText ===
+                "function"
             ) {
 
                 await onText(
@@ -1357,10 +1706,7 @@ async function streamText(
 
 
 /* =========================================================
-   NON-STREAM RESULT BUILDER
-   ---------------------------------------------------------
-   Berguna untuk caller yang ingin hasil final
-   dalam bentuk object yang konsisten.
+   COLLECT STREAM
 ========================================================= */
 
 async function collectStream(
@@ -1369,28 +1715,42 @@ async function collectStream(
 
     const result = {
 
-        content: "",
+        content:
+            "",
 
-        reasoning_content: "",
+        reasoning_content:
+            "",
 
-        tool_calls: [],
+        tool_calls:
+            [],
 
-        finish_reason: null,
+        finish_reason:
+            null,
 
-        model: null,
+        model:
+            null,
 
-        usage: null,
+        usage:
+            null,
 
-        chunks: 0,
+        chunks:
+            0,
 
-        done: false
+        done:
+            false
 
     };
 
 
+    const toolAccumulator =
+        createToolAccumulator();
+
+
     for await (
         const chunk
-        of streamChat(options)
+        of streamChat(
+            options
+        )
     ) {
 
         if (
@@ -1413,14 +1773,17 @@ async function collectStream(
         }
 
 
-        if (
-            chunk.tool_calls?.length
-        ) {
+        /*
+         * Chunk tool_calls sekarang
+         * adalah DELTA.
+         *
+         * Karena itu harus diakumulasi.
+         */
 
-            result.tool_calls =
-                chunk.tool_calls;
-
-        }
+        mergeToolCallDeltas(
+            toolAccumulator,
+            chunk.tool_calls
+        );
 
 
         if (
@@ -1458,7 +1821,14 @@ async function collectStream(
     }
 
 
-    result.done = true;
+    result.tool_calls =
+        finalizeToolCalls(
+            toolAccumulator
+        );
+
+
+    result.done =
+        true;
 
 
     return result;
@@ -1476,7 +1846,9 @@ function hasToolCalls(
 
     return Boolean(
         result &&
-        Array.isArray(result.tool_calls) &&
+        Array.isArray(
+            result.tool_calls
+        ) &&
         result.tool_calls.length
     );
 
@@ -1491,7 +1863,9 @@ function normalizeToolCall(
     toolCall
 ) {
 
-    if (!isObject(toolCall)) {
+    if (
+        !isObject(toolCall)
+    ) {
 
         return null;
 
@@ -1499,7 +1873,9 @@ function normalizeToolCall(
 
 
     const fn =
-        isObject(toolCall.function)
+        isObject(
+            toolCall.function
+        )
             ? toolCall.function
             : {};
 
@@ -1509,7 +1885,8 @@ function normalizeToolCall(
 
 
     if (
-        parsedArguments === undefined
+        parsedArguments ===
+        undefined
     ) {
 
         parsedArguments =
@@ -1526,18 +1903,22 @@ function normalizeToolCall(
             toolCall.index,
 
         id:
-            toolCall.id || "",
+            toolCall.id ||
+            "",
 
         type:
-            toolCall.type || "function",
+            toolCall.type ||
+            "function",
 
         function: {
 
             name:
-                fn.name || "",
+                fn.name ||
+                "",
 
             arguments:
-                fn.arguments || "",
+                fn.arguments ||
+                "",
 
             parsed_arguments:
                 parsedArguments
@@ -1553,8 +1934,12 @@ function normalizeToolCalls(
     toolCalls
 ) {
 
-    return asArray(toolCalls)
-        .map(normalizeToolCall)
+    return asArray(
+        toolCalls
+    )
+        .map(
+            normalizeToolCall
+        )
         .filter(Boolean);
 
 }
@@ -1562,9 +1947,6 @@ function normalizeToolCalls(
 
 /* =========================================================
    BUILD ASSISTANT TOOL MESSAGE
-   ---------------------------------------------------------
-   Dipakai setelah streaming selesai dan OpenKey
-   meminta tool execution.
 ========================================================= */
 
 function buildAssistantToolMessage(
@@ -1579,31 +1961,35 @@ function buildAssistantToolMessage(
 
     return {
 
-        role: "assistant",
+        role:
+            "assistant",
 
         content:
-            result?.content || null,
+            result?.content ||
+            null,
 
         tool_calls:
-            toolCalls.map(call => ({
+            toolCalls.map(
+                call => ({
 
-                id:
-                    call.id,
+                    id:
+                        call.id,
 
-                type:
-                    call.type,
+                    type:
+                        call.type,
 
-                function: {
+                    function: {
 
-                    name:
-                        call.function.name,
+                        name:
+                            call.function.name,
 
-                    arguments:
-                        call.function.arguments
+                        arguments:
+                            call.function.arguments
 
-                }
+                    }
 
-            }))
+                })
+            )
 
     };
 
@@ -1638,7 +2024,8 @@ function buildToolResultMessage(
 
 
     if (
-        typeof result === "string"
+        typeof result ===
+        "string"
     ) {
 
         content =
@@ -1650,13 +2037,16 @@ function buildToolResultMessage(
 
             content =
                 JSON.stringify(
-                    result ?? null
+                    result ??
+                    null
                 );
 
         } catch {
 
             content =
-                String(result);
+                String(
+                    result
+                );
 
         }
 
@@ -1665,7 +2055,8 @@ function buildToolResultMessage(
 
     return {
 
-        role: "tool",
+        role:
+            "tool",
 
         tool_call_id:
             call.id,
@@ -1679,8 +2070,6 @@ function buildToolResultMessage(
 
 /* =========================================================
    CONTINUE AFTER TOOLS
-   ---------------------------------------------------------
-   Streaming continuation setelah tool selesai.
 ========================================================= */
 
 async function* continueAfterTools(
@@ -1701,7 +2090,9 @@ async function* continueAfterTools(
 
 
     const normalizedMessages =
-        normalizeMessages(messages);
+        normalizeMessages(
+            messages
+        );
 
 
     const assistantMessage =
@@ -1722,7 +2113,8 @@ async function* continueAfterTools(
 
         if (
             item &&
-            item.role === "tool"
+            item.role ===
+            "tool"
         ) {
 
             normalizedMessages.push(
@@ -1796,7 +2188,8 @@ function getVersion() {
 ========================================================= */
 
 if (
-    typeof window !== "undefined"
+    typeof window !==
+    "undefined"
 ) {
 
     window.GENZOpenKeyStream = {
@@ -1819,6 +2212,8 @@ if (
         collectStream,
 
         accumulateToolCalls,
+
+        extractToolCallDeltas,
 
         finalizeToolCalls,
 
@@ -1865,6 +2260,8 @@ export {
 
     accumulateToolCalls,
 
+    extractToolCallDeltas,
+
     finalizeToolCalls,
 
     normalizeToolCall,
@@ -1904,6 +2301,8 @@ export default {
     collectStream,
 
     accumulateToolCalls,
+
+    extractToolCallDeltas,
 
     finalizeToolCalls,
 
