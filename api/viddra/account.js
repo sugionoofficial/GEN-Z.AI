@@ -9,11 +9,17 @@
    - Authenticate user GEN-Z.AI melalui Supabase
    - Register account VidDra
    - Login account VidDra
+   - Menyimpan VidDra JWT ke encrypted HttpOnly cookie
    - Cek balance VidDra
    - Tidak mengembalikan JWT VidDra ke browser
    - Tidak menyentuh KIE.AI
    - Tidak menyentuh generation_history
 ========================================================= */
+
+import {
+    createVidDraSessionCookie
+} from "./session.js";
+
 
 const SUPABASE_URL =
     String(
@@ -816,14 +822,22 @@ export default async function handler(
     try {
 
         /*
-         * Pastikan request berasal dari
-         * user GEN-Z.AI yang sudah login.
+         * ---------------------------------------------------
+         * 1. GEN-Z.AI AUTH
+         * ---------------------------------------------------
          */
+
         const genzUser =
             await authenticateUser(
                 req
             );
 
+
+        /*
+         * ---------------------------------------------------
+         * 2. READ REQUEST
+         * ---------------------------------------------------
+         */
 
         const body =
             await readBody(
@@ -883,17 +897,9 @@ export default async function handler(
 
 
         /*
-         * -----------------------------------------------------
-         * REGISTER
-         * -----------------------------------------------------
-         *
-         * Request pertama adalah register.
-         *
-         * Jika VidDra mengembalikan conflict karena email
-         * sudah terdaftar, kita tidak melakukan hal berbahaya
-         * seperti membuat account lain.
-         *
-         * Kita laporkan bahwa account sudah ada.
+         * ---------------------------------------------------
+         * 3. REGISTER VIDDRA
+         * ---------------------------------------------------
          */
 
         let registerResponse =
@@ -959,9 +965,9 @@ export default async function handler(
 
 
         /*
-         * -----------------------------------------------------
-         * LOGIN
-         * -----------------------------------------------------
+         * ---------------------------------------------------
+         * 4. LOGIN VIDDRA
+         * ---------------------------------------------------
          */
 
         const loginResponse =
@@ -995,9 +1001,9 @@ export default async function handler(
 
 
         /*
-         * -----------------------------------------------------
-         * BALANCE
-         * -----------------------------------------------------
+         * ---------------------------------------------------
+         * 5. BALANCE
+         * ---------------------------------------------------
          */
 
         const balanceResponse =
@@ -1020,11 +1026,45 @@ export default async function handler(
 
 
         /*
-         * JWT VidDra sengaja TIDAK dimasukkan
-         * ke response browser.
+         * ---------------------------------------------------
+         * 6. SAVE VIDDRA JWT
+         * ---------------------------------------------------
          *
-         * GEN-Z.AI user ID hanya digunakan untuk
-         * mencatat konteks request pada server log.
+         * JWT TIDAK dikirim ke frontend.
+         *
+         * JWT dienkripsi terlebih dahulu oleh
+         * createVidDraSessionCookie().
+         *
+         * Cookie:
+         * - HttpOnly
+         * - Secure
+         * - SameSite=Lax
+         * - Max-Age 24 jam
+         *
+         * Browser JavaScript tidak dapat membaca token ini.
+         */
+
+        const sessionCookie =
+            createVidDraSessionCookie(
+                vidDraToken
+            );
+
+
+        res.setHeader(
+            "Set-Cookie",
+            sessionCookie
+        );
+
+
+        /*
+         * ---------------------------------------------------
+         * SECURITY LOG
+         * ---------------------------------------------------
+         *
+         * Jangan pernah log:
+         * - VidDra JWT
+         * - API Key
+         * - password
          */
 
         console.info(
@@ -1041,11 +1081,22 @@ export default async function handler(
                     account.email,
 
                 balance_usd:
-                    balance.balance_usd
+                    balance.balance_usd,
+
+                session:
+                    "created"
 
             }
         );
 
+
+        /*
+         * ---------------------------------------------------
+         * 7. RESPONSE
+         * ---------------------------------------------------
+         *
+         * JWT sengaja TIDAK dimasukkan ke response.
+         */
 
         return success(
             res,
