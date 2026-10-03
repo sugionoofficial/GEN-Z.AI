@@ -11,13 +11,24 @@
    - Login account VidDra
    - Menyimpan VidDra JWT ke encrypted HttpOnly cookie
    - Cek balance VidDra
+   - Create VidDra API Key
    - Tidak mengembalikan JWT VidDra ke browser
+   - Tidak menyimpan API Key ke database
+   - Tidak menyimpan API Key ke cookie
+   - Tidak log API Key
    - Tidak menyentuh KIE.AI
    - Tidak menyentuh generation_history
+
+   Endpoint:
+   POST /api/viddra/account
+
+   Create API Key:
+   POST /api/viddra/account?action=create-key
 ========================================================= */
 
 import {
-    createVidDraSessionCookie
+    createVidDraSessionCookie,
+    getVidDraSession
 } from "./session.js";
 
 
@@ -710,6 +721,74 @@ async function getVidDraBalance(
 
 
 /* =========================================================
+   VIDDRA CREATE API KEY
+   ---------------------------------------------------------
+   Endpoint:
+   POST https://api.viddra.com/v1/keys
+
+   Authorization:
+   Bearer <VidDra JWT>
+
+   Body:
+   {}
+
+   PENTING:
+   - API key hanya dikembalikan sekali
+   - Tidak disimpan server
+   - Tidak disimpan Supabase
+   - Tidak disimpan cookie
+   - Tidak di-log
+========================================================= */
+
+async function createVidDraApiKey(
+    token
+) {
+
+    if (
+        !token
+    ) {
+
+        throw Object.assign(
+            new Error(
+                "VidDra session tidak ditemukan."
+            ),
+            {
+                status:
+                    401
+            }
+        );
+
+    }
+
+
+    const response =
+        await viddraRequest(
+            "/keys",
+            {
+
+                method:
+                    "POST",
+
+                headers: {
+
+                    Authorization:
+                        `Bearer ${token}`
+
+                },
+
+                body:
+                    JSON.stringify({})
+
+            }
+        );
+
+
+    return response;
+
+}
+
+
+/* =========================================================
    ACCOUNT DATA
 ========================================================= */
 
@@ -792,6 +871,197 @@ function extractBalance(
 
 
 /* =========================================================
+   CREATE KEY ACTION
+   ---------------------------------------------------------
+   Dipanggil melalui:
+
+   POST /api/viddra/account?action=create-key
+
+   GEN-Z.AI Authorization:
+   Bearer <Supabase access token>
+
+   VidDra Authorization:
+   JWT dari encrypted HttpOnly cookie
+========================================================= */
+
+async function handleCreateApiKey(
+    req,
+    res,
+    genzUser
+) {
+
+    /*
+     * -------------------------------------------------------
+     * Ambil VidDra JWT dari encrypted HttpOnly cookie.
+     * Browser JavaScript tidak pernah menerima token ini.
+     * -------------------------------------------------------
+     */
+
+    const vidDraToken =
+        getVidDraSession(
+            req
+        );
+
+
+    if (
+        !vidDraToken
+    ) {
+
+        return failure(
+            res,
+            401,
+            "Session VidDra tidak ditemukan. Hubungkan account VidDra terlebih dahulu."
+        );
+
+    }
+
+
+    try {
+
+        const keyResponse =
+            await createVidDraApiKey(
+                vidDraToken
+            );
+
+
+        /*
+         * ---------------------------------------------------
+         * SECURITY
+         * ---------------------------------------------------
+         *
+         * JANGAN console.log(keyResponse)
+         *
+         * Karena response berisi:
+         *
+         * key: "vk_live_..."
+         *
+         * API key hanya boleh berada di response
+         * request ini.
+         * ---------------------------------------------------
+         */
+
+
+        console.info(
+            "[viddra] API key created:",
+            {
+
+                genz_user_id:
+                    genzUser.id,
+
+                key_id:
+                    keyResponse?.id ||
+                    null,
+
+                key_prefix:
+                    keyResponse?.key_prefix ||
+                    null,
+
+                name:
+                    keyResponse?.name ||
+                    null,
+
+                status:
+                    keyResponse?.status ||
+                    null,
+
+                created_at:
+                    keyResponse?.created_at ||
+                    null
+
+            }
+        );
+
+
+        /*
+         * ---------------------------------------------------
+         * RESPONSE
+         * ---------------------------------------------------
+         *
+         * key dikirim hanya pada response ini.
+         *
+         * Tidak ada JWT VidDra di response.
+         * ---------------------------------------------------
+         */
+
+        return success(
+            res,
+            {
+
+                key:
+                    keyResponse?.key ||
+                    null,
+
+                id:
+                    keyResponse?.id ||
+                    null,
+
+                key_prefix:
+                    keyResponse?.key_prefix ||
+                    null,
+
+                name:
+                    keyResponse?.name ||
+                    null,
+
+                status:
+                    keyResponse?.status ||
+                    null,
+
+                monthly_limit_usd:
+                    keyResponse?.monthly_limit_usd ??
+                    null,
+
+                created_at:
+                    keyResponse?.created_at ||
+                    null,
+
+                warning:
+                    "API key hanya ditampilkan sekali. Simpan sebagai VIDDRA_API_KEY di Vercel Environment Variables."
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[viddra] API key creation failed:",
+            {
+
+                message:
+                    error?.message,
+
+                status:
+                    error?.status,
+
+                code:
+                    error?.code
+
+            }
+        );
+
+
+        const statusCode =
+            Number(
+                error?.status
+            );
+
+
+        return failure(
+            res,
+            statusCode >= 400 &&
+            statusCode < 600
+                ? statusCode
+                : 502,
+            error?.message ||
+            "Gagal membuat VidDra API key."
+        );
+
+    }
+
+}
+
+
+/* =========================================================
    METHOD
 ========================================================= */
 
@@ -835,7 +1105,66 @@ export default async function handler(
 
         /*
          * ---------------------------------------------------
-         * 2. READ REQUEST
+         * 2. DETECT ACTION
+         * ---------------------------------------------------
+         *
+         * Endpoint normal:
+         *
+         * POST /api/viddra/account
+         *
+         * Endpoint create key:
+         *
+         * POST /api/viddra/account?action=create-key
+         *
+         * Tidak membuat Serverless Function baru.
+         * ---------------------------------------------------
+         */
+
+        const requestUrl =
+            new URL(
+                req.url ||
+                    "/api/viddra/account",
+                "http://localhost"
+            );
+
+
+        const action =
+            String(
+                requestUrl.searchParams.get(
+                    "action"
+                ) ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+
+        /*
+         * ---------------------------------------------------
+         * 3. CREATE API KEY
+         * ---------------------------------------------------
+         */
+
+        if (
+            action ===
+            "create-key"
+        ) {
+
+            return await handleCreateApiKey(
+                req,
+                res,
+                genzUser
+            );
+
+        }
+
+
+        /*
+         * ---------------------------------------------------
+         * 4. READ REQUEST
+         * ---------------------------------------------------
+         *
+         * Alur account lama dimulai di sini.
          * ---------------------------------------------------
          */
 
@@ -898,7 +1227,7 @@ export default async function handler(
 
         /*
          * ---------------------------------------------------
-         * 3. REGISTER VIDDRA
+         * 5. REGISTER VIDDRA
          * ---------------------------------------------------
          */
 
@@ -966,7 +1295,7 @@ export default async function handler(
 
         /*
          * ---------------------------------------------------
-         * 4. LOGIN VIDDRA
+         * 6. LOGIN VIDDRA
          * ---------------------------------------------------
          */
 
@@ -1002,7 +1331,7 @@ export default async function handler(
 
         /*
          * ---------------------------------------------------
-         * 5. BALANCE
+         * 7. BALANCE
          * ---------------------------------------------------
          */
 
@@ -1027,7 +1356,7 @@ export default async function handler(
 
         /*
          * ---------------------------------------------------
-         * 6. SAVE VIDDRA JWT
+         * 8. SAVE VIDDRA JWT
          * ---------------------------------------------------
          *
          * JWT TIDAK dikirim ke frontend.
@@ -1042,6 +1371,7 @@ export default async function handler(
          * - Max-Age 24 jam
          *
          * Browser JavaScript tidak dapat membaca token ini.
+         * ---------------------------------------------------
          */
 
         const sessionCookie =
@@ -1058,13 +1388,14 @@ export default async function handler(
 
         /*
          * ---------------------------------------------------
-         * SECURITY LOG
+         * 9. SECURITY LOG
          * ---------------------------------------------------
          *
          * Jangan pernah log:
          * - VidDra JWT
          * - API Key
          * - password
+         * ---------------------------------------------------
          */
 
         console.info(
@@ -1092,10 +1423,11 @@ export default async function handler(
 
         /*
          * ---------------------------------------------------
-         * 7. RESPONSE
+         * 10. RESPONSE
          * ---------------------------------------------------
          *
          * JWT sengaja TIDAK dimasukkan ke response.
+         * ---------------------------------------------------
          */
 
         return success(
