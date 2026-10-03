@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>VidDra | GEN-Z.AI</title>
+
+
+    <!-- =====================================================
+         SUPABASE
+    ====================================================== -->
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
+
+
+    <!-- =====================================================
+         GEN-Z.AI CONFIG
+    ====================================================== -->
+
+    <script src="../assets/js/config.js"></script>
+
+
+    <style>
+
+        /* =====================================================
+           ROOT
+        ====================================================== */
+
+        :root {
+
+            color-scheme: dark;
+
+            --viddra-bg:
+                #050507;
+
+            --viddra-panel:
+                rgba(13, 13, 18, 0.94);
+
+            --viddra-panel-secondary:
+                rgba(18, 18, 24, 0.88);
+
+            --viddra-border:
+                rgba(255, 45, 85, 0.35);
+
+            --viddra-border-strong:
+                rgba(255, 45, 85, 0.65);
+
+            --viddra-red:
+                #ff3158;
+
+            --viddra-red-dark:
+                #d81740;
+
+            --viddra-red-soft:
+                rgba(255, 49, 88, 0.12);
+
+            --viddra-text:
+                #f5f5f7;
+
+            --viddra-muted:
+                #9696a3;
+
+            --viddra-green:
+                #43e59b;
+
+            --viddra-yellow:
+                #f5c451;
+
+        }
+
+
+        /* =====================================================
+           RESET
+        ====================================================== */
+
+        * {
+
+            box-sizing:
+                border-box;
+
+        }
+
+
+        html {
+
+            margin:
+                0;
+
+            padding:
+                0;
+
+            min-height:
+                100%;
+
+            background:
+                var(--viddra-bg);
+
+        }
+
+
+        body {
+
+            margin:
+                0;
+
+            padding:
+                0;
+
+            min-height:
+                100vh;
+
+            background:
+                var(--viddra-bg);
+
+            color:
+                var(--viddra-text);
+
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+        }
+
+
+        button,
+        input {
+
+            font:
+                inherit;
+
+        }
+
+
+        /* =====================================================
+           PAGE
+        ====================================================== */
+
+        .viddra-page {
+
+            min-height:
+                100vh;
+
+            padding:
+                42px 28px 70px;
+
+        }
+
+
+        .viddra-shell {
+
+            width:
+                min(1180px, 100%);
+
+            margin:
+                0 auto;
+
+        }
+
+
+        /* =====================================================
+           HERO
+        ====================================================== */
+
+        .viddra-hero {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                minmax(0, 1fr) auto;
+
+            gap:
+                24px;
+
+            align-items:
+                end;
+
+            margin-bottom:
+                28px;
+
+        }
+
+
+        .eyebrow {
+
+            margin:
+                0 0 10px;
+
+            color:
+                var(--viddra-red);
+
+            font-size:
+                12px;
+
+            font-weight:
+                800;
+
+            letter-spacing:
+                0.18em;
+
+            text-transform:
+                uppercase;
+
+        }
+
+
+        .viddra-title {
+
+            margin:
+                0;
+
+            font-size:
+                clamp(34px, 5vw, 58px);
+
+            line-height:
+                0.98;
+
+            letter-spacing:
+                -0.04em;
+
+        }
+
+
+        .hero-copy {
+
+            max-width:
+                720px;
+
+            margin:
+                16px 0 0;
+
+            color:
+                var(--viddra-muted);
+
+            font-size:
+                15px;
+
+            line-height:
+                1.7;
+
+        }
+
+
+        /* =====================================================
+           PROVIDER BADGE
+        ====================================================== */
+
+        .provider-badge {
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            gap:
+                9px;
+
+            min-height:
+                42px;
+
+            padding:
+                0 15px;
+
+            border:
+                1px solid var(--viddra-border);
+
+            border-radius:
+                999px;
+
+            background:
+                var(--viddra-red-soft);
+
+            color:
+                #ffffff;
+
+            font-size:
+                13px;
+
+            font-weight:
+                700;
+
+            white-space:
+                nowrap;
+
+        }
+
+
+        .provider-dot {
+
+            width:
+                8px;
+
+            height:
+                8px;
+
+            border-radius:
+                50%;
+
+            background:
+                var(--viddra-red);
+
+            box-shadow:
+                0 0 16px
+                rgba(255, 49, 88, 0.8);
+
+        }
+
+
+        /* =====================================================
+           ACCOUNT CARD
+        ====================================================== */
+
+        .account-card {
+
+            overflow:
+                hidden;
+
+            border:
+                1px solid var(--viddra-border);
+
+            border-radius:
+                24px;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255, 49, 88, 0.055),
+                    transparent 36%
+                ),
+                var(--viddra-panel);
+
+            box-shadow:
+                0 20px 70px rgba(0, 0, 0, 0.38),
+                0 0 45px rgba(255, 49, 88, 0.055);
+
+        }
+
+
+        .card-header {
+
+            padding:
+                25px 28px 20px;
+
+            border-bottom:
+                1px solid
+                rgba(255, 255, 255, 0.07);
+
+        }
+
+
+        .card-title {
+
+            margin:
+                0;
+
+            font-size:
+                22px;
+
+        }
+
+
+        .card-description {
+
+            margin:
+                8px 0 0;
+
+            color:
+                var(--viddra-muted);
+
+            font-size:
+                14px;
+
+            line-height:
+                1.6;
+
+        }
+
+
+        .card-body {
+
+            padding:
+                28px;
+
+        }
+
+
+        /* =====================================================
+           FORM GRID
+        ====================================================== */
+
+        .account-grid {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                minmax(0, 1fr)
+                minmax(0, 1fr);
+
+            gap:
+                20px;
+
+        }
+
+
+        .field {
+
+            min-width:
+                0;
+
+        }
+
+
+        .field.full {
+
+            grid-column:
+                1 / -1;
+
+        }
+
+
+        /* =====================================================
+           LABEL
+        ====================================================== */
+
+        .field-label {
+
+            display:
+                block;
+
+            margin-bottom:
+                9px;
+
+            color:
+                #dcdce3;
+
+            font-size:
+                13px;
+
+            font-weight:
+                700;
+
+        }
+
+
+        /* =====================================================
+           INPUT
+        ====================================================== */
+
+        .input-row {
+
+            display:
+                flex;
+
+            gap:
+                10px;
+
+        }
+
+
+        .viddra-input {
+
+            width:
+                100%;
+
+            min-height:
+                48px;
+
+            padding:
+                0 14px;
+
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.1);
+
+            border-radius:
+                12px;
+
+            outline:
+                none;
+
+            background:
+                var(--viddra-panel-secondary);
+
+            color:
+                var(--viddra-text);
+
+            transition:
+                border-color 160ms ease,
+                box-shadow 160ms ease;
+
+        }
+
+
+        .viddra-input::placeholder {
+
+            color:
+                #62626e;
+
+        }
+
+
+        .viddra-input:focus {
+
+            border-color:
+                rgba(255, 49, 88, 0.75);
+
+            box-shadow:
+                0 0 0 3px
+                rgba(255, 49, 88, 0.1);
+
+        }
+
+
+        /* =====================================================
+           BUTTON
+        ====================================================== */
+
+        .viddra-button {
+
+            min-height:
+                48px;
+
+            padding:
+                0 18px;
+
+            border:
+                0;
+
+            border-radius:
+                12px;
+
+            cursor:
+                pointer;
+
+            color:
+                #ffffff;
+
+            font-weight:
+                800;
+
+            transition:
+                transform 140ms ease,
+                opacity 140ms ease,
+                box-shadow 140ms ease;
+
+        }
+
+
+        .viddra-button:hover {
+
+            transform:
+                translateY(-1px);
+
+        }
+
+
+        .viddra-button:active {
+
+            transform:
+                translateY(0);
+
+        }
+
+
+        .viddra-button-primary {
+
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--viddra-red),
+                    var(--viddra-red-dark)
+                );
+
+            box-shadow:
+                0 10px 30px
+                rgba(255, 49, 88, 0.18);
+
+        }
+
+
+        .viddra-button-secondary {
+
+            flex:
+                0 0 auto;
+
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.1);
+
+            background:
+                rgba(255, 255, 255, 0.055);
+
+        }
+
+
+        .viddra-button-secondary:hover {
+
+            background:
+                rgba(255, 255, 255, 0.09);
+
+        }
+
+
+        .viddra-button:disabled {
+
+            opacity:
+                0.5;
+
+            cursor:
+                not-allowed;
+
+            transform:
+                none;
+
+        }
+
+
+        /* =====================================================
+           ACTIONS
+        ====================================================== */
+
+        .actions {
+
+            display:
+                flex;
+
+            justify-content:
+                flex-end;
+
+            gap:
+                12px;
+
+            margin-top:
+                8px;
+
+        }
+
+
+        /* =====================================================
+           STATUS
+        ====================================================== */
+
+        .status {
+
+            display:
+                none;
+
+            margin-top:
+                22px;
+
+            padding:
+                14px 16px;
+
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.08);
+
+            border-radius:
+                12px;
+
+            background:
+                rgba(255, 255, 255, 0.035);
+
+            color:
+                var(--viddra-muted);
+
+            font-size:
+                13px;
+
+            line-height:
+                1.5;
+
+        }
+
+
+        .status.visible {
+
+            display:
+                block;
+
+        }
+
+
+        .status.success {
+
+            border-color:
+                rgba(67, 229, 155, 0.3);
+
+            color:
+                var(--viddra-green);
+
+        }
+
+
+        .status.warning {
+
+            border-color:
+                rgba(245, 196, 81, 0.3);
+
+            color:
+                var(--viddra-yellow);
+
+        }
+
+
+        .status.error {
+
+            border-color:
+                rgba(255, 49, 88, 0.35);
+
+            color:
+                #ff8da5;
+
+        }
+
+
+        /* =====================================================
+           ACCOUNT STATUS
+        ====================================================== */
+
+        .status-grid {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                repeat(
+                    3,
+                    minmax(0, 1fr)
+                );
+
+            gap:
+                12px;
+
+            margin-top:
+                24px;
+
+        }
+
+
+        .status-item {
+
+            padding:
+                18px;
+
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.07);
+
+            border-radius:
+                16px;
+
+            background:
+                rgba(255, 255, 255, 0.025);
+
+        }
+
+
+        .status-label {
+
+            color:
+                var(--viddra-muted);
+
+            font-size:
+                11px;
+
+            font-weight:
+                800;
+
+            letter-spacing:
+                0.1em;
+
+            text-transform:
+                uppercase;
+
+        }
+
+
+        .status-value {
+
+            margin-top:
+                7px;
+
+            font-size:
+                20px;
+
+            font-weight:
+                800;
+
+        }
+
+
+        /* =====================================================
+           NOTICE
+        ====================================================== */
+
+        .notice {
+
+            margin-top:
+                22px;
+
+            padding:
+                14px 16px;
+
+            border-left:
+                2px solid
+                var(--viddra-red);
+
+            background:
+                rgba(255, 49, 88, 0.055);
+
+            color:
+                var(--viddra-muted);
+
+            font-size:
+                12px;
+
+            line-height:
+                1.65;
+
+        }
+
+
+        /* =====================================================
+           MOBILE
+        ====================================================== */
+
+        @media (max-width: 760px) {
+
+            .viddra-page {
+
+                padding:
+                    28px 16px 50px;
+
+            }
+
+
+            .viddra-hero {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+
+            .account-grid {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+
+            .field.full {
+
+                grid-column:
+                    auto;
+
+            }
+
+
+            .status-grid {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+
+            .actions {
+
+                flex-direction:
+                    column;
+
+            }
+
+
+            .actions .viddra-button {
+
+                width:
+                    100%;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <!-- =====================================================
+         NEW GLOBAL NAVIGATION
+    ====================================================== -->
+
+    <div
+        id="navigation"
+        aria-label="GEN-Z.AI Navigation"
+    ></div>
+
+
+    <!-- =====================================================
+         VIDDRA PAGE
+    ====================================================== -->
+
+    <main class="viddra-page">
+
+        <div class="viddra-shell">
+
+
+            <!-- =================================================
+                 HERO
+            ================================================== -->
+
+            <section class="viddra-hero">
+
+                <div>
+
+                    <p class="eyebrow">
+                        VIDDRA AI
+                    </p>
+
+
+                    <h1 class="viddra-title">
+                        VidDra
+                    </h1>
+
+
+                    <p class="hero-copy">
+
+                        Halaman khusus VidDra yang berdiri
+                        terpisah dari sistem Generate KIE.
+                        Tahap ini digunakan untuk menyiapkan
+                        akun VidDra sebelum model Generate
+                        ditentukan.
+
+                    </p>
+
+                </div>
+
+
+                <div class="provider-badge">
+
+                    <span
+                        class="provider-dot"
+                        aria-hidden="true"
+                    ></span>
+
+                    VidDra Account
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 ACCOUNT CARD
+            ================================================== -->
+
+            <section class="account-card">
+
+
+                <header class="card-header">
+
+                    <h2 class="card-title">
+                        VidDra Account
+                    </h2>
+
+
+                    <p class="card-description">
+
+                        Masukkan email yang Anda kontrol.
+                        Password dapat dibuat secara random.
+
+                    </p>
+
+                </header>
+
+
+                <div class="card-body">
+
+
+                    <form
+                        id="viddraAccountForm"
+                        autocomplete="off"
+                    >
+
+
+                        <div class="account-grid">
+
+
+                            <!-- =================================
+                                 EMAIL
+                            ================================== -->
+
+                            <div class="field full">
+
+                                <label
+                                    class="field-label"
+                                    for="viddraEmail"
+                                >
+                                    Email VidDra
+                                </label>
+
+
+                                <input
+                                    id="viddraEmail"
+                                    class="viddra-input"
+                                    name="email"
+                                    type="email"
+                                    autocomplete="email"
+                                    placeholder="email@domain-anda.com"
+                                    required
+                                >
+
+                            </div>
+
+
+                            <!-- =================================
+                                 PASSWORD
+                            ================================== -->
+
+                            <div class="field full">
+
+                                <label
+                                    class="field-label"
+                                    for="viddraPassword"
+                                >
+                                    Password
+                                </label>
+
+
+                                <div class="input-row">
+
+
+                                    <input
+                                        id="viddraPassword"
+                                        class="viddra-input"
+                                        name="password"
+                                        type="text"
+                                        autocomplete="new-password"
+                                        placeholder="Generate password"
+                                        readonly
+                                        required
+                                    >
+
+
+                                    <button
+                                        type="button"
+                                        class="viddra-button viddra-button-secondary"
+                                        id="generatePasswordButton"
+                                    >
+                                        Generate
+                                    </button>
+
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- =================================
+                                 REGISTER
+                            ================================== -->
+
+                            <div class="field full">
+
+                                <div class="actions">
+
+
+                                    <button
+                                        type="submit"
+                                        class="viddra-button vidddra-button-primary viddra-button-primary"
+                                        id="registerVidDraButton"
+                                    >
+                                        Register VidDra
+                                    </button>
+
+
+                                </div>
+
+                            </div>
+
+
+                        </div>
+
+
+                    </form>
+
+
+                    <!-- =========================================
+                         STATUS
+                    ========================================== -->
+
+                    <div
+                        id="viddraStatus"
+                        class="status"
+                        role="status"
+                        aria-live="polite"
+                    ></div>
+
+
+                    <!-- =========================================
+                         ACCOUNT INFORMATION
+                    ========================================== -->
+
+                    <div class="status-grid">
+
+
+                        <div class="status-item">
+
+                            <div class="status-label">
+                                Account
+                            </div>
+
+
+                            <div
+                                class="status-value"
+                                id="accountStatus"
+                            >
+                                Not connected
+                            </div>
+
+                        </div>
+
+
+                        <div class="status-item">
+
+                            <div class="status-label">
+                                Starter Credit
+                            </div>
+
+
+                            <div
+                                class="status-value"
+                                id="creditStatus"
+                            >
+                                Not verified
+                            </div>
+
+                        </div>
+
+
+                        <div class="status-item">
+
+                            <div class="status-label">
+                                Generate
+                            </div>
+
+
+                            <div
+                                class="status-value"
+                                id="generateStatus"
+                            >
+                                Model belum dipilih
+                            </div>
+
+                        </div>
+
+
+                    </div>
+
+
+                    <!-- =========================================
+                         NOTICE
+                    ========================================== -->
+
+                    <div class="notice">
+
+                        Tahap ini belum memanggil API Generate
+                        VidDra dan belum mengubah sistem KIE.
+                        Setelah account berhasil diverifikasi,
+                        model VidDra akan dipilih dan
+                        diintegrasikan secara terpisah.
+
+                    </div>
+
+
+                </div>
+
+            </section>
+
+
+        </div>
+
+    </main>
+
+
+    <!-- =====================================================
+         VIDDRA PAGE LOGIC
+    ====================================================== -->
+
+    <script>
+
+        (() => {
+
+            "use strict";
+
+
+            /* =================================================
+               ELEMENTS
+            ================================================= */
+
+            const passwordInput =
+                document.getElementById(
+                    "viddraPassword"
+                );
+
+
+            const generatePasswordButton =
+                document.getElementById(
+                    "generatePasswordButton"
+                );
+
+
+            const form =
+                document.getElementById(
+                    "viddraAccountForm"
+                );
+
+
+            const status =
+                document.getElementById(
+                    "viddraStatus"
+                );
+
+
+            /* =================================================
+               RANDOM PASSWORD
+            ================================================= */
+
+            function generateRandomPassword(
+                length = 20
+            ) {
+
+                const upper =
+                    "ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+
+                const lower =
+                    "abcdefghijkmnopqrstuvwxyz";
+
+
+                const numbers =
+                    "23456789";
+
+
+                const symbols =
+                    "!@#$%^&*_-+=";
+
+
+                const all =
+                    upper +
+                    lower +
+                    numbers +
+                    symbols;
+
+
+                const randomValues =
+                    new Uint32Array(
+                        length
+                    );
+
+
+                crypto.getRandomValues(
+                    randomValues
+                );
+
+
+                const characters = [];
+
+
+                /*
+                 * Pastikan password memiliki
+                 * minimal satu karakter dari
+                 * setiap kelompok.
+                 */
+
+                characters.push(
+                    upper[
+                        randomValues[0] %
+                        upper.length
+                    ]
+                );
+
+
+                characters.push(
+                    lower[
+                        randomValues[1] %
+                        lower.length
+                    ]
+                );
+
+
+                characters.push(
+                    numbers[
+                        randomValues[2] %
+                        numbers.length
+                    ]
+                );
+
+
+                characters.push(
+                    symbols[
+                        randomValues[3] %
+                        symbols.length
+                    ]
+                );
+
+
+                /*
+                 * Isi karakter sisanya.
+                 */
+
+                for (
+                    let index = 4;
+                    index < length;
+                    index++
+                ) {
+
+                    characters.push(
+                        all[
+                            randomValues[index] %
+                            all.length
+                        ]
+                    );
+
+                }
+
+
+                /*
+                 * Fisher-Yates shuffle.
+                 */
+
+                for (
+                    let index =
+                        characters.length - 1;
+                    index > 0;
+                    index--
+                ) {
+
+                    const random =
+                        new Uint32Array(1);
+
+
+                    crypto.getRandomValues(
+                        random
+                    );
+
+
+                    const swapIndex =
+                        random[0] %
+                        (index + 1);
+
+
+                    [
+                        characters[index],
+                        characters[swapIndex]
+                    ] = [
+                        characters[swapIndex],
+                        characters[index]
+                    ];
+
+                }
+
+
+                return characters.join("");
+
+            }
+
+
+            /* =================================================
+               STATUS
+            ================================================= */
+
+            function showStatus(
+                message,
+                type = ""
+            ) {
+
+                status.textContent =
+                    message;
+
+
+                status.className =
+                    "status visible";
+
+
+                if (type) {
+
+                    status.classList.add(
+                        type
+                    );
+
+                }
+
+            }
+
+
+            /* =================================================
+               GENERATE PASSWORD BUTTON
+            ================================================= */
+
+            generatePasswordButton.addEventListener(
+                "click",
+                () => {
+
+                    passwordInput.value =
+                        generateRandomPassword();
+
+
+                    showStatus(
+                        "Password random berhasil dibuat.",
+                        "success"
+                    );
+
+                }
+            );
+
+
+            /* =================================================
+               FORM
+            ================================================= */
+
+            form.addEventListener(
+                "submit",
+                event => {
+
+                    event.preventDefault();
+
+
+                    showStatus(
+                        "Halaman VidDra sudah siap. Endpoint registrasi belum dihubungkan pada tahap ini.",
+                        "warning"
+                    );
+
+                }
+            );
+
+
+            /* =================================================
+               INITIAL PASSWORD
+            ================================================= */
+
+            passwordInput.value =
+                generateRandomPassword();
+
+
+        })();
+
+    </script>
+
+
+    <!-- =====================================================
+         NEW NAVIGATION
+    ====================================================== -->
+
+    <script
+        src="/navigation/navigation.js"
+    ></script>
+
+
+</body>
+
+</html>
