@@ -1341,6 +1341,235 @@
 
 
 /* =========================================================
+   STATUS BADGE - BANNED
+========================================================= */
+
+.status-badge.banned {
+
+    border:
+        1px solid
+        rgba(
+            255,
+            40,
+            40,
+            0.65
+        );
+
+    color:
+        rgba(
+            255,
+            110,
+            110,
+            1
+        );
+
+    background:
+        rgba(
+            180,
+            0,
+            0,
+            0.16
+        );
+
+    box-shadow:
+        0 0 10px
+        rgba(
+            255,
+            0,
+            0,
+            0.10
+        );
+
+}
+
+
+/* =========================================================
+   EDIT USER STATUS SELECT
+   ---------------------------------------------------------
+   Class dikontrol oleh user-modal.js:
+   - status-active
+   - status-suspended
+   - status-banned
+========================================================= */
+
+#editStatus {
+
+    font-weight: 800;
+
+    transition:
+        color
+        0.2s ease,
+        background
+        0.2s ease,
+        border-color
+        0.2s ease,
+        box-shadow
+        0.2s ease;
+
+}
+
+
+/* =========================================================
+   EDIT STATUS - ACTIVE
+========================================================= */
+
+#editStatus.status-active {
+
+    color:
+        rgba(
+            120,
+            255,
+            185,
+            1
+        );
+
+    border-color:
+        rgba(
+            0,
+            220,
+            120,
+            0.45
+        );
+
+    background:
+        rgba(
+            0,
+            180,
+            90,
+            0.10
+        );
+
+}
+
+
+/* =========================================================
+   EDIT STATUS - SUSPENDED
+========================================================= */
+
+#editStatus.status-suspended {
+
+    color:
+        rgba(
+            255,
+            190,
+            120,
+            1
+        );
+
+    border-color:
+        rgba(
+            255,
+            150,
+            40,
+            0.55
+        );
+
+    background:
+        rgba(
+            180,
+            90,
+            0,
+            0.12
+        );
+
+}
+
+
+/* =========================================================
+   EDIT STATUS - BANNED
+========================================================= */
+
+#editStatus.status-banned {
+
+    color:
+        rgba(
+            255,
+            105,
+            105,
+            1
+        );
+
+    border-color:
+        rgba(
+            255,
+            40,
+            40,
+            0.80
+        );
+
+    background:
+        rgba(
+            180,
+            0,
+            0,
+            0.20
+        );
+
+    box-shadow:
+        0 0 16px
+        rgba(
+            255,
+            0,
+            0,
+            0.14
+        );
+
+}
+
+
+/* =========================================================
+   EDIT STATUS OPTIONS
+========================================================= */
+
+#editStatus option {
+
+    color: #fff;
+
+    background: #111;
+
+}
+
+
+#editStatus option[value="active"] {
+
+    color:
+        rgba(
+            120,
+            255,
+            185,
+            1
+        );
+
+}
+
+
+#editStatus option[value="suspended"] {
+
+    color:
+        rgba(
+            255,
+            190,
+            120,
+            1
+        );
+
+}
+
+
+#editStatus option[value="banned"] {
+
+    color:
+        rgba(
+            255,
+            105,
+            105,
+            1
+        );
+
+}
+
+
+/* =========================================================
    ACTIONS
 ========================================================= */
 
