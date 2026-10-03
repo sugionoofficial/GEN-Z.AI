@@ -1,15 +1,20 @@
 /* =========================================================
    GEN-Z.AI
-   VIDDRA SESSION
+   VID DRA SESSION
    ---------------------------------------------------------
    File:
    api/viddra/session.js
 
    Fungsi:
-   - Menyimpan JWT VidDra dalam HttpOnly cookie terenkripsi
+   - Menyimpan VidDra JWT dalam HttpOnly cookie
+   - Mengenkripsi token sebelum disimpan
    - Membaca session VidDra dari request
    - Menghapus session VidDra
-   - JWT VidDra tidak pernah dikirim ke JavaScript browser
+
+   SECURITY:
+   - JWT TIDAK pernah dikirim ke browser JavaScript
+   - JWT TIDAK disimpan di localStorage
+   - JWT TIDAK dikembalikan oleh API account
 ========================================================= */
 
 import {
@@ -20,17 +25,14 @@ import {
 } from "node:crypto";
 
 
+/* =========================================================
+   CONFIG
+========================================================= */
+
 const COOKIE_NAME =
     "genz_viddra_session";
 
-
-const SESSION_SECRET =
-    String(
-        process.env.VIDDRA_SESSION_SECRET || ""
-    ).trim();
-
-
-const COOKIE_MAX_AGE =
+const SESSION_MAX_AGE =
     60 * 60 * 24;
 
 
@@ -38,54 +40,52 @@ const COOKIE_MAX_AGE =
    SECRET
 ========================================================= */
 
-function getKey() {
+function getEncryptionKey() {
+
+    const secret =
+        process.env.VIDDRA_SESSION_SECRET;
 
     if (
-        !SESSION_SECRET
+        !secret ||
+        typeof secret !== "string" ||
+        secret.length < 32
     ) {
 
         throw new Error(
-            "VIDDRA_SESSION_SECRET is not configured"
+            "VIDDRA_SESSION_SECRET belum dikonfigurasi."
         );
 
     }
 
-
-    /*
-     * AES-256 membutuhkan key 32 byte.
-     *
-     * Secret environment variable di-hash menjadi
-     * SHA-256 agar selalu menghasilkan 32 byte.
-     */
-
-    return createHash(
-        "sha256"
-    )
-        .update(
-            SESSION_SECRET
-        )
+    return createHash("sha256")
+        .update(secret)
         .digest();
 
 }
 
 
 /* =========================================================
-   ENCRYPT
+   ENCRYPT TOKEN
 ========================================================= */
 
-function encrypt(
-    value
-) {
+function encryptToken(token) {
 
-    const key =
-        getKey();
+    if (
+        !token ||
+        typeof token !== "string"
+    ) {
 
-
-    const iv =
-        randomBytes(
-            12
+        throw new Error(
+            "Token VidDra tidak valid."
         );
 
+    }
+
+    const key =
+        getEncryptionKey();
+
+    const iv =
+        randomBytes(12);
 
     const cipher =
         createCipheriv(
@@ -94,99 +94,84 @@ function encrypt(
             iv
         );
 
-
     const encrypted =
         Buffer.concat([
             cipher.update(
-                value,
+                token,
                 "utf8"
             ),
             cipher.final()
         ]);
-
 
     const authTag =
         cipher.getAuthTag();
 
 
     return [
-
-        iv.toString(
-            "base64url"
-        ),
-
-        authTag.toString(
-            "base64url"
-        ),
-
-        encrypted.toString(
-            "base64url"
-        )
-
-    ].join(
-        "."
-    );
-
+        iv.toString("base64url"),
+        authTag.toString("base64url"),
+        encrypted.toString("base64url")
+    ].join(".");
 }
 
 
 /* =========================================================
-   DECRYPT
+   DECRYPT TOKEN
 ========================================================= */
 
-function decrypt(
-    value
-) {
+function decryptToken(value) {
+
+    if (
+        !value ||
+        typeof value !== "string"
+    ) {
+
+        return null;
+
+    }
+
+    const parts =
+        value.split(".");
+
+    if (
+        parts.length !== 3
+    ) {
+
+        return null;
+
+    }
+
 
     try {
 
-        const parts =
-            String(
-                value || ""
-            ).split(
-                "."
-            );
-
-
-        if (
-            parts.length !== 3
-        ) {
-
-            return null;
-
-        }
-
-
         const [
-            ivEncoded,
-            tagEncoded,
-            encryptedEncoded
+            ivPart,
+            authTagPart,
+            encryptedPart
         ] = parts;
+
+
+        const key =
+            getEncryptionKey();
 
 
         const iv =
             Buffer.from(
-                ivEncoded,
+                ivPart,
                 "base64url"
             );
-
 
         const authTag =
             Buffer.from(
-                tagEncoded,
+                authTagPart,
                 "base64url"
             );
-
 
         const encrypted =
             Buffer.from(
-                encryptedEncoded,
+                encryptedPart,
                 "base64url"
             );
-
-
-        const key =
-            getKey();
 
 
         const decipher =
@@ -233,15 +218,11 @@ function parseCookies(
 ) {
 
     const header =
-        String(
-            req.headers?.cookie ||
-            req.headers?.Cookie ||
-            ""
-        );
-
+        req?.headers?.cookie;
 
     if (
-        !header
+        !header ||
+        typeof header !== "string"
     ) {
 
         return {};
@@ -253,13 +234,11 @@ function parseCookies(
 
 
     for (
-        const part
-        of header.split(";")
+        const part of header.split(";")
     ) {
 
         const index =
             part.indexOf("=");
-
 
         if (
             index === -1
@@ -278,7 +257,6 @@ function parseCookies(
                 )
                 .trim();
 
-
         const value =
             part
                 .slice(
@@ -296,10 +274,19 @@ function parseCookies(
         }
 
 
-        cookies[name] =
-            decodeURIComponent(
-                value
-            );
+        try {
+
+            cookies[name] =
+                decodeURIComponent(
+                    value
+                );
+
+        } catch {
+
+            cookies[name] =
+                value;
+
+        }
 
     }
 
@@ -310,53 +297,25 @@ function parseCookies(
 
 
 /* =========================================================
-   CREATE COOKIE
+   CREATE SESSION COOKIE
 ========================================================= */
 
 export function createVidDraSessionCookie(
     token
 ) {
 
-    const cleanToken =
-        String(
-            token || ""
-        ).trim();
-
-
-    if (
-        !cleanToken
-    ) {
-
-        throw new Error(
-            "VidDra token is required"
-        );
-
-    }
-
-
-    const encrypted =
-        encrypt(
-            cleanToken
-        );
+    const encryptedToken =
+        encryptToken(token);
 
 
     return [
-
-        `${COOKIE_NAME}=${encodeURIComponent(encrypted)}`,
-
+        `${COOKIE_NAME}=${encodeURIComponent(encryptedToken)}`,
         "Path=/",
-
         "HttpOnly",
-
         "Secure",
-
         "SameSite=Lax",
-
-        `Max-Age=${COOKIE_MAX_AGE}`
-
-    ].join(
-        "; "
-    );
+        `Max-Age=${SESSION_MAX_AGE}`
+    ].join("; ");
 
 }
 
@@ -369,77 +328,44 @@ export function getVidDraSession(
     req
 ) {
 
-    try {
+    const cookies =
+        parseCookies(req);
 
-        const cookies =
-            parseCookies(
-                req
-            );
-
-
-        const encrypted =
-            cookies[
-                COOKIE_NAME
-            ];
+    const encryptedToken =
+        cookies[
+            COOKIE_NAME
+        ];
 
 
-        if (
-            !encrypted
-        ) {
-
-            return null;
-
-        }
-
-
-        const token =
-            decrypt(
-                encrypted
-            );
-
-
-        if (
-            !token
-        ) {
-
-            return null;
-
-        }
-
-
-        return token;
-
-    } catch {
+    if (
+        !encryptedToken
+    ) {
 
         return null;
 
     }
 
+
+    return decryptToken(
+        encryptedToken
+    );
+
 }
 
 
 /* =========================================================
-   CLEAR COOKIE
+   CLEAR SESSION COOKIE
 ========================================================= */
 
 export function clearVidDraSessionCookie() {
 
     return [
-
         `${COOKIE_NAME}=`,
-
         "Path=/",
-
         "HttpOnly",
-
         "Secure",
-
         "SameSite=Lax",
-
         "Max-Age=0"
-
-    ].join(
-        "; "
-    );
+    ].join("; ");
 
 }
