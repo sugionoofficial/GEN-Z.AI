@@ -10,6 +10,7 @@
    - Non-streaming chat
    - Normalisasi response
    - Tool calling helper
+   - Full tool loop
    - Tool-call result helper
    - Tidak menangani API key encryption
    - Tidak menangani Supabase
@@ -39,7 +40,7 @@ import openKeyClient
 ========================================================= */
 
 const OPENKEY_CHAT_VERSION =
-    "2026-10-03-openkey-chat-v1";
+    "2026-10-03-openkey-chat-v2";
 
 
 /* =========================================================
@@ -196,9 +197,6 @@ function normalizeMessage(
 
     /*
      * REASONING CONTENT
-     *
-     * Jangan membuang field ini jika provider
-     * mengirimkannya.
      */
 
     if (
@@ -257,7 +255,7 @@ function normalizeTool(
 
 
     /*
-     * OpenAI-compatible tools biasanya:
+     * OpenAI-compatible tools:
 
        {
            type: "function",
@@ -312,11 +310,6 @@ function normalizeTool(
 
     }
     else {
-
-        /*
-         * Tetap pertahankan object jika
-         * provider menambahkan bentuk lain.
-         */
 
         normalized.function =
             tool.function ??
@@ -618,9 +611,6 @@ function buildChatPayload(
 
     /*
      * EXTRA PROVIDER PARAMETERS
-     *
-     * Jangan membuang parameter tambahan yang
-     * sengaja dikirim caller.
      */
 
     Object.assign(
@@ -708,7 +698,7 @@ function getContent(
 
 
     /*
-     * Content normal.
+     * CONTENT STRING
      */
 
     if (
@@ -722,8 +712,7 @@ function getContent(
 
 
     /*
-     * Beberapa OpenAI-compatible API dapat
-     * mengembalikan content sebagai array.
+     * CONTENT ARRAY
      */
 
     if (
@@ -849,11 +838,7 @@ function getUsage(
     /*
      * Usage adalah usage provider.
      *
-     * Jangan diterjemahkan menjadi:
-     *
-     * GEN-Z.AI credits
-     *
-     * karena billing OpenKey dikelola provider.
+     * BUKAN GEN-Z.AI credits.
      */
 
     return {
@@ -913,41 +898,34 @@ function normalizeResponse(
             response.id ??
             null,
 
-
         model:
             response.model ??
             null,
-
 
         content:
             getContent(
                 response
             ),
 
-
         message:
             getMessage(
                 response
             ),
-
 
         tool_calls:
             getToolCalls(
                 response
             ),
 
-
         finish_reason:
             getFinishReason(
                 response
             ),
 
-
         usage:
             getUsage(
                 response
             ),
-
 
         raw:
             response
@@ -1011,10 +989,6 @@ async function chat(
 
     }
 
-
-    /*
-     * chat.js hanya memanggil client.
-     */
 
     const response =
         await openKeyClient
@@ -1155,12 +1129,6 @@ function normalizeToolCall(
 
         }
         catch (_) {
-
-            /*
-             * Jangan membuat aplikasi gagal hanya
-             * karena provider mengirim arguments
-             * yang belum valid.
-             */
 
             parsedArguments =
                 null;
@@ -1416,6 +1384,7 @@ function appendToolResult(
                         toolCall
                     ]
                 },
+
                 tool_calls: [
                     toolCall
                 ]
@@ -1587,6 +1556,316 @@ async function continueAfterTools(
 
 
 /* =========================================================
+   FULL TOOL LOOP
+   ---------------------------------------------------------
+   Menjalankan tool call secara otomatis sampai model
+   menghasilkan response final.
+
+   executeTool:
+       async (toolCall, context) => result
+
+   context:
+       round
+       index
+       response
+       messages
+       options
+========================================================= */
+
+async function runToolLoop(
+    options = {}
+) {
+
+    const {
+
+        apiKey = null,
+
+        messages = [],
+
+        executeTool,
+
+        maxToolRounds = 8,
+
+        continuationToolChoice = "auto"
+
+    } = options;
+
+
+    /*
+     * VALIDATE EXECUTOR
+     */
+
+    if (
+        typeof executeTool !==
+        "function"
+    ) {
+
+        const error =
+            new Error(
+                "OpenKey tool loop membutuhkan executeTool."
+            );
+
+        error.code =
+            "OPENKEY_EXECUTE_TOOL_REQUIRED";
+
+        throw error;
+
+    }
+
+
+    /*
+     * NORMALIZE LIMIT
+     */
+
+    const numericLimit =
+        Number(
+            maxToolRounds
+        );
+
+
+    const limit =
+        Number.isFinite(
+            numericLimit
+        )
+            ? Math.max(
+                1,
+                Math.floor(
+                    numericLimit
+                )
+            )
+            : 8;
+
+
+    /*
+     * COPY MESSAGE STATE
+     */
+
+    let currentMessages =
+        normalizeMessages(
+            messages
+        );
+
+
+    /*
+     * FIRST REQUEST
+     */
+
+    let response =
+        await chat({
+
+            ...options,
+
+            apiKey,
+
+            messages:
+                currentMessages,
+
+            stream:
+                false
+
+        });
+
+
+    /*
+     * TOOL LOOP
+     */
+
+    for (
+        let round = 0;
+        round < limit;
+        round++
+    ) {
+
+        const toolCalls =
+            normalizeToolCalls(
+                response?.tool_calls ??
+                response?.message?.tool_calls ??
+                []
+            );
+
+
+        /*
+         * NO TOOL CALL
+         *
+         * Model sudah memberikan jawaban final.
+         */
+
+        if (
+            !toolCalls.length
+        ) {
+
+            return response;
+
+        }
+
+
+        /*
+         * BUILD ASSISTANT MESSAGE
+         */
+
+        const assistantMessage =
+            buildAssistantToolMessage(
+                response
+            );
+
+
+        if (
+            !assistantMessage
+        ) {
+
+            const error =
+                new Error(
+                    "OpenKey mengembalikan tool call tanpa assistant tool message yang valid."
+                );
+
+            error.code =
+                "OPENKEY_TOOL_ASSISTANT_MESSAGE_INVALID";
+
+            throw error;
+
+        }
+
+
+        currentMessages.push(
+            assistantMessage
+        );
+
+
+        /*
+         * EXECUTE EVERY TOOL CALL
+         */
+
+        for (
+            let index = 0;
+            index < toolCalls.length;
+            index++
+        ) {
+
+            const toolCall =
+                toolCalls[index];
+
+
+            let result;
+
+
+            try {
+
+                result =
+                    await executeTool(
+                        toolCall,
+                        {
+
+                            round:
+                                round + 1,
+
+                            index,
+
+                            response,
+
+                            messages:
+                                currentMessages
+                                    .slice(),
+
+                            options
+
+                        }
+                    );
+
+            }
+            catch (error) {
+
+                /*
+                 * Tool failure tidak langsung
+                 * menghentikan seluruh chat.
+                 *
+                 * Error dikirim sebagai tool result
+                 * agar model dapat menangani kegagalan.
+                 */
+
+                result = {
+
+                    error:
+                        true,
+
+                    message:
+                        error?.message ||
+                        String(
+                            error
+                        )
+
+                };
+
+            }
+
+
+            currentMessages.push(
+
+                buildToolResultMessage(
+                    toolCall,
+                    result
+                )
+
+            );
+
+        }
+
+
+        /*
+         * CONTINUE MODEL
+         *
+         * Tool choice forced dari request awal tidak
+         * diteruskan. Model kembali memilih sendiri.
+         */
+
+        response =
+            await chat({
+
+                ...options,
+
+                apiKey,
+
+                messages:
+                    currentMessages,
+
+                stream:
+                    false,
+
+                tool_choice:
+                    continuationToolChoice
+
+            });
+
+    }
+
+
+    /*
+     * MAX ROUND REACHED
+     */
+
+    const limitError =
+        new Error(
+            "OpenKey tool loop mencapai batas iterasi."
+        );
+
+
+    limitError.code =
+        "OPENKEY_TOOL_LOOP_LIMIT";
+
+
+    limitError.maxToolRounds =
+        limit;
+
+
+    limitError.response =
+        response;
+
+
+    throw limitError;
+
+}
+
+
+/* =========================================================
    EXPORT OBJECT
 ========================================================= */
 
@@ -1650,7 +1929,9 @@ const OpenKeyChat = {
 
     buildToolContinuation,
 
-    continueAfterTools
+    continueAfterTools,
+
+    runToolLoop
 
 };
 
@@ -1719,10 +2000,16 @@ export {
 
     buildToolContinuation,
 
-    continueAfterTools
+    continueAfterTools,
+
+    runToolLoop
 
 };
 
+
+/* =========================================================
+   DEFAULT EXPORT
+========================================================= */
 
 export default OpenKeyChat;
 
