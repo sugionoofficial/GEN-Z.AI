@@ -222,7 +222,7 @@ body::after {
         100%;
 
     min-height:
-        620px;
+        500px;
 
     display:
         grid;
@@ -1525,7 +1525,7 @@ body::after {
     .brand {
 
         min-height:
-            0;
+            500px;
 
         height:
             auto;
