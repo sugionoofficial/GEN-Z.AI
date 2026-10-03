@@ -208,6 +208,13 @@ function parseCredits(
 
 /* =========================================================
    VALIDATE STATUS
+   ---------------------------------------------------------
+   STATUS DATABASE YANG VALID:
+   - active
+   - suspended
+   - banned
+
+   Tidak menggunakan "inactive".
 ========================================================= */
 
 function parseStatus(
@@ -227,9 +234,9 @@ function parseStatus(
 
         "active",
 
-        "inactive",
+        "suspended",
 
-        "suspended"
+        "banned"
 
     ];
 
@@ -696,6 +703,12 @@ export async function submitEditUser(
 
     /*
      * Validasi status.
+     *
+     * Status yang diperbolehkan:
+     *
+     * active
+     * suspended
+     * banned
      */
 
     try {
