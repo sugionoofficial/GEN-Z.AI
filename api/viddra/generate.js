@@ -7,21 +7,16 @@
 
    Fungsi:
    - Authenticate user GEN-Z.AI melalui Supabase session
-   - Authenticate VidDra melalui HttpOnly VidDra session
-   - Menerima prompt dari VidDra Generate
-   - Submit task ke VidDra
+   - Submit generation ke VidDra
+   - Menggunakan VIDDRA_API_KEY server-side
    - Menggunakan Hailuo 2.3
    - Duration 6
    - Resolution 1080P
    - Menyimpan task ke generation_history
    - TIDAK menggunakan GEN-Z.AI credit deduction
-   - TIDAK menggunakan VIDDRA_API_KEY
    - TIDAK menyentuh sistem KIE.AI
+   - TIDAK mengekspos VIDDRA_API_KEY ke browser
 ========================================================= */
-
-import {
-    getVidDraSession
-} from "./session.js";
 
 
 /* =========================================================
@@ -42,6 +37,12 @@ const SUPABASE_URL =
 const SUPABASE_SERVICE_ROLE_KEY =
     String(
         process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+    ).trim();
+
+
+const VIDDRA_API_KEY =
+    String(
+        process.env.VIDDRA_API_KEY || ""
     ).trim();
 
 
@@ -117,7 +118,9 @@ function success(
         res,
         200,
         {
-            success: true,
+            success:
+                true,
+
             ...data
         }
     );
@@ -136,8 +139,12 @@ function failure(
         res,
         statusCode,
         {
-            success: false,
-            error: message,
+            success:
+                false,
+
+            error:
+                message,
+
             ...extra
         }
     );
@@ -158,8 +165,14 @@ async function supabaseRequest(
         !SUPABASE_URL
     ) {
 
-        throw new Error(
-            "SUPABASE_URL is not configured"
+        throw Object.assign(
+            new Error(
+                "SUPABASE_URL is not configured"
+            ),
+            {
+                status:
+                    500
+            }
         );
 
     }
@@ -169,8 +182,14 @@ async function supabaseRequest(
         !SUPABASE_SERVICE_ROLE_KEY
     ) {
 
-        throw new Error(
-            "SUPABASE_SERVICE_ROLE_KEY is not configured"
+        throw Object.assign(
+            new Error(
+                "SUPABASE_SERVICE_ROLE_KEY is not configured"
+            ),
+            {
+                status:
+                    500
+            }
         );
 
     }
@@ -206,7 +225,8 @@ async function supabaseRequest(
         await response.text();
 
 
-    let data = null;
+    let data =
+        null;
 
 
     if (
@@ -293,7 +313,8 @@ async function authenticateUser(
                 "Authorization header is required"
             ),
             {
-                status: 401
+                status:
+                    401
             }
         );
 
@@ -315,7 +336,8 @@ async function authenticateUser(
                 "Invalid Authorization header"
             ),
             {
-                status: 401
+                status:
+                    401
             }
         );
 
@@ -337,7 +359,8 @@ async function authenticateUser(
                 "Access token is missing"
             ),
             {
-                status: 401
+                status:
+                    401
             }
         );
 
@@ -376,7 +399,8 @@ async function authenticateUser(
                 "Invalid or expired GEN-Z.AI session"
             ),
             {
-                status: 401
+                status:
+                    401
             }
         );
 
@@ -398,7 +422,8 @@ async function readBody(
 
     if (
         req.body &&
-        typeof req.body === "object"
+        typeof req.body ===
+            "object"
     ) {
 
         return req.body;
@@ -406,14 +431,16 @@ async function readBody(
     }
 
 
-    let body = "";
+    let body =
+        "";
 
 
     for await (
         const chunk of req
     ) {
 
-        body += chunk;
+        body +=
+            chunk;
 
     }
 
@@ -440,7 +467,8 @@ async function readBody(
                 "Request body must be valid JSON"
             ),
             {
-                status: 400
+                status:
+                    400
             }
         );
 
@@ -465,50 +493,37 @@ function normalizePrompt(
 
 
 /* =========================================================
-   GET VIDDRA SESSION
+   CREATE VIDDRA GENERATION
+   ---------------------------------------------------------
+   IMPORTANT:
+   - Generation endpoint memakai VIDDRA_API_KEY.
+   - API key hanya berada di server.
+   - Tidak pernah dikirim ke frontend.
 ========================================================= */
 
-function authenticateVidDraSession(
-    req
+async function createVidDraGeneration(
+    prompt
 ) {
 
-    const token =
-        getVidDraSession(
-            req
-        );
-
-
     if (
-        !token
+        !VIDDRA_API_KEY
     ) {
 
         throw Object.assign(
             new Error(
-                "Akun VidDra belum terhubung. Hubungkan akun VidDra terlebih dahulu."
+                "VIDDRA_API_KEY is not configured"
             ),
             {
-                status: 401,
+                status:
+                    500,
+
                 code:
-                    "VIDDRA_SESSION_MISSING"
+                    "VIDDRA_API_KEY_MISSING"
             }
         );
 
     }
 
-
-    return token;
-
-}
-
-
-/* =========================================================
-   CREATE VIDDRA GENERATION
-========================================================= */
-
-async function createVidDraGeneration(
-    token,
-    prompt
-) {
 
     const payload = {
 
@@ -537,9 +552,12 @@ async function createVidDraGeneration(
                 headers: {
 
                     Authorization:
-                        `Bearer ${token}`,
+                        `Bearer ${VIDDRA_API_KEY}`,
 
                     "Content-Type":
+                        "application/json",
+
+                    Accept:
                         "application/json"
 
                 },
@@ -557,7 +575,8 @@ async function createVidDraGeneration(
         await response.text();
 
 
-    let data = null;
+    let data =
+        null;
 
 
     if (
@@ -574,8 +593,10 @@ async function createVidDraGeneration(
         } catch {
 
             data = {
+
                 raw:
                     text
+
             };
 
         }
@@ -590,13 +611,13 @@ async function createVidDraGeneration(
         const providerMessage =
             (
                 data &&
-                typeof data === "object"
+                typeof data ===
+                    "object"
             )
                 ? (
                     data.message ||
                     data.error ||
                     data.detail ||
-                    data.raw ||
                     ""
                 )
                 : "";
@@ -650,11 +671,19 @@ function getVidDraGenerationId(
 
         data?.generationId,
 
+        data?.task_id,
+
+        data?.taskId,
+
         data?.data?.id,
 
         data?.data?.generation_id,
 
-        data?.data?.generationId
+        data?.data?.generationId,
+
+        data?.data?.task_id,
+
+        data?.data?.taskId
 
     ];
 
@@ -758,11 +787,8 @@ async function createGenerationHistory({
             null,
 
         /*
-         * VidDra menggunakan saldo milik
-         * akun VidDra.
-         *
-         * GEN-Z.AI tidak melakukan
-         * deduction credit.
+         * VidDra generation tidak mengurangi
+         * credit GEN-Z.AI.
          */
         credit_cost:
             0
@@ -814,14 +840,17 @@ async function createGenerationHistory({
 
         return payload;
 
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         /*
-         * Task VidDra sudah dibuat.
+         * Provider task sudah dibuat.
          *
-         * Jika insert History gagal,
-         * task provider tetap berjalan.
+         * Jangan membatalkan task provider
+         * hanya karena insert History gagal.
          */
+
         console.error(
             "[viddra] Failed to create generation history:",
             {
@@ -863,7 +892,8 @@ export default async function handler(
     ----------------------------------------------------- */
 
     if (
-        req.method !== "POST"
+        req.method !==
+        "POST"
     ) {
 
         res.setHeader(
@@ -889,16 +919,6 @@ export default async function handler(
 
         const user =
             await authenticateUser(
-                req
-            );
-
-
-        /* -------------------------------------------------
-           VIDDRA SESSION
-        ------------------------------------------------- */
-
-        const vidDraToken =
-            authenticateVidDraSession(
                 req
             );
 
@@ -932,13 +952,31 @@ export default async function handler(
         }
 
 
+        /*
+         * Batasi prompt agar tidak mengirim
+         * payload absurd ke provider.
+         */
+
+        if (
+            prompt.length >
+            30000
+        ) {
+
+            return failure(
+                res,
+                400,
+                "Prompt terlalu panjang."
+            );
+
+        }
+
+
         /* -------------------------------------------------
            VIDDRA GENERATION
         ------------------------------------------------- */
 
         const providerResponse =
             await createVidDraGeneration(
-                vidDraToken,
                 prompt
             );
 
@@ -1008,15 +1046,26 @@ export default async function handler(
                 task_id:
                     generationId,
 
+                taskId:
+                    generationId,
+
                 status:
                     providerResponse.data?.status ||
+                    providerResponse.data?.state ||
                     providerResponse.data?.data?.status ||
+                    providerResponse.data?.data?.state ||
                     "queued",
 
                 provider:
                     VIDDRA_PROVIDER_NAME,
 
+                provider_id:
+                    VIDDRA_PROVIDER_ID,
+
                 model:
+                    VIDDRA_MODEL,
+
+                model_id:
                     VIDDRA_MODEL,
 
                 duration:
@@ -1033,7 +1082,9 @@ export default async function handler(
             }
         );
 
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         console.error(
             "[viddra] Generate error:",
@@ -1060,6 +1111,14 @@ export default async function handler(
                 error?.status
             );
 
+
+        /*
+         * Jangan pernah mengirim:
+         * - VIDDRA_API_KEY
+         * - Authorization header
+         * - VidDra JWT
+         * - secret environment variable
+         */
 
         return failure(
             res,
