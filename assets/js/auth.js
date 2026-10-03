@@ -1,4 +1,4 @@
-//auth.js?v=2.5
+//auth.js?v=2.6
 // ========================================
 // GEN-Z.AI - SUPABASE AUTHENTICATION
 // ========================================
@@ -90,6 +90,235 @@
     const loginMessage =
         document.getElementById("loginMessage");
 
+    const loginButtonText =
+        document.getElementById("loginButtonText");
+
+    const loginSpinner =
+        document.getElementById("loginSpinner");
+
+    const emailElement =
+        document.getElementById("email");
+
+    const passwordElement =
+        document.getElementById("password");
+
+
+    // ========================================
+    // LOGIN STATUS HOLOGRAM
+    // ========================================
+
+    let loginStatusHologram = null;
+
+
+    function ensureLoginStatusHologram() {
+
+        if (!loginButton) {
+            return null;
+        }
+
+
+        if (loginStatusHologram) {
+            return loginStatusHologram;
+        }
+
+
+        loginStatusHologram =
+            document.createElement("span");
+
+        loginStatusHologram.id =
+            "loginStatusHologram";
+
+        loginStatusHologram.className =
+            "login-status-hologram";
+
+        loginStatusHologram.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+
+        const hologramText =
+            document.createElement("span");
+
+        hologramText.id =
+            "loginStatusHologramText";
+
+        hologramText.className =
+            "login-status-hologram-text";
+
+
+        const hologramScan =
+            document.createElement("span");
+
+        hologramScan.className =
+            "login-status-hologram-scan";
+
+
+        const hologramLine =
+            document.createElement("span");
+
+        hologramLine.className =
+            "login-status-hologram-line";
+
+
+        const hologramCornerTop =
+            document.createElement("span");
+
+        hologramCornerTop.className =
+            "login-status-hologram-corner top";
+
+
+        const hologramCornerBottom =
+            document.createElement("span");
+
+        hologramCornerBottom.className =
+            "login-status-hologram-corner bottom";
+
+
+        loginStatusHologram.appendChild(
+            hologramScan
+        );
+
+        loginStatusHologram.appendChild(
+            hologramLine
+        );
+
+        loginStatusHologram.appendChild(
+            hologramCornerTop
+        );
+
+        loginStatusHologram.appendChild(
+            hologramCornerBottom
+        );
+
+        loginStatusHologram.appendChild(
+            hologramText
+        );
+
+
+        loginButton.appendChild(
+            loginStatusHologram
+        );
+
+
+        return loginStatusHologram;
+    }
+
+
+    function hideLoginStatusHologram() {
+
+        if (!loginStatusHologram) {
+            return;
+        }
+
+        loginStatusHologram.classList.remove(
+            "is-visible",
+            "is-suspended",
+            "is-banned"
+        );
+
+        loginStatusHologram.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+    }
+
+
+    function showLoginStatusHologram(status) {
+
+        const normalizedStatus =
+            String(status || "")
+                .trim()
+                .toLowerCase();
+
+
+        if (
+            normalizedStatus !== "suspended" &&
+            normalizedStatus !== "banned"
+        ) {
+
+            hideLoginStatusHologram();
+
+            return;
+        }
+
+
+        const hologram =
+            ensureLoginStatusHologram();
+
+
+        if (!hologram) {
+            return;
+        }
+
+
+        const text =
+            hologram.querySelector(
+                "#loginStatusHologramText"
+            );
+
+
+        hologram.classList.remove(
+            "is-suspended",
+            "is-banned"
+        );
+
+
+        if (normalizedStatus === "suspended") {
+
+            hologram.classList.add(
+                "is-suspended"
+            );
+
+            if (text) {
+                text.textContent =
+                    "SUSPENDED";
+            }
+
+        } else {
+
+            hologram.classList.add(
+                "is-banned"
+            );
+
+            if (text) {
+                text.textContent =
+                    "BANNED";
+            }
+        }
+
+
+        hologram.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+
+        requestAnimationFrame(function () {
+
+            hologram.classList.add(
+                "is-visible"
+            );
+
+        });
+    }
+
+
+    // ========================================
+    // EXPOSE HOLOGRAM
+    // ========================================
+
+    window.GENZLoginStatusHologram =
+        Object.freeze({
+
+            show: showLoginStatusHologram,
+
+            hide: hideLoginStatusHologram,
+
+            setStatus: showLoginStatusHologram
+
+        });
+
 
     // ========================================
     // HELPER
@@ -109,12 +338,36 @@
             return;
         }
 
-        loginButton.disabled = loading;
 
-        loginButton.textContent =
-            loading
-                ? "LOGIN..."
-                : "LOGIN";
+        loginButton.disabled =
+            loading;
+
+
+        /*
+         * Jangan menggunakan
+         *
+         * loginButton.textContent
+         *
+         * karena hologram dan spinner
+         * merupakan child element tombol.
+         */
+
+        if (loginButtonText) {
+
+            loginButtonText.textContent =
+                loading
+                    ? "LOGIN..."
+                    : "LOGIN";
+        }
+
+
+        if (loginSpinner) {
+
+            loginSpinner.classList.toggle(
+                "active",
+                loading
+            );
+        }
     }
 
 
@@ -124,27 +377,54 @@
             return "Login gagal.";
         }
 
-        const message =
-            String(error.message || "").toLowerCase();
+
+        if (
+            error.code === "ACCOUNT_SUSPENDED"
+        ) {
+
+            return "Akun Anda sedang ditangguhkan.";
+        }
 
 
         if (
-            message.includes("invalid login credentials")
+            error.code === "ACCOUNT_BANNED"
         ) {
+
+            return "Akun Anda telah dibanned.";
+        }
+
+
+        const message =
+            String(error.message || "")
+                .toLowerCase();
+
+
+        if (
+            message.includes(
+                "invalid login credentials"
+            )
+        ) {
+
             return "Email atau password salah.";
         }
 
 
         if (
-            message.includes("email not confirmed")
+            message.includes(
+                "email not confirmed"
+            )
         ) {
+
             return "Email akun belum dikonfirmasi.";
         }
 
 
         if (
-            message.includes("too many requests")
+            message.includes(
+                "too many requests"
+            )
         ) {
+
             return "Terlalu banyak percobaan. Silakan tunggu beberapa saat.";
         }
 
@@ -153,6 +433,7 @@
             message.includes("network") ||
             message.includes("fetch")
         ) {
+
             return "Koneksi bermasalah. Periksa internet lalu coba lagi.";
         }
 
@@ -179,6 +460,37 @@
 
 
     // ========================================
+    // CLEAR HOLOGRAM SAAT INPUT BERUBAH
+    // ========================================
+
+    function clearLoginStatusVisual() {
+
+        hideLoginStatusHologram();
+
+    }
+
+
+    if (emailElement) {
+
+        emailElement.addEventListener(
+            "input",
+            clearLoginStatusVisual
+        );
+
+    }
+
+
+    if (passwordElement) {
+
+        passwordElement.addEventListener(
+            "input",
+            clearLoginStatusVisual
+        );
+
+    }
+
+
+    // ========================================
     // LOGIN
     // ========================================
 
@@ -193,16 +505,16 @@
             // INPUT
             // ====================================
 
-            const emailElement =
+            const emailField =
                 document.getElementById("email");
 
-            const passwordElement =
+            const passwordField =
                 document.getElementById("password");
 
 
             if (
-                !emailElement ||
-                !passwordElement
+                !emailField ||
+                !passwordField
             ) {
 
                 showMessage(
@@ -214,12 +526,20 @@
 
 
             const email =
-                emailElement.value
+                emailField.value
                     .trim()
                     .toLowerCase();
 
             const password =
-                passwordElement.value;
+                passwordField.value;
+
+
+            /*
+             * Setiap percobaan login baru
+             * menghapus cap sebelumnya.
+             */
+
+            hideLoginStatusHologram();
 
 
             if (!email || !password) {
@@ -293,6 +613,7 @@
 
 
                 if (sessionError) {
+
                     throw new Error(
                         "Gagal membaca session: " +
                         sessionError.message
@@ -404,16 +725,111 @@
                 // 8. VALIDASI STATUS
                 // ==================================
 
+                const accountStatus =
+                    String(
+                        profile.status || ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+
+                /*
+                 * ACTIVE
+                 * --------------------------------
+                 * Login berjalan normal.
+                 */
+
                 if (
-                    String(profile.status || "")
-                        .toLowerCase() !== "active"
+                    accountStatus === "active"
+                ) {
+
+                    // Tidak ada hologram.
+
+                }
+
+
+                /*
+                 * SUSPENDED
+                 * --------------------------------
+                 * Session langsung dihentikan,
+                 * lalu tampilkan cap hologram.
+                 */
+
+                else if (
+                    accountStatus === "suspended"
                 ) {
 
                     await supabaseClient.auth
                         .signOut();
 
+
+                    const statusError =
+                        new Error(
+                            "Akun sedang ditangguhkan."
+                        );
+
+
+                    statusError.code =
+                        "ACCOUNT_SUSPENDED";
+
+
+                    showLoginStatusHologram(
+                        "suspended"
+                    );
+
+
+                    throw statusError;
+                }
+
+
+                /*
+                 * BANNED
+                 * --------------------------------
+                 * Session langsung dihentikan,
+                 * lalu tampilkan cap hologram.
+                 */
+
+                else if (
+                    accountStatus === "banned"
+                ) {
+
+                    await supabaseClient.auth
+                        .signOut();
+
+
+                    const statusError =
+                        new Error(
+                            "Akun telah dibanned."
+                        );
+
+
+                    statusError.code =
+                        "ACCOUNT_BANNED";
+
+
+                    showLoginStatusHologram(
+                        "banned"
+                    );
+
+
+                    throw statusError;
+                }
+
+
+                /*
+                 * STATUS LAIN
+                 * --------------------------------
+                 * Jangan memberikan akses.
+                 */
+
+                else {
+
+                    await supabaseClient.auth
+                        .signOut();
+
+
                     throw new Error(
-                        "Akun tidak aktif."
+                        "Status akun tidak valid."
                     );
                 }
 
@@ -484,11 +900,34 @@
                     error
                 );
 
+
+                /*
+                 * Untuk suspended / banned,
+                 * hologram sudah ditampilkan
+                 * sebelum error dilempar.
+                 *
+                 * Untuk error lain, hologram tetap
+                 * tidak ditampilkan.
+                 */
+
+                if (
+                    error?.code !==
+                        "ACCOUNT_SUSPENDED" &&
+                    error?.code !==
+                        "ACCOUNT_BANNED"
+                ) {
+
+                    hideLoginStatusHologram();
+                }
+
+
                 showMessage(
                     getFriendlyAuthError(error)
                 );
 
+
                 setLoading(false);
+
             }
 
         }
