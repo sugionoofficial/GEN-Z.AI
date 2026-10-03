@@ -1,4 +1,4 @@
-//admin-user.js?v=1.5
+//admin-user.js?v=1.6
 // ========================================
 // GEN-Z.AI
 // ADMIN USER MANAGEMENT API
@@ -1458,11 +1458,17 @@ export default async function handler(
         }
 
 
+        // --------------------------------
+        // STATUS USER
+        // Canonical database values:
+        // active / suspended / banned
+        // --------------------------------
+
         if (
             ![
                 "active",
-                "inactive",
-                "suspended"
+                "suspended",
+                "banned"
             ].includes(
                 requestedStatus
             )
@@ -1820,310 +1826,316 @@ export default async function handler(
 
 
         // ==================================
-// UPDATE USER
-// ==================================
-
-if (
-    action === "update"
-) {
-
-    const userId =
-        String(
-            body.userId || ""
-        )
-            .trim();
-
-
-    const requestedName =
-        String(
-            body.name || ""
-        )
-            .trim();
-
-
-    const requestedRole =
-        String(
-            body.role || ""
-        )
-            .trim()
-            .toUpperCase();
-
-
-    const requestedStatus =
-        String(
-            body.status || ""
-        )
-            .trim()
-            .toLowerCase();
-
-
-    const requestedCredits =
-        Number(
-            body.credits
-        );
-
-
-    const requestedVerified =
-        body.emailConfirmed;
-
-
-    // --------------------------------
-    // BASIC VALIDATION
-    // --------------------------------
-
-    if (!userId) {
-
-        return json(
-            res,
-            400,
-            {
-                success: false,
-                error:
-                    "ID user wajib diisi."
-            }
-        );
-
-    }
-
-
-    if (
-        ![
-            "USER",
-            "ADMIN"
-        ].includes(
-            requestedRole
-        )
-    ) {
-
-        return json(
-            res,
-            400,
-            {
-                success: false,
-                error:
-                    "Role edit tidak valid. Role yang dapat dipilih adalah USER atau ADMIN."
-            }
-        );
-
-    }
-
-
-    if (
-        ![
-            "active",
-            "inactive",
-            "suspended"
-        ].includes(
-            requestedStatus
-        )
-    ) {
-
-        return json(
-            res,
-            400,
-            {
-                success: false,
-                error:
-                    "Status edit tidak valid."
-            }
-        );
-
-    }
-
-
-    if (
-        !Number.isFinite(
-            requestedCredits
-        ) ||
-        requestedCredits < 0
-    ) {
-
-        return json(
-            res,
-            400,
-            {
-                success: false,
-                error:
-                    "Credit tidak valid."
-            }
-        );
-
-    }
-
-
-    if (
-        typeof requestedVerified !==
-        "boolean"
-    ) {
-
-        return json(
-            res,
-            400,
-            {
-                success: false,
-                error:
-                    "Status verifikasi tidak valid."
-            }
-        );
-
-    }
-
-
-    // --------------------------------
-    // LOAD TARGET
-    // --------------------------------
-
-    try {
-
-        const targetProfile =
-            await loadTargetProfile(
-                config,
-                userId
-            );
-
-
-        const security =
-            validateTargetManagement(
-                admin,
-                targetProfile
-            );
-
+        // UPDATE USER
+        // ==================================
 
         if (
-            !security.ok
+            action === "update"
         ) {
 
-            return json(
-                res,
-                security.status,
-                {
-                    success: false,
-                    error:
-                        security.error
+            const userId =
+                String(
+                    body.userId || ""
+                )
+                    .trim();
+
+
+            const requestedName =
+                String(
+                    body.name || ""
+                )
+                    .trim();
+
+
+            const requestedRole =
+                String(
+                    body.role || ""
+                )
+                    .trim()
+                    .toUpperCase();
+
+
+            const requestedStatus =
+                String(
+                    body.status || ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            const requestedCredits =
+                Number(
+                    body.credits
+                );
+
+
+            const requestedVerified =
+                body.emailConfirmed;
+
+
+            // --------------------------------
+            // BASIC VALIDATION
+            // --------------------------------
+
+            if (!userId) {
+
+                return json(
+                    res,
+                    400,
+                    {
+                        success: false,
+                        error:
+                            "ID user wajib diisi."
+                    }
+                );
+
+            }
+
+
+            if (
+                ![
+                    "USER",
+                    "ADMIN"
+                ].includes(
+                    requestedRole
+                )
+            ) {
+
+                return json(
+                    res,
+                    400,
+                    {
+                        success: false,
+                        error:
+                            "Role edit tidak valid. Role yang dapat dipilih adalah USER atau ADMIN."
+                    }
+                );
+
+            }
+
+
+            // --------------------------------
+            // STATUS USER
+            // Canonical database values:
+            // active / suspended / banned
+            // --------------------------------
+
+            if (
+                ![
+                    "active",
+                    "suspended",
+                    "banned"
+                ].includes(
+                    requestedStatus
+                )
+            ) {
+
+                return json(
+                    res,
+                    400,
+                    {
+                        success: false,
+                        error:
+                            "Status edit tidak valid."
+                    }
+                );
+
+            }
+
+
+            if (
+                !Number.isFinite(
+                    requestedCredits
+                ) ||
+                requestedCredits < 0
+            ) {
+
+                return json(
+                    res,
+                    400,
+                    {
+                        success: false,
+                        error:
+                            "Credit tidak valid."
+                    }
+                );
+
+            }
+
+
+            if (
+                typeof requestedVerified !==
+                "boolean"
+            ) {
+
+                return json(
+                    res,
+                    400,
+                    {
+                        success: false,
+                        error:
+                            "Status verifikasi tidak valid."
+                    }
+                );
+
+            }
+
+
+            // --------------------------------
+            // LOAD TARGET
+            // --------------------------------
+
+            try {
+
+                const targetProfile =
+                    await loadTargetProfile(
+                        config,
+                        userId
+                    );
+
+
+                const security =
+                    validateTargetManagement(
+                        admin,
+                        targetProfile
+                    );
+
+
+                if (
+                    !security.ok
+                ) {
+
+                    return json(
+                        res,
+                        security.status,
+                        {
+                            success: false,
+                            error:
+                                security.error
+                        }
+                    );
+
                 }
-            );
-
-        }
 
 
-        // --------------------------------
-        // ADMIN CANNOT PROMOTE USER
-        // --------------------------------
+                // --------------------------------
+                // ADMIN CANNOT PROMOTE USER
+                // --------------------------------
 
-        if (
-            admin.profile.role === "ADMIN" &&
-            requestedRole !== "USER"
-        ) {
+                if (
+                    admin.profile.role === "ADMIN" &&
+                    requestedRole !== "USER"
+                ) {
 
-            return json(
-                res,
-                403,
-                {
-                    success: false,
-                    error:
-                        "ADMIN tidak dapat mengubah role user menjadi ADMIN."
+                    return json(
+                        res,
+                        403,
+                        {
+                            success: false,
+                            error:
+                                "ADMIN tidak dapat mengubah role user menjadi ADMIN."
+                        }
+                    );
+
                 }
-            );
-
-        }
 
 
-        // --------------------------------
-        // UPDATE AUTH VERIFICATION
-        // --------------------------------
-        //
-        // Email/password tidak disentuh.
-        // Hanya email_confirm.
-        // --------------------------------
+                // --------------------------------
+                // UPDATE AUTH VERIFICATION
+                // --------------------------------
+                //
+                // Email/password tidak disentuh.
+                // Hanya email_confirm.
+                // --------------------------------
 
-        await updateAuthVerification(
-            config,
-            userId,
-            requestedVerified
-        );
-
-
-        // --------------------------------
-        // UPDATE PROFILE
-        // --------------------------------
-
-        const updatedProfile =
-            await updateProfile(
-                config,
-                userId,
-                requestedName,
-                requestedRole,
-                requestedStatus,
-                requestedCredits
-            );
+                await updateAuthVerification(
+                    config,
+                    userId,
+                    requestedVerified
+                );
 
 
-        return json(
-            res,
-            200,
-            {
-                success: true,
+                // --------------------------------
+                // UPDATE PROFILE
+                // --------------------------------
 
-                user: {
-
-                    id:
+                const updatedProfile =
+                    await updateProfile(
+                        config,
                         userId,
-
-                    email:
-                        targetProfile.email ||
-                        "",
-
-                    name:
-                        updatedProfile?.name ??
                         requestedName,
-
-                    role:
-                        updatedProfile?.role ||
                         requestedRole,
-
-                    status:
-                        updatedProfile?.status ||
                         requestedStatus,
+                        requestedCredits
+                    );
 
-                    credits:
-                        Number(
-                            updatedProfile?.credits ??
-                            requestedCredits
-                        ),
 
-                    email_confirmed:
-                        requestedVerified
+                return json(
+                    res,
+                    200,
+                    {
+                        success: true,
 
-                },
+                        user: {
 
-                message:
-                    "Data user berhasil diperbarui."
+                            id:
+                                userId,
+
+                            email:
+                                targetProfile.email ||
+                                "",
+
+                            name:
+                                updatedProfile?.name ??
+                                requestedName,
+
+                            role:
+                                updatedProfile?.role ||
+                                requestedRole,
+
+                            status:
+                                updatedProfile?.status ||
+                                requestedStatus,
+
+                            credits:
+                                Number(
+                                    updatedProfile?.credits ??
+                                    requestedCredits
+                                ),
+
+                            email_confirmed:
+                                requestedVerified
+
+                        },
+
+                        message:
+                            "Data user berhasil diperbarui."
+
+                    }
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "UPDATE USER ERROR:",
+                    error
+                );
+
+
+                return json(
+                    res,
+                    500,
+                    {
+                        success: false,
+                        error:
+                            error.message ||
+                            "Gagal memperbarui user."
+                    }
+                );
 
             }
-        );
 
-    } catch (error) {
-
-        console.error(
-            "UPDATE USER ERROR:",
-            error
-        );
-
-
-        return json(
-            res,
-            500,
-            {
-                success: false,
-                error:
-                    error.message ||
-                    "Gagal memperbarui user."
-            }
-        );
-
-    }
-
-}
+        }
 
 
         // ==================================
