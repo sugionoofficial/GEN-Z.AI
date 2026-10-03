@@ -649,335 +649,109 @@ body::after {
 
 
 /* =========================================================
-   LOGIN STATUS HOLOGRAM
+   LOGIN STATUS HOLOGRAM STAMP
    ---------------------------------------------------------
    SUSPENDED / BANNED
-   - Menimpa tombol LOGIN
-   - Sedikit miring
-   - Ukuran sedang
-   - Tidak mengganti teks LOGIN
-   - Hanya terlihat ketika .is-visible aktif
+   - Lebih besar dari tombol LOGIN
+   - Sedikit keluar dari sisi tombol
+   - Miring seperti cap resmi
+   - Tetap berada di atas tombol
 ========================================================= */
 
 #loginStatusHologram {
 
-    position:
-        absolute;
+    position: absolute;
 
-    z-index:
-        20;
+    /*
+     * Dibuat lebih lebar dari tombol.
+     * 142% = cap benar-benar melewati kedua sisi tombol.
+     */
+    width: 142%;
 
-    left:
-        50%;
+    /*
+     * Tinggi jauh lebih besar dari tombol LOGIN 56px.
+     */
+    height: 82px;
 
-    top:
-        50%;
-
-    width:
-        max-content;
-
-    max-width:
-        82%;
-
-    min-width:
-        180px;
-
-    padding:
-        8px 22px;
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        center;
-
-    pointer-events:
-        none;
-
-    user-select:
-        none;
-
-    visibility:
-        hidden;
-
-    opacity:
-        0;
+    left: 50%;
+    top: 50%;
 
     transform:
         translate(-50%, -50%)
-        rotate(-7deg)
-        scale(.92);
+        rotate(-8deg);
 
-    transform-origin:
-        center;
+    transform-origin: center center;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 0;
+    max-width: none;
+
+    padding: 0 18px;
+
+    z-index: 50;
+
+    pointer-events: none;
+
+    /*
+     * Jangan tampil sebelum status akun diketahui.
+     */
+    opacity: 0;
+    visibility: hidden;
+
+    /*
+     * Jangan menggunakan display:none.
+     * Animasi hologram tetap bisa bekerja.
+     */
+    transition:
+        opacity 180ms ease,
+        visibility 180ms ease,
+        transform 220ms ease;
+
+    /*
+     * Efek hologram.
+     */
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 0, 0, 0.13),
+            rgba(255, 0, 0, 0.035)
+        );
 
     border:
-        1px solid
-        rgba(255,45,64,.88);
-
-    border-radius:
-        5px;
-
-    background:
-        rgba(70,0,8,.18);
-
-    color:
-        #ff3348;
+        2px solid rgba(255, 45, 45, 0.92);
 
     box-shadow:
-        0 0 8px
-        rgba(255,31,51,.48),
+        0 0 6px rgba(255, 0, 0, 0.85),
+        0 0 16px rgba(255, 0, 0, 0.72),
+        0 0 34px rgba(255, 0, 0, 0.48),
+        inset 0 0 14px rgba(255, 0, 0, 0.28);
 
-        0 0 20px
-        rgba(255,31,51,.24),
+    overflow: hidden;
 
-        inset 0 0 12px
-        rgba(255,31,51,.12);
-
-    text-shadow:
-        0 0 5px
-        rgba(255,51,69,.95),
-
-        0 0 13px
-        rgba(255,31,51,.72);
-
-    overflow:
-        hidden;
-
-    transition:
-        opacity .18s ease,
-        visibility .18s ease,
-        transform .18s ease;
+    isolation: isolate;
 }
 
 
 /* =========================================================
-   HOLOGRAM VISIBLE
+   HOLOGRAM ACTIVE
 ========================================================= */
 
 #loginStatusHologram.is-visible {
 
-    visibility:
-        visible;
+    opacity: 1;
 
-    opacity:
-        1;
+    visibility: visible;
 
     transform:
         translate(-50%, -50%)
-        rotate(-7deg)
-        scale(1);
+        rotate(-8deg);
 
     animation:
-        loginStatusHologramFlicker
-        2.4s
-        steps(1, end)
-        infinite;
-}
-
-
-/* =========================================================
-   HOLOGRAM TEXT
-========================================================= */
-
-#loginStatusHologramText {
-
-    position:
-        relative;
-
-    z-index:
-        4;
-
-    display:
-        block;
-
-    color:
-        #ff3348;
-
-    font-family:
-        inherit;
-
-    font-size:
-        12px;
-
-    font-weight:
-        950;
-
-    line-height:
-        1;
-
-    letter-spacing:
-        .20em;
-
-    white-space:
-        nowrap;
-
-    text-align:
-        center;
-
-    text-shadow:
-        0 0 4px
-        rgba(255,255,255,.55),
-
-        0 0 9px
-        rgba(255,51,69,.95),
-
-        0 0 18px
-        rgba(255,31,51,.72);
-}
-
-
-/* =========================================================
-   HOLOGRAM SCAN
-========================================================= */
-
-#loginStatusHologram .login-status-hologram-scan {
-
-    position:
-        absolute;
-
-    z-index:
-        2;
-
-    top:
-        -100%;
-
-    left:
-        0;
-
-    width:
-        100%;
-
-    height:
-        55%;
-
-    pointer-events:
-        none;
-
-    background:
-        linear-gradient(
-            180deg,
-            transparent 0%,
-            rgba(255,255,255,.04) 40%,
-            rgba(255,51,69,.28) 50%,
-            rgba(255,255,255,.04) 60%,
-            transparent 100%
-        );
-
-    animation:
-        loginStatusHologramScan
-        2.1s
-        linear
-        infinite;
-}
-
-
-/* =========================================================
-   HOLOGRAM LINE
-========================================================= */
-
-#loginStatusHologram .login-status-hologram-line {
-
-    position:
-        absolute;
-
-    z-index:
-        3;
-
-    left:
-        5%;
-
-    right:
-        5%;
-
-    top:
-        50%;
-
-    height:
-        1px;
-
-    pointer-events:
-        none;
-
-    background:
-        rgba(255,82,96,.65);
-
-    box-shadow:
-        0 0 5px
-        rgba(255,51,69,.85);
-
-    opacity:
-        .55;
-
-    animation:
-        loginStatusHologramLine
-        1.4s
-        ease-in-out
-        infinite;
-}
-
-
-/* =========================================================
-   HOLOGRAM CORNERS
-========================================================= */
-
-#loginStatusHologram .login-status-hologram-corner {
-
-    position:
-        absolute;
-
-    z-index:
-        5;
-
-    width:
-        7px;
-
-    height:
-        7px;
-
-    pointer-events:
-        none;
-
-    border-color:
-        #ff3348;
-
-    border-style:
-        solid;
-
-    filter:
-        drop-shadow(
-            0 0 4px
-            rgba(255,51,69,.9)
-        );
-}
-
-
-#loginStatusHologram .login-status-hologram-corner.top {
-
-    top:
-        3px;
-
-    left:
-        3px;
-
-    border-width:
-        1px 0 0 1px;
-}
-
-
-#loginStatusHologram .login-status-hologram-corner.bottom {
-
-    right:
-        3px;
-
-    bottom:
-        3px;
-
-    border-width:
-        0 1px 1px 0;
+        loginStatusStampIn 260ms ease-out,
+        loginStatusHologramPulse 2.2s ease-in-out infinite;
 }
 
 
@@ -988,23 +762,20 @@ body::after {
 #loginStatusHologram.is-suspended {
 
     border-color:
-        rgba(255,51,69,.88);
-
-    color:
-        #ff3348;
+        rgba(255, 48, 48, 0.98);
 
     background:
-        rgba(110,0,12,.18);
+        linear-gradient(
+            180deg,
+            rgba(255, 20, 20, 0.17),
+            rgba(255, 0, 0, 0.035)
+        );
 
     box-shadow:
-        0 0 8px
-        rgba(255,31,51,.48),
-
-        0 0 20px
-        rgba(255,31,51,.24),
-
-        inset 0 0 12px
-        rgba(255,31,51,.12);
+        0 0 7px rgba(255, 0, 0, 0.95),
+        0 0 18px rgba(255, 0, 0, 0.82),
+        0 0 38px rgba(255, 0, 0, 0.56),
+        inset 0 0 18px rgba(255, 0, 0, 0.32);
 }
 
 
@@ -1015,372 +786,492 @@ body::after {
 #loginStatusHologram.is-banned {
 
     border-color:
-        rgba(255,34,50,.98);
-
-    color:
-        #ff263d;
+        rgba(255, 30, 30, 1);
 
     background:
-        rgba(120,0,10,.22);
+        linear-gradient(
+            180deg,
+            rgba(255, 0, 0, 0.21),
+            rgba(120, 0, 0, 0.06)
+        );
 
     box-shadow:
-        0 0 9px
-        rgba(255,31,51,.62),
-
-        0 0 25px
-        rgba(255,31,51,.32),
-
-        inset 0 0 15px
-        rgba(255,31,51,.16);
-}
-
-
-#loginStatusHologram.is-banned
-#loginStatusHologramText {
-
-    color:
-        #ff263d;
-
-    text-shadow:
-        0 0 4px
-        rgba(255,255,255,.55),
-
-        0 0 10px
-        rgba(255,31,51,1),
-
-        0 0 20px
-        rgba(255,31,51,.82);
+        0 0 8px rgba(255, 0, 0, 1),
+        0 0 20px rgba(255, 0, 0, 0.88),
+        0 0 44px rgba(255, 0, 0, 0.62),
+        inset 0 0 20px rgba(255, 0, 0, 0.38);
 }
 
 
 /* =========================================================
-   KEEP HOLOGRAM VISIBLE WHILE BUTTON DISABLED
-   ---------------------------------------------------------
-   Saat login gagal karena suspended/banned, auth.js
-   mematikan tombol. Rule ini mencegah opacity disabled
-   membuat hologram terlalu redup.
+   HOLOGRAM TEXT
 ========================================================= */
+
+.login-status-hologram-text {
+
+    position: relative;
+
+    z-index: 5;
+
+    display: block;
+
+    width: 100%;
+
+    text-align: center;
+
+    white-space: nowrap;
+
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    font-size: 24px;
+
+    line-height: 1;
+
+    font-weight: 950;
+
+    letter-spacing: 0.24em;
+
+    text-indent: 0.24em;
+
+    color:
+        rgba(255, 55, 55, 1);
+
+    text-shadow:
+
+        0 0 3px rgba(255, 255, 255, 0.95),
+
+        0 0 7px rgba(255, 0, 0, 1),
+
+        0 0 15px rgba(255, 0, 0, 0.95),
+
+        0 0 28px rgba(255, 0, 0, 0.8),
+
+        0 0 42px rgba(255, 0, 0, 0.5);
+
+    animation:
+        loginStatusTextFlicker 1.8s steps(1, end) infinite;
+}
+
+
+/* =========================================================
+   HOLOGRAM SCAN
+========================================================= */
+
+.login-status-hologram-scan {
+
+    position: absolute;
+
+    inset: 0;
+
+    z-index: 2;
+
+    pointer-events: none;
+
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.13) 0px,
+            rgba(255, 255, 255, 0.13) 1px,
+            transparent 1px,
+            transparent 5px
+        );
+
+    opacity: 0.34;
+
+    mix-blend-mode: screen;
+
+    animation:
+        loginStatusScanMove 1.25s linear infinite;
+}
+
+
+/* =========================================================
+   HOLOGRAM LIGHT LINE
+========================================================= */
+
+.login-status-hologram-line {
+
+    position: absolute;
+
+    left: 4%;
+
+    right: 4%;
+
+    top: 50%;
+
+    height: 1px;
+
+    z-index: 4;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.92),
+            rgba(255, 0, 0, 0.95),
+            rgba(255, 255, 255, 0.92),
+            transparent
+        );
+
+    box-shadow:
+        0 0 7px rgba(255, 0, 0, 0.9),
+        0 0 14px rgba(255, 0, 0, 0.6);
+
+    opacity: 0.75;
+
+    animation:
+        loginStatusLinePulse 1.5s ease-in-out infinite;
+}
+
+
+/* =========================================================
+   HOLOGRAM CORNERS
+========================================================= */
+
+.login-status-hologram-corner {
+
+    position: absolute;
+
+    width: 18px;
+
+    height: 18px;
+
+    z-index: 6;
+
+    border-color:
+        rgba(255, 65, 65, 0.98);
+
+    border-style: solid;
+
+    filter:
+        drop-shadow(
+            0 0 6px rgba(255, 0, 0, 0.9)
+        );
+}
+
+
+/* TOP CORNER */
+
+.login-status-hologram-corner.top {
+
+    top: 7px;
+
+    left: 9px;
+
+    border-width:
+        2px 0 0 2px;
+}
+
+
+/* BOTTOM CORNER */
+
+.login-status-hologram-corner.bottom {
+
+    right: 9px;
+
+    bottom: 7px;
+
+    border-width:
+        0 2px 2px 0;
+}
+
+
+/* =========================================================
+   BUTTON
+   ---------------------------------------------------------
+   Penting:
+   Hologram harus boleh keluar dari batas tombol.
+========================================================= */
+
+#loginButton {
+
+    overflow: visible;
+
+    isolation: isolate;
+}
+
+
+/* =========================================================
+   BUTTON SHINE
+   ---------------------------------------------------------
+   Shine tetap berada di area tombol.
+========================================================= */
+
+#loginButton::before {
+
+    pointer-events: none;
+
+    border-radius:
+        var(--input-radius);
+
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   HINDARI BUTTON BERGERAK SAAT HOLOGRAM AKTIF
+========================================================= */
+
+#loginButton:disabled {
+
+    opacity: 0.72;
+
+    cursor: not-allowed;
+
+    transform: none;
+
+    box-shadow:
+        0 14px 30px rgba(15, 23, 42, 0.20);
+}
+
+
+/* Hologram membuat tombol tetap cukup terlihat */
 
 #loginButton:disabled:has(
     #loginStatusHologram.is-visible
 ) {
 
-    opacity:
-        .88;
+    opacity: 0.94;
 }
 
 
 /* =========================================================
-   LOGIN MESSAGE
-   ========================================================= */
+   STAMP ENTER
+========================================================= */
 
-.login-message {
-    min-height:
-        22px;
+@keyframes loginStatusStampIn {
 
-    margin-top:
-        15px;
+    0% {
 
-    padding:
-        0 4px;
+        opacity: 0;
 
-    color:
-        #b42318;
+        transform:
+            translate(-50%, -50%)
+            rotate(-8deg)
+            scale(1.18);
+    }
 
-    text-align:
-        center;
+    65% {
 
-    font-size:
-        12px;
+        opacity: 1;
 
-    line-height:
-        1.5;
+        transform:
+            translate(-50%, -50%)
+            rotate(-8deg)
+            scale(0.98);
+    }
+
+    100% {
+
+        opacity: 1;
+
+        transform:
+            translate(-50%, -50%)
+            rotate(-8deg)
+            scale(1);
+    }
 }
 
 
 /* =========================================================
-   DESKTOP ENHANCEMENT
-   ========================================================= */
+   HOLOGRAM PULSE
+========================================================= */
 
-@media (min-width: 1000px) {
+@keyframes loginStatusHologramPulse {
 
-    .brand {
-        padding:
-            80px;
+    0%,
+    100% {
+
+        filter:
+            brightness(1)
+            saturate(1.1);
+
+        box-shadow:
+            0 0 7px rgba(255, 0, 0, 0.85),
+            0 0 18px rgba(255, 0, 0, 0.72),
+            0 0 36px rgba(255, 0, 0, 0.48),
+            inset 0 0 16px rgba(255, 0, 0, 0.28);
     }
 
-    #loginForm {
-        padding:
-            80px;
-    }
+    50% {
 
+        filter:
+            brightness(1.3)
+            saturate(1.35);
+
+        box-shadow:
+            0 0 10px rgba(255, 0, 0, 1),
+            0 0 25px rgba(255, 0, 0, 0.92),
+            0 0 52px rgba(255, 0, 0, 0.68),
+            inset 0 0 24px rgba(255, 0, 0, 0.42);
+    }
 }
 
 
 /* =========================================================
-   TABLET
-   ========================================================= */
+   TEXT FLICKER
+========================================================= */
 
-@media (max-width: 850px) {
+@keyframes loginStatusTextFlicker {
 
-    body {
-        padding:
-            20px;
+    0%,
+    91%,
+    100% {
+
+        opacity: 1;
     }
 
-    .login-container {
-        max-width:
-            520px;
+    92% {
+
+        opacity: 0.72;
     }
 
-    .login-card {
-        display:
-            block;
+    94% {
 
-        min-height:
-            auto;
+        opacity: 1;
     }
 
-    .brand {
-        min-height:
-            auto;
+    96% {
 
-        padding:
-            42px 40px;
-
-        border-radius:
-            var(--card-radius)
-            var(--card-radius)
-            0
-            0;
+        opacity: 0.82;
     }
 
-    .brand h1 {
-        font-size:
-            48px;
+    98% {
+
+        opacity: 1;
+    }
+}
+
+
+/* =========================================================
+   SCAN ANIMATION
+========================================================= */
+
+@keyframes loginStatusScanMove {
+
+    0% {
+
+        transform:
+            translateY(-30%);
     }
 
-    .brand p {
-        margin-top:
-            15px;
+    100% {
+
+        transform:
+            translateY(30%);
+    }
+}
+
+
+/* =========================================================
+   LINE PULSE
+========================================================= */
+
+@keyframes loginStatusLinePulse {
+
+    0%,
+    100% {
+
+        opacity: 0.35;
     }
 
-    #loginForm {
-        padding:
-            40px;
-    }
+    50% {
 
+        opacity: 0.95;
+    }
 }
 
 
 /* =========================================================
    MOBILE
-   ========================================================= */
+========================================================= */
 
 @media (max-width: 520px) {
 
-    body {
-        padding:
-            12px;
-    }
-
-    .login-card {
-        border-radius:
-            22px;
-    }
-
-    .brand {
-        padding:
-            36px 25px;
-    }
-
-    .brand h1 {
-        font-size:
-            40px;
-    }
-
-    .brand p {
-        font-size:
-            12px;
-    }
-
-    #loginForm {
-        padding:
-            30px 22px;
-    }
-
-    #loginForm::before {
-        margin-bottom:
-            18px;
-    }
-
-    .input-group {
-        margin-bottom:
-            16px;
-    }
-
-    .input-group input {
-        height:
-            52px;
-    }
-
-    #loginButton {
-        height:
-            52px;
-    }
-
-
-    /* -----------------------------------------------------
-       HOLOGRAM MOBILE
-    ----------------------------------------------------- */
-
     #loginStatusHologram {
 
-        min-width:
-            160px;
+        width: 142%;
 
-        max-width:
-            86%;
+        height: 72px;
 
-        padding:
-            7px 17px;
+        padding: 0 14px;
+
+        transform:
+            translate(-50%, -50%)
+            rotate(-8deg);
     }
+
 
     #loginStatusHologram.is-visible {
 
         transform:
             translate(-50%, -50%)
-            rotate(-7deg)
-            scale(1);
+            rotate(-8deg);
     }
 
-    #loginStatusHologramText {
 
-        font-size:
-            10px;
+    .login-status-hologram-text {
 
-        letter-spacing:
-            .16em;
+        font-size: 19px;
+
+        letter-spacing: 0.18em;
+
+        text-indent: 0.18em;
     }
 
+
+    .login-status-hologram-corner {
+
+        width: 15px;
+
+        height: 15px;
+    }
 }
 
 
 /* =========================================================
-   SMALL MOBILE
-   ========================================================= */
+   EXTRA SMALL MOBILE
+========================================================= */
 
 @media (max-width: 360px) {
 
-    body {
-        padding:
-            8px;
-    }
-
-    .brand {
-        padding:
-            30px 20px;
-    }
-
-    .brand h1 {
-        font-size:
-            35px;
-    }
-
-    #loginForm {
-        padding:
-            27px 18px;
-    }
-
-
-    /* -----------------------------------------------------
-       HOLOGRAM SMALL MOBILE
-    ----------------------------------------------------- */
-
     #loginStatusHologram {
 
-        min-width:
-            145px;
+        width: 138%;
 
-        max-width:
-            88%;
-
-        padding:
-            6px 14px;
+        height: 66px;
     }
 
-    #loginStatusHologramText {
 
-        font-size:
-            9px;
+    .login-status-hologram-text {
 
-        letter-spacing:
-            .13em;
+        font-size: 17px;
+
+        letter-spacing: 0.15em;
+
+        text-indent: 0.15em;
     }
-
-}
-
-
-/* =========================================================
-   LANDSCAPE MOBILE
-   ========================================================= */
-
-@media (max-height: 620px) and (orientation: landscape) {
-
-    body {
-        align-items:
-            flex-start;
-
-        overflow-y:
-            auto;
-    }
-
-    .login-container {
-        margin:
-            20px auto;
-    }
-
-    .brand {
-        padding:
-            30px;
-    }
-
-    #loginForm {
-        padding:
-            30px;
-    }
-
-}
-
-
-/* =========================================================
-   ACCESSIBILITY
-   ========================================================= */
-
-button:focus-visible,
-input:focus-visible {
-    outline:
-        2px solid #667085;
-
-    outline-offset:
-        2px;
 }
 
 
 /* =========================================================
    REDUCED MOTION
-   ========================================================= */
+========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
 
-    *,
-    *::before,
-    *::after {
-        transition:
-            none !important;
+    #loginStatusHologram,
+    .login-status-hologram-text,
+    .login-status-hologram-scan,
+    .login-status-hologram-line {
 
-        animation:
-            none !important;
+        animation: none !important;
     }
-
 }
