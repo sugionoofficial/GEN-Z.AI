@@ -2438,278 +2438,630 @@
 
 
     <!-- =========================================================
-         VIDDRA GENERATE
-    ========================================================== -->
+     VIDDRA GENERATE
+========================================================= -->
 
-    <script>
+<script>
 
-        (() => {
+    (() => {
 
-            "use strict";
-
-
-            /* =================================================
-               CONFIG
-            ================================================= */
-
-            const GENERATE_ENDPOINT =
-                "/api/viddra/generate";
+        "use strict";
 
 
-            const STATUS_ENDPOINT =
-                "/api/viddra/status";
+        /* =====================================================
+           CONFIG
+        ===================================================== */
+
+        const GENERATE_ENDPOINT =
+            "/api/viddra/generate";
 
 
-            const POLL_INTERVAL =
-                5000;
+        const STATUS_ENDPOINT =
+            "/api/viddra/status";
 
 
-            const MAX_POLL_TIME =
-                15 * 60 * 1000;
+        const POLL_INTERVAL =
+            5000;
 
 
-            /* =================================================
-               DOM
-            ================================================= */
-
-            const form =
-                document.getElementById(
-                    "viddraForm"
-                );
+        const MAX_POLL_TIME =
+            15 * 60 * 1000;
 
 
-            const prompt =
-                document.getElementById(
-                    "prompt"
-                );
+        const MODEL_ID =
+            "hailuo-2.3";
 
 
-            const promptCounter =
-                document.getElementById(
-                    "promptCounter"
-                );
+        /* =====================================================
+           DOM
+        ===================================================== */
+
+        const form =
+            document.getElementById(
+                "viddraForm"
+            );
 
 
-            const generateButton =
-                document.getElementById(
-                    "generateButton"
-                );
+        const prompt =
+            document.getElementById(
+                "prompt"
+            );
 
 
-            const statusBox =
-                document.getElementById(
-                    "statusBox"
-                );
+        const promptCounter =
+            document.getElementById(
+                "promptCounter"
+            );
 
 
-            const previewEmpty =
-                document.getElementById(
-                    "previewEmpty"
-                );
+        const generateButton =
+            document.getElementById(
+                "generateButton"
+            );
 
 
-            const resultVideo =
-                document.getElementById(
-                    "resultVideo"
-                );
+        const statusBox =
+            document.getElementById(
+                "statusBox"
+            );
 
 
-            /* =================================================
-               STATUS
-            ================================================= */
+        const previewEmpty =
+            document.getElementById(
+                "previewEmpty"
+            );
 
-            function setStatus(
-                message,
-                type = ""
+
+        const resultVideo =
+            document.getElementById(
+                "resultVideo"
+            );
+
+
+        /* =====================================================
+           STATUS UI
+        ===================================================== */
+
+        function setStatus(
+            message,
+            type = ""
+        ) {
+
+            if (
+                !statusBox
             ) {
 
-                statusBox.className =
-                    "status-box show";
+                return;
+
+            }
 
 
-                if (
+            statusBox.className =
+                "status-box show";
+
+
+            if (
+                type
+            ) {
+
+                statusBox.classList.add(
                     type
-                ) {
-
-                    statusBox.classList.add(
-                        type
-                    );
-
-                }
-
-
-                statusBox.innerHTML =
-                    message;
+                );
 
             }
 
 
-            function clearStatus() {
+            statusBox.innerHTML =
+                message;
 
-                statusBox.className =
-                    "status-box";
+        }
 
 
-                statusBox.textContent =
-                    "";
+        function clearStatus() {
+
+            if (
+                !statusBox
+            ) {
+
+                return;
 
             }
 
 
-            /* =================================================
-               LOADING
-            ================================================= */
+            statusBox.className =
+                "status-box";
 
-            function setLoading(
+
+            statusBox.textContent =
+                "";
+
+        }
+
+
+        /* =====================================================
+           LOADING
+        ===================================================== */
+
+        function setLoading(
+            loading
+        ) {
+
+            if (
+                !generateButton
+            ) {
+
+                return;
+
+            }
+
+
+            generateButton.disabled =
+                loading;
+
+
+            if (
                 loading
             ) {
 
-                generateButton.disabled =
-                    loading;
+                generateButton.innerHTML =
+                    `
+                        <span class="spinner"></span>
+                        Processing Video...
+                    `;
+
+            } else {
+
+                generateButton.innerHTML =
+                    `
+                        <span>✦</span>
+                        Generate Video
+                    `;
+
+            }
+
+        }
 
 
-                if (
-                    loading
-                ) {
+        /* =====================================================
+           PROMPT COUNTER
+        ===================================================== */
 
-                    generateButton.innerHTML =
-                        `
-                            <span class="spinner"></span>
-                            Processing Video...
-                        `;
+        function updatePromptCounter() {
 
-                } else {
+            if (
+                !prompt ||
+                !promptCounter
+            ) {
 
-                    generateButton.innerHTML =
-                        `
-                            <span>✦</span>
-                            Generate Video
-                        `;
-
-                }
+                return;
 
             }
 
 
-            /* =================================================
-               PROMPT COUNTER
-            ================================================= */
-
-            function updatePromptCounter() {
-
-                const length =
-                    prompt.value.length;
+            const length =
+                prompt.value.length;
 
 
-                promptCounter.textContent =
-                    `${length} / 1000`;
+            promptCounter.textContent =
+                `${length} / 1000`;
 
-            }
+        }
 
+
+        if (
+            prompt
+        ) {
 
             prompt.addEventListener(
                 "input",
                 updatePromptCounter
             );
 
-
-            /* =================================================
-               AUTH TOKEN
-            ================================================= */
-
-            async function getAccessToken() {
-
-                try {
-
-                    if (
-                        !window.supabaseClient
-                    ) {
-
-                        return null;
-
-                    }
+        }
 
 
-                    if (
-                        !window.supabaseClient.auth ||
-                        typeof window.supabaseClient.auth.getSession !==
-                            "function"
-                    ) {
+        /* =====================================================
+           AUTH TOKEN
+        ===================================================== */
 
-                        return null;
+        async function getAccessToken() {
 
-                    }
+            try {
 
-
-                    const result =
-                        await window.supabaseClient
-                            .auth
-                            .getSession();
-
-
-                    return (
-                        result?.data?.session?.access_token ||
-                        null
-                    );
-
-                } catch (
-                    error
+                if (
+                    !window.supabaseClient
                 ) {
-
-                    console.error(
-                        "[VidDra] Failed to read session:",
-                        error
-                    );
-
 
                     return null;
 
                 }
 
+
+                if (
+                    !window.supabaseClient.auth ||
+                    typeof window.supabaseClient.auth.getSession !==
+                        "function"
+                ) {
+
+                    return null;
+
+                }
+
+
+                const result =
+                    await window.supabaseClient
+                        .auth
+                        .getSession();
+
+
+                return (
+                    result?.data?.session?.access_token ||
+                    null
+                );
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[VidDra] Failed to read GEN-Z.AI session:",
+                    error
+                );
+
+
+                return null;
+
+            }
+
+        }
+
+
+        /* =====================================================
+           REQUIRE GEN-Z.AI SESSION
+        ===================================================== */
+
+        async function requireSession() {
+
+            const token =
+                await getAccessToken();
+
+
+            if (
+                !token
+            ) {
+
+                throw new Error(
+                    "Session GEN-Z.AI tidak ditemukan. Silakan login kembali."
+                );
+
             }
 
 
-            /* =================================================
-               AUTH CHECK
-            ================================================= */
+            return token;
 
-            async function requireSession() {
+        }
 
-                const token =
-                    await getAccessToken();
 
+        /* =====================================================
+           CREATE TASK
+        ===================================================== */
+
+        async function createTask(
+            promptValue
+        ) {
+
+            const token =
+                await requireSession();
+
+
+            const response =
+                await fetch(
+                    GENERATE_ENDPOINT,
+                    {
+
+                        method:
+                            "POST",
+
+                        headers: {
+
+                            "Content-Type":
+                                "application/json",
+
+                            "Accept":
+                                "application/json",
+
+                            "Authorization":
+                                `Bearer ${token}`
+
+                        },
+
+                        credentials:
+                            "include",
+
+                        body:
+                            JSON.stringify(
+                                {
+                                    prompt:
+                                        promptValue
+                                }
+                            )
+
+                    }
+                );
+
+
+            const data =
+                await response
+                    .json()
+                    .catch(
+                        () => ({})
+                    );
+
+
+            if (
+                !response.ok ||
+                data?.success === false
+            ) {
+
+                throw new Error(
+                    data?.error ||
+                    data?.message ||
+                    `Generate failed (${response.status})`
+                );
+
+            }
+
+
+            const taskId =
+                data?.task_id ||
+                data?.taskId ||
+                data?.id;
+
+
+            if (
+                !taskId
+            ) {
+
+                throw new Error(
+                    "VidDra tidak mengembalikan generation ID."
+                );
+
+            }
+
+
+            return {
+
+                taskId,
+
+                data
+
+            };
+
+        }
+
+
+        /* =====================================================
+           NORMALIZE STATUS
+        ===================================================== */
+
+        function getNormalizedState(
+            data
+        ) {
+
+            const state =
+                String(
+                    data?.state ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            const providerState =
+                String(
+                    data?.provider_state ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            const historyStatus =
+                String(
+                    data?.history_database_status ||
+                    data?.history_status ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            if (
+                data?.completed === true ||
+                state === "completed" ||
+                historyStatus === "success"
+            ) {
+
+                return "completed";
+
+            }
+
+
+            if (
+                data?.failed === true ||
+                state === "failed" ||
+                historyStatus === "failed"
+            ) {
+
+                return "failed";
+
+            }
+
+
+            if (
+                state === "cancelled" ||
+                historyStatus === "cancelled"
+            ) {
+
+                return "cancelled";
+
+            }
+
+
+            if (
+                providerState
+            ) {
+
+                return providerState;
+
+            }
+
+
+            if (
+                state
+            ) {
+
+                return state;
+
+            }
+
+
+            return "processing";
+
+        }
+
+
+        /* =====================================================
+           EXTRACT RESULT URL
+        ===================================================== */
+
+        function extractResultUrl(
+            data
+        ) {
+
+            const resultUrls =
+                Array.isArray(
+                    data?.result_urls
+                )
+                    ? data.result_urls
+                    : Array.isArray(
+                        data?.resultUrls
+                    )
+                        ? data.resultUrls
+                        : [];
+
+
+            const directUrl =
+                data?.result_url ||
+                data?.video_url ||
+                data?.history_result_url ||
+                "";
+
+
+            if (
+                directUrl
+            ) {
+
+                return String(
+                    directUrl
+                ).trim();
+
+            }
+
+
+            for (
+                const url of
+                    resultUrls
+            ) {
 
                 if (
-                    !token
+                    typeof url ===
+                        "string" &&
+                    url.trim()
+                ) {
+
+                    return url.trim();
+
+                }
+
+            }
+
+
+            return "";
+
+        }
+
+
+        /* =====================================================
+           POLL STATUS
+           -----------------------------------------------------
+           Backend:
+           POST /api/viddra/status
+
+           Body:
+           {
+               task_id,
+               model_id
+           }
+        ===================================================== */
+
+        async function pollTask(
+            taskId
+        ) {
+
+            const startedAt =
+                Date.now();
+
+
+            while (
+                true
+            ) {
+
+                if (
+                    Date.now() -
+                    startedAt >
+                    MAX_POLL_TIME
                 ) {
 
                     throw new Error(
-                        "Session GEN-Z.AI tidak ditemukan. Silakan login kembali."
+                        "Generation timeout setelah 15 menit."
                     );
 
                 }
 
 
-                return token;
+                /*
+                 * Tunggu sebelum polling pertama.
+                 */
 
-            }
+                await new Promise(
+                    resolve =>
+                        setTimeout(
+                            resolve,
+                            POLL_INTERVAL
+                        )
+                );
 
-
-            /* =================================================
-               SUBMIT
-            ================================================= */
-
-            async function createTask(
-                promptValue
-            ) {
 
                 const token =
                     await requireSession();
 
 
+                /*
+                 * -------------------------------------------------
+                 * IMPORTANT
+                 * -------------------------------------------------
+                 *
+                 * Jangan lagi memakai:
+                 *
+                 * GET /api/viddra/status?id=...
+                 *
+                 * Endpoint baru menggunakan POST.
+                 */
+
                 const response =
                     await fetch(
-                        GENERATE_ENDPOINT,
+                        STATUS_ENDPOINT,
                         {
 
                             method:
@@ -2734,8 +3086,13 @@
                             body:
                                 JSON.stringify(
                                     {
-                                        prompt:
-                                            promptValue
+
+                                        task_id:
+                                            taskId,
+
+                                        model_id:
+                                            MODEL_ID
+
                                     }
                                 )
 
@@ -2759,226 +3116,163 @@
                     throw new Error(
                         data?.error ||
                         data?.message ||
-                        `Generate failed (${response.status})`
+                        `Status request failed (${response.status})`
                     );
 
                 }
 
 
-                const taskId =
-                    data?.task_id ||
-                    data?.id;
+                const state =
+                    getNormalizedState(
+                        data
+                    );
 
+
+                /*
+                 * -------------------------------------------------
+                 * COMPLETED
+                 * -------------------------------------------------
+                 */
 
                 if (
-                    !taskId
+                    state ===
+                    "completed"
+                ) {
+
+                    const videoUrl =
+                        extractResultUrl(
+                            data
+                        );
+
+
+                    if (
+                        !videoUrl
+                    ) {
+
+                        throw new Error(
+                            "VidDra menyatakan generation selesai, tetapi URL video belum tersedia."
+                        );
+
+                    }
+
+
+                    return {
+
+                        ...data,
+
+                        video_url:
+                            videoUrl,
+
+                        result_url:
+                            videoUrl
+
+                    };
+
+                }
+
+
+                /*
+                 * -------------------------------------------------
+                 * FAILED
+                 * -------------------------------------------------
+                 */
+
+                if (
+                    state ===
+                    "failed"
                 ) {
 
                     throw new Error(
-                        "VidDra tidak mengembalikan generation ID."
+                        data?.history_error ||
+                        data?.error_message ||
+                        data?.error ||
+                        "VidDra generation gagal."
                     );
 
                 }
 
 
-                return {
+                /*
+                 * -------------------------------------------------
+                 * CANCELLED
+                 * -------------------------------------------------
+                 */
 
-                    taskId,
+                if (
+                    state ===
+                    "cancelled"
+                ) {
 
+                    throw new Error(
+                        "Generation dibatalkan."
+                    );
+
+                }
+
+
+                /*
+                 * -------------------------------------------------
+                 * PROCESSING
+                 * -------------------------------------------------
+                 */
+
+                setStatus(
+                    `
+                        <strong>Generating...</strong><br>
+
+                        Task ID:
+                        ${escapeHtml(
+                            taskId
+                        )}
+
+                        <br>
+
+                        Status:
+                        ${escapeHtml(
+                            state ||
+                            "processing"
+                        )}
+
+                        <br>
+
+                        VidDra sedang memproses video.
+                    `,
+                    "processing"
+                );
+
+            }
+
+        }
+
+
+        /* =====================================================
+           SHOW RESULT
+        ===================================================== */
+
+        function showResult(
+            data
+        ) {
+
+            const videoUrl =
+                extractResultUrl(
                     data
+                );
 
-                };
+
+            if (
+                !videoUrl
+            ) {
+
+                throw new Error(
+                    "VidDra tidak mengembalikan URL video."
+                );
 
             }
 
 
-            /* =================================================
-               POLL
-            ================================================= */
-
-            async function pollTask(
-                taskId
+            if (
+                resultVideo
             ) {
-
-                const startedAt =
-                    Date.now();
-
-
-                while (
-                    true
-                ) {
-
-                    if (
-                        Date.now() -
-                        startedAt >
-                        MAX_POLL_TIME
-                    ) {
-
-                        throw new Error(
-                            "Generation timeout setelah 15 menit."
-                        );
-
-                    }
-
-
-                    await new Promise(
-                        resolve =>
-                            setTimeout(
-                                resolve,
-                                POLL_INTERVAL
-                            )
-                    );
-
-
-                    const token =
-                        await requireSession();
-
-
-                    const response =
-                        await fetch(
-                            `${STATUS_ENDPOINT}?id=${encodeURIComponent(
-                                taskId
-                            )}`,
-                            {
-
-                                method:
-                                    "GET",
-
-                                headers: {
-
-                                    "Accept":
-                                        "application/json",
-
-                                    "Authorization":
-                                        `Bearer ${token}`
-
-                                },
-
-                                credentials:
-                                    "include"
-
-                            }
-                        );
-
-
-                    const data =
-                        await response
-                            .json()
-                            .catch(
-                                () => ({})
-                            );
-
-
-                    if (
-                        !response.ok ||
-                        data?.success === false
-                    ) {
-
-                        throw new Error(
-                            data?.error ||
-                            data?.message ||
-                            `Status request failed (${response.status})`
-                        );
-
-                    }
-
-
-                    const status =
-                        String(
-                            data?.status ||
-                            ""
-                        )
-                            .trim()
-                            .toLowerCase();
-
-
-                    const providerStatus =
-                        String(
-                            data?.provider_status ||
-                            ""
-                        )
-                            .trim()
-                            .toLowerCase();
-
-
-                    if (
-                        status ===
-                            "success"
-                    ) {
-
-                        return data;
-
-                    }
-
-
-                    if (
-                        status ===
-                            "failed" ||
-                        status ===
-                            "cancelled"
-                    ) {
-
-                        throw new Error(
-                            data?.error_message ||
-                            data?.error ||
-                            "VidDra generation gagal."
-                        );
-
-                    }
-
-
-                    const visibleStatus =
-                        providerStatus ||
-                        status ||
-                        "processing";
-
-
-                    setStatus(
-                        `
-                            <strong>Generating...</strong><br>
-                            Task ID:
-                            ${escapeHtml(
-                                taskId
-                            )}<br>
-                            Status:
-                            ${escapeHtml(
-                                visibleStatus
-                            )}
-                            <br>
-                            VidDra sedang memproses video.
-                        `,
-                        "processing"
-                    );
-
-                }
-
-            }
-
-
-            /* =================================================
-               SHOW RESULT
-            ================================================= */
-
-            function showResult(
-                data
-            ) {
-
-                const videoUrl =
-                    data?.video_url ||
-                    data?.result_url ||
-                    "";
-
-
-                if (
-                    !videoUrl
-                ) {
-
-                    throw new Error(
-                        "VidDra tidak mengembalikan video_url."
-                    );
-
-                }
-
 
                 resultVideo.src =
                     videoUrl;
@@ -2988,64 +3282,76 @@
                     "block";
 
 
+                resultVideo.load();
+
+            }
+
+
+            if (
+                previewEmpty
+            ) {
+
                 previewEmpty.style.display =
                     "none";
 
+            }
 
-                resultVideo.load();
+
+            setStatus(
+                `
+                    <strong>Generation completed.</strong><br>
+                    Video berhasil dibuat oleh VidDra.
+                    <br>
+                    History GEN-Z.AI sudah diperbarui.
+                `,
+                "success"
+            );
+
+        }
 
 
-                setStatus(
-                    `
-                        <strong>Generation completed.</strong><br>
-                        Video berhasil dibuat oleh VidDra.
-                        <br>
-                        Hasil juga sudah diperbarui di History.
-                    `,
-                    "success"
+        /* =====================================================
+           ESCAPE HTML
+        ===================================================== */
+
+        function escapeHtml(
+            value
+        ) {
+
+            return String(
+                value ?? ""
+            )
+                .replace(
+                    /&/g,
+                    "&amp;"
+                )
+                .replace(
+                    /</g,
+                    "&lt;"
+                )
+                .replace(
+                    />/g,
+                    "&gt;"
+                )
+                .replace(
+                    /"/g,
+                    "&quot;"
+                )
+                .replace(
+                    /'/g,
+                    "&#039;"
                 );
 
-            }
+        }
 
 
-            /* =================================================
-               ESCAPE
-            ================================================= */
+        /* =====================================================
+           FORM SUBMIT
+        ===================================================== */
 
-            function escapeHtml(
-                value
-            ) {
-
-                return String(
-                    value ?? ""
-                )
-                    .replace(
-                        /&/g,
-                        "&amp;"
-                    )
-                    .replace(
-                        /</g,
-                        "&lt;"
-                    )
-                    .replace(
-                        />/g,
-                        "&gt;"
-                    )
-                    .replace(
-                        /"/g,
-                        "&quot;"
-                    )
-                    .replace(
-                        /'/g,
-                        "&#039;"
-                    );
-
-            }
-
-
-            /* =================================================
-               FORM SUBMIT
-            ================================================= */
+        if (
+            form
+        ) {
 
             form.addEventListener(
                 "submit",
@@ -3058,7 +3364,9 @@
 
 
                     const promptValue =
-                        prompt.value.trim();
+                        prompt?.value
+                            ?.trim() ||
+                        "";
 
 
                     if (
@@ -3071,7 +3379,7 @@
                         );
 
 
-                        prompt.focus();
+                        prompt?.focus();
 
 
                         return;
@@ -3112,17 +3420,21 @@
                     try {
 
                         /*
-                         * HANYA prompt yang dikirim
-                         * dari browser.
+                         * Browser hanya mengirim prompt.
                          *
                          * Backend mengunci:
                          *
-                         * model      = hailuo-2.3
-                         * duration   = 6
-                         * resolution = 1080P
+                         * model:
+                         * hailuo-2.3
                          *
-                         * API key VidDra tidak pernah
-                         * masuk ke browser.
+                         * duration:
+                         * 6
+                         *
+                         * resolution:
+                         * 1080P
+                         *
+                         * API key VidDra:
+                         * SERVER ONLY
                          */
 
                         const created =
@@ -3134,14 +3446,19 @@
                         setStatus(
                             `
                                 <strong>Task created.</strong><br>
+
                                 Task ID:
                                 ${escapeHtml(
                                     created.taskId
                                 )}
+
                                 <br>
+
                                 Status:
                                 queued
+
                                 <br>
+
                                 Menunggu VidDra memproses video...
                             `,
                             "processing"
@@ -3171,9 +3488,12 @@
                         setStatus(
                             `
                                 <strong>Generation failed.</strong><br>
+
                                 ${escapeHtml(
                                     error?.message ||
-                                    String(error)
+                                    String(
+                                        error
+                                    )
                                 )}
                             `,
                             "error"
@@ -3190,37 +3510,41 @@
                 }
             );
 
-
-            /* =================================================
-               INITIALIZE
-            ================================================= */
-
-            updatePromptCounter();
+        }
 
 
-            /*
-             * Navigation baru.
-             */
+        /* =====================================================
+           INITIALIZE
+        ===================================================== */
 
-            if (
-                window.GENZNavigation &&
-                typeof window.GENZNavigation.init ===
-                    "function"
-            ) {
+        updatePromptCounter();
 
-                window.GENZNavigation
-                    .init()
-                    .catch(
-                        error =>
-                            console.warn(
-                                "[VidDra] Navigation init:",
-                                error
-                            )
-                    );
 
-            }
+        /*
+         * Navigation baru.
+         */
 
-        })();
+        if (
+            window.GENZNavigation &&
+            typeof window.GENZNavigation.init ===
+                "function"
+        ) {
+
+            window.GENZNavigation
+                .init()
+                .catch(
+                    error =>
+                        console.warn(
+                            "[VidDra] Navigation init:",
+                            error
+                        )
+                );
+
+        }
+
+    })();
+
+</script>
 
     </script>
 
