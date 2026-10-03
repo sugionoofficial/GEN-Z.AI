@@ -428,6 +428,16 @@ export function openEditModal(
 
     /*
      * Status
+     * -----------------------------------------------------
+     * STATUS DATABASE YANG VALID:
+     *
+     * active
+     * suspended
+     * banned
+     *
+     * Tidak menggunakan "inactive".
+     * Jika user.status = "banned", maka dropdown
+     * Edit User harus tetap memilih "banned".
      */
 
     const statusSelect =
@@ -451,9 +461,9 @@ export function openEditModal(
 
             "active",
 
-            "inactive",
+            "suspended",
 
-            "suspended"
+            "banned"
 
         ];
 
@@ -465,6 +475,23 @@ export function openEditModal(
                 ? status
 
                 : "active";
+
+
+        /*
+         * Debug ringan untuk memastikan nilai status
+         * yang diterima dari database sesuai dengan
+         * option yang tersedia pada select.
+         */
+
+        console.log(
+            "[GEN-Z.AI UserModal] Edit status:",
+            {
+                userId: user.id,
+                databaseStatus: user.status,
+                normalizedStatus: status,
+                selectedStatus: statusSelect.value
+            }
+        );
 
     }
 
