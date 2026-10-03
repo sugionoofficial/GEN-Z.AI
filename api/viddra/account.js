@@ -29,7 +29,7 @@
 import {
     createVidDraSessionCookie,
     getVidDraSession
-} from "./session.js";
+} from "../../lib/viddra/session.js";
 
 
 const SUPABASE_URL =
