@@ -1,4 +1,4 @@
-//auth.js?v=2.6
+//auth.js?v=2.7
 // ========================================
 // GEN-Z.AI - SUPABASE AUTHENTICATION
 // ========================================
@@ -26,6 +26,7 @@
             document.getElementById("loginMessage");
 
         if (message) {
+
             message.textContent =
                 "Konfigurasi Supabase tidak ditemukan.";
         }
@@ -51,6 +52,7 @@
             document.getElementById("loginMessage");
 
         if (message) {
+
             message.textContent =
                 "Supabase belum berhasil dimuat.";
         }
@@ -122,16 +124,19 @@
             return;
         }
 
+
         loginStatusHologram.classList.remove(
             "is-visible",
             "is-suspended",
             "is-banned"
         );
 
+
         loginStatusHologram.setAttribute(
             "aria-hidden",
             "true"
         );
+
 
         if (loginStatusHologramText) {
 
@@ -154,15 +159,16 @@
             return;
         }
 
+
         const normalizedStatus =
             String(status || "")
                 .trim()
                 .toLowerCase();
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // SUSPENDED
-        // -----------------------------------------------------
+        // =====================================================
 
         if (
             normalizedStatus === "suspended"
@@ -171,27 +177,31 @@
             loginStatusHologramText.textContent =
                 "SUSPENDED";
 
+
             loginStatusHologram.classList.remove(
                 "is-banned"
             );
+
 
             loginStatusHologram.classList.add(
                 "is-suspended",
                 "is-visible"
             );
 
+
             loginStatusHologram.setAttribute(
                 "aria-hidden",
                 "false"
             );
 
+
             return;
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // BANNED
-        // -----------------------------------------------------
+        // =====================================================
 
         if (
             normalizedStatus === "banned"
@@ -200,27 +210,31 @@
             loginStatusHologramText.textContent =
                 "BANNED";
 
+
             loginStatusHologram.classList.remove(
                 "is-suspended"
             );
+
 
             loginStatusHologram.classList.add(
                 "is-banned",
                 "is-visible"
             );
 
+
             loginStatusHologram.setAttribute(
                 "aria-hidden",
                 "false"
             );
 
+
             return;
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // STATUS LAIN
-        // -----------------------------------------------------
+        // =====================================================
 
         hideLoginStatusHologram();
     }
@@ -243,12 +257,13 @@
 
 
     // =========================================================
-    // HELPER
+    // HELPER MESSAGE
     // =========================================================
 
     function showMessage(message) {
 
         if (loginMessage) {
+
             loginMessage.textContent =
                 message;
         }
@@ -258,10 +273,13 @@
     // =========================================================
     // SET LOADING
     // ---------------------------------------------------------
-    // Penting:
-    // Jangan menggunakan loginButton.textContent karena
-    // itu akan menghapus seluruh child element tombol,
-    // termasuk hologram.
+    // PENTING:
+    // Jangan menggunakan:
+    //
+    // loginButton.textContent
+    //
+    // karena itu akan menghapus seluruh child element
+    // tombol, termasuk hologram.
     // =========================================================
 
     function setLoading(loading) {
@@ -275,6 +293,10 @@
             loading;
 
 
+        // -----------------------------------------------------
+        // BUTTON TEXT
+        // -----------------------------------------------------
+
         if (loginButtonText) {
 
             loginButtonText.textContent =
@@ -284,6 +306,10 @@
         }
 
 
+        // -----------------------------------------------------
+        // SPINNER
+        // -----------------------------------------------------
+
         if (loginSpinner) {
 
             loginSpinner.classList.toggle(
@@ -292,6 +318,10 @@
             );
         }
 
+
+        // -----------------------------------------------------
+        // BUTTON STATE
+        // -----------------------------------------------------
 
         loginButton.classList.toggle(
             "loading",
@@ -317,6 +347,10 @@
             ).toLowerCase();
 
 
+        // -----------------------------------------------------
+        // INVALID LOGIN
+        // -----------------------------------------------------
+
         if (
             message.includes(
                 "invalid login credentials"
@@ -328,6 +362,10 @@
             );
         }
 
+
+        // -----------------------------------------------------
+        // EMAIL NOT CONFIRMED
+        // -----------------------------------------------------
 
         if (
             message.includes(
@@ -341,6 +379,10 @@
         }
 
 
+        // -----------------------------------------------------
+        // TOO MANY REQUESTS
+        // -----------------------------------------------------
+
         if (
             message.includes(
                 "too many requests"
@@ -353,6 +395,10 @@
         }
 
 
+        // -----------------------------------------------------
+        // NETWORK ERROR
+        // -----------------------------------------------------
+
         if (
             message.includes("network") ||
             message.includes("fetch")
@@ -363,6 +409,10 @@
             );
         }
 
+
+        // -----------------------------------------------------
+        // DEFAULT
+        // -----------------------------------------------------
 
         return (
             error.message ||
@@ -386,7 +436,7 @@
 
 
     // =========================================================
-    // HIDE HOLOGRAM SAAT USER MULAI INPUT ULANG
+    // INPUT ELEMENT
     // =========================================================
 
     const emailInput =
@@ -395,6 +445,10 @@
     const passwordInput =
         document.getElementById("password");
 
+
+    // =========================================================
+    // HIDE HOLOGRAM SAAT USER MENGETIK EMAIL
+    // =========================================================
 
     if (emailInput) {
 
@@ -408,6 +462,10 @@
         );
     }
 
+
+    // =========================================================
+    // HIDE HOLOGRAM SAAT USER MENGETIK PASSWORD
+    // =========================================================
 
     if (passwordInput) {
 
@@ -433,6 +491,10 @@
             event.preventDefault();
 
 
+            // =================================================
+            // AMBIL ELEMENT
+            // =================================================
+
             const emailElement =
                 document.getElementById("email");
 
@@ -440,14 +502,16 @@
                 document.getElementById("password");
 
 
-            // -------------------------------------------------
+            // =================================================
             // CEK ELEMENT FORM
-            // -------------------------------------------------
+            // =================================================
 
             if (
                 !emailElement ||
                 !passwordElement
             ) {
+
+                hideLoginStatusHologram();
 
                 showMessage(
                     "Form login tidak lengkap."
@@ -457,9 +521,9 @@
             }
 
 
-            // -------------------------------------------------
+            // =================================================
             // AMBIL INPUT
-            // -------------------------------------------------
+            // =================================================
 
             const email =
                 emailElement.value
@@ -470,11 +534,14 @@
                 passwordElement.value;
 
 
-            // -------------------------------------------------
+            // =================================================
             // VALIDASI INPUT
-            // -------------------------------------------------
+            // =================================================
 
-            if (!email || !password) {
+            if (
+                !email ||
+                !password
+            ) {
 
                 hideLoginStatusHologram();
 
@@ -486,9 +553,9 @@
             }
 
 
-            // -------------------------------------------------
+            // =================================================
             // LOGIN BARU
-            // -------------------------------------------------
+            // =================================================
 
             hideLoginStatusHologram();
 
@@ -592,6 +659,10 @@
                     await supabaseClient.auth
                         .signOut();
 
+
+                    hideLoginStatusHologram();
+
+
                     throw new Error(
                         "User ID session tidak sesuai."
                     );
@@ -638,7 +709,9 @@
                     await supabaseClient.auth
                         .signOut();
 
+
                     hideLoginStatusHologram();
+
 
                     throw new Error(
                         "Profile belum ditemukan untuk akun ini."
@@ -661,7 +734,9 @@
                     await supabaseClient.auth
                         .signOut();
 
+
                     hideLoginStatusHologram();
+
 
                     throw new Error(
                         "ID profile tidak sesuai dengan user."
@@ -670,7 +745,7 @@
 
 
                 // =================================================
-                // NORMALISASI STATUS
+                // NORMALISASI STATUS AKUN
                 // =================================================
 
                 const accountStatus =
@@ -690,14 +765,26 @@
                     "suspended"
                 ) {
 
+                    // -------------------------------------------------
+                    // HENTIKAN SESSION
+                    // -------------------------------------------------
+
                     await supabaseClient.auth
                         .signOut();
 
+
+                    // -------------------------------------------------
+                    // TAMPILKAN CAP HOLOGRAM
+                    // -------------------------------------------------
 
                     showLoginStatusHologram(
                         "suspended"
                     );
 
+
+                    // -------------------------------------------------
+                    // PESAN
+                    // -------------------------------------------------
 
                     throw new Error(
                         "Akun Anda sedang ditangguhkan."
@@ -714,14 +801,26 @@
                     "banned"
                 ) {
 
+                    // -------------------------------------------------
+                    // HENTIKAN SESSION
+                    // -------------------------------------------------
+
                     await supabaseClient.auth
                         .signOut();
 
+
+                    // -------------------------------------------------
+                    // TAMPILKAN CAP HOLOGRAM
+                    // -------------------------------------------------
 
                     showLoginStatusHologram(
                         "banned"
                     );
 
+
+                    // -------------------------------------------------
+                    // PESAN
+                    // -------------------------------------------------
 
                     throw new Error(
                         "Akun Anda telah diblokir."
@@ -741,7 +840,9 @@
                     await supabaseClient.auth
                         .signOut();
 
+
                     hideLoginStatusHologram();
+
 
                     throw new Error(
                         "Status akun tidak valid."
@@ -771,12 +872,15 @@
 
                     hideLoginStatusHologram();
 
+
                     showMessage(
                         "Login berhasil. Membuka dashboard..."
                     );
 
+
                     window.location.href =
                         "user/dashboard.html";
+
 
                     return;
                 }
@@ -793,12 +897,15 @@
 
                     hideLoginStatusHologram();
 
+
                     showMessage(
                         "Login berhasil. Membuka dashboard admin..."
                     );
 
+
                     window.location.href =
                         "admin/dashboard/index.html";
+
 
                     return;
                 }
@@ -811,19 +918,22 @@
                 await supabaseClient.auth
                     .signOut();
 
+
                 hideLoginStatusHologram();
+
 
                 throw new Error(
                     "Role akun tidak valid."
                 );
 
+            }
 
-            } catch (error) {
 
+            // =====================================================
+            // CATCH LOGIN ERROR
+            // =====================================================
 
-                // =================================================
-                // LOGIN ERROR
-                // =================================================
+            catch (error) {
 
                 console.error(
                     "GEN-Z.AI login error:",
@@ -831,17 +941,32 @@
                 );
 
 
+                // -------------------------------------------------
+                // TAMPILKAN PESAN
+                // -------------------------------------------------
+
                 showMessage(
                     getFriendlyAuthError(error)
                 );
 
 
-                // =================================================
+                // -------------------------------------------------
                 // RESET LOADING
                 // -------------------------------------------------
-                // Tidak menghapus hologram.
-                // Hologram tetap berada di atas tombol.
-                // =================================================
+                //
+                // Penting:
+                // setLoading(false) hanya mengubah span text,
+                // spinner, dan class loading.
+                //
+                // Hologram TIDAK disentuh.
+                //
+                // Jadi untuk:
+                //
+                // SUSPENDED
+                // BANNED
+                //
+                // cap tetap tampil di atas tombol.
+                // -------------------------------------------------
 
                 setLoading(false);
 
@@ -860,9 +985,10 @@
 
             /*
              * Jangan melakukan redirect otomatis
-             * di sini. Redirect tetap dikontrol oleh
-             * proses login agar role USER / ADMIN /
-             * OWNER tidak tertukar.
+             * di sini.
+             *
+             * Redirect tetap dikontrol oleh proses login
+             * agar role USER / ADMIN / OWNER tidak tertukar.
              */
 
             if (
