@@ -462,6 +462,16 @@ function renderUserRow(
             .toUpperCase();
 
 
+    /*
+     * STATUS DATABASE:
+     *
+     * active
+     * suspended
+     * banned
+     *
+     * Tidak menggunakan inactive.
+     */
+
     const status =
         String(
             user.status || "active"
@@ -488,17 +498,51 @@ function renderUserRow(
         );
 
 
-    const statusLabel =
+    /*
+     * Status label.
+     *
+     * Jangan menggunakan fallback
+     * "Active" untuk status selain active.
+     */
 
+    let statusLabel = "Active";
+
+
+    if (
         status === "suspended"
+    ) {
 
-            ? "Suspended"
+        statusLabel = "Suspended";
 
-            : status === "inactive"
+    }
 
-                ? "Inactive"
 
-                : "Active";
+    if (
+        status === "banned"
+    ) {
+
+        statusLabel = "Banned";
+
+    }
+
+
+    /*
+     * Debug status render.
+     *
+     * Membantu memastikan status dari data user
+     * benar-benar diterjemahkan ke label tabel.
+     */
+
+    console.log(
+        "[GEN-Z.AI UserRender] Status render:",
+        {
+            userId: user.id,
+            databaseStatus: user.status,
+            normalizedStatus: status,
+            statusClass: statusClass,
+            statusLabel: statusLabel
+        }
+    );
 
 
     return `
