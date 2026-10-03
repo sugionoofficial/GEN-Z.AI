@@ -1,11 +1,23 @@
 /* =========================================================
    GEN-Z.AI
    PREMIUM LOGIN SYSTEM
+   ---------------------------------------------------------
+   Layout:
+   - Desktop premium two-column
+   - Mobile compact / viewport-safe
+   - Suspended / Banned hologram preserved
    ========================================================= */
 
+
+/* =========================================================
+   ROOT
+========================================================= */
+
 :root {
+
     --black: #0b0f19;
     --black-2: #151b28;
+
     --gray-900: #101828;
     --gray-700: #344054;
     --gray-600: #475467;
@@ -14,6 +26,7 @@
     --gray-300: #d0d5dd;
     --gray-200: #eaecf0;
     --gray-100: #f2f4f7;
+
     --white: #ffffff;
 
     --card-radius: 28px;
@@ -27,7 +40,7 @@
 
 /* =========================================================
    RESET
-   ========================================================= */
+========================================================= */
 
 * {
     box-sizing: border-box;
@@ -35,12 +48,16 @@
     padding: 0;
 }
 
+
 html {
     min-height: 100%;
 }
 
+
 body {
+
     min-height: 100vh;
+    min-height: 100dvh;
 
     font-family:
         Inter,
@@ -51,7 +68,8 @@ body {
         "Segoe UI",
         sans-serif;
 
-    color: var(--gray-900);
+    color:
+        var(--gray-900);
 
     background:
         radial-gradient(
@@ -71,35 +89,55 @@ body {
             #e7ebf0 100%
         );
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display:
+        flex;
 
-    padding: 32px;
+    align-items:
+        center;
 
-    overflow-x: hidden;
+    justify-content:
+        center;
 
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
+    padding:
+        32px;
+
+    overflow-x:
+        hidden;
+
+    -webkit-font-smoothing:
+        antialiased;
+
+    text-rendering:
+        optimizeLegibility;
 }
 
 
 /* =========================================================
    BACKGROUND DECORATION
-   ========================================================= */
+========================================================= */
 
 body::before {
-    content: "";
 
-    position: fixed;
+    content:
+        "";
 
-    width: 520px;
-    height: 520px;
+    position:
+        fixed;
 
-    top: -300px;
-    left: -240px;
+    width:
+        520px;
 
-    border-radius: 50%;
+    height:
+        520px;
+
+    top:
+        -300px;
+
+    left:
+        -240px;
+
+    border-radius:
+        50%;
 
     background:
         radial-gradient(
@@ -108,21 +146,33 @@ body::before {
             rgba(255,255,255,0)
         );
 
-    pointer-events: none;
+    pointer-events:
+        none;
 }
 
+
 body::after {
-    content: "";
 
-    position: fixed;
+    content:
+        "";
 
-    width: 500px;
-    height: 500px;
+    position:
+        fixed;
 
-    right: -280px;
-    bottom: -280px;
+    width:
+        500px;
 
-    border-radius: 50%;
+    height:
+        500px;
+
+    right:
+        -280px;
+
+    bottom:
+        -280px;
+
+    border-radius:
+        50%;
 
     background:
         radial-gradient(
@@ -131,45 +181,57 @@ body::after {
             rgba(148,163,184,0)
         );
 
-    pointer-events: none;
+    pointer-events:
+        none;
 }
 
 
 /* =========================================================
    LOGIN CONTAINER
-   ========================================================= */
+========================================================= */
 
 .login-container {
-    position: relative;
 
-    z-index: 5;
+    position:
+        relative;
 
-    width: 100%;
+    z-index:
+        5;
 
-    max-width: 1080px;
+    width:
+        100%;
 
-    margin: auto;
+    max-width:
+        1080px;
+
+    margin:
+        auto;
 }
 
 
 /* =========================================================
    LOGIN CARD
-   ========================================================= */
+========================================================= */
 
 .login-card {
-    position: relative;
 
-    width: 100%;
+    position:
+        relative;
 
-    min-height: 620px;
+    width:
+        100%;
 
-    display: grid;
+    min-height:
+        620px;
+
+    display:
+        grid;
 
     grid-template-columns:
-        1.05fr
-        0.95fr;
+        1.05fr 0.95fr;
 
-    overflow: hidden;
+    overflow:
+        hidden;
 
     border:
         1px solid rgba(255,255,255,0.85);
@@ -192,17 +254,22 @@ body::after {
 
 
 /* =========================================================
-   LEFT PREMIUM PANEL
-   ========================================================= */
+   CARD LIGHT
+========================================================= */
 
 .login-card::before {
-    content: "";
 
-    position: absolute;
+    content:
+        "";
 
-    inset: 0;
+    position:
+        absolute;
 
-    pointer-events: none;
+    inset:
+        0;
+
+    pointer-events:
+        none;
 
     background:
         linear-gradient(
@@ -211,22 +278,28 @@ body::after {
             transparent 40%
         );
 
-    z-index: 1;
+    z-index:
+        1;
 }
 
 
 /* =========================================================
-   BRAND / LEFT CONTENT
-   ========================================================= */
+   BRAND / LEFT PANEL
+========================================================= */
 
 .brand {
-    position: relative;
 
-    display: flex;
+    position:
+        relative;
 
-    flex-direction: column;
+    display:
+        flex;
 
-    justify-content: center;
+    flex-direction:
+        column;
+
+    justify-content:
+        center;
 
     padding:
         70px;
@@ -234,7 +307,8 @@ body::after {
     min-height:
         620px;
 
-    overflow: hidden;
+    overflow:
+        hidden;
 
     background:
         linear-gradient(
@@ -247,24 +321,37 @@ body::after {
     color:
         white;
 
-    z-index: 2;
+    z-index:
+        2;
 }
 
 
-/* Decorative circles */
+/* =========================================================
+   BRAND DECORATION
+========================================================= */
 
 .brand::before {
-    content: "";
 
-    position: absolute;
+    content:
+        "";
 
-    width: 500px;
-    height: 500px;
+    position:
+        absolute;
 
-    top: -300px;
-    right: -220px;
+    width:
+        500px;
 
-    border-radius: 50%;
+    height:
+        500px;
+
+    top:
+        -300px;
+
+    right:
+        -220px;
+
+    border-radius:
+        50%;
 
     background:
         radial-gradient(
@@ -274,18 +361,29 @@ body::after {
         );
 }
 
+
 .brand::after {
-    content: "";
 
-    position: absolute;
+    content:
+        "";
 
-    width: 420px;
-    height: 420px;
+    position:
+        absolute;
 
-    bottom: -300px;
-    left: -230px;
+    width:
+        420px;
 
-    border-radius: 50%;
+    height:
+        420px;
+
+    bottom:
+        -300px;
+
+    left:
+        -230px;
+
+    border-radius:
+        50%;
 
     background:
         radial-gradient(
@@ -298,14 +396,18 @@ body::after {
 
 /* =========================================================
    BRAND TEXT
-   ========================================================= */
+========================================================= */
 
 .brand h1 {
-    position: relative;
 
-    z-index: 3;
+    position:
+        relative;
 
-    margin: 0;
+    z-index:
+        3;
+
+    margin:
+        0;
 
     font-size:
         clamp(46px, 6vw, 76px);
@@ -323,10 +425,14 @@ body::after {
         #ffffff;
 }
 
-.brand p {
-    position: relative;
 
-    z-index: 3;
+.brand p {
+
+    position:
+        relative;
+
+    z-index:
+        3;
 
     max-width:
         350px;
@@ -349,10 +455,11 @@ body::after {
 
 
 /* =========================================================
-   ADD VISUAL LABEL
-   ========================================================= */
+   BRAND LABEL
+========================================================= */
 
 .brand p::before {
+
     content:
         "AI VIDEO GENERATION";
 
@@ -378,18 +485,24 @@ body::after {
 
 /* =========================================================
    FORM PANEL
-   ========================================================= */
+========================================================= */
 
 #loginForm {
-    position: relative;
 
-    z-index: 3;
+    position:
+        relative;
 
-    display: flex;
+    z-index:
+        3;
 
-    flex-direction: column;
+    display:
+        flex;
 
-    justify-content: center;
+    flex-direction:
+        column;
+
+    justify-content:
+        center;
 
     padding:
         70px;
@@ -400,10 +513,11 @@ body::after {
 
 
 /* =========================================================
-   FORM PANEL TOP
-   ========================================================= */
+   FORM HEADER
+========================================================= */
 
 #loginForm::before {
+
     content:
         "WELCOME BACK";
 
@@ -428,15 +542,18 @@ body::after {
 
 
 /* =========================================================
-   FORM INPUT GROUP
-   ========================================================= */
+   INPUT GROUP
+========================================================= */
 
 .input-group {
+
     margin-bottom:
         20px;
 }
 
+
 .input-group label {
+
     display:
         block;
 
@@ -456,7 +573,9 @@ body::after {
         0.10em;
 }
 
+
 .input-group input {
+
     display:
         block;
 
@@ -497,7 +616,9 @@ body::after {
         transform 180ms ease;
 }
 
+
 .input-group input:hover {
+
     background:
         #ffffff;
 
@@ -505,7 +626,9 @@ body::after {
         var(--gray-300);
 }
 
+
 .input-group input:focus {
+
     background:
         #ffffff;
 
@@ -516,7 +639,9 @@ body::after {
         0 0 0 4px rgba(15,23,42,0.055);
 }
 
+
 .input-group input::placeholder {
+
     color:
         var(--gray-400);
 }
@@ -524,10 +649,12 @@ body::after {
 
 /* =========================================================
    LOGIN BUTTON
-   ========================================================= */
+========================================================= */
 
 #loginButton {
-    position: relative;
+
+    position:
+        relative;
 
     display:
         flex;
@@ -582,7 +709,10 @@ body::after {
         0 14px 30px rgba(15,23,42,0.20);
 
     overflow:
-        hidden;
+        visible;
+
+    isolation:
+        isolate;
 
     transition:
         transform 180ms ease,
@@ -590,7 +720,9 @@ body::after {
         opacity 180ms ease;
 }
 
+
 #loginButton::before {
+
     content:
         "";
 
@@ -599,6 +731,15 @@ body::after {
 
     inset:
         0;
+
+    pointer-events:
+        none;
+
+    border-radius:
+        var(--input-radius);
+
+    overflow:
+        hidden;
 
     background:
         linear-gradient(
@@ -615,7 +756,9 @@ body::after {
         transform 550ms ease;
 }
 
+
 #loginButton:hover {
+
     transform:
         translateY(-2px);
 
@@ -623,19 +766,25 @@ body::after {
         0 19px 40px rgba(15,23,42,0.25);
 }
 
+
 #loginButton:hover::before {
+
     transform:
         translateX(100%);
 }
 
+
 #loginButton:active {
+
     transform:
         translateY(0);
 }
 
+
 #loginButton:disabled {
+
     opacity:
-        0.55;
+        0.72;
 
     cursor:
         not-allowed;
@@ -644,7 +793,36 @@ body::after {
         none;
 
     box-shadow:
-        none;
+        0 14px 30px rgba(15, 23, 42, 0.20);
+}
+
+
+/* =========================================================
+   LOGIN MESSAGE
+========================================================= */
+
+.login-message {
+
+    min-height:
+        22px;
+
+    margin-top:
+        15px;
+
+    padding:
+        0 4px;
+
+    color:
+        #b42318;
+
+    text-align:
+        center;
+
+    font-size:
+        12px;
+
+    line-height:
+        1.5;
 }
 
 
@@ -652,67 +830,71 @@ body::after {
    LOGIN STATUS HOLOGRAM STAMP
    ---------------------------------------------------------
    SUSPENDED / BANNED
-   - Lebih besar dari tombol LOGIN
-   - Sedikit keluar dari sisi tombol
-   - Miring seperti cap resmi
-   - Tetap berada di atas tombol
+   - Sedikit lebih lebar dari tombol
+   - Sedang
+   - Miring
+   - Berada di atas tombol
 ========================================================= */
 
 #loginStatusHologram {
 
-    position: absolute;
+    position:
+        absolute;
 
-    /*
-     * Dibuat lebih lebar dari tombol.
-     * 142% = cap benar-benar melewati kedua sisi tombol.
-     */
-    width: 142%;
+    width:
+        142%;
 
-    /*
-     * Tinggi jauh lebih besar dari tombol LOGIN 56px.
-     */
-    height: 82px;
+    height:
+        82px;
 
-    left: 50%;
-    top: 50%;
+    left:
+        50%;
+
+    top:
+        50%;
 
     transform:
         translate(-50%, -50%)
         rotate(-8deg);
 
-    transform-origin: center center;
+    transform-origin:
+        center center;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display:
+        flex;
 
-    min-width: 0;
-    max-width: none;
+    align-items:
+        center;
 
-    padding: 0 18px;
+    justify-content:
+        center;
 
-    z-index: 50;
+    min-width:
+        0;
 
-    pointer-events: none;
+    max-width:
+        none;
 
-    /*
-     * Jangan tampil sebelum status akun diketahui.
-     */
-    opacity: 0;
-    visibility: hidden;
+    padding:
+        0 18px;
 
-    /*
-     * Jangan menggunakan display:none.
-     * Animasi hologram tetap bisa bekerja.
-     */
+    z-index:
+        50;
+
+    pointer-events:
+        none;
+
+    opacity:
+        0;
+
+    visibility:
+        hidden;
+
     transition:
         opacity 180ms ease,
         visibility 180ms ease,
         transform 220ms ease;
 
-    /*
-     * Efek hologram.
-     */
     background:
         linear-gradient(
             180deg,
@@ -729,9 +911,11 @@ body::after {
         0 0 34px rgba(255, 0, 0, 0.48),
         inset 0 0 14px rgba(255, 0, 0, 0.28);
 
-    overflow: hidden;
+    overflow:
+        hidden;
 
-    isolation: isolate;
+    isolation:
+        isolate;
 }
 
 
@@ -741,9 +925,11 @@ body::after {
 
 #loginStatusHologram.is-visible {
 
-    opacity: 1;
+    opacity:
+        1;
 
-    visibility: visible;
+    visibility:
+        visible;
 
     transform:
         translate(-50%, -50%)
@@ -809,17 +995,23 @@ body::after {
 
 .login-status-hologram-text {
 
-    position: relative;
+    position:
+        relative;
 
-    z-index: 5;
+    z-index:
+        5;
 
-    display: block;
+    display:
+        block;
 
-    width: 100%;
+    width:
+        100%;
 
-    text-align: center;
+    text-align:
+        center;
 
-    white-space: nowrap;
+    white-space:
+        nowrap;
 
     font-family:
         Inter,
@@ -830,30 +1022,35 @@ body::after {
         "Segoe UI",
         sans-serif;
 
-    font-size: 24px;
+    font-size:
+        24px;
 
-    line-height: 1;
+    line-height:
+        1;
 
-    font-weight: 950;
+    font-weight:
+        950;
 
-    letter-spacing: 0.24em;
+    letter-spacing:
+        0.24em;
 
-    text-indent: 0.24em;
+    text-indent:
+        0.24em;
 
     color:
         rgba(255, 55, 55, 1);
 
     text-shadow:
 
-        0 0 3px rgba(255, 255, 255, 0.95),
+        0 0 3px rgba(255,255,255,0.95),
 
-        0 0 7px rgba(255, 0, 0, 1),
+        0 0 7px rgba(255,0,0,1),
 
-        0 0 15px rgba(255, 0, 0, 0.95),
+        0 0 15px rgba(255,0,0,0.95),
 
-        0 0 28px rgba(255, 0, 0, 0.8),
+        0 0 28px rgba(255,0,0,0.8),
 
-        0 0 42px rgba(255, 0, 0, 0.5);
+        0 0 42px rgba(255,0,0,0.5);
 
     animation:
         loginStatusTextFlicker 1.8s steps(1, end) infinite;
@@ -866,26 +1063,32 @@ body::after {
 
 .login-status-hologram-scan {
 
-    position: absolute;
+    position:
+        absolute;
 
-    inset: 0;
+    inset:
+        0;
 
-    z-index: 2;
+    z-index:
+        2;
 
-    pointer-events: none;
+    pointer-events:
+        none;
 
     background:
         repeating-linear-gradient(
             to bottom,
-            rgba(255, 255, 255, 0.13) 0px,
-            rgba(255, 255, 255, 0.13) 1px,
+            rgba(255,255,255,0.13) 0px,
+            rgba(255,255,255,0.13) 1px,
             transparent 1px,
             transparent 5px
         );
 
-    opacity: 0.34;
+    opacity:
+        0.34;
 
-    mix-blend-mode: screen;
+    mix-blend-mode:
+        screen;
 
     animation:
         loginStatusScanMove 1.25s linear infinite;
@@ -898,33 +1101,40 @@ body::after {
 
 .login-status-hologram-line {
 
-    position: absolute;
+    position:
+        absolute;
 
-    left: 4%;
+    left:
+        4%;
 
-    right: 4%;
+    right:
+        4%;
 
-    top: 50%;
+    top:
+        50%;
 
-    height: 1px;
+    height:
+        1px;
 
-    z-index: 4;
+    z-index:
+        4;
 
     background:
         linear-gradient(
             90deg,
             transparent,
-            rgba(255, 255, 255, 0.92),
-            rgba(255, 0, 0, 0.95),
-            rgba(255, 255, 255, 0.92),
+            rgba(255,255,255,0.92),
+            rgba(255,0,0,0.95),
+            rgba(255,255,255,0.92),
             transparent
         );
 
     box-shadow:
-        0 0 7px rgba(255, 0, 0, 0.9),
-        0 0 14px rgba(255, 0, 0, 0.6);
+        0 0 7px rgba(255,0,0,0.9),
+        0 0 14px rgba(255,0,0,0.6);
 
-    opacity: 0.75;
+    opacity:
+        0.75;
 
     animation:
         loginStatusLinePulse 1.5s ease-in-out infinite;
@@ -937,108 +1147,54 @@ body::after {
 
 .login-status-hologram-corner {
 
-    position: absolute;
+    position:
+        absolute;
 
-    width: 18px;
+    width:
+        18px;
 
-    height: 18px;
+    height:
+        18px;
 
-    z-index: 6;
+    z-index:
+        6;
 
     border-color:
-        rgba(255, 65, 65, 0.98);
+        rgba(255,65,65,0.98);
 
-    border-style: solid;
+    border-style:
+        solid;
 
     filter:
         drop-shadow(
-            0 0 6px rgba(255, 0, 0, 0.9)
+            0 0 6px rgba(255,0,0,0.9)
         );
 }
 
 
-/* TOP CORNER */
-
 .login-status-hologram-corner.top {
 
-    top: 7px;
+    top:
+        7px;
 
-    left: 9px;
+    left:
+        9px;
 
     border-width:
         2px 0 0 2px;
 }
 
 
-/* BOTTOM CORNER */
-
 .login-status-hologram-corner.bottom {
 
-    right: 9px;
+    right:
+        9px;
 
-    bottom: 7px;
+    bottom:
+        7px;
 
     border-width:
         0 2px 2px 0;
-}
-
-
-/* =========================================================
-   BUTTON
-   ---------------------------------------------------------
-   Penting:
-   Hologram harus boleh keluar dari batas tombol.
-========================================================= */
-
-#loginButton {
-
-    overflow: visible;
-
-    isolation: isolate;
-}
-
-
-/* =========================================================
-   BUTTON SHINE
-   ---------------------------------------------------------
-   Shine tetap berada di area tombol.
-========================================================= */
-
-#loginButton::before {
-
-    pointer-events: none;
-
-    border-radius:
-        var(--input-radius);
-
-    overflow: hidden;
-}
-
-
-/* =========================================================
-   HINDARI BUTTON BERGERAK SAAT HOLOGRAM AKTIF
-========================================================= */
-
-#loginButton:disabled {
-
-    opacity: 0.72;
-
-    cursor: not-allowed;
-
-    transform: none;
-
-    box-shadow:
-        0 14px 30px rgba(15, 23, 42, 0.20);
-}
-
-
-/* Hologram membuat tombol tetap cukup terlihat */
-
-#loginButton:disabled:has(
-    #loginStatusHologram.is-visible
-) {
-
-    opacity: 0.94;
 }
 
 
@@ -1050,7 +1206,8 @@ body::after {
 
     0% {
 
-        opacity: 0;
+        opacity:
+            0;
 
         transform:
             translate(-50%, -50%)
@@ -1060,7 +1217,8 @@ body::after {
 
     65% {
 
-        opacity: 1;
+        opacity:
+            1;
 
         transform:
             translate(-50%, -50%)
@@ -1070,7 +1228,8 @@ body::after {
 
     100% {
 
-        opacity: 1;
+        opacity:
+            1;
 
         transform:
             translate(-50%, -50%)
@@ -1094,10 +1253,10 @@ body::after {
             saturate(1.1);
 
         box-shadow:
-            0 0 7px rgba(255, 0, 0, 0.85),
-            0 0 18px rgba(255, 0, 0, 0.72),
-            0 0 36px rgba(255, 0, 0, 0.48),
-            inset 0 0 16px rgba(255, 0, 0, 0.28);
+            0 0 7px rgba(255,0,0,0.85),
+            0 0 18px rgba(255,0,0,0.72),
+            0 0 36px rgba(255,0,0,0.48),
+            inset 0 0 16px rgba(255,0,0,0.28);
     }
 
     50% {
@@ -1107,10 +1266,10 @@ body::after {
             saturate(1.35);
 
         box-shadow:
-            0 0 10px rgba(255, 0, 0, 1),
-            0 0 25px rgba(255, 0, 0, 0.92),
-            0 0 52px rgba(255, 0, 0, 0.68),
-            inset 0 0 24px rgba(255, 0, 0, 0.42);
+            0 0 10px rgba(255,0,0,1),
+            0 0 25px rgba(255,0,0,0.92),
+            0 0 52px rgba(255,0,0,0.68),
+            inset 0 0 24px rgba(255,0,0,0.42);
     }
 }
 
@@ -1125,33 +1284,38 @@ body::after {
     91%,
     100% {
 
-        opacity: 1;
+        opacity:
+            1;
     }
 
     92% {
 
-        opacity: 0.72;
+        opacity:
+            0.72;
     }
 
     94% {
 
-        opacity: 1;
+        opacity:
+            1;
     }
 
     96% {
 
-        opacity: 0.82;
+        opacity:
+            0.82;
     }
 
     98% {
 
-        opacity: 1;
+        opacity:
+            1;
     }
 }
 
 
 /* =========================================================
-   SCAN ANIMATION
+   SCAN
 ========================================================= */
 
 @keyframes loginStatusScanMove {
@@ -1179,29 +1343,344 @@ body::after {
     0%,
     100% {
 
-        opacity: 0.35;
+        opacity:
+            0.35;
     }
 
     50% {
 
-        opacity: 0.95;
+        opacity:
+            0.95;
+    }
+}
+
+
+/* =========================================================
+   DESKTOP / LARGE TABLET
+========================================================= */
+
+@media (min-width: 1000px) {
+
+    .brand {
+
+        padding:
+            80px;
+    }
+
+    #loginForm {
+
+        padding:
+            80px;
+    }
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 850px) {
+
+    body {
+
+        padding:
+            20px;
+
+        align-items:
+            center;
+    }
+
+
+    .login-container {
+
+        max-width:
+            520px;
+    }
+
+
+    .login-card {
+
+        display:
+            block;
+
+        min-height:
+            0;
+
+        height:
+            auto;
+    }
+
+
+    .brand {
+
+        min-height:
+            0;
+
+        height:
+            auto;
+
+        padding:
+            38px 40px;
+
+        border-radius:
+            var(--card-radius)
+            var(--card-radius)
+            0
+            0;
+    }
+
+
+    .brand h1 {
+
+        font-size:
+            48px;
+    }
+
+
+    .brand p {
+
+        margin-top:
+            15px;
+    }
+
+
+    #loginForm {
+
+        min-height:
+            0;
+
+        padding:
+            36px 40px 40px;
     }
 }
 
 
 /* =========================================================
    MOBILE
+   ---------------------------------------------------------
+   FIX:
+   - Jangan paksa 620px
+   - Kurangi tinggi brand
+   - Kurangi padding form
+   - Gunakan dynamic viewport
 ========================================================= */
 
 @media (max-width: 520px) {
 
+    body {
+
+        min-height:
+            100dvh;
+
+        padding:
+            10px;
+
+        align-items:
+            center;
+
+        justify-content:
+            center;
+
+        overflow-y:
+            auto;
+    }
+
+
+    .login-container {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        margin:
+            0 auto;
+    }
+
+
+    .login-card {
+
+        width:
+            100%;
+
+        min-height:
+            0;
+
+        height:
+            auto;
+
+        border-radius:
+            22px;
+
+        overflow:
+            hidden;
+    }
+
+
+    /* -----------------------------------------------------
+       MOBILE BRAND
+    ----------------------------------------------------- */
+
+    .brand {
+
+        min-height:
+            0;
+
+        height:
+            auto;
+
+        padding:
+            24px 22px 20px;
+
+        justify-content:
+            center;
+    }
+
+
+    .brand h1 {
+
+        font-size:
+            clamp(
+                34px,
+                11vw,
+                42px
+            );
+
+        line-height:
+            0.9;
+    }
+
+
+    .brand p {
+
+        max-width:
+            100%;
+
+        margin-top:
+            10px;
+
+        font-size:
+            11px;
+
+        line-height:
+            1.45;
+    }
+
+
+    .brand p::before {
+
+        margin-bottom:
+            7px;
+
+        font-size:
+            8px;
+
+        letter-spacing:
+            0.14em;
+    }
+
+
+    /* -----------------------------------------------------
+       MOBILE FORM
+    ----------------------------------------------------- */
+
+    #loginForm {
+
+        min-height:
+            0;
+
+        height:
+            auto;
+
+        padding:
+            22px 22px 24px;
+
+        justify-content:
+            center;
+    }
+
+
+    #loginForm::before {
+
+        margin-bottom:
+            10px;
+
+        font-size:
+            9px;
+    }
+
+
+    .input-group {
+
+        margin-bottom:
+            13px;
+    }
+
+
+    .input-group label {
+
+        margin-bottom:
+            6px;
+
+        font-size:
+            10px;
+    }
+
+
+    .input-group input {
+
+        height:
+            48px;
+
+        padding:
+            0 14px;
+
+        font-size:
+            13px;
+    }
+
+
+    #loginButton {
+
+        height:
+            48px;
+
+        margin-top:
+            3px;
+
+        font-size:
+            11px;
+    }
+
+
+    .login-message {
+
+        min-height:
+            18px;
+
+        margin-top:
+            9px;
+
+        font-size:
+            11px;
+    }
+
+
+    /* -----------------------------------------------------
+       MOBILE HOLOGRAM
+    ----------------------------------------------------- */
+
     #loginStatusHologram {
 
-        width: 142%;
+        width:
+            142%;
 
-        height: 72px;
+        height:
+            68px;
 
-        padding: 0 14px;
+        padding:
+            0 14px;
 
         transform:
             translate(-50%, -50%)
@@ -1219,45 +1698,432 @@ body::after {
 
     .login-status-hologram-text {
 
-        font-size: 19px;
+        font-size:
+            19px;
 
-        letter-spacing: 0.18em;
+        letter-spacing:
+            0.18em;
 
-        text-indent: 0.18em;
+        text-indent:
+            0.18em;
     }
 
 
     .login-status-hologram-corner {
 
-        width: 15px;
+        width:
+            15px;
 
-        height: 15px;
+        height:
+            15px;
     }
 }
 
 
 /* =========================================================
-   EXTRA SMALL MOBILE
+   SHORT MOBILE
+   ---------------------------------------------------------
+   Untuk HP dengan tinggi viewport pendek.
+   Ini yang mencegah manusia harus menggulir hanya untuk
+   menemukan password. Teknologi akhirnya berguna sedikit.
 ========================================================= */
 
-@media (max-width: 360px) {
+@media (max-width: 520px) and (max-height: 760px) {
+
+    body {
+
+        padding:
+            8px;
+    }
+
+
+    .brand {
+
+        padding:
+            18px 20px 16px;
+    }
+
+
+    .brand h1 {
+
+        font-size:
+            34px;
+    }
+
+
+    .brand p {
+
+        margin-top:
+            7px;
+
+        font-size:
+            10px;
+
+        line-height:
+            1.35;
+    }
+
+
+    .brand p::before {
+
+        margin-bottom:
+            5px;
+
+        font-size:
+            7px;
+    }
+
+
+    #loginForm {
+
+        padding:
+            18px 20px 20px;
+    }
+
+
+    #loginForm::before {
+
+        margin-bottom:
+            8px;
+    }
+
+
+    .input-group {
+
+        margin-bottom:
+            10px;
+    }
+
+
+    .input-group label {
+
+        margin-bottom:
+            5px;
+    }
+
+
+    .input-group input {
+
+        height:
+            44px;
+    }
+
+
+    #loginButton {
+
+        height:
+            44px;
+    }
+
+
+    .login-message {
+
+        margin-top:
+            7px;
+
+        min-height:
+            16px;
+    }
+}
+
+
+/* =========================================================
+   VERY SHORT MOBILE
+   ---------------------------------------------------------
+   Contoh:
+   - 360 x 640
+   - 390 x 667
+   - browser dengan address bar besar
+========================================================= */
+
+@media (max-width: 520px) and (max-height: 680px) {
+
+    body {
+
+        padding:
+            6px;
+    }
+
+
+    .login-card {
+
+        border-radius:
+            18px;
+    }
+
+
+    .brand {
+
+        padding:
+            15px 18px 13px;
+    }
+
+
+    .brand h1 {
+
+        font-size:
+            30px;
+    }
+
+
+    .brand p {
+
+        margin-top:
+            5px;
+
+        font-size:
+            9px;
+
+        line-height:
+            1.25;
+    }
+
+
+    .brand p::before {
+
+        margin-bottom:
+            4px;
+
+        font-size:
+            6px;
+    }
+
+
+    #loginForm {
+
+        padding:
+            15px 18px 17px;
+    }
+
+
+    #loginForm::before {
+
+        margin-bottom:
+            6px;
+
+        font-size:
+            8px;
+    }
+
+
+    .input-group {
+
+        margin-bottom:
+            8px;
+    }
+
+
+    .input-group label {
+
+        margin-bottom:
+            4px;
+
+        font-size:
+            9px;
+    }
+
+
+    .input-group input {
+
+        height:
+            42px;
+
+        font-size:
+            12px;
+    }
+
+
+    #loginButton {
+
+        height:
+            42px;
+
+        font-size:
+            10px;
+    }
+
+
+    .login-message {
+
+        margin-top:
+            5px;
+
+        min-height:
+            14px;
+
+        font-size:
+            10px;
+    }
+
 
     #loginStatusHologram {
 
-        width: 138%;
+        width:
+            138%;
 
-        height: 66px;
+        height:
+            62px;
     }
 
 
     .login-status-hologram-text {
 
-        font-size: 17px;
+        font-size:
+            17px;
 
-        letter-spacing: 0.15em;
+        letter-spacing:
+            0.15em;
 
-        text-indent: 0.15em;
+        text-indent:
+            0.15em;
     }
+}
+
+
+/* =========================================================
+   EXTRA SMALL WIDTH
+========================================================= */
+
+@media (max-width: 360px) {
+
+    .brand {
+
+        padding:
+            14px 16px 12px;
+    }
+
+
+    .brand h1 {
+
+        font-size:
+            28px;
+    }
+
+
+    #loginForm {
+
+        padding:
+            14px 16px 16px;
+    }
+
+
+    #loginStatusHologram {
+
+        width:
+            136%;
+
+        height:
+            60px;
+    }
+
+
+    .login-status-hologram-text {
+
+        font-size:
+            16px;
+
+        letter-spacing:
+            0.13em;
+
+        text-indent:
+            0.13em;
+    }
+}
+
+
+/* =========================================================
+   LANDSCAPE MOBILE
+========================================================= */
+
+@media (max-width: 850px)
+       and (orientation: landscape)
+       and (max-height: 620px) {
+
+    body {
+
+        align-items:
+            flex-start;
+
+        overflow-y:
+            auto;
+
+        padding:
+            10px;
+    }
+
+
+    .login-container {
+
+        margin:
+            10px auto;
+    }
+
+
+    .brand {
+
+        padding:
+            20px 28px;
+    }
+
+
+    .brand h1 {
+
+        font-size:
+            32px;
+    }
+
+
+    .brand p {
+
+        margin-top:
+            7px;
+
+        font-size:
+            10px;
+    }
+
+
+    #loginForm {
+
+        padding:
+            20px 28px;
+    }
+
+
+    .input-group {
+
+        margin-bottom:
+            10px;
+    }
+
+
+    .input-group input {
+
+        height:
+            44px;
+    }
+
+
+    #loginButton {
+
+        height:
+            44px;
+    }
+}
+
+
+/* =========================================================
+   FOCUS
+========================================================= */
+
+button:focus-visible,
+input:focus-visible {
+
+    outline:
+        2px solid #667085;
+
+    outline-offset:
+        2px;
 }
 
 
@@ -1267,11 +2133,24 @@ body::after {
 
 @media (prefers-reduced-motion: reduce) {
 
+    *,
+    *::before,
+    *::after {
+
+        transition:
+            none !important;
+
+        animation:
+            none !important;
+    }
+
+
     #loginStatusHologram,
     .login-status-hologram-text,
     .login-status-hologram-scan,
     .login-status-hologram-line {
 
-        animation: none !important;
+        animation:
+            none !important;
     }
 }
