@@ -992,12 +992,83 @@ async function* streamChat(
 
     try {
 
+        /*
+         * =====================================================
+         * PENTING
+         * -----------------------------------------------------
+         * client.consumeSSE() mengembalikan:
+         *
+         * {
+         *     done: false,
+         *     data: {
+         *         choices: [...]
+         *     }
+         * }
+         *
+         * Jadi processChunk() HARUS menerima:
+         *
+         * sseEvent.data
+         *
+         * bukan object wrapper SSE.
+         *
+         * Bug sebelumnya mengirim seluruh wrapper ke
+         * processChunk(), sehingga:
+         *
+         * chunk.choices
+         *
+         * selalu undefined.
+         *
+         * Akibatnya semua content menjadi:
+         *
+         * ""
+         * =====================================================
+         */
+
         for await (
-            const chunk
+            const sseEvent
             of openKeyClient.consumeSSE(
                 response
             )
         ) {
+
+            /*
+             * [DONE] dari consumeSSE()
+             */
+
+            if (
+                sseEvent?.done
+            ) {
+
+                break;
+
+            }
+
+
+            /*
+             * Ambil payload OpenKey sebenarnya.
+             */
+
+            const chunk =
+                sseEvent?.data;
+
+
+            /*
+             * Abaikan payload yang tidak valid.
+             */
+
+            if (
+                !isObject(chunk)
+            ) {
+
+                continue;
+
+            }
+
+
+            /*
+             * Sekarang processChunk() menerima
+             * object OpenKey yang sebenarnya.
+             */
 
             const result =
                 processChunk(
