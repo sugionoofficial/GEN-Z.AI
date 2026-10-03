@@ -6,7 +6,8 @@
    api/viddra/generate.js
 
    Fungsi:
-   - Authenticate user melalui Supabase session
+   - Authenticate user GEN-Z.AI melalui Supabase session
+   - Authenticate VidDra melalui HttpOnly VidDra session
    - Menerima prompt dari VidDra Generate
    - Submit task ke VidDra
    - Menggunakan Hailuo 2.3
@@ -14,7 +15,17 @@
    - Resolution 1080P
    - Menyimpan task ke generation_history
    - TIDAK menggunakan GEN-Z.AI credit deduction
-   - TIDAK menyentuh KIE.AI
+   - TIDAK menggunakan VIDDRA_API_KEY
+   - TIDAK menyentuh sistem KIE.AI
+========================================================= */
+
+import {
+    getVidDraSession
+} from "./session.js";
+
+
+/* =========================================================
+   CONFIG
 ========================================================= */
 
 const SUPABASE_URL =
@@ -34,14 +45,12 @@ const SUPABASE_SERVICE_ROLE_KEY =
     ).trim();
 
 
-const VIDDRA_API_KEY =
-    String(
-        process.env.VIDDRA_API_KEY || ""
-    ).trim();
+const VIDDRA_API_BASE =
+    "https://api.viddra.com/v1";
 
 
 const VIDDRA_ENDPOINT =
-    "https://api.viddra.com/v1/video/generations";
+    `${VIDDRA_API_BASE}/video/generations`;
 
 
 const VIDDRA_MODEL =
@@ -260,7 +269,7 @@ async function supabaseRequest(
 
 
 /* =========================================================
-   AUTHENTICATE USER
+   AUTHENTICATE GEN-Z.AI USER
 ========================================================= */
 
 async function authenticateUser(
@@ -364,7 +373,7 @@ async function authenticateUser(
 
         throw Object.assign(
             new Error(
-                "Invalid or expired session"
+                "Invalid or expired GEN-Z.AI session"
             ),
             {
                 status: 401
@@ -456,30 +465,50 @@ function normalizePrompt(
 
 
 /* =========================================================
-   VIDDRA REQUEST
+   GET VIDDRA SESSION
 ========================================================= */
 
-async function createVidDraGeneration(
-    prompt
+function authenticateVidDraSession(
+    req
 ) {
 
+    const token =
+        getVidDraSession(
+            req
+        );
+
+
     if (
-        !VIDDRA_API_KEY
+        !token
     ) {
 
         throw Object.assign(
             new Error(
-                "VIDDRA_API_KEY is not configured"
+                "Akun VidDra belum terhubung. Hubungkan akun VidDra terlebih dahulu."
             ),
             {
-                status: 500,
+                status: 401,
                 code:
-                    "VIDDRA_API_KEY_MISSING"
+                    "VIDDRA_SESSION_MISSING"
             }
         );
 
     }
 
+
+    return token;
+
+}
+
+
+/* =========================================================
+   CREATE VIDDRA GENERATION
+========================================================= */
+
+async function createVidDraGeneration(
+    token,
+    prompt
+) {
 
     const payload = {
 
@@ -508,7 +537,7 @@ async function createVidDraGeneration(
                 headers: {
 
                     Authorization:
-                        `Bearer ${VIDDRA_API_KEY}`,
+                        `Bearer ${token}`,
 
                     "Content-Type":
                         "application/json"
@@ -544,11 +573,10 @@ async function createVidDraGeneration(
 
         } catch {
 
-            data =
-                {
-                    raw:
-                        text
-                };
+            data = {
+                raw:
+                    text
+            };
 
         }
 
@@ -730,10 +758,11 @@ async function createGenerationHistory({
             null,
 
         /*
-         * VidDra menggunakan saldo/provider sendiri.
+         * VidDra menggunakan saldo milik
+         * akun VidDra.
          *
-         * Karena GEN-Z.AI tidak melakukan deduction
-         * untuk VidDra, credit_cost disimpan 0.
+         * GEN-Z.AI tidak melakukan
+         * deduction credit.
          */
         credit_cost:
             0
@@ -769,6 +798,7 @@ async function createGenerationHistory({
         console.info(
             "[viddra] Generation history created:",
             {
+
                 user_id:
                     user.id,
 
@@ -787,14 +817,15 @@ async function createGenerationHistory({
     } catch (error) {
 
         /*
-         * Task VidDra sudah berhasil dibuat.
+         * Task VidDra sudah dibuat.
          *
-         * Karena task provider sudah ada,
-         * kegagalan History tidak membatalkan task.
+         * Jika insert History gagal,
+         * task provider tetap berjalan.
          */
         console.error(
             "[viddra] Failed to create generation history:",
             {
+
                 message:
                     error?.message,
 
@@ -806,6 +837,7 @@ async function createGenerationHistory({
 
                 task_id:
                     taskId
+
             }
         );
 
@@ -818,13 +850,17 @@ async function createGenerationHistory({
 
 
 /* =========================================================
-   METHOD
+   MAIN HANDLER
 ========================================================= */
 
 export default async function handler(
     req,
     res
 ) {
+
+    /* -----------------------------------------------------
+       METHOD
+    ----------------------------------------------------- */
 
     if (
         req.method !== "POST"
@@ -847,11 +883,29 @@ export default async function handler(
 
     try {
 
+        /* -------------------------------------------------
+           GEN-Z.AI AUTH
+        ------------------------------------------------- */
+
         const user =
             await authenticateUser(
                 req
             );
 
+
+        /* -------------------------------------------------
+           VIDDRA SESSION
+        ------------------------------------------------- */
+
+        const vidDraToken =
+            authenticateVidDraSession(
+                req
+            );
+
+
+        /* -------------------------------------------------
+           BODY
+        ------------------------------------------------- */
 
         const body =
             await readBody(
@@ -878,22 +932,20 @@ export default async function handler(
         }
 
 
-        /*
-         * VidDra contract:
-         *
-         * model      = hailuo-2.3
-         * duration   = 6
-         * resolution = 1080P
-         *
-         * Nilai ini sengaja tidak diambil
-         * dari browser agar request tidak dapat
-         * mengubah kontrak server.
-         */
+        /* -------------------------------------------------
+           VIDDRA GENERATION
+        ------------------------------------------------- */
+
         const providerResponse =
             await createVidDraGeneration(
+                vidDraToken,
                 prompt
             );
 
+
+        /* -------------------------------------------------
+           GENERATION ID
+        ------------------------------------------------- */
 
         const generationId =
             getVidDraGenerationId(
@@ -916,13 +968,19 @@ export default async function handler(
                 502,
                 "VidDra tidak mengembalikan generation ID.",
                 {
+
                     provider_response:
                         providerResponse.data
+
                 }
             );
 
         }
 
+
+        /* -------------------------------------------------
+           SAVE TO EXISTING HISTORY
+        ------------------------------------------------- */
 
         await createGenerationHistory({
 
@@ -935,6 +993,10 @@ export default async function handler(
 
         });
 
+
+        /* -------------------------------------------------
+           RESPONSE
+        ------------------------------------------------- */
 
         return success(
             res,
@@ -976,6 +1038,7 @@ export default async function handler(
         console.error(
             "[viddra] Generate error:",
             {
+
                 message:
                     error?.message,
 
@@ -987,24 +1050,28 @@ export default async function handler(
 
                 data:
                     error?.data
+
             }
         );
 
 
+        const status =
+            Number(
+                error?.status
+            );
+
+
         return failure(
             res,
-            Number(
-                error?.status
-            ) >= 400 &&
-            Number(
-                error?.status
-            ) < 600
-                ? Number(
-                    error.status
-                )
+
+            status >= 400 &&
+            status < 600
+                ? status
                 : 500,
+
             error?.message ||
             "Gagal membuat generation VidDra."
+
         );
 
     }
