@@ -656,6 +656,12 @@
                 href: "/generate/index.html",
                 icon: "♻️ "
             },
+           
+           {
+              label: "VidDra",
+              href: "/viddra/index.html",
+              icon: "🎬 "
+           },
 
             {
                 label: "History",
@@ -697,6 +703,12 @@
                 href: "/generate/index.html",
                 icon: "♻️ "
             },
+           
+           {
+              label: "VidDra",
+              href: "/viddra/index.html",
+              icon: "🎬 "
+           },
 
             {
                 label: "History",
