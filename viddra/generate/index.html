@@ -1,0 +1,3609 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        VidDra Generate • GEN-Z.AI
+    </title>
+
+    <meta
+        name="description"
+        content="VidDra AI Video Generator • GEN-Z.AI"
+    >
+
+    <style>
+
+        /* =====================================================
+           RESET
+        ===================================================== */
+
+        *,
+        *::before,
+        *::after {
+
+            box-sizing:
+                border-box;
+
+        }
+
+
+        html {
+
+            width:
+                100%;
+
+            min-height:
+                100%;
+
+            background:
+                #050505;
+
+        }
+
+
+        body {
+
+            margin:
+                0;
+
+            min-height:
+                100vh;
+
+            background:
+
+                radial-gradient(
+                    circle at 15% 10%,
+                    rgba(
+                        255,
+                        0,
+                        60,
+                        0.12
+                    ),
+                    transparent 28%
+                ),
+
+                radial-gradient(
+                    circle at 85% 20%,
+                    rgba(
+                        255,
+                        30,
+                        90,
+                        0.08
+                    ),
+                    transparent 26%
+                ),
+
+                linear-gradient(
+                    135deg,
+                    #030303 0%,
+                    #090909 48%,
+                    #040404 100%
+                );
+
+            color:
+                #f5f5f5;
+
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+        }
+
+
+        button,
+        input,
+        textarea,
+        select {
+
+            font:
+                inherit;
+
+        }
+
+
+        button {
+
+            cursor:
+                pointer;
+
+        }
+
+
+        /* =====================================================
+           PAGE
+        ===================================================== */
+
+        .viddra-page {
+
+            width:
+                100%;
+
+            min-height:
+                100vh;
+
+            padding:
+                24px;
+
+        }
+
+
+        .viddra-shell {
+
+            width:
+                min(
+                    1480px,
+                    100%
+                );
+
+            margin:
+                0 auto;
+
+        }
+
+
+        /* =====================================================
+           HERO
+        ===================================================== */
+
+        .viddra-hero {
+
+            position:
+                relative;
+
+            overflow:
+                hidden;
+
+            margin-bottom:
+                22px;
+
+            padding:
+                28px 30px;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    35,
+                    80,
+                    0.30
+                );
+
+            border-radius:
+                24px;
+
+            background:
+
+                linear-gradient(
+                    135deg,
+                    rgba(
+                        30,
+                        5,
+                        12,
+                        0.96
+                    ),
+                    rgba(
+                        9,
+                        9,
+                        9,
+                        0.98
+                    )
+                );
+
+            box-shadow:
+
+                0 0 45px
+                rgba(
+                    255,
+                    0,
+                    55,
+                    0.08
+                ),
+
+                inset 0 0 35px
+                rgba(
+                    255,
+                    0,
+                    55,
+                    0.025
+                );
+
+        }
+
+
+        .viddra-hero::before {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            width:
+                240px;
+
+            height:
+                240px;
+
+            top:
+                -120px;
+
+            right:
+                5%;
+
+            border-radius:
+                50%;
+
+            background:
+                rgba(
+                    255,
+                    0,
+                    70,
+                    0.13
+                );
+
+            filter:
+                blur(55px);
+
+            pointer-events:
+                none;
+
+        }
+
+
+        .viddra-hero-content {
+
+            position:
+                relative;
+
+            z-index:
+                1;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                24px;
+
+        }
+
+
+        .viddra-title-area {
+
+            min-width:
+                0;
+
+        }
+
+
+        .viddra-eyebrow {
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            gap:
+                8px;
+
+            margin-bottom:
+                10px;
+
+            padding:
+                6px 11px;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    50,
+                    90,
+                    0.30
+                );
+
+            border-radius:
+                999px;
+
+            background:
+                rgba(
+                    255,
+                    0,
+                    60,
+                    0.07
+                );
+
+            color:
+                #ff5278;
+
+            font-size:
+                11px;
+
+            font-weight:
+                800;
+
+            letter-spacing:
+                0.14em;
+
+            text-transform:
+                uppercase;
+
+        }
+
+
+        .viddra-title {
+
+            margin:
+                0;
+
+            font-size:
+                clamp(
+                    28px,
+                    4vw,
+                    44px
+                );
+
+            line-height:
+                1.05;
+
+            font-weight:
+                900;
+
+            letter-spacing:
+                -0.04em;
+
+            background:
+
+                linear-gradient(
+                    90deg,
+                    #ffffff,
+                    #ff315f 52%,
+                    #ff8ba3
+                );
+
+            -webkit-background-clip:
+                text;
+
+            background-clip:
+                text;
+
+            color:
+                transparent;
+
+        }
+
+
+        .viddra-subtitle {
+
+            max-width:
+                700px;
+
+            margin:
+                10px 0 0;
+
+            color:
+                #8f8f8f;
+
+            font-size:
+                14px;
+
+            line-height:
+                1.7;
+
+        }
+
+
+        /* =====================================================
+           BALANCE
+        ===================================================== */
+
+        .viddra-balance {
+
+            flex:
+                0 0 auto;
+
+            min-width:
+                190px;
+
+            padding:
+                16px 18px;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    40,
+                    85,
+                    0.28
+                );
+
+            border-radius:
+                18px;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.025
+                );
+
+            box-shadow:
+                inset 0 0 20px
+                rgba(
+                    255,
+                    0,
+                    50,
+                    0.025
+                );
+
+        }
+
+
+        .balance-label {
+
+            color:
+                #777;
+
+            font-size:
+                11px;
+
+            font-weight:
+                700;
+
+            text-transform:
+                uppercase;
+
+            letter-spacing:
+                0.12em;
+
+        }
+
+
+        .balance-value {
+
+            margin-top:
+                4px;
+
+            color:
+                #ffffff;
+
+            font-size:
+                26px;
+
+            font-weight:
+                900;
+
+        }
+
+
+        .balance-value span {
+
+            color:
+                #ff426d;
+
+        }
+
+
+        .balance-note {
+
+            margin-top:
+                4px;
+
+            color:
+                #666;
+
+            font-size:
+                11px;
+
+        }
+
+
+        /* =====================================================
+           MAIN GRID
+        ===================================================== */
+
+        .viddra-main {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                minmax(
+                    0,
+                    1.55fr
+                )
+                minmax(
+                    330px,
+                    0.75fr
+                );
+
+            gap:
+                22px;
+
+        }
+
+
+        /* =====================================================
+           CARD
+        ===================================================== */
+
+        .viddra-card {
+
+            position:
+                relative;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.075
+                );
+
+            border-radius:
+                22px;
+
+            background:
+
+                linear-gradient(
+                    145deg,
+                    rgba(
+                        18,
+                        18,
+                        18,
+                        0.97
+                    ),
+                    rgba(
+                        7,
+                        7,
+                        7,
+                        0.98
+                    )
+                );
+
+            box-shadow:
+
+                0 20px 70px
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.35
+                );
+
+        }
+
+
+        .viddra-card-header {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                16px;
+
+            padding:
+                20px 22px;
+
+            border-bottom:
+                1px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.055
+                );
+
+        }
+
+
+        .card-title {
+
+            margin:
+                0;
+
+            color:
+                #fff;
+
+            font-size:
+                16px;
+
+            font-weight:
+                850;
+
+        }
+
+
+        .card-description {
+
+            margin:
+                5px 0 0;
+
+            color:
+                #727272;
+
+            font-size:
+                12px;
+
+        }
+
+
+        /* =====================================================
+           FORM
+        ===================================================== */
+
+        .viddra-form {
+
+            padding:
+                22px;
+
+        }
+
+
+        .field {
+
+            margin-bottom:
+                18px;
+
+        }
+
+
+        .field:last-child {
+
+            margin-bottom:
+                0;
+
+        }
+
+
+        .field-label {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                10px;
+
+            margin-bottom:
+                8px;
+
+            color:
+                #d8d8d8;
+
+            font-size:
+                12px;
+
+            font-weight:
+                750;
+
+        }
+
+
+        .field-hint {
+
+            color:
+                #666;
+
+            font-size:
+                10px;
+
+            font-weight:
+                500;
+
+        }
+
+
+        textarea,
+        select,
+        input[type="text"] {
+
+            width:
+                100%;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.09
+                );
+
+            outline:
+                none;
+
+            border-radius:
+                13px;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.035
+                );
+
+            color:
+                #f4f4f4;
+
+            transition:
+                0.2s ease;
+
+        }
+
+
+        textarea {
+
+            min-height:
+                190px;
+
+            resize:
+                vertical;
+
+            padding:
+                15px;
+
+            line-height:
+                1.65;
+
+        }
+
+
+        select,
+        input[type="text"] {
+
+            height:
+                48px;
+
+            padding:
+                0 14px;
+
+        }
+
+
+        textarea:focus,
+        select:focus,
+        input[type="text"]:focus {
+
+            border-color:
+                rgba(
+                    255,
+                    45,
+                    90,
+                    0.55
+                );
+
+            background:
+                rgba(
+                    255,
+                    20,
+                    60,
+                    0.035
+                );
+
+            box-shadow:
+                0 0 0 3px
+                rgba(
+                    255,
+                    30,
+                    75,
+                    0.07
+                );
+
+        }
+
+
+        textarea::placeholder,
+        input::placeholder {
+
+            color:
+                #555;
+
+        }
+
+
+        select option {
+
+            background:
+                #111;
+
+            color:
+                #fff;
+
+        }
+
+
+        /* =====================================================
+           MODEL GRID
+        ===================================================== */
+
+        .model-grid {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                repeat(
+                    2,
+                    minmax(
+                        0,
+                        1fr
+                    )
+                );
+
+            gap:
+                10px;
+
+        }
+
+
+        .model-option {
+
+            position:
+                relative;
+
+        }
+
+
+        .model-option input {
+
+            position:
+                absolute;
+
+            opacity:
+                0;
+
+            pointer-events:
+                none;
+
+        }
+
+
+        .model-button {
+
+            display:
+                block;
+
+            width:
+                100%;
+
+            padding:
+                14px;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.08
+                );
+
+            border-radius:
+                14px;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.025
+                );
+
+            transition:
+                0.2s ease;
+
+        }
+
+
+        .model-name {
+
+            display:
+                block;
+
+            color:
+                #e9e9e9;
+
+            font-size:
+                12px;
+
+            font-weight:
+                800;
+
+        }
+
+
+        .model-price {
+
+            display:
+                block;
+
+            margin-top:
+                5px;
+
+            color:
+                #666;
+
+            font-size:
+                10px;
+
+        }
+
+
+        .model-option input:checked
+        + .model-button {
+
+            border-color:
+                rgba(
+                    255,
+                    40,
+                    90,
+                    0.72
+                );
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(
+                        255,
+                        20,
+                        65,
+                        0.12
+                    ),
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        0.025
+                    )
+                );
+
+            box-shadow:
+                0 0 22px
+                rgba(
+                    255,
+                    20,
+                    70,
+                    0.10
+                );
+
+        }
+
+
+        .model-option input:checked
+        + .model-button
+        .model-name {
+
+            color:
+                #ff5478;
+
+        }
+
+
+        /* =====================================================
+           TWO COLUMN
+        ===================================================== */
+
+        .form-row {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                repeat(
+                    2,
+                    minmax(
+                        0,
+                        1fr
+                    )
+                );
+
+            gap:
+                14px;
+
+        }
+
+
+        /* =====================================================
+           TOGGLE
+        ===================================================== */
+
+        .toggle-row {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                15px;
+
+            padding:
+                13px 14px;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.07
+                );
+
+            border-radius:
+                13px;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.02
+                );
+
+        }
+
+
+        .toggle-info strong {
+
+            display:
+                block;
+
+            color:
+                #ddd;
+
+            font-size:
+                12px;
+
+        }
+
+
+        .toggle-info span {
+
+            display:
+                block;
+
+            margin-top:
+                3px;
+
+            color:
+                #606060;
+
+            font-size:
+                10px;
+
+        }
+
+
+        .toggle {
+
+            position:
+                relative;
+
+            width:
+                44px;
+
+            height:
+                24px;
+
+            flex:
+                0 0 auto;
+
+        }
+
+
+        .toggle input {
+
+            opacity:
+                0;
+
+            width:
+                0;
+
+            height:
+                0;
+
+        }
+
+
+        .toggle-slider {
+
+            position:
+                absolute;
+
+            inset:
+                0;
+
+            border-radius:
+                999px;
+
+            background:
+                #292929;
+
+            transition:
+                0.2s ease;
+
+        }
+
+
+        .toggle-slider::before {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            width:
+                18px;
+
+            height:
+                18px;
+
+            left:
+                3px;
+
+            top:
+                3px;
+
+            border-radius:
+                50%;
+
+            background:
+                #777;
+
+            transition:
+                0.2s ease;
+
+        }
+
+
+        .toggle input:checked
+        + .toggle-slider {
+
+            background:
+                #8e1635;
+
+            box-shadow:
+                0 0 15px
+                rgba(
+                    255,
+                    30,
+                    80,
+                    0.20
+                );
+
+        }
+
+
+        .toggle input:checked
+        + .toggle-slider::before {
+
+            transform:
+                translateX(
+                    20px
+                );
+
+            background:
+                #ff426d;
+
+        }
+
+
+        /* =====================================================
+           GENERATE BUTTON
+        ===================================================== */
+
+        .generate-button {
+
+            position:
+                relative;
+
+            width:
+                100%;
+
+            height:
+                56px;
+
+            margin-top:
+                20px;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    75,
+                    110,
+                    0.75
+                );
+
+            border-radius:
+                15px;
+
+            background:
+
+                linear-gradient(
+                    135deg,
+                    #a90e38,
+                    #ff174f
+                );
+
+            color:
+                #fff;
+
+            font-size:
+                14px;
+
+            font-weight:
+                900;
+
+            letter-spacing:
+                0.02em;
+
+            box-shadow:
+
+                0 0 28px
+                rgba(
+                    255,
+                    20,
+                    70,
+                    0.16
+                ),
+
+                inset 0 1px 0
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.15
+                );
+
+            transition:
+                0.2s ease;
+
+        }
+
+
+        .generate-button:hover {
+
+            transform:
+                translateY(
+                    -1px
+                );
+
+            box-shadow:
+
+                0 0 40px
+                rgba(
+                    255,
+                    20,
+                    70,
+                    0.25
+                );
+
+        }
+
+
+        .generate-button:disabled {
+
+            cursor:
+                not-allowed;
+
+            opacity:
+                0.45;
+
+            transform:
+                none;
+
+        }
+
+
+        /* =====================================================
+           RIGHT PANEL
+        ===================================================== */
+
+        .side-stack {
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            gap:
+                18px;
+
+        }
+
+
+        .preview-box {
+
+            min-height:
+                340px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            padding:
+                20px;
+
+            background:
+
+                radial-gradient(
+                    circle at center,
+                    rgba(
+                        255,
+                        20,
+                        70,
+                        0.08
+                    ),
+                    transparent 52%
+                ),
+
+                #060606;
+
+            border-radius:
+                0 0 22px 22px;
+
+        }
+
+
+        .preview-empty {
+
+            text-align:
+                center;
+
+            max-width:
+                280px;
+
+        }
+
+
+        .preview-icon {
+
+            width:
+                62px;
+
+            height:
+                62px;
+
+            display:
+                grid;
+
+            place-items:
+                center;
+
+            margin:
+                0 auto 14px;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    50,
+                    90,
+                    0.24
+                );
+
+            border-radius:
+                18px;
+
+            background:
+                rgba(
+                    255,
+                    30,
+                    70,
+                    0.06
+                );
+
+            font-size:
+                27px;
+
+            box-shadow:
+                0 0 30px
+                rgba(
+                    255,
+                    20,
+                    70,
+                    0.08
+                );
+
+        }
+
+
+        .preview-title {
+
+            color:
+                #d8d8d8;
+
+            font-size:
+                13px;
+
+            font-weight:
+                800;
+
+        }
+
+
+        .preview-description {
+
+            margin-top:
+                7px;
+
+            color:
+                #555;
+
+            font-size:
+                11px;
+
+            line-height:
+                1.6;
+
+        }
+
+
+        /* =====================================================
+           COST CARD
+        ===================================================== */
+
+        .cost-card {
+
+            padding:
+                18px;
+
+        }
+
+
+        .cost-line {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                15px;
+
+            padding:
+                10px 0;
+
+            border-bottom:
+                1px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.05
+                );
+
+        }
+
+
+        .cost-line:last-child {
+
+            border-bottom:
+                0;
+
+        }
+
+
+        .cost-label {
+
+            color:
+                #777;
+
+            font-size:
+                11px;
+
+        }
+
+
+        .cost-value {
+
+            color:
+                #ddd;
+
+            font-size:
+                12px;
+
+            font-weight:
+                800;
+
+            text-align:
+                right;
+
+        }
+
+
+        .cost-total {
+
+            margin-top:
+                5px;
+
+            padding-top:
+                14px;
+
+            border-top:
+                1px solid
+                rgba(
+                    255,
+                    50,
+                    90,
+                    0.18
+                );
+
+        }
+
+
+        .cost-total .cost-label {
+
+            color:
+                #aaa;
+
+        }
+
+
+        .cost-total .cost-value {
+
+            color:
+                #ff4b72;
+
+            font-size:
+                20px;
+
+        }
+
+
+        /* =====================================================
+           STATUS
+        ===================================================== */
+
+        .status-box {
+
+            display:
+                none;
+
+            margin-top:
+                16px;
+
+            padding:
+                14px;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.08
+                );
+
+            border-radius:
+                13px;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.025
+                );
+
+            color:
+                #aaa;
+
+            font-size:
+                11px;
+
+            line-height:
+                1.6;
+
+        }
+
+
+        .status-box.show {
+
+            display:
+                block;
+
+        }
+
+
+        .status-box.success {
+
+            border-color:
+                rgba(
+                    45,
+                    210,
+                    130,
+                    0.25
+                );
+
+            color:
+                #7ce0ae;
+
+        }
+
+
+        .status-box.error {
+
+            border-color:
+                rgba(
+                    255,
+                    60,
+                    80,
+                    0.30
+                );
+
+            color:
+                #ff7188;
+
+        }
+
+
+        .status-box.processing {
+
+            border-color:
+                rgba(
+                    255,
+                    170,
+                    40,
+                    0.25
+                );
+
+            color:
+                #f2bd68;
+
+        }
+
+
+        /* =====================================================
+           NOTICE
+        ===================================================== */
+
+        .viddra-notice {
+
+            margin-top:
+                18px;
+
+            padding:
+                13px 14px;
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.06
+                );
+
+            border-radius:
+                13px;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.018
+                );
+
+            color:
+                #5e5e5e;
+
+            font-size:
+                10px;
+
+            line-height:
+                1.65;
+
+        }
+
+
+        /* =====================================================
+           LOADING
+        ===================================================== */
+
+        .spinner {
+
+            display:
+                inline-block;
+
+            width:
+                15px;
+
+            height:
+                15px;
+
+            margin-right:
+                8px;
+
+            vertical-align:
+                -3px;
+
+            border:
+                2px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.25
+                );
+
+            border-top-color:
+                #fff;
+
+            border-radius:
+                50%;
+
+            animation:
+                spin
+                0.7s
+                linear
+                infinite;
+
+        }
+
+
+        @keyframes spin {
+
+            to {
+
+                transform:
+                    rotate(
+                        360deg
+                    );
+
+            }
+
+        }
+
+
+        /* =====================================================
+           RESPONSIVE
+        ===================================================== */
+
+        @media (
+            max-width:
+            1050px
+        ) {
+
+            .viddra-main {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+        }
+
+
+        @media (
+            max-width:
+            720px
+        ) {
+
+            .viddra-page {
+
+                padding:
+                    12px;
+
+            }
+
+
+            .viddra-hero {
+
+                padding:
+                    20px;
+
+                border-radius:
+                    18px;
+
+            }
+
+
+            .viddra-hero-content {
+
+                flex-direction:
+                    column;
+
+                align-items:
+                    stretch;
+
+            }
+
+
+            .viddra-balance {
+
+                width:
+                    100%;
+
+            }
+
+
+            .form-row {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+
+            .model-grid {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+
+            .viddra-form {
+
+                padding:
+                    16px;
+
+            }
+
+
+            .viddra-card-header {
+
+                padding:
+                    17px;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+    <!-- =====================================================
+         NAVIGATION
+    ====================================================== -->
+
+    <div
+        id="navigation"
+        aria-label="GEN-Z.AI Navigation"
+    ></div>
+
+
+    <!-- =====================================================
+         PAGE
+    ====================================================== -->
+
+    <main class="viddra-page">
+
+        <div class="viddra-shell">
+
+
+            <!-- =================================================
+                 HERO
+            ================================================== -->
+
+            <section class="viddra-hero">
+
+                <div class="viddra-hero-content">
+
+                    <div class="viddra-title-area">
+
+                        <div class="viddra-eyebrow">
+                            🎬 VID DRA ENGINE
+                        </div>
+
+                        <h1 class="viddra-title">
+                            AI Video Generate
+                        </h1>
+
+                        <p class="viddra-subtitle">
+                            Create cinematic AI videos through
+                            VidDra's unified video engine.
+                            Pilih model, atur parameter,
+                            lalu biarkan mesin mengurus bagian
+                            yang biasanya membuat manusia menunggu
+                            sambil menatap progress bar.
+                        </p>
+
+                    </div>
+
+
+                    <div class="viddra-balance">
+
+                        <div class="balance-label">
+                            VidDra Balance
+                        </div>
+
+                        <div
+                            id="balanceValue"
+                            class="balance-value"
+                        >
+                            <span>$</span>1.00
+                        </div>
+
+                        <div class="balance-note">
+                            Starter credit
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 MAIN
+            ================================================== -->
+
+            <section class="viddra-main">
+
+
+                <!-- =============================================
+                     GENERATE FORM
+                ============================================== -->
+
+                <div class="viddra-card">
+
+                    <div class="viddra-card-header">
+
+                        <div>
+
+                            <h2 class="card-title">
+                                Create Video
+                            </h2>
+
+                            <p class="card-description">
+                                Configure your generation
+                            </p>
+
+                        </div>
+
+                        <div
+                            id="modelBadge"
+                            class="viddra-eyebrow"
+                            style="margin:0;"
+                        >
+                            VIDDRA
+                        </div>
+
+                    </div>
+
+
+                    <form
+                        id="viddraGenerateForm"
+                        class="viddra-form"
+                    >
+
+
+                        <!-- =====================================
+                             MODEL
+                        ====================================== -->
+
+                        <div class="field">
+
+                            <label class="field-label">
+
+                                <span>
+                                    AI Model
+                                </span>
+
+                                <span class="field-hint">
+                                    Live provider model
+                                </span>
+
+                            </label>
+
+
+                            <div class="model-grid">
+
+
+                                <label class="model-option">
+
+                                    <input
+                                        type="radio"
+                                        name="model"
+                                        value="wan2.6"
+                                        checked
+                                    >
+
+                                    <span class="model-button">
+
+                                        <span class="model-name">
+                                            Wan 2.6
+                                        </span>
+
+                                        <span class="model-price">
+                                            From $0.16/sec
+                                        </span>
+
+                                    </span>
+
+                                </label>
+
+
+                                <label class="model-option">
+
+                                    <input
+                                        type="radio"
+                                        name="model"
+                                        value="kling3.0"
+                                    >
+
+                                    <span class="model-button">
+
+                                        <span class="model-name">
+                                            Kling 3.0
+                                        </span>
+
+                                        <span class="model-price">
+                                            From $0.18/sec
+                                        </span>
+
+                                    </span>
+
+                                </label>
+
+
+                                <label class="model-option">
+
+                                    <input
+                                        type="radio"
+                                        name="model"
+                                        value="seedance"
+                                    >
+
+                                    <span class="model-button">
+
+                                        <span class="model-name">
+                                            Seedance
+                                        </span>
+
+                                        <span class="model-price">
+                                            From $0.13/sec
+                                        </span>
+
+                                    </span>
+
+                                </label>
+
+
+                                <label class="model-option">
+
+                                    <input
+                                        type="radio"
+                                        name="model"
+                                        value="seedance2.5"
+                                    >
+
+                                    <span class="model-button">
+
+                                        <span class="model-name">
+                                            Seedance 2.5
+                                        </span>
+
+                                        <span class="model-price">
+                                            From $0.32/sec
+                                        </span>
+
+                                    </span>
+
+                                </label>
+
+
+                                <label class="model-option">
+
+                                    <input
+                                        type="radio"
+                                        name="model"
+                                        value="veo3.1-fast"
+                                    >
+
+                                    <span class="model-button">
+
+                                        <span class="model-name">
+                                            Veo 3.1 Fast
+                                        </span>
+
+                                        <span class="model-price">
+                                            From $0.20/sec
+                                        </span>
+
+                                    </span>
+
+                                </label>
+
+
+                                <label class="model-option">
+
+                                    <input
+                                        type="radio"
+                                        name="model"
+                                        value="hailuo-2.3"
+                                    >
+
+                                    <span class="model-button">
+
+                                        <span class="model-name">
+                                            Hailuo 2.3
+                                        </span>
+
+                                        <span class="model-price">
+                                            From $0.0933/sec
+                                        </span>
+
+                                    </span>
+
+                                </label>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             PROMPT
+                        ====================================== -->
+
+                        <div class="field">
+
+                            <label
+                                for="prompt"
+                                class="field-label"
+                            >
+
+                                <span>
+                                    Prompt
+                                </span>
+
+                                <span
+                                    id="promptCounter"
+                                    class="field-hint"
+                                >
+                                    0 / 1000
+                                </span>
+
+                            </label>
+
+
+                            <textarea
+                                id="prompt"
+                                name="prompt"
+                                maxlength="1000"
+                                placeholder="Describe the video you want to create..."
+                                required
+                            ></textarea>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             SETTINGS
+                        ====================================== -->
+
+                        <div class="form-row">
+
+
+                            <div class="field">
+
+                                <label
+                                    for="duration"
+                                    class="field-label"
+                                >
+
+                                    <span>
+                                        Duration
+                                    </span>
+
+                                </label>
+
+
+                                <select
+                                    id="duration"
+                                    name="duration"
+                                >
+
+                                    <option value="5">
+                                        5 seconds
+                                    </option>
+
+                                    <option value="10">
+                                        10 seconds
+                                    </option>
+
+                                    <option value="15">
+                                        15 seconds
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label
+                                    for="resolution"
+                                    class="field-label"
+                                >
+
+                                    <span>
+                                        Resolution
+                                    </span>
+
+                                </label>
+
+
+                                <select
+                                    id="resolution"
+                                    name="resolution"
+                                >
+
+                                    <option value="720p">
+                                        720p
+                                    </option>
+
+                                    <option value="1080p">
+                                        1080p
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="form-row">
+
+
+                            <div class="field">
+
+                                <label
+                                    for="aspectRatio"
+                                    class="field-label"
+                                >
+
+                                    <span>
+                                        Aspect Ratio
+                                    </span>
+
+                                </label>
+
+
+                                <select
+                                    id="aspectRatio"
+                                    name="aspect_ratio"
+                                >
+
+                                    <option value="16:9">
+                                        16:9 Landscape
+                                    </option>
+
+                                    <option value="9:16">
+                                        9:16 Portrait
+                                    </option>
+
+                                    <option value="1:1">
+                                        1:1 Square
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label
+                                    for="negativePrompt"
+                                    class="field-label"
+                                >
+
+                                    <span>
+                                        Negative Prompt
+                                    </span>
+
+                                    <span class="field-hint">
+                                        Optional
+                                    </span>
+
+                                </label>
+
+
+                                <input
+                                    id="negativePrompt"
+                                    name="negative_prompt"
+                                    type="text"
+                                    maxlength="500"
+                                    placeholder="blurry, low quality..."
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             AUDIO
+                        ====================================== -->
+
+                        <div class="field">
+
+                            <div class="toggle-row">
+
+                                <div class="toggle-info">
+
+                                    <strong>
+                                        Native Audio
+                                    </strong>
+
+                                    <span>
+                                        Aktifkan audio native
+                                        jika model mendukungnya
+                                    </span>
+
+                                </div>
+
+
+                                <label class="toggle">
+
+                                    <input
+                                        id="audio"
+                                        type="checkbox"
+                                        name="audio"
+                                    >
+
+                                    <span class="toggle-slider"></span>
+
+                                </label>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             STATUS
+                        ====================================== -->
+
+                        <div
+                            id="statusBox"
+                            class="status-box"
+                        ></div>
+
+
+                        <!-- =====================================
+                             GENERATE
+                        ====================================== -->
+
+                        <button
+                            id="generateButton"
+                            class="generate-button"
+                            type="submit"
+                        >
+                            Generate Video
+                        </button>
+
+
+                        <div class="viddra-notice">
+
+                            VidDra menggunakan sistem
+                            asynchronous generation.
+                            Setelah request dikirim, task akan
+                            diproses oleh provider dan halaman
+                            akan melakukan polling sampai hasil
+                            tersedia. API key tidak pernah
+                            dikirim ke browser.
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+
+                <!-- =============================================
+                     SIDE
+                ============================================== -->
+
+                <aside class="side-stack">
+
+
+                    <!-- =========================================
+                         PREVIEW
+                    ========================================== -->
+
+                    <div class="viddra-card">
+
+                        <div class="viddra-card-header">
+
+                            <div>
+
+                                <h2 class="card-title">
+                                    Output
+                                </h2>
+
+                                <p class="card-description">
+                                    Generation preview
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            id="previewContainer"
+                            class="preview-box"
+                        >
+
+                            <div
+                                id="previewEmpty"
+                                class="preview-empty"
+                            >
+
+                                <div class="preview-icon">
+                                    ▶
+                                </div>
+
+                                <div class="preview-title">
+                                    Your video will appear here
+                                </div>
+
+                                <div class="preview-description">
+                                    Setelah generation berhasil,
+                                    hasil video akan ditampilkan
+                                    di area ini.
+                                </div>
+
+                            </div>
+
+                            <video
+                                id="resultVideo"
+                                controls
+                                playsinline
+                                style="
+                                    display:none;
+                                    width:100%;
+                                    max-height:520px;
+                                    border-radius:14px;
+                                    background:#000;
+                                "
+                            ></video>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         COST
+                    ========================================== -->
+
+                    <div class="viddra-card cost-card">
+
+                        <h2 class="card-title">
+                            Generation Estimate
+                        </h2>
+
+
+                        <div class="cost-line">
+
+                            <span class="cost-label">
+                                Model
+                            </span>
+
+                            <span
+                                id="estimateModel"
+                                class="cost-value"
+                            >
+                                Wan 2.6
+                            </span>
+
+                        </div>
+
+
+                        <div class="cost-line">
+
+                            <span class="cost-label">
+                                Duration
+                            </span>
+
+                            <span
+                                id="estimateDuration"
+                                class="cost-value"
+                            >
+                                5 sec
+                            </span>
+
+                        </div>
+
+
+                        <div class="cost-line">
+
+                            <span class="cost-label">
+                                Resolution
+                            </span>
+
+                            <span
+                                id="estimateResolution"
+                                class="cost-value"
+                            >
+                                720p
+                            </span>
+
+                        </div>
+
+
+                        <div class="cost-line">
+
+                            <span class="cost-label">
+                                Aspect Ratio
+                            </span>
+
+                            <span
+                                id="estimateRatio"
+                                class="cost-value"
+                            >
+                                16:9
+                            </span>
+
+                        </div>
+
+
+                        <div class="cost-line cost-total">
+
+                            <span class="cost-label">
+                                Estimated Cost
+                            </span>
+
+                            <span
+                                id="estimateCost"
+                                class="cost-value"
+                            >
+                                $0.80
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                </aside>
+
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <!-- =====================================================
+         NAVIGATION
+    ====================================================== -->
+
+    <script src="/navigation/navigation.js"></script>
+
+
+    <!-- =====================================================
+         VIDDRA GENERATE
+    ====================================================== -->
+
+    <script>
+
+        (() => {
+
+            "use strict";
+
+
+            /* =================================================
+               CONFIG
+            ================================================= */
+
+            const GENERATE_ENDPOINT =
+                "/api/viddra/generate";
+
+
+            const STATUS_ENDPOINT =
+                "/api/viddra/status";
+
+
+            const POLL_INTERVAL =
+                5000;
+
+
+            /*
+             * Harga fallback untuk UI estimate.
+             *
+             * Harga final tetap harus berasal dari
+             * backend / VidDra.
+             */
+
+            const MODEL_PRICES = {
+
+                "wan2.6": {
+
+                    name:
+                        "Wan 2.6",
+
+                    price720:
+                        0.16,
+
+                    price1080:
+                        0.24
+
+                },
+
+                "kling3.0": {
+
+                    name:
+                        "Kling 3.0",
+
+                    price720:
+                        0.18,
+
+                    price1080:
+                        0.18
+
+                },
+
+                "seedance": {
+
+                    name:
+                        "Seedance",
+
+                    price720:
+                        0.13,
+
+                    price1080:
+                        0.13
+
+                },
+
+                "seedance2.5": {
+
+                    name:
+                        "Seedance 2.5",
+
+                    price720:
+                        0.68,
+
+                    price1080:
+                        0.68
+
+                },
+
+                "veo3.1-fast": {
+
+                    name:
+                        "Veo 3.1 Fast",
+
+                    price720:
+                        0.20,
+
+                    price1080:
+                        0.20
+
+                },
+
+                "hailuo-2.3": {
+
+                    name:
+                        "Hailuo 2.3",
+
+                    price720:
+                        0.0933,
+
+                    price1080:
+                        0.15
+
+                }
+
+            };
+
+
+            /* =================================================
+               DOM
+            ================================================= */
+
+            const form =
+                document.getElementById(
+                    "viddraGenerateForm"
+                );
+
+
+            const prompt =
+                document.getElementById(
+                    "prompt"
+                );
+
+
+            const promptCounter =
+                document.getElementById(
+                    "promptCounter"
+                );
+
+
+            const duration =
+                document.getElementById(
+                    "duration"
+                );
+
+
+            const resolution =
+                document.getElementById(
+                    "resolution"
+                );
+
+
+            const aspectRatio =
+                document.getElementById(
+                    "aspectRatio"
+                );
+
+
+            const negativePrompt =
+                document.getElementById(
+                    "negativePrompt"
+                );
+
+
+            const audio =
+                document.getElementById(
+                    "audio"
+                );
+
+
+            const generateButton =
+                document.getElementById(
+                    "generateButton"
+                );
+
+
+            const statusBox =
+                document.getElementById(
+                    "statusBox"
+                );
+
+
+            const previewEmpty =
+                document.getElementById(
+                    "previewEmpty"
+                );
+
+
+            const resultVideo =
+                document.getElementById(
+                    "resultVideo"
+                );
+
+
+            const balanceValue =
+                document.getElementById(
+                    "balanceValue"
+                );
+
+
+            const estimateModel =
+                document.getElementById(
+                    "estimateModel"
+                );
+
+
+            const estimateDuration =
+                document.getElementById(
+                    "estimateDuration"
+                );
+
+
+            const estimateResolution =
+                document.getElementById(
+                    "estimateResolution"
+                );
+
+
+            const estimateRatio =
+                document.getElementById(
+                    "estimateRatio"
+                );
+
+
+            const estimateCost =
+                document.getElementById(
+                    "estimateCost"
+                );
+
+
+            const modelBadge =
+                document.getElementById(
+                    "modelBadge"
+                );
+
+
+            /* =================================================
+               HELPERS
+            ================================================= */
+
+            function getSelectedModel() {
+
+                const selected =
+                    document.querySelector(
+                        'input[name="model"]:checked'
+                    );
+
+                return (
+                    selected?.value ||
+                    "wan2.6"
+                );
+
+            }
+
+
+            function getAccessToken() {
+
+                /*
+                 * navigation.js memiliki auth state sendiri.
+                 *
+                 * Jangan pernah menaruh Viddra API key
+                 * di browser.
+                 *
+                 * Token GEN-Z.AI hanya digunakan untuk
+                 * autentikasi ke backend GEN-Z.AI.
+                 */
+
+                try {
+
+                    const session =
+                        window.supabaseClient
+                            ?.auth
+                            ?.getSession;
+
+                    if (
+                        typeof session !==
+                        "function"
+                    ) {
+
+                        return null;
+
+                    }
+
+                } catch {
+
+                    return null;
+
+                }
+
+                return null;
+
+            }
+
+
+            function setStatus(
+                message,
+                type = ""
+            ) {
+
+                statusBox.className =
+                    "status-box show";
+
+                if (type) {
+
+                    statusBox.classList.add(
+                        type
+                    );
+
+                }
+
+                statusBox.innerHTML =
+                    message;
+
+            }
+
+
+            function clearStatus() {
+
+                statusBox.className =
+                    "status-box";
+
+                statusBox.textContent =
+                    "";
+
+            }
+
+
+            function setLoading(
+                loading
+            ) {
+
+                generateButton.disabled =
+                    loading;
+
+                if (loading) {
+
+                    generateButton.innerHTML =
+                        `
+                            <span class="spinner"></span>
+                            Processing Video...
+                        `;
+
+                } else {
+
+                    generateButton.textContent =
+                        "Generate Video";
+
+                }
+
+            }
+
+
+            function formatUsd(
+                value
+            ) {
+
+                const numeric =
+                    Number(
+                        value
+                    );
+
+                if (
+                    !Number.isFinite(
+                        numeric
+                    )
+                ) {
+
+                    return "$0.00";
+
+                }
+
+                return `$${numeric.toFixed(2)}`;
+
+            }
+
+
+            /* =================================================
+               ESTIMATE
+            ================================================= */
+
+            function updateEstimate() {
+
+                const modelId =
+                    getSelectedModel();
+
+
+                const model =
+                    MODEL_PRICES[
+                        modelId
+                    ] ||
+                    MODEL_PRICES[
+                        "wan2.6"
+                    ];
+
+
+                const seconds =
+                    Number(
+                        duration.value
+                    ) ||
+                    5;
+
+
+                const selectedResolution =
+                    resolution.value;
+
+
+                const rate =
+                    selectedResolution ===
+                    "1080p"
+
+                        ? model.price1080
+
+                        : model.price720;
+
+
+                const cost =
+                    rate *
+                    seconds;
+
+
+                estimateModel.textContent =
+                    model.name;
+
+
+                estimateDuration.textContent =
+                    `${seconds} sec`;
+
+
+                estimateResolution.textContent =
+                    selectedResolution;
+
+
+                estimateRatio.textContent =
+                    aspectRatio.value;
+
+
+                estimateCost.textContent =
+                    formatUsd(
+                        cost
+                    );
+
+
+                modelBadge.textContent =
+                    model.name
+                        .toUpperCase();
+
+            }
+
+
+            /* =================================================
+               PROMPT COUNTER
+            ================================================= */
+
+            function updatePromptCounter() {
+
+                const length =
+                    prompt.value.length;
+
+
+                promptCounter.textContent =
+                    `${length} / 1000`;
+
+            }
+
+
+            /* =================================================
+               MODEL EVENTS
+            ================================================= */
+
+            document
+                .querySelectorAll(
+                    'input[name="model"]'
+                )
+                .forEach(
+                    input => {
+
+                        input.addEventListener(
+                            "change",
+                            updateEstimate
+                        );
+
+                    }
+                );
+
+
+            duration.addEventListener(
+                "change",
+                updateEstimate
+            );
+
+
+            resolution.addEventListener(
+                "change",
+                updateEstimate
+            );
+
+
+            aspectRatio.addEventListener(
+                "change",
+                updateEstimate
+            );
+
+
+            prompt.addEventListener(
+                "input",
+                updatePromptCounter
+            );
+
+
+            /* =================================================
+               POLL
+            ================================================= */
+
+            async function pollTask(
+                taskId
+            ) {
+
+                const started =
+                    Date.now();
+
+
+                while (
+                    true
+                ) {
+
+                    if (
+                        Date.now() -
+                        started >
+                        15 * 60 * 1000
+                    ) {
+
+                        throw new Error(
+                            "Generation timeout."
+                        );
+
+                    }
+
+
+                    await new Promise(
+                        resolve =>
+                            setTimeout(
+                                resolve,
+                                POLL_INTERVAL
+                            )
+                    );
+
+
+                    const response =
+                        await fetch(
+                            `${STATUS_ENDPOINT}?id=${encodeURIComponent(taskId)}`,
+                            {
+                                method:
+                                    "GET",
+
+                                headers:
+                                    {
+                                        "Accept":
+                                            "application/json"
+                                    },
+
+                                credentials:
+                                    "include"
+                            }
+                        );
+
+
+                    const data =
+                        await response
+                            .json()
+                            .catch(
+                                () => ({})
+                            );
+
+
+                    if (
+                        !response.ok
+                    ) {
+
+                        throw new Error(
+                            data?.error ||
+                            "Unable to read generation status."
+                        );
+
+                    }
+
+
+                    const status =
+                        String(
+                            data?.status ||
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+
+                    if (
+                        status ===
+                        "succeeded"
+                    ) {
+
+                        return data;
+
+                    }
+
+
+                    if (
+                        status ===
+                            "failed" ||
+                        status ===
+                            "cancelled"
+                    ) {
+
+                        throw new Error(
+                            data?.error ||
+                            "VidDra generation failed."
+                        );
+
+                    }
+
+
+                    setStatus(
+                        `
+                            <strong>Generating...</strong><br>
+                            Task:
+                            ${taskId}<br>
+                            Status:
+                            ${status || "processing"}
+                        `,
+                        "processing"
+                    );
+
+                }
+
+            }
+
+
+            /* =================================================
+               SHOW RESULT
+            ================================================= */
+
+            function showResult(
+                data
+            ) {
+
+                const videoUrl =
+                    data?.video_url ||
+                    data?.result_url ||
+                    data?.data?.video_url ||
+                    data?.data?.result_url ||
+                    "";
+
+
+                if (
+                    !videoUrl
+                ) {
+
+                    throw new Error(
+                        "Video URL was not returned by VidDra."
+                    );
+
+                }
+
+
+                resultVideo.src =
+                    videoUrl;
+
+
+                resultVideo.style.display =
+                    "block";
+
+
+                previewEmpty.style.display =
+                    "none";
+
+
+                resultVideo.load();
+
+
+                setStatus(
+                    `
+                        <strong>Generation completed.</strong><br>
+                        Video berhasil dibuat.
+                    `,
+                    "success"
+                );
+
+            }
+
+
+            /* =================================================
+               SUBMIT
+            ================================================= */
+
+            form.addEventListener(
+                "submit",
+                async event => {
+
+                    event.preventDefault();
+
+
+                    clearStatus();
+
+
+                    const promptValue =
+                        prompt.value.trim();
+
+
+                    if (
+                        !promptValue
+                    ) {
+
+                        setStatus(
+                            "Prompt wajib diisi.",
+                            "error"
+                        );
+
+                        prompt.focus();
+
+                        return;
+
+                    }
+
+
+                    if (
+                        promptValue.length >
+                        1000
+                    ) {
+
+                        setStatus(
+                            "Prompt maksimal 1000 karakter.",
+                            "error"
+                        );
+
+                        return;
+
+                    }
+
+
+                    const model =
+                        getSelectedModel();
+
+
+                    const payload = {
+
+                        model,
+
+                        prompt:
+                            promptValue,
+
+                        duration:
+                            Number(
+                                duration.value
+                            ),
+
+                        resolution:
+                            resolution.value,
+
+                        aspect_ratio:
+                            aspectRatio.value,
+
+                        negative_prompt:
+                            negativePrompt.value
+                                .trim(),
+
+                        audio:
+                            Boolean(
+                                audio.checked
+                            )
+
+                    };
+
+
+                    setLoading(
+                        true
+                    );
+
+
+                    setStatus(
+                        `
+                            <span class="spinner"></span>
+                            Mengirim generation request ke VidDra...
+                        `,
+                        "processing"
+                    );
+
+
+                    try {
+
+                        /*
+                         * Backend endpoint akan dibuat terpisah.
+                         *
+                         * Browser hanya mengirim parameter.
+                         *
+                         * VidDra API key tetap berada
+                         * di server.
+                         */
+
+                        const response =
+                            await fetch(
+                                GENERATE_ENDPOINT,
+                                {
+
+                                    method:
+                                        "POST",
+
+                                    headers:
+                                        {
+                                            "Content-Type":
+                                                "application/json",
+
+                                            "Accept":
+                                                "application/json"
+                                        },
+
+                                    credentials:
+                                        "include",
+
+                                    body:
+                                        JSON.stringify(
+                                            payload
+                                        )
+
+                                }
+                            );
+
+
+                        const data =
+                            await response
+                                .json()
+                                .catch(
+                                    () => ({})
+                                );
+
+
+                        if (
+                            !response.ok ||
+                            data?.success ===
+                                false
+                        ) {
+
+                            throw new Error(
+                                data?.error ||
+                                data?.message ||
+                                `Generate failed (${response.status})`
+                            );
+
+                        }
+
+
+                        const taskId =
+                            data?.task_id ||
+                            data?.id ||
+                            data?.data?.task_id ||
+                            data?.data?.id;
+
+
+                        if (
+                            !taskId
+                        ) {
+
+                            throw new Error(
+                                "VidDra tidak mengembalikan task ID."
+                            );
+
+                        }
+
+
+                        setStatus(
+                            `
+                                <strong>Task created.</strong><br>
+                                Task ID:
+                                ${taskId}<br>
+                                VidDra sedang memproses video...
+                            `,
+                            "processing"
+                        );
+
+
+                        const result =
+                            await pollTask(
+                                taskId
+                            );
+
+
+                        showResult(
+                            result
+                        );
+
+
+                        if (
+                            result?.balance !==
+                                undefined
+                        ) {
+
+                            balanceValue.innerHTML =
+                                `<span>$</span>${Number(
+                                    result.balance
+                                ).toFixed(2)}`;
+
+                        }
+
+
+                    } catch (
+                        error
+                    ) {
+
+                        console.error(
+                            "[VidDra Generate]",
+                            error
+                        );
+
+
+                        setStatus(
+                            `
+                                <strong>Generation failed.</strong><br>
+                                ${String(
+                                    error?.message ||
+                                    error
+                                )}
+                            `,
+                            "error"
+                        );
+
+                    } finally {
+
+                        setLoading(
+                            false
+                        );
+
+                    }
+
+                }
+            );
+
+
+            /* =================================================
+               INITIALIZE
+            ================================================= */
+
+            updatePromptCounter();
+
+            updateEstimate();
+
+
+            /*
+             * Navigation baru.
+             */
+
+            if (
+                window.GENZNavigation &&
+                typeof window.GENZNavigation.init ===
+                    "function"
+            ) {
+
+                window.GENZNavigation
+                    .init()
+                    .catch(
+                        error =>
+                            console.warn(
+                                "[VidDra] Navigation init:",
+                                error
+                            )
+                    );
+
+            }
+
+        })();
+
+    </script>
+
+</body>
+
+</html>
