@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>
+        GEN-Z.AI - OpenKey Tool Loop Test
+    </title>
+
+</head>
+
+
+<body>
+
+    <h1>
+        OpenKey Tool Loop Test
+    </h1>
+
+    <pre id="output">
+Menjalankan test...
+    </pre>
+
+
+<script type="module">
+
+import OpenKeyChat
+    from "./provider/openkey/chat.js";
+
+
+/* =========================================================
+   OUTPUT
+========================================================= */
+
+const output =
+    document.getElementById(
+        "output"
+    );
+
+
+function log(
+    ...args
+) {
+
+    output.textContent +=
+        args
+            .map(
+                value => {
+
+                    if (
+                        typeof value ===
+                        "string"
+                    ) {
+
+                        return value;
+
+                    }
+
+
+                    try {
+
+                        return JSON.stringify(
+                            value,
+                            null,
+                            2
+                        );
+
+                    }
+                    catch (_) {
+
+                        return String(
+                            value
+                        );
+
+                    }
+
+                }
+            )
+            .join(" ") +
+        "\n";
+
+}
+
+
+/* =========================================================
+   SUPABASE ACCESS TOKEN
+========================================================= */
+
+async function getAccessToken() {
+
+    if (
+        !window.supabase
+    ) {
+
+        throw new Error(
+            "Supabase client tidak tersedia."
+        );
+
+    }
+
+
+    const {
+        data,
+        error
+    } =
+        await window.supabase.auth
+            .getSession();
+
+
+    if (
+        error
+    ) {
+
+        throw error;
+
+    }
+
+
+    const token =
+        data?.session?.access_token;
+
+
+    if (
+        !token
+    ) {
+
+        throw new Error(
+            "Supabase access token tidak ditemukan."
+        );
+
+    }
+
+
+    return token;
+
+}
+
+
+/* =========================================================
+   TEST TOOL
+========================================================= */
+
+async function executeTestTool(
+    toolCall,
+    context
+) {
+
+    log(
+        "[EXECUTE TOOL]",
+        toolCall.function.name
+    );
+
+
+    log(
+        "[TOOL ARGUMENTS]",
+        toolCall.function.parsed_arguments
+    );
+
+
+    if (
+        toolCall.function.name !==
+        "get_weather"
+    ) {
+
+        throw new Error(
+            "Tool tidak dikenal: " +
+            toolCall.function.name
+        );
+
+    }
+
+
+    const args =
+        toolCall.function
+            .parsed_arguments ||
+        {};
+
+
+    return {
+
+        city:
+            args.city ||
+            "Jakarta",
+
+        country:
+            args.country ||
+            "Indonesia",
+
+        temperature_c:
+            30,
+
+        condition:
+            "Berawan",
+
+        source:
+            "GEN-Z.AI TOOL LOOP TEST",
+
+        round:
+            context.round
+
+    };
+
+}
+
+
+/* =========================================================
+   MAIN TEST
+========================================================= */
+
+async function runTest() {
+
+    output.textContent =
+        "========== OPENKEY TOOL LOOP TEST ==========\n\n";
+
+
+    try {
+
+        /*
+         * TOKEN
+         */
+
+        const accessToken =
+            await getAccessToken();
+
+
+        log(
+            "[PASS] Supabase access token ditemukan."
+        );
+
+
+        /*
+         * TOOL DEFINITION
+         */
+
+        const tools = [
+
+            {
+
+                type:
+                    "function",
+
+                function: {
+
+                    name:
+                        "get_weather",
+
+                    description:
+                        "Mendapatkan informasi cuaca sebuah kota.",
+
+                    parameters: {
+
+                        type:
+                            "object",
+
+                        properties: {
+
+                            city: {
+
+                                type:
+                                    "string"
+
+                            },
+
+                            country: {
+
+                                type:
+                                    "string"
+
+                            }
+
+                        },
+
+                        required: [
+                            "city",
+                            "country"
+                        ]
+
+                    }
+
+                }
+
+            }
+
+        ];
+
+
+        /*
+         * RUN FULL LOOP
+         */
+
+        log(
+            "\n========== RUN TOOL LOOP =========="
+        );
+
+
+        const response =
+            await OpenKeyChat
+                .runToolLoop({
+
+                    apiKey:
+                        accessToken,
+
+                    model:
+                        "gpt-4o-mini",
+
+                    messages: [
+
+                        {
+
+                            role:
+                                "user",
+
+                            content:
+                                "Gunakan tool get_weather untuk mencari cuaca Jakarta Indonesia."
+
+                        }
+
+                    ],
+
+                    tools,
+
+                    tool_choice: {
+
+                        type:
+                            "function",
+
+                        function: {
+
+                            name:
+                                "get_weather"
+
+                        }
+
+                    },
+
+                    maxToolRounds:
+                        4,
+
+                    executeTool:
+                        executeTestTool
+
+                });
+
+
+        /*
+         * FINAL RESPONSE
+         */
+
+        log(
+            "\n========== FINAL RESPONSE =========="
+        );
+
+
+        log(
+            "[MODEL]",
+            response.model
+        );
+
+
+        log(
+            "[CONTENT]",
+            response.content
+        );
+
+
+        log(
+            "[FINISH]",
+            response.finish_reason
+        );
+
+
+        log(
+            "[TOOL CALLS]",
+            response.tool_calls
+        );
+
+
+        log(
+            "[USAGE]",
+            response.usage
+        );
+
+
+        /*
+         * ASSERTIONS
+         */
+
+        if (
+            !response
+        ) {
+
+            throw new Error(
+                "Response kosong."
+            );
+
+        }
+
+
+        if (
+            !response.content
+        ) {
+
+            throw new Error(
+                "Response final tidak memiliki content."
+            );
+
+        }
+
+
+        if (
+            response.tool_calls.length !==
+            0
+        ) {
+
+            throw new Error(
+                "Response akhir masih memiliki tool call."
+            );
+
+        }
+
+
+        if (
+            response.finish_reason !==
+            "stop"
+        ) {
+
+            throw new Error(
+                "finish_reason bukan stop."
+            );
+
+        }
+
+
+        log(
+            "\n[PASS] OPENKEY RUN TOOL LOOP BERHASIL."
+        );
+
+
+        log(
+            "[PASS] Tool berhasil dieksekusi."
+        );
+
+
+        log(
+            "[PASS] Tool result dikirim kembali."
+        );
+
+
+        log(
+            "[PASS] Model menghasilkan response final."
+        );
+
+
+        log(
+            "[PASS] Tidak ada tool call lanjutan."
+        );
+
+    }
+    catch (error) {
+
+        log(
+            "\n[FAIL]",
+            error?.message ||
+            String(error)
+        );
+
+
+        console.error(
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   START
+========================================================= */
+
+runTest();
+
+</script>
+
+</body>
+
+</html>
