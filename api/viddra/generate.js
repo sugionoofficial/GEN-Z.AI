@@ -22,6 +22,10 @@
 import vidDraStatusHandler
     from "../../lib/viddra/status.js";
 
+import {
+    getVidDraApiKey
+} from "../../lib/viddra/session.js";
+
 
 /* =========================================================
    CONFIG
@@ -42,13 +46,6 @@ const SUPABASE_SERVICE_ROLE_KEY =
     String(
         process.env.SUPABASE_SERVICE_ROLE_KEY || ""
     ).trim();
-
-
-const VIDDRA_API_KEY =
-    String(
-        process.env.VIDDRA_API_KEY || ""
-    ).trim();
-
 
 const VIDDRA_API_BASE =
     "https://api.viddra.com/v1";
@@ -499,27 +496,65 @@ function normalizePrompt(
 /* =========================================================
    CREATE VIDDRA GENERATION
    ---------------------------------------------------------
-   IMPORTANT:
-   - Generation endpoint memakai VIDDRA_API_KEY.
-   - API key hanya berada di server.
-   - Tidak pernah dikirim ke frontend.
+   API Key:
+   - Prioritas 1: encrypted HttpOnly cookie milik user
+   - Prioritas 2: VIDDRA_API_KEY environment variable
+     sebagai compatibility fallback lama
+
+   API key TIDAK pernah dikirim ke frontend.
 ========================================================= */
 
 async function createVidDraGeneration(
+    req,
     prompt
 ) {
 
+    /*
+     * -------------------------------------------------------
+     * Ambil API key milik user dari encrypted HttpOnly cookie.
+     * -------------------------------------------------------
+     */
+
+    const sessionApiKey =
+        getVidDraApiKey(
+            req
+        );
+
+
+    /*
+     * -------------------------------------------------------
+     * Compatibility fallback.
+     *
+     * Ini menjaga deployment lama tetap dapat berjalan
+     * apabila VIDDRA_API_KEY masih tersedia di Vercel.
+     *
+     * Tetapi API key user selalu diprioritaskan.
+     * -------------------------------------------------------
+     */
+
+    const fallbackApiKey =
+        String(
+            process.env.VIDDRA_API_KEY ||
+            ""
+        ).trim();
+
+
+    const apiKey =
+        sessionApiKey ||
+        fallbackApiKey;
+
+
     if (
-        !VIDDRA_API_KEY
+        !apiKey
     ) {
 
         throw Object.assign(
             new Error(
-                "VIDDRA_API_KEY is not configured"
+                "VidDra API key belum tersedia. Silakan Get API Key terlebih dahulu."
             ),
             {
                 status:
-                    500,
+                    400,
 
                 code:
                     "VIDDRA_API_KEY_MISSING"
@@ -556,7 +591,7 @@ async function createVidDraGeneration(
                 headers: {
 
                     Authorization:
-                        `Bearer ${VIDDRA_API_KEY}`,
+                        `Bearer ${apiKey}`,
 
                     "Content-Type":
                         "application/json",
@@ -1085,9 +1120,10 @@ export default async function handler(
         ------------------------------------------------- */
 
         const providerResponse =
-            await createVidDraGeneration(
-                prompt
-            );
+    await createVidDraGeneration(
+        req,
+        prompt
+    );
 
 
         /* -------------------------------------------------
