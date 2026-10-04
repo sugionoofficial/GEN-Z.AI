@@ -24,74 +24,76 @@
    CONSTANTS
 ========================================================= */
 
-const VISION_UI_STATUS = Object.freeze({
+const VISION_UI_STATUS =
+    Object.freeze({
 
-    IDLE:
-        "idle",
+        IDLE:
+            "idle",
 
-    VALIDATING:
-        "validating",
+        VALIDATING:
+            "validating",
 
-    CHECKING_CREDIT:
-        "checking-credit",
+        CHECKING_CREDIT:
+            "checking-credit",
 
-    RESERVING_CREDIT:
-        "reserving-credit",
+        RESERVING_CREDIT:
+            "reserving-credit",
 
-    ANALYZING:
-        "analyzing",
+        ANALYZING:
+            "analyzing",
 
-    ENGINEERING:
-        "engineering",
+        ENGINEERING:
+            "engineering",
 
-    SAVING_HISTORY:
-        "saving-history",
+        SAVING_HISTORY:
+            "saving-history",
 
-    COMPLETED:
-        "completed",
+        COMPLETED:
+            "completed",
 
-    REFUNDING:
-        "refunding",
+        REFUNDING:
+            "refunding",
 
-    ERROR:
-        "error"
+        ERROR:
+            "error"
 
-});
+    });
 
 
-const VISION_UI_PROGRESS = Object.freeze({
+const VISION_UI_PROGRESS =
+    Object.freeze({
 
-    idle:
-        0,
+        idle:
+            0,
 
-    validating:
-        8,
+        validating:
+            8,
 
-    "checking-credit":
-        16,
+        "checking-credit":
+            16,
 
-    "reserving-credit":
-        22,
+        "reserving-credit":
+            22,
 
-    analyzing:
-        48,
+        analyzing:
+            48,
 
-    engineering:
-        72,
+        engineering:
+            72,
 
-    "saving-history":
-        90,
+        "saving-history":
+            90,
 
-    completed:
-        100,
+        completed:
+            100,
 
-    refunding:
-        94,
+        refunding:
+            94,
 
-    error:
-        0
+        error:
+            0
 
-});
+    });
 
 
 /* =========================================================
@@ -135,77 +137,113 @@ function getState() {
 
 
 /* =========================================================
-   TEXT
+   STATUS TEXT
 ========================================================= */
 
-const STATUS_TEXT = Object.freeze({
+const STATUS_TEXT =
+    Object.freeze({
 
-    idle:
-        "Ready",
+        idle:
+            "Menunggu gambar...",
 
-    validating:
-        "Memvalidasi image...",
+        validating:
+            "Memvalidasi image...",
 
-    "checking-credit":
-        "Memeriksa credit...",
+        "checking-credit":
+            "Memeriksa credit...",
 
-    "reserving-credit":
-        "Menyiapkan proses Vision...",
+        "reserving-credit":
+            "Menyiapkan proses Vision...",
 
-    analyzing:
-        "Menganalisis gambar...",
+        analyzing:
+            "Menganalisis gambar...",
 
-    engineering:
-        "Menyusun ultra detailed prompt...",
+        engineering:
+            "Menyusun ultra detailed prompt...",
 
-    "saving-history":
-        "Menyimpan riwayat...",
+        "saving-history":
+            "Menyimpan riwayat...",
 
-    completed:
-        "Vision analysis selesai",
+        completed:
+            "Vision analysis selesai",
 
-    refunding:
-        "Mengembalikan credit...",
+        refunding:
+            "Mengembalikan credit...",
 
-    error:
-        "Vision process gagal"
+        error:
+            "Vision process gagal"
 
-});
+    });
 
 
-const STATUS_SUBTEXT = Object.freeze({
+const STATUS_SUBTEXT =
+    Object.freeze({
 
-    idle:
-        "Upload gambar untuk memulai.",
+        idle:
+            "Upload gambar untuk memulai.",
 
-    validating:
-        "Memeriksa file dan parameter Vision.",
+        validating:
+            "Memeriksa file dan parameter Vision.",
 
-    "checking-credit":
-        "Memastikan saldo credit mencukupi.",
+        "checking-credit":
+            "Memastikan saldo credit mencukupi.",
 
-    "reserving-credit":
-        "Menyiapkan satu credit untuk proses ini.",
+        "reserving-credit":
+            "Menyiapkan satu credit untuk proses ini.",
 
-    analyzing:
-        "Membaca subject, composition, lighting, camera, dan detail visual.",
+        analyzing:
+            "Membaca subject, composition, lighting, camera, dan detail visual.",
 
-    engineering:
-        "Mengubah hasil visual analysis menjadi prompt yang siap digunakan.",
+        engineering:
+            "Mengubah hasil visual analysis menjadi prompt yang siap digunakan.",
 
-    "saving-history":
-        "Menyimpan aktivitas ke riwayat akun.",
+        "saving-history":
+            "Menyimpan aktivitas ke riwayat akun.",
 
-    completed:
-        "Prompt berhasil dibuat.",
+        completed:
+            "Prompt berhasil dibuat.",
 
-    refunding:
-        "Proses gagal. Credit sedang dikembalikan.",
+        refunding:
+            "Proses gagal. Credit sedang dikembalikan.",
 
-    error:
-        "Periksa pesan error lalu coba kembali."
+        error:
+            "Periksa pesan error lalu coba kembali."
 
-});
+    });
+
+
+/* =========================================================
+   NORMALIZE STATUS
+========================================================= */
+
+function normalizeStatus(
+    status
+) {
+
+    const value =
+        String(
+            status ||
+            VISION_UI_STATUS.IDLE
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            STATUS_TEXT,
+            value
+        )
+    ) {
+
+        return value;
+
+    }
+
+
+    return VISION_UI_STATUS.IDLE;
+
+}
 
 
 /* =========================================================
@@ -218,23 +256,31 @@ function clearResultMessage() {
         getDOM();
 
 
-    const existing =
-        dom.page?.querySelectorAll(
-            ".vision-result-message"
-        );
+    if (
+        !dom.page
+    ) {
 
-
-    if (!existing) {
-
-        return;
+        return false;
 
     }
 
 
+    const existing =
+        dom.page.querySelectorAll(
+            ".vision-result-message"
+        );
+
+
     existing.forEach(
-        element =>
-            element.remove()
+        item => {
+
+            item.remove();
+
+        }
     );
+
+
+    return true;
 
 }
 
@@ -256,7 +302,7 @@ function showResultMessage(
 
 
     if (
-        !dom.promptResult?.parentElement
+        !dom.promptContainer
     ) {
 
         return false;
@@ -264,28 +310,42 @@ function showResultMessage(
     }
 
 
-    const element =
+    const text =
+        String(
+            message ||
+            ""
+        )
+            .trim();
+
+
+    if (
+        !text
+    ) {
+
+        return false;
+
+    }
+
+
+    const messageElement =
         document.createElement(
             "div"
         );
 
 
-    element.className =
+    messageElement.className =
         `vision-result-message vision-result-${type}`;
 
 
-    element.textContent =
-        String(
-            message ||
-            ""
-        );
+    messageElement.textContent =
+        text;
 
 
-    dom.promptResult
+    dom.promptContainer
         .parentElement
-        .insertBefore(
-            element,
-            dom.promptResult
+        ?.insertBefore(
+            messageElement,
+            dom.promptContainer
         );
 
 
@@ -308,33 +368,58 @@ function setStatus(
 
 
     const normalized =
+        normalizeStatus(
+            status
+        );
+
+
+    const text =
         String(
-            status ||
-            VISION_UI_STATUS.IDLE
-        )
-            .toLowerCase();
+            message ||
+            STATUS_TEXT[
+                normalized
+            ] ||
+            STATUS_TEXT.idle
+        );
 
 
-    const statusText =
-        message ||
-        STATUS_TEXT[
-            normalized
-        ] ||
-        STATUS_TEXT.idle;
-
+    /*
+     * -----------------------------------------------------
+     * STATUS CONTAINER
+     * -----------------------------------------------------
+     */
 
     if (
         dom.status
     ) {
 
-        dom.status.textContent =
-            statusText;
-
-        dom.status.dataset.status =
+        dom.status.dataset.state =
             normalized;
 
     }
 
+
+    /*
+     * -----------------------------------------------------
+     * STATUS TEXT
+     * -----------------------------------------------------
+     */
+
+    if (
+        dom.statusText
+    ) {
+
+        dom.statusText.textContent =
+            text;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * PAGE STATE
+     * -----------------------------------------------------
+     */
 
     if (
         dom.page
@@ -345,6 +430,12 @@ function setStatus(
 
     }
 
+
+    /*
+     * -----------------------------------------------------
+     * INDICATOR
+     * -----------------------------------------------------
+     */
 
     updateStatusIndicator(
         normalized
@@ -368,13 +459,10 @@ function updateStatusIndicator(
         getDOM();
 
 
-    if (
-        !dom.status
-    ) {
-
-        return false;
-
-    }
+    const normalized =
+        normalizeStatus(
+            status
+        );
 
 
     const processing =
@@ -386,29 +474,73 @@ function updateStatusIndicator(
             VISION_UI_STATUS.ENGINEERING,
             VISION_UI_STATUS.SAVING_HISTORY,
             VISION_UI_STATUS.REFUNDING
-        ].includes(
-            status
+        ]
+            .includes(
+                normalized
+            );
+
+
+    if (
+        dom.status
+    ) {
+
+        dom.status.classList.toggle(
+            "vision-status-processing",
+            processing
         );
 
 
-    dom.status.classList.toggle(
-        "vision-status-processing",
-        processing
-    );
+        dom.status.classList.toggle(
+            "vision-status-success",
+            normalized ===
+                VISION_UI_STATUS.COMPLETED
+        );
 
 
-    dom.status.classList.toggle(
-        "vision-status-success",
-        status ===
-            VISION_UI_STATUS.COMPLETED
-    );
+        dom.status.classList.toggle(
+            "vision-status-error",
+            normalized ===
+                VISION_UI_STATUS.ERROR
+        );
 
 
-    dom.status.classList.toggle(
-        "vision-status-error",
-        status ===
-            VISION_UI_STATUS.ERROR
-    );
+        dom.status.classList.toggle(
+            "vision-status-idle",
+            normalized ===
+                VISION_UI_STATUS.IDLE
+        );
+
+    }
+
+
+    if (
+        dom.statusIndicator
+    ) {
+
+        dom.statusIndicator.dataset.state =
+            normalized;
+
+
+        dom.statusIndicator.classList.toggle(
+            "vision-status-processing",
+            processing
+        );
+
+
+        dom.statusIndicator.classList.toggle(
+            "vision-status-success",
+            normalized ===
+                VISION_UI_STATUS.COMPLETED
+        );
+
+
+        dom.statusIndicator.classList.toggle(
+            "vision-status-error",
+            normalized ===
+                VISION_UI_STATUS.ERROR
+        );
+
+    }
 
 
     return true;
@@ -437,12 +569,15 @@ function setStatusSubtext(
     }
 
 
+    const normalized =
+        normalizeStatus(
+            status
+        );
+
+
     const text =
         STATUS_SUBTEXT[
-            String(
-                status || ""
-            )
-                .toLowerCase()
+            normalized
         ] ||
         "";
 
@@ -454,14 +589,22 @@ function setStatusSubtext(
             );
 
 
+    /*
+     * Status subtext tidak ada
+     * di HTML awal, jadi dibuat hanya
+     * ketika diperlukan.
+     */
+
     if (
-        !subtext
+        !subtext &&
+        text
     ) {
 
         subtext =
             document.createElement(
                 "div"
             );
+
 
         subtext.className =
             "vision-status-subtext";
@@ -475,8 +618,17 @@ function setStatusSubtext(
     }
 
 
-    subtext.textContent =
-        text;
+    if (
+        subtext
+    ) {
+
+        subtext.textContent =
+            text;
+
+        subtext.hidden =
+            !text;
+
+    }
 
 
     return true;
@@ -498,7 +650,9 @@ function setProgress(
 
 
     let progress =
-        Number(value);
+        Number(
+            value
+        );
 
 
     if (
@@ -523,6 +677,39 @@ function setProgress(
         );
 
 
+    const rounded =
+        Math.round(
+            progress
+        );
+
+
+    /*
+     * -----------------------------------------------------
+     * PROGRESS CONTAINER
+     * -----------------------------------------------------
+     */
+
+    if (
+        dom.progress
+    ) {
+
+        dom.progress
+            .setAttribute(
+                "aria-valuenow",
+                String(
+                    rounded
+                )
+            );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * PROGRESS BAR
+     * -----------------------------------------------------
+     */
+
     if (
         dom.progressBar
     ) {
@@ -530,27 +717,23 @@ function setProgress(
         dom.progressBar.style.width =
             `${progress}%`;
 
+
         dom.progressBar
             .setAttribute(
                 "aria-valuenow",
-                String(progress)
+                String(
+                    rounded
+                )
             );
 
     }
 
 
-    if (
-        dom.progress
-    ) {
-
-        dom.progress
-            .setAttribute(
-                "aria-valuenow",
-                String(progress)
-            );
-
-    }
-
+    /*
+     * -----------------------------------------------------
+     * PROGRESS TEXT
+     * -----------------------------------------------------
+     */
 
     if (
         dom.progressText
@@ -558,7 +741,7 @@ function setProgress(
 
         dom.progressText.textContent =
             text ||
-            `${Math.round(progress)}%`;
+            `${rounded}%`;
 
     }
 
@@ -578,11 +761,9 @@ function setProgressFromStatus(
 ) {
 
     const normalized =
-        String(
-            status ||
-            VISION_UI_STATUS.IDLE
-        )
-            .toLowerCase();
+        normalizeStatus(
+            status
+        );
 
 
     const progress =
@@ -618,6 +799,12 @@ function setProcessing(
         );
 
 
+    /*
+     * -----------------------------------------------------
+     * PAGE
+     * -----------------------------------------------------
+     */
+
     if (
         dom.page
     ) {
@@ -630,6 +817,12 @@ function setProcessing(
     }
 
 
+    /*
+     * -----------------------------------------------------
+     * GENERATE BUTTON
+     * -----------------------------------------------------
+     */
+
     if (
         dom.generateButton
     ) {
@@ -637,13 +830,28 @@ function setProcessing(
         dom.generateButton.disabled =
             active;
 
+
         dom.generateButton.classList.toggle(
             "vision-processing-button",
             active
         );
 
+
+        dom.generateButton.setAttribute(
+            "aria-busy",
+            active
+                ? "true"
+                : "false"
+        );
+
     }
 
+
+    /*
+     * -----------------------------------------------------
+     * SPINNER
+     * -----------------------------------------------------
+     */
 
     if (
         dom.generateSpinner
@@ -655,6 +863,28 @@ function setProcessing(
     }
 
 
+    /*
+     * -----------------------------------------------------
+     * PROGRESS
+     * -----------------------------------------------------
+ */
+
+    if (
+        dom.progress
+    ) {
+
+        dom.progress.hidden =
+            !active;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * DROPZONE
+     * -----------------------------------------------------
+     */
+
     if (
         dom.dropzone
     ) {
@@ -662,6 +892,14 @@ function setProcessing(
         dom.dropzone.classList.toggle(
             "vision-dropzone-disabled",
             active
+        );
+
+
+        dom.dropzone.setAttribute(
+            "aria-disabled",
+            active
+                ? "true"
+                : "false"
         );
 
     }
@@ -693,60 +931,59 @@ function setGenerateButtonText(
     }
 
 
-    const content =
-        dom.generateButton
-            .querySelector(
-                ".vision-action-content"
-            );
+    const value =
+        String(
+            text ||
+            ""
+        );
 
+
+    /*
+     * HTML menggunakan:
+     *
+     * #visionGenerateButtonText
+     *
+     * Jadi tidak perlu mencari
+     * selector .vision-action-content.
+     */
 
     if (
-        content
+        dom.generateButtonText
     ) {
 
-        const textElement =
-            content.querySelector(
+        dom.generateButtonText.textContent =
+            value;
+
+        return true;
+
+    }
+
+
+    /*
+     * Fallback jika registry DOM
+     * belum memiliki generateButtonText.
+     */
+
+    const textElement =
+        dom.generateButton
+            .querySelector(
                 ".vision-action-text"
             );
 
 
-        if (
-            textElement
-        ) {
-
-            textElement.textContent =
-                text;
-
-            return true;
-
-        }
-
-    }
-
-
-    const directText =
-        Array.from(
-            dom.generateButton.childNodes
-        )
-            .find(
-                node =>
-                    node.nodeType ===
-                    Node.TEXT_NODE &&
-                    node.textContent.trim()
-            );
-
-
     if (
-        directText
+        textElement
     ) {
 
-        directText.textContent =
-            ` ${text} `;
+        textElement.textContent =
+            value;
+
+        return true;
 
     }
 
 
-    return true;
+    return false;
 
 }
 
@@ -764,6 +1001,12 @@ function resetResult() {
     clearResultMessage();
 
 
+    /*
+     * -----------------------------------------------------
+     * PLACEHOLDER
+     * -----------------------------------------------------
+     */
+
     if (
         dom.promptPlaceholder
     ) {
@@ -773,6 +1016,12 @@ function resetResult() {
 
     }
 
+
+    /*
+     * -----------------------------------------------------
+     * PROMPT RESULT
+     * -----------------------------------------------------
+     */
 
     if (
         dom.promptResult
@@ -787,34 +1036,16 @@ function resetResult() {
     }
 
 
-    if (
-        dom.copyButton
-    ) {
+    /*
+     * -----------------------------------------------------
+     * COPY
+     * -----------------------------------------------------
+ */
 
-        dom.copyButton.disabled =
-            true;
-
-    }
-
-
-    if (
-        dom.analysisResult
-    ) {
-
-        dom.analysisResult.textContent =
-            "";
-
-    }
-
-
-    if (
-        dom.analysisDetails
-    ) {
-
-        dom.analysisDetails.open =
-            false;
-
-    }
+    setCopyState(
+        false,
+        false
+    );
 
 
     return true;
@@ -853,6 +1084,12 @@ function showPrompt(
     }
 
 
+    /*
+     * -----------------------------------------------------
+     * HIDE PLACEHOLDER
+     * -----------------------------------------------------
+     */
+
     if (
         dom.promptPlaceholder
     ) {
@@ -862,6 +1099,12 @@ function showPrompt(
 
     }
 
+
+    /*
+     * -----------------------------------------------------
+     * SHOW RESULT
+     * -----------------------------------------------------
+ */
 
     if (
         dom.promptResult
@@ -876,14 +1119,16 @@ function showPrompt(
     }
 
 
-    if (
-        dom.copyButton
-    ) {
+    /*
+     * -----------------------------------------------------
+     * ENABLE COPY
+     * -----------------------------------------------------
+ */
 
-        dom.copyButton.disabled =
-            false;
-
-    }
+    setCopyState(
+        true,
+        false
+    );
 
 
     return true;
@@ -924,14 +1169,10 @@ function resetPrompt() {
     }
 
 
-    if (
-        dom.copyButton
-    ) {
-
-        dom.copyButton.disabled =
-            true;
-
-    }
+    setCopyState(
+        false,
+        false
+    );
 
 
     return true;
@@ -960,7 +1201,8 @@ function showAnalysis(
     }
 
 
-    let text = "";
+    let text =
+        "";
 
 
     if (
@@ -982,7 +1224,15 @@ function showAnalysis(
                     2
                 );
 
-        } catch {
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "[GEN-Z.AI Vision] Analysis render failed:",
+                error
+            );
+
 
             text =
                 String(
@@ -995,16 +1245,37 @@ function showAnalysis(
     }
 
 
-    dom.analysisResult.textContent =
-        text;
+    text =
+        text.trim();
 
+
+    if (
+        text
+    ) {
+
+        dom.analysisResult.textContent =
+            text;
+
+    } else {
+
+        dom.analysisResult.textContent =
+            "Belum ada hasil analisis.";
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * ANALYSIS DETAILS
+     * -----------------------------------------------------
+     */
 
     if (
         dom.analysisDetails
     ) {
 
         dom.analysisDetails.hidden =
-            !text;
+            false;
 
     }
 
@@ -1031,7 +1302,7 @@ function resetAnalysis() {
     ) {
 
         dom.analysisResult.textContent =
-            "";
+            "Belum ada hasil analisis.";
 
     }
 
@@ -1044,7 +1315,7 @@ function resetAnalysis() {
             false;
 
         dom.analysisDetails.hidden =
-            true;
+            false;
 
     }
 
@@ -1076,31 +1347,61 @@ function setCopyState(
     }
 
 
+    const canCopy =
+        Boolean(
+            available
+        );
+
+
     dom.copyButton.disabled =
-        !available;
+        !canCopy;
 
 
     dom.copyButton.classList.toggle(
         "vision-copy-success",
-        Boolean(copied)
+        Boolean(
+            copied
+        )
     );
 
 
-    const label =
-        dom.copyButton
-            .querySelector(
-                ".vision-copy-label"
-            );
+    dom.copyButton.setAttribute(
+        "aria-label",
+        copied
+            ? "Prompt copied"
+            : "Copy prompt"
+    );
 
+
+    dom.copyButton.setAttribute(
+        "title",
+        copied
+            ? "Prompt copied"
+            : "Copy prompt"
+    );
+
+
+    /*
+     * HTML saat ini hanya:
+     *
+     * <button id="visionCopyButton">
+     *     COPY
+     * </button>
+     *
+     * Jadi update text langsung.
+     */
 
     if (
-        label
+        copied
     ) {
 
-        label.textContent =
-            copied
-                ? "Copied"
-                : "Copy Prompt";
+        dom.copyButton.textContent =
+            "COPIED";
+
+    } else {
+
+        dom.copyButton.textContent =
+            "COPY";
 
     }
 
@@ -1122,7 +1423,8 @@ function showError(
         String(
             message ||
             "Terjadi kesalahan pada Vision."
-        );
+        )
+            .trim();
 
 
     setStatus(
@@ -1137,8 +1439,19 @@ function showError(
 
 
     setProgress(
-        0
+        0,
+        "ERROR"
     );
+
+
+    if (
+        getDOM().progress
+    ) {
+
+        getDOM().progress.hidden =
+            false;
+
+    }
 
 
     showResultMessage(
@@ -1164,7 +1477,17 @@ function showWarning(
         String(
             message ||
             ""
-        );
+        )
+            .trim();
+
+
+    if (
+        !text
+    ) {
+
+        return false;
+
+    }
 
 
     showResultMessage(
@@ -1190,7 +1513,8 @@ function showSuccess(
         String(
             message ||
             "Prompt berhasil dibuat."
-        );
+        )
+            .trim();
 
 
     setStatus(
@@ -1208,6 +1532,16 @@ function showSuccess(
         100,
         "100%"
     );
+
+
+    if (
+        getDOM().progress
+    ) {
+
+        getDOM().progress.hidden =
+            false;
+
+    }
 
 
     showResultMessage(
@@ -1231,11 +1565,9 @@ function setStage(
 ) {
 
     const normalized =
-        String(
-            status ||
-            VISION_UI_STATUS.IDLE
-        )
-            .toLowerCase();
+        normalizeStatus(
+            status
+        );
 
 
     const progress =
@@ -1244,7 +1576,8 @@ function setStage(
             ? options.progress
             : VISION_UI_PROGRESS[
                 normalized
-            ] ?? 0;
+            ] ??
+            0;
 
 
     setStatus(
@@ -1266,6 +1599,26 @@ function setStage(
     );
 
 
+    /*
+     * Progress hanya ditampilkan
+     * saat proses aktif.
+     */
+
+    const dom =
+        getDOM();
+
+
+    if (
+        dom.progress
+    ) {
+
+        dom.progress.hidden =
+            normalized ===
+                VISION_UI_STATUS.IDLE;
+
+    }
+
+
     return true;
 
 }
@@ -1281,30 +1634,90 @@ function initialize() {
         getDOM();
 
 
+    /*
+     * -----------------------------------------------------
+     * RESULT
+     * -----------------------------------------------------
+     */
+
     resetResult();
 
+
+    /*
+     * -----------------------------------------------------
+     * ANALYSIS
+     * -----------------------------------------------------
+     */
+
     resetAnalysis();
+
+
+    /*
+     * -----------------------------------------------------
+     * PROCESSING
+     * -----------------------------------------------------
+     */
 
     setProcessing(
         false
     );
 
+
+    /*
+     * -----------------------------------------------------
+     * STATUS
+     * -----------------------------------------------------
+ */
+
     setStatus(
         VISION_UI_STATUS.IDLE
     );
+
 
     setStatusSubtext(
         VISION_UI_STATUS.IDLE
     );
 
+
+    /*
+     * -----------------------------------------------------
+     * PROGRESS
+     * -----------------------------------------------------
+     */
+
     setProgress(
-        0
+        0,
+        "READY"
     );
 
+
+    if (
+        dom.progress
+    ) {
+
+        dom.progress.hidden =
+            true;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * COPY
+     * -----------------------------------------------------
+     */
+
     setCopyState(
+        false,
         false
     );
 
+
+    /*
+     * -----------------------------------------------------
+     * SPINNER
+     * -----------------------------------------------------
+     */
 
     if (
         dom.generateSpinner
@@ -1312,6 +1725,26 @@ function initialize() {
 
         dom.generateSpinner.hidden =
             true;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * GENERATE BUTTON
+     * -----------------------------------------------------
+     */
+
+    if (
+        dom.generateButton
+    ) {
+
+        dom.generateButton.disabled =
+            false;
+
+        dom.generateButton.removeAttribute(
+            "aria-busy"
+        );
 
     }
 
@@ -1339,8 +1772,10 @@ function syncFromState() {
 
 
     const status =
-        process.status ||
-        VISION_UI_STATUS.IDLE;
+        normalizeStatus(
+            process.status ||
+            VISION_UI_STATUS.IDLE
+        );
 
 
     setStatus(
@@ -1362,18 +1797,46 @@ function syncFromState() {
     );
 
 
-    setProcessing(
+    const processing =
         Boolean(
             process.status &&
             ![
                 VISION_UI_STATUS.IDLE,
                 VISION_UI_STATUS.COMPLETED,
                 VISION_UI_STATUS.ERROR
-            ].includes(
-                process.status
-            )
-        )
+            ]
+                .includes(
+                    status
+                )
+        );
+
+
+    setProcessing(
+        processing
     );
+
+
+    /*
+     * Error / completed tetap
+     * mempertahankan progress visual.
+     */
+
+    const dom =
+        getDOM();
+
+
+    if (
+        dom.progress
+    ) {
+
+        dom.progress.hidden =
+            !processing &&
+            status !==
+                VISION_UI_STATUS.COMPLETED &&
+            status !==
+                VISION_UI_STATUS.ERROR;
+
+    }
 
 
     return true;
@@ -1385,61 +1848,62 @@ function syncFromState() {
    PUBLIC API
 ========================================================= */
 
-const GENZVisionUI = Object.freeze({
+const GENZVisionUI =
+    Object.freeze({
 
-    STATUS:
-        VISION_UI_STATUS,
+        STATUS:
+            VISION_UI_STATUS,
 
-    PROGRESS:
-        VISION_UI_PROGRESS,
+        PROGRESS:
+            VISION_UI_PROGRESS,
 
-    STATUS_TEXT,
+        STATUS_TEXT,
 
-    STATUS_SUBTEXT,
+        STATUS_SUBTEXT,
 
-    initialize,
+        initialize,
 
-    setStatus,
+        setStatus,
 
-    setStatusSubtext,
+        setStatusSubtext,
 
-    updateStatusIndicator,
+        updateStatusIndicator,
 
-    setProgress,
+        setProgress,
 
-    setProgressFromStatus,
+        setProgressFromStatus,
 
-    setProcessing,
+        setProcessing,
 
-    setGenerateButtonText,
+        setGenerateButtonText,
 
-    resetResult,
+        resetResult,
 
-    showPrompt,
+        showPrompt,
 
-    resetPrompt,
+        resetPrompt,
 
-    showAnalysis,
+        showAnalysis,
 
-    resetAnalysis,
+        resetAnalysis,
 
-    setCopyState,
+        setCopyState,
 
-    showError,
+        showError,
 
-    showWarning,
+        showWarning,
 
-    showSuccess,
+        showSuccess,
 
-    showResultMessage,
+        showResultMessage,
 
-    clearResultMessage,
+        clearResultMessage,
 
-    setStage,
+        setStage,
 
-    syncFromState
+        syncFromState
 
-});
+    });
 
 
 /* =========================================================
