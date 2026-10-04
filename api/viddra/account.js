@@ -1172,6 +1172,103 @@ async function handleApiKeyStatus(
 
 }
 
+/* =========================================================
+   VIDDRA BALANCE STATUS
+   ---------------------------------------------------------
+   Endpoint:
+   POST /api/viddra/account?action=balance
+
+   Fungsi:
+   - Membaca VidDra JWT dari encrypted HttpOnly cookie
+   - Mengambil balance terbaru langsung dari VidDra
+   - Tidak mengembalikan JWT
+   - Tidak mengembalikan API Key
+========================================================= */
+
+async function handleBalance(
+    req,
+    res
+) {
+
+    const vidDraToken =
+        getVidDraSession(
+            req
+        );
+
+
+    if (
+        !vidDraToken
+    ) {
+
+        return failure(
+            res,
+            401,
+            "Session VidDra tidak ditemukan. Hubungkan account VidDra terlebih dahulu."
+        );
+
+    }
+
+
+    try {
+
+        const balanceResponse =
+            await getVidDraBalance(
+                vidDraToken
+            );
+
+
+        const balance =
+            extractBalance(
+                balanceResponse
+            );
+
+
+        return success(
+            res,
+            {
+                balance
+            }
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.error(
+            "[viddra] Balance request failed:",
+            {
+                message:
+                    error?.message,
+
+                status:
+                    error?.status,
+
+                code:
+                    error?.code
+            }
+        );
+
+
+        const statusCode =
+            Number(
+                error?.status
+            );
+
+
+        return failure(
+            res,
+            statusCode >= 400 &&
+            statusCode < 600
+                ? statusCode
+                : 502,
+            error?.message ||
+            "Gagal mengambil credit VidDra terbaru."
+        );
+
+    }
+
+}
+
 
 /* =========================================================
    METHOD
@@ -1280,6 +1377,22 @@ if (
 ) {
 
     return await handleApiKeyStatus(
+        req,
+        res
+    );
+
+}
+
+       /* ---------------------------------------------------
+   VIDDRA BALANCE
+--------------------------------------------------- */
+
+if (
+    action ===
+    "balance"
+) {
+
+    return await handleBalance(
         req,
         res
     );
