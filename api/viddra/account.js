@@ -1480,10 +1480,48 @@ if (
         try {
 
             registerResponse =
-                await registerVidDra(
-                    email,
-                    password
-                );
+    await registerVidDra(
+        email,
+        password
+    );
+
+console.info(
+    "[viddra] Register response metadata:",
+    {
+        success:
+            Boolean(
+                registerResponse
+            ),
+
+        has_user:
+            Boolean(
+                registerResponse?.user ||
+                registerResponse?.data?.user
+            ),
+
+        user_id:
+            registerResponse?.user?.id ||
+            registerResponse?.data?.user?.id ||
+            null,
+
+        user_email:
+            registerResponse?.user?.email ||
+            registerResponse?.data?.user?.email ||
+            null,
+
+        status:
+            registerResponse?.user?.status ||
+            registerResponse?.data?.user?.status ||
+            null,
+
+        bonus_granted_usd:
+            registerResponse?.user?.bonus_granted_usd ??
+            registerResponse?.data?.user?.bonus_granted_usd ??
+            registerResponse?.bonus_granted_usd ??
+            registerResponse?.data?.bonus_granted_usd ??
+            null
+    }
+);
 
         } catch (error) {
 
