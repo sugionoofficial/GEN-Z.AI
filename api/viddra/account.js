@@ -29,6 +29,7 @@
 import {
     createVidDraSessionCookie,
     getVidDraSession,
+    clearVidDraApiKeyCookie,
     createVidDraApiKeyCookie,
     getVidDraApiKey
 } from "../../lib/viddra/session.js";
