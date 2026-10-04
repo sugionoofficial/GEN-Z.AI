@@ -10,6 +10,7 @@
    - Menjamin urutan dependency
    - Inisialisasi state
    - Inisialisasi DOM
+   - Inisialisasi Supabase
    - Inisialisasi preview
    - Inisialisasi upload
    - Inisialisasi UI
@@ -23,6 +24,14 @@
    MODULE IMPORT
    ---------------------------------------------------------
    Semua module Vision dimuat dari satu entry point.
+
+   URUTAN PENTING:
+   1. State
+   2. DOM
+   3. Upload / Preview / UI
+   4. Supabase
+   5. Credit / API / Analysis / Prompt / History
+   6. Events
 ========================================================= */
 
 import "./vision-state.js";
@@ -30,6 +39,7 @@ import "./vision-dom.js";
 import "./vision-upload.js";
 import "./vision-preview.js";
 import "./vision-ui.js";
+import "./vision-supabase.js";
 import "./vision-credit.js";
 import "./vision-api.js";
 import "./vision-analysis.js";
@@ -56,6 +66,8 @@ const VISION_LOADER_CONFIG =
             "GENZVisionPreview",
 
             "GENZVisionUI",
+
+            "GENZVisionSupabase",
 
             "GENZVisionCredit",
 
@@ -249,8 +261,10 @@ function initializeDOM() {
 
     const validation =
         dom.validateDOM({
+
             log:
                 true
+
         });
 
 
@@ -271,6 +285,101 @@ function initializeDOM() {
      */
 
     dom.getDOM();
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   INITIALIZE SUPABASE
+   ---------------------------------------------------------
+   Supabase harus tersedia SEBELUM:
+   - vision-credit.js
+   - vision-api.js
+   - vision-history.js
+
+   vision-supabase.js bertugas membuat:
+   window.supabaseClient
+========================================================= */
+
+function initializeSupabase() {
+
+    const supabase =
+        window.GENZVisionSupabase;
+
+
+    if (
+        !supabase
+    ) {
+
+        throw new Error(
+            "GENZVisionSupabase belum tersedia."
+        );
+
+    }
+
+
+    if (
+        typeof supabase.initialize !==
+        "function"
+    ) {
+
+        throw new Error(
+            "GENZVisionSupabase.initialize() belum tersedia."
+        );
+
+    }
+
+
+    const client =
+        supabase.initialize();
+
+
+    if (
+        !client
+    ) {
+
+        throw new Error(
+            "Supabase client gagal dibuat."
+        );
+
+    }
+
+
+    /*
+     * Pastikan global client benar-benar
+     * tersedia untuk seluruh module Vision.
+     */
+
+    if (
+        !window.supabaseClient
+    ) {
+
+        window.supabaseClient =
+            client;
+
+    }
+
+
+    if (
+        typeof window.supabaseClient
+            .auth
+            ?.getSession !==
+        "function"
+    ) {
+
+        throw new Error(
+            "Supabase client tidak memiliki auth.getSession()."
+        );
+
+    }
+
+
+    console.info(
+        "[GEN-Z.AI Vision] Supabase client ready."
+    );
 
 
     return true;
@@ -485,7 +594,9 @@ async function initializeCredit() {
 
         if (
             result?.credits !==
-            undefined
+            undefined &&
+            result?.credits !==
+            null
         ) {
 
             const state =
@@ -572,6 +683,26 @@ function finalUISync() {
     }
 
 
+    /*
+     * Refresh credit badge setelah
+     * initial credit check selesai.
+     */
+
+    const credit =
+        window.GENZVisionCredit;
+
+
+    if (
+        credit &&
+        typeof credit.refreshDisplay ===
+        "function"
+    ) {
+
+        credit.refreshDisplay();
+
+    }
+
+
     return true;
 
 }
@@ -591,8 +722,7 @@ async function initialize() {
          * -------------------------------------------------
          *
          * Import di bagian atas file memastikan
-         * semua module sudah dimuat sebelum fungsi
-         * initialize() dijalankan.
+         * seluruh module Vision dimuat.
          */
 
         await waitForModules();
@@ -616,6 +746,23 @@ async function initialize() {
          */
 
         initializeDOM();
+
+
+        /*
+         * -------------------------------------------------
+         * SUPABASE
+         * -------------------------------------------------
+         *
+         * WAJIB sebelum credit/API/history.
+         *
+         * Ini membuat:
+         *
+         * window.supabaseClient
+         *
+         * tersedia untuk seluruh module Vision.
+         */
+
+        initializeSupabase();
 
 
         /*
@@ -663,6 +810,8 @@ async function initialize() {
          * -------------------------------------------------
          * INITIAL CREDIT
          * -------------------------------------------------
+         *
+         * Supabase sudah siap pada tahap ini.
          */
 
         await initializeCredit();
