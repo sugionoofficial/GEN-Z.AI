@@ -3025,6 +3025,21 @@ async function checkApiKeyStatus() {
         )
     );
 
+    /* =====================================================
+   LOCK GENERATE BUTTON
+===================================================== */
+
+if (
+    generateButton
+) {
+
+    generateButton.disabled =
+        !Boolean(
+            data?.ready
+        );
+
+}
+
 
     return Boolean(
         data?.ready
@@ -3134,6 +3149,15 @@ async function getApiKey() {
             true
         );
 
+        if (
+    generateButton
+) {
+
+    generateButton.disabled =
+        false;
+
+}
+
 
         apiKeyStatusText.textContent =
             "API Key VidDra berhasil disiapkan secara aman di server. Key tidak ditampilkan.";
@@ -3152,6 +3176,15 @@ async function getApiKey() {
         setApiKeyStatus(
             false
         );
+
+        if (
+    generateButton
+) {
+
+    generateButton.disabled =
+        true;
+
+}
 
 
         apiKeyStatusText.textContent =
@@ -3356,6 +3389,20 @@ async function getApiKey() {
         async function createTask(
             promptValue
         ) {
+
+            const apiKeyReady =
+    await checkApiKeyStatus();
+
+
+if (
+    !apiKeyReady
+) {
+
+    throw new Error(
+        "API Key VidDra belum tersedia. Silakan Get API Key terlebih dahulu."
+    );
+
+}
 
             const token =
                 await requireSession();
@@ -4132,6 +4179,16 @@ checkApiKeyStatus()
             setApiKeyStatus(
                 false
             );
+
+
+            if (
+                generateButton
+            ) {
+
+                generateButton.disabled =
+                    true;
+
+            }
 
         }
     );
