@@ -2993,244 +2993,245 @@
 
 
         /* =====================================================
-           POLL STATUS
-           -----------------------------------------------------
-           Backend:
-           POST /api/viddra/status
+   POLL STATUS
+   -----------------------------------------------------
+   Backend:
+   GET /api/viddra/generate?task_id=...&model_id=...
+===================================================== */
 
-           Body:
-           {
-               task_id,
-               model_id
-           }
-        ===================================================== */
+async function pollTask(
+    taskId
+) {
 
-        async function pollTask(
-            taskId
+    const startedAt =
+        Date.now();
+
+
+    while (
+        true
+    ) {
+
+        if (
+            Date.now() -
+            startedAt >
+            MAX_POLL_TIME
         ) {
 
-            const startedAt =
-                Date.now();
+            throw new Error(
+                "Generation timeout setelah 15 menit."
+            );
+
+        }
 
 
-            while (
-                true
-            ) {
+        /*
+         * Tunggu sebelum polling pertama.
+         */
 
-                if (
-                    Date.now() -
-                    startedAt >
-                    MAX_POLL_TIME
-                ) {
+        await new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    POLL_INTERVAL
+                )
+        );
 
-                    throw new Error(
-                        "Generation timeout setelah 15 menit."
-                    );
+
+        const token =
+            await requireSession();
+
+
+        /*
+         * -------------------------------------------------
+         * STATUS ENDPOINT
+         * -------------------------------------------------
+         *
+         * GET:
+         *
+         * /api/viddra/generate
+         *
+         * Query:
+         *
+         * task_id
+         * model_id
+         *
+         * API key VidDra tetap SERVER ONLY.
+         * Browser hanya mengirim session token.
+         * -------------------------------------------------
+         */
+
+        const response =
+            await fetch(
+                `${STATUS_ENDPOINT}?task_id=${encodeURIComponent(
+                    taskId
+                )}&model_id=${encodeURIComponent(
+                    MODEL_ID
+                )}`,
+                {
+
+                    method:
+                        "GET",
+
+                    headers: {
+
+                        "Accept":
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${token}`
+
+                    },
+
+                    credentials:
+                        "include"
 
                 }
+            );
 
 
-                /*
-                 * Tunggu sebelum polling pertama.
-                 */
-
-                await new Promise(
-                    resolve =>
-                        setTimeout(
-                            resolve,
-                            POLL_INTERVAL
-                        )
+        const data =
+            await response
+                .json()
+                .catch(
+                    () => ({})
                 );
 
 
-                const token =
-                    await requireSession();
+        if (
+            !response.ok ||
+            data?.success === false
+        ) {
 
-
-                /*
-                 * -------------------------------------------------
-                 * IMPORTANT
-                 * -------------------------------------------------
-                 *
-                 * Jangan lagi memakai:
-                 *
-                 * GET /api/viddra/status?id=...
-                 *
-                 * Endpoint baru menggunakan POST.
-                 */
-
-                const response =
-    await fetch(
-        `${STATUS_ENDPOINT}?task_id=${encodeURIComponent(
-            taskId
-        )}&model_id=${encodeURIComponent(
-            MODEL_ID
-        )}`,
-        {
-
-            method:
-                "GET",
-
-            headers: {
-
-                "Accept":
-                    "application/json",
-
-                "Authorization":
-                    `Bearer ${token}`
-
-            },
-
-            credentials:
-                "include"
+            throw new Error(
+                data?.error ||
+                data?.message ||
+                `Status request failed (${response.status})`
+            );
 
         }
-    );
 
 
-                const data =
-                    await response
-                        .json()
-                        .catch(
-                            () => ({})
-                        );
+        const state =
+            getNormalizedState(
+                data
+            );
 
 
-                if (
-                    !response.ok ||
-                    data?.success === false
-                ) {
+        /*
+         * -------------------------------------------------
+         * COMPLETED
+         * -------------------------------------------------
+         */
 
-                    throw new Error(
-                        data?.error ||
-                        data?.message ||
-                        `Status request failed (${response.status})`
-                    );
+        if (
+            state ===
+            "completed"
+        ) {
 
-                }
-
-
-                const state =
-                    getNormalizedState(
-                        data
-                    );
+            const videoUrl =
+                extractResultUrl(
+                    data
+                );
 
 
-                /*
-                 * -------------------------------------------------
-                 * COMPLETED
-                 * -------------------------------------------------
-                 */
+            if (
+                !videoUrl
+            ) {
 
-                if (
-                    state ===
-                    "completed"
-                ) {
-
-                    const videoUrl =
-                        extractResultUrl(
-                            data
-                        );
-
-
-                    if (
-                        !videoUrl
-                    ) {
-
-                        throw new Error(
-                            "VidDra menyatakan generation selesai, tetapi URL video belum tersedia."
-                        );
-
-                    }
-
-
-                    return {
-
-                        ...data,
-
-                        video_url:
-                            videoUrl,
-
-                        result_url:
-                            videoUrl
-
-                    };
-
-                }
-
-
-                /*
-                 * -------------------------------------------------
-                 * FAILED
-                 * -------------------------------------------------
-                 */
-
-                if (
-                    state ===
-                    "failed"
-                ) {
-
-                    throw new Error(
-                        data?.history_error ||
-                        data?.error_message ||
-                        data?.error ||
-                        "VidDra generation gagal."
-                    );
-
-                }
-
-
-                /*
-                 * -------------------------------------------------
-                 * CANCELLED
-                 * -------------------------------------------------
-                 */
-
-                if (
-                    state ===
-                    "cancelled"
-                ) {
-
-                    throw new Error(
-                        "Generation dibatalkan."
-                    );
-
-                }
-
-
-                /*
-                 * -------------------------------------------------
-                 * PROCESSING
-                 * -------------------------------------------------
-                 */
-
-                setStatus(
-                    `
-                        <strong>Generating...</strong><br>
-
-                        Task ID:
-                        ${escapeHtml(
-                            taskId
-                        )}
-
-                        <br>
-
-                        Status:
-                        ${escapeHtml(
-                            state ||
-                            "processing"
-                        )}
-
-                        <br>
-
-                        VidDra sedang memproses video.
-                    `,
-                    "processing"
+                throw new Error(
+                    "VidDra menyatakan generation selesai, tetapi URL video belum tersedia."
                 );
 
             }
 
+
+            return {
+
+                ...data,
+
+                video_url:
+                    videoUrl,
+
+                result_url:
+                    videoUrl
+
+            };
+
         }
+
+
+        /*
+         * -------------------------------------------------
+         * FAILED
+         * -------------------------------------------------
+         */
+
+        if (
+            state ===
+            "failed"
+        ) {
+
+            throw new Error(
+                data?.history_error ||
+                data?.error_message ||
+                data?.error ||
+                "VidDra generation gagal."
+            );
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * CANCELLED
+         * -------------------------------------------------
+         */
+
+        if (
+            state ===
+            "cancelled"
+        ) {
+
+            throw new Error(
+                "Generation dibatalkan."
+            );
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * PROCESSING
+         * -------------------------------------------------
+         */
+
+        setStatus(
+            `
+                <strong>Generating...</strong><br>
+
+                Task ID:
+                ${escapeHtml(
+                    taskId
+                )}
+
+                <br>
+
+                Status:
+                ${escapeHtml(
+                    state ||
+                    "processing"
+                )}
+
+                <br>
+
+                VidDra sedang memproses video.
+            `,
+            "processing"
+        );
+
+    }
+
+}
 
 
         /* =====================================================
