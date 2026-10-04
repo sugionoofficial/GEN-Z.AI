@@ -1596,36 +1596,37 @@ if (
             );
 
 
-        /*
-         * ---------------------------------------------------
-         * 8. SAVE VIDDRA JWT
-         * ---------------------------------------------------
-         *
-         * JWT TIDAK dikirim ke frontend.
-         *
-         * JWT dienkripsi terlebih dahulu oleh
-         * createVidDraSessionCookie().
-         *
-         * Cookie:
-         * - HttpOnly
-         * - Secure
-         * - SameSite=Lax
-         * - Max-Age 24 jam
-         *
-         * Browser JavaScript tidak dapat membaca token ini.
-         * ---------------------------------------------------
-         */
+        /* =========================================================
+   8. SAVE VIDDRA JWT
+   ---------------------------------------------------------
+   JWT TIDAK dikirim ke frontend.
 
-        const sessionCookie =
-            createVidDraSessionCookie(
-                vidDraToken
-            );
+   Setiap kali account VidDra berhasil dibuat/login,
+   API Key cookie lama HARUS dihapus.
+
+   Tujuannya:
+   - mencegah API Key account lama dipakai
+   - memastikan Generate membuat API Key baru
+   - API Key baru selalu mengikuti session VidDra baru
+========================================================= */
+
+const sessionCookie =
+    createVidDraSessionCookie(
+        vidDraToken
+    );
 
 
-        res.setHeader(
-            "Set-Cookie",
-            sessionCookie
-        );
+const clearApiKeyCookie =
+    clearVidDraApiKeyCookie();
+
+
+res.setHeader(
+    "Set-Cookie",
+    [
+        sessionCookie,
+        clearApiKeyCookie
+    ]
+);
 
 
         /*
