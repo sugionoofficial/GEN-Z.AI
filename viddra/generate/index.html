@@ -4211,7 +4211,167 @@ function formatVidDraCredit(
 }
 
 
-async function updateVidDraCredit() {
+/* =====================================================
+   VIDDRA CREDIT
+   -----------------------------------------------------
+   Mengambil saldo terbaru langsung dari VidDra.
+
+   PENTING:
+   - Tidak menggunakan saldo dummy
+   - Tidak menggunakan nilai default sebagai saldo nyata
+   - Menunggu session GEN-Z.AI tersedia
+   - Retry otomatis jika session/cookie VidDra belum siap
+===================================================== */
+
+function formatVidDraCredit(
+    value
+) {
+
+    const number =
+        Number(
+            value
+        );
+
+
+    if (
+        !Number.isFinite(
+            number
+        )
+    ) {
+
+        return "0.0000";
+
+    }
+
+
+    return number.toFixed(
+        4
+    );
+
+}
+
+
+async function fetchVidDraCredit() {
+
+    const token =
+        await requireSession();
+
+
+    const response =
+        await fetch(
+            "/api/viddra/account?action=balance",
+            {
+
+                method:
+                    "POST",
+
+                headers: {
+
+                    "Accept":
+                        "application/json",
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Authorization":
+                        `Bearer ${token}`
+
+                },
+
+                credentials:
+                    "include",
+
+                body:
+                    JSON.stringify({})
+
+            }
+        );
+
+
+    const data =
+        await response
+            .json()
+            .catch(
+                () => ({})
+            );
+
+
+    if (
+        !response.ok ||
+        data?.success === false
+    ) {
+
+        const message =
+            normalizeClientError(
+                data?.error,
+                ""
+            ) ||
+            normalizeClientError(
+                data?.message,
+                ""
+            ) ||
+            `Gagal mengambil credit VidDra (${response.status})`;
+
+
+        throw new Error(
+            message
+        );
+
+    }
+
+
+    const rawBalance =
+        data?.balance?.balance_usd;
+
+
+    /*
+     * Jangan pernah menganggap 0 sebagai
+     * fallback jika backend tidak mengirim balance.
+     */
+
+    if (
+        rawBalance ===
+            undefined ||
+        rawBalance ===
+            null ||
+        rawBalance ===
+            ""
+    ) {
+
+        throw new Error(
+            "VidDra tidak mengembalikan nilai credit."
+        );
+
+    }
+
+
+    const numericBalance =
+        Number(
+            rawBalance
+        );
+
+
+    if (
+        !Number.isFinite(
+            numericBalance
+        )
+    ) {
+
+        throw new Error(
+            "Nilai credit VidDra tidak valid."
+        );
+
+    }
+
+
+    return numericBalance;
+
+}
+
+
+async function updateVidDraCredit(
+    options = {}
+) {
 
     if (
         !balanceValue
@@ -4220,6 +4380,17 @@ async function updateVidDraCredit() {
         return null;
 
     }
+
+
+    const {
+
+        silent = false,
+
+        retries = 5,
+
+        retryDelay = 1000
+
+    } = options;
 
 
     if (
@@ -4235,109 +4406,119 @@ async function updateVidDraCredit() {
     }
 
 
+    if (
+        !silent &&
+        balanceNote
+    ) {
+
+        balanceNote.textContent =
+            "Mengambil credit VidDra...";
+
+    }
+
+
+    let lastError =
+        null;
+
+
     try {
 
-        const token =
-            await requireSession();
+        for (
+            let attempt = 1;
+            attempt <= retries;
+            attempt++
+        ) {
+
+            try {
+
+                const balance =
+                    await fetchVidDraCredit();
 
 
-        const response =
-            await fetch(
-                "/api/viddra/account?action=balance",
-                {
+                /*
+                 * HANYA di titik ini saldo dari
+                 * VidDra ditampilkan.
+                 */
 
-                    method:
-                        "POST",
+                balanceValue.innerHTML =
+                    "<span>$</span>" +
+                    formatVidDraCredit(
+                        balance
+                    );
 
-                    headers: {
 
-                        "Accept":
-                            "application/json",
+                if (
+                    balanceNote
+                ) {
 
-                        "Content-Type":
-                            "application/json",
-
-                        "Authorization":
-                            `Bearer ${token}`
-
-                    },
-
-                    credentials:
-                        "include",
-
-                    body:
-                        JSON.stringify({})
+                    balanceNote.textContent =
+                        "Credit terupdate langsung dari VidDra";
 
                 }
-            );
 
 
-        const data =
-            await response
-                .json()
-                .catch(
-                    () => ({})
+                return balance;
+
+            } catch (
+                error
+            ) {
+
+                lastError =
+                    error;
+
+
+                console.warn(
+                    `[VidDra] Credit attempt ${attempt}/${retries}:`,
+                    error
                 );
 
 
+                /*
+                 * Jika masih ada kesempatan,
+                 * tunggu session/cookie siap.
+                 */
+
+                if (
+                    attempt <
+                    retries
+                ) {
+
+                    await new Promise(
+                        resolve =>
+                            setTimeout(
+                                resolve,
+                                retryDelay
+                            )
+                    );
+
+                }
+
+            }
+
+        }
+
+
+        /*
+         * Semua retry gagal.
+         * Jangan mengubah balance menjadi $0.
+         * Biarkan nilai sebelumnya tetap ada.
+         */
+
+        console.error(
+            "[VidDra] Credit update failed:",
+            lastError
+        );
+
+
         if (
-            !response.ok ||
-            data?.success === false
+            balanceNote
         ) {
 
-            throw new Error(
+            balanceNote.textContent =
                 normalizeClientError(
-                    data?.error,
-                    "Gagal mengambil credit VidDra."
-                )
-            );
-
-        }
-
-
-        const balance =
-            data?.balance?.balance_usd ??
-            data?.balance_usd ??
-            "0.0000";
-
-
-        balanceValue.innerHTML =
-            "<span>$</span>" +
-            formatVidDraCredit(
-                balance
-            );
-
-
-        if (
-            balanceNote
-        ) {
-
-            balanceNote.textContent =
-                "Credit terupdate";
-
-        }
-
-
-        return Number(
-            balance
-        );
-
-    } catch (
-        error
-    ) {
-
-        console.warn(
-            "[VidDra] Update credit:",
-            error
-        );
-
-
-        if (
-            balanceNote
-        ) {
-
-            balanceNote.textContent =
-                "Gagal memperbarui credit";
+                    lastError,
+                    "Credit VidDra belum dapat diperbarui."
+                );
 
         }
 
@@ -4798,11 +4979,10 @@ function normalizeClientError(
 
 
         /* =====================================================
-           INITIALIZE
-        ===================================================== */
+   INITIALIZE
+===================================================== */
 
-        updatePromptCounter();
-
+updatePromptCounter();
 
 if (
     updateCreditButton
@@ -4813,24 +4993,48 @@ if (
         () => {
 
             updateVidDraCredit();
+
         }
     );
 
 }
+
+/*
+ * Initial credit check.
+ * Jangan panggil updateVidDraCredit() langsung di sini.
+ * Gunakan initializer yang memiliki retry.
+ */
+
+void initializeVidDraCredit();
+
+checkApiKeyStatus()
+    .catch(
+        error => {
+
+            console.warn(
+                "[VidDra] API key check:",
+                error
+            );
+
+        }
+    );
 
 
 /*
  * =========================================================
  * INITIAL VIDDRA CREDIT
  * ---------------------------------------------------------
- * Saat halaman Generate dibuka, saldo langsung diambil
- * dari VidDra.
+ * Saat halaman Generate dibuka:
  *
- * Tombol Update Credit hanya untuk refresh manual.
+ * 1. Tunggu session GEN-Z.AI siap
+ * 2. Ambil credit asli dari VidDra
+ * 3. Retry otomatis jika session/cookie belum siap
+ *
+ * Tidak ada saldo dummy.
  * =========================================================
  */
 
-void updateVidDraCredit();
+void initializeVidDraCredit();
 
         /* =====================================================
    INITIALIZE API KEY STATUS
