@@ -1,0 +1,1352 @@
+/* =========================================================
+   GEN-Z.AI VISION
+   ---------------------------------------------------------
+   File:
+   vision/assets/css/vision-components.css
+
+   Fungsi:
+   - Upload icon
+   - Preview controls
+   - Remove button
+   - Spinner
+   - Processing state
+   - Success / error state
+   - Result actions
+   - Small UI components
+
+   Tidak menangani:
+   - Layout utama
+   - Responsive/mobile
+   - Navigation
+   - JavaScript
+========================================================= */
+
+
+/* =========================================================
+   UPLOAD ICON
+========================================================= */
+
+.vision-upload-icon {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    width: 62px;
+    height: 62px;
+
+    margin-bottom: 16px;
+
+    border:
+        1px solid
+        rgba(255, 39, 79, 0.32);
+
+    border-radius: 18px;
+
+    color:
+        #ff4f6d;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 39, 79, 0.11),
+            rgba(255, 39, 79, 0.035)
+        );
+
+    box-shadow:
+        0 0 28px
+        rgba(255, 39, 79, 0.08);
+
+    transition:
+        transform 180ms ease,
+        box-shadow 180ms ease;
+}
+
+
+.vision-dropzone:hover
+.vision-upload-icon {
+
+    transform:
+        translateY(-2px);
+
+    box-shadow:
+        0 0 34px
+        rgba(255, 39, 79, 0.15);
+}
+
+
+.vision-upload-icon svg {
+
+    width:
+        27px;
+
+    height:
+        27px;
+}
+
+
+/* =========================================================
+   FILE INPUT
+========================================================= */
+
+#visionFileInput {
+
+    position:
+        absolute;
+
+    width:
+        1px;
+
+    height:
+        1px;
+
+    opacity:
+        0;
+
+    pointer-events:
+        none;
+}
+
+
+/* =========================================================
+   UPLOAD STATE
+========================================================= */
+
+.vision-upload-state {
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    width:
+        100%;
+}
+
+
+.vision-upload-state.is-hidden {
+
+    display:
+        none;
+}
+
+
+/* =========================================================
+   PREVIEW STATE
+========================================================= */
+
+.vision-preview-state {
+
+    display:
+        none;
+
+    width:
+        100%;
+}
+
+
+.vision-preview-state.is-visible {
+
+    display:
+        block;
+}
+
+
+/* =========================================================
+   PREVIEW HEADER
+========================================================= */
+
+.vision-preview-header {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    gap:
+        12px;
+
+    margin-bottom:
+        10px;
+}
+
+
+.vision-preview-label {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        7px;
+
+    color:
+        #d7d7de;
+
+    font-size:
+        10px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        0.07em;
+
+    text-transform:
+        uppercase;
+}
+
+
+.vision-preview-label::before {
+
+    content:
+        "";
+
+    width:
+        6px;
+
+    height:
+        6px;
+
+    border-radius:
+        50%;
+
+    background:
+        #42e89d;
+
+    box-shadow:
+        0 0 10px
+        rgba(66, 232, 157, 0.65);
+}
+
+
+/* =========================================================
+   REMOVE IMAGE BUTTON
+========================================================= */
+
+.vision-remove-button {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    width:
+        31px;
+
+    height:
+        31px;
+
+    padding:
+        0;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.09);
+
+    border-radius:
+        9px;
+
+    color:
+        rgba(255, 255, 255, 0.56);
+
+    background:
+        rgba(255, 255, 255, 0.025);
+
+    cursor:
+        pointer;
+
+    transition:
+        color 160ms ease,
+        border-color 160ms ease,
+        background 160ms ease,
+        transform 160ms ease;
+}
+
+
+.vision-remove-button:hover {
+
+    color:
+        #ff526d;
+
+    border-color:
+        rgba(255, 39, 79, 0.42);
+
+    background:
+        rgba(255, 39, 79, 0.07);
+
+    transform:
+        scale(1.03);
+}
+
+
+.vision-remove-button svg {
+
+    width:
+        15px;
+
+    height:
+        15px;
+}
+
+
+/* =========================================================
+   FILE INFORMATION
+========================================================= */
+
+.vision-file-info {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        9px;
+
+    margin-top:
+        10px;
+
+    padding:
+        9px 11px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.055);
+
+    border-radius:
+        10px;
+
+    background:
+        rgba(255, 255, 255, 0.018);
+}
+
+
+.vision-file-info-icon {
+
+    flex:
+        0 0 auto;
+
+    color:
+        var(--vision-red-soft);
+}
+
+
+.vision-file-info-text {
+
+    min-width:
+        0;
+}
+
+
+.vision-file-name {
+
+    display:
+        block;
+
+    max-width:
+        100%;
+
+    overflow:
+        hidden;
+
+    color:
+        #e8e8ed;
+
+    font-size:
+        10px;
+
+    font-weight:
+        700;
+
+    text-overflow:
+        ellipsis;
+
+    white-space:
+        nowrap;
+}
+
+
+.vision-file-size {
+
+    display:
+        block;
+
+    margin-top:
+        2px;
+
+    color:
+        var(--vision-text-muted);
+
+    font-size:
+        9px;
+}
+
+
+/* =========================================================
+   FIELD HINT
+========================================================= */
+
+.vision-field-hint {
+
+    margin:
+        5px 0 0;
+
+    color:
+        #666672;
+
+    font-size:
+        9px;
+
+    line-height:
+        1.45;
+}
+
+
+/* =========================================================
+   CHARACTER COUNTER
+========================================================= */
+
+.vision-character-counter {
+
+    display:
+        flex;
+
+    justify-content:
+        flex-end;
+
+    margin-top:
+        4px;
+
+    color:
+        #62626d;
+
+    font-size:
+        8px;
+
+    font-variant-numeric:
+        tabular-nums;
+}
+
+
+/* =========================================================
+   GENERATE BUTTON CONTENT
+========================================================= */
+
+.vision-action-content {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    gap:
+        9px;
+}
+
+
+.vision-action-icon {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+}
+
+
+.vision-action-icon svg {
+
+    width:
+        16px;
+
+    height:
+        16px;
+}
+
+
+/* =========================================================
+   SPINNER
+========================================================= */
+
+.vision-spinner {
+
+    display:
+        none;
+
+    width:
+        15px;
+
+    height:
+        15px;
+
+    box-sizing:
+        border-box;
+
+    border:
+        2px solid
+        rgba(255, 255, 255, 0.28);
+
+    border-top-color:
+        #ffffff;
+
+    border-radius:
+        50%;
+
+    animation:
+        visionSpinner 760ms linear infinite;
+}
+
+
+.vision-spinner.is-visible {
+
+    display:
+        inline-block;
+}
+
+
+@keyframes visionSpinner {
+
+    from {
+        transform:
+            rotate(0deg);
+    }
+
+    to {
+        transform:
+            rotate(360deg);
+    }
+}
+
+
+/* =========================================================
+   PROCESSING BUTTON
+========================================================= */
+
+.vision-action.is-processing {
+
+    position:
+        relative;
+
+    overflow:
+        hidden;
+
+    cursor:
+        wait;
+}
+
+
+.vision-action.is-processing::after {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    top:
+        0;
+
+    left:
+        -100%;
+
+    width:
+        55%;
+
+    height:
+        100%;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.12),
+            transparent
+        );
+
+    animation:
+        visionButtonSweep 1.5s ease-in-out infinite;
+}
+
+
+@keyframes visionButtonSweep {
+
+    0% {
+        left:
+            -100%;
+    }
+
+    100% {
+        left:
+            160%;
+    }
+}
+
+
+/* =========================================================
+   RESULT EMPTY ICON
+========================================================= */
+
+.vision-empty-icon {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    width:
+        50px;
+
+    height:
+        50px;
+
+    margin-bottom:
+        13px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.07);
+
+    border-radius:
+        15px;
+
+    color:
+        rgba(255, 255, 255, 0.30);
+
+    background:
+        rgba(255, 255, 255, 0.018);
+}
+
+
+.vision-empty-icon svg {
+
+    width:
+        21px;
+
+    height:
+        21px;
+}
+
+
+/* =========================================================
+   RESULT STATUS MESSAGE
+========================================================= */
+
+.vision-result-message {
+
+    display:
+        none;
+
+    align-items:
+        flex-start;
+
+    gap:
+        10px;
+
+    margin-bottom:
+        13px;
+
+    padding:
+        11px 13px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.07);
+
+    border-radius:
+        11px;
+
+    background:
+        rgba(255, 255, 255, 0.018);
+
+    font-size:
+        10px;
+
+    line-height:
+        1.5;
+}
+
+
+.vision-result-message.is-visible {
+
+    display:
+        flex;
+}
+
+
+.vision-result-message.success {
+
+    color:
+        #9df2c8;
+
+    border-color:
+        rgba(66, 232, 157, 0.20);
+
+    background:
+        rgba(66, 232, 157, 0.045);
+}
+
+
+.vision-result-message.error {
+
+    color:
+        #ff9aaa;
+
+    border-color:
+        rgba(255, 79, 104, 0.22);
+
+    background:
+        rgba(255, 79, 104, 0.045);
+}
+
+
+.vision-result-message.warning {
+
+    color:
+        #ffd58d;
+
+    border-color:
+        rgba(255, 189, 85, 0.20);
+
+    background:
+        rgba(255, 189, 85, 0.045);
+}
+
+
+.vision-message-icon {
+
+    flex:
+        0 0 auto;
+
+    margin-top:
+        1px;
+}
+
+
+.vision-message-content {
+
+    min-width:
+        0;
+}
+
+
+.vision-message-title {
+
+    display:
+        block;
+
+    margin-bottom:
+        2px;
+
+    font-weight:
+        800;
+}
+
+
+.vision-message-text {
+
+    color:
+        inherit;
+
+    opacity:
+        0.76;
+}
+
+
+/* =========================================================
+   RESULT TOOLBAR
+========================================================= */
+
+.vision-result-toolbar {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    gap:
+        12px;
+
+    margin-bottom:
+        10px;
+}
+
+
+.vision-result-toolbar-left {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        7px;
+
+    min-width:
+        0;
+}
+
+
+.vision-result-toolbar-label {
+
+    color:
+        #858590;
+
+    font-size:
+        9px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        0.08em;
+
+    text-transform:
+        uppercase;
+}
+
+
+/* =========================================================
+   COPY FEEDBACK
+========================================================= */
+
+.vision-copy-feedback {
+
+    min-width:
+        60px;
+
+    color:
+        #42e89d;
+
+    font-size:
+        9px;
+
+    font-weight:
+        800;
+
+    text-align:
+        right;
+
+    opacity:
+        0;
+
+    transform:
+        translateY(2px);
+
+    transition:
+        opacity 160ms ease,
+        transform 160ms ease;
+}
+
+
+.vision-copy-feedback.is-visible {
+
+    opacity:
+        1;
+
+    transform:
+        translateY(0);
+}
+
+
+/* =========================================================
+   ANALYSIS JSON LABEL
+========================================================= */
+
+.vision-analysis-label {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        7px;
+
+    padding:
+        11px 13px;
+
+    color:
+        #8d8d98;
+
+    font-size:
+        9px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        0.07em;
+
+    text-transform:
+        uppercase;
+}
+
+
+/* =========================================================
+   ANALYSIS RESULT STATES
+========================================================= */
+
+.vision-analysis-result.is-empty {
+
+    color:
+        #555560;
+}
+
+
+.vision-analysis-result.is-error {
+
+    color:
+        #ff899c;
+}
+
+
+.vision-analysis-result.is-success {
+
+    color:
+        #a9f4d0;
+}
+
+
+/* =========================================================
+   PROCESSING DOTS
+========================================================= */
+
+.vision-processing-dots {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    gap:
+        4px;
+
+    margin-left:
+        4px;
+}
+
+
+.vision-processing-dots span {
+
+    width:
+        4px;
+
+    height:
+        4px;
+
+    border-radius:
+        50%;
+
+    background:
+        currentColor;
+
+    opacity:
+        0.35;
+
+    animation:
+        visionDotPulse 1.1s ease-in-out infinite;
+}
+
+
+.vision-processing-dots span:nth-child(2) {
+
+    animation-delay:
+        140ms;
+}
+
+
+.vision-processing-dots span:nth-child(3) {
+
+    animation-delay:
+        280ms;
+}
+
+
+@keyframes visionDotPulse {
+
+    0%,
+    70%,
+    100% {
+
+        opacity:
+            0.30;
+
+        transform:
+            translateY(0);
+    }
+
+    35% {
+
+        opacity:
+            1;
+
+        transform:
+            translateY(-2px);
+    }
+}
+
+
+/* =========================================================
+   LIVE INDICATOR
+========================================================= */
+
+.vision-live-indicator {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    gap:
+        6px;
+
+    color:
+        #42e89d;
+
+    font-size:
+        8px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        0.08em;
+
+    text-transform:
+        uppercase;
+}
+
+
+.vision-live-indicator::before {
+
+    content:
+        "";
+
+    width:
+        5px;
+
+    height:
+        5px;
+
+    border-radius:
+        50%;
+
+    background:
+        currentColor;
+
+    box-shadow:
+        0 0 10px
+        rgba(66, 232, 157, 0.65);
+
+    animation:
+        visionLivePulse 1.8s ease-in-out infinite;
+}
+
+
+@keyframes visionLivePulse {
+
+    0%,
+    100% {
+
+        opacity:
+            0.45;
+
+        transform:
+            scale(0.9);
+    }
+
+    50% {
+
+        opacity:
+            1;
+
+        transform:
+            scale(1.1);
+    }
+}
+
+
+/* =========================================================
+   CREDIT LOW STATE
+========================================================= */
+
+.vision-credit-badge.is-low {
+
+    border-color:
+        rgba(255, 189, 85, 0.35);
+
+    background:
+        rgba(255, 189, 85, 0.045);
+}
+
+
+.vision-credit-badge.is-low
+.vision-credit-value {
+
+    color:
+        #ffd58d;
+}
+
+
+/* =========================================================
+   CREDIT EMPTY STATE
+========================================================= */
+
+.vision-credit-badge.is-empty {
+
+    border-color:
+        rgba(255, 79, 104, 0.40);
+
+    background:
+        rgba(255, 79, 104, 0.055);
+}
+
+
+.vision-credit-badge.is-empty
+.vision-credit-value {
+
+    color:
+        #ff899c;
+}
+
+
+/* =========================================================
+   INPUT ERROR
+========================================================= */
+
+.vision-field.is-error
+.vision-input,
+.vision-field.is-error
+.vision-select,
+.vision-field.is-error
+.vision-textarea {
+
+    border-color:
+        rgba(255, 79, 104, 0.62);
+
+    box-shadow:
+        0 0 0 3px
+        rgba(255, 79, 104, 0.06);
+}
+
+
+.vision-field-error {
+
+    display:
+        none;
+
+    margin-top:
+        5px;
+
+    color:
+        #ff8b9d;
+
+    font-size:
+        9px;
+
+    line-height:
+        1.4;
+}
+
+
+.vision-field.is-error
+.vision-field-error {
+
+    display:
+        block;
+}
+
+
+/* =========================================================
+   SUCCESS BORDER
+========================================================= */
+
+.vision-panel.is-success {
+
+    border-color:
+        rgba(66, 232, 157, 0.24);
+
+    box-shadow:
+        var(--vision-shadow),
+        0 0 30px
+        rgba(66, 232, 157, 0.035);
+}
+
+
+/* =========================================================
+   PROCESSING PANEL
+========================================================= */
+
+.vision-panel.is-processing {
+
+    border-color:
+        rgba(255, 39, 79, 0.36);
+}
+
+
+.vision-panel.is-processing::after {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    inset:
+        0;
+
+    pointer-events:
+        none;
+
+    border-radius:
+        inherit;
+
+    box-shadow:
+        inset 0 0 45px
+        rgba(255, 39, 79, 0.035);
+
+    animation:
+        visionPanelPulse 1.8s ease-in-out infinite;
+}
+
+
+@keyframes visionPanelPulse {
+
+    0%,
+    100% {
+
+        opacity:
+            0.45;
+    }
+
+    50% {
+
+        opacity:
+            1;
+    }
+}
+
+
+/* =========================================================
+   DISABLED VISUAL
+========================================================= */
+
+.vision-control-disabled {
+
+    opacity:
+        0.48;
+
+    filter:
+        saturate(0.55);
+}
+
+
+/* =========================================================
+   FOCUS VISIBLE
+========================================================= */
+
+.vision-page button:focus-visible,
+.vision-page input:focus-visible,
+.vision-page select:focus-visible,
+.vision-page textarea:focus-visible,
+.vision-page summary:focus-visible {
+
+    outline:
+        2px solid
+        rgba(255, 39, 79, 0.70);
+
+    outline-offset:
+        2px;
+}
+
+
+/* =========================================================
+   MOBILE COMPONENT SAFETY
+========================================================= */
+
+@media (max-width: 760px) {
+
+    .vision-result-toolbar {
+
+        align-items:
+            flex-start;
+    }
+
+    .vision-result-toolbar-left {
+
+        min-width:
+            0;
+    }
+
+    .vision-copy-feedback {
+
+        min-width:
+            45px;
+    }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .vision-upload-icon,
+    .vision-remove-button,
+    .vision-copy-feedback {
+
+        transition:
+            none !important;
+    }
+
+    .vision-spinner,
+    .vision-action.is-processing::after,
+    .vision-processing-dots span,
+    .vision-live-indicator::before,
+    .vision-panel.is-processing::after {
+
+        animation:
+            none !important;
+    }
+}
