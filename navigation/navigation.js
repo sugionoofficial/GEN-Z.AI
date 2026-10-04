@@ -656,6 +656,12 @@
                 href: "/generate/index.html",
                 icon: "♻️ "
             },
+
+           {
+    label: "Vision",
+    href: "/vision/index.html",
+    icon: "👁️ "
+},
            
            {
               label: "VidDra FREE",
@@ -703,6 +709,12 @@
                 href: "/generate/index.html",
                 icon: "♻️ "
             },
+
+           {
+    label: "Vision",
+    href: "/vision/index.html",
+    icon: "👁️ "
+},
            
            {
               label: "VidDra FREE",
