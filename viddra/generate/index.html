@@ -3453,17 +3453,27 @@ if (
 
 
             if (
-                !response.ok ||
-                data?.success === false
-            ) {
+    !response.ok ||
+    data?.success === false
+) {
 
-                throw new Error(
-                    data?.error ||
-                    data?.message ||
-                    `Generate failed (${response.status})`
-                );
+    const message =
+        normalizeClientError(
+            data?.error,
+            ""
+        ) ||
+        normalizeClientError(
+            data?.message,
+            ""
+        ) ||
+        `Generate failed (${response.status})`;
 
-            }
+
+    throw new Error(
+        message
+    );
+
+}
 
 
             const taskId =
@@ -3752,17 +3762,27 @@ async function pollTask(
 
 
         if (
-            !response.ok ||
-            data?.success === false
-        ) {
+    !response.ok ||
+    data?.success === false
+) {
 
-            throw new Error(
-                data?.error ||
-                data?.message ||
-                `Status request failed (${response.status})`
-            );
+    const message =
+        normalizeClientError(
+            data?.error,
+            ""
+        ) ||
+        normalizeClientError(
+            data?.message,
+            ""
+        ) ||
+        `Status request failed (${response.status})`;
 
-        }
+
+    throw new Error(
+        message
+    );
+
+}
 
 
         const state =
@@ -3825,12 +3845,25 @@ async function pollTask(
             "failed"
         ) {
 
-            throw new Error(
-                data?.history_error ||
-                data?.error_message ||
-                data?.error ||
-                "VidDra generation gagal."
-            );
+            const message =
+    normalizeClientError(
+        data?.history_error,
+        ""
+    ) ||
+    normalizeClientError(
+        data?.error_message,
+        ""
+    ) ||
+    normalizeClientError(
+        data?.error,
+        ""
+    ) ||
+    "VidDra generation gagal.";
+
+
+throw new Error(
+    message
+);
 
         }
 
@@ -3951,6 +3984,148 @@ async function pollTask(
             );
 
         }
+
+        /* =====================================================
+   NORMALIZE CLIENT ERROR
+   -----------------------------------------------------
+   Memastikan error dari backend/provider selalu menjadi
+   string yang dapat dibaca.
+===================================================== */
+
+function normalizeClientError(
+    value,
+    fallback = ""
+) {
+
+    if (
+        value ===
+            undefined ||
+        value ===
+            null
+    ) {
+
+        return fallback;
+
+    }
+
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        const message =
+            value.trim();
+
+        return message ||
+            fallback;
+
+    }
+
+
+    if (
+        value instanceof Error
+    ) {
+
+        return (
+            value.message ||
+            fallback
+        );
+
+    }
+
+
+    if (
+        typeof value ===
+        "object"
+    ) {
+
+        const code =
+            String(
+                value.code ||
+                value.error_code ||
+                ""
+            ).trim();
+
+
+        const message =
+            String(
+                value.message ||
+                value.detail ||
+                value.description ||
+                value.error ||
+                ""
+            ).trim();
+
+
+        if (
+            code &&
+            message
+        ) {
+
+            return (
+                `${code}: ${message}`
+            );
+
+        }
+
+
+        if (
+            message
+        ) {
+
+            return message;
+
+        }
+
+
+        if (
+            code
+        ) {
+
+            return code;
+
+        }
+
+
+        try {
+
+            const serialized =
+                JSON.stringify(
+                    value
+                );
+
+
+            if (
+                serialized &&
+                serialized !==
+                    "{}"
+            ) {
+
+                return serialized;
+
+            }
+
+        } catch {
+
+            /*
+             * Abaikan object yang gagal
+             * diserialisasi.
+             */
+
+        }
+
+    }
+
+
+    return (
+        String(
+            value
+        ) ||
+        fallback
+    );
+
+}
 
 
         /* =====================================================
@@ -4144,11 +4319,35 @@ async function pollTask(
 
                     } finally {
 
-                        setLoading(
-                            false
-                        );
+    setLoading(
+        false
+    );
 
-                    }
+
+    /*
+     * Setelah loading selesai, cek kembali
+     * status API Key agar tombol Generate
+     * tidak terbuka tanpa credential.
+     */
+
+    try {
+
+        await checkApiKeyStatus();
+
+    } catch {
+
+        if (
+            generateButton
+        ) {
+
+            generateButton.disabled =
+                true;
+
+        }
+
+    }
+
+}
 
                 }
             );
