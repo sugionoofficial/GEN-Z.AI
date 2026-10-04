@@ -4545,68 +4545,96 @@ async function updateVidDraCredit(
 
 
         /* =====================================================
-           SHOW RESULT
-        ===================================================== */
+   SHOW RESULT
+===================================================== */
 
-        function showResult(
+function showResult(
+    data
+) {
+
+    const videoUrl =
+        extractResultUrl(
             data
-        ) {
-
-            const videoUrl =
-                extractResultUrl(
-                    data
-                );
+        );
 
 
-            if (
-                !videoUrl
-            ) {
+    if (
+        !videoUrl
+    ) {
 
-                throw new Error(
-                    "VidDra tidak mengembalikan URL video."
-                );
+        throw new Error(
+            "VidDra tidak mengembalikan URL video."
+        );
 
-            }
-
-
-            if (
-                resultVideo
-            ) {
-
-                resultVideo.src =
-                    videoUrl;
+    }
 
 
-                resultVideo.style.display =
-                    "block";
+    if (
+        resultVideo
+    ) {
+
+        resultVideo.src =
+            videoUrl;
 
 
-                resultVideo.load();
-
-            }
-
-
-            if (
-                previewEmpty
-            ) {
-
-                previewEmpty.style.display =
-                    "none";
-
-            }
+        resultVideo.style.display =
+            "block";
 
 
-            setStatus(
-                `
-                    <strong>Generation completed.</strong><br>
-                    Video berhasil dibuat oleh VidDra.
-                    <br>
-                    History GEN-Z.AI sudah diperbarui.
-                `,
-                "success"
-            );
+        resultVideo.load();
 
-        }
+    }
+
+
+    /*
+     * =====================================================
+     * DOWNLOAD RESULT
+     * -----------------------------------------------------
+     * Gunakan URL video hasil VidDra sebagai target
+     * tombol download.
+     * =====================================================
+     */
+
+    if (
+        downloadResultButton
+    ) {
+
+        downloadResultButton.href =
+            videoUrl;
+
+
+        downloadResultButton.download =
+            "GEN-Z.AI-VidDra-video.mp4";
+
+
+        downloadResultButton.classList.add(
+            "show"
+        );
+
+    }
+
+
+    if (
+        previewEmpty
+    ) {
+
+        previewEmpty.style.display =
+            "none";
+
+    }
+
+
+    setStatus(
+        `
+            <strong>Generation completed.</strong><br>
+            Video berhasil dibuat oleh VidDra.
+            <br>
+            History GEN-Z.AI sudah diperbarui.
+        `,
+        "success"
+    );
+
+}
 
         /* =====================================================
    NORMALIZE CLIENT ERROR
