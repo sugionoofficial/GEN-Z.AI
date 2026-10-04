@@ -28,7 +28,9 @@
 
 import {
     createVidDraSessionCookie,
-    getVidDraSession
+    getVidDraSession,
+    createVidDraApiKeyCookie,
+    getVidDraApiKey
 } from "../../lib/viddra/session.js";
 
 
@@ -871,17 +873,38 @@ function extractBalance(
 
 
 /* =========================================================
+   EXTRACT API KEY
+========================================================= */
+
+function extractVidDraApiKey(
+    response
+) {
+
+    const key =
+        String(
+            response?.key ||
+            response?.api_key ||
+            response?.data?.key ||
+            response?.data?.api_key ||
+            ""
+        ).trim();
+
+
+    return key;
+
+}
+
+
+/* =========================================================
    CREATE KEY ACTION
    ---------------------------------------------------------
-   Dipanggil melalui:
-
    POST /api/viddra/account?action=create-key
 
-   GEN-Z.AI Authorization:
-   Bearer <Supabase access token>
-
-   VidDra Authorization:
-   JWT dari encrypted HttpOnly cookie
+   SECURITY:
+   - API key TIDAK dikembalikan
+   - API key TIDAK di-log
+   - API key TIDAK disimpan database
+   - API key disimpan encrypted HttpOnly cookie
 ========================================================= */
 
 async function handleCreateApiKey(
@@ -892,8 +915,40 @@ async function handleCreateApiKey(
 
     /*
      * -------------------------------------------------------
+     * Jika API key sudah tersedia di encrypted cookie,
+     * jangan membuat key baru.
+     * -------------------------------------------------------
+     */
+
+    const existingApiKey =
+        getVidDraApiKey(
+            req
+        );
+
+
+    if (
+        existingApiKey
+    ) {
+
+        return success(
+            res,
+            {
+
+                ready:
+                    true,
+
+                existing:
+                    true
+
+            }
+        );
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
      * Ambil VidDra JWT dari encrypted HttpOnly cookie.
-     * Browser JavaScript tidak pernah menerima token ini.
      * -------------------------------------------------------
      */
 
@@ -924,25 +979,75 @@ async function handleCreateApiKey(
             );
 
 
+        const apiKey =
+            extractVidDraApiKey(
+                keyResponse
+            );
+
+
+        if (
+            !apiKey
+        ) {
+
+            console.error(
+                "[viddra] API key response tidak berisi key."
+            );
+
+
+            return failure(
+                res,
+                502,
+                "VidDra berhasil merespons tetapi API key tidak ditemukan."
+            );
+
+        }
+
+
+        /*
+         * ---------------------------------------------------
+         * SIMPAN API KEY SECARA ENCRYPTED
+         * ---------------------------------------------------
+         */
+
+        const apiKeyCookie =
+            createVidDraApiKeyCookie(
+                apiKey
+            );
+
+
+        /*
+         * ---------------------------------------------------
+         * Jangan overwrite cookie JWT.
+         *
+         * Karena create-key dipanggil setelah session JWT
+         * sudah ada, cukup kirim cookie API key baru.
+         * Browser akan mempertahankan cookie session lama.
+         * ---------------------------------------------------
+         */
+
+        res.setHeader(
+            "Set-Cookie",
+            apiKeyCookie
+        );
+
+
         /*
          * ---------------------------------------------------
          * SECURITY
          * ---------------------------------------------------
          *
-         * JANGAN console.log(keyResponse)
+         * JANGAN log:
+         * - apiKey
+         * - keyResponse
+         * - Authorization
+         * - JWT
          *
-         * Karena response berisi:
-         *
-         * key: "vk_live_..."
-         *
-         * API key hanya boleh berada di response
-         * request ini.
+         * Hanya metadata aman.
          * ---------------------------------------------------
          */
 
-
         console.info(
-            "[viddra] API key created:",
+            "[viddra] API key stored securely:",
             {
 
                 genz_user_id:
@@ -956,17 +1061,12 @@ async function handleCreateApiKey(
                     keyResponse?.key_prefix ||
                     null,
 
-                name:
-                    keyResponse?.name ||
-                    null,
-
                 status:
                     keyResponse?.status ||
                     null,
 
-                created_at:
-                    keyResponse?.created_at ||
-                    null
+                ready:
+                    true
 
             }
         );
@@ -974,12 +1074,17 @@ async function handleCreateApiKey(
 
         /*
          * ---------------------------------------------------
-         * RESPONSE
+         * API RESPONSE
          * ---------------------------------------------------
          *
-         * key dikirim hanya pada response ini.
+         * TIDAK ADA:
+         * key
+         * api_key
+         * masked key
+         * prefix
          *
-         * Tidak ada JWT VidDra di response.
+         * Frontend hanya perlu tahu:
+         * ready = true
          * ---------------------------------------------------
          */
 
@@ -987,36 +1092,8 @@ async function handleCreateApiKey(
             res,
             {
 
-                key:
-                    keyResponse?.key ||
-                    null,
-
-                id:
-                    keyResponse?.id ||
-                    null,
-
-                key_prefix:
-                    keyResponse?.key_prefix ||
-                    null,
-
-                name:
-                    keyResponse?.name ||
-                    null,
-
-                status:
-                    keyResponse?.status ||
-                    null,
-
-                monthly_limit_usd:
-                    keyResponse?.monthly_limit_usd ??
-                    null,
-
-                created_at:
-                    keyResponse?.created_at ||
-                    null,
-
-                warning:
-                    "API key hanya ditampilkan sekali. Simpan sebagai VIDDRA_API_KEY di Vercel Environment Variables."
+                ready:
+                    true
 
             }
         );
@@ -1057,6 +1134,41 @@ async function handleCreateApiKey(
         );
 
     }
+
+}
+
+
+/* =========================================================
+   API KEY STATUS
+   ---------------------------------------------------------
+   POST /api/viddra/account?action=key-status
+
+   Hanya mengembalikan boolean.
+   Tidak pernah mengembalikan API key.
+========================================================= */
+
+async function handleApiKeyStatus(
+    req,
+    res
+) {
+
+    const apiKey =
+        getVidDraApiKey(
+            req
+        );
+
+
+    return success(
+        res,
+        {
+
+            ready:
+                Boolean(
+                    apiKey
+                )
+
+        }
+    );
 
 }
 
@@ -1157,6 +1269,22 @@ export default async function handler(
             );
 
         }
+
+       /* ---------------------------------------------------
+   API KEY STATUS
+--------------------------------------------------- */
+
+if (
+    action ===
+    "key-status"
+) {
+
+    return await handleApiKeyStatus(
+        req,
+        res
+    );
+
+}
 
 
         /*
