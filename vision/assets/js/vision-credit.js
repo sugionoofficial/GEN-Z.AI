@@ -109,13 +109,251 @@ function getDOM() {
 
 
 /* =========================================================
+   GET SUPABASE CLIENT
+   ---------------------------------------------------------
+   Prioritas:
+   1. GENZVisionSupabase
+   2. GENZ_SUPABASE
+   3. window.supabaseClient
+   4. Buat client langsung dari config
+========================================================= */
+
+function getSupabaseClient() {
+
+    /*
+     * -----------------------------------------------------
+     * PRIORITY 1
+     * Vision Supabase module
+     * -----------------------------------------------------
+     */
+
+    if (
+        window.GENZVisionSupabase
+    ) {
+
+        if (
+            typeof window.GENZVisionSupabase.getClient ===
+            "function"
+        ) {
+
+            try {
+
+                const client =
+                    window.GENZVisionSupabase.getClient();
+
+
+                if (
+                    client
+                ) {
+
+                    window.supabaseClient =
+                        client;
+
+
+                    return client;
+
+                }
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision] GENZVisionSupabase.getClient() gagal:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        if (
+            typeof window.GENZVisionSupabase.createClient ===
+            "function"
+        ) {
+
+            try {
+
+                const client =
+                    window.GENZVisionSupabase.createClient();
+
+
+                if (
+                    client
+                ) {
+
+                    window.supabaseClient =
+                        client;
+
+
+                    return client;
+
+                }
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision] GENZVisionSupabase.createClient() gagal:",
+                    error
+                );
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * PRIORITY 2
+     * Global GENZ Supabase client
+     * -----------------------------------------------------
+     */
+
+    if (
+        window.GENZ_SUPABASE &&
+        typeof window.GENZ_SUPABASE.auth?.getSession ===
+            "function"
+    ) {
+
+        window.supabaseClient =
+            window.GENZ_SUPABASE;
+
+
+        return window.GENZ_SUPABASE;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * PRIORITY 3
+     * Existing global Supabase client
+     * -----------------------------------------------------
+     */
+
+    if (
+        window.supabaseClient &&
+        typeof window.supabaseClient.auth?.getSession ===
+            "function"
+    ) {
+
+        return window.supabaseClient;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * PRIORITY 4
+     * Direct creation sebagai fallback terakhir
+     * -----------------------------------------------------
+     */
+
+    const supabaseGlobal =
+        window.supabase;
+
+
+    const config =
+        window.GENZ_CONFIG;
+
+
+    if (
+        supabaseGlobal &&
+        typeof supabaseGlobal.createClient ===
+            "function" &&
+        config &&
+        config.SUPABASE_URL
+    ) {
+
+        const supabaseKey =
+            config.SUPABASE_KEY ||
+            config.SUPABASE_ANON_KEY ||
+            "";
+
+
+        if (
+            supabaseKey
+        ) {
+
+            try {
+
+                const client =
+                    supabaseGlobal.createClient(
+
+                        config.SUPABASE_URL,
+
+                        supabaseKey,
+
+                        {
+
+                            auth: {
+
+                                persistSession:
+                                    true,
+
+                                autoRefreshToken:
+                                    true,
+
+                                detectSessionInUrl:
+                                    true
+
+                            }
+
+                        }
+
+                    );
+
+
+                window.supabaseClient =
+                    client;
+
+
+                return client;
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI Vision] Gagal membuat Supabase client:",
+                    error
+                );
+
+            }
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
    GET SUPABASE SESSION
 ========================================================= */
 
 async function getSession() {
 
+    const supabaseClient =
+        getSupabaseClient();
+
+
+    /*
+     * -----------------------------------------------------
+     * VALIDATE CLIENT
+     * -----------------------------------------------------
+     */
+
     if (
-        !window.supabaseClient
+        !supabaseClient
     ) {
 
         throw new Error(
@@ -125,8 +363,27 @@ async function getSession() {
     }
 
 
+    if (
+        !supabaseClient.auth ||
+        typeof supabaseClient.auth.getSession !==
+            "function"
+    ) {
+
+        throw new Error(
+            "Supabase Auth client tidak tersedia."
+        );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * GET SESSION
+     * -----------------------------------------------------
+     */
+
     const result =
-        await window.supabaseClient.auth.getSession();
+        await supabaseClient.auth.getSession();
 
 
     if (
@@ -143,6 +400,12 @@ async function getSession() {
         null;
 
 
+    /*
+     * -----------------------------------------------------
+     * VALIDATE SESSION
+     * -----------------------------------------------------
+     */
+
     if (
         !session ||
         !session.access_token
@@ -151,6 +414,22 @@ async function getSession() {
         throw new Error(
             "Session pengguna tidak tersedia."
         );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * KEEP GLOBAL CLIENT
+     * -----------------------------------------------------
+     */
+
+    if (
+        !window.supabaseClient
+    ) {
+
+        window.supabaseClient =
+            supabaseClient;
 
     }
 
@@ -222,16 +501,6 @@ function formatCredit(
         );
 
 
-    /*
-     * Credit GEN-Z.AI pada umumnya
-     * berupa bilangan bulat.
-     *
-     * Jika suatu saat backend
-     * mengembalikan decimal, kita
-     * tetap tidak menampilkan
-     * trailing zero yang tidak perlu.
-     */
-
     if (
         Number.isInteger(
             numeric
@@ -257,11 +526,6 @@ function formatCredit(
 
 /* =========================================================
    UPDATE CREDIT BADGE
-   ---------------------------------------------------------
-   Satu-satunya tugas tambahan modul ini:
-   menjaga angka credit yang tampil di
-   halaman Vision selalu sama dengan
-   state terbaru.
 ========================================================= */
 
 function updateCreditBadge(
@@ -533,11 +797,6 @@ function assertEnoughCredit(
         error.requiredCredits =
             cost;
 
-
-        /*
-         * Pastikan badge tetap
-         * menunjukkan saldo aktual.
-         */
 
         updateCreditBadge(
             current
@@ -829,12 +1088,6 @@ async function checkCredit() {
             : getCurrentCredit();
 
 
-    /*
-     * Jika server tidak mengirim
-     * balance, tetap sinkronkan UI
-     * dengan state yang tersedia.
-     */
-
     if (
         serverCredits === null
     ) {
@@ -892,6 +1145,9 @@ async function checkCredit() {
 
     return {
 
+        allowed:
+            true,
+
         credits:
             currentCredits,
 
@@ -939,6 +1195,9 @@ async function deductCredit(
 
             alreadyDeducted:
                 true,
+
+            deducted:
+                false,
 
             credits:
                 getCurrentCredit(),
@@ -1383,6 +1642,12 @@ const GENZVisionCredit =
 
         CONFIG:
             VISION_CREDIT_CONFIG,
+
+        getSupabaseClient,
+
+        getSession,
+
+        getAccessToken,
 
         getCost,
 
