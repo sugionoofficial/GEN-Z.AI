@@ -5,29 +5,19 @@
    vision/assets/js/vision-credit.js
 
    Fungsi:
-   - Membaca saldo credit dari state/profile
+   - Membaca saldo credit dari server
+   - Menampilkan saldo credit pada Vision UI
    - Menentukan apakah saldo mencukupi
-   - Menyiapkan credit operation
-   - Memanggil server untuk deduct / refund
-   - Menyinkronkan saldo terbaru ke state
+   - Deduct 1 credit
+   - Refund credit jika proses gagal
+   - Sinkronisasi saldo ke state
+   - Browser TIDAK mengubah profiles.credits langsung
 
-   ATURAN VISION:
+   ATURAN:
    - 1 proses Vision = 1 credit
    - Deduct hanya SATU kali
    - Refund jika proses gagal setelah deduction
-   - Browser TIDAK mengubah profiles.credits langsung
-
-   Server endpoint yang digunakan:
-   POST /api/openkey-chat
-
-   Operation:
-   vision_credit_check
-   vision_credit_deduct
-   vision_credit_refund
-
-   Server-side implementation akan ditambahkan
-   pada api/openkey-chat.js tanpa membuat
-   Vercel function baru.
+   - Server tetap menjadi authority
 ========================================================= */
 
 
@@ -35,37 +25,41 @@
    CONFIGURATION
 ========================================================= */
 
-const VISION_CREDIT_CONFIG = Object.freeze({
+const VISION_CREDIT_CONFIG =
+    Object.freeze({
 
-    cost:
-        1,
+        cost:
+            1,
 
-    endpoint:
-        "/api/openkey-chat",
+        endpoint:
+            "/api/openkey-chat",
 
-    currency:
-        "credits",
+        currency:
+            "credits",
 
-    operation:
+        lowBalanceThreshold:
+            5,
 
-        Object.freeze({
+        operation:
 
-            CHECK:
-                "vision_credit_check",
+            Object.freeze({
 
-            DEDUCT:
-                "vision_credit_deduct",
+                CHECK:
+                    "vision_credit_check",
 
-            REFUND:
-                "vision_credit_refund"
+                DEDUCT:
+                    "vision_credit_deduct",
 
-        })
+                REFUND:
+                    "vision_credit_refund"
 
-});
+            })
+
+    });
 
 
 /* =========================================================
-   INTERNAL HELPERS
+   INTERNAL STATE ACCESS
 ========================================================= */
 
 function getState() {
@@ -82,6 +76,34 @@ function getState() {
 
 
     return window.GENZVisionState;
+
+}
+
+
+/* =========================================================
+   DOM ACCESS
+========================================================= */
+
+function getDOM() {
+
+    if (
+        !window.GENZVisionDOM
+    ) {
+
+        return null;
+
+    }
+
+
+    try {
+
+        return window.GENZVisionDOM.getDOM();
+
+    } catch {
+
+        return null;
+
+    }
 
 }
 
@@ -162,7 +184,9 @@ function normalizeCredit(
 ) {
 
     const numeric =
-        Number(value);
+        Number(
+            value
+        );
 
 
     if (
@@ -180,6 +204,155 @@ function normalizeCredit(
         0,
         numeric
     );
+
+}
+
+
+/* =========================================================
+   FORMAT CREDIT
+========================================================= */
+
+function formatCredit(
+    value
+) {
+
+    const numeric =
+        normalizeCredit(
+            value
+        );
+
+
+    /*
+     * Credit GEN-Z.AI pada umumnya
+     * berupa bilangan bulat.
+     *
+     * Jika suatu saat backend
+     * mengembalikan decimal, kita
+     * tetap tidak menampilkan
+     * trailing zero yang tidak perlu.
+     */
+
+    if (
+        Number.isInteger(
+            numeric
+        )
+    ) {
+
+        return String(
+            numeric
+        );
+
+    }
+
+
+    return numeric
+        .toFixed(2)
+        .replace(
+            /\.?0+$/,
+            ""
+        );
+
+}
+
+
+/* =========================================================
+   UPDATE CREDIT BADGE
+   ---------------------------------------------------------
+   Satu-satunya tugas tambahan modul ini:
+   menjaga angka credit yang tampil di
+   halaman Vision selalu sama dengan
+   state terbaru.
+========================================================= */
+
+function updateCreditBadge(
+    credits
+) {
+
+    const dom =
+        getDOM();
+
+
+    if (
+        !dom
+    ) {
+
+        return false;
+
+    }
+
+
+    const badge =
+        dom.creditBadge ||
+        document.getElementById(
+            "visionCreditBadge"
+        );
+
+
+    const valueElement =
+        dom.creditValue ||
+        document.getElementById(
+            "visionCreditValue"
+        );
+
+
+    const normalized =
+        normalizeCredit(
+            credits
+        );
+
+
+    /*
+     * -----------------------------------------------------
+     * CREDIT VALUE
+     * -----------------------------------------------------
+     */
+
+    if (
+        valueElement
+    ) {
+
+        valueElement.textContent =
+            formatCredit(
+                normalized
+            );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * BADGE STATE
+     * -----------------------------------------------------
+     */
+
+    if (
+        badge
+    ) {
+
+        badge.classList.toggle(
+            "is-low",
+            normalized > 0 &&
+            normalized <=
+                VISION_CREDIT_CONFIG
+                    .lowBalanceThreshold
+        );
+
+
+        badge.classList.toggle(
+            "is-empty",
+            normalized <= 0
+        );
+
+
+        badge.dataset.credits =
+            String(
+                normalized
+            );
+
+    }
+
+
+    return true;
 
 }
 
@@ -245,6 +418,12 @@ function setCredit(
         getState();
 
 
+    /*
+     * -----------------------------------------------------
+     * STATE
+     * -----------------------------------------------------
+     */
+
     state.set(
         "auth.credits",
         normalized
@@ -259,6 +438,17 @@ function setCredit(
                 normalized
 
         }
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * UI
+     * -----------------------------------------------------
+     */
+
+    updateCreditBadge(
+        normalized
     );
 
 
@@ -342,6 +532,16 @@ function assertEnoughCredit(
 
         error.requiredCredits =
             cost;
+
+
+        /*
+         * Pastikan badge tetap
+         * menunjukkan saldo aktual.
+         */
+
+        updateCreditBadge(
+            current
+        );
 
 
         throw error;
@@ -543,11 +743,15 @@ function extractBalance(
 
         response?.balance,
 
+        response?.remaining,
+
         response?.data?.credits,
 
         response?.data?.remaining_credits,
 
-        response?.data?.balance
+        response?.data?.balance,
+
+        response?.data?.remaining
 
     ];
 
@@ -558,7 +762,9 @@ function extractBalance(
     ) {
 
         const numeric =
-            Number(value);
+            Number(
+                value
+            );
 
 
         if (
@@ -597,6 +803,10 @@ async function checkCredit() {
     );
 
 
+    /*
+     * Server adalah sumber saldo utama.
+     */
+
     const response =
         await requestServer(
             VISION_CREDIT_CONFIG
@@ -612,11 +822,28 @@ async function checkCredit() {
 
 
     const currentCredits =
-        serverCredits === null
-            ? getCurrentCredit()
-            : setCredit(
+        serverCredits !== null
+            ? setCredit(
                 serverCredits
-            );
+            )
+            : getCurrentCredit();
+
+
+    /*
+     * Jika server tidak mengirim
+     * balance, tetap sinkronkan UI
+     * dengan state yang tersedia.
+     */
+
+    if (
+        serverCredits === null
+    ) {
+
+        updateCreditBadge(
+            currentCredits
+        );
+
+    }
 
 
     const sufficient =
@@ -634,6 +861,11 @@ async function checkCredit() {
     if (
         !sufficient
     ) {
+
+        updateCreditBadge(
+            currentCredits
+        );
+
 
         const error =
             new Error(
@@ -687,8 +919,8 @@ async function deductCredit(
 
 
     /*
-     * Jangan pernah melakukan deduction kedua
-     * dalam satu proses.
+     * Jangan pernah melakukan deduction
+     * kedua dalam satu proses.
      */
 
     if (
@@ -697,6 +929,11 @@ async function deductCredit(
             false
         )
     ) {
+
+        updateCreditBadge(
+            getCurrentCredit()
+        );
+
 
         return {
 
@@ -715,10 +952,8 @@ async function deductCredit(
 
 
     /*
-     * Pemeriksaan lokal hanya sebagai
-     * fast-fail UX.
-     *
-     * Server tetap menjadi authority.
+     * Fast-fail lokal.
+     * Server tetap authority.
      */
 
     assertEnoughCredit();
@@ -765,8 +1000,8 @@ async function deductCredit(
     } else {
 
         /*
-         * Jangan mengarang saldo baru
-         * jika server tidak mengembalikannya.
+         * Hanya fallback lokal jika
+         * server tidak mengirim saldo.
          */
 
         const current =
@@ -790,6 +1025,15 @@ async function deductCredit(
     state.markCreditReserved();
 
 
+    const remaining =
+        getCurrentCredit();
+
+
+    updateCreditBadge(
+        remaining
+    );
+
+
     return {
 
         deducted:
@@ -799,7 +1043,7 @@ async function deductCredit(
             getCost(),
 
         credits:
-            getCurrentCredit(),
+            remaining,
 
         response
 
@@ -820,12 +1064,6 @@ async function refundCredit(
         getState();
 
 
-    /*
-     * Refund hanya boleh dilakukan
-     * jika credit benar-benar sudah
-     * dipotong.
-     */
-
     const deducted =
         state.get(
             "credit.deducted",
@@ -843,6 +1081,11 @@ async function refundCredit(
     if (
         !deducted
     ) {
+
+        updateCreditBadge(
+            getCurrentCredit()
+        );
+
 
         return {
 
@@ -866,6 +1109,11 @@ async function refundCredit(
     if (
         refunded
     ) {
+
+        updateCreditBadge(
+            getCurrentCredit()
+        );
+
 
         return {
 
@@ -941,6 +1189,15 @@ async function refundCredit(
     state.markCreditRefunded();
 
 
+    const remaining =
+        getCurrentCredit();
+
+
+    updateCreditBadge(
+        remaining
+    );
+
+
     return {
 
         refunded:
@@ -950,7 +1207,7 @@ async function refundCredit(
             getCost(),
 
         credits:
-            getCurrentCredit(),
+            remaining,
 
         response
 
@@ -961,10 +1218,6 @@ async function refundCredit(
 
 /* =========================================================
    RESERVE CREDIT
-   ---------------------------------------------------------
-   Vision menggunakan deduction atomik di server.
-   Reserve di state hanya menandai bahwa proses sudah
-   melewati tahap persiapan credit.
 ========================================================= */
 
 function reserveCredit() {
@@ -974,6 +1227,11 @@ function reserveCredit() {
 
 
     state.markCreditReserved();
+
+
+    updateCreditBadge(
+        getCurrentCredit()
+    );
 
 
     return {
@@ -990,7 +1248,7 @@ function reserveCredit() {
 
 
 /* =========================================================
-   RELEASE LOCAL CREDIT STATE
+   RESET OPERATION STATE
 ========================================================= */
 
 function resetOperationState() {
@@ -1023,6 +1281,16 @@ function resetOperationState() {
     );
 
 
+    /*
+     * Reset operation tidak boleh
+     * mengubah saldo pengguna.
+     */
+
+    updateCreditBadge(
+        getCurrentCredit()
+    );
+
+
     return true;
 
 }
@@ -1038,13 +1306,16 @@ function getCreditState() {
         getState();
 
 
+    const credits =
+        getCurrentCredit();
+
+
     return {
 
         cost:
             getCost(),
 
-        credits:
-            getCurrentCredit(),
+        credits,
 
         checked:
             Boolean(
@@ -1084,6 +1355,26 @@ function getCreditState() {
 
 
 /* =========================================================
+   REFRESH DISPLAY ONLY
+========================================================= */
+
+function refreshDisplay() {
+
+    const credits =
+        getCurrentCredit();
+
+
+    updateCreditBadge(
+        credits
+    );
+
+
+    return credits;
+
+}
+
+
+/* =========================================================
    PUBLIC API
 ========================================================= */
 
@@ -1097,9 +1388,15 @@ const GENZVisionCredit =
 
         normalizeCredit,
 
+        formatCredit,
+
         getCurrentCredit,
 
         setCredit,
+
+        updateCreditBadge,
+
+        refreshDisplay,
 
         hasEnoughCredit,
 
