@@ -1,4 +1,4 @@
-//navigation.js?v=1.5
+//navigation.js?v=1.6
 /* =========================================================
    GEN-Z.AI
    SHARED NAVIGATION
