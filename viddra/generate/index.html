@@ -1734,36 +1734,69 @@
         flex;
 
 }
-        /* =====================================================
-   DOWNLOAD RESULT POSITION
+
+
+/* =====================================================
+   RESULT MEDIA STACK
    -----------------------------------------------------
-   Tombol download wajib berada di bawah video.
+   Video dan tombol download wajib tersusun vertikal.
 ===================================================== */
 
-#downloadResultButton {
-    grid-column: 1 / -1 !important;
-    grid-row: auto !important;
-    justify-self: stretch !important;
-    align-self: stretch !important;
+.result-media-stack {
+
+    width:
+        100%;
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    align-items:
+        stretch;
+
+    gap:
+        0;
+
 }
 
-#resultVideo {
-    grid-column: 1 / -1 !important;
-    grid-row: auto !important;
-    width: 100% !important;
+
+.result-media-stack #resultVideo {
+
+    display:
+        block;
+
+    width:
+        100%;
+
+    max-width:
+        100%;
+
+    height:
+        auto;
+
+    margin:
+        0;
+
 }
 
-        /* =====================================================
-   OUTPUT PREVIEW STACK
-===================================================== */
 
-#resultVideo,
-#downloadResultButton {
-    flex: 0 0 100% !important;
-    width: 100% !important;
-    max-width: 100% !important;
+.result-media-stack #downloadResultButton {
+
+    width:
+        100%;
+
+    max-width:
+        100%;
+
+    flex:
+        none;
+
+    box-sizing:
+        border-box;
+
 }
-
 
 /* =====================================================
    CREDIT UPDATE
@@ -2870,24 +2903,27 @@
                             </div>
 
 
-                            <video
-                                id="resultVideo"
-                                controls
-                                playsinline
-                                preload="metadata"
-                            ></video>
+                            <div class="result-media-stack">
 
-                            <a
-    id="downloadResultButton"
-    class="download-result-button"
-    href="#"
-    download="GEN-Z.AI-VidDra-video.mp4"
-    rel="noopener"
->
-    <span>⬇</span>
-    Download Video
-</a>
+    <video
+        id="resultVideo"
+        controls
+        playsinline
+        preload="metadata"
+    ></video>
 
+    <a
+        id="downloadResultButton"
+        class="download-result-button"
+        href="#"
+        download="GEN-Z.AI-VidDra-video.mp4"
+        rel="noopener"
+    >
+        <span>⬇</span>
+        Download Video
+    </a>
+
+</div>
                         </div>
 
                     </section>
