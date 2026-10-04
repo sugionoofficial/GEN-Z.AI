@@ -1602,6 +1602,493 @@ function setHeaders(
 
 }
 
+/* =========================================================
+   VISION CREDIT CONFIG
+   ---------------------------------------------------------
+   Vision:
+   - 1 process = 1 credit
+   - deduction dilakukan server-side
+   - refund hanya jika proses Vision gagal
+========================================================= */
+
+const VISION_CREDIT_COST = 1;
+
+
+/* =========================================================
+   GET VISION CREDITS
+========================================================= */
+
+async function getVisionCredits(
+    userId
+) {
+
+    if (!userId) {
+
+        throw createError(
+            "User ID tidak tersedia.",
+            401,
+            "VISION_USER_ID_MISSING"
+        );
+
+    }
+
+
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "select",
+        "credits"
+    );
+
+
+    params.set(
+        "id",
+        `eq.${userId}`
+    );
+
+
+    params.set(
+        "limit",
+        "1"
+    );
+
+
+    const rows =
+        await supabaseRequest(
+            `/rest/v1/profiles?${params.toString()}`,
+            {
+                method:
+                    "GET"
+            }
+        );
+
+
+    if (
+        !Array.isArray(rows) ||
+        !rows.length
+    ) {
+
+        throw createError(
+            "Profile pengguna tidak ditemukan.",
+            404,
+            "VISION_PROFILE_NOT_FOUND"
+        );
+
+    }
+
+
+    const credits =
+        Number(
+            rows[0]?.credits
+        );
+
+
+    if (
+        !Number.isFinite(credits)
+    ) {
+
+        throw createError(
+            "Saldo credit pengguna tidak valid.",
+            500,
+            "VISION_CREDIT_INVALID"
+        );
+
+    }
+
+
+    return credits;
+
+}
+
+
+/* =========================================================
+   DEDUCT VISION CREDIT
+========================================================= */
+
+async function deductVisionCredit(
+    userId
+) {
+
+    const credits =
+        await getVisionCredits(
+            userId
+        );
+
+
+    if (
+        credits <
+        VISION_CREDIT_COST
+    ) {
+
+        throw createError(
+            "Credit tidak mencukupi untuk Vision.",
+            402,
+            "VISION_INSUFFICIENT_CREDIT"
+        );
+
+    }
+
+
+    const data =
+        await supabaseRequest(
+            "/rest/v1/rpc/deduct_generate_credits",
+            {
+
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+
+                        p_user_id:
+                            userId,
+
+                        p_amount:
+                            VISION_CREDIT_COST
+
+                    })
+
+            }
+        );
+
+
+    const newCredits =
+        Number(
+            data
+        );
+
+
+    if (
+        Number.isFinite(
+            newCredits
+        )
+    ) {
+
+        return {
+
+            deducted:
+                true,
+
+            cost:
+                VISION_CREDIT_COST,
+
+            credits:
+                newCredits
+
+        };
+
+    }
+
+
+    if (
+        data &&
+        typeof data ===
+            "object"
+    ) {
+
+        const candidates = [
+
+            data.credits,
+
+            data.new_credits,
+
+            data.remaining_credits
+
+        ];
+
+
+        for (
+            const candidate
+            of candidates
+        ) {
+
+            const numeric =
+                Number(
+                    candidate
+                );
+
+
+            if (
+                Number.isFinite(
+                    numeric
+                )
+            ) {
+
+                return {
+
+                    deducted:
+                        true,
+
+                    cost:
+                        VISION_CREDIT_COST,
+
+                    credits:
+                        numeric
+
+                };
+
+            }
+
+        }
+
+    }
+
+
+    return {
+
+        deducted:
+            true,
+
+        cost:
+            VISION_CREDIT_COST,
+
+        credits:
+            null
+
+    };
+
+}
+
+
+/* =========================================================
+   REFUND VISION CREDIT
+========================================================= */
+
+async function refundVisionCredit(
+    userId
+) {
+
+    const data =
+        await supabaseRequest(
+            "/rest/v1/rpc/refund_generate_credits",
+            {
+
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+
+                        p_user_id:
+                            userId,
+
+                        p_amount:
+                            VISION_CREDIT_COST
+
+                    })
+
+            }
+        );
+
+
+    const newCredits =
+        Number(
+            data
+        );
+
+
+    if (
+        Number.isFinite(
+            newCredits
+        )
+    ) {
+
+        return {
+
+            refunded:
+                true,
+
+            amount:
+                VISION_CREDIT_COST,
+
+            credits:
+                newCredits
+
+        };
+
+    }
+
+
+    if (
+        data &&
+        typeof data ===
+            "object"
+    ) {
+
+        const candidates = [
+
+            data.credits,
+
+            data.new_credits,
+
+            data.remaining_credits
+
+        ];
+
+
+        for (
+            const candidate
+            of candidates
+        ) {
+
+            const numeric =
+                Number(
+                    candidate
+                );
+
+
+            if (
+                Number.isFinite(
+                    numeric
+                )
+            ) {
+
+                return {
+
+                    refunded:
+                        true,
+
+                    amount:
+                        VISION_CREDIT_COST,
+
+                    credits:
+                        numeric
+
+                };
+
+            }
+
+        }
+
+    }
+
+
+    return {
+
+        refunded:
+            true,
+
+        amount:
+            VISION_CREDIT_COST,
+
+        credits:
+            null
+
+    };
+
+}
+
+
+/* =========================================================
+   VISION CREDIT OPERATION
+========================================================= */
+
+async function handleVisionCreditOperation(
+    res,
+    user,
+    operation
+) {
+
+    if (
+        operation ===
+        "vision_credit_check"
+    ) {
+
+        const credits =
+            await getVisionCredits(
+                user.id
+            );
+
+
+        return json(
+            res,
+            200,
+            {
+
+                success:
+                    true,
+
+                operation,
+
+                cost:
+                    VISION_CREDIT_COST,
+
+                sufficient:
+                    credits >=
+                    VISION_CREDIT_COST,
+
+                credits
+
+            }
+        );
+
+    }
+
+
+    if (
+        operation ===
+        "vision_credit_deduct"
+    ) {
+
+        const result =
+            await deductVisionCredit(
+                user.id
+            );
+
+
+        return json(
+            res,
+            200,
+            {
+
+                success:
+                    true,
+
+                operation,
+
+                ...result
+
+            }
+        );
+
+    }
+
+
+    if (
+        operation ===
+        "vision_credit_refund"
+    ) {
+
+        const result =
+            await refundVisionCredit(
+                user.id
+            );
+
+
+        return json(
+            res,
+            200,
+            {
+
+                success:
+                    true,
+
+                operation,
+
+                ...result
+
+            }
+        );
+
+    }
+
+
+    return null;
+
+}
+
 
 /* =========================================================
    MAIN HANDLER
@@ -1719,13 +2206,17 @@ export default async function handler(
      * AUTHENTICATION
      */
 
-    try {
+    let authenticatedUser;
 
+
+try {
+
+    authenticatedUser =
         await authenticateUser(
             req
         );
 
-    } catch (error) {
+} catch (error) {
 
         console.error(
             "[openkey-chat] Authentication failed:",
@@ -1820,6 +2311,71 @@ export default async function handler(
         );
 
     }
+
+   /* =========================================================
+   VISION CREDIT OPERATIONS
+   ---------------------------------------------------------
+   Vision menggunakan endpoint OpenKey yang sama.
+   Operasi credit tidak membutuhkan credential OpenKey.
+========================================================= */
+
+const operation =
+    String(
+        body?.operation ||
+        ""
+    ).trim();
+
+
+if (
+    operation ===
+        "vision_credit_check" ||
+    operation ===
+        "vision_credit_deduct" ||
+    operation ===
+        "vision_credit_refund"
+) {
+
+    try {
+
+        return await handleVisionCreditOperation(
+            res,
+            authenticatedUser,
+            operation
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[openkey-chat] Vision credit operation failed:",
+            error
+        );
+
+
+        return json(
+            res,
+            error.status ||
+                500,
+            {
+
+                success:
+                    false,
+
+                operation,
+
+                error:
+                    error.message ||
+                    "Vision credit operation failed",
+
+                code:
+                    error.code ||
+                    "VISION_CREDIT_OPERATION_FAILED"
+
+            }
+        );
+
+    }
+
+}
 
 
     /*
