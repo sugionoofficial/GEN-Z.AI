@@ -1553,33 +1553,60 @@ function bindEvents() {
 
     bindEvent(
 
-        dom.fileInput,
+    dom.fileInput,
 
-        "change",
+    "change",
 
-        async event => {
+    async event => {
 
-            try {
+        try {
 
+            const file =
                 await getUpload()
                     .handleFileInput(
                         event
                     );
 
-            } catch (
-                error
+
+            if (
+                file
             ) {
 
-                getUI()
-                    .showError(
-                        error.message
+                getPreview()
+                    .renderPreview(
+                        file
                     );
+
+
+                getUI()
+                    .resetResult();
+
+                getUI()
+                    .resetAnalysis();
+
+                getUI()
+                    .resetPrompt();
+
+                getUI()
+                    .clearResultMessage();
 
             }
 
+        } catch (
+            error
+        ) {
+
+            getUI()
+                .showError(
+                    error?.message ||
+                    "Gambar gagal diproses."
+                );
+
         }
 
-    );
+    }
+
+);
 
 
     /*
@@ -1644,21 +1671,48 @@ function bindEvents() {
 
             try {
 
-                await getUpload()
-                    .handleDrop(
-                        event
-                    );
+    const file =
+        await getUpload()
+            .handleDrop(
+                event
+            );
 
-            } catch (
-                error
-            ) {
 
-                getUI()
-                    .showError(
-                        error.message
-                    );
+    if (
+        file
+    ) {
 
-            }
+        getPreview()
+            .renderPreview(
+                file
+            );
+
+
+        getUI()
+            .resetResult();
+
+        getUI()
+            .resetAnalysis();
+
+        getUI()
+            .resetPrompt();
+
+        getUI()
+            .clearResultMessage();
+
+    }
+
+} catch (
+    error
+) {
+
+    getUI()
+        .showError(
+            error?.message ||
+            "Gambar gagal diproses."
+        );
+
+}
 
         }
 
