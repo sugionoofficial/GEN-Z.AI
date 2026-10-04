@@ -6,16 +6,36 @@
 
    Fungsi:
    - Entry point Vision
-   - Memastikan dependency tersedia
+   - Memuat seluruh module Vision
+   - Menjamin urutan dependency
    - Inisialisasi state
    - Inisialisasi DOM
-   - Inisialisasi UI
+   - Inisialisasi preview
    - Inisialisasi upload
+   - Inisialisasi UI
    - Inisialisasi events
    - Sinkronisasi credit awal
-   - Tidak menangani API Vision langsung
-   - Tidak menangani proses generate langsung
+   - Tidak menangani proses Vision langsung
 ========================================================= */
+
+
+/* =========================================================
+   MODULE IMPORT
+   ---------------------------------------------------------
+   Semua module Vision dimuat dari satu entry point.
+========================================================= */
+
+import "./vision-state.js";
+import "./vision-dom.js";
+import "./vision-upload.js";
+import "./vision-preview.js";
+import "./vision-ui.js";
+import "./vision-credit.js";
+import "./vision-api.js";
+import "./vision-analysis.js";
+import "./vision-prompt.js";
+import "./vision-history.js";
+import "./vision-events.js";
 
 
 /* =========================================================
@@ -209,14 +229,48 @@ function initializeDOM() {
     }
 
 
+    /*
+     * vision-dom.js saat ini tidak
+     * membutuhkan initialize().
+     *
+     * getDOM() akan membangun cache
+     * ketika pertama kali digunakan.
+     */
+
     if (
-        typeof dom.initialize ===
+        typeof dom.resetDOMCache ===
         "function"
     ) {
 
-        dom.initialize();
+        dom.resetDOMCache();
 
     }
+
+
+    const validation =
+        dom.validateDOM({
+            log:
+                true
+        });
+
+
+    if (
+        !validation.valid
+    ) {
+
+        throw new Error(
+            "Vision DOM tidak lengkap."
+        );
+
+    }
+
+
+    /*
+     * Paksa DOM cache dibuat setelah
+     * seluruh HTML tersedia.
+     */
+
+    dom.getDOM();
 
 
     return true;
@@ -364,11 +418,28 @@ function initializeEvents() {
 
 
     if (
-        typeof events.initialize ===
+        typeof events.initialize !==
         "function"
     ) {
 
+        throw new Error(
+            "GENZVisionEvents.initialize() belum tersedia."
+        );
+
+    }
+
+
+    const initialized =
         events.initialize();
+
+
+    if (
+        initialized === false
+    ) {
+
+        throw new Error(
+            "Vision events gagal diinisialisasi."
+        );
 
     }
 
@@ -400,10 +471,10 @@ async function initializeCredit() {
 
 
     /*
-     * checkCredit() hanya membaca saldo
-     * dan melakukan validasi.
+     * checkCredit() hanya membaca
+     * dan memvalidasi saldo.
      *
-     * Tidak ada deduction di tahap ini.
+     * Tidak melakukan deduction.
      */
 
     try {
@@ -438,12 +509,11 @@ async function initializeCredit() {
     ) {
 
         /*
-         * Jangan membuat halaman gagal
-         * hanya karena saldo gagal dibaca.
+         * Gagal membaca credit tidak
+         * membuat seluruh halaman mati.
          *
-         * User tetap bisa melihat halaman,
-         * tetapi tombol proses akan memvalidasi
-         * credit lagi saat digunakan.
+         * Saat Generate ditekan,
+         * credit akan diperiksa kembali.
          */
 
         console.warn(
@@ -455,6 +525,9 @@ async function initializeCredit() {
         return {
 
             allowed:
+                false,
+
+            sufficient:
                 false,
 
             credits:
@@ -471,6 +544,40 @@ async function initializeCredit() {
 
 
 /* =========================================================
+   FINAL UI SYNC
+========================================================= */
+
+function finalUISync() {
+
+    const ui =
+        window.GENZVisionUI;
+
+
+    if (
+        !ui
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        typeof ui.syncFromState ===
+        "function"
+    ) {
+
+        ui.syncFromState();
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
    INITIALIZE EVERYTHING
 ========================================================= */
 
@@ -479,83 +586,112 @@ async function initialize() {
     try {
 
         /*
-         * Pastikan semua file module
-         * sudah loaded.
+         * -------------------------------------------------
+         * MODULES
+         * -------------------------------------------------
+         *
+         * Import di bagian atas file memastikan
+         * semua module sudah dimuat sebelum fungsi
+         * initialize() dijalankan.
          */
 
         await waitForModules();
 
 
         /*
-         * State
+         * -------------------------------------------------
+         * STATE
+         * -------------------------------------------------
          */
 
         initializeState();
 
 
         /*
+         * -------------------------------------------------
          * DOM
+         * -------------------------------------------------
+         *
+         * Harus dilakukan sebelum event binding.
          */
 
         initializeDOM();
 
 
         /*
-         * Preview
+         * -------------------------------------------------
+         * PREVIEW
+         * -------------------------------------------------
          */
 
         initializePreview();
 
 
         /*
-         * Upload
+         * -------------------------------------------------
+         * UPLOAD
+         * -------------------------------------------------
          */
 
         initializeUpload();
 
 
         /*
+         * -------------------------------------------------
          * UI
+         * -------------------------------------------------
          */
 
         initializeUI();
 
 
         /*
-         * Events
+         * -------------------------------------------------
+         * EVENTS
+         * -------------------------------------------------
+         *
+         * Setelah ini tombol SELECT IMAGE,
+         * dropzone, remove, generate, copy,
+         * model, detail, purpose dan instruction
+         * sudah memiliki event listener.
          */
 
         initializeEvents();
 
 
         /*
-         * Credit
+         * -------------------------------------------------
+         * INITIAL CREDIT
+         * -------------------------------------------------
          */
 
         await initializeCredit();
 
 
         /*
-         * Final UI sync
+         * -------------------------------------------------
+         * FINAL UI
+         * -------------------------------------------------
          */
 
-        if (
-            window.GENZVisionUI &&
-            typeof window
-                .GENZVisionUI
-                .syncFromState ===
-                "function"
-        ) {
+        finalUISync();
 
-            window.GENZVisionUI
-                .syncFromState();
 
-        }
-
+        /*
+         * -------------------------------------------------
+         * READY FLAG
+         * -------------------------------------------------
+         */
 
         window.GENZVisionReady =
             true;
 
+
+        /*
+         * -------------------------------------------------
+         * READY EVENT
+         * -------------------------------------------------
+         */
 
         window.dispatchEvent(
             new CustomEvent(
