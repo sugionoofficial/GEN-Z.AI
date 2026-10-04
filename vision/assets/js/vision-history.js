@@ -9,9 +9,15 @@
    - Mengambil riwayat Vision milik user
    - Menyimpan status success / failed
    - Menyimpan metadata model/provider
-   - Menyimpan credit_cost = 1
-   - Tidak melakukan proses Vision
+   - credit_cost = 1
+
+   CATATAN:
+   - INSERT history dilakukan SERVER-SIDE
+   - Tidak melakukan INSERT langsung ke Supabase
+   - Tidak menerima user_id dari browser sebagai identitas
+   - Identitas user diverifikasi oleh /api/openkey-chat
    - Tidak melakukan credit deduction
+   - Tidak melakukan refund
    - Tidak mengatur UI
 ========================================================= */
 
@@ -22,6 +28,9 @@
 
 const VISION_HISTORY_CONFIG =
     Object.freeze({
+
+        ENDPOINT:
+            "/api/openkey-chat",
 
         TABLE:
             "generation_history",
@@ -64,54 +73,6 @@ function getState() {
 
 
 /* =========================================================
-   CONFIG
-========================================================= */
-
-function getConfig() {
-
-    const config =
-        window.GENZ_CONFIG;
-
-
-    if (
-        !config
-    ) {
-
-        throw new Error(
-            "GENZ_CONFIG belum tersedia."
-        );
-
-    }
-
-
-    if (
-        !config.SUPABASE_URL
-    ) {
-
-        throw new Error(
-            "SUPABASE_URL belum tersedia."
-        );
-
-    }
-
-
-    if (
-        !config.SUPABASE_KEY
-    ) {
-
-        throw new Error(
-            "SUPABASE_KEY belum tersedia."
-        );
-
-    }
-
-
-    return config;
-
-}
-
-
-/* =========================================================
    SUPABASE SESSION
 ========================================================= */
 
@@ -149,8 +110,7 @@ async function getSession() {
 
         if (
             client.auth &&
-            typeof client.auth
-                .getSession ===
+            typeof client.auth.getSession ===
                 "function"
         ) {
 
@@ -228,8 +188,7 @@ function createUUID() {
 function createTaskId() {
 
     return (
-        VISION_HISTORY_CONFIG
-            .TASK_PREFIX +
+        VISION_HISTORY_CONFIG.TASK_PREFIX +
         createUUID()
     );
 
@@ -247,9 +206,9 @@ function safeString(
 
     if (
         value ===
-        null ||
+            null ||
         value ===
-        undefined
+            undefined
     ) {
 
         return fallback;
@@ -269,9 +228,9 @@ function safeString(
 
     if (
         typeof value ===
-        "number" ||
+            "number" ||
         typeof value ===
-        "boolean"
+            "boolean"
     ) {
 
         return String(
@@ -288,6 +247,9 @@ function safeString(
 
 /* =========================================================
    GET USER
+   ---------------------------------------------------------
+   Hanya digunakan untuk memastikan session tersedia.
+   Identitas final tetap ditentukan server.
 ========================================================= */
 
 async function getUser() {
@@ -338,43 +300,35 @@ function buildHistoryRecord(
         getState();
 
 
-    const userId =
-        options.userId ||
-        state.get(
-            "auth.userId",
-            ""
-        );
-
-
-    const email =
-        options.email ||
-        state.get(
-            "auth.email",
-            ""
-        );
-
-
     const model =
-        options.model ||
-        state.get(
-            "model.id",
+        safeString(
+            options.model ||
+            state.get(
+                "model.id",
+                "gemini-3.1-pro"
+            ),
             "gemini-3.1-pro"
         );
 
 
     const modelName =
-        options.modelName ||
-        state.get(
-            "model.name",
+        safeString(
+            options.modelName ||
+            state.get(
+                "model.name",
+                "Gemini 3.1 Pro"
+            ),
             "Gemini 3.1 Pro"
         );
 
 
     const taskId =
-        options.taskId ||
-        state.get(
-            "process.taskId",
-            ""
+        safeString(
+            options.taskId ||
+            state.get(
+                "process.taskId",
+                ""
+            )
         ) ||
         createTaskId();
 
@@ -384,7 +338,8 @@ function buildHistoryRecord(
         state.get(
             "file",
             {}
-        );
+        ) ||
+        {};
 
 
     const settings =
@@ -392,19 +347,25 @@ function buildHistoryRecord(
         state.get(
             "settings",
             {}
-        );
+        ) ||
+        {};
 
 
     const prompt =
-        options.prompt ||
-        state.get(
-            "prompt.text",
-            ""
+        safeString(
+            options.prompt ||
+            state.get(
+                "prompt.text",
+                ""
+            )
         );
 
 
     const status =
-        options.status ||
+        safeString(
+            options.status,
+            "success"
+        ) ||
         "success";
 
 
@@ -414,17 +375,22 @@ function buildHistoryRecord(
 
 
     const errorMessage =
-        options.errorMessage ||
+        safeString(
+            options.errorMessage
+        ) ||
         null;
 
 
+    /*
+     * Jangan mengirim user_id atau user_email
+     * dari browser.
+     *
+     * Backend akan mengambil identitas user
+     * dari Supabase session yang sudah
+     * diverifikasi.
+     */
+
     return {
-
-        user_id:
-            userId,
-
-        user_email:
-            email,
 
         provider_id:
             VISION_HISTORY_CONFIG
@@ -441,28 +407,31 @@ function buildHistoryRecord(
             modelName,
 
         prompt:
-            safeString(
-                prompt
-            ),
+            prompt,
 
         image_reference_url:
-            options.imageReferenceUrl ||
-            null,
+            safeString(
+                options.imageReferenceUrl ||
+                file.dataUrl ||
+                ""
+            ) || null,
 
         video_reference_url:
             null,
 
         ratio:
-            settings.ratio ||
-            null,
+            safeString(
+                settings.ratio
+            ) || null,
 
         duration:
-            settings.duration ||
+            settings.duration ??
             null,
 
         resolution:
-            settings.resolution ||
-            null,
+            safeString(
+                settings.resolution
+            ) || null,
 
         status:
             status,
@@ -486,26 +455,39 @@ function buildHistoryRecord(
 
 
 /* =========================================================
-   INSERT HISTORY
+   REQUEST SERVER
 ========================================================= */
 
-async function insertHistory(
-    record
+async function requestServer(
+    operation,
+    payload = {}
 ) {
-
-    const config =
-        getConfig();
-
 
     const session =
         await getSession();
 
 
+    const accessToken =
+        safeString(
+            session?.access_token
+        );
+
+
+    if (
+        !accessToken
+    ) {
+
+        throw new Error(
+            "Access token Supabase tidak tersedia."
+        );
+
+    }
+
+
     const response =
         await fetch(
-
-            `${config.SUPABASE_URL}/rest/v1/${VISION_HISTORY_CONFIG.TABLE}`,
-
+            VISION_HISTORY_CONFIG
+                .ENDPOINT,
             {
 
                 method:
@@ -513,27 +495,24 @@ async function insertHistory(
 
                 headers: {
 
-                    "apikey":
-                        config.SUPABASE_KEY,
-
-                    "Authorization":
-                        `Bearer ${session.access_token}`,
-
                     "Content-Type":
                         "application/json",
 
-                    "Prefer":
-                        "return=representation"
+                    "Authorization":
+                        `Bearer ${accessToken}`
 
                 },
 
                 body:
-                    JSON.stringify(
-                        record
-                    )
+                    JSON.stringify({
+
+                        operation,
+
+                        ...payload
+
+                    })
 
             }
-
         );
 
 
@@ -541,70 +520,126 @@ async function insertHistory(
         await response.text();
 
 
+    let data =
+        null;
+
+
     if (
-        !response.ok
+        responseText
     ) {
-
-        let message =
-            responseText;
-
 
         try {
 
-            const error =
+            data =
                 JSON.parse(
                     responseText
                 );
 
-
-            message =
-                error.message ||
-                error.error ||
-                error.details ||
-                responseText;
-
         } catch {
 
-            /* response non-JSON */
+            data =
+                null;
 
         }
 
+    }
+
+
+    if (
+        !response.ok
+    ) {
+
+        const message =
+            data?.error ||
+            data?.message ||
+            responseText ||
+            `Server error ${response.status}`;
+
+
+        const error =
+            new Error(
+                message
+            );
+
+
+        error.status =
+            response.status;
+
+
+        error.code =
+            data?.code ||
+            "VISION_HISTORY_REQUEST_FAILED";
+
+
+        error.data =
+            data;
+
+
+        throw error;
+
+    }
+
+
+    if (
+        !data ||
+        data.success !== true
+    ) {
+
+        const error =
+            new Error(
+                data?.error ||
+                "Vision history request gagal."
+            );
+
+
+        error.code =
+            data?.code ||
+            "VISION_HISTORY_FAILED";
+
+
+        error.data =
+            data;
+
+
+        throw error;
+
+    }
+
+
+    return data;
+
+}
+
+
+/* =========================================================
+   INSERT HISTORY
+========================================================= */
+
+async function insertHistory(
+    record
+) {
+
+    if (
+        !record ||
+        typeof record !==
+            "object"
+    ) {
 
         throw new Error(
-            `Gagal menyimpan Vision history: ${message}`
+            "History record tidak valid."
         );
 
     }
 
 
-    if (
-        !responseText
-    ) {
+    return requestServer(
+        "vision_history_save",
+        {
 
-        return null;
+            record
 
-    }
-
-
-    try {
-
-        const data =
-            JSON.parse(
-                responseText
-            );
-
-
-        return Array.isArray(
-            data
-        )
-            ? data[0] || null
-            : data;
-
-    } catch {
-
-        return null;
-
-    }
+        }
+    );
 
 }
 
@@ -621,8 +656,12 @@ async function saveSuccess(
         getState();
 
 
-    const user =
-        await getUser();
+    /*
+     * Pastikan session tersedia.
+     * User identity tetap berasal dari backend.
+     */
+
+    await getUser();
 
 
     const record =
@@ -630,22 +669,22 @@ async function saveSuccess(
 
             ...options,
 
-            userId:
-                user.userId,
-
-            email:
-                user.email,
-
             status:
                 "success"
 
         });
 
 
-    const saved =
+    const response =
         await insertHistory(
             record
         );
+
+
+    const saved =
+        response?.history ||
+        response?.record ||
+        null;
 
 
     if (
@@ -656,6 +695,7 @@ async function saveSuccess(
             "history.saved",
             true
         );
+
 
         state.set(
             "history.historyId",
@@ -690,8 +730,7 @@ async function saveFailed(
         getState();
 
 
-    const user =
-        await getUser();
+    await getUser();
 
 
     const message =
@@ -708,12 +747,6 @@ async function saveFailed(
 
             ...options,
 
-            userId:
-                user.userId,
-
-            email:
-                user.email,
-
             status:
                 "failed",
 
@@ -723,15 +756,40 @@ async function saveFailed(
         });
 
 
-    return insertHistory(
-        record
-    );
+    const response =
+        await insertHistory(
+            record
+        );
+
+
+    const saved =
+        response?.history ||
+        response?.record ||
+        null;
+
+
+    if (
+        saved?.id
+    ) {
+
+        state.set(
+            "history.historyId",
+            saved.id
+        );
+
+    }
+
+
+    return saved;
 
 }
 
 
 /* =========================================================
    GET HISTORY
+   ---------------------------------------------------------
+   Read tetap menggunakan Supabase session user.
+   RLS akan membatasi data berdasarkan user_id.
 ========================================================= */
 
 async function getHistory(
@@ -739,15 +797,34 @@ async function getHistory(
 ) {
 
     const config =
-        getConfig();
+        window.GENZ_CONFIG;
+
+
+    if (
+        !config?.SUPABASE_URL ||
+        !config?.SUPABASE_KEY
+    ) {
+
+        throw new Error(
+            "Konfigurasi Supabase belum tersedia."
+        );
+
+    }
 
 
     const session =
         await getSession();
 
 
-    const user =
-        session.user;
+    if (
+        !session?.user?.id
+    ) {
+
+        throw new Error(
+            "User belum terautentikasi."
+        );
+
+    }
 
 
     const limit =
@@ -770,15 +847,16 @@ async function getHistory(
 
 
     const select =
-        options.select ||
+        safeString(
+            options.select,
+            "*"
+        ) ||
         "*";
 
 
     const url =
         new URL(
-
             `${config.SUPABASE_URL}/rest/v1/${VISION_HISTORY_CONFIG.TABLE}`
-
         );
 
 
@@ -790,7 +868,7 @@ async function getHistory(
 
     url.searchParams.set(
         "user_id",
-        `eq.${user.id}`
+        `eq.${session.user.id}`
     );
 
 
@@ -872,9 +950,17 @@ async function getHistory(
         }
 
 
-        throw new Error(
-            `Gagal mengambil Vision history: ${message}`
-        );
+        const error =
+            new Error(
+                `Gagal mengambil Vision history: ${message}`
+            );
+
+
+        error.status =
+            response.status;
+
+
+        throw error;
 
     }
 
@@ -919,8 +1005,14 @@ async function getHistoryById(
     id
 ) {
 
+    const historyId =
+        safeString(
+            id
+        );
+
+
     if (
-        !id
+        !historyId
     ) {
 
         return null;
@@ -928,86 +1020,29 @@ async function getHistoryById(
     }
 
 
-    const config =
-        getConfig();
+    const items =
+        await getHistory({
+
+            select:
+                "*",
+
+            limit:
+                100
+
+        });
 
 
-    const session =
-        await getSession();
-
-
-    const url =
-        new URL(
-
-            `${config.SUPABASE_URL}/rest/v1/${VISION_HISTORY_CONFIG.TABLE}`
-
-        );
-
-
-    url.searchParams.set(
-        "select",
-        "*"
+    return (
+        items.find(
+            item =>
+                String(
+                    item?.id ||
+                    ""
+                ) ===
+                historyId
+        ) ||
+        null
     );
-
-
-    url.searchParams.set(
-        "id",
-        `eq.${id}`
-    );
-
-
-    url.searchParams.set(
-        "provider_id",
-        `eq.${VISION_HISTORY_CONFIG.PROVIDER_ID}`
-    );
-
-
-    url.searchParams.set(
-        "limit",
-        "1"
-    );
-
-
-    const response =
-        await fetch(
-            url.toString(),
-            {
-
-                method:
-                    "GET",
-
-                headers: {
-
-                    "apikey":
-                        config.SUPABASE_KEY,
-
-                    "Authorization":
-                        `Bearer ${session.access_token}`
-
-                }
-
-            }
-        );
-
-
-    if (
-        !response.ok
-    ) {
-
-        return null;
-
-    }
-
-
-    const data =
-        await response.json();
-
-
-    return Array.isArray(
-        data
-    )
-        ? data[0] || null
-        : null;
 
 }
 
