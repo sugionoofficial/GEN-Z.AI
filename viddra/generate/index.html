@@ -1619,6 +1619,210 @@
 
         }
 
+        /* =====================================================
+   DOWNLOAD RESULT
+===================================================== */
+
+.download-result-button {
+
+    display:
+        none;
+
+    width:
+        100%;
+
+    margin-top:
+        12px;
+
+    padding:
+        13px 16px;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    gap:
+        8px;
+
+    border:
+        1px solid
+        rgba(
+            255,
+            45,
+            90,
+            0.42
+        );
+
+    border-radius:
+        12px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(
+                255,
+                25,
+                70,
+                0.16
+            ),
+            rgba(
+                255,
+                255,
+                255,
+                0.035
+            )
+        );
+
+    color:
+        #ffffff;
+
+    font-size:
+        12px;
+
+    font-weight:
+        850;
+
+    text-decoration:
+        none;
+
+    box-shadow:
+        0 0 22px
+        rgba(
+            255,
+            25,
+            70,
+            0.07
+        );
+
+    transition:
+        0.2s ease;
+
+}
+
+
+.download-result-button:hover {
+
+    border-color:
+        rgba(
+            255,
+            55,
+            100,
+            0.72
+        );
+
+    background:
+        rgba(
+            255,
+            30,
+            75,
+            0.16
+        );
+
+    transform:
+        translateY(
+            -1px
+        );
+
+}
+
+
+.download-result-button.show {
+
+    display:
+        flex;
+
+}
+
+
+/* =====================================================
+   CREDIT UPDATE
+===================================================== */
+
+.balance-header {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    gap:
+        10px;
+
+}
+
+
+.balance-update-button {
+
+    padding:
+        5px 8px;
+
+    border:
+        1px solid
+        rgba(
+            255,
+            255,
+            255,
+            0.10
+        );
+
+    border-radius:
+        8px;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.035
+        );
+
+    color:
+        #888;
+
+    font-size:
+        9px;
+
+    font-weight:
+        750;
+
+    cursor:
+        pointer;
+
+}
+
+
+.balance-update-button:hover {
+
+    border-color:
+        rgba(
+            255,
+            55,
+            100,
+            0.40
+        );
+
+    color:
+        #ff6687;
+
+}
+
+
+.balance-update-button:disabled {
+
+    cursor:
+        wait;
+
+    opacity:
+        0.55;
+
+}
+
 
         /* =====================================================
            INFO PANEL
@@ -2217,22 +2421,39 @@
 
                     <div class="viddra-balance">
 
-                        <div class="balance-label">
-                            VidDra Credit
-                        </div>
+    <div class="balance-header">
 
-                        <div
-                            id="balanceValue"
-                            class="balance-value"
-                        >
-                            <span>$</span>1.00
-                        </div>
+        <div class="balance-label">
+            VidDra Credit
+        </div>
 
-                        <div class="balance-note">
-                            Signup credit
-                        </div>
+        <button
+            id="updateCreditButton"
+            type="button"
+            class="balance-update-button"
+        >
+            ↻ Update Credit
+        </button>
 
-                    </div>
+    </div>
+
+
+    <div
+        id="balanceValue"
+        class="balance-value"
+    >
+        <span>$</span>0.0000
+    </div>
+
+
+    <div
+        id="balanceNote"
+        class="balance-note"
+    >
+        Memuat credit terbaru...
+    </div>
+
+</div>
 
                 </div>
 
@@ -2626,6 +2847,17 @@
                                 preload="metadata"
                             ></video>
 
+                            <a
+    id="downloadResultButton"
+    class="download-result-button"
+    href="#"
+    download="GEN-Z.AI-VidDra-video.mp4"
+    rel="noopener"
+>
+    <span>⬇</span>
+    Download Video
+</a>
+
                         </div>
 
                     </section>
@@ -2829,6 +3061,29 @@ const getApiKeyButton =
             document.getElementById(
                 "resultVideo"
             );
+
+        const downloadResultButton =
+    document.getElementById(
+        "downloadResultButton"
+    );
+
+
+const balanceValue =
+    document.getElementById(
+        "balanceValue"
+    );
+
+
+const balanceNote =
+    document.getElementById(
+        "balanceNote"
+    );
+
+
+const updateCreditButton =
+    document.getElementById(
+        "updateCreditButton"
+    );
 
 
         /* =====================================================
@@ -3921,6 +4176,192 @@ throw new Error(
 }
 
 
+/* =====================================================
+   VIDDRA CREDIT
+   -----------------------------------------------------
+   Mengambil saldo terbaru langsung dari VidDra.
+===================================================== */
+
+function formatVidDraCredit(
+    value
+) {
+
+    const number =
+        Number(
+            value
+        );
+
+
+    if (
+        !Number.isFinite(
+            number
+        )
+    ) {
+
+        return "0.0000";
+
+    }
+
+
+    return number.toFixed(
+        4
+    );
+
+}
+
+
+async function updateVidDraCredit() {
+
+    if (
+        !balanceValue
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        updateCreditButton
+    ) {
+
+        updateCreditButton.disabled =
+            true;
+
+        updateCreditButton.textContent =
+            "↻ Updating...";
+
+    }
+
+
+    try {
+
+        const token =
+            await requireSession();
+
+
+        const response =
+            await fetch(
+                "/api/viddra/account?action=balance",
+                {
+
+                    method:
+                        "POST",
+
+                    headers: {
+
+                        "Accept":
+                            "application/json",
+
+                        "Content-Type":
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${token}`
+
+                    },
+
+                    credentials:
+                        "include",
+
+                    body:
+                        JSON.stringify({})
+
+                }
+            );
+
+
+        const data =
+            await response
+                .json()
+                .catch(
+                    () => ({})
+                );
+
+
+        if (
+            !response.ok ||
+            data?.success === false
+        ) {
+
+            throw new Error(
+                normalizeClientError(
+                    data?.error,
+                    "Gagal mengambil credit VidDra."
+                )
+            );
+
+        }
+
+
+        const balance =
+            data?.balance?.balance_usd ??
+            data?.balance_usd ??
+            "0.0000";
+
+
+        balanceValue.innerHTML =
+            "<span>$</span>" +
+            formatVidDraCredit(
+                balance
+            );
+
+
+        if (
+            balanceNote
+        ) {
+
+            balanceNote.textContent =
+                "Credit terupdate";
+
+        }
+
+
+        return Number(
+            balance
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[VidDra] Update credit:",
+            error
+        );
+
+
+        if (
+            balanceNote
+        ) {
+
+            balanceNote.textContent =
+                "Gagal memperbarui credit";
+
+        }
+
+
+        return null;
+
+    } finally {
+
+        if (
+            updateCreditButton
+        ) {
+
+            updateCreditButton.disabled =
+                false;
+
+            updateCreditButton.textContent =
+                "↻ Update Credit";
+
+        }
+
+    }
+
+}
+
+
         /* =====================================================
            SHOW RESULT
         ===================================================== */
@@ -4360,6 +4801,24 @@ function normalizeClientError(
         ===================================================== */
 
         updatePromptCounter();
+
+        if (
+    updateCreditButton
+) {
+
+    updateCreditButton.addEventListener(
+        "click",
+        () => {
+
+            updateVidDraCredit();
+
+        }
+    );
+
+}
+
+
+updateVidDraCredit();
 
         /* =====================================================
    INITIALIZE API KEY STATUS
