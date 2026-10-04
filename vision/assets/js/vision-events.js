@@ -529,6 +529,62 @@ function resetUIOutput() {
 
 
 /* =========================================================
+   RESET AFTER NEW IMAGE
+========================================================= */
+
+function resetAfterNewImage() {
+
+    const state =
+        getState();
+
+
+    /*
+     * Hasil Vision sebelumnya
+     * tidak boleh tetap tampil
+     * ketika gambar baru dipilih.
+     */
+
+    getAnalysis()
+        .clearAnalysis();
+
+
+    getPrompt()
+        .clearPrompt();
+
+
+    state.set(
+        "analysis.completed",
+        false
+    );
+
+
+    state.set(
+        "prompt.completed",
+        false
+    );
+
+
+    state.set(
+        "history.saved",
+        false
+    );
+
+
+    state.set(
+        "history.historyId",
+        null
+    );
+
+
+    resetProcessState();
+
+
+    resetUIOutput();
+
+}
+
+
+/* =========================================================
    START PROCESS
 ========================================================= */
 
@@ -666,7 +722,7 @@ async function startVisionProcess() {
 
         /*
          * checkCredit() akan throw
-         * jika saldo tidak mencukupi.
+         * jika terjadi error server.
          */
 
         if (
@@ -1506,6 +1562,130 @@ function handleInstructionInput(
 
 
 /* =========================================================
+   HANDLE NEW IMAGE
+========================================================= */
+
+function handleNewImage(
+    file
+) {
+
+    if (
+        !file
+    ) {
+
+        return false;
+
+    }
+
+
+    const preview =
+        getPreview();
+
+
+    preview.renderPreview(
+        file
+    );
+
+
+    resetAfterNewImage();
+
+
+    /*
+     * Pastikan state tetap berisi
+     * file yang baru dipilih.
+     *
+     * resetAfterNewImage() hanya
+     * membersihkan hasil sebelumnya.
+     */
+
+    const state =
+        getState();
+
+
+    state.set(
+        "file.original",
+        file.original
+    );
+
+
+    state.set(
+        "file.name",
+        file.name
+    );
+
+
+    state.set(
+        "file.size",
+        file.size
+    );
+
+
+    state.set(
+        "file.type",
+        file.type
+    );
+
+
+    state.set(
+        "file.mimeType",
+        file.mimeType
+    );
+
+
+    state.set(
+        "file.dataUrl",
+        file.dataUrl
+    );
+
+
+    state.set(
+        "file.width",
+        file.width
+    );
+
+
+    state.set(
+        "file.height",
+        file.height
+    );
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   HANDLE UPLOAD ERROR
+========================================================= */
+
+function handleUploadError(
+    error
+) {
+
+    const message =
+        error?.message ||
+        "Gambar gagal diproses.";
+
+
+    getPreview()
+        .setDropzoneActive(
+            false
+        );
+
+
+    getUI()
+        .showError(
+            message
+        );
+
+
+    return false;
+
+}
+
+
+/* =========================================================
    BIND EVENT
 ========================================================= */
 
@@ -1547,71 +1727,99 @@ function bindEvents() {
         getDOM();
 
 
-    /*
-     * Upload
-     */
+    /* =====================================================
+       FILE INPUT
+    ===================================================== */
 
     bindEvent(
 
-    dom.fileInput,
+        dom.fileInput,
 
-    "change",
+        "change",
 
-    async event => {
+        async event => {
 
-        try {
+            try {
 
-            const file =
-                await getUpload()
-                    .handleFileInput(
-                        event
-                    );
+                const file =
+                    await getUpload()
+                        .handleFileInput(
+                            event
+                        );
 
 
-            if (
-                file
-            ) {
+                if (
+                    file
+                ) {
 
-                getPreview()
-                    .renderPreview(
+                    handleNewImage(
                         file
                     );
 
+                }
 
-                getUI()
-                    .resetResult();
+            } catch (
+                error
+            ) {
 
-                getUI()
-                    .resetAnalysis();
-
-                getUI()
-                    .resetPrompt();
-
-                getUI()
-                    .clearResultMessage();
+                handleUploadError(
+                    error
+                );
 
             }
 
-        } catch (
-            error
-        ) {
+        }
 
-            getUI()
-                .showError(
-                    error?.message ||
-                    "Gambar gagal diproses."
-                );
+    );
+
+
+    /* =====================================================
+       BROWSE BUTTON
+    ===================================================== */
+
+    bindEvent(
+
+        dom.browseButton,
+
+        "click",
+
+        event => {
+
+            event.preventDefault();
+
+            event.stopPropagation();
+
+
+            const upload =
+                getUpload();
+
+
+            if (
+                typeof upload.openFilePicker ===
+                "function"
+            ) {
+
+                upload.openFilePicker();
+
+                return;
+
+            }
+
+
+            /*
+             * Fallback langsung ke input.
+             */
+
+            dom.fileInput?.click();
 
         }
 
-    }
-
-);
+    );
 
 
-    /*
-     * Dropzone
-     */
+    /* =====================================================
+       DROPZONE DRAG OVER
+    ===================================================== */
 
     bindEvent(
 
@@ -1623,6 +1831,9 @@ function bindEvents() {
 
             event.preventDefault();
 
+            event.stopPropagation();
+
+
             getPreview()
                 .setDropzoneActive(
                     true
@@ -1632,6 +1843,10 @@ function bindEvents() {
 
     );
 
+
+    /* =====================================================
+       DROPZONE DRAG LEAVE
+    ===================================================== */
 
     bindEvent(
 
@@ -1643,6 +1858,9 @@ function bindEvents() {
 
             event.preventDefault();
 
+            event.stopPropagation();
+
+
             getPreview()
                 .setDropzoneActive(
                     false
@@ -1652,6 +1870,10 @@ function bindEvents() {
 
     );
 
+
+    /* =====================================================
+       DROPZONE DROP
+    ===================================================== */
 
     bindEvent(
 
@@ -1663,6 +1885,9 @@ function bindEvents() {
 
             event.preventDefault();
 
+            event.stopPropagation();
+
+
             getPreview()
                 .setDropzoneActive(
                     false
@@ -1671,57 +1896,46 @@ function bindEvents() {
 
             try {
 
-    const file =
-        await getUpload()
-            .handleDrop(
-                event
-            );
+                const file =
+                    await getUpload()
+                        .handleDrop(
+                            event
+                        );
 
 
-    if (
-        file
-    ) {
+                if (
+                    file
+                ) {
 
-        getPreview()
-            .renderPreview(
-                file
-            );
+                    handleNewImage(
+                        file
+                    );
 
+                }
 
-        getUI()
-            .resetResult();
+            } catch (
+                error
+            ) {
 
-        getUI()
-            .resetAnalysis();
+                handleUploadError(
+                    error
+                );
 
-        getUI()
-            .resetPrompt();
-
-        getUI()
-            .clearResultMessage();
-
-    }
-
-} catch (
-    error
-) {
-
-    getUI()
-        .showError(
-            error?.message ||
-            "Gambar gagal diproses."
-        );
-
-}
+            }
 
         }
 
     );
 
 
-    /*
-     * Upload click
-     */
+    /* =====================================================
+       DROPZONE CLICK
+       -----------------------------------------------------
+       Klik area membuka file picker.
+       Klik tombol SELECT IMAGE tidak masuk
+       ke handler ini karena sudah memiliki
+       handler sendiri.
+    ===================================================== */
 
     bindEvent(
 
@@ -1742,17 +1956,26 @@ function bindEvents() {
             }
 
 
-            dom.fileInput
-                ?.click();
+            if (
+                event.target ===
+                dom.fileInput
+            ) {
+
+                return;
+
+            }
+
+
+            dom.fileInput?.click();
 
         }
 
     );
 
 
-    /*
-     * Remove
-     */
+    /* =====================================================
+       REMOVE IMAGE
+    ===================================================== */
 
     bindEvent(
 
@@ -1765,9 +1988,9 @@ function bindEvents() {
     );
 
 
-    /*
-     * Generate
-     */
+    /* =====================================================
+       GENERATE
+    ===================================================== */
 
     bindEvent(
 
@@ -1780,9 +2003,9 @@ function bindEvents() {
     );
 
 
-    /*
-     * Copy
-     */
+    /* =====================================================
+       COPY
+    ===================================================== */
 
     bindEvent(
 
@@ -1795,9 +2018,9 @@ function bindEvents() {
     );
 
 
-    /*
-     * Model
-     */
+    /* =====================================================
+       MODEL
+    ===================================================== */
 
     bindEvent(
 
@@ -1810,9 +2033,9 @@ function bindEvents() {
     );
 
 
-    /*
-     * Detail
-     */
+    /* =====================================================
+       DETAIL
+    ===================================================== */
 
     bindEvent(
 
@@ -1825,9 +2048,9 @@ function bindEvents() {
     );
 
 
-    /*
-     * Purpose
-     */
+    /* =====================================================
+       PURPOSE
+    ===================================================== */
 
     bindEvent(
 
@@ -1840,9 +2063,9 @@ function bindEvents() {
     );
 
 
-    /*
-     * Instruction
-     */
+    /* =====================================================
+       INSTRUCTION
+    ===================================================== */
 
     bindEvent(
 
