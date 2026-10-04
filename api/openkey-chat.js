@@ -2089,6 +2089,415 @@ async function handleVisionCreditOperation(
 
 }
 
+/* =========================================================
+   VISION HISTORY
+   ---------------------------------------------------------
+   Vision menggunakan generation_history yang sama
+   dengan Generate.
+
+   Identitas user SELALU berasal dari session Supabase.
+   Browser tidak dipercaya untuk user_id / user_email.
+
+   Credit:
+   - success = 1
+   - failed = 1
+========================================================= */
+
+function normalizeVisionHistoryStatus(
+    value
+) {
+
+    const status =
+        String(
+            value || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        status === "success"
+    ) {
+
+        return "success";
+
+    }
+
+
+    if (
+        status === "failed"
+    ) {
+
+        return "failed";
+
+    }
+
+
+    throw createError(
+        "Status Vision history tidak valid.",
+        400,
+        "VISION_HISTORY_STATUS_INVALID"
+    );
+
+}
+
+
+function normalizeVisionHistoryString(
+    value,
+    fallback = ""
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return fallback;
+
+    }
+
+
+    if (
+        typeof value === "string"
+    ) {
+
+        return value.trim();
+
+    }
+
+
+    if (
+        typeof value === "number" ||
+        typeof value === "boolean"
+    ) {
+
+        return String(
+            value
+        );
+
+    }
+
+
+    return fallback;
+
+}
+
+
+function validateVisionTaskId(
+    value
+) {
+
+    const taskId =
+        normalizeVisionHistoryString(
+            value
+        );
+
+
+    if (
+        !taskId
+    ) {
+
+        throw createError(
+            "Vision task_id wajib diisi.",
+            400,
+            "VISION_HISTORY_TASK_ID_MISSING"
+        );
+
+    }
+
+
+    if (
+        !taskId.startsWith(
+            "vision-"
+        )
+    ) {
+
+        throw createError(
+            "Vision task_id tidak valid.",
+            400,
+            "VISION_HISTORY_TASK_ID_INVALID"
+        );
+
+    }
+
+
+    if (
+        taskId.length >
+        200
+    ) {
+
+        throw createError(
+            "Vision task_id terlalu panjang.",
+            400,
+            "VISION_HISTORY_TASK_ID_TOO_LONG"
+        );
+
+    }
+
+
+    return taskId;
+
+}
+
+
+async function saveVisionHistory(
+    user,
+    record = {}
+) {
+
+    if (
+        !user ||
+        !user.id
+    ) {
+
+        throw createError(
+            "Authenticated user tidak tersedia.",
+            401,
+            "VISION_HISTORY_USER_MISSING"
+        );
+
+    }
+
+
+    if (
+        !record ||
+        typeof record !== "object" ||
+        Array.isArray(record)
+    ) {
+
+        throw createError(
+            "Vision history record tidak valid.",
+            400,
+            "VISION_HISTORY_RECORD_INVALID"
+        );
+
+    }
+
+
+    const status =
+        normalizeVisionHistoryStatus(
+            record.status
+        );
+
+
+    const taskId =
+        validateVisionTaskId(
+            record.task_id
+        );
+
+
+    const modelId =
+        normalizeVisionHistoryString(
+            record.model_id
+        );
+
+
+    const modelName =
+        normalizeVisionHistoryString(
+            record.model_name
+        );
+
+
+    const prompt =
+        normalizeVisionHistoryString(
+            record.prompt
+        );
+
+
+    if (
+        !modelId
+    ) {
+
+        throw createError(
+            "Vision model_id wajib diisi.",
+            400,
+            "VISION_HISTORY_MODEL_ID_MISSING"
+        );
+
+    }
+
+
+    if (
+        !modelName
+    ) {
+
+        throw createError(
+            "Vision model_name wajib diisi.",
+            400,
+            "VISION_HISTORY_MODEL_NAME_MISSING"
+        );
+
+    }
+
+
+    /*
+     * Provider dan credit TIDAK dipercayakan
+     * kepada browser.
+     */
+
+    const historyRecord = {
+
+        user_id:
+            user.id,
+
+        user_email:
+            normalizeVisionHistoryString(
+                user.email
+            ) || null,
+
+        provider_id:
+            OPENKEY_PROVIDER_ID,
+
+        provider_name:
+            "OpenKey",
+
+        model_id:
+            modelId,
+
+        model_name:
+            modelName,
+
+        prompt:
+            prompt || null,
+
+        image_reference_url:
+            normalizeVisionHistoryString(
+                record.image_reference_url
+            ) || null,
+
+        video_reference_url:
+            null,
+
+        ratio:
+            normalizeVisionHistoryString(
+                record.ratio
+            ) || null,
+
+        duration:
+            record.duration ??
+            null,
+
+        resolution:
+            normalizeVisionHistoryString(
+                record.resolution
+            ) || null,
+
+        status:
+            status,
+
+        task_id:
+            taskId,
+
+        result_url:
+            normalizeVisionHistoryString(
+                record.result_url
+            ) || null,
+
+        error_message:
+            normalizeVisionHistoryString(
+                record.error_message
+            ) || null,
+
+        credit_cost:
+            VISION_CREDIT_COST
+
+    };
+
+
+    const inserted =
+        await supabaseRequest(
+            "/rest/v1/generation_history",
+            {
+
+                method:
+                    "POST",
+
+                headers: {
+
+                    Prefer:
+                        "return=representation"
+
+                },
+
+                body:
+                    JSON.stringify(
+                        historyRecord
+                    )
+
+            }
+        );
+
+
+    const history =
+        Array.isArray(
+            inserted
+        )
+            ? inserted[0] ||
+              null
+            : inserted;
+
+
+    if (
+        !history
+    ) {
+
+        throw createError(
+            "Vision history gagal disimpan.",
+            500,
+            "VISION_HISTORY_SAVE_FAILED"
+        );
+
+    }
+
+
+    return history;
+
+}
+
+
+async function handleVisionHistoryOperation(
+    res,
+    user,
+    operation,
+    body
+) {
+
+    if (
+        operation !==
+        "vision_history_save"
+    ) {
+
+        return null;
+
+    }
+
+
+    const history =
+        await saveVisionHistory(
+            user,
+            body.record
+        );
+
+
+    return json(
+        res,
+        200,
+        {
+
+            success:
+                true,
+
+            operation:
+
+                "vision_history_save",
+
+            history
+
+        }
+    );
+
+}
+
 
 /* =========================================================
    MAIN HANDLER
@@ -2176,31 +2585,6 @@ export default async function handler(
         );
 
     }
-
-
-    if (
-        !PROVIDER_CREDENTIAL_ENCRYPTION_KEY
-    ) {
-
-        return json(
-            res,
-            500,
-            {
-
-                success:
-                    false,
-
-                error:
-                    "Provider credential encryption belum dikonfigurasi.",
-
-                code:
-                    "ENCRYPTION_CONFIG_MISSING"
-
-            }
-        );
-
-    }
-
 
     /*
      * AUTHENTICATION
@@ -2377,12 +2761,95 @@ if (
 
 }
 
+   /* =========================================================
+   VISION HISTORY OPERATION
+========================================================= */
 
-    /*
-     * LOAD OPENKEY CREDENTIAL
-     */
+if (
+    operation ===
+        "vision_history_save"
+) {
 
-    let apiKey;
+    try {
+
+        return await handleVisionHistoryOperation(
+            res,
+            authenticatedUser,
+            operation,
+            body
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[openkey-chat] Vision history operation failed:",
+            error
+        );
+
+
+        return json(
+            res,
+            error.status ||
+                500,
+            {
+
+                success:
+                    false,
+
+                operation,
+
+                error:
+                    error.message ||
+                    "Vision history operation failed",
+
+                code:
+                    error.code ||
+                    "VISION_HISTORY_OPERATION_FAILED"
+
+            }
+        );
+
+    }
+
+}
+
+
+    /* =========================================================
+   OPENKEY CREDENTIAL CONFIG
+   ---------------------------------------------------------
+   Hanya diperlukan untuk chat OpenKey.
+   Vision credit/history tidak membutuhkan ini.
+========================================================= */
+
+if (
+    !PROVIDER_CREDENTIAL_ENCRYPTION_KEY
+) {
+
+    return json(
+        res,
+        500,
+        {
+
+            success:
+                false,
+
+            error:
+                "Provider credential encryption belum dikonfigurasi.",
+
+            code:
+                "ENCRYPTION_CONFIG_MISSING"
+
+        }
+    );
+
+}
+
+
+/*
+ * LOAD OPENKEY CREDENTIAL
+ */
+
+let apiKey;
 
 
     try {
