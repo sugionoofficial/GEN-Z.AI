@@ -2822,6 +2822,99 @@
 
 </div>
 
+                        /* =====================================================
+   MOBILE API KEY STATUS
+   -----------------------------------------------------
+   Get API Key harus tetap berada di dalam blok,
+   center, dan tidak overflow pada layar HP.
+===================================================== */
+
+@media (max-width: 768px) {
+
+    .api-key-status {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        box-sizing:
+            border-box;
+
+        overflow:
+            hidden;
+
+    }
+
+
+    .api-key-status-content {
+
+        min-width:
+            0;
+
+        max-width:
+            100%;
+
+        flex:
+            1 1 auto;
+
+    }
+
+
+    .api-key-status-title,
+    .api-key-status-text {
+
+        max-width:
+            100%;
+
+        overflow-wrap:
+            anywhere;
+
+        word-break:
+            break-word;
+
+    }
+
+
+    #getApiKeyButton {
+
+        display:
+            flex;
+
+        width:
+            fit-content;
+
+        max-width:
+            calc(
+                100% - 8px
+            );
+
+        min-width:
+            0;
+
+        margin-left:
+            auto;
+
+        margin-right:
+            auto;
+
+        box-sizing:
+            border-box;
+
+        flex-shrink:
+            0;
+
+        white-space:
+            nowrap;
+
+    }
+
+}
+
 
                         <!-- =========================================
                              SUBMIT
