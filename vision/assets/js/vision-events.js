@@ -468,6 +468,67 @@ function setGenerateLock(
 
 
 /* =========================================================
+   RESET PROCESS STATE
+========================================================= */
+
+function resetProcessState() {
+
+    const state =
+        getState();
+
+
+    const credit =
+        getCredit();
+
+
+    state.setProcessStatus(
+        "idle"
+    );
+
+
+    state.clearProcessError();
+
+
+    state.setProgress(
+        0
+    );
+
+
+    credit.resetOperationState();
+
+}
+
+
+/* =========================================================
+   RESET UI OUTPUT
+========================================================= */
+
+function resetUIOutput() {
+
+    const ui =
+        getUI();
+
+
+    ui.resetResult();
+
+
+    ui.resetAnalysis();
+
+
+    ui.resetPrompt();
+
+
+    ui.clearResultMessage();
+
+
+    ui.setCopyState(
+        false
+    );
+
+}
+
+
+/* =========================================================
    START PROCESS
 ========================================================= */
 
@@ -492,6 +553,7 @@ async function startVisionProcess() {
         ui.showError(
             validation.message
         );
+
 
         return {
 
@@ -546,7 +608,7 @@ async function startVisionProcess() {
          * -------------------------------------------------
          */
 
-        state.resetProcess();
+        resetProcessState();
 
 
         state.set(
@@ -581,7 +643,10 @@ async function startVisionProcess() {
 
         ui.setStage(
             "checking",
-            5
+            {
+                progress:
+                    5
+            }
         );
 
 
@@ -599,15 +664,18 @@ async function startVisionProcess() {
             await credit.checkCredit();
 
 
+        /*
+         * checkCredit() akan throw
+         * jika saldo tidak mencukupi.
+         */
+
         if (
-            !creditCheck?.allowed
+            !creditCheck ||
+            creditCheck.sufficient !== true
         ) {
 
             throw new Error(
-
-                creditCheck?.message ||
                 "Credit tidak mencukupi."
-
             );
 
         }
@@ -627,7 +695,10 @@ async function startVisionProcess() {
 
         ui.setStage(
             "reserving",
-            10
+            {
+                progress:
+                    10
+            }
         );
 
 
@@ -639,6 +710,9 @@ async function startVisionProcess() {
                         "process.taskId",
                         ""
                     ),
+
+                modelId:
+                    form.model,
 
                 model:
                     form.model,
@@ -652,14 +726,16 @@ async function startVisionProcess() {
 
 
         if (
-            !deduction?.success
+            !deduction ||
+            (
+                deduction.success === false &&
+                deduction.alreadyDeducted !== true
+            )
         ) {
 
             throw new Error(
-
                 deduction?.message ||
                 "Credit gagal dipotong."
-
             );
 
         }
@@ -683,7 +759,10 @@ async function startVisionProcess() {
 
         ui.setStage(
             "analyzing",
-            25
+            {
+                progress:
+                    25
+            }
         );
 
 
@@ -721,7 +800,10 @@ async function startVisionProcess() {
 
         ui.setStage(
             "analyzing",
-            45
+            {
+                progress:
+                    45
+            }
         );
 
 
@@ -742,8 +824,8 @@ async function startVisionProcess() {
 
 
         if (
-            !analysisResult
-                ?.normalized
+            !analysisResult ||
+            !analysisResult.normalized
         ) {
 
             throw new Error(
@@ -772,7 +854,10 @@ async function startVisionProcess() {
 
         ui.setStage(
             "engineering",
-            58
+            {
+                progress:
+                    58
+            }
         );
 
 
@@ -799,7 +884,10 @@ async function startVisionProcess() {
 
         ui.setStage(
             "engineering",
-            75
+            {
+                progress:
+                    75
+            }
         );
 
 
@@ -826,12 +914,13 @@ async function startVisionProcess() {
 
 
         if (
+            !promptValidation ||
             !promptValidation.valid
         ) {
 
             throw new Error(
 
-                promptValidation.reason ||
+                promptValidation?.reason ||
                 "Prompt yang dihasilkan tidak valid."
 
             );
@@ -858,7 +947,10 @@ async function startVisionProcess() {
 
         ui.setStage(
             "finalizing",
-            88
+            {
+                progress:
+                    88
+            }
         );
 
 
@@ -942,7 +1034,10 @@ async function startVisionProcess() {
 
         ui.setStage(
             "completed",
-            100
+            {
+                progress:
+                    100
+            }
         );
 
 
@@ -1027,6 +1122,7 @@ async function startVisionProcess() {
                     true
                 );
 
+
             } catch (
                 refundError
             ) {
@@ -1084,6 +1180,7 @@ async function startVisionProcess() {
 
                     }
                 );
+
 
         } catch (
             historyError
@@ -1210,7 +1307,7 @@ function handleRemoveImage() {
 
     try {
 
-        upload.clear();
+        upload.clearFile();
 
     } catch (
         error
@@ -1226,7 +1323,7 @@ function handleRemoveImage() {
 
     try {
 
-        preview.clear();
+        preview.clearPreview();
 
     } catch (
         error
@@ -1240,44 +1337,10 @@ function handleRemoveImage() {
     }
 
 
-    state.resetFile();
+    state.clearFile();
 
 
-    getUI()
-        .resetForNewFile();
-
-}
-
-
-/* =========================================================
-   RESET OUTPUT
-========================================================= */
-
-function resetOutput() {
-
-    const state =
-        getState();
-
-
-    const ui =
-        getUI();
-
-
-    const analysis =
-        getAnalysis();
-
-
-    const prompt =
-        getPrompt();
-
-
-    analysis.clearAnalysis();
-
-
-    prompt.clearPrompt();
-
-
-    state.resetProcess();
+    resetProcessState();
 
 
     state.set(
@@ -1292,7 +1355,53 @@ function resetOutput() {
     );
 
 
-    ui.resetResults();
+    getAnalysis()
+        .clearAnalysis();
+
+
+    getPrompt()
+        .clearPrompt();
+
+
+    resetUIOutput();
+
+}
+
+
+/* =========================================================
+   RESET OUTPUT
+========================================================= */
+
+function resetOutput() {
+
+    const state =
+        getState();
+
+
+    getAnalysis()
+        .clearAnalysis();
+
+
+    getPrompt()
+        .clearPrompt();
+
+
+    resetProcessState();
+
+
+    state.set(
+        "history.saved",
+        false
+    );
+
+
+    state.set(
+        "history.historyId",
+        null
+    );
+
+
+    resetUIOutput();
 
 }
 
@@ -1453,7 +1562,7 @@ function bindEvents() {
             try {
 
                 await getUpload()
-                    .handleInputChange(
+                    .handleFileInput(
                         event
                     );
 
