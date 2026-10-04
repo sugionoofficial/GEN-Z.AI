@@ -8,6 +8,7 @@
    Fungsi:
    - Authenticate user GEN-Z.AI melalui Supabase session
    - Submit generation ke VidDra
+   - Polling status generation VidDra
    - Menggunakan VIDDRA_API_KEY server-side
    - Menggunakan Hailuo 2.3
    - Duration 6
@@ -17,6 +18,9 @@
    - TIDAK menyentuh sistem KIE.AI
    - TIDAK mengekspos VIDDRA_API_KEY ke browser
 ========================================================= */
+
+import vidDraStatusHandler
+    from "../../lib/viddra/status.js";
 
 
 /* =========================================================
@@ -879,6 +883,91 @@ async function createGenerationHistory({
 
 
 /* =========================================================
+   POLLING ROUTER
+   ---------------------------------------------------------
+   GET /api/viddra/generate?task_id=...
+   GET /api/viddra/generate?taskId=...
+   GET /api/viddra/generate?id=...
+
+   Status logic tetap berada di:
+   lib/viddra/status.js
+
+   Status file TIDAK diubah.
+========================================================= */
+
+async function handleVidDraStatus(
+    req,
+    res
+) {
+
+    const query =
+        req.query ||
+        {};
+
+
+    const taskId =
+        String(
+            query.task_id ||
+            query.taskId ||
+            query.id ||
+            ""
+        ).trim();
+
+
+    const modelId =
+        String(
+            query.model_id ||
+            query.modelId ||
+            VIDDRA_MODEL
+        ).trim();
+
+
+    if (
+        !taskId
+    ) {
+
+        return failure(
+            res,
+            400,
+            "task_id wajib diisi."
+        );
+
+    }
+
+
+    /*
+     * status.js saat ini menggunakan
+     * POST + req.body.
+     *
+     * Kita tidak mengubah logic status.js.
+     * Request GET dari frontend diubah menjadi
+     * request internal yang kompatibel.
+     */
+
+    req.method =
+        "POST";
+
+
+    req.body = {
+
+        task_id:
+            taskId,
+
+        model_id:
+            modelId
+
+    };
+
+
+    return vidDraStatusHandler(
+        req,
+        res
+    );
+
+}
+
+
+/* =========================================================
    MAIN HANDLER
 ========================================================= */
 
@@ -888,7 +977,27 @@ export default async function handler(
 ) {
 
     /* -----------------------------------------------------
-       METHOD
+       STATUS POLLING
+       -----------------------------------------------------
+       GET dipakai untuk polling.
+       POST tetap khusus untuk membuat generation.
+    ----------------------------------------------------- */
+
+    if (
+        req.method ===
+        "GET"
+    ) {
+
+        return handleVidDraStatus(
+            req,
+            res
+        );
+
+    }
+
+
+    /* -----------------------------------------------------
+       GENERATION
     ----------------------------------------------------- */
 
     if (
@@ -898,7 +1007,7 @@ export default async function handler(
 
         res.setHeader(
             "Allow",
-            "POST"
+            "GET, POST"
         );
 
 
