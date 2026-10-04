@@ -3060,44 +3060,32 @@
                  */
 
                 const response =
-                    await fetch(
-                        STATUS_ENDPOINT,
-                        {
+    await fetch(
+        `${STATUS_ENDPOINT}?task_id=${encodeURIComponent(
+            taskId
+        )}&model_id=${encodeURIComponent(
+            MODEL_ID
+        )}`,
+        {
 
-                            method:
-                                "POST",
+            method:
+                "GET",
 
-                            headers: {
+            headers: {
 
-                                "Content-Type":
-                                    "application/json",
+                "Accept":
+                    "application/json",
 
-                                "Accept":
-                                    "application/json",
+                "Authorization":
+                    `Bearer ${token}`
 
-                                "Authorization":
-                                    `Bearer ${token}`
+            },
 
-                            },
+            credentials:
+                "include"
 
-                            credentials:
-                                "include",
-
-                            body:
-                                JSON.stringify(
-                                    {
-
-                                        task_id:
-                                            taskId,
-
-                                        model_id:
-                                            MODEL_ID
-
-                                    }
-                                )
-
-                        }
-                    );
+        }
+    );
 
 
                 const data =
