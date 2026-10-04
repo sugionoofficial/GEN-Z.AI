@@ -56,6 +56,9 @@ const VISION_DOM_IDS = Object.freeze({
     fileInput:
         "visionFileInput",
 
+    browseButton:
+        "visionBrowseButton",
+
     uploadState:
         "visionUploadState",
 
@@ -65,11 +68,14 @@ const VISION_DOM_IDS = Object.freeze({
     previewImage:
         "visionPreviewImage",
 
+    /*
+     * Sesuai dengan ID aktual di vision/index.html
+     */
     previewName:
-        "visionPreviewName",
+        "visionFileName",
 
     previewSize:
-        "visionPreviewSize",
+        "visionFileSize",
 
     removeButton:
         "visionRemoveButton",
@@ -99,6 +105,9 @@ const VISION_DOM_IDS = Object.freeze({
     generateButton:
         "visionGenerateButton",
 
+    generateButtonText:
+        "visionGenerateButtonText",
+
     generateSpinner:
         "visionGenerateSpinner",
 
@@ -109,6 +118,12 @@ const VISION_DOM_IDS = Object.freeze({
 
     status:
         "visionStatus",
+
+    statusIndicator:
+        "visionStatusIndicator",
+
+    statusText:
+        "visionStatusText",
 
     progress:
         "visionProgress",
@@ -137,7 +152,13 @@ const VISION_DOM_IDS = Object.freeze({
         "visionAnalysisDetails",
 
     analysisResult:
-        "visionAnalysisResult"
+        "visionAnalysisResult",
+
+    promptContainer:
+        "visionPromptContainer",
+
+    creditNotice:
+        "visionCreditNotice"
 
 });
 
@@ -157,6 +178,8 @@ const VISION_REQUIRED_DOM_KEYS = Object.freeze([
     "dropzone",
 
     "fileInput",
+
+    "browseButton",
 
     "uploadState",
 
@@ -180,9 +203,15 @@ const VISION_REQUIRED_DOM_KEYS = Object.freeze([
 
     "generateButton",
 
+    "generateButtonText",
+
     "generateSpinner",
 
     "status",
+
+    "statusIndicator",
+
+    "statusText",
 
     "progress",
 
@@ -198,7 +227,11 @@ const VISION_REQUIRED_DOM_KEYS = Object.freeze([
 
     "analysisDetails",
 
-    "analysisResult"
+    "analysisResult",
+
+    "promptContainer",
+
+    "creditNotice"
 
 ]);
 
@@ -214,7 +247,9 @@ let DOM = null;
    GET ELEMENT
 ========================================================= */
 
-function getElement(id) {
+function getElement(
+    id
+) {
 
     if (
         !id ||
@@ -226,7 +261,9 @@ function getElement(id) {
     }
 
 
-    return document.getElementById(id);
+    return document.getElementById(
+        id
+    );
 
 }
 
@@ -251,7 +288,9 @@ function buildDOM() {
     ) {
 
         elements[key] =
-            getElement(id);
+            getElement(
+                id
+            );
 
     }
 
@@ -336,11 +375,15 @@ function validateDOM(
     const message =
         [
             "[GENZ Vision] Element DOM wajib tidak ditemukan:",
+
             ...missing.map(
                 key =>
                     `- ${key} (#${VISION_DOM_IDS[key]})`
             )
-        ].join("\n");
+
+        ].join(
+            "\n"
+        );
 
 
     if (
@@ -520,7 +563,9 @@ function toggleClass(
 
     element.classList.toggle(
         className,
-        Boolean(enabled)
+        Boolean(
+            enabled
+        )
     );
 
 
@@ -664,7 +709,9 @@ function setDisabled(
 
 
     element.disabled =
-        Boolean(disabled);
+        Boolean(
+            disabled
+        );
 
 
     toggleClass(
@@ -737,7 +784,8 @@ function focusElement(
 
     if (
         !element ||
-        typeof element.focus !== "function"
+        typeof element.focus !==
+            "function"
     ) {
 
         return false;
@@ -771,7 +819,8 @@ function scrollIntoView(
 
     if (
         !element ||
-        typeof element.scrollIntoView !== "function"
+        typeof element.scrollIntoView !==
+            "function"
     ) {
 
         return false;
@@ -811,7 +860,8 @@ function on(
     if (
         !element ||
         !event ||
-        typeof handler !== "function"
+        typeof handler !==
+            "function"
     ) {
 
         return () => {};
@@ -851,7 +901,8 @@ function query(
     if (
         !selector ||
         !root ||
-        typeof root.querySelector !== "function"
+        typeof root.querySelector !==
+            "function"
     ) {
 
         return null;
@@ -878,7 +929,8 @@ function queryAll(
     if (
         !selector ||
         !root ||
-        typeof root.querySelectorAll !== "function"
+        typeof root.querySelectorAll !==
+            "function"
     ) {
 
         return [];
@@ -904,7 +956,8 @@ function waitForDOM(
 ) {
 
     if (
-        typeof callback !== "function"
+        typeof callback !==
+            "function"
     ) {
 
         return;
@@ -921,7 +974,8 @@ function waitForDOM(
             "DOMContentLoaded",
             callback,
             {
-                once: true
+                once:
+                    true
             }
         );
 
@@ -964,6 +1018,21 @@ function getDOMDebugInfo() {
 
 
     return result;
+
+}
+
+
+/* =========================================================
+   RESET DOM CACHE
+   ---------------------------------------------------------
+   Berguna jika modul dipanggil ulang setelah DOM berubah.
+========================================================= */
+
+function resetDOMCache() {
+
+    DOM = null;
+
+    return true;
 
 }
 
@@ -1028,7 +1097,9 @@ const GENZVisionDOM = Object.freeze({
 
     waitForDOM,
 
-    getDOMDebugInfo
+    getDOMDebugInfo,
+
+    resetDOMCache
 
 });
 
