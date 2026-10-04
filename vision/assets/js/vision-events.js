@@ -15,6 +15,7 @@
    - Refund credit jika proses gagal
    - Copy prompt
    - Reset process
+   - Menangani koneksi UI upload
    - Tidak menangani detail API
    - Tidak menangani upload processing
    - Tidak menangani rendering CSS
@@ -41,6 +42,17 @@ const VISION_EVENTS_CONFIG =
             "image-generation"
 
     });
+
+
+/* =========================================================
+   INTERNAL INITIALIZATION LOCK
+   ---------------------------------------------------------
+   Mencegah event listener terpasang dua kali jika loader
+   menjalankan initialize() lebih dari satu kali.
+========================================================= */
+
+let visionEventsInitialized =
+    false;
 
 
 /* =========================================================
@@ -719,11 +731,6 @@ async function startVisionProcess() {
         const creditCheck =
             await credit.checkCredit();
 
-
-        /*
-         * checkCredit() akan throw
-         * jika terjadi error server.
-         */
 
         if (
             !creditCheck ||
@@ -1578,6 +1585,13 @@ function handleNewImage(
     }
 
 
+    /*
+     * File dari vision-upload.js sudah
+     * berisi dataUrl dan metadata.
+     *
+     * Render preview terlebih dahulu.
+     */
+
     const preview =
         getPreview();
 
@@ -1587,15 +1601,19 @@ function handleNewImage(
     );
 
 
+    /*
+     * Bersihkan hasil Vision lama.
+     *
+     * Penting:
+     * resetAfterNewImage() TIDAK menghapus
+     * file baru dari state.
+     */
+
     resetAfterNewImage();
 
 
     /*
-     * Pastikan state tetap berisi
-     * file yang baru dipilih.
-     *
-     * resetAfterNewImage() hanya
-     * membersihkan hasil sebelumnya.
+     * Pastikan state berisi file terbaru.
      */
 
     const state =
@@ -1650,6 +1668,29 @@ function handleNewImage(
     );
 
 
+    /*
+     * Pastikan dropzone kembali aktif
+     * setelah gambar berhasil dipilih.
+     */
+
+    try {
+
+        preview.setDropzoneActive(
+            false
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI Vision] Dropzone state:",
+            error
+        );
+
+    }
+
+
     return true;
 
 }
@@ -1668,16 +1709,103 @@ function handleUploadError(
         "Gambar gagal diproses.";
 
 
-    getPreview()
-        .setDropzoneActive(
-            false
+    try {
+
+        getPreview()
+            .setDropzoneActive(
+                false
+            );
+
+    } catch (
+        previewError
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI Vision] Preview error:",
+            previewError
         );
 
+    }
 
-    getUI()
-        .showError(
-            message
+
+    try {
+
+        getUI()
+            .showError(
+                message
+            );
+
+    } catch (
+        uiError
+    ) {
+
+        console.error(
+            "[GEN-Z.AI Vision] Upload UI error:",
+            uiError
         );
+
+    }
+
+
+    return false;
+
+}
+
+
+/* =========================================================
+   OPEN FILE PICKER
+   ---------------------------------------------------------
+   Semua jalur pemilihan file diarahkan ke module upload.
+   Jangan memproses File secara langsung di events module.
+========================================================= */
+
+function openFilePicker() {
+
+    const dom =
+        getDOM();
+
+
+    const upload =
+        getUpload();
+
+
+    /*
+     * Jalur utama.
+     */
+
+    if (
+        typeof upload.openFilePicker ===
+        "function"
+    ) {
+
+        upload.openFilePicker();
+
+        return true;
+
+    }
+
+
+    /*
+     * Fallback jika fungsi module upload
+     * tidak tersedia.
+     */
+
+    if (
+        dom.fileInput &&
+        typeof dom.fileInput.click ===
+            "function"
+    ) {
+
+        dom.fileInput.click();
+
+        return true;
+
+    }
+
+
+    console.error(
+        "[GEN-Z.AI Vision] File picker tidak tersedia."
+    );
 
 
     return false;
@@ -1729,6 +1857,9 @@ function bindEvents() {
 
     /* =====================================================
        FILE INPUT
+       -----------------------------------------------------
+       Ini adalah jalur utama setelah user memilih file
+       dari native file picker.
     ===================================================== */
 
     bindEvent(
@@ -1747,6 +1878,11 @@ function bindEvents() {
                             event
                         );
 
+
+                /*
+                 * handleFileInput() dari module upload
+                 * mengembalikan fileData jika berhasil.
+                 */
 
                 if (
                     file
@@ -1775,6 +1911,9 @@ function bindEvents() {
 
     /* =====================================================
        BROWSE BUTTON
+       -----------------------------------------------------
+       Jangan mengandalkan bubbling dropzone.
+       Tombol Browse mempunyai jalur picker sendiri.
     ===================================================== */
 
     bindEvent(
@@ -1786,31 +1925,10 @@ function bindEvents() {
         event => {
 
             event.preventDefault();
-
             event.stopPropagation();
 
 
-            const upload =
-                getUpload();
-
-
-            if (
-                typeof upload.openFilePicker ===
-                "function"
-            ) {
-
-                upload.openFilePicker();
-
-                return;
-
-            }
-
-
-            /*
-             * Fallback langsung ke input.
-             */
-
-            dom.fileInput?.click();
+            openFilePicker();
 
         }
 
@@ -1830,14 +1948,26 @@ function bindEvents() {
         event => {
 
             event.preventDefault();
-
             event.stopPropagation();
 
 
-            getPreview()
-                .setDropzoneActive(
-                    true
+            try {
+
+                getPreview()
+                    .setDropzoneActive(
+                        true
+                    );
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision] Dragover:",
+                    error
                 );
+
+            }
 
         }
 
@@ -1857,14 +1987,26 @@ function bindEvents() {
         event => {
 
             event.preventDefault();
-
             event.stopPropagation();
 
 
-            getPreview()
-                .setDropzoneActive(
-                    false
+            try {
+
+                getPreview()
+                    .setDropzoneActive(
+                        false
+                    );
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision] Dragleave:",
+                    error
                 );
+
+            }
 
         }
 
@@ -1884,14 +2026,26 @@ function bindEvents() {
         async event => {
 
             event.preventDefault();
-
             event.stopPropagation();
 
 
-            getPreview()
-                .setDropzoneActive(
-                    false
+            try {
+
+                getPreview()
+                    .setDropzoneActive(
+                        false
+                    );
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision] Dropzone reset:",
+                    error
                 );
+
+            }
 
 
             try {
@@ -1931,10 +2085,11 @@ function bindEvents() {
     /* =====================================================
        DROPZONE CLICK
        -----------------------------------------------------
-       Klik area membuka file picker.
-       Klik tombol SELECT IMAGE tidak masuk
-       ke handler ini karena sudah memiliki
-       handler sendiri.
+       Klik area kosong membuka native file picker.
+       
+       Jangan menggunakan fileInput.click() langsung
+       sebagai jalur utama. Semua picker diarahkan
+       melalui vision-upload.js.
     ===================================================== */
 
     bindEvent(
@@ -1944,6 +2099,33 @@ function bindEvents() {
         "click",
 
         event => {
+
+            /*
+             * Jangan proses klik tombol.
+             *
+             * Browse button sudah mempunyai handler sendiri.
+             */
+
+            if (
+                dom.browseButton &&
+                (
+                    event.target ===
+                        dom.browseButton ||
+                    dom.browseButton.contains(
+                        event.target
+                    )
+                )
+            ) {
+
+                return;
+
+            }
+
+
+            /*
+             * Jangan proses klik button lain
+             * di dalam dropzone.
+             */
 
             if (
                 event.target?.closest(
@@ -1956,6 +2138,11 @@ function bindEvents() {
             }
 
 
+            /*
+             * Jangan memproses klik langsung
+             * pada input file.
+             */
+
             if (
                 event.target ===
                 dom.fileInput
@@ -1966,7 +2153,12 @@ function bindEvents() {
             }
 
 
-            dom.fileInput?.click();
+            /*
+             * Semua klik area upload menuju
+             * module upload.
+             */
+
+            openFilePicker();
 
         }
 
@@ -2089,11 +2281,62 @@ function bindEvents() {
 
 function initialize() {
 
+    /*
+     * Loader dapat memanggil initialize lebih dari sekali.
+     * Jangan pasang listener berulang.
+     */
+
+    if (
+        visionEventsInitialized
+    ) {
+
+        return true;
+
+    }
+
+
     try {
+
+        const dom =
+            getDOM();
+
+
+        /*
+         * Pastikan elemen penting tersedia
+         * sebelum memasang event.
+         */
+
+        if (
+            !dom.fileInput
+        ) {
+
+            throw new Error(
+                "visionFileInput tidak ditemukan."
+            );
+
+        }
+
+
+        if (
+            !dom.dropzone
+        ) {
+
+            throw new Error(
+                "visionDropzone tidak ditemukan."
+            );
+
+        }
+
 
         bindEvents();
 
+
         syncFormToState();
+
+
+        visionEventsInitialized =
+            true;
+
 
         return true;
 
@@ -2137,6 +2380,8 @@ const GENZVisionEvents =
         handleRemoveImage,
 
         resetOutput,
+
+        openFilePicker,
 
         bindEvents,
 
