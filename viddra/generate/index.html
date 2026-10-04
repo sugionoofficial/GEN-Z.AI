@@ -4999,44 +4999,15 @@ if (
 
 }
 
-/*
- * Initial credit check.
- * Jangan panggil updateVidDraCredit() langsung di sini.
- * Gunakan initializer yang memiliki retry.
- */
 
-void initializeVidDraCredit();
+/* =====================================================
+   INITIAL VIDDRA CREDIT
+===================================================== */
 
-checkApiKeyStatus()
-    .catch(
-        error => {
-
-            console.warn(
-                "[VidDra] API key check:",
-                error
-            );
-
-        }
-    );
+void updateVidDraCredit();
 
 
-/*
- * =========================================================
- * INITIAL VIDDRA CREDIT
- * ---------------------------------------------------------
- * Saat halaman Generate dibuka:
- *
- * 1. Tunggu session GEN-Z.AI siap
- * 2. Ambil credit asli dari VidDra
- * 3. Retry otomatis jika session/cookie belum siap
- *
- * Tidak ada saldo dummy.
- * =========================================================
- */
-
-void initializeVidDraCredit();
-
-        /* =====================================================
+/* =====================================================
    INITIALIZE API KEY STATUS
 ===================================================== */
 
@@ -5049,11 +5020,9 @@ checkApiKeyStatus()
                 error
             );
 
-
             setApiKeyStatus(
                 false
             );
-
 
             if (
                 generateButton
@@ -5066,6 +5035,29 @@ checkApiKeyStatus()
 
         }
     );
+
+
+/*
+ * Navigation baru.
+ */
+
+if (
+    window.GENZNavigation &&
+    typeof window.GENZNavigation.init ===
+        "function"
+) {
+
+    window.GENZNavigation
+        .init()
+        .catch(
+            error =>
+                console.warn(
+                    "[VidDra] Navigation init:",
+                    error
+                )
+        );
+
+}
 
 
         /*
