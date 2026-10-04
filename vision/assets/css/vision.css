@@ -1,0 +1,2058 @@
+/* =========================================================
+   GEN-Z.AI VISION
+   ---------------------------------------------------------
+   File:
+   vision/assets/css/vision.css
+
+   Fungsi:
+   - Layout utama Vision
+   - Premium dark theme
+   - Red neon visual system
+   - Hero section
+   - Workspace layout
+   - Panel dasar
+   - Typography
+   - Form dasar
+   - Result area dasar
+
+   Catatan:
+   - Tidak mengatur responsive/mobile detail
+   - Tidak mengatur komponen kecil secara detail
+   - Tidak mengubah navigation
+========================================================= */
+
+
+/* =========================================================
+   ROOT
+========================================================= */
+
+:root {
+
+    --vision-bg:
+        #050507;
+
+    --vision-bg-soft:
+        #09090d;
+
+    --vision-panel:
+        rgba(13, 13, 18, 0.92);
+
+    --vision-panel-soft:
+        rgba(18, 18, 24, 0.78);
+
+    --vision-border:
+        rgba(255, 38, 72, 0.22);
+
+    --vision-border-strong:
+        rgba(255, 38, 72, 0.48);
+
+    --vision-red:
+        #ff274f;
+
+    --vision-red-soft:
+        #ff4f6d;
+
+    --vision-red-dark:
+        #9e102d;
+
+    --vision-text:
+        #f4f4f6;
+
+    --vision-text-soft:
+        #a7a7b2;
+
+    --vision-text-muted:
+        #70707c;
+
+    --vision-success:
+        #42e89d;
+
+    --vision-warning:
+        #ffbd55;
+
+    --vision-danger:
+        #ff4f68;
+
+    --vision-shadow:
+        0 24px 80px rgba(0, 0, 0, 0.55);
+
+    --vision-glow:
+        0 0 30px rgba(255, 39, 79, 0.12);
+
+    --vision-radius:
+        22px;
+
+    --vision-radius-small:
+        14px;
+
+    --vision-max-width:
+        1480px;
+}
+
+
+/* =========================================================
+   PAGE
+========================================================= */
+
+.vision-page {
+
+    position: relative;
+
+    min-height: 100vh;
+
+    width: 100%;
+
+    padding:
+        34px
+        28px
+        80px;
+
+    box-sizing: border-box;
+
+    color:
+        var(--vision-text);
+
+    background:
+        radial-gradient(
+            circle at 50% -10%,
+            rgba(255, 25, 66, 0.10),
+            transparent 38%
+        ),
+        radial-gradient(
+            circle at 100% 30%,
+            rgba(255, 25, 66, 0.055),
+            transparent 32%
+        ),
+        linear-gradient(
+            180deg,
+            #050507 0%,
+            #07070a 45%,
+            #040406 100%
+        );
+
+    overflow-x: hidden;
+}
+
+
+/* =========================================================
+   BACKGROUND EFFECT
+========================================================= */
+
+.vision-page::before {
+
+    content: "";
+
+    position: fixed;
+
+    inset: 0;
+
+    pointer-events: none;
+
+    z-index: 0;
+
+    opacity: 0.42;
+
+    background-image:
+        linear-gradient(
+            rgba(255, 255, 255, 0.018) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.018) 1px,
+            transparent 1px
+        );
+
+    background-size:
+        42px 42px;
+
+    mask-image:
+        linear-gradient(
+            to bottom,
+            black,
+            transparent 82%
+        );
+}
+
+
+/* =========================================================
+   MAIN CONTENT CONTAINER
+========================================================= */
+
+.vision-page > * {
+
+    position: relative;
+
+    z-index: 1;
+}
+
+
+.vision-hero,
+.vision-workspace,
+.vision-info-grid {
+
+    width: 100%;
+
+    max-width:
+        var(--vision-max-width);
+
+    margin-left: auto;
+    margin-right: auto;
+}
+
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.vision-hero {
+
+    position: relative;
+
+    display: flex;
+
+    align-items: flex-end;
+
+    justify-content: space-between;
+
+    gap: 30px;
+
+    margin-bottom: 28px;
+
+    padding:
+        30px 32px;
+
+    border:
+        1px solid
+        var(--vision-border);
+
+    border-radius:
+        var(--vision-radius);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(25, 10, 15, 0.96),
+            rgba(10, 10, 14, 0.94)
+        );
+
+    box-shadow:
+        var(--vision-shadow),
+        inset 0 1px 0
+        rgba(255, 255, 255, 0.035);
+
+    overflow: hidden;
+}
+
+
+.vision-hero::before {
+
+    content: "";
+
+    position: absolute;
+
+    top: -120px;
+    right: -80px;
+
+    width: 360px;
+    height: 360px;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(255, 39, 79, 0.16),
+            transparent 68%
+        );
+
+    pointer-events: none;
+}
+
+
+.vision-hero::after {
+
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 39, 79, 0.75),
+            transparent
+        );
+
+    opacity: 0.75;
+}
+
+
+/* =========================================================
+   HERO TEXT
+========================================================= */
+
+.vision-hero-content {
+
+    position: relative;
+
+    z-index: 2;
+
+    min-width: 0;
+}
+
+
+.vision-eyebrow {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+
+    margin-bottom: 12px;
+
+    color:
+        var(--vision-red-soft);
+
+    font-size:
+        11px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        0.22em;
+
+    text-transform:
+        uppercase;
+}
+
+
+.vision-eyebrow::before {
+
+    content: "";
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background:
+        var(--vision-red);
+
+    box-shadow:
+        0 0 12px
+        rgba(255, 39, 79, 0.85);
+}
+
+
+.vision-title {
+
+    margin: 0;
+
+    font-size:
+        clamp(30px, 4vw, 54px);
+
+    line-height:
+        0.98;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        -0.045em;
+
+    background:
+        linear-gradient(
+            120deg,
+            #ffffff 0%,
+            #ffffff 42%,
+            #ff5574 76%,
+            #ff274f 100%
+        );
+
+    -webkit-background-clip:
+        text;
+
+    background-clip:
+        text;
+
+    color:
+        transparent;
+}
+
+
+.vision-subtitle {
+
+    max-width:
+        720px;
+
+    margin:
+        15px 0 0;
+
+    color:
+        var(--vision-text-soft);
+
+    font-size:
+        14px;
+
+    line-height:
+        1.65;
+}
+
+
+/* =========================================================
+   CREDIT BADGE
+========================================================= */
+
+.vision-credit-badge {
+
+    position: relative;
+
+    z-index: 2;
+
+    flex:
+        0 0 auto;
+
+    min-width:
+        150px;
+
+    padding:
+        15px 18px;
+
+    border:
+        1px solid
+        rgba(255, 39, 79, 0.30);
+
+    border-radius:
+        15px;
+
+    background:
+        rgba(255, 39, 79, 0.055);
+
+    box-shadow:
+        inset 0 0 24px
+        rgba(255, 39, 79, 0.045);
+}
+
+
+.vision-credit-label {
+
+    display: block;
+
+    margin-bottom: 5px;
+
+    color:
+        var(--vision-text-muted);
+
+    font-size:
+        9px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        0.16em;
+
+    text-transform:
+        uppercase;
+}
+
+
+.vision-credit-value {
+
+    display: block;
+
+    color:
+        #ffffff;
+
+    font-size:
+        23px;
+
+    font-weight:
+        900;
+
+    line-height:
+        1.1;
+}
+
+
+.vision-credit-unit {
+
+    margin-left: 4px;
+
+    color:
+        var(--vision-red-soft);
+
+    font-size:
+        11px;
+
+    font-weight:
+        800;
+}
+
+
+/* =========================================================
+   WORKSPACE
+========================================================= */
+
+.vision-workspace {
+
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 0.92fr)
+        minmax(0, 1.08fr);
+
+    gap:
+        22px;
+
+    align-items:
+        stretch;
+}
+
+
+/* =========================================================
+   PANEL
+========================================================= */
+
+.vision-panel {
+
+    position: relative;
+
+    display: flex;
+
+    flex-direction: column;
+
+    min-width: 0;
+
+    padding:
+        22px;
+
+    border:
+        1px solid
+        var(--vision-border);
+
+    border-radius:
+        var(--vision-radius);
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(17, 17, 23, 0.96),
+            rgba(8, 8, 12, 0.97)
+        );
+
+    box-shadow:
+        var(--vision-shadow),
+        inset 0 1px 0
+        rgba(255, 255, 255, 0.025);
+
+    overflow: hidden;
+}
+
+
+.vision-panel::before {
+
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 18px;
+    right: 18px;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 39, 79, 0.55),
+            transparent
+        );
+
+    opacity: 0.7;
+}
+
+
+.vision-panel-header {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 16px;
+
+    margin-bottom: 18px;
+}
+
+
+.vision-panel-title {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin: 0;
+
+    color:
+        #ffffff;
+
+    font-size:
+        15px;
+
+    font-weight:
+        850;
+
+    letter-spacing:
+        -0.01em;
+}
+
+
+.vision-panel-title::before {
+
+    content: "";
+
+    width: 8px;
+    height: 8px;
+
+    flex:
+        0 0 auto;
+
+    border-radius: 50%;
+
+    background:
+        var(--vision-red);
+
+    box-shadow:
+        0 0 14px
+        rgba(255, 39, 79, 0.75);
+}
+
+
+.vision-panel-description {
+
+    margin:
+        4px 0 0;
+
+    color:
+        var(--vision-text-muted);
+
+    font-size:
+        11px;
+
+    line-height:
+        1.5;
+}
+
+
+/* =========================================================
+   UPLOAD AREA
+========================================================= */
+
+.vision-dropzone {
+
+    position: relative;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    min-height:
+        330px;
+
+    padding:
+        28px;
+
+    border:
+        1px dashed
+        rgba(255, 39, 79, 0.34);
+
+    border-radius:
+        18px;
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(255, 39, 79, 0.055),
+            transparent 62%
+        ),
+        rgba(255, 255, 255, 0.012);
+
+    text-align:
+        center;
+
+    cursor:
+        pointer;
+
+    transition:
+        border-color 180ms ease,
+        background 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease;
+}
+
+
+.vision-dropzone:hover {
+
+    border-color:
+        rgba(255, 39, 79, 0.62);
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(255, 39, 79, 0.085),
+            transparent 62%
+        ),
+        rgba(255, 255, 255, 0.016);
+
+    box-shadow:
+        inset 0 0 40px
+        rgba(255, 39, 79, 0.045);
+}
+
+
+.vision-dropzone.is-dragover {
+
+    border-color:
+        var(--vision-red);
+
+    box-shadow:
+        0 0 0 1px
+        rgba(255, 39, 79, 0.20),
+        0 0 35px
+        rgba(255, 39, 79, 0.14);
+
+    transform:
+        translateY(-1px);
+}
+
+
+.vision-dropzone-icon {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    width: 64px;
+    height: 64px;
+
+    margin-bottom: 17px;
+
+    border:
+        1px solid
+        rgba(255, 39, 79, 0.34);
+
+    border-radius:
+        18px;
+
+    color:
+        var(--vision-red-soft);
+
+    background:
+        rgba(255, 39, 79, 0.07);
+
+    box-shadow:
+        0 0 25px
+        rgba(255, 39, 79, 0.08);
+}
+
+
+.vision-dropzone-title {
+
+    margin: 0;
+
+    color:
+        #ffffff;
+
+    font-size:
+        15px;
+
+    font-weight:
+        800;
+}
+
+
+.vision-dropzone-text {
+
+    max-width:
+        400px;
+
+    margin:
+        8px 0 0;
+
+    color:
+        var(--vision-text-soft);
+
+    font-size:
+        12px;
+
+    line-height:
+        1.55;
+}
+
+
+.vision-dropzone-hint {
+
+    margin-top:
+        13px;
+
+    color:
+        var(--vision-text-muted);
+
+    font-size:
+        10px;
+
+    letter-spacing:
+        0.04em;
+}
+
+
+/* =========================================================
+   PREVIEW
+========================================================= */
+
+.vision-preview {
+
+    position: relative;
+
+    display: none;
+
+    min-height:
+        330px;
+
+    border:
+        1px solid
+        rgba(255, 39, 79, 0.20);
+
+    border-radius:
+        18px;
+
+    background:
+        #030305;
+
+    overflow:
+        hidden;
+}
+
+
+.vision-preview.is-visible {
+
+    display:
+        flex;
+}
+
+
+.vision-preview-image {
+
+    display:
+        block;
+
+    width:
+        100%;
+
+    height:
+        330px;
+
+    object-fit:
+        contain;
+
+    background:
+        #020204;
+}
+
+
+.vision-preview-overlay {
+
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    display: flex;
+
+    align-items: flex-end;
+
+    justify-content: space-between;
+
+    gap: 15px;
+
+    padding:
+        42px 16px 15px;
+
+    background:
+        linear-gradient(
+            180deg,
+            transparent,
+            rgba(0, 0, 0, 0.82)
+        );
+}
+
+
+.vision-preview-meta {
+
+    min-width:
+        0;
+}
+
+
+.vision-preview-name {
+
+    display: block;
+
+    max-width:
+        320px;
+
+    overflow:
+        hidden;
+
+    color:
+        #ffffff;
+
+    font-size:
+        12px;
+
+    font-weight:
+        750;
+
+    text-overflow:
+        ellipsis;
+
+    white-space:
+        nowrap;
+}
+
+
+.vision-preview-size {
+
+    display: block;
+
+    margin-top:
+        3px;
+
+    color:
+        rgba(255, 255, 255, 0.55);
+
+    font-size:
+        10px;
+}
+
+
+/* =========================================================
+   FORM AREA
+========================================================= */
+
+.vision-form {
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    gap:
+        16px;
+
+    margin-top:
+        18px;
+}
+
+
+.vision-form-grid {
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap:
+        13px;
+}
+
+
+.vision-field {
+
+    min-width:
+        0;
+}
+
+
+.vision-field-full {
+
+    grid-column:
+        1 / -1;
+}
+
+
+.vision-label {
+
+    display:
+        block;
+
+    margin-bottom:
+        7px;
+
+    color:
+        #d7d7de;
+
+    font-size:
+        10px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        0.07em;
+
+    text-transform:
+        uppercase;
+}
+
+
+.vision-input,
+.vision-select,
+.vision-textarea {
+
+    width:
+        100%;
+
+    box-sizing:
+        border-box;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.095);
+
+    border-radius:
+        11px;
+
+    outline:
+        none;
+
+    color:
+        #f5f5f7;
+
+    background:
+        rgba(255, 255, 255, 0.035);
+
+    font:
+        inherit;
+
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background 160ms ease;
+}
+
+
+.vision-input,
+.vision-select {
+
+    min-height:
+        44px;
+
+    padding:
+        0 13px;
+
+    font-size:
+        12px;
+}
+
+
+.vision-textarea {
+
+    min-height:
+        92px;
+
+    padding:
+        12px 13px;
+
+    resize:
+        vertical;
+
+    font-size:
+        12px;
+
+    line-height:
+        1.55;
+}
+
+
+.vision-input:hover,
+.vision-select:hover,
+.vision-textarea:hover {
+
+    border-color:
+        rgba(255, 255, 255, 0.16);
+}
+
+
+.vision-input:focus,
+.vision-select:focus,
+.vision-textarea:focus {
+
+    border-color:
+        rgba(255, 39, 79, 0.58);
+
+    background:
+        rgba(255, 39, 79, 0.035);
+
+    box-shadow:
+        0 0 0 3px
+        rgba(255, 39, 79, 0.075);
+}
+
+
+.vision-select {
+
+    appearance:
+        auto;
+
+    cursor:
+        pointer;
+}
+
+
+.vision-select option {
+
+    color:
+        #ffffff;
+
+    background:
+        #111116;
+}
+
+
+/* =========================================================
+   PRIMARY ACTION
+========================================================= */
+
+.vision-action {
+
+    width:
+        100%;
+
+    min-height:
+        50px;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    gap:
+        10px;
+
+    margin-top:
+        3px;
+
+    padding:
+        0 18px;
+
+    border:
+        1px solid
+        rgba(255, 73, 103, 0.70);
+
+    border-radius:
+        13px;
+
+    color:
+        #ffffff;
+
+    background:
+        linear-gradient(
+            135deg,
+            #d71942,
+            #ff3157
+        );
+
+    box-shadow:
+        0 8px 30px
+        rgba(255, 39, 79, 0.20),
+        inset 0 1px 0
+        rgba(255, 255, 255, 0.16);
+
+    font:
+        inherit;
+
+    font-size:
+        12px;
+
+    font-weight:
+        850;
+
+    letter-spacing:
+        0.045em;
+
+    cursor:
+        pointer;
+
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        filter 160ms ease;
+}
+
+
+.vision-action:hover {
+
+    filter:
+        brightness(1.08);
+
+    box-shadow:
+        0 10px 38px
+        rgba(255, 39, 79, 0.30),
+        inset 0 1px 0
+        rgba(255, 255, 255, 0.18);
+
+    transform:
+        translateY(-1px);
+}
+
+
+.vision-action:active {
+
+    transform:
+        translateY(0);
+}
+
+
+.vision-action:disabled {
+
+    opacity:
+        0.48;
+
+    cursor:
+        not-allowed;
+
+    filter:
+        grayscale(0.35);
+
+    box-shadow:
+        none;
+
+    transform:
+        none;
+}
+
+
+/* =========================================================
+   CREDIT NOTICE
+========================================================= */
+
+.vision-credit-notice {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        8px;
+
+    color:
+        var(--vision-text-muted);
+
+    font-size:
+        10px;
+
+    line-height:
+        1.45;
+}
+
+
+.vision-credit-notice strong {
+
+    color:
+        var(--vision-red-soft);
+
+    font-weight:
+        800;
+}
+
+
+/* =========================================================
+   RESULT PANEL
+========================================================= */
+
+.vision-result-panel {
+
+    min-height:
+        100%;
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+}
+
+
+.vision-result-header {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    gap:
+        15px;
+
+    margin-bottom:
+        15px;
+}
+
+
+.vision-result-title {
+
+    margin:
+        0;
+
+    color:
+        #ffffff;
+
+    font-size:
+        15px;
+
+    font-weight:
+        850;
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+.vision-status {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    gap:
+        7px;
+
+    padding:
+        6px 9px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.08);
+
+    border-radius:
+        999px;
+
+    color:
+        var(--vision-text-muted);
+
+    background:
+        rgba(255, 255, 255, 0.025);
+
+    font-size:
+        9px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        0.06em;
+
+    text-transform:
+        uppercase;
+}
+
+
+.vision-status::before {
+
+    content: "";
+
+    width:
+        6px;
+
+    height:
+        6px;
+
+    border-radius:
+        50%;
+
+    background:
+        currentColor;
+}
+
+
+.vision-status[data-state="ready"] {
+
+    color:
+        var(--vision-text-muted);
+}
+
+
+.vision-status[data-state="processing"] {
+
+    color:
+        var(--vision-warning);
+}
+
+
+.vision-status[data-state="success"] {
+
+    color:
+        var(--vision-success);
+}
+
+
+.vision-status[data-state="error"] {
+
+    color:
+        var(--vision-danger);
+}
+
+
+/* =========================================================
+   PROGRESS
+========================================================= */
+
+.vision-progress {
+
+    display:
+        none;
+
+    margin-bottom:
+        15px;
+}
+
+
+.vision-progress.is-visible {
+
+    display:
+        block;
+}
+
+
+.vision-progress-top {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    gap:
+        12px;
+
+    margin-bottom:
+        7px;
+
+    color:
+        var(--vision-text-muted);
+
+    font-size:
+        9px;
+
+    font-weight:
+        750;
+}
+
+
+.vision-progress-track {
+
+    width:
+        100%;
+
+    height:
+        4px;
+
+    border-radius:
+        999px;
+
+    background:
+        rgba(255, 255, 255, 0.065);
+
+    overflow:
+        hidden;
+}
+
+
+.vision-progress-bar {
+
+    width:
+        0%;
+
+    height:
+        100%;
+
+    border-radius:
+        inherit;
+
+    background:
+        linear-gradient(
+            90deg,
+            #9e102d,
+            #ff274f
+        );
+
+    box-shadow:
+        0 0 14px
+        rgba(255, 39, 79, 0.50);
+
+    transition:
+        width 260ms ease;
+}
+
+
+/* =========================================================
+   PROMPT RESULT
+========================================================= */
+
+.vision-result-container {
+
+    position:
+        relative;
+
+    flex:
+        1;
+
+    min-height:
+        430px;
+
+    border:
+        1px solid
+        rgba(255, 39, 79, 0.18);
+
+    border-radius:
+        17px;
+
+    background:
+        rgba(0, 0, 0, 0.24);
+
+    overflow:
+        hidden;
+}
+
+
+.vision-prompt-placeholder {
+
+    position:
+        absolute;
+
+    inset:
+        0;
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    padding:
+        30px;
+
+    color:
+        var(--vision-text-muted);
+
+    text-align:
+        center;
+
+    pointer-events:
+        none;
+}
+
+
+.vision-prompt-placeholder strong {
+
+    margin-bottom:
+        7px;
+
+    color:
+        rgba(255, 255, 255, 0.72);
+
+    font-size:
+        13px;
+}
+
+
+.vision-prompt-placeholder span {
+
+    max-width:
+        320px;
+
+    font-size:
+        10px;
+
+    line-height:
+        1.6;
+}
+
+
+.vision-prompt-result {
+
+    display:
+        none;
+
+    width:
+        100%;
+
+    min-height:
+        430px;
+
+    box-sizing:
+        border-box;
+
+    margin:
+        0;
+
+    padding:
+        20px;
+
+    color:
+        #eeeeF2;
+
+    background:
+        transparent;
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        monospace;
+
+    font-size:
+        11px;
+
+    line-height:
+        1.7;
+
+    white-space:
+        pre-wrap;
+
+    word-break:
+        break-word;
+
+    overflow:
+        auto;
+}
+
+
+.vision-prompt-result.is-visible {
+
+    display:
+        block;
+}
+
+
+.vision-prompt-placeholder.is-hidden {
+
+    display:
+        none;
+}
+
+
+/* =========================================================
+   COPY BUTTON
+========================================================= */
+
+.vision-copy-button {
+
+    min-height:
+        34px;
+
+    padding:
+        0 11px;
+
+    border:
+        1px solid
+        rgba(255, 39, 79, 0.25);
+
+    border-radius:
+        9px;
+
+    color:
+        var(--vision-text-soft);
+
+    background:
+        rgba(255, 39, 79, 0.045);
+
+    font:
+        inherit;
+
+    font-size:
+        10px;
+
+    font-weight:
+        800;
+
+    cursor:
+        pointer;
+
+    transition:
+        color 160ms ease,
+        border-color 160ms ease,
+        background 160ms ease;
+}
+
+
+.vision-copy-button:hover {
+
+    color:
+        #ffffff;
+
+    border-color:
+        rgba(255, 39, 79, 0.58);
+
+    background:
+        rgba(255, 39, 79, 0.09);
+}
+
+
+.vision-copy-button:disabled {
+
+    opacity:
+        0.4;
+
+    cursor:
+        not-allowed;
+}
+
+
+/* =========================================================
+   ANALYSIS DETAILS
+========================================================= */
+
+.vision-analysis-details {
+
+    margin-top:
+        13px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.07);
+
+    border-radius:
+        13px;
+
+    background:
+        rgba(255, 255, 255, 0.018);
+
+    overflow:
+        hidden;
+}
+
+
+.vision-analysis-summary {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    min-height:
+        42px;
+
+    padding:
+        0 13px;
+
+    color:
+        var(--vision-text-soft);
+
+    font-size:
+        10px;
+
+    font-weight:
+        800;
+
+    cursor:
+        pointer;
+
+    list-style:
+        none;
+}
+
+
+.vision-analysis-summary::-webkit-details-marker {
+
+    display:
+        none;
+}
+
+
+.vision-analysis-summary::after {
+
+    content:
+        "+";
+
+    color:
+        var(--vision-red-soft);
+
+    font-size:
+        14px;
+
+    font-weight:
+        400;
+}
+
+
+.vision-analysis-details[open]
+.vision-analysis-summary::after {
+
+    content:
+        "−";
+}
+
+
+.vision-analysis-result {
+
+    max-height:
+        260px;
+
+    margin:
+        0;
+
+    padding:
+        13px;
+
+    border-top:
+        1px solid
+        rgba(255, 255, 255, 0.05);
+
+    color:
+        var(--vision-text-muted);
+
+    background:
+        rgba(0, 0, 0, 0.18);
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        monospace;
+
+    font-size:
+        9px;
+
+    line-height:
+        1.6;
+
+    white-space:
+        pre-wrap;
+
+    overflow:
+        auto;
+}
+
+
+/* =========================================================
+   INFO GRID
+========================================================= */
+
+.vision-info-grid {
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+
+    gap:
+        14px;
+
+    margin-top:
+        22px;
+}
+
+
+.vision-info-card {
+
+    position:
+        relative;
+
+    padding:
+        18px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.07);
+
+    border-radius:
+        16px;
+
+    background:
+        rgba(255, 255, 255, 0.018);
+
+    overflow:
+        hidden;
+}
+
+
+.vision-info-card::before {
+
+    content: "";
+
+    position:
+        absolute;
+
+    top: 0;
+    left: 18px;
+    right: 18px;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 39, 79, 0.40),
+            transparent
+        );
+}
+
+
+.vision-info-title {
+
+    margin:
+        0 0 7px;
+
+    color:
+        #eeeeF2;
+
+    font-size:
+        11px;
+
+    font-weight:
+        850;
+}
+
+
+.vision-info-text {
+
+    margin:
+        0;
+
+    color:
+        var(--vision-text-muted);
+
+    font-size:
+        10px;
+
+    line-height:
+        1.6;
+}
+
+
+/* =========================================================
+   HIDDEN UTILITY
+========================================================= */
+
+.vision-hidden {
+
+    display:
+        none !important;
+}
+
+
+/* =========================================================
+   DISABLED INTERACTION
+========================================================= */
+
+.vision-page [disabled] {
+
+    pointer-events:
+        none;
+}
+
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+.vision-page ::-webkit-scrollbar {
+
+    width:
+        7px;
+
+    height:
+        7px;
+}
+
+
+.vision-page ::-webkit-scrollbar-track {
+
+    background:
+        rgba(255, 255, 255, 0.025);
+}
+
+
+.vision-page ::-webkit-scrollbar-thumb {
+
+    border-radius:
+        999px;
+
+    background:
+        rgba(255, 39, 79, 0.24);
+}
+
+
+.vision-page ::-webkit-scrollbar-thumb:hover {
+
+    background:
+        rgba(255, 39, 79, 0.42);
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .vision-dropzone,
+    .vision-action,
+    .vision-copy-button,
+    .vision-progress-bar {
+
+        transition:
+            none !important;
+    }
+}
