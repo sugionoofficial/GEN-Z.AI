@@ -898,6 +898,22 @@
 
             }
 
+
+            .input-row {
+
+                flex-direction:
+                    column;
+
+            }
+
+
+            .input-row .viddra-button {
+
+                width:
+                    100%;
+
+            }
+
         }
 
     </style>
@@ -988,8 +1004,10 @@
 
                     <p class="card-description">
 
-                        Masukkan email yang Anda kontrol.
-                        Password dapat dibuat secara random.
+                        Generate email dan password untuk
+                        registrasi VidDra. Email menggunakan
+                        alias dari email GEN-Z.AI yang sedang
+                        login.
 
                     </p>
 
@@ -1022,15 +1040,28 @@
                                 </label>
 
 
-                                <input
-                                    id="viddraEmail"
-                                    class="viddra-input"
-                                    name="email"
-                                    type="email"
-                                    autocomplete="email"
-                                    placeholder="email@domain-anda.com"
-                                    required
-                                >
+                                <div class="input-row">
+
+                                    <input
+                                        id="viddraEmail"
+                                        class="viddra-input"
+                                        name="email"
+                                        type="email"
+                                        autocomplete="email"
+                                        placeholder="Generate email"
+                                        required
+                                    >
+
+
+                                    <button
+                                        type="button"
+                                        class="viddra-button viddra-button-secondary"
+                                        id="generateEmailButton"
+                                    >
+                                        Generate Email
+                                    </button>
+
+                                </div>
 
                             </div>
 
@@ -1069,7 +1100,7 @@
                                         class="viddra-button viddra-button-secondary"
                                         id="generatePasswordButton"
                                     >
-                                        Generate
+                                        Generate Password
                                     </button>
 
 
@@ -1089,7 +1120,7 @@
 
                                     <button
                                         type="submit"
-                                        class="viddra-button vidddra-button-primary viddra-button-primary"
+                                        class="viddra-button viddra-button-primary"
                                         id="registerVidDraButton"
                                     >
                                         Register VidDra
@@ -1186,11 +1217,11 @@
 
                     <div class="notice">
 
-                        Tahap ini belum memanggil API Generate
-                        VidDra dan belum mengubah sistem KIE.
-                        Setelah account berhasil diverifikasi,
-                        model VidDra akan dipilih dan
-                        diintegrasikan secara terpisah.
+                        Tahap ini hanya menangani registrasi
+                        dan verifikasi account VidDra.
+                        API Generate VidDra belum dipanggil
+                        pada halaman ini dan sistem KIE
+                        tidak diubah.
 
                     </div>
 
@@ -1220,15 +1251,33 @@
                ELEMENTS
             ================================================= */
 
+            const emailInput =
+                document.getElementById(
+                    "viddraEmail"
+                );
+
+
             const passwordInput =
                 document.getElementById(
                     "viddraPassword"
                 );
 
 
+            const generateEmailButton =
+                document.getElementById(
+                    "generateEmailButton"
+                );
+
+
             const generatePasswordButton =
                 document.getElementById(
                     "generatePasswordButton"
+                );
+
+
+            const registerButton =
+                document.getElementById(
+                    "registerVidDraButton"
                 );
 
 
@@ -1242,6 +1291,253 @@
                 document.getElementById(
                     "viddraStatus"
                 );
+
+
+            const accountStatus =
+                document.getElementById(
+                    "accountStatus"
+                );
+
+
+            const creditStatus =
+                document.getElementById(
+                    "creditStatus"
+                );
+
+
+            const generateStatus =
+                document.getElementById(
+                    "generateStatus"
+                );
+
+
+            /* =================================================
+               SUPABASE CLIENT
+            ================================================= */
+
+            let supabaseClient =
+                null;
+
+
+            function getSupabaseClient() {
+
+                if (
+                    supabaseClient
+                ) {
+
+                    return supabaseClient;
+
+                }
+
+
+                if (
+                    !window.supabase ||
+                    typeof window.supabase.createClient !==
+                        "function"
+                ) {
+
+                    return null;
+
+                }
+
+
+                const config =
+                    window.GENZ_CONFIG;
+
+
+                if (
+                    !config ||
+                    !config.SUPABASE_URL ||
+                    !config.SUPABASE_KEY
+                ) {
+
+                    return null;
+
+                }
+
+
+                supabaseClient =
+                    window.supabase.createClient(
+                        config.SUPABASE_URL,
+                        config.SUPABASE_KEY
+                    );
+
+
+                return supabaseClient;
+
+            }
+
+
+            /* =================================================
+               RANDOM STRING
+            ================================================= */
+
+            function getRandomString(
+                length = 8
+            ) {
+
+                const chars =
+                    "abcdefghijklmnopqrstuvwxyz0123456789";
+
+
+                const values =
+                    new Uint32Array(
+                        length
+                    );
+
+
+                crypto.getRandomValues(
+                    values
+                );
+
+
+                let result =
+                    "";
+
+
+                for (
+                    let index = 0;
+                    index < length;
+                    index++
+                ) {
+
+                    result +=
+                        chars[
+                            values[index] %
+                            chars.length
+                        ];
+
+                }
+
+
+                return result;
+
+            }
+
+
+            /* =================================================
+               GET GEN-Z.AI USER EMAIL
+            ================================================= */
+
+            async function getCurrentUserEmail() {
+
+                const client =
+                    getSupabaseClient();
+
+
+                if (!client) {
+
+                    throw new Error(
+                        "Supabase client GEN-Z.AI tidak tersedia."
+                    );
+
+                }
+
+
+                const {
+                    data,
+                    error
+                } =
+                    await client.auth.getUser();
+
+
+                if (
+                    error ||
+                    !data ||
+                    !data.user
+                ) {
+
+                    throw new Error(
+                        "Session GEN-Z.AI tidak ditemukan. Silakan login terlebih dahulu."
+                    );
+
+                }
+
+
+                const email =
+                    String(
+                        data.user.email ||
+                        ""
+                    )
+                    .trim()
+                    .toLowerCase();
+
+
+                if (!email) {
+
+                    throw new Error(
+                        "Email akun GEN-Z.AI tidak tersedia."
+                    );
+
+                }
+
+
+                return email;
+
+            }
+
+
+            /* =================================================
+               GENERATE EMAIL
+            ================================================= */
+
+            async function generateVidDraEmail() {
+
+                const currentEmail =
+                    await getCurrentUserEmail();
+
+
+                const parts =
+                    currentEmail.split("@");
+
+
+                if (
+                    parts.length !== 2 ||
+                    !parts[0] ||
+                    !parts[1]
+                ) {
+
+                    throw new Error(
+                        "Format email akun GEN-Z.AI tidak valid."
+                    );
+
+                }
+
+
+                const localPart =
+                    parts[0]
+                        .replace(
+                            /\+.*/,
+                            ""
+                        )
+                        .replace(
+                            /[^a-zA-Z0-9._-]/g,
+                            ""
+                        );
+
+
+                const domain =
+                    parts[1];
+
+
+                if (!localPart) {
+
+                    throw new Error(
+                        "Bagian nama email GEN-Z.AI tidak valid untuk membuat alias."
+                    );
+
+                }
+
+
+                const suffix =
+                    getRandomString(8);
+
+
+                return (
+                    `${localPart}+viddra${suffix}@${domain}`
+                );
+
+            }
 
 
             /* =================================================
@@ -1290,9 +1586,8 @@
 
 
                 /*
-                 * Pastikan password memiliki
-                 * minimal satu karakter dari
-                 * setiap kelompok.
+                 * Minimal satu karakter
+                 * dari setiap kelompok.
                  */
 
                 characters.push(
@@ -1417,6 +1712,130 @@
 
 
             /* =================================================
+               BUTTON STATE
+            ================================================= */
+
+            function setProcessing(
+                processing
+            ) {
+
+                generateEmailButton.disabled =
+                    processing;
+
+
+                generatePasswordButton.disabled =
+                    processing;
+
+
+                registerButton.disabled =
+                    processing;
+
+
+                if (processing) {
+
+                    registerButton.textContent =
+                        "Registering...";
+
+                } else {
+
+                    registerButton.textContent =
+                        "Register VidDra";
+
+                }
+
+            }
+
+
+            /* =================================================
+               FORMAT USD
+            ================================================= */
+
+            function formatUsd(
+                value
+            ) {
+
+                const number =
+                    Number(
+                        value
+                    );
+
+
+                if (
+                    !Number.isFinite(number)
+                ) {
+
+                    return "$0.0000";
+
+                }
+
+
+                return (
+                    "$" +
+                    number.toFixed(4)
+                );
+
+            }
+
+
+            /* =================================================
+               GENERATE EMAIL BUTTON
+            ================================================= */
+
+            generateEmailButton.addEventListener(
+                "click",
+                async () => {
+
+                    try {
+
+                        generateEmailButton.disabled =
+                            true;
+
+
+                        showStatus(
+                            "Membuat email VidDra...",
+                            "warning"
+                        );
+
+
+                        const email =
+                            await generateVidDraEmail();
+
+
+                        emailInput.value =
+                            email;
+
+
+                        showStatus(
+                            "Email VidDra berhasil dibuat.",
+                            "success"
+                        );
+
+                    } catch (error) {
+
+                        console.error(
+                            "[VidDra] Generate email error:",
+                            error
+                        );
+
+
+                        showStatus(
+                            error?.message ||
+                            "Gagal membuat email VidDra.",
+                            "error"
+                        );
+
+                    } finally {
+
+                        generateEmailButton.disabled =
+                            false;
+
+                    }
+
+                }
+            );
+
+
+            /* =================================================
                GENERATE PASSWORD BUTTON
             ================================================= */
 
@@ -1438,27 +1857,343 @@
 
 
             /* =================================================
-               FORM
+               REGISTER VIDDRA
             ================================================= */
 
             form.addEventListener(
                 "submit",
-                event => {
+                async event => {
 
                     event.preventDefault();
 
 
-                    showStatus(
-                        "Halaman VidDra sudah siap. Endpoint registrasi belum dihubungkan pada tahap ini.",
-                        "warning"
-                    );
+                    if (
+                        registerButton.disabled
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    const email =
+                        String(
+                            emailInput.value ||
+                            ""
+                        )
+                        .trim()
+                        .toLowerCase();
+
+
+                    const password =
+                        String(
+                            passwordInput.value ||
+                            ""
+                        );
+
+
+                    if (!email) {
+
+                        showStatus(
+                            "Generate email VidDra terlebih dahulu.",
+                            "warning"
+                        );
+
+
+                        return;
+
+                    }
+
+
+                    if (!password) {
+
+                        showStatus(
+                            "Generate password VidDra terlebih dahulu.",
+                            "warning"
+                        );
+
+
+                        return;
+
+                    }
+
+
+                    if (
+                        password.length < 8
+                    ) {
+
+                        showStatus(
+                            "Password VidDra minimal 8 karakter.",
+                            "warning"
+                        );
+
+
+                        return;
+
+                    }
+
+
+                    try {
+
+                        setProcessing(
+                            true
+                        );
+
+
+                        showStatus(
+                            "Memeriksa session GEN-Z.AI...",
+                            "warning"
+                        );
+
+
+                        const client =
+                            getSupabaseClient();
+
+
+                        if (!client) {
+
+                            throw new Error(
+                                "Supabase client GEN-Z.AI tidak tersedia."
+                            );
+
+                        }
+
+
+                        const {
+                            data: sessionData,
+                            error: sessionError
+                        } =
+                            await client.auth.getSession();
+
+
+                        if (
+                            sessionError
+                        ) {
+
+                            throw new Error(
+                                sessionError.message ||
+                                "Gagal membaca session GEN-Z.AI."
+                            );
+
+                        }
+
+
+                        const session =
+                            sessionData?.session ||
+                            null;
+
+
+                        const accessToken =
+                            String(
+                                session?.access_token ||
+                                ""
+                            )
+                            .trim();
+
+
+                        if (!accessToken) {
+
+                            throw new Error(
+                                "Session GEN-Z.AI tidak ditemukan. Silakan login terlebih dahulu."
+                            );
+
+                        }
+
+
+                        showStatus(
+                            "Mendaftarkan account VidDra...",
+                            "warning"
+                        );
+
+
+                        const response =
+                            await fetch(
+                                "/api/viddra/account",
+                                {
+                                    method:
+                                        "POST",
+
+                                    headers: {
+                                        "Content-Type":
+                                            "application/json",
+
+                                        "Accept":
+                                            "application/json",
+
+                                        "Authorization":
+                                            `Bearer ${accessToken}`
+                                    },
+
+                                    credentials:
+                                        "include",
+
+                                    body:
+                                        JSON.stringify({
+                                            email,
+                                            password
+                                        })
+                                }
+                            );
+
+
+                        let data =
+                            null;
+
+
+                        try {
+
+                            data =
+                                await response.json();
+
+                        } catch {
+
+                            data =
+                                null;
+
+                        }
+
+
+                        if (
+                            !response.ok ||
+                            !data?.success
+                        ) {
+
+                            if (
+                                data?.account_exists
+                            ) {
+
+                                throw new Error(
+                                    data.error ||
+                                    "Email VidDra tersebut sudah terdaftar."
+                                );
+
+                            }
+
+
+                            throw new Error(
+                                data?.error ||
+                                `Registrasi VidDra gagal (${response.status}).`
+                            );
+
+                        }
+
+
+                        /* =====================================
+                           ACCOUNT
+                        ====================================== */
+
+                        const account =
+                            data.account ||
+                            {};
+
+
+                        const balance =
+                            data.balance ||
+                            {};
+
+
+                        const accountEmail =
+                            String(
+                                account.email ||
+                                email
+                            )
+                            .trim();
+
+
+                        const balanceUsd =
+                            Number(
+                                balance.balance_usd
+                            );
+
+
+                        accountStatus.textContent =
+                            accountEmail ||
+                            "Connected";
+
+
+                        /* =====================================
+                           CREDIT
+                        ====================================== */
+
+                        if (
+                            Number.isFinite(
+                                balanceUsd
+                            ) &&
+                            balanceUsd > 0
+                        ) {
+
+                            creditStatus.textContent =
+                                formatUsd(
+                                    balanceUsd
+                                );
+
+
+                            generateStatus.textContent =
+                                "Credit aktif";
+
+
+                            showStatus(
+                                `Registrasi VidDra berhasil. Account ${accountEmail} aktif dengan starter credit ${formatUsd(balanceUsd)}. Tahap Generate belum dijalankan.`,
+                                "success"
+                            );
+
+                        } else {
+
+                            creditStatus.textContent =
+                                "Belum tersedia";
+
+
+                            generateStatus.textContent =
+                                "Credit belum tersedia";
+
+
+                            showStatus(
+                                `Account VidDra berhasil dibuat (${accountEmail}), tetapi starter credit belum tersedia. Generate ditahan sampai credit terverifikasi.`,
+                                "warning"
+                            );
+
+                        }
+
+                    } catch (error) {
+
+                        console.error(
+                            "[VidDra] Registration error:",
+                            error
+                        );
+
+
+                        accountStatus.textContent =
+                            "Not connected";
+
+
+                        creditStatus.textContent =
+                            "Not verified";
+
+
+                        generateStatus.textContent =
+                            "Menunggu credit";
+
+
+                        showStatus(
+                            error?.message ||
+                            "Registrasi VidDra gagal.",
+                            "error"
+                        );
+
+                    } finally {
+
+                        setProcessing(
+                            false
+                        );
+
+                    }
 
                 }
             );
 
 
             /* =================================================
-               INITIAL PASSWORD
+               INITIAL VALUES
             ================================================= */
 
             passwordInput.value =
@@ -1472,7 +2207,7 @@
 
     <!-- =====================================================
          NEW NAVIGATION
-    ====================================================== -->
+    ===================================================== -->
 
     <script
         src="/navigation/navigation.js"
