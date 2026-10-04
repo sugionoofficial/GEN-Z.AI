@@ -1,0 +1,1102 @@
+ /* =========================================================
+   GEN-Z.AI VISION
+   ---------------------------------------------------------
+   File:
+   vision/assets/css/vision-responsive.css
+
+   Fungsi:
+   - Responsive desktop
+   - Tablet
+   - Mobile
+   - Small mobile
+   - Safe spacing
+   - Prevent horizontal overflow
+
+   Tidak menangani:
+   - Logic
+   - Navigation
+   - API
+   - Upload
+   - Credit
+   - History
+========================================================= */
+
+
+/* =========================================================
+   LARGE DESKTOP
+========================================================= */
+
+@media (min-width: 1500px) {
+
+    .vision-page {
+
+        padding-left:
+            40px;
+
+        padding-right:
+            40px;
+    }
+
+
+    .vision-workspace {
+
+        gap:
+            26px;
+    }
+
+
+    .vision-panel {
+
+        padding:
+            25px;
+    }
+
+
+    .vision-dropzone {
+
+        min-height:
+            360px;
+    }
+
+
+    .vision-preview,
+    .vision-preview-image {
+
+        min-height:
+            360px;
+
+        height:
+            360px;
+    }
+
+
+    .vision-result-container,
+    .vision-prompt-result {
+
+        min-height:
+            470px;
+    }
+}
+
+
+/* =========================================================
+   DESKTOP
+========================================================= */
+
+@media (min-width: 1101px) {
+
+    .vision-workspace {
+
+        grid-template-columns:
+            minmax(430px, 0.92fr)
+            minmax(500px, 1.08fr);
+    }
+
+
+    .vision-panel {
+
+        min-height:
+            650px;
+    }
+}
+
+
+/* =========================================================
+   TABLET / SMALL DESKTOP
+========================================================= */
+
+@media (max-width: 1100px) {
+
+    .vision-page {
+
+        padding:
+            28px 20px 60px;
+    }
+
+
+    .vision-hero {
+
+        padding:
+            26px;
+    }
+
+
+    .vision-workspace {
+
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr);
+
+        gap:
+            18px;
+    }
+
+
+    .vision-panel {
+
+        padding:
+            19px;
+    }
+
+
+    .vision-dropzone {
+
+        min-height:
+            300px;
+    }
+
+
+    .vision-preview,
+    .vision-preview-image {
+
+        min-height:
+            300px;
+
+        height:
+            300px;
+    }
+
+
+    .vision-result-container,
+    .vision-prompt-result {
+
+        min-height:
+            390px;
+    }
+
+
+    .vision-info-grid {
+
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+}
+
+
+/* =========================================================
+   TABLET PORTRAIT
+========================================================= */
+
+@media (max-width: 900px) {
+
+    .vision-page {
+
+        padding:
+            24px 16px 50px;
+    }
+
+
+    .vision-hero {
+
+        align-items:
+            flex-start;
+
+        flex-direction:
+            column;
+
+        gap:
+            20px;
+    }
+
+
+    .vision-credit-badge {
+
+        width:
+            100%;
+
+        box-sizing:
+            border-box;
+    }
+
+
+    .vision-workspace {
+
+        grid-template-columns:
+            1fr;
+    }
+
+
+    .vision-panel {
+
+        min-height:
+            auto;
+    }
+
+
+    .vision-dropzone {
+
+        min-height:
+            300px;
+    }
+
+
+    .vision-preview,
+    .vision-preview-image {
+
+        min-height:
+            300px;
+
+        height:
+            300px;
+    }
+
+
+    .vision-result-container,
+    .vision-prompt-result {
+
+        min-height:
+            400px;
+    }
+
+
+    .vision-info-grid {
+
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+
+        gap:
+            10px;
+    }
+
+
+    .vision-info-card {
+
+        padding:
+            15px;
+    }
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+
+    .vision-page {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        padding:
+            20px 12px 42px;
+
+        overflow-x:
+            hidden;
+    }
+
+
+    .vision-hero,
+    .vision-workspace,
+    .vision-info-grid {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+    }
+
+
+    .vision-hero {
+
+        margin-bottom:
+            16px;
+
+        padding:
+            21px 18px;
+
+        border-radius:
+            18px;
+    }
+
+
+    .vision-eyebrow {
+
+        margin-bottom:
+            9px;
+
+        font-size:
+            9px;
+
+        letter-spacing:
+            0.17em;
+    }
+
+
+    .vision-title {
+
+        font-size:
+            clamp(28px, 9vw, 42px);
+
+        line-height:
+            1;
+    }
+
+
+    .vision-subtitle {
+
+        margin-top:
+            11px;
+
+        font-size:
+            11px;
+
+        line-height:
+            1.55;
+    }
+
+
+    .vision-credit-badge {
+
+        min-width:
+            0;
+
+        padding:
+            13px 15px;
+    }
+
+
+    .vision-credit-value {
+
+        font-size:
+            20px;
+    }
+
+
+    .vision-workspace {
+
+        display:
+            flex;
+
+        flex-direction:
+            column;
+
+        gap:
+            14px;
+    }
+
+
+    .vision-panel {
+
+        width:
+            100%;
+
+        box-sizing:
+            border-box;
+
+        padding:
+            16px;
+
+        border-radius:
+            17px;
+    }
+
+
+    .vision-panel-header {
+
+        margin-bottom:
+            14px;
+    }
+
+
+    .vision-panel-title {
+
+        font-size:
+            13px;
+    }
+
+
+    .vision-panel-description {
+
+        font-size:
+            10px;
+    }
+
+
+    .vision-dropzone {
+
+        min-height:
+            245px;
+
+        padding:
+            20px 15px;
+
+        border-radius:
+            15px;
+    }
+
+
+    .vision-upload-icon {
+
+        width:
+            54px;
+
+        height:
+            54px;
+
+        margin-bottom:
+            13px;
+
+        border-radius:
+            16px;
+    }
+
+
+    .vision-dropzone-title {
+
+        font-size:
+            13px;
+    }
+
+
+    .vision-dropzone-text {
+
+        max-width:
+            290px;
+
+        font-size:
+            10px;
+    }
+
+
+    .vision-dropzone-hint {
+
+        margin-top:
+            10px;
+
+        font-size:
+            8px;
+    }
+
+
+    .vision-preview {
+
+        min-height:
+            245px;
+
+        border-radius:
+            15px;
+    }
+
+
+    .vision-preview-image {
+
+        width:
+            100%;
+
+        height:
+            245px;
+
+        min-height:
+            245px;
+    }
+
+
+    .vision-preview-overlay {
+
+        padding:
+            38px 12px 11px;
+    }
+
+
+    .vision-preview-name {
+
+        max-width:
+            220px;
+
+        font-size:
+            10px;
+    }
+
+
+    .vision-preview-size {
+
+        font-size:
+            8px;
+    }
+
+
+    .vision-form {
+
+        gap:
+            13px;
+
+        margin-top:
+            14px;
+    }
+
+
+    .vision-form-grid {
+
+        grid-template-columns:
+            1fr;
+
+        gap:
+            12px;
+    }
+
+
+    .vision-field-full {
+
+        grid-column:
+            auto;
+    }
+
+
+    .vision-label {
+
+        margin-bottom:
+            6px;
+
+        font-size:
+            9px;
+    }
+
+
+    .vision-input,
+    .vision-select {
+
+        min-height:
+            42px;
+
+        padding:
+            0 11px;
+
+        font-size:
+            11px;
+    }
+
+
+    .vision-textarea {
+
+        min-height:
+            82px;
+
+        padding:
+            10px 11px;
+
+        font-size:
+            11px;
+    }
+
+
+    .vision-action {
+
+        min-height:
+            48px;
+
+        font-size:
+            11px;
+    }
+
+
+    .vision-credit-notice {
+
+        font-size:
+            9px;
+    }
+
+
+    .vision-result-panel {
+
+        min-height:
+            auto;
+    }
+
+
+    .vision-result-header {
+
+        align-items:
+            flex-start;
+
+        margin-bottom:
+            11px;
+    }
+
+
+    .vision-result-title {
+
+        font-size:
+            13px;
+    }
+
+
+    .vision-status {
+
+        padding:
+            5px 8px;
+
+        font-size:
+            8px;
+    }
+
+
+    .vision-result-container {
+
+        min-height:
+            340px;
+
+        border-radius:
+            14px;
+    }
+
+
+    .vision-prompt-result {
+
+        min-height:
+            340px;
+
+        padding:
+            15px;
+
+        font-size:
+            10px;
+
+        line-height:
+            1.65;
+    }
+
+
+    .vision-prompt-placeholder {
+
+        padding:
+            22px;
+    }
+
+
+    .vision-prompt-placeholder strong {
+
+        font-size:
+            11px;
+    }
+
+
+    .vision-prompt-placeholder span {
+
+        max-width:
+            260px;
+
+        font-size:
+            9px;
+    }
+
+
+    .vision-copy-button {
+
+        min-height:
+            32px;
+
+        padding:
+            0 9px;
+
+        font-size:
+            9px;
+    }
+
+
+    .vision-analysis-details {
+
+        margin-top:
+            10px;
+    }
+
+
+    .vision-analysis-summary {
+
+        min-height:
+            39px;
+
+        padding:
+            0 11px;
+
+        font-size:
+            9px;
+    }
+
+
+    .vision-analysis-result {
+
+        max-height:
+            220px;
+
+        padding:
+            11px;
+
+        font-size:
+            8px;
+    }
+
+
+    .vision-info-grid {
+
+        grid-template-columns:
+            1fr;
+
+        gap:
+            9px;
+
+        margin-top:
+            14px;
+    }
+
+
+    .vision-info-card {
+
+        padding:
+            14px;
+
+        border-radius:
+            13px;
+    }
+
+
+    .vision-info-title {
+
+        margin-bottom:
+            5px;
+
+        font-size:
+            10px;
+    }
+
+
+    .vision-info-text {
+
+        font-size:
+            9px;
+    }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 420px) {
+
+    .vision-page {
+
+        padding:
+            16px 9px 35px;
+    }
+
+
+    .vision-hero {
+
+        padding:
+            18px 14px;
+
+        border-radius:
+            16px;
+    }
+
+
+    .vision-title {
+
+        font-size:
+            27px;
+
+        letter-spacing:
+            -0.04em;
+    }
+
+
+    .vision-subtitle {
+
+        font-size:
+            10px;
+    }
+
+
+    .vision-panel {
+
+        padding:
+            13px;
+
+        border-radius:
+            15px;
+    }
+
+
+    .vision-dropzone {
+
+        min-height:
+            220px;
+
+        padding:
+            18px 11px;
+    }
+
+
+    .vision-upload-icon {
+
+        width:
+            49px;
+
+        height:
+            49px;
+    }
+
+
+    .vision-dropzone-title {
+
+        font-size:
+            12px;
+    }
+
+
+    .vision-dropzone-text {
+
+        font-size:
+            9px;
+    }
+
+
+    .vision-preview,
+    .vision-preview-image {
+
+        min-height:
+            220px;
+
+        height:
+            220px;
+    }
+
+
+    .vision-preview-name {
+
+        max-width:
+            170px;
+    }
+
+
+    .vision-action {
+
+        min-height:
+            46px;
+
+        border-radius:
+            11px;
+    }
+
+
+    .vision-result-container {
+
+        min-height:
+            300px;
+    }
+
+
+    .vision-prompt-result {
+
+        min-height:
+            300px;
+
+        padding:
+            12px;
+
+        font-size:
+            9px;
+    }
+
+
+    .vision-prompt-placeholder {
+
+        padding:
+            17px;
+    }
+
+
+    .vision-empty-icon {
+
+        width:
+            43px;
+
+        height:
+            43px;
+
+        margin-bottom:
+            10px;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+========================================================= */
+
+@media (max-width: 340px) {
+
+    .vision-page {
+
+        padding-left:
+            7px;
+
+        padding-right:
+            7px;
+    }
+
+
+    .vision-panel {
+
+        padding:
+            11px;
+    }
+
+
+    .vision-title {
+
+        font-size:
+            24px;
+    }
+
+
+    .vision-eyebrow {
+
+        font-size:
+            8px;
+    }
+
+
+    .vision-form {
+
+        gap:
+            11px;
+    }
+
+
+    .vision-input,
+    .vision-select {
+
+        min-height:
+            40px;
+
+        font-size:
+            10px;
+    }
+
+
+    .vision-textarea {
+
+        font-size:
+            10px;
+    }
+
+
+    .vision-result-header {
+
+        gap:
+            7px;
+    }
+
+
+    .vision-result-title {
+
+        font-size:
+            12px;
+    }
+
+
+    .vision-status {
+
+        font-size:
+            7px;
+    }
+}
+
+
+/* =========================================================
+   LANDSCAPE MOBILE
+========================================================= */
+
+@media (max-width: 900px)
+and (orientation: landscape)
+and (max-height: 600px) {
+
+    .vision-page {
+
+        padding-top:
+            15px;
+
+        padding-bottom:
+            30px;
+    }
+
+
+    .vision-dropzone {
+
+        min-height:
+            210px;
+    }
+
+
+    .vision-preview,
+    .vision-preview-image {
+
+        min-height:
+            210px;
+
+        height:
+            210px;
+    }
+
+
+    .vision-result-container,
+    .vision-prompt-result {
+
+        min-height:
+            280px;
+    }
+}
+
+
+/* =========================================================
+   SAFE AREA
+   ---------------------------------------------------------
+   Untuk perangkat dengan notch / rounded display.
+========================================================= */
+
+@supports (padding: max(0px)) {
+
+    @media (max-width: 700px) {
+
+        .vision-page {
+
+            padding-left:
+                max(
+                    9px,
+                    env(safe-area-inset-left)
+                );
+
+            padding-right:
+                max(
+                    9px,
+                    env(safe-area-inset-right)
+                );
+
+            padding-bottom:
+                max(
+                    35px,
+                    env(safe-area-inset-bottom)
+                );
+        }
+    }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .vision-page * {
+
+        scroll-behavior:
+            auto !important;
+    }
+}
