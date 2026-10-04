@@ -2439,11 +2439,12 @@
 
 
     <div
-        id="balanceValue"
-        class="balance-value"
-    >
-        <span>$</span>0.0000
-    </div>
+    id="balanceValue"
+    class="balance-value"
+>
+    <span>$</span>...
+</div>
+                        
 
 
     <div
@@ -4802,7 +4803,8 @@ function normalizeClientError(
 
         updatePromptCounter();
 
-        if (
+
+if (
     updateCreditButton
 ) {
 
@@ -4811,14 +4813,24 @@ function normalizeClientError(
         () => {
 
             updateVidDraCredit();
-
         }
     );
 
 }
 
 
-updateVidDraCredit();
+/*
+ * =========================================================
+ * INITIAL VIDDRA CREDIT
+ * ---------------------------------------------------------
+ * Saat halaman Generate dibuka, saldo langsung diambil
+ * dari VidDra.
+ *
+ * Tombol Update Credit hanya untuk refresh manual.
+ * =========================================================
+ */
+
+void updateVidDraCredit();
 
         /* =====================================================
    INITIALIZE API KEY STATUS
