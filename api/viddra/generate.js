@@ -492,6 +492,181 @@ function normalizePrompt(
 
 }
 
+/* =========================================================
+   PROVIDER ERROR MESSAGE
+   ---------------------------------------------------------
+   Memastikan semua bentuk error VidDra menjadi string yang
+   dapat dibaca dan tidak pernah menghasilkan [object Object].
+========================================================= */
+
+function extractVidDraErrorMessage(
+    data
+) {
+
+    const candidates = [
+
+        data?.error,
+
+        data?.message,
+
+        data?.detail,
+
+        data?.error_message,
+
+        data?.data?.error,
+
+        data?.data?.message,
+
+        data?.data?.detail,
+
+        data?.data?.error_message,
+
+        data?.generation?.error,
+
+        data?.generation?.message,
+
+        data?.generation?.detail,
+
+        data?.generation?.error_message,
+
+        data?.data?.generation?.error,
+
+        data?.data?.generation?.message,
+
+        data?.data?.generation?.detail,
+
+        data?.data?.generation?.error_message
+
+    ];
+
+
+    for (
+        const value of candidates
+    ) {
+
+        if (
+            value ===
+                undefined ||
+            value ===
+                null
+        ) {
+
+            continue;
+        }
+
+
+        /*
+         * String biasa.
+         */
+
+        if (
+            typeof value ===
+            "string"
+        ) {
+
+            const message =
+                value.trim();
+
+
+            if (
+                message
+            ) {
+
+                return message;
+            }
+
+            continue;
+        }
+
+
+        /*
+         * Error object VidDra.
+         */
+
+        if (
+            typeof value ===
+            "object"
+        ) {
+
+            const code =
+                String(
+                    value.code ||
+                    value.error_code ||
+                    ""
+                ).trim();
+
+
+            const message =
+                String(
+                    value.message ||
+                    value.detail ||
+                    value.description ||
+                    value.error ||
+                    ""
+                ).trim();
+
+
+            if (
+                code &&
+                message
+            ) {
+
+                return (
+                    `${code}: ${message}`
+                );
+            }
+
+
+            if (
+                message
+            ) {
+
+                return message;
+            }
+
+
+            if (
+                code
+            ) {
+
+                return code;
+            }
+
+
+            try {
+
+                const serialized =
+                    JSON.stringify(
+                        value
+                    );
+
+
+                if (
+                    serialized &&
+                    serialized !==
+                        "{}"
+                ) {
+
+                    return serialized;
+                }
+
+            } catch {
+
+                /*
+                 * Abaikan object yang tidak
+                 * dapat diserialisasi.
+                 */
+
+            }
+
+        }
+
+    }
+
+
+    return "";
+}
+
 
 /* =========================================================
    CREATE VIDDRA GENERATION
@@ -644,42 +819,43 @@ async function createVidDraGeneration(
 
 
     if (
-        !response.ok
-    ) {
+    !response.ok
+) {
 
-        const providerMessage =
-            (
-                data &&
-                typeof data ===
-                    "object"
-            )
-                ? (
-                    data.message ||
-                    data.error ||
-                    data.detail ||
-                    ""
-                )
-                : "";
+    const providerMessage =
+        extractVidDraErrorMessage(
+            data
+        );
 
 
-        const error =
-            new Error(
-                providerMessage ||
-                `VidDra request failed with status ${response.status}`
-            );
+    const error =
+        new Error(
+            providerMessage ||
+            `VidDra request failed with status ${response.status}`
+        );
 
 
-        error.status =
-            response.status;
+    error.status =
+        response.status;
 
 
-        error.data =
-            data;
+    error.code =
+        String(
+            data?.error?.code ||
+            data?.error_code ||
+            data?.code ||
+            data?.data?.error?.code ||
+            "VIDDRA_GENERATE_REQUEST_FAILED"
+        ).trim();
 
 
-        throw error;
+    error.data =
+        data;
 
-    }
+
+    throw error;
+
+}
 
 
     return {
