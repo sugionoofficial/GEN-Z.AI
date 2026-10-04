@@ -594,6 +594,51 @@
         }
 
 
+        /* =====================================================
+           GENERATE VIDDRA BUTTON
+           -----------------------------------------------------
+           Muncul setelah registrasi berhasil dan credit aktif.
+        ====================================================== */
+
+        #generateVidDraButton {
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #16a34a,
+                    #22c55e
+                );
+
+            border:
+                1px solid
+                rgba(67, 229, 155, 0.55);
+
+            color:
+                #ffffff;
+
+            box-shadow:
+                0 10px 30px
+                rgba(34, 197, 94, 0.22);
+
+        }
+
+
+        #generateVidDraButton:hover {
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #15803d,
+                    #16a34a
+                );
+
+            box-shadow:
+                0 12px 34px
+                rgba(34, 197, 94, 0.32);
+
+        }
+
+
         .viddra-button-secondary {
 
             flex:
@@ -890,9 +935,6 @@
 
         /* =====================================================
            ACCOUNT EMAIL
-           -----------------------------------------------------
-           Email panjang diperkecil agar tetap berada
-           di dalam blok Account.
         ====================================================== */
 
         #accountStatus {
@@ -1900,6 +1942,20 @@
 
 
             /* =================================================
+               REGISTER BUTTON STATE
+            ================================================= */
+
+            function setRegisterButtonVisible(
+                visible
+            ) {
+
+                registerButton.hidden =
+                    !visible;
+
+            }
+
+
+            /* =================================================
                GENERATE BUTTON STATE
             ================================================= */
 
@@ -2229,6 +2285,10 @@
                         );
 
 
+                    /* =========================================
+                       CREDIT SUDAH AKTIF
+                    ========================================== */
+
                     if (
                         Number.isFinite(
                             balanceUsd
@@ -2250,6 +2310,17 @@
                             "Credit aktif";
 
 
+                        /*
+                         * Credit sudah tersedia.
+                         * Register disembunyikan.
+                         * Generate VidDra ditampilkan.
+                         */
+
+                        setRegisterButtonVisible(
+                            false
+                        );
+
+
                         setGenerateButtonVisible(
                             true
                         );
@@ -2267,6 +2338,20 @@
                         return;
 
                     }
+
+
+                    /* =========================================
+                       CREDIT MASIH 0
+                    ========================================== */
+
+                    /*
+                     * Register tetap terlihat.
+                     * Generate tetap tersembunyi.
+                     */
+
+                    setRegisterButtonVisible(
+                        true
+                    );
 
 
                     creditStatus.textContent =
@@ -2294,6 +2379,16 @@
                     console.error(
                         "[VidDra] Credit check error:",
                         error
+                    );
+
+
+                    /*
+                     * Jika pemeriksaan gagal,
+                     * jangan mengaktifkan Generate.
+                     */
+
+                    setRegisterButtonVisible(
+                        true
                     );
 
 
@@ -2454,6 +2549,18 @@
                         return;
 
                     }
+
+
+                    /*
+                     * Saat user memulai registrasi baru,
+                     * Register harus tetap tersedia.
+                     * Generate disembunyikan sampai registrasi
+                     * benar-benar berhasil dan credit > 0.
+                     */
+
+                    setRegisterButtonVisible(
+                        true
+                    );
 
 
                     setGenerateButtonVisible(
@@ -2687,6 +2794,19 @@
                                 "Credit aktif";
 
 
+                            /*
+                             * REGISTRASI BERHASIL
+                             * CREDIT TERSEDIA
+                             *
+                             * Register disembunyikan.
+                             * Generate VidDra ditampilkan.
+                             */
+
+                            setRegisterButtonVisible(
+                                false
+                            );
+
+
                             setGenerateButtonVisible(
                                 true
                             );
@@ -2703,6 +2823,16 @@
                                REGISTER BERHASIL
                                CREDIT = 0
                             ================================== */
+
+                            /*
+                             * Register tetap tersedia karena
+                             * credit belum aktif.
+                             */
+
+                            setRegisterButtonVisible(
+                                true
+                            );
+
 
                             creditStatus.textContent =
                                 "Belum tersedia";
@@ -2731,6 +2861,17 @@
                         console.error(
                             "[VidDra] Registration error:",
                             error
+                        );
+
+
+                        /*
+                         * Registrasi gagal:
+                         * Register tetap tampil.
+                         * Generate tetap tersembunyi.
+                         */
+
+                        setRegisterButtonVisible(
+                            true
                         );
 
 
@@ -2780,6 +2921,11 @@
             /* =================================================
                INITIAL VALUES
             ================================================= */
+
+            setRegisterButtonVisible(
+                true
+            );
+
 
             setGenerateButtonVisible(
                 false
