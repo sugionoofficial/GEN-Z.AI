@@ -823,6 +823,9 @@
 
         .status-item {
 
+            min-width:
+                0;
+
             padding:
                 18px;
 
@@ -861,6 +864,12 @@
 
         .status-value {
 
+            min-width:
+                0;
+
+            max-width:
+                100%;
+
             margin-top:
                 7px;
 
@@ -869,6 +878,39 @@
 
             font-weight:
                 800;
+
+            overflow-wrap:
+                anywhere;
+
+            word-break:
+                break-word;
+
+        }
+
+
+        /* =====================================================
+           ACCOUNT EMAIL
+           -----------------------------------------------------
+           Email panjang diperkecil agar tetap berada
+           di dalam blok Account.
+        ====================================================== */
+
+        #accountStatus {
+
+            font-size:
+                13px;
+
+            line-height:
+                1.45;
+
+            max-width:
+                100%;
+
+            overflow-wrap:
+                anywhere;
+
+            word-break:
+                break-word;
 
         }
 
@@ -978,6 +1020,14 @@
 
                 width:
                     100%;
+
+            }
+
+
+            #accountStatus {
+
+                font-size:
+                    12px;
 
             }
 
@@ -2066,12 +2116,6 @@
 
             /* =================================================
                CHECK EXISTING VIDDRA CREDIT
-               -------------------------------------------------
-               PENTING:
-               Fungsi ini TIDAK REGISTER ULANG.
-
-               Hanya memeriksa balance account VidDra
-               yang session-nya sudah tersimpan server-side.
             ================================================= */
 
             async function checkVidDraCredit() {
@@ -2188,10 +2232,6 @@
                         );
 
 
-                    /* =====================================
-                       CREDIT SUDAH ADA
-                    ====================================== */
-
                     if (
                         Number.isFinite(
                             balanceUsd
@@ -2231,10 +2271,6 @@
 
                     }
 
-
-                    /* =====================================
-                       CREDIT MASIH 0
-                    ====================================== */
 
                     creditStatus.textContent =
                         "Belum tersedia";
@@ -2422,14 +2458,6 @@
 
                     }
 
-
-                    /*
-                     * Setiap registrasi baru selalu mulai
-                     * dengan Generate tersembunyi.
-                     *
-                     * Jadi jika register gagal, tombol Generate
-                     * tidak mungkin tertinggal dari percobaan lama.
-                     */
 
                     setGenerateButtonVisible(
                         false
@@ -2677,10 +2705,6 @@
                             /* =================================
                                REGISTER BERHASIL
                                CREDIT = 0
-
-                               Generate TETAP hidden.
-                               Watcher berada tepat di blok
-                               status registrasi.
                             ================================== */
 
                             creditStatus.textContent =
@@ -2712,11 +2736,6 @@
                             error
                         );
 
-
-                        /*
-                         * Register gagal:
-                         * Generate wajib hidden.
-                         */
 
                         setGenerateButtonVisible(
                             false
