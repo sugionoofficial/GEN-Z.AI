@@ -731,6 +731,73 @@
 
 
         /* =====================================================
+           WATCHER
+        ====================================================== */
+
+        .watcher-box {
+
+            margin-top:
+                12px;
+
+            padding:
+                14px;
+
+            border:
+                1px solid
+                rgba(245, 196, 81, 0.22);
+
+            border-radius:
+                12px;
+
+            background:
+                rgba(245, 196, 81, 0.055);
+
+        }
+
+
+        .watcher-title {
+
+            margin:
+                0;
+
+            color:
+                var(--viddra-yellow);
+
+            font-size:
+                13px;
+
+            font-weight:
+                800;
+
+        }
+
+
+        .watcher-copy {
+
+            margin:
+                7px 0 12px;
+
+            color:
+                var(--viddra-muted);
+
+            font-size:
+                12px;
+
+            line-height:
+                1.6;
+
+        }
+
+
+        .watcher-off {
+
+            color:
+                var(--viddra-green);
+
+        }
+
+
+        /* =====================================================
            ACCOUNT STATUS
         ====================================================== */
 
@@ -1127,6 +1194,16 @@
                                     </button>
 
 
+                                    <button
+                                        type="button"
+                                        class="viddra-button viddra-button-secondary"
+                                        id="generateVidDraButton"
+                                        hidden
+                                    >
+                                        Generate VidDra
+                                    </button>
+
+
                                 </div>
 
                             </div>
@@ -1281,6 +1358,12 @@
                 );
 
 
+            const generateVidDraButton =
+                document.getElementById(
+                    "generateVidDraButton"
+                );
+
+
             const form =
                 document.getElementById(
                     "viddraAccountForm"
@@ -1309,6 +1392,18 @@
                 document.getElementById(
                     "generateStatus"
                 );
+
+
+            /* =================================================
+               VIDDRA STATE
+            ================================================= */
+
+            let registeredVidDraEmail =
+                "";
+
+
+            let creditWatcherActive =
+                false;
 
 
             /* =================================================
@@ -1585,11 +1680,6 @@
                 const characters = [];
 
 
-                /*
-                 * Minimal satu karakter
-                 * dari setiap kelompok.
-                 */
-
                 characters.push(
                     upper[
                         randomValues[0] %
@@ -1622,10 +1712,6 @@
                 );
 
 
-                /*
-                 * Isi karakter sisanya.
-                 */
-
                 for (
                     let index = 4;
                     index < length;
@@ -1641,10 +1727,6 @@
 
                 }
 
-
-                /*
-                 * Fisher-Yates shuffle.
-                 */
 
                 for (
                     let index =
@@ -1711,6 +1793,151 @@
             }
 
 
+            function showStatusHtml(
+                html,
+                type = ""
+            ) {
+
+                status.innerHTML =
+                    html;
+
+
+                status.className =
+                    "status visible";
+
+
+                if (type) {
+
+                    status.classList.add(
+                        type
+                    );
+
+                }
+
+            }
+
+
+            /* =================================================
+               ESCAPE HTML
+            ================================================= */
+
+            function escapeHtml(
+                value
+            ) {
+
+                return String(
+                    value ?? ""
+                )
+                    .replace(
+                        /&/g,
+                        "&amp;"
+                    )
+                    .replace(
+                        /</g,
+                        "&lt;"
+                    )
+                    .replace(
+                        />/g,
+                        "&gt;"
+                    )
+                    .replace(
+                        /"/g,
+                        "&quot;"
+                    )
+                    .replace(
+                        /'/g,
+                        "&#039;"
+                    );
+
+            }
+
+
+            /* =================================================
+               GENERATE BUTTON STATE
+            ================================================= */
+
+            function setGenerateButtonVisible(
+                visible
+            ) {
+
+                generateVidDraButton.hidden =
+                    !visible;
+
+            }
+
+
+            /* =================================================
+               WATCHER STATUS
+            ================================================= */
+
+            function renderWatcherStatus(
+                accountEmail,
+                balanceUsd
+            ) {
+
+                creditWatcherActive =
+                    true;
+
+
+                const safeEmail =
+                    escapeHtml(
+                        accountEmail
+                    );
+
+
+                const formattedBalance =
+                    formatUsd(
+                        balanceUsd
+                    );
+
+
+                showStatusHtml(
+                    `
+                        <strong>Registrasi VidDra berhasil.</strong>
+                        Account ${safeEmail} aktif, tetapi starter credit belum tersedia.
+                        <br><br>
+
+                        <div class="watcher-box">
+
+                            <p class="watcher-title">
+                                Mode Pengawas: ON
+                            </p>
+
+                            <p class="watcher-copy">
+                                Credit VidDra saat ini
+                                ${formattedBalance}.
+                                Sistem belum mengaktifkan
+                                Generate sampai credit tersedia.
+                            </p>
+
+                            <button
+                                type="button"
+                                class="viddra-button viddra-button-secondary"
+                                id="retryVidDraCreditButton"
+                            >
+                                Coba Lagi
+                            </button>
+
+                        </div>
+                    `,
+                    "warning"
+                );
+
+            }
+
+
+            /* =================================================
+               WATCHER OFF
+            ================================================= */
+
+            function renderWatcherOff() {
+
+                creditWatcherActive =
+                    false;
+
+            }
+
+
             /* =================================================
                BUTTON STATE
             ================================================= */
@@ -1773,6 +2000,282 @@
                     "$" +
                     number.toFixed(4)
                 );
+
+            }
+
+
+            /* =================================================
+               GET GEN-Z SESSION TOKEN
+            ================================================= */
+
+            async function getAccessToken() {
+
+                const client =
+                    getSupabaseClient();
+
+
+                if (!client) {
+
+                    throw new Error(
+                        "Supabase client GEN-Z.AI tidak tersedia."
+                    );
+
+                }
+
+
+                const {
+                    data: sessionData,
+                    error: sessionError
+                } =
+                    await client.auth.getSession();
+
+
+                if (
+                    sessionError
+                ) {
+
+                    throw new Error(
+                        sessionError.message ||
+                        "Gagal membaca session GEN-Z.AI."
+                    );
+
+                }
+
+
+                const accessToken =
+                    String(
+                        sessionData?.session?.access_token ||
+                        ""
+                    )
+                    .trim();
+
+
+                if (!accessToken) {
+
+                    throw new Error(
+                        "Session GEN-Z.AI tidak ditemukan. Silakan login terlebih dahulu."
+                    );
+
+                }
+
+
+                return accessToken;
+
+            }
+
+
+            /* =================================================
+               CHECK EXISTING VIDDRA CREDIT
+               -------------------------------------------------
+               PENTING:
+               Fungsi ini TIDAK REGISTER ULANG.
+
+               Hanya memeriksa balance account VidDra
+               yang session-nya sudah tersimpan server-side.
+            ================================================= */
+
+            async function checkVidDraCredit() {
+
+                if (
+                    !registeredVidDraEmail
+                ) {
+
+                    showStatus(
+                        "Account VidDra belum terdaftar pada halaman ini.",
+                        "warning"
+                    );
+
+
+                    return;
+
+                }
+
+
+                try {
+
+                    const retryButton =
+                        document.getElementById(
+                            "retryVidDraCreditButton"
+                        );
+
+
+                    if (
+                        retryButton
+                    ) {
+
+                        retryButton.disabled =
+                            true;
+
+                        retryButton.textContent =
+                            "Memeriksa...";
+
+                    }
+
+
+                    showStatus(
+                        "Memeriksa ulang starter credit VidDra...",
+                        "warning"
+                    );
+
+
+                    const accessToken =
+                        await getAccessToken();
+
+
+                    const response =
+                        await fetch(
+                            "/api/viddra/account",
+                            {
+
+                                method:
+                                    "GET",
+
+                                headers: {
+
+                                    "Accept":
+                                        "application/json",
+
+                                    "Authorization":
+                                        `Bearer ${accessToken}`
+
+                                },
+
+                                credentials:
+                                    "include"
+
+                            }
+                        );
+
+
+                    let data =
+                        null;
+
+
+                    try {
+
+                        data =
+                            await response.json();
+
+                    } catch {
+
+                        data =
+                            null;
+
+                    }
+
+
+                    if (
+                        !response.ok ||
+                        !data?.success
+                    ) {
+
+                        throw new Error(
+                            data?.error ||
+                            `Gagal memeriksa credit VidDra (${response.status}).`
+                        );
+
+                    }
+
+
+                    const balance =
+                        data.balance ||
+                        {};
+
+
+                    const balanceUsd =
+                        Number(
+                            balance.balance_usd
+                        );
+
+
+                    /* =====================================
+                       CREDIT SUDAH ADA
+                    ====================================== */
+
+                    if (
+                        Number.isFinite(
+                            balanceUsd
+                        ) &&
+                        balanceUsd > 0
+                    ) {
+
+                        creditWatcherActive =
+                            false;
+
+
+                        creditStatus.textContent =
+                            formatUsd(
+                                balanceUsd
+                            );
+
+
+                        generateStatus.textContent =
+                            "Credit aktif";
+
+
+                        setGenerateButtonVisible(
+                            true
+                        );
+
+
+                        renderWatcherOff();
+
+
+                        showStatus(
+                            `Registrasi VidDra berhasil. Account ${registeredVidDraEmail} aktif dengan starter credit ${formatUsd(balanceUsd)}. Tahap Generate belum dijalankan.`,
+                            "success"
+                        );
+
+
+                        return;
+
+                    }
+
+
+                    /* =====================================
+                       CREDIT MASIH 0
+                    ====================================== */
+
+                    creditStatus.textContent =
+                        "Belum tersedia";
+
+
+                    generateStatus.textContent =
+                        "Credit belum tersedia";
+
+
+                    setGenerateButtonVisible(
+                        false
+                    );
+
+
+                    renderWatcherStatus(
+                        registeredVidDraEmail,
+                        Number.isFinite(balanceUsd)
+                            ? balanceUsd
+                            : 0
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        "[VidDra] Credit check error:",
+                        error
+                    );
+
+
+                    setGenerateButtonVisible(
+                        false
+                    );
+
+
+                    showStatus(
+                        error?.message ||
+                        "Gagal memeriksa starter credit VidDra.",
+                        "error"
+                    );
+
+                }
 
             }
 
@@ -1857,6 +2360,50 @@
 
 
             /* =================================================
+               GENERATE VIDDRA BUTTON
+            ================================================= */
+
+            generateVidDraButton.addEventListener(
+                "click",
+                () => {
+
+                    window.location.href =
+                        "/viddra/generate/";
+
+                }
+            );
+
+
+            /* =================================================
+               WATCHER RETRY
+            ================================================= */
+
+            status.addEventListener(
+                "click",
+                event => {
+
+                    const retryButton =
+                        event.target.closest(
+                            "#retryVidDraCreditButton"
+                        );
+
+
+                    if (
+                        !retryButton
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    checkVidDraCredit();
+
+                }
+            );
+
+
+            /* =================================================
                REGISTER VIDDRA
             ================================================= */
 
@@ -1874,6 +2421,27 @@
                         return;
 
                     }
+
+
+                    /*
+                     * Setiap registrasi baru selalu mulai
+                     * dengan Generate tersembunyi.
+                     *
+                     * Jadi jika register gagal, tombol Generate
+                     * tidak mungkin tertinggal dari percobaan lama.
+                     */
+
+                    setGenerateButtonVisible(
+                        false
+                    );
+
+
+                    creditWatcherActive =
+                        false;
+
+
+                    registeredVidDraEmail =
+                        "";
 
 
                     const email =
@@ -1946,58 +2514,8 @@
                         );
 
 
-                        const client =
-                            getSupabaseClient();
-
-
-                        if (!client) {
-
-                            throw new Error(
-                                "Supabase client GEN-Z.AI tidak tersedia."
-                            );
-
-                        }
-
-
-                        const {
-                            data: sessionData,
-                            error: sessionError
-                        } =
-                            await client.auth.getSession();
-
-
-                        if (
-                            sessionError
-                        ) {
-
-                            throw new Error(
-                                sessionError.message ||
-                                "Gagal membaca session GEN-Z.AI."
-                            );
-
-                        }
-
-
-                        const session =
-                            sessionData?.session ||
-                            null;
-
-
                         const accessToken =
-                            String(
-                                session?.access_token ||
-                                ""
-                            )
-                            .trim();
-
-
-                        if (!accessToken) {
-
-                            throw new Error(
-                                "Session GEN-Z.AI tidak ditemukan. Silakan login terlebih dahulu."
-                            );
-
-                        }
+                            await getAccessToken();
 
 
                         showStatus(
@@ -2010,10 +2528,12 @@
                             await fetch(
                                 "/api/viddra/account",
                                 {
+
                                     method:
                                         "POST",
 
                                     headers: {
+
                                         "Content-Type":
                                             "application/json",
 
@@ -2022,6 +2542,7 @@
 
                                         "Authorization":
                                             `Bearer ${accessToken}`
+
                                     },
 
                                     credentials:
@@ -2032,6 +2553,7 @@
                                             email,
                                             password
                                         })
+
                                 }
                             );
 
@@ -2106,13 +2628,17 @@
                             );
 
 
+                        registeredVidDraEmail =
+                            accountEmail;
+
+
                         accountStatus.textContent =
                             accountEmail ||
                             "Connected";
 
 
                         /* =====================================
-                           CREDIT
+                           CREDIT AKTIF
                         ====================================== */
 
                         if (
@@ -2121,6 +2647,10 @@
                             ) &&
                             balanceUsd > 0
                         ) {
+
+                            creditWatcherActive =
+                                false;
+
 
                             creditStatus.textContent =
                                 formatUsd(
@@ -2132,12 +2662,26 @@
                                 "Credit aktif";
 
 
+                            setGenerateButtonVisible(
+                                true
+                            );
+
+
                             showStatus(
                                 `Registrasi VidDra berhasil. Account ${accountEmail} aktif dengan starter credit ${formatUsd(balanceUsd)}. Tahap Generate belum dijalankan.`,
                                 "success"
                             );
 
                         } else {
+
+                            /* =================================
+                               REGISTER BERHASIL
+                               CREDIT = 0
+
+                               Generate TETAP hidden.
+                               Watcher berada tepat di blok
+                               status registrasi.
+                            ================================== */
 
                             creditStatus.textContent =
                                 "Belum tersedia";
@@ -2147,9 +2691,16 @@
                                 "Credit belum tersedia";
 
 
-                            showStatus(
-                                `Account VidDra berhasil dibuat (${accountEmail}), tetapi starter credit belum tersedia. Generate ditahan sampai credit terverifikasi.`,
-                                "warning"
+                            setGenerateButtonVisible(
+                                false
+                            );
+
+
+                            renderWatcherStatus(
+                                accountEmail,
+                                Number.isFinite(balanceUsd)
+                                    ? balanceUsd
+                                    : 0
                             );
 
                         }
@@ -2160,6 +2711,24 @@
                             "[VidDra] Registration error:",
                             error
                         );
+
+
+                        /*
+                         * Register gagal:
+                         * Generate wajib hidden.
+                         */
+
+                        setGenerateButtonVisible(
+                            false
+                        );
+
+
+                        registeredVidDraEmail =
+                            "";
+
+
+                        creditWatcherActive =
+                            false;
 
 
                         accountStatus.textContent =
@@ -2195,6 +2764,11 @@
             /* =================================================
                INITIAL VALUES
             ================================================= */
+
+            setGenerateButtonVisible(
+                false
+            );
+
 
             passwordInput.value =
                 generateRandomPassword();
