@@ -10,7 +10,7 @@
    - JSON extraction
    - Quality validation
    - Analyze image
-   - Retry jika output terpotong / tidak lengkap
+   - Retry incomplete analysis
 ========================================================= */
 
 
@@ -86,26 +86,6 @@ The returned JSON MUST contain actual observable information.
 
 Do NOT return an empty schema.
 
-Do NOT return:
-
-{
-  "subject": {},
-  "appearance": {},
-  "face_hair": {},
-  "pose": {},
-  "clothing": {},
-  "product": {},
-  "composition": {},
-  "camera": {},
-  "lighting": {},
-  "environment": {},
-  "background": {},
-  "visual_style": {},
-  "image_quality": {}
-}
-
-with all fields empty.
-
 If a category is genuinely not applicable, use:
 
 {
@@ -121,38 +101,19 @@ or:
 But all categories that are visibly applicable MUST contain
 concrete observations.
 
-IMPORTANT OUTPUT COMPLETENESS RULE:
+COMPLETENESS REQUIREMENT:
 
-The JSON object MUST be completely closed before you finish.
+The JSON MUST be completely finished.
 
 Do NOT stop in the middle of a property name.
 
 Do NOT stop in the middle of a string.
 
+Do NOT stop before all applicable categories are completed.
+
 Do NOT stop before the final closing braces and brackets.
 
-The following fields MUST appear in the final JSON:
-
-subject
-appearance
-face_hair
-pose
-clothing
-accessories
-product
-composition
-camera
-lighting
-shadows
-environment
-background
-color_palette
-visual_style
-text_branding
-image_quality
-important_details
-spatial_relationships
-uncertainties
+The response is INVALID if the JSON is incomplete.
 
 Return valid JSON only.
 
@@ -308,19 +269,19 @@ specific observations.
 
 Do NOT return an empty JSON schema.
 
-CRITICAL:
+IMPORTANT:
 
 Complete the ENTIRE JSON object.
 
-Do not stop before all required categories are present.
+All object properties and arrays must be properly closed.
 
-Do not truncate a property name or string.
+Do not stop in the middle of a property.
 
-The response is invalid if the JSON is incomplete.
+Do not stop in the middle of a string.
+
+Do not use Markdown.
 
 Return ONLY valid JSON.
-
-Do not use Markdown code fences.
 
 Do not write any explanation outside the JSON.
 `.trim();
@@ -749,7 +710,7 @@ function extractAnalysisJSON(
 
 
     /* -----------------------------------------------------
-       2. MARKDOWN CODE FENCE
+       2. CODE FENCE
     ----------------------------------------------------- */
 
     const fenced =
@@ -1104,11 +1065,14 @@ function countAnalysisFacts(
             (
                 total,
                 item
-            ) =>
-                total +
-                countAnalysisFacts(
-                    item
-                ),
+            ) => {
+
+                return total +
+                    countAnalysisFacts(
+                        item
+                    );
+
+            },
             0
         );
 
@@ -1240,16 +1204,11 @@ function countPopulatedAnalysisCategories(
 
                 if (
                     typeof value === "object" &&
-                    !Array.isArray(value)
+                    !Array.isArray(value) &&
+                    value.present === false
                 ) {
 
-                    if (
-                        value.present === false
-                    ) {
-
-                        return total;
-
-                    }
+                    return total;
 
                 }
 
@@ -1476,13 +1435,9 @@ function validateAnalysisQuality(
 
 
     const topLevelKeys =
-        extraction.parsed &&
-        typeof extraction.parsed === "object" &&
-        !Array.isArray(extraction.parsed)
-            ? Object.keys(
-                extraction.parsed
-            )
-            : [];
+        Object.keys(
+            extraction.parsed
+        );
 
 
     console.debug(
@@ -1572,14 +1527,6 @@ function validateAnalysisQuality(
     }
 
 
-    /*
-     * Untuk analysis dengan struktur lengkap,
-     * minimal beberapa kategori harus benar-benar terisi.
-     *
-     * Jangan mensyaratkan seluruh 20 kategori karena
-     * beberapa memang dapat legitimately berisi present:false.
-     */
-
     if (
         populatedCategories < 5
     ) {
@@ -1643,7 +1590,7 @@ function validateAnalysisQuality(
 
 
 /* =========================================================
-   BUILD ANALYSIS REQUEST
+   BUILD REQUEST
 ========================================================= */
 
 function buildAnalysisRequest(
@@ -1671,6 +1618,85 @@ function buildAnalysisRequest(
             false
 
     };
+
+}
+
+
+/* =========================================================
+   BUILD RETRY MESSAGES
+========================================================= */
+
+function buildRetryMessages(
+    settings,
+    models,
+    file
+) {
+
+    const retryInstruction = `
+=========================================================
+RETRY: COMPLETE JSON REQUIRED
+=========================================================
+
+The previous Vision Analysis response was incomplete or
+could not be parsed as a complete structured JSON object.
+
+Analyze the SAME reference image again.
+
+Prioritize:
+
+1. Complete valid JSON.
+2. Concrete visual observations.
+3. All applicable analysis categories.
+4. Properly closed objects and arrays.
+5. Complete strings.
+
+NEVER stop in the middle of a property name.
+
+NEVER stop in the middle of a string.
+
+NEVER stop before the final closing braces.
+
+Do not summarize.
+
+Do not explain.
+
+Return ONLY the complete JSON object.
+`.trim();
+
+
+    return [
+
+        {
+
+            role:
+                "system",
+
+            content:
+                buildAnalysisSystemPrompt()
+
+        },
+
+        {
+
+            role:
+                "user",
+
+            content:
+                models.buildImageMessage(
+
+                    `${buildAnalysisUserPrompt(
+                        settings
+                    )}
+
+${retryInstruction}`,
+
+                    file.dataUrl
+
+                )
+
+        }
+
+    ];
 
 }
 
@@ -1746,7 +1772,7 @@ async function analyzeImage(
         );
 
 
-    const messages = [
+    const initialMessages = [
 
         {
 
@@ -1781,8 +1807,6 @@ async function analyzeImage(
 
     /* -----------------------------------------------------
        TOKEN BUDGET
-       -----------------------------------------------------
-       Vision JSON cukup besar. Gunakan minimum 8192.
     ----------------------------------------------------- */
 
     const configuredMaxTokens =
@@ -1816,14 +1840,14 @@ async function analyzeImage(
         "[GEN-Z.AI Vision] Vision Analysis configuration:",
         {
 
+            model:
+                model.id,
+
             configuredMaxTokens,
 
             analysisMaxTokens,
 
-            maxAttempts,
-
-            model:
-                model.id
+            maxAttempts
 
         }
     );
@@ -1849,6 +1873,16 @@ async function analyzeImage(
         attempt++
     ) {
 
+        const messages =
+            attempt === 1
+                ? initialMessages
+                : buildRetryMessages(
+                    settings,
+                    models,
+                    file
+                );
+
+
         console.info(
             "[GEN-Z.AI Vision] Starting visual-analysis attempt:",
             {
@@ -1864,158 +1898,6 @@ async function analyzeImage(
         );
 
 
-        let requestMessages =
-            messages;
-
-
-        /*
-         * Pada retry, berikan instruksi khusus agar model
-         * menyelesaikan JSON sampai penutup terakhir.
-         */
-
-        if (
-            attempt > 1
-        ) {
-
-            requestMessages = [
-
-                {
-
-                    role:
-                        "system",
-
-                    content:
-                        buildAnalysisSystemPrompt()
-
-                },
-
-                {
-
-                    role:
-                        "user",
-
-                    content:
-                        `${buildAnalysisUserPrompt(
-                            settings
-                        )}
-
-=========================================================
-RETRY COMPLETENESS REQUIREMENT
-=========================================================
-
-Percobaan sebelumnya menghasilkan output yang tidak dapat
-digunakan sebagai JSON lengkap.
-
-Ulangi analisis dari reference image.
-
-Kali ini prioritaskan:
-
-1. JSON VALID
-2. SEMUA KATEGORI TERISI SESUAI VISIBILITAS
-3. SEMUA STRING HARUS SELESAI
-4. OBJECT DAN ARRAY HARUS DITUTUP
-5. JSON HARUS BERAKHIR DENGAN PENUTUP YANG VALID
-
-Jangan berhenti di tengah property.
-
-Jangan berhenti di tengah kalimat.
-
-Jangan menghasilkan Markdown.
-
-Return ONLY the complete JSON object.
-`.trim(),
-
-                    content:
-                        models.buildImageMessage(
-
-                            `${buildAnalysisUserPrompt(
-                                settings
-                            )}
-
-=========================================================
-RETRY COMPLETENESS REQUIREMENT
-=========================================================
-
-Percobaan sebelumnya menghasilkan output yang tidak dapat
-digunakan sebagai JSON lengkap.
-
-Ulangi analisis dari reference image.
-
-Prioritaskan JSON VALID dan LENGKAP.
-
-Semua object dan array harus ditutup.
-
-Jangan berhenti di tengah property atau string.
-
-Return ONLY the complete JSON object.
-`.trim(),
-
-                    image:
-                        undefined
-
-                }
-
-            ];
-
-            /*
-             * Jangan menggunakan struktur retry di atas.
-             * Rebuild message dengan format yang sama seperti
-             * provider image-message sebelumnya.
-             */
-
-            requestMessages = [
-
-                {
-
-                    role:
-                        "system",
-
-                    content:
-                        buildAnalysisSystemPrompt()
-
-                },
-
-                {
-
-                    role:
-                        "user",
-
-                    content:
-                        models.buildImageMessage(
-
-                            `${buildAnalysisUserPrompt(
-                                settings
-                            )}
-
-=========================================================
-RETRY COMPLETENESS REQUIREMENT
-=========================================================
-
-Percobaan sebelumnya menghasilkan output yang tidak dapat
-digunakan sebagai JSON lengkap.
-
-Ulangi analisis dari reference image.
-
-Prioritaskan JSON VALID dan LENGKAP.
-
-Semua object dan array harus ditutup.
-
-Jangan berhenti di tengah property atau string.
-
-Return ONLY the complete JSON object.
-`.trim(),
-
-                            file.dataUrl
-
-                        )
-
-                }
-
-            ];
-
-        }
-
-
         console.info(
             "[GEN-Z.AI Vision] Sending visual-analysis request:",
             {
@@ -2026,7 +1908,7 @@ Return ONLY the complete JSON object.
                     model.id,
 
                 messageCount:
-                    requestMessages.length,
+                    messages.length,
 
                 hasReferenceImage:
                     Boolean(
@@ -2059,7 +1941,7 @@ Return ONLY the complete JSON object.
 
                     buildAnalysisRequest(
                         model,
-                        requestMessages,
+                        messages,
                         analysisMaxTokens,
                         core
                     ),
@@ -2224,11 +2106,6 @@ Return ONLY the complete JSON object.
                 }
             );
 
-
-            /*
-             * Simpan error terakhir agar dapat dilempar
-             * setelah seluruh retry selesai.
-             */
 
             lastQuality = {
 
