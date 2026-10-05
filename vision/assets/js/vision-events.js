@@ -12,6 +12,7 @@
 // - Drag & drop reference image
 // - Drag & drop replacement character
 // - Form settings
+// - Outfit source
 // - Generate Vision
 // - Copy prompt
 // - Remove reference image
@@ -384,6 +385,211 @@
 
 
     // =====================================================
+    // OUTFIT SOURCE
+    // =====================================================
+
+    function syncOutfitSourceToState() {
+
+        const state =
+            getState();
+
+
+        const dom =
+            getDOM();
+
+
+        /*
+         * Outfit source bersifat opsional dari sisi
+         * DOM agar Vision tetap kompatibel apabila
+         * halaman belum memiliki kontrol outfit.
+         */
+
+        if (
+            !dom.outfitSource
+        ) {
+
+            if (
+                typeof state.getOutfitSource ===
+                "function"
+            ) {
+
+                return state.getOutfitSource();
+
+            }
+
+
+            return "reference";
+
+        }
+
+
+        /*
+         * Dukungan untuk:
+         *
+         * 1. <select>
+         * 2. radio input tunggal
+         * 3. NodeList / HTMLCollection radio
+         */
+
+        let selectedValue =
+            "";
+
+
+        if (
+            typeof dom.outfitSource.value ===
+            "string"
+        ) {
+
+            selectedValue =
+                dom.outfitSource.value;
+
+        }
+
+
+        /*
+         * Jika DOM memberikan collection,
+         * cari radio yang checked.
+         */
+
+        if (
+            !selectedValue &&
+            typeof dom.outfitSource.length ===
+            "number"
+        ) {
+
+            const selected =
+                Array.from(
+                    dom.outfitSource
+                ).find(
+                    item =>
+                        item?.checked === true
+                );
+
+
+            if (selected) {
+
+                selectedValue =
+                    selected.value;
+
+            }
+
+        }
+
+
+        const normalized =
+            String(
+                selectedValue ||
+                "reference"
+            )
+                .trim()
+                .toLowerCase();
+
+
+        const outfitSource =
+            normalized === "character"
+                ? "character"
+                : "reference";
+
+
+        if (
+            typeof state.setOutfitSource ===
+            "function"
+        ) {
+
+            state.setOutfitSource(
+                outfitSource
+            );
+
+        }
+
+
+        return outfitSource;
+
+    }
+
+
+    // =====================================================
+    // OUTFIT SOURCE CHANGE
+    // =====================================================
+
+    function handleOutfitSourceChange() {
+
+        const state =
+            getState();
+
+
+        const dom =
+            getDOM();
+
+
+        if (
+            !dom.outfitSource
+        ) {
+
+            return;
+
+        }
+
+
+        const outfitSource =
+            syncOutfitSourceToState();
+
+
+        /*
+         * Analysis gambar tidak perlu diulang.
+         *
+         * Yang berubah hanya aturan outfit yang akan
+         * digunakan ketika prompt dibuat.
+         *
+         * Prompt lama harus dibersihkan agar tidak
+         * dianggap sebagai hasil dari pilihan baru.
+         */
+
+        if (
+            typeof state.clearPrompt ===
+            "function"
+        ) {
+
+            state.clearPrompt();
+
+        }
+
+
+        /*
+         * Jika UI mempunyai fungsi untuk menyembunyikan
+         * hasil prompt lama, gunakan secara aman.
+         *
+         * Tidak dipaksa karena modul UI Anda dapat
+         * memiliki implementasi berbeda.
+         */
+
+        const ui =
+            getUI();
+
+
+        if (
+            outfitSource ===
+            "character"
+        ) {
+
+            ui.setStatus(
+                "ready",
+                "Outfit akan menggunakan replacement character."
+            );
+
+        } else {
+
+            ui.setStatus(
+                "ready",
+                "Outfit akan menggunakan image reference."
+            );
+
+        }
+
+    }
+
+
+    // =====================================================
     // FORM -> STATE
     // =====================================================
 
@@ -413,6 +619,20 @@
                 values.instruction
 
         });
+
+
+        /*
+         * Sinkronkan sumber outfit.
+         *
+         * Default tetap:
+         *
+         * reference
+         *
+         * sehingga halaman lama tetap bekerja apabila
+         * kontrol outfit belum tersedia.
+         */
+
+        syncOutfitSourceToState();
 
     }
 
@@ -2024,6 +2244,17 @@
 
 
         // ================================================
+        // OUTFIT SOURCE
+        // ================================================
+
+        bindEvent(
+            dom.outfitSource,
+            "change",
+            handleOutfitSourceChange
+        );
+
+
+        // ================================================
         // GENERATE
         // ================================================
 
@@ -2135,6 +2366,10 @@
             bindEvents,
 
             syncFormToState,
+
+            syncOutfitSourceToState,
+
+            handleOutfitSourceChange,
 
             handleNewImage,
 
