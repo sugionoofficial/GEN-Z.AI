@@ -1,31 +1,25 @@
 /* =========================================================
-   GEN-Z.AI VISION
+   GEN-Z.AI
+   VISION DOM
    ---------------------------------------------------------
    File:
    vision/assets/js/vision-dom.js
 
    Fungsi:
-   - Mengambil seluruh element DOM Vision
-   - Menjadi single DOM registry
-   - Validasi element wajib
-   - Helper DOM sederhana
-
-   Tidak menangani:
-   - API
-   - Supabase
-   - Upload
-   - Credit
-   - History
-   - Analysis
-   - Prompt generation
+   - Central DOM registry untuk Vision Engine
+   - Menyediakan akses element yang konsisten
+   - Menjaga kompatibilitas DOM lama
+   - Mendukung Reference Image
+   - Mendukung Replacement Character Image
+   - Tidak mengubah logic upload / preview / API
 ========================================================= */
 
 
 /* =========================================================
-   DOM SELECTOR
+   DOM IDS
 ========================================================= */
 
-const VISION_DOM_IDS = Object.freeze({
+const VISION_DOM_IDS = {
 
     /* =====================================================
        PAGE
@@ -47,7 +41,7 @@ const VISION_DOM_IDS = Object.freeze({
 
 
     /* =====================================================
-       UPLOAD
+       REFERENCE IMAGE
     ===================================================== */
 
     dropzone:
@@ -68,9 +62,6 @@ const VISION_DOM_IDS = Object.freeze({
     previewImage:
         "visionPreviewImage",
 
-    /*
-     * Sesuai dengan ID aktual di vision/index.html
-     */
     previewName:
         "visionFileName",
 
@@ -82,7 +73,45 @@ const VISION_DOM_IDS = Object.freeze({
 
 
     /* =====================================================
-       FORM
+       REPLACEMENT CHARACTER IMAGE
+       -----------------------------------------------------
+       Element ini akan digunakan ketika HTML replacement
+       character sudah ditambahkan.
+
+       Sengaja TIDAK dimasukkan ke required DOM karena
+       halaman saat ini belum memiliki element tersebut.
+    ===================================================== */
+
+    characterDropzone:
+        "visionCharacterDropzone",
+
+    characterFileInput:
+        "visionCharacterFileInput",
+
+    characterBrowseButton:
+        "visionCharacterBrowseButton",
+
+    characterUploadState:
+        "visionCharacterUploadState",
+
+    characterPreviewState:
+        "visionCharacterPreviewState",
+
+    characterPreviewImage:
+        "visionCharacterPreviewImage",
+
+    characterPreviewName:
+        "visionCharacterFileName",
+
+    characterPreviewSize:
+        "visionCharacterFileSize",
+
+    characterRemoveButton:
+        "visionCharacterRemoveButton",
+
+
+    /* =====================================================
+       SETTINGS
     ===================================================== */
 
     model:
@@ -125,6 +154,11 @@ const VISION_DOM_IDS = Object.freeze({
     statusText:
         "visionStatusText",
 
+
+    /* =====================================================
+       PROGRESS
+    ===================================================== */
+
     progress:
         "visionProgress",
 
@@ -136,7 +170,7 @@ const VISION_DOM_IDS = Object.freeze({
 
 
     /* =====================================================
-       RESULT
+       PROMPT
     ===================================================== */
 
     promptPlaceholder:
@@ -148,92 +182,101 @@ const VISION_DOM_IDS = Object.freeze({
     copyButton:
         "visionCopyButton",
 
+    promptContainer:
+        "visionPromptContainer",
+
+
+    /* =====================================================
+       ANALYSIS
+    ===================================================== */
+
     analysisDetails:
         "visionAnalysisDetails",
 
     analysisResult:
         "visionAnalysisResult",
 
-    promptContainer:
-        "visionPromptContainer",
+
+    /* =====================================================
+       NOTICE
+    ===================================================== */
 
     creditNotice:
         "visionCreditNotice"
-
-});
+};
 
 
 /* =========================================================
-   REQUIRED ELEMENTS
+   REQUIRED DOM
+   ---------------------------------------------------------
+   Hanya element yang memang sudah ada pada HTML saat ini.
+   
+   Replacement Character TIDAK dimasukkan di sini dulu.
 ========================================================= */
 
-const VISION_REQUIRED_DOM_KEYS = Object.freeze([
+const VISION_REQUIRED_DOM_KEYS = [
 
+    /* Page */
     "page",
 
-    "creditBadge",
 
+    /* Credit */
+    "creditBadge",
     "creditValue",
 
+
+    /* Reference Image */
     "dropzone",
-
     "fileInput",
-
     "browseButton",
-
     "uploadState",
-
     "previewState",
-
     "previewImage",
-
     "previewName",
-
     "previewSize",
-
     "removeButton",
 
+
+    /* Settings */
     "model",
-
     "detail",
-
     "purpose",
-
     "instruction",
 
+
+    /* Action */
     "generateButton",
-
     "generateButtonText",
-
     "generateSpinner",
 
+
+    /* Status */
     "status",
-
     "statusIndicator",
-
     "statusText",
 
+
+    /* Progress */
     "progress",
-
     "progressBar",
-
     "progressText",
 
+
+    /* Prompt */
     "promptPlaceholder",
-
     "promptResult",
-
     "copyButton",
-
-    "analysisDetails",
-
-    "analysisResult",
-
     "promptContainer",
 
-    "creditNotice"
 
-]);
+    /* Analysis */
+    "analysisDetails",
+    "analysisResult",
+
+
+    /* Notice */
+    "creditNotice"
+];
 
 
 /* =========================================================
@@ -244,100 +287,65 @@ let DOM = null;
 
 
 /* =========================================================
-   GET ELEMENT
+   ELEMENT LOOKUP
 ========================================================= */
 
-function getElement(
-    id
-) {
+function getElement(id) {
 
-    if (
-        !id ||
-        typeof id !== "string"
-    ) {
-
+    if (!id) {
         return null;
-
     }
 
-
-    return document.getElementById(
-        id
-    );
-
+    return document.getElementById(id);
 }
 
 
 /* =========================================================
-   BUILD DOM CACHE
+   BUILD DOM
 ========================================================= */
 
 function buildDOM() {
 
-    const elements = {};
+    const registry = {};
 
+    Object.entries(VISION_DOM_IDS).forEach(
+        ([key, id]) => {
 
-    for (
-        const [
-            key,
-            id
-        ]
-        of Object.entries(
-            VISION_DOM_IDS
-        )
-    ) {
+            registry[key] = getElement(id);
 
-        elements[key] =
-            getElement(
-                id
-            );
+        }
+    );
 
-    }
-
-
-    DOM =
-        Object.freeze(
-            elements
-        );
-
+    DOM = registry;
 
     return DOM;
-
 }
 
 
 /* =========================================================
-   CHECK CACHE INTEGRITY
+   CACHE INTEGRITY CHECK
    ---------------------------------------------------------
-   Jika cache sebelumnya dibuat terlalu awal, beberapa
-   element dapat bernilai null.
+   DOM sebelumnya bisa terbentuk terlalu awal ketika script
+   berjalan sebelum seluruh HTML selesai tersedia.
 
-   Cache harus dibangun ulang setelah element DOM tersedia.
+   Jika element required masih null, registry akan dibangun
+   ulang ketika diminta.
 ========================================================= */
 
 function hasMissingCachedElements() {
 
     if (!DOM) {
-
         return true;
-
     }
 
-
     return VISION_REQUIRED_DOM_KEYS.some(
-        key =>
-            !DOM[key]
+        key => !DOM[key]
     );
-
 }
 
 
 /* =========================================================
    GET DOM
-   ---------------------------------------------------------
-   FIX:
-   Jangan mempertahankan cache lama jika sebelumnya dibuat
-   sebelum seluruh HTML Vision tersedia.
 ========================================================= */
 
 function getDOM() {
@@ -351,28 +359,22 @@ function getDOM() {
 
     }
 
-
     return DOM;
-
 }
 
 
 /* =========================================================
-   CHECK REQUIRED DOM
+   GET MISSING REQUIRED ELEMENTS
 ========================================================= */
 
 function getMissingRequiredElements() {
 
-    const dom =
-        getDOM();
-
+    const dom = getDOM();
 
     return VISION_REQUIRED_DOM_KEYS
         .filter(
-            key =>
-                !dom[key]
+            key => !dom[key]
         );
-
 }
 
 
@@ -380,65 +382,19 @@ function getMissingRequiredElements() {
    VALIDATE DOM
 ========================================================= */
 
-function validateDOM(
-    options = {}
-) {
+function validateDOM() {
 
     const missing =
         getMissingRequiredElements();
 
-
-    if (
-        missing.length === 0
-    ) {
-
-        return {
-
-            valid:
-                true,
-
-            missing:
-                []
-
-        };
-
-    }
-
-
-    const message =
-        [
-            "[GENZ Vision] Element DOM wajib tidak ditemukan:",
-
-            ...missing.map(
-                key =>
-                    `- ${key} (#${VISION_DOM_IDS[key]})`
-            )
-
-        ].join(
-            "\n"
-        );
-
-
-    if (
-        options.log !== false
-    ) {
-
-        console.error(
-            message
-        );
-
-    }
-
-
     return {
 
         valid:
-            false,
+            missing.length === 0,
 
         missing
 
     };
-
 }
 
 
@@ -451,25 +407,26 @@ function requireDOM() {
     const result =
         validateDOM();
 
+    if (!result.valid) {
 
-    if (
-        !result.valid
-    ) {
+        console.error(
+            "[GEN-Z.AI Vision] Required DOM elements missing:",
+            result.missing
+        );
 
         throw new Error(
-            "Vision DOM tidak lengkap."
+            "Vision DOM tidak lengkap: " +
+            result.missing.join(", ")
         );
 
     }
 
-
     return getDOM();
-
 }
 
 
 /* =========================================================
-   SET TEXT
+   TEXT
 ========================================================= */
 
 function setText(
@@ -478,26 +435,20 @@ function setText(
 ) {
 
     if (!element) {
-
         return false;
-
     }
 
-
     element.textContent =
-        value === null ||
-        value === undefined
+        value == null
             ? ""
             : String(value);
 
-
     return true;
-
 }
 
 
 /* =========================================================
-   SET HTML
+   HTML
 ========================================================= */
 
 function setHTML(
@@ -506,26 +457,20 @@ function setHTML(
 ) {
 
     if (!element) {
-
         return false;
-
     }
 
-
     element.innerHTML =
-        value === null ||
-        value === undefined
+        value == null
             ? ""
             : String(value);
 
-
     return true;
-
 }
 
 
 /* =========================================================
-   SET VALUE
+   VALUE
 ========================================================= */
 
 function setValue(
@@ -534,21 +479,15 @@ function setValue(
 ) {
 
     if (!element) {
-
         return false;
-
     }
 
-
     element.value =
-        value === null ||
-        value === undefined
+        value == null
             ? ""
-            : String(value);
-
+            : value;
 
     return true;
-
 }
 
 
@@ -557,58 +496,20 @@ function setValue(
 ========================================================= */
 
 function getValue(
-    element
+    element,
+    fallback = ""
 ) {
 
     if (!element) {
-
-        return "";
-
+        return fallback;
     }
 
-
-    return String(
-        element.value || ""
-    );
-
+    return element.value;
 }
 
 
 /* =========================================================
-   TOGGLE CLASS
-========================================================= */
-
-function toggleClass(
-    element,
-    className,
-    enabled
-) {
-
-    if (
-        !element ||
-        !className
-    ) {
-
-        return false;
-
-    }
-
-
-    element.classList.toggle(
-        className,
-        Boolean(
-            enabled
-        )
-    );
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   ADD CLASS
+   CLASS ADD
 ========================================================= */
 
 function addClass(
@@ -620,24 +521,19 @@ function addClass(
         !element ||
         !className
     ) {
-
         return false;
-
     }
-
 
     element.classList.add(
         className
     );
 
-
     return true;
-
 }
 
 
 /* =========================================================
-   REMOVE CLASS
+   CLASS REMOVE
 ========================================================= */
 
 function removeClass(
@@ -649,24 +545,67 @@ function removeClass(
         !element ||
         !className
     ) {
-
         return false;
-
     }
-
 
     element.classList.remove(
         className
     );
 
-
     return true;
-
 }
 
 
 /* =========================================================
-   SET ATTRIBUTE
+   CLASS TOGGLE
+========================================================= */
+
+function toggleClass(
+    element,
+    className,
+    force
+) {
+
+    if (
+        !element ||
+        !className
+    ) {
+        return false;
+    }
+
+    element.classList.toggle(
+        className,
+        force
+    );
+
+    return true;
+}
+
+
+/* =========================================================
+   HAS CLASS
+========================================================= */
+
+function hasClass(
+    element,
+    className
+) {
+
+    if (
+        !element ||
+        !className
+    ) {
+        return false;
+    }
+
+    return element.classList.contains(
+        className
+    );
+}
+
+
+/* =========================================================
+   ATTRIBUTE
 ========================================================= */
 
 function setAttribute(
@@ -679,20 +618,15 @@ function setAttribute(
         !element ||
         !name
     ) {
-
         return false;
-
     }
-
 
     element.setAttribute(
         name,
         value
     );
 
-
     return true;
-
 }
 
 
@@ -709,19 +643,36 @@ function removeAttribute(
         !element ||
         !name
     ) {
-
         return false;
-
     }
-
 
     element.removeAttribute(
         name
     );
 
-
     return true;
+}
 
+
+/* =========================================================
+   HAS ATTRIBUTE
+========================================================= */
+
+function hasAttribute(
+    element,
+    name
+) {
+
+    if (
+        !element ||
+        !name
+    ) {
+        return false;
+    }
+
+    return element.hasAttribute(
+        name
+    );
 }
 
 
@@ -731,36 +682,42 @@ function removeAttribute(
 
 function setDisabled(
     element,
-    disabled
+    disabled = true
 ) {
 
     if (!element) {
-
         return false;
-
     }
 
-
     element.disabled =
-        Boolean(
-            disabled
-        );
-
-
-    toggleClass(
-        element,
-        "vision-control-disabled",
-        disabled
-    );
-
+        Boolean(disabled);
 
     return true;
-
 }
 
 
 /* =========================================================
-   SHOW / HIDE
+   HIDDEN
+========================================================= */
+
+function setHidden(
+    element,
+    hidden = true
+) {
+
+    if (!element) {
+        return false;
+    }
+
+    element.hidden =
+        Boolean(hidden);
+
+    return true;
+}
+
+
+/* =========================================================
+   SHOW
 ========================================================= */
 
 function show(
@@ -768,42 +725,38 @@ function show(
 ) {
 
     if (!element) {
-
         return false;
-
     }
 
+    element.hidden = false;
 
-    removeClass(
-        element,
+    element.classList.remove(
         "vision-hidden"
     );
 
-
     return true;
-
 }
 
+
+/* =========================================================
+   HIDE
+========================================================= */
 
 function hide(
     element
 ) {
 
     if (!element) {
-
         return false;
-
     }
 
+    element.hidden = true;
 
-    addClass(
-        element,
+    element.classList.add(
         "vision-hidden"
     );
 
-
     return true;
-
 }
 
 
@@ -811,79 +764,28 @@ function hide(
    FOCUS
 ========================================================= */
 
-function focusElement(
+function focus(
     element
 ) {
 
     if (
         !element ||
-        typeof element.focus !==
-            "function"
+        typeof element.focus !== "function"
     ) {
-
         return false;
-
     }
 
-
-    try {
-
-        element.focus();
-
-        return true;
-
-    } catch {
-
-        return false;
-
-    }
-
-}
-
-
-/* =========================================================
-   SCROLL INTO VIEW
-========================================================= */
-
-function scrollIntoView(
-    element,
-    options = {}
-) {
-
-    if (
-        !element ||
-        typeof element.scrollIntoView !==
-            "function"
-    ) {
-
-        return false;
-
-    }
-
-
-    element.scrollIntoView({
-
-        behavior:
-            options.behavior ||
-            "smooth",
-
-        block:
-            options.block ||
-            "center"
-
-    });
-
+    element.focus();
 
     return true;
-
 }
 
 
 /* =========================================================
-   EVENT LISTENER HELPER
+   EVENT LISTENER
 ========================================================= */
 
-function on(
+function addEventListener(
     element,
     event,
     handler,
@@ -893,14 +795,10 @@ function on(
     if (
         !element ||
         !event ||
-        typeof handler !==
-            "function"
+        typeof handler !== "function"
     ) {
-
-        return () => {};
-
+        return false;
     }
-
 
     element.addEventListener(
         event,
@@ -908,17 +806,7 @@ function on(
         options
     );
 
-
-    return () => {
-
-        element.removeEventListener(
-            event,
-            handler,
-            options
-        );
-
-    };
-
+    return true;
 }
 
 
@@ -934,19 +822,14 @@ function query(
     if (
         !selector ||
         !root ||
-        typeof root.querySelector !==
-            "function"
+        typeof root.querySelector !== "function"
     ) {
-
         return null;
-
     }
-
 
     return root.querySelector(
         selector
     );
-
 }
 
 
@@ -962,21 +845,43 @@ function queryAll(
     if (
         !selector ||
         !root ||
-        typeof root.querySelectorAll !==
-            "function"
+        typeof root.querySelectorAll !== "function"
     ) {
-
         return [];
-
     }
-
 
     return Array.from(
         root.querySelectorAll(
             selector
         )
     );
+}
 
+
+/* =========================================================
+   SCROLL INTO VIEW
+========================================================= */
+
+function scrollIntoView(
+    element,
+    options = {
+        behavior: "smooth",
+        block: "center"
+    }
+) {
+
+    if (
+        !element ||
+        typeof element.scrollIntoView !== "function"
+    ) {
+        return false;
+    }
+
+    element.scrollIntoView(
+        options
+    );
+
+    return true;
 }
 
 
@@ -985,40 +890,90 @@ function queryAll(
 ========================================================= */
 
 function waitForDOM(
-    callback
+    timeout = 10000
 ) {
 
-    if (
-        typeof callback !==
-            "function"
-    ) {
+    return new Promise(
+        resolve => {
 
-        return;
+            const current =
+                getDOM();
 
-    }
+            if (
+                !hasMissingRequiredElements()
+            ) {
 
+                resolve(current);
 
-    if (
-        document.readyState ===
-        "loading"
-    ) {
+                return;
 
-        document.addEventListener(
-            "DOMContentLoaded",
-            callback,
-            {
-                once:
-                    true
             }
-        );
-
-        return;
-
-    }
 
 
-    callback();
+            const start =
+                Date.now();
 
+
+            const timer =
+                setInterval(
+                    () => {
+
+                        const dom =
+                            buildDOM();
+
+                        const missing =
+                            VISION_REQUIRED_DOM_KEYS
+                                .some(
+                                    key => !dom[key]
+                                );
+
+
+                        if (!missing) {
+
+                            clearInterval(
+                                timer
+                            );
+
+                            resolve(dom);
+
+                            return;
+
+                        }
+
+
+                        if (
+                            Date.now() -
+                            start >=
+                            timeout
+                        ) {
+
+                            clearInterval(
+                                timer
+                            );
+
+                            resolve(
+                                getDOM()
+                            );
+
+                        }
+
+                    },
+                    50
+                );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   HELPER
+========================================================= */
+
+function hasMissingRequiredElements() {
+
+    return getMissingRequiredElements()
+        .length > 0;
 }
 
 
@@ -1026,46 +981,66 @@ function waitForDOM(
    DEBUG
 ========================================================= */
 
-function getDOMDebugInfo() {
+function debugDOM() {
 
     const dom =
         getDOM();
 
+    const validation =
+        validateDOM();
 
-    const result = {};
+    console.group(
+        "[GEN-Z.AI Vision] DOM Debug"
+    );
 
+    console.log(
+        "Registry:",
+        VISION_DOM_IDS
+    );
 
-    for (
-        const key
-        of Object.keys(
-            VISION_DOM_IDS
-        )
-    ) {
+    console.log(
+        "DOM:",
+        dom
+    );
 
-        result[key] =
-            Boolean(
-                dom[key]
-            );
+    console.log(
+        "Valid:",
+        validation.valid
+    );
 
-    }
+    console.log(
+        "Missing:",
+        validation.missing
+    );
 
+    console.groupEnd();
 
-    return result;
+    return {
 
+        registry:
+            VISION_DOM_IDS,
+
+        dom,
+
+        valid:
+            validation.valid,
+
+        missing:
+            validation.missing
+
+    };
 }
 
 
 /* =========================================================
-   RESET DOM CACHE
-   ---------------------------------------------------------
-   Berguna jika modul dipanggil ulang setelah DOM berubah.
+   RESET CACHE
 ========================================================= */
 
 function resetDOMCache() {
 
     DOM = null;
 
-    return true;
+    return buildDOM();
 
 }
 
@@ -1074,67 +1049,75 @@ function resetDOMCache() {
    PUBLIC API
 ========================================================= */
 
-const GENZVisionDOM = Object.freeze({
+const GENZVisionDOM = {
 
-    IDS:
+    /* Registry */
+    ids:
         VISION_DOM_IDS,
 
-    REQUIRED:
+    required:
         VISION_REQUIRED_DOM_KEYS,
 
-    buildDOM,
 
+    /* Core */
     getDOM,
+    buildDOM,
+    validateDOM,
+    requireDOM,
+    getMissingRequiredElements,
+    resetDOMCache,
+    debugDOM,
 
+
+    /* Element */
     getElement,
 
-    getMissingRequiredElements,
 
-    validateDOM,
-
-    requireDOM,
-
+    /* Text */
     setText,
-
     setHTML,
 
-    setValue,
 
+    /* Value */
+    setValue,
     getValue,
 
-    toggleClass,
 
+    /* Classes */
     addClass,
-
     removeClass,
+    toggleClass,
+    hasClass,
 
+
+    /* Attributes */
     setAttribute,
-
     removeAttribute,
+    hasAttribute,
 
+
+    /* State */
     setDisabled,
-
+    setHidden,
     show,
-
     hide,
 
-    focusElement,
 
+    /* Interaction */
+    focus,
+    addEventListener,
     scrollIntoView,
 
-    on,
 
+    /* Query */
     query,
-
     queryAll,
 
-    waitForDOM,
 
-    getDOMDebugInfo,
+    /* Lifecycle */
+    waitForDOM
 
-    resetDOMCache
-
-});
+};
 
 
 /* =========================================================
@@ -1143,3 +1126,10 @@ const GENZVisionDOM = Object.freeze({
 
 window.GENZVisionDOM =
     GENZVisionDOM;
+
+
+/* =========================================================
+   INITIAL CACHE
+========================================================= */
+
+buildDOM();
