@@ -512,6 +512,21 @@ function initializeUI() {
    ---------------------------------------------------------
    Digunakan hanya untuk dropdown.
 
+   PENTING:
+   Loader TIDAK lagi mempunyai normalizer Vision sendiri.
+
+   Semua normalisasi model harus menggunakan:
+   GENZVisionAPI.normalizeVisionModel()
+
+   Dengan begitu metadata seperti:
+   - input_modalities
+   - capabilities
+   - modality
+   - modalities
+   - architecture
+   - raw
+   tetap dipertahankan.
+
    API tetap menjadi sumber kebenaran utama.
 ========================================================= */
 
@@ -519,10 +534,12 @@ function normalizeCatalogModel(
     model
 ) {
 
+    const api =
+        window.GENZVisionAPI;
+
+
     if (
-        !model ||
-        typeof model !==
-            "object"
+        !api
     ) {
 
         return null;
@@ -530,16 +547,9 @@ function normalizeCatalogModel(
     }
 
 
-    const id =
-        String(
-            model.model_id ||
-            model.id ||
-            ""
-        ).trim();
-
-
     if (
-        !id
+        typeof api.normalizeVisionModel !==
+        "function"
     ) {
 
         return null;
@@ -547,50 +557,9 @@ function normalizeCatalogModel(
     }
 
 
-    const name =
-        String(
-            model.model_name ||
-            model.name ||
-            id
-        ).trim();
-
-
-    const inputModalities =
-        Array.isArray(
-            model.input_modalities
-        )
-            ? model.input_modalities
-                .map(
-                    value =>
-                        String(
-                            value ||
-                            ""
-                        )
-                            .trim()
-                            .toLowerCase()
-                )
-                .filter(Boolean)
-            : [];
-
-
-    return {
-
-        ...model,
-
-        id,
-
-        model_id:
-            id,
-
-        name,
-
-        model_name:
-            name,
-
-        input_modalities:
-            inputModalities
-
-    };
+    return api.normalizeVisionModel(
+        model
+    );
 
 }
 
@@ -598,25 +567,32 @@ function normalizeCatalogModel(
 /* =========================================================
    CHECK IMAGE SUPPORT
    ---------------------------------------------------------
-   Tidak menebak dari nama model.
+   Loader TIDAK lagi melakukan pemeriksaan capability
+   sendiri.
 
-   Hanya model yang catalog OpenKey-nya
-   menyatakan dukungan image/vision/multimodal
-   yang boleh masuk dropdown.
+   Satu-satunya sumber kebenaran:
+
+   GENZVisionAPI.supportsImageInput()
+
+   Ini penting agar:
+   - loader
+   - analysis
+   - prompt
+   - resolveVisionModel
+
+   menggunakan aturan Vision yang sama.
 ========================================================= */
 
 function supportsImageInput(
     model
 ) {
 
-    const normalized =
-        normalizeCatalogModel(
-            model
-        );
+    const api =
+        window.GENZVisionAPI;
 
 
     if (
-        !normalized
+        !api
     ) {
 
         return false;
@@ -624,23 +600,19 @@ function supportsImageInput(
     }
 
 
-    return normalized
-        .input_modalities
-        .some(
-            modality => [
+    if (
+        typeof api.supportsImageInput !==
+        "function"
+    ) {
 
-                "image",
+        return false;
 
-                "vision",
+    }
 
-                "multimodal",
 
-                "image_url"
-
-            ].includes(
-                modality
-            )
-        );
+    return api.supportsImageInput(
+        model
+    );
 
 }
 
@@ -708,6 +680,30 @@ async function initializeModelCatalog() {
     }
 
 
+    if (
+        typeof api.normalizeVisionModel !==
+        "function"
+    ) {
+
+        throw new Error(
+            "GENZVisionAPI.normalizeVisionModel() belum tersedia."
+        );
+
+    }
+
+
+    if (
+        typeof api.supportsImageInput !==
+        "function"
+    ) {
+
+        throw new Error(
+            "GENZVisionAPI.supportsImageInput() belum tersedia."
+        );
+
+    }
+
+
     const dom =
         domRegistry.getDOM();
 
@@ -731,11 +727,6 @@ async function initializeModelCatalog() {
      * -----------------------------------------------------
      * LOCK DROPDOWN SELAMA KATALOG DIMUAT
      * -----------------------------------------------------
-     *
-     * HTML memang memulai dropdown dalam keadaan disabled.
-     *
-     * Jangan membuka dropdown sebelum model valid
-     * benar-benar tersedia.
      */
 
     select.disabled =
@@ -743,10 +734,9 @@ async function initializeModelCatalog() {
 
 
     /*
-     * Ambil katalog aktual dari OpenKey.
-     *
-     * Tidak menggunakan option hardcode
-     * dari HTML sebagai sumber model.
+     * -----------------------------------------------------
+     * AMBIL KATALOG AKTUAL OPENKEY
+     * -----------------------------------------------------
      */
 
     const catalog =
@@ -764,17 +754,84 @@ async function initializeModelCatalog() {
     }
 
 
-    const models =
+    console.info(
+        "[GEN-Z.AI Vision] OpenKey catalog count:",
+        catalog.length
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * NORMALIZE
+     * -----------------------------------------------------
+     *
+     * Gunakan normalizer yang sama dengan Vision API.
+     */
+
+    const normalizedCatalog =
         catalog
             .map(
                 normalizeCatalogModel
             )
             .filter(
                 Boolean
-            )
+            );
+
+
+    console.info(
+        "[GEN-Z.AI Vision] Normalized catalog count:",
+        normalizedCatalog.length
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * FILTER VISION
+     * -----------------------------------------------------
+     *
+     * Gunakan supportsImageInput()
+     * dari GENZVisionAPI.
+     */
+
+    const models =
+        normalizedCatalog
             .filter(
                 supportsImageInput
             );
+
+
+    /*
+     * DEBUG DETAIL
+     *
+     * Menampilkan alasan setiap model masuk / tidak masuk
+     * tanpa menebak berdasarkan nama model.
+     */
+
+    console.info(
+        "[GEN-Z.AI Vision] Vision capability evaluation:",
+        normalizedCatalog.map(
+            model => ({
+
+                id:
+                    model.id,
+
+                name:
+                    model.name,
+
+                input_modalities:
+                    model.input_modalities,
+
+                capabilities:
+                    model.capabilities,
+
+                supports_image:
+                    supportsImageInput(
+                        model
+                    )
+
+            })
+        )
+    );
 
 
     if (
@@ -799,7 +856,9 @@ async function initializeModelCatalog() {
 
 
     /*
-     * Simpan pilihan lama bila masih valid.
+     * -----------------------------------------------------
+     * SIMPAN PILIHAN LAMA JIKA MASIH VALID
+     * -----------------------------------------------------
      */
 
     const previousModelId =
@@ -814,7 +873,9 @@ async function initializeModelCatalog() {
 
 
     /*
-     * Bersihkan seluruh option lama.
+     * -----------------------------------------------------
+     * BERSIHKAN OPTION LAMA
+     * -----------------------------------------------------
      */
 
     select.innerHTML =
@@ -822,7 +883,9 @@ async function initializeModelCatalog() {
 
 
     /*
-     * Tambahkan model aktual dari OpenKey.
+     * -----------------------------------------------------
+     * TAMBAHKAN MODEL AKTUAL OPENKEY
+     * -----------------------------------------------------
      */
 
     models.forEach(
@@ -864,11 +927,9 @@ async function initializeModelCatalog() {
 
 
     /*
-     * Pertahankan model sebelumnya bila
-     * model tersebut memang masih tersedia.
-     *
-     * Jika tidak, pilih model Vision pertama
-     * yang benar-benar dikembalikan OpenKey.
+     * -----------------------------------------------------
+     * TENTUKAN MODEL TERPILIH
+     * -----------------------------------------------------
      */
 
     const previousExists =
@@ -909,8 +970,9 @@ async function initializeModelCatalog() {
 
 
     /*
-     * Sinkronkan object model lengkap
-     * ke state.
+     * -----------------------------------------------------
+     * SINKRONKAN MODEL KE STATE
+     * -----------------------------------------------------
      */
 
     if (
@@ -937,17 +999,6 @@ async function initializeModelCatalog() {
      * -----------------------------------------------------
      * AKTIFKAN DROPDOWN
      * -----------------------------------------------------
-     *
-     * Ini penting.
-     *
-     * index.html memang menggunakan:
-     *
-     * <select id="visionModel" disabled>
-     *
-     * sehingga setelah katalog berhasil dimuat,
-     * dropdown WAJIB dibuka kembali.
-     *
-     * Sebelumnya bagian ini tidak ada.
      */
 
     select.disabled =
@@ -1091,7 +1142,8 @@ async function initializeCredit() {
 
         return result;
 
-    } catch (
+    }
+    catch (
         error
     ) {
 
@@ -1196,9 +1248,6 @@ async function initialize() {
          * -------------------------------------------------
          * MODULES
          * -------------------------------------------------
-         *
-         * Import di bagian atas file memastikan
-         * seluruh module Vision dimuat.
          */
 
         await waitForModules();
@@ -1217,8 +1266,6 @@ async function initialize() {
          * -------------------------------------------------
          * DOM
          * -------------------------------------------------
-         *
-         * Harus dilakukan sebelum event binding.
          */
 
         initializeDOM();
@@ -1228,8 +1275,6 @@ async function initialize() {
          * -------------------------------------------------
          * SUPABASE
          * -------------------------------------------------
-         *
-         * WAJIB sebelum credit/API/history/model catalog.
          */
 
         initializeSupabase();
@@ -1284,9 +1329,6 @@ async function initialize() {
          * -------------------------------------------------
          * EVENTS
          * -------------------------------------------------
-         *
-         * Setelah model catalog tersedia, tombol,
-         * upload, form dan generate event dipasang.
          */
 
         initializeEvents();
@@ -1296,8 +1338,6 @@ async function initialize() {
          * -------------------------------------------------
          * INITIAL CREDIT
          * -------------------------------------------------
-         *
-         * Supabase sudah siap pada tahap ini.
          */
 
         await initializeCredit();
@@ -1342,7 +1382,8 @@ async function initialize() {
 
         return true;
 
-    } catch (
+    }
+    catch (
         error
     ) {
 
@@ -1434,7 +1475,8 @@ if (
 
     );
 
-} else {
+}
+else {
 
     initialize();
 
