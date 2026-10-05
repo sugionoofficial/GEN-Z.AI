@@ -1,4 +1,4 @@
-// vision-analysis.js?v=1.2
+// vision-analysis.js?v=1.3
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -17,6 +17,10 @@
    - Tidak melakukan credit
    - Tidak melakukan history
    - Tidak mengatur DOM secara langsung
+
+   PENTING:
+   - Tidak menimpa API dari vision-api-analysis.js.
+   - API request seperti analyzeImage() dipertahankan.
 ========================================================= */
 
 
@@ -1851,52 +1855,163 @@ function clearAnalysis() {
 
 /* =========================================================
    PUBLIC API
+   ---------------------------------------------------------
+   PENTING:
+   vision-api-analysis.js dan vision-analysis.js sama-sama
+   menggunakan window.GENZVisionAnalysis.
+
+   vision-api-analysis.js menyediakan:
+   - buildAnalysisSystemPrompt
+   - buildAnalysisUserPrompt
+   - validateAnalysisQuality
+   - analyzeImage
+
+   vision-analysis.js menyediakan:
+   - parsing
+   - normalization
+   - storage
+   - formatting
+
+   Jangan membuang API yang sudah dibuat oleh module lain.
 ========================================================= */
 
-const GENZVisionAnalysis =
-    Object.freeze({
 
-        DEFAULT:
-            DEFAULT_VISION_ANALYSIS,
+/*
+ * Simpan module API request yang mungkin sudah dibuat
+ * oleh vision-api-analysis.js.
+ *
+ * Karena loader mengimpor vision-api-analysis.js sebelum
+ * vision-analysis.js, object ini normalnya sudah tersedia.
+ */
 
-        isEmptyValue,
-
-        safeString,
-
-        safeArray,
-
-        safeObject,
-
-        normalizeAnalysis,
-
-        parseAnalysisText,
-
-        extractAnalysisPayload,
-
-        isAnalysisObject,
-
-        parseAnalysis,
-
-        storeAnalysis,
-
-        getStoredAnalysis,
-
-        getAnalysisSummary,
-
-        hasUsefulAnalysis,
-
-        formatAnalysisForDisplay,
-
-        formatAnalysisForPrompt,
-
-        clearAnalysis
-
-    });
+const existingVisionAnalysis =
+    window.GENZVisionAnalysis;
 
 
 /* =========================================================
-   GLOBAL EXPORT
+   ANALYSIS PROCESSING API
 ========================================================= */
 
-window.GENZVisionAnalysis =
-    GENZVisionAnalysis;
+const analysisProcessingAPI = {
+
+    DEFAULT:
+        DEFAULT_VISION_ANALYSIS,
+
+    isEmptyValue,
+
+    safeString,
+
+    safeArray,
+
+    safeObject,
+
+    normalizeAnalysis,
+
+    parseAnalysisText,
+
+    extractAnalysisPayload,
+
+    isAnalysisObject,
+
+    parseAnalysis,
+
+    storeAnalysis,
+
+    getStoredAnalysis,
+
+    getAnalysisSummary,
+
+    hasUsefulAnalysis,
+
+    formatAnalysisForDisplay,
+
+    formatAnalysisForPrompt,
+
+    clearAnalysis
+
+};
+
+
+/* =========================================================
+   MERGE API
+========================================================= */
+
+if (
+    existingVisionAnalysis &&
+    typeof existingVisionAnalysis ===
+        "object"
+) {
+
+    /*
+     * Pertahankan semua API dari
+     * vision-api-analysis.js.
+     *
+     * Kemudian tambahkan fungsi processing
+     * dari module ini.
+     */
+
+    window.GENZVisionAnalysis =
+        Object.freeze({
+
+            ...existingVisionAnalysis,
+
+            ...analysisProcessingAPI
+
+        });
+
+} else {
+
+    /*
+     * Fallback jika module processing
+     * dimuat lebih dahulu.
+     */
+
+    window.GENZVisionAnalysis =
+        Object.freeze(
+            analysisProcessingAPI
+        );
+
+}
+
+
+/* =========================================================
+   DIAGNOSTIC
+========================================================= */
+
+console.info(
+
+    "[GEN-Z.AI Vision] Analysis processing module ready.",
+
+    {
+
+        hasAnalyzeImage:
+            typeof window.GENZVisionAnalysis?.analyzeImage ===
+            "function",
+
+        hasBuildAnalysisSystemPrompt:
+            typeof window.GENZVisionAnalysis?.buildAnalysisSystemPrompt ===
+            "function",
+
+        hasBuildAnalysisUserPrompt:
+            typeof window.GENZVisionAnalysis?.buildAnalysisUserPrompt ===
+            "function",
+
+        hasValidateAnalysisQuality:
+            typeof window.GENZVisionAnalysis?.validateAnalysisQuality ===
+            "function",
+
+        hasNormalizeAnalysis:
+            typeof window.GENZVisionAnalysis?.normalizeAnalysis ===
+            "function",
+
+        hasParseAnalysis:
+            typeof window.GENZVisionAnalysis?.parseAnalysis ===
+            "function",
+
+        hasStoreAnalysis:
+            typeof window.GENZVisionAnalysis?.storeAnalysis ===
+            "function"
+
+    }
+
+);
