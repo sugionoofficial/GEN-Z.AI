@@ -23,6 +23,11 @@
    - API key harus diberikan oleh caller.
    - Decryption credential dilakukan di server/API layer.
    - Module ini hanya menangani katalog model OpenKey.
+
+   DEBUG:
+   - Response OpenKey dicatat sebelum normalisasi.
+   - Capability/model metadata dicatat tanpa API key.
+   - Tidak melakukan filtering vision secara paksa.
 ========================================================= */
 
 
@@ -39,7 +44,7 @@ import openKeyClient
 ========================================================= */
 
 const OPENKEY_MODELS_VERSION =
-    "2026-10-03-openkey-models-v1";
+    "2026-10-05-openkey-models-debug-v2";
 
 
 /* =========================================================
@@ -379,6 +384,13 @@ function normalizeModel(
             null,
 
 
+        /*
+         * OpenAI-style capability fields.
+         *
+         * Tidak mengasumsikan bahwa field ini selalu
+         * tersedia dari OpenKey.
+         */
+
         input_modalities:
             normalizeArray(
                 model.input_modalities ??
@@ -412,6 +424,17 @@ function normalizeModel(
          * credit GEN-Z.AI.
          *
          * Pricing hanya metadata dari provider.
+         */
+
+
+        /*
+         * RAW MODEL
+         *
+         * Seluruh field asli dari provider tetap
+         * dipertahankan.
+         *
+         * Ini penting untuk capability field yang belum
+         * diketahui oleh normalizer GEN-Z.AI.
          */
 
         raw:
@@ -499,6 +522,224 @@ function sortModels(
 
 
 /* =========================================================
+   DEBUG RAW MODEL RESPONSE
+   ---------------------------------------------------------
+   Tujuan:
+   - Mengetahui bentuk response OpenKey sebenarnya.
+   - Mengetahui capability field yang tersedia.
+   - Tidak menampilkan API key.
+   - Tidak mengubah response.
+========================================================= */
+
+function debugRawModelsResponse(
+    response
+) {
+
+    try {
+
+        console.info(
+            "[GEN-Z.AI][OpenKey][RAW MODELS RESPONSE]",
+            response
+        );
+
+    }
+    catch {
+
+        /*
+         * Logging tidak boleh menyebabkan proses
+         * katalog model gagal.
+         */
+
+    }
+
+
+    const rows =
+        extractModelRows(
+            response
+        );
+
+
+    console.info(
+        "[GEN-Z.AI][OpenKey][RAW MODELS COUNT]",
+        rows.length
+    );
+
+
+    /*
+     * Log metadata capability setiap model.
+     *
+     * Hanya membaca field.
+     * Tidak melakukan filtering.
+     */
+
+    rows.forEach(
+
+        (
+            model,
+            index
+        ) => {
+
+            if (
+                !model ||
+                typeof model !== "object"
+            ) {
+
+                return;
+
+            }
+
+
+            console.info(
+
+                `[GEN-Z.AI][OpenKey][RAW MODEL ${index + 1}]`,
+
+                {
+
+                    id:
+                        model.id ??
+                        model.model_id ??
+                        model.modelId ??
+                        null,
+
+
+                    name:
+                        model.name ??
+                        model.model_name ??
+                        model.modelName ??
+                        null,
+
+
+                    owned_by:
+                        model.owned_by ??
+                        model.ownedBy ??
+                        null,
+
+
+                    input_modalities:
+                        model.input_modalities ??
+                        model.inputModalities ??
+                        null,
+
+
+                    output_modalities:
+                        model.output_modalities ??
+                        model.outputModalities ??
+                        null,
+
+
+                    capabilities:
+                        model.capabilities ??
+                        null,
+
+
+                    modality:
+                        model.modality ??
+                        null,
+
+
+                    modalities:
+                        model.modalities ??
+                        null,
+
+
+                    architecture:
+                        model.architecture ??
+                        null,
+
+
+                    input:
+                        model.input ??
+                        null,
+
+
+                    output:
+                        model.output ??
+                        null,
+
+
+                    vision:
+                        model.vision ??
+                        null,
+
+
+                    image:
+                        model.image ??
+                        null
+
+                }
+
+            );
+
+        }
+
+    );
+
+}
+
+
+/* =========================================================
+   DEBUG NORMALIZED MODELS
+   ---------------------------------------------------------
+   Memastikan field yang diteruskan ke API layer.
+========================================================= */
+
+function debugNormalizedModels(
+    models
+) {
+
+    const source =
+        Array.isArray(models)
+            ? models
+            : [];
+
+
+    console.info(
+        "[GEN-Z.AI][OpenKey][NORMALIZED MODELS]",
+        source.map(
+
+            model => ({
+
+                id:
+                    model?.model_id ??
+                    null,
+
+                name:
+                    model?.model_name ??
+                    null,
+
+                owned_by:
+                    model?.owned_by ??
+                    null,
+
+                input_modalities:
+                    model?.input_modalities ??
+                    [],
+
+                output_modalities:
+                    model?.output_modalities ??
+                    [],
+
+                context_length:
+                    model?.context_length ??
+                    null,
+
+                max_output_tokens:
+                    model?.max_output_tokens ??
+                    null,
+
+                raw:
+                    model?.raw ??
+                    null
+
+            })
+
+        )
+    );
+
+}
+
+
+/* =========================================================
    LOAD MODELS
 ========================================================= */
 
@@ -562,10 +803,33 @@ async function loadModels(
                         );
 
 
+                /*
+                 * DEBUG:
+                 *
+                 * Response asli dari OpenKey
+                 * sebelum normalisasi.
+                 */
+
+                debugRawModelsResponse(
+                    response
+                );
+
+
                 const models =
                     normalizeModels(
                         response
                     );
+
+
+                /*
+                 * DEBUG:
+                 *
+                 * Model setelah normalisasi.
+                 */
+
+                debugNormalizedModels(
+                    models
+                );
 
 
                 modelCache =
@@ -582,6 +846,7 @@ async function loadModels(
                     "[GEN-Z.AI] OpenKey model catalog loaded:",
                     modelCache.map(
                         model => ({
+
                             id:
                                 model.model_id,
 
@@ -589,7 +854,14 @@ async function loadModels(
                                 model.model_name,
 
                             owned_by:
-                                model.owned_by
+                                model.owned_by,
+
+                            input_modalities:
+                                model.input_modalities,
+
+                            output_modalities:
+                                model.output_modalities
+
                         })
                     )
                 );
@@ -867,11 +1139,15 @@ function filterModels(
 
                 ]
                     .filter(
+
                         value =>
+
                             value !==
                             null &&
+
                             value !==
                             undefined
+
                     )
                     .join(" ")
                     .toLowerCase();
@@ -926,11 +1202,14 @@ function filterModels(
                         model?.input_modalities
                     )
                         .map(
+
                             value =>
+
                                 normalizeText(
                                     value
                                 )
                                     .toLowerCase()
+
                         );
 
 
@@ -960,11 +1239,14 @@ function filterModels(
                         model?.output_modalities
                     )
                         .map(
+
                             value =>
+
                                 normalizeText(
                                     value
                                 )
                                     .toLowerCase()
+
                         );
 
 
@@ -1042,6 +1324,11 @@ const OpenKeyModels = {
     sortModels,
 
 
+    debugRawModelsResponse,
+
+    debugNormalizedModels,
+
+
     loadModels,
 
     refreshModels,
@@ -1095,6 +1382,11 @@ export {
     normalizeModels,
 
     sortModels,
+
+
+    debugRawModelsResponse,
+
+    debugNormalizedModels,
 
 
     loadModels,
