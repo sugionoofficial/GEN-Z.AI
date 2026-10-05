@@ -1,24 +1,23 @@
 /* =========================================================
-   GEN-Z.AI
-   VISION STATE
+   GEN-Z.AI VISION
    ---------------------------------------------------------
    File:
    vision/assets/js/vision-state.js
 
    Fungsi:
-   - Global state management
+   - Central state management
    - Auth state
-   - Reference image state
-   - Replacement character state
+   - Reference image
+   - Replacement character
+   - Outfit source
    - Model state
-   - Settings state
+   - Vision settings
    - Analysis state
    - Prompt state
    - Process state
    - Credit state
    - History state
    - UI state
-   - Legacy compatibility
 ========================================================= */
 
 (function () {
@@ -32,10 +31,24 @@
 
     const DEFAULT_STATE = {
 
+        /* ---------------------------------------------
+           AUTH
+        --------------------------------------------- */
+
         auth: {
+
+            session: null,
+
             user: null,
+
             profile: null,
-            initialized: false
+
+            authenticated: false,
+
+            role: null,
+
+            email: null
+
         },
 
 
@@ -54,24 +67,37 @@
 
 
         /* ---------------------------------------------
+           OUTFIT SOURCE
+           ---------------------------------------------
+           reference:
+           Gunakan outfit dari gambar referensi utama.
+
+           character:
+           Gunakan outfit dari replacement character.
+        --------------------------------------------- */
+
+        outfitSource: "reference",
+
+
+        /* ---------------------------------------------
            MODEL
         --------------------------------------------- */
 
         model: {
 
-            id: "",
+            id: null,
 
-            name: "",
+            name: null,
 
-            providerId: "openkey",
+            provider: null,
 
-            providerName: "OpenKey",
+            providerId: null,
 
             inputModalities: [],
 
             outputModalities: [],
 
-            capabilities: null
+            available: false
 
         },
 
@@ -82,9 +108,9 @@
 
         settings: {
 
-            detail: "balanced",
+            detail: "high",
 
-            purpose: "general",
+            purpose: "",
 
             instruction: ""
 
@@ -97,11 +123,11 @@
 
         analysis: {
 
-            status: "idle",
-
-            result: null,
-
             raw: null,
+
+            normalized: null,
+
+            completed: false,
 
             error: null
 
@@ -110,36 +136,15 @@
 
         /* ---------------------------------------------
            PROMPT
-           ---------------------------------------------
-           value:
-           Legacy compatibility.
-
-           text:
-           Current prompt reader compatibility.
-
-           completed:
-           Menandai prompt berhasil dibuat.
-
-           copied:
-           Menandai prompt sudah disalin.
-
-           status:
-           Status prompt.
         --------------------------------------------- */
 
         prompt: {
 
-            status: "idle",
-
-            value: "",
-
             text: "",
 
-            completed: false,
+            generated: false,
 
-            copied: false,
-
-            error: null
+            copied: false
 
         },
 
@@ -152,9 +157,15 @@
 
             status: "idle",
 
-            stage: "",
+            loading: false,
 
             progress: 0,
+
+            stage: null,
+
+            startedAt: null,
+
+            completedAt: null,
 
             error: null
 
@@ -167,13 +178,13 @@
 
         credit: {
 
-            available: 0,
+            balance: 0,
 
-            reserved: false,
+            required: 0,
 
-            charged: false,
+            remaining: 0,
 
-            refunded: false
+            loaded: false
 
         },
 
@@ -186,9 +197,7 @@
 
             items: [],
 
-            loading: false,
-
-            error: null
+            loaded: false
 
         },
 
@@ -201,7 +210,9 @@
 
             initialized: false,
 
-            loading: false
+            busy: false,
+
+            error: null
 
         }
 
@@ -213,272 +224,112 @@
     ===================================================== */
 
     let STATE =
-        cloneDefaultState();
+        createState();
 
 
     /* =====================================================
-       CLONE DEFAULT STATE
+       CREATE STATE
     ===================================================== */
 
-    function cloneDefaultState() {
+    function createState() {
 
-        return JSON.parse(
-            JSON.stringify(
-                DEFAULT_STATE
-            )
-        );
+        return {
 
-    }
+            auth: {
 
+                ...DEFAULT_STATE.auth
 
-    /* =====================================================
-       INITIALIZE
-    ===================================================== */
+            },
 
-    function initialize() {
+            file:
+                DEFAULT_STATE.file,
 
-        if (
-            !STATE ||
-            typeof STATE !== "object"
-        ) {
+            replacementCharacter:
+                DEFAULT_STATE.replacementCharacter,
 
-            STATE =
-                cloneDefaultState();
+            outfitSource:
+                DEFAULT_STATE.outfitSource,
 
-        }
+            model: {
 
-        return true;
+                ...DEFAULT_STATE.model,
 
-    }
+                inputModalities: [
+                    ...DEFAULT_STATE.model.inputModalities
+                ],
 
+                outputModalities: [
+                    ...DEFAULT_STATE.model.outputModalities
+                ]
 
-    /* =====================================================
-       GET STATE
-    ===================================================== */
+            },
 
-    function getState(
-        path,
-        fallback = undefined
-    ) {
+            settings: {
 
-        if (
-            path === undefined ||
-            path === null ||
-            path === ""
-        ) {
+                ...DEFAULT_STATE.settings
 
-            return STATE;
+            },
 
-        }
+            analysis: {
 
+                ...DEFAULT_STATE.analysis
 
-        const parts =
-            String(path).split(".");
+            },
 
+            prompt: {
 
-        let current = STATE;
+                ...DEFAULT_STATE.prompt
 
+            },
 
-        for (const part of parts) {
+            process: {
 
-            if (
-                current === null ||
-                current === undefined ||
-                typeof current !== "object" ||
-                !(part in current)
-            ) {
+                ...DEFAULT_STATE.process
 
-                return fallback;
+            },
+
+            credit: {
+
+                ...DEFAULT_STATE.credit
+
+            },
+
+            history: {
+
+                ...DEFAULT_STATE.history,
+
+                items: [
+                    ...DEFAULT_STATE.history.items
+                ]
+
+            },
+
+            ui: {
+
+                ...DEFAULT_STATE.ui
 
             }
-
-
-            current =
-                current[part];
-
-        }
-
-
-        return current;
-
-    }
-
-
-    /* =====================================================
-       SET STATE
-    ===================================================== */
-
-    function setState(
-        path,
-        value
-    ) {
-
-        if (
-            path === undefined ||
-            path === null ||
-            path === ""
-        ) {
-
-            return false;
-
-        }
-
-
-        const parts =
-            String(path).split(".");
-
-
-        let current = STATE;
-
-
-        for (
-            let index = 0;
-            index < parts.length - 1;
-            index++
-        ) {
-
-            const part =
-                parts[index];
-
-
-            if (
-                !current[part] ||
-                typeof current[part] !== "object"
-            ) {
-
-                current[part] = {};
-
-            }
-
-
-            current =
-                current[part];
-
-        }
-
-
-        current[
-            parts[parts.length - 1]
-        ] = value;
-
-
-        return value;
-
-    }
-
-
-    /* =====================================================
-       LEGACY GET
-    ===================================================== */
-
-    function get(
-        path,
-        fallback = undefined
-    ) {
-
-        return getState(
-            path,
-            fallback
-        );
-
-    }
-
-
-    /* =====================================================
-       LEGACY SET
-    ===================================================== */
-
-    function set(
-        path,
-        value
-    ) {
-
-        return setState(
-            path,
-            value
-        );
-
-    }
-
-
-    /* =====================================================
-       LEGACY MERGE
-    ===================================================== */
-
-    function merge(
-        path,
-        patch
-    ) {
-
-        if (
-            path === undefined ||
-            path === null ||
-            path === ""
-        ) {
-
-            return false;
-
-        }
-
-
-        if (
-            !patch ||
-            typeof patch !== "object" ||
-            Array.isArray(patch)
-        ) {
-
-            return setState(
-                path,
-                patch
-            );
-
-        }
-
-
-        const current =
-            getState(
-                path,
-                {}
-            );
-
-
-        const base = (
-
-            current &&
-            typeof current === "object" &&
-            !Array.isArray(current)
-
-        )
-            ? current
-            : {};
-
-
-        const merged = {
-
-            ...base,
-
-            ...patch
 
         };
 
-
-        return setState(
-            path,
-            merged
-        );
-
     }
 
 
     /* =====================================================
-       RESET STATE
+       STATE ACCESS
     ===================================================== */
+
+    function getState() {
+
+        return STATE;
+
+    }
+
 
     function resetState() {
 
         STATE =
-            cloneDefaultState();
-
+            createState();
 
         return STATE;
 
@@ -490,86 +341,164 @@
     ===================================================== */
 
     function setAuth(
-        auth = {}
+        auth
     ) {
 
         STATE.auth = {
 
             ...STATE.auth,
 
-            ...auth
+            ...(auth || {})
 
         };
-
 
         return STATE.auth;
 
     }
 
 
-    /* =====================================================
-       MODEL
-    ===================================================== */
+    function getAuth() {
 
-    function setModel(
-        model = {}
+        return STATE.auth;
+
+    }
+
+
+    function setSession(
+        session
     ) {
 
-        STATE.model = {
+        STATE.auth.session =
+            session || null;
 
-            ...STATE.model,
-
-            ...model
-
-        };
-
-
-        return STATE.model;
+        return STATE.auth.session;
 
     }
 
 
-    function getModel() {
+    function getSession() {
 
-        return STATE.model;
+        return STATE.auth.session;
+
+    }
+
+
+    function setUser(
+        user
+    ) {
+
+        STATE.auth.user =
+            user || null;
+
+        STATE.auth.authenticated =
+            Boolean(user);
+
+        if (user && user.email) {
+
+            STATE.auth.email =
+                user.email;
+
+        }
+
+        return STATE.auth.user;
+
+    }
+
+
+    function getUser() {
+
+        return STATE.auth.user;
+
+    }
+
+
+    function setProfile(
+        profile
+    ) {
+
+        STATE.auth.profile =
+            profile || null;
+
+        if (profile) {
+
+            STATE.auth.role =
+                profile.role ||
+                null;
+
+            STATE.auth.email =
+                profile.email ||
+                STATE.auth.email ||
+                null;
+
+        }
+
+        return STATE.auth.profile;
+
+    }
+
+
+    function getProfile() {
+
+        return STATE.auth.profile;
+
+    }
+
+
+    function setAuthenticated(
+        authenticated
+    ) {
+
+        STATE.auth.authenticated =
+            Boolean(authenticated);
+
+        return STATE.auth.authenticated;
+
+    }
+
+
+    function isAuthenticated() {
+
+        return Boolean(
+            STATE.auth.authenticated
+        );
 
     }
 
 
     /* =====================================================
-       REFERENCE FILE
+       REFERENCE IMAGE
     ===================================================== */
 
-    function setFile(
+    function setReferenceFile(
         file
     ) {
 
         STATE.file =
             file || null;
 
+        return STATE.file;
+
+    }
+
+
+    function getReferenceFile() {
 
         return STATE.file;
 
     }
 
 
-    function getFile() {
+    function clearReferenceFile() {
 
-        return STATE.file;
-
-    }
-
-
-    function clearFile() {
-
-        STATE.file = null;
+        STATE.file =
+            null;
 
         return true;
 
     }
 
 
-    function hasFile() {
+    function hasReferenceFile() {
 
         return Boolean(
             STATE.file
@@ -589,7 +518,6 @@
         STATE.replacementCharacter =
             file || null;
 
-
         return STATE.replacementCharacter;
 
     }
@@ -607,7 +535,6 @@
         STATE.replacementCharacter =
             null;
 
-
         return true;
 
     }
@@ -617,6 +544,71 @@
 
         return Boolean(
             STATE.replacementCharacter
+        );
+
+    }
+
+
+    /* =====================================================
+       OUTFIT SOURCE
+    ===================================================== */
+
+    function setOutfitSource(
+        source
+    ) {
+
+        const normalized =
+            String(
+                source || "reference"
+            )
+                .trim()
+                .toLowerCase();
+
+
+        if (
+            normalized !== "reference" &&
+            normalized !== "character"
+        ) {
+
+            STATE.outfitSource =
+                "reference";
+
+            return STATE.outfitSource;
+
+        }
+
+
+        STATE.outfitSource =
+            normalized;
+
+
+        return STATE.outfitSource;
+
+    }
+
+
+    function getOutfitSource() {
+
+        return STATE.outfitSource;
+
+    }
+
+
+    function isReferenceOutfit() {
+
+        return (
+            STATE.outfitSource ===
+            "reference"
+        );
+
+    }
+
+
+    function isCharacterOutfit() {
+
+        return (
+            STATE.outfitSource ===
+            "character"
         );
 
     }
@@ -658,13 +650,108 @@
     }
 
 
-    function clearImages() {
+    /* =====================================================
+       MODEL
+    ===================================================== */
 
-        STATE.file = null;
+    function setModel(
+        model
+    ) {
 
-        STATE.replacementCharacter = null;
+        STATE.model = {
 
-        return true;
+            ...STATE.model,
+
+            ...(model || {})
+
+        };
+
+        return STATE.model;
+
+    }
+
+
+    function getModel() {
+
+        return STATE.model;
+
+    }
+
+
+    function setModelId(
+        id
+    ) {
+
+        STATE.model.id =
+            id || null;
+
+        return STATE.model.id;
+
+    }
+
+
+    function getModelId() {
+
+        return STATE.model.id;
+
+    }
+
+
+    function setModelName(
+        name
+    ) {
+
+        STATE.model.name =
+            name || null;
+
+        return STATE.model.name;
+
+    }
+
+
+    function getModelName() {
+
+        return STATE.model.name;
+
+    }
+
+
+    function setModelProvider(
+        provider
+    ) {
+
+        STATE.model.provider =
+            provider || null;
+
+        return STATE.model.provider;
+
+    }
+
+
+    function getModelProvider() {
+
+        return STATE.model.provider;
+
+    }
+
+
+    function setModelAvailable(
+        available
+    ) {
+
+        STATE.model.available =
+            Boolean(available);
+
+        return STATE.model.available;
+
+    }
+
+
+    function isModelAvailable() {
+
+        return Boolean(
+            STATE.model.available
+        );
 
     }
 
@@ -674,17 +761,16 @@
     ===================================================== */
 
     function setSettings(
-        settings = {}
+        settings
     ) {
 
         STATE.settings = {
 
             ...STATE.settings,
 
-            ...settings
+            ...(settings || {})
 
         };
-
 
         return STATE.settings;
 
@@ -698,22 +784,78 @@
     }
 
 
+    function setDetail(
+        detail
+    ) {
+
+        STATE.settings.detail =
+            detail || "high";
+
+        return STATE.settings.detail;
+
+    }
+
+
+    function getDetail() {
+
+        return STATE.settings.detail;
+
+    }
+
+
+    function setPurpose(
+        purpose
+    ) {
+
+        STATE.settings.purpose =
+            purpose || "";
+
+        return STATE.settings.purpose;
+
+    }
+
+
+    function getPurpose() {
+
+        return STATE.settings.purpose;
+
+    }
+
+
+    function setInstruction(
+        instruction
+    ) {
+
+        STATE.settings.instruction =
+            instruction || "";
+
+        return STATE.settings.instruction;
+
+    }
+
+
+    function getInstruction() {
+
+        return STATE.settings.instruction;
+
+    }
+
+
     /* =====================================================
        ANALYSIS
     ===================================================== */
 
     function setAnalysis(
-        analysis = {}
+        analysis
     ) {
 
         STATE.analysis = {
 
             ...STATE.analysis,
 
-            ...analysis
+            ...(analysis || {})
 
         };
-
 
         return STATE.analysis;
 
@@ -727,296 +869,175 @@
     }
 
 
-    function clearAnalysis() {
+    function setAnalysisRaw(
+        raw
+    ) {
 
-        STATE.analysis = {
+        STATE.analysis.raw =
+            raw;
 
-            ...DEFAULT_STATE.analysis
+        return STATE.analysis.raw;
 
-        };
+    }
 
 
-        return STATE.analysis;
+    function getAnalysisRaw() {
+
+        return STATE.analysis.raw;
+
+    }
+
+
+    function setAnalysisNormalized(
+        normalized
+    ) {
+
+        STATE.analysis.normalized =
+            normalized;
+
+        return STATE.analysis.normalized;
+
+    }
+
+
+    function getAnalysisNormalized() {
+
+        return STATE.analysis.normalized;
+
+    }
+
+
+    function setAnalysisCompleted(
+        completed
+    ) {
+
+        STATE.analysis.completed =
+            Boolean(completed);
+
+        return STATE.analysis.completed;
+
+    }
+
+
+    function isAnalysisCompleted() {
+
+        return Boolean(
+            STATE.analysis.completed
+        );
+
+    }
+
+
+    function setAnalysisError(
+        error
+    ) {
+
+        STATE.analysis.error =
+            error || null;
+
+        return STATE.analysis.error;
+
+    }
+
+
+    function getAnalysisError() {
+
+        return STATE.analysis.error;
 
     }
 
 
     /* =====================================================
        PROMPT
-       -----------------------------------------------------
-       Mendukung dua bentuk:
-
-       1. String:
-          setPrompt("prompt hasil AI")
-
-       2. Object:
-          setPrompt({
-              text: "...",
-              status: "completed"
-          })
-
-       Untuk kompatibilitas:
-       - prompt.text
-       - prompt.value
-
-       selalu disinkronkan.
     ===================================================== */
 
     function setPrompt(
-        prompt = {}
+        text
     ) {
 
-        /*
-         * -------------------------------------------------
-         * STRING PROMPT
-         * -------------------------------------------------
-         */
+        STATE.prompt.text =
+            text || "";
 
-        if (
-            typeof prompt ===
-            "string"
-        ) {
+        STATE.prompt.generated =
+            Boolean(
+                STATE.prompt.text
+            );
 
-            const text =
-                prompt.trim();
-
-
-            STATE.prompt = {
-
-                ...STATE.prompt,
-
-                value:
-                    text,
-
-                text:
-                    text,
-
-                status:
-                    text
-                        ? "completed"
-                        : "idle",
-
-                completed:
-                    Boolean(
-                        text
-                    ),
-
-                error:
-                    null
-
-            };
-
-
-            return STATE.prompt;
-
-        }
-
-
-        /*
-         * -------------------------------------------------
-         * NULL / UNDEFINED
-         * -------------------------------------------------
-         */
-
-        if (
-            prompt === null ||
-            prompt === undefined
-        ) {
-
-            return STATE.prompt;
-
-        }
-
-
-        /*
-         * -------------------------------------------------
-         * OBJECT PROMPT
-         * -------------------------------------------------
-         */
-
-        if (
-            typeof prompt ===
-                "object" &&
-            !Array.isArray(prompt)
-        ) {
-
-            const next =
-                {
-
-                    ...STATE.prompt,
-
-                    ...prompt
-
-                };
-
-
-            /*
-             * Jika object menggunakan "text",
-             * sinkronkan ke "value".
-             */
-
-            if (
-                typeof next.text ===
-                "string"
-            ) {
-
-                next.value =
-                    next.text;
-
-            }
-
-
-            /*
-             * Jika object hanya menggunakan "value",
-             * sinkronkan ke "text".
-             */
-
-            else if (
-                typeof next.value ===
-                "string"
-            ) {
-
-                next.text =
-                    next.value;
-
-            }
-
-
-            /*
-             * Jika prompt memiliki text/value,
-             * status completed otomatis.
-             */
-
-            if (
-                (
-                    typeof next.text ===
-                    "string" &&
-                    next.text.trim()
-                ) ||
-                (
-                    typeof next.value ===
-                    "string" &&
-                    next.value.trim()
-                )
-            ) {
-
-                if (
-                    !next.status ||
-                    next.status ===
-                        "idle"
-                ) {
-
-                    next.status =
-                        "completed";
-
-                }
-
-
-                if (
-                    next.completed ===
-                    undefined
-                ) {
-
-                    next.completed =
-                        true;
-
-                }
-
-            }
-
-
-            STATE.prompt =
-                next;
-
-
-            return STATE.prompt;
-
-        }
-
-
-        /*
-         * -------------------------------------------------
-         * TIPE LAIN
-         * -------------------------------------------------
-         */
-
-        return STATE.prompt;
+        return STATE.prompt.text;
 
     }
 
-
-    /* =====================================================
-       GET PROMPT
-    ===================================================== */
 
     function getPrompt() {
 
-        return STATE.prompt;
+        return STATE.prompt.text;
 
     }
 
-
-    /* =====================================================
-       SET PROMPT VALUE
-       -----------------------------------------------------
-       Legacy compatibility.
-       Selalu sinkron dengan prompt.text.
-    ===================================================== */
-
-    function setPromptValue(
-        value
-    ) {
-
-        const text =
-            value === null ||
-            value === undefined
-                ? ""
-                : String(value);
-
-
-        STATE.prompt.value =
-            text;
-
-
-        STATE.prompt.text =
-            text;
-
-
-        STATE.prompt.status =
-            text
-                ? "completed"
-                : "idle";
-
-
-        STATE.prompt.completed =
-            Boolean(
-                text
-            );
-
-
-        STATE.prompt.error =
-            null;
-
-
-        return STATE.prompt.value;
-
-    }
-
-
-    /* =====================================================
-       CLEAR PROMPT
-    ===================================================== */
 
     function clearPrompt() {
 
-        STATE.prompt = {
+        STATE.prompt.text =
+            "";
 
-            ...DEFAULT_STATE.prompt
+        STATE.prompt.generated =
+            false;
 
-        };
+        STATE.prompt.copied =
+            false;
+
+        return true;
+
+    }
 
 
-        return STATE.prompt;
+    function hasPrompt() {
+
+        return Boolean(
+            STATE.prompt.text
+        );
+
+    }
+
+
+    function setPromptGenerated(
+        generated
+    ) {
+
+        STATE.prompt.generated =
+            Boolean(generated);
+
+        return STATE.prompt.generated;
+
+    }
+
+
+    function isPromptGenerated() {
+
+        return Boolean(
+            STATE.prompt.generated
+        );
+
+    }
+
+
+    function setPromptCopied(
+        copied
+    ) {
+
+        STATE.prompt.copied =
+            Boolean(copied);
+
+        return STATE.prompt.copied;
+
+    }
+
+
+    function isPromptCopied() {
+
+        return Boolean(
+            STATE.prompt.copied
+        );
 
     }
 
@@ -1026,17 +1047,16 @@
     ===================================================== */
 
     function setProcess(
-        process = {}
+        process
     ) {
 
         STATE.process = {
 
             ...STATE.process,
 
-            ...process
+            ...(process || {})
 
         };
-
 
         return STATE.process;
 
@@ -1051,28 +1071,101 @@
 
 
     function setProcessStatus(
-        status,
-        stage = "",
-        progress = 0,
-        error = null
+        status
     ) {
 
-        STATE.process = {
+        STATE.process.status =
+            status || "idle";
 
-            ...STATE.process,
+        return STATE.process.status;
 
-            status,
-
-            stage,
-
-            progress,
-
-            error
-
-        };
+    }
 
 
-        return STATE.process;
+    function getProcessStatus() {
+
+        return STATE.process.status;
+
+    }
+
+
+    function setLoading(
+        loading
+    ) {
+
+        STATE.process.loading =
+            Boolean(loading);
+
+        return STATE.process.loading;
+
+    }
+
+
+    function isLoading() {
+
+        return Boolean(
+            STATE.process.loading
+        );
+
+    }
+
+
+    function setProgress(
+        progress
+    ) {
+
+        let value =
+            Number(progress);
+
+
+        if (!Number.isFinite(value)) {
+
+            value = 0;
+
+        }
+
+
+        value =
+            Math.max(
+                0,
+                Math.min(
+                    100,
+                    value
+                )
+            );
+
+
+        STATE.process.progress =
+            value;
+
+
+        return STATE.process.progress;
+
+    }
+
+
+    function getProgress() {
+
+        return STATE.process.progress;
+
+    }
+
+
+    function setProcessStage(
+        stage
+    ) {
+
+        STATE.process.stage =
+            stage || null;
+
+        return STATE.process.stage;
+
+    }
+
+
+    function getProcessStage() {
+
+        return STATE.process.stage;
 
     }
 
@@ -1081,273 +1174,98 @@
         error
     ) {
 
-        STATE.process = {
+        STATE.process.error =
+            error || null;
 
-            ...STATE.process,
+        return STATE.process.error;
 
-            status: "error",
+    }
 
-            error
 
-        };
+    function getProcessError() {
 
+        return STATE.process.error;
+
+    }
+
+
+    function startProcess() {
+
+        STATE.process.status =
+            "processing";
+
+        STATE.process.loading =
+            true;
+
+        STATE.process.progress =
+            0;
+
+        STATE.process.stage =
+            null;
+
+        STATE.process.startedAt =
+            Date.now();
+
+        STATE.process.completedAt =
+            null;
+
+        STATE.process.error =
+            null;
 
         return STATE.process;
 
     }
 
 
-    /* =====================================================
-       LEGACY setProcessing()
-    ===================================================== */
+    function completeProcess() {
 
-    function setProcessing(
-        value = true,
-        options = {}
-    ) {
+        STATE.process.status =
+            "completed";
 
-        if (
-            typeof value === "boolean"
-        ) {
+        STATE.process.loading =
+            false;
 
-            if (value) {
+        STATE.process.progress =
+            100;
 
-                STATE.process = {
-
-                    ...STATE.process,
-
-                    status: "processing",
-
-                    stage:
-                        options.stage ??
-                        STATE.process.stage ??
-                        "",
-
-                    progress:
-                        options.progress ??
-                        STATE.process.progress ??
-                        0,
-
-                    error: null
-
-                };
-
-            } else {
-
-                STATE.process = {
-
-                    ...STATE.process,
-
-                    status: "idle",
-
-                    stage:
-                        options.stage ??
-                        STATE.process.stage ??
-                        "",
-
-                    progress:
-                        options.progress ??
-                        STATE.process.progress ??
-                        0,
-
-                    error:
-                        options.error ??
-                        null
-
-                };
-
-            }
-
-
-            return STATE.process;
-
-        }
-
-
-        if (
-            value &&
-            typeof value === "object" &&
-            !Array.isArray(value)
-        ) {
-
-            STATE.process = {
-
-                ...STATE.process,
-
-                ...value,
-
-                status:
-                    value.status ??
-                    "processing"
-
-            };
-
-
-            return STATE.process;
-
-        }
-
-
-        if (
-            typeof value === "string"
-        ) {
-
-            STATE.process = {
-
-                ...STATE.process,
-
-                status: value
-
-            };
-
-
-            return STATE.process;
-
-        }
-
+        STATE.process.completedAt =
+            Date.now();
 
         return STATE.process;
 
     }
 
 
-    /* =====================================================
-       LEGACY setProcessingState()
-    ===================================================== */
-
-    function setProcessingState(
-        processing,
-        stage = "",
-        progress = 0,
-        error = null
+    function failProcess(
+        error
     ) {
 
-        if (
-            processing
-        ) {
+        STATE.process.status =
+            "error";
 
-            return setProcessStatus(
+        STATE.process.loading =
+            false;
 
-                "processing",
+        STATE.process.error =
+            error || null;
 
-                stage,
+        STATE.process.completedAt =
+            Date.now();
 
-                progress,
-
-                error
-
-            );
-
-        }
-
-
-        return setProcessStatus(
-
-            "idle",
-
-            stage,
-
-            progress,
-
-            error
-
-        );
+        return STATE.process;
 
     }
 
 
-    /* =====================================================
-       PROCESS CHECK
-    ===================================================== */
-
-    function isProcessing() {
-
-        return (
-
-            STATE.process.status ===
-            "processing"
-
-        );
-
-    }
-
-
-    /* =====================================================
-       setProgress()
-    ===================================================== */
-
-    function setProgress(
-        progress
-    ) {
-
-        let normalizedProgress =
-            Number(progress);
-
-
-        if (
-            !Number.isFinite(
-                normalizedProgress
-            )
-        ) {
-
-            normalizedProgress = 0;
-
-        }
-
-
-        normalizedProgress =
-            Math.max(
-                0,
-                Math.min(
-                    100,
-                    normalizedProgress
-                )
-            );
-
+    function resetProcess() {
 
         STATE.process = {
 
-            ...STATE.process,
-
-            progress:
-                normalizedProgress
+            ...DEFAULT_STATE.process
 
         };
 
-
-        return normalizedProgress;
-
-    }
-
-
-    /* =====================================================
-       getProgress()
-    ===================================================== */
-
-    function getProgress() {
-
-        const progress =
-            Number(
-                STATE.process.progress
-            );
-
-
-        if (
-            !Number.isFinite(progress)
-        ) {
-
-            return 0;
-
-        }
-
-
-        return Math.max(
-            0,
-            Math.min(
-                100,
-                progress
-            )
-        );
+        return STATE.process;
 
     }
 
@@ -1357,17 +1275,16 @@
     ===================================================== */
 
     function setCredit(
-        credit = {}
+        credit
     ) {
 
         STATE.credit = {
 
             ...STATE.credit,
 
-            ...credit
+            ...(credit || {})
 
         };
-
 
         return STATE.credit;
 
@@ -1381,73 +1298,100 @@
     }
 
 
-    /* =====================================================
-       CREDIT COMPATIBILITY
-       -----------------------------------------------------
-       Legacy vision-credit.js API.
-    ===================================================== */
-
-    function markCreditReserved(
-        value = true
+    function setCreditBalance(
+        balance
     ) {
 
-        STATE.credit.reserved =
-            Boolean(value);
+        const value =
+            Number(balance);
 
 
-        return STATE.credit.reserved;
+        STATE.credit.balance =
+            Number.isFinite(value)
+                ? value
+                : 0;
+
+
+        return STATE.credit.balance;
 
     }
 
 
-    function markCreditDeducted(
-        value = true
+    function getCreditBalance() {
+
+        return STATE.credit.balance;
+
+    }
+
+
+    function setCreditRequired(
+        required
     ) {
 
-        STATE.credit.charged =
-            Boolean(value);
+        const value =
+            Number(required);
 
 
-        return STATE.credit.charged;
+        STATE.credit.required =
+            Number.isFinite(value)
+                ? value
+                : 0;
+
+
+        return STATE.credit.required;
 
     }
 
 
-    function markCreditRefunded(
-        value = true
+    function getCreditRequired() {
+
+        return STATE.credit.required;
+
+    }
+
+
+    function setCreditRemaining(
+        remaining
     ) {
 
-        STATE.credit.refunded =
-            Boolean(value);
+        const value =
+            Number(remaining);
 
 
-        return STATE.credit.refunded;
+        STATE.credit.remaining =
+            Number.isFinite(value)
+                ? value
+                : 0;
 
-    }
 
-
-    function isCreditReserved() {
-
-        return Boolean(
-            STATE.credit.reserved
-        );
+        return STATE.credit.remaining;
 
     }
 
 
-    function isCreditDeducted() {
+    function getCreditRemaining() {
 
-        return Boolean(
-            STATE.credit.charged
-        );
+        return STATE.credit.remaining;
 
     }
 
 
-    function isCreditRefunded() {
+    function setCreditLoaded(
+        loaded
+    ) {
+
+        STATE.credit.loaded =
+            Boolean(loaded);
+
+        return STATE.credit.loaded;
+
+    }
+
+
+    function isCreditLoaded() {
 
         return Boolean(
-            STATE.credit.refunded
+            STATE.credit.loaded
         );
 
     }
@@ -1458,19 +1402,18 @@
     ===================================================== */
 
     function setHistory(
-        history = {}
+        items
     ) {
 
-        STATE.history = {
+        STATE.history.items =
+            Array.isArray(items)
+                ? items
+                : [];
 
-            ...STATE.history,
+        STATE.history.loaded =
+            true;
 
-            ...history
-
-        };
-
-
-        return STATE.history;
+        return STATE.history.items;
 
     }
 
@@ -1482,22 +1425,80 @@
     }
 
 
+    function getHistoryItems() {
+
+        return STATE.history.items;
+
+    }
+
+
+    function addHistoryItem(
+        item
+    ) {
+
+        if (!item) {
+
+            return STATE.history.items;
+
+        }
+
+
+        STATE.history.items.unshift(
+            item
+        );
+
+
+        return STATE.history.items;
+
+    }
+
+
+    function clearHistory() {
+
+        STATE.history.items =
+            [];
+
+        return true;
+
+    }
+
+
+    function setHistoryLoaded(
+        loaded
+    ) {
+
+        STATE.history.loaded =
+            Boolean(loaded);
+
+        return STATE.history.loaded;
+
+    }
+
+
+    function isHistoryLoaded() {
+
+        return Boolean(
+            STATE.history.loaded
+        );
+
+    }
+
+
     /* =====================================================
        UI
     ===================================================== */
 
     function setUI(
-        ui = {}
+        ui
     ) {
 
         STATE.ui = {
 
             ...STATE.ui,
 
-            ...ui
+            ...(ui || {})
 
         };
-
 
         return STATE.ui;
 
@@ -1511,34 +1512,108 @@
     }
 
 
+    function setInitialized(
+        initialized
+    ) {
+
+        STATE.ui.initialized =
+            Boolean(initialized);
+
+        return STATE.ui.initialized;
+
+    }
+
+
+    function isInitialized() {
+
+        return Boolean(
+            STATE.ui.initialized
+        );
+
+    }
+
+
+    function setBusy(
+        busy
+    ) {
+
+        STATE.ui.busy =
+            Boolean(busy);
+
+        return STATE.ui.busy;
+
+    }
+
+
+    function isBusy() {
+
+        return Boolean(
+            STATE.ui.busy
+        );
+
+    }
+
+
+    function setUIError(
+        error
+    ) {
+
+        STATE.ui.error =
+            error || null;
+
+        return STATE.ui.error;
+
+    }
+
+
+    function getUIError() {
+
+        return STATE.ui.error;
+
+    }
+
+
     /* =====================================================
-       READY CHECK
+       READY CHECKS
     ===================================================== */
 
     function isReadyForAnalysis() {
 
-        return Boolean(
+        return (
 
             hasReferenceImage() &&
 
-            STATE.model.id
+            isAuthenticated() &&
+
+            isModelAvailable()
 
         );
 
     }
 
 
-    /* =====================================================
-       CHARACTER REPLACEMENT READY CHECK
-    ===================================================== */
+    function isReadyForPrompt() {
 
-    function isReadyForCharacterReplacement() {
+        return (
 
-        return Boolean(
+            isAnalysisCompleted() &&
 
-            hasReferenceImage() &&
+            Boolean(
+                STATE.analysis.normalized
+            )
 
-            hasCharacterImage()
+        );
+
+    }
+
+
+    function isReadyForGenerate() {
+
+        return (
+
+            isReadyForAnalysis() &&
+
+            isReadyForPrompt()
 
         );
 
@@ -1551,70 +1626,74 @@
 
     function getSnapshot() {
 
-        return cloneState(
-            STATE
-        );
-
-    }
-
-
-    /* =====================================================
-       DEBUG INFO
-    ===================================================== */
-
-    function getDebugInfo() {
-
         return {
 
-            initialized: true,
+            auth: {
 
-            hasReferenceImage:
-                hasReferenceImage(),
+                ...STATE.auth
 
-            hasReplacementCharacter:
-                hasCharacterImage(),
+            },
 
-            model:
-                STATE.model,
+            file:
+                STATE.file,
 
-            settings:
-                STATE.settings,
+            replacementCharacter:
+                STATE.replacementCharacter,
 
-            analysisStatus:
-                STATE.analysis.status,
+            outfitSource:
+                STATE.outfitSource,
 
-            promptStatus:
-                STATE.prompt.status,
+            model: {
 
-            promptLength:
-                typeof STATE.prompt.text ===
-                "string"
-                    ? STATE.prompt.text.length
-                    : 0,
+                ...STATE.model
 
-            promptCompleted:
-                Boolean(
-                    STATE.prompt.completed
-                ),
+            },
 
-            processStatus:
-                STATE.process.status,
+            settings: {
 
-            processProgress:
-                getProgress(),
+                ...STATE.settings
 
-            credit:
-                STATE.credit,
+            },
 
-            historyCount:
+            analysis: {
 
-                Array.isArray(
-                    STATE.history.items
-                )
+                ...STATE.analysis
 
-                    ? STATE.history.items.length
+            },
 
-                    : 0
+            prompt: {
+
+                ...STATE.prompt
+
+            },
+
+            process: {
+
+                ...STATE.process
+
+            },
+
+            credit: {
+
+                ...STATE.credit
+
+            },
+
+            history: {
+
+                ...STATE.history,
+
+                items: [
+                    ...STATE.history.items
+                ]
+
+            },
+
+            ui: {
+
+                ...STATE.ui
+
+            }
 
         };
 
@@ -1622,16 +1701,12 @@
 
 
     /* =====================================================
-       CLONE STATE
+       DEBUG
     ===================================================== */
 
-    function cloneState(
-        value
-    ) {
+    function debugState() {
 
-        return JSON.parse(
-            JSON.stringify(value)
-        );
+        return getSnapshot();
 
     }
 
@@ -1640,203 +1715,303 @@
        PUBLIC API
     ===================================================== */
 
-    const GENZVisionState =
-        Object.freeze({
+    window.GENZVisionState = {
 
-            /* -----------------------------------------
-               CORE
-            ----------------------------------------- */
+        /* -----------------------------------------
+           STATE
+        ----------------------------------------- */
 
-            DEFAULT_STATE,
+        getState,
 
-            initialize,
+        resetState,
 
-            getState,
+        getSnapshot,
 
-            setState,
+        debugState,
 
-            get,
 
-            set,
+        /* -----------------------------------------
+           AUTH
+        ----------------------------------------- */
 
-            merge,
+        setAuth,
 
-            resetState,
+        getAuth,
 
-            getSnapshot,
+        setSession,
 
-            getDebugInfo,
+        getSession,
 
+        setUser,
 
-            /* -----------------------------------------
-               AUTH
-            ----------------------------------------- */
+        getUser,
 
-            setAuth,
+        setProfile,
 
+        getProfile,
 
-            /* -----------------------------------------
-               MODEL
-            ----------------------------------------- */
+        setAuthenticated,
 
-            setModel,
+        isAuthenticated,
 
-            getModel,
 
+        /* -----------------------------------------
+           REFERENCE IMAGE
+        ----------------------------------------- */
 
-            /* -----------------------------------------
-               REFERENCE IMAGE
-            ----------------------------------------- */
+        setReferenceFile,
 
-            setFile,
+        getReferenceFile,
 
-            getFile,
+        clearReferenceFile,
 
-            clearFile,
+        hasReferenceFile,
 
-            hasFile,
 
+        /* -----------------------------------------
+           REPLACEMENT CHARACTER
+        ----------------------------------------- */
 
-            /* -----------------------------------------
-               REPLACEMENT CHARACTER
-            ----------------------------------------- */
+        setReplacementCharacter,
 
-            setReplacementCharacter,
+        getReplacementCharacter,
 
-            getReplacementCharacter,
+        clearReplacementCharacter,
 
-            clearReplacementCharacter,
+        hasReplacementCharacter,
 
-            hasReplacementCharacter,
 
+        /* -----------------------------------------
+           OUTFIT SOURCE
+        ----------------------------------------- */
 
-            /* -----------------------------------------
-               IMAGE ALIASES
-            ----------------------------------------- */
+        setOutfitSource,
 
-            getReferenceImage,
+        getOutfitSource,
 
-            getCharacterImage,
+        isReferenceOutfit,
 
-            hasReferenceImage,
+        isCharacterOutfit,
 
-            hasCharacterImage,
 
-            clearImages,
+        /* -----------------------------------------
+           IMAGE ALIASES
+        ----------------------------------------- */
 
+        getReferenceImage,
 
-            /* -----------------------------------------
-               SETTINGS
-            ----------------------------------------- */
+        getCharacterImage,
 
-            setSettings,
+        hasReferenceImage,
 
-            getSettings,
+        hasCharacterImage,
 
 
-            /* -----------------------------------------
-               ANALYSIS
-            ----------------------------------------- */
+        /* -----------------------------------------
+           MODEL
+        ----------------------------------------- */
 
-            setAnalysis,
+        setModel,
 
-            getAnalysis,
+        getModel,
 
-            clearAnalysis,
+        setModelId,
 
+        getModelId,
 
-            /* -----------------------------------------
-               PROMPT
-            ----------------------------------------- */
+        setModelName,
 
-            setPrompt,
+        getModelName,
 
-            getPrompt,
+        setModelProvider,
 
-            setPromptValue,
+        getModelProvider,
 
-            clearPrompt,
+        setModelAvailable,
 
+        isModelAvailable,
 
-            /* -----------------------------------------
-               PROCESS
-            ----------------------------------------- */
 
-            setProcess,
+        /* -----------------------------------------
+           SETTINGS
+        ----------------------------------------- */
 
-            getProcess,
+        setSettings,
 
-            setProcessStatus,
+        getSettings,
 
-            setProcessError,
+        setDetail,
 
-            setProcessing,
+        getDetail,
 
-            setProcessingState,
+        setPurpose,
 
-            isProcessing,
+        getPurpose,
 
-            setProgress,
+        setInstruction,
 
-            getProgress,
+        getInstruction,
 
 
-            /* -----------------------------------------
-               CREDIT
-            ----------------------------------------- */
+        /* -----------------------------------------
+           ANALYSIS
+        ----------------------------------------- */
 
-            setCredit,
+        setAnalysis,
 
-            getCredit,
+        getAnalysis,
 
-            markCreditReserved,
+        setAnalysisRaw,
 
-            markCreditDeducted,
+        getAnalysisRaw,
 
-            markCreditRefunded,
+        setAnalysisNormalized,
 
-            isCreditReserved,
+        getAnalysisNormalized,
 
-            isCreditDeducted,
+        setAnalysisCompleted,
 
-            isCreditRefunded,
+        isAnalysisCompleted,
 
+        setAnalysisError,
 
-            /* -----------------------------------------
-               HISTORY
-            ----------------------------------------- */
+        getAnalysisError,
 
-            setHistory,
 
-            getHistory,
+        /* -----------------------------------------
+           PROMPT
+        ----------------------------------------- */
 
+        setPrompt,
 
-            /* -----------------------------------------
-               UI
-            ----------------------------------------- */
+        getPrompt,
 
-            setUI,
+        clearPrompt,
 
-            getUI,
+        hasPrompt,
 
+        setPromptGenerated,
 
-            /* -----------------------------------------
-               READY CHECKS
-            ----------------------------------------- */
+        isPromptGenerated,
 
-            isReadyForAnalysis,
+        setPromptCopied,
 
-            isReadyForCharacterReplacement
+        isPromptCopied,
 
-        });
 
+        /* -----------------------------------------
+           PROCESS
+        ----------------------------------------- */
 
-    /* =====================================================
-       GLOBAL EXPORT
-    ===================================================== */
+        setProcess,
 
-    window.GENZVisionState =
-        GENZVisionState;
+        getProcess,
+
+        setProcessStatus,
+
+        getProcessStatus,
+
+        setLoading,
+
+        isLoading,
+
+        setProgress,
+
+        getProgress,
+
+        setProcessStage,
+
+        getProcessStage,
+
+        setProcessError,
+
+        getProcessError,
+
+        startProcess,
+
+        completeProcess,
+
+        failProcess,
+
+        resetProcess,
+
+
+        /* -----------------------------------------
+           CREDIT
+        ----------------------------------------- */
+
+        setCredit,
+
+        getCredit,
+
+        setCreditBalance,
+
+        getCreditBalance,
+
+        setCreditRequired,
+
+        getCreditRequired,
+
+        setCreditRemaining,
+
+        getCreditRemaining,
+
+        setCreditLoaded,
+
+        isCreditLoaded,
+
+
+        /* -----------------------------------------
+           HISTORY
+        ----------------------------------------- */
+
+        setHistory,
+
+        getHistory,
+
+        getHistoryItems,
+
+        addHistoryItem,
+
+        clearHistory,
+
+        setHistoryLoaded,
+
+        isHistoryLoaded,
+
+
+        /* -----------------------------------------
+           UI
+        ----------------------------------------- */
+
+        setUI,
+
+        getUI,
+
+        setInitialized,
+
+        isInitialized,
+
+        setBusy,
+
+        isBusy,
+
+        setUIError,
+
+        getUIError,
+
+
+        /* -----------------------------------------
+           READY CHECKS
+        ----------------------------------------- */
+
+        isReadyForAnalysis,
+
+        isReadyForPrompt,
+
+        isReadyForGenerate
+
+    };
 
 
 })();
