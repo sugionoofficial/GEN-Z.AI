@@ -12,6 +12,7 @@
    - Mengatur hasil prompt
    - Mengatur panel analysis
    - Mengatur tampilan credit
+   - Sinkronisasi progress state -> DOM
    - Tidak menangani:
      API
      Supabase
@@ -590,12 +591,6 @@ function setStatusSubtext(
             );
 
 
-    /*
-     * Status subtext tidak ada
-     * di HTML awal, jadi dibuat hanya
-     * ketika diperlukan.
-     */
-
     if (
         !subtext &&
         text
@@ -633,6 +628,79 @@ function setStatusSubtext(
 
 
     return true;
+
+}
+
+
+/* =========================================================
+   PROGRESS STAGE TEXT
+========================================================= */
+
+function getProgressStageText(
+    progress
+) {
+
+    const value =
+        Number(
+            progress
+        );
+
+
+    if (
+        value >= 100
+    ) {
+
+        return "READY";
+
+    }
+
+
+    if (
+        value >= 88
+    ) {
+
+        return "FINALIZING";
+
+    }
+
+
+    if (
+        value >= 70
+    ) {
+
+        return "PROMPT ENGINEERING";
+
+    }
+
+
+    if (
+        value >= 50
+    ) {
+
+        return "ANALYSIS COMPLETE";
+
+    }
+
+
+    if (
+        value >= 25
+    ) {
+
+        return "VISION ANALYSIS";
+
+    }
+
+
+    if (
+        value >= 5
+    ) {
+
+        return "INITIALIZING";
+
+    }
+
+
+    return "READY";
 
 }
 
@@ -702,6 +770,35 @@ function setProgress(
                 )
             );
 
+
+        dom.progress
+            .setAttribute(
+                "aria-valuemin",
+                "0"
+            );
+
+
+        dom.progress
+            .setAttribute(
+                "aria-valuemax",
+                "100"
+            );
+
+
+        /*
+         * Jika progress > 0 dan proses masih berjalan,
+         * pastikan container terlihat.
+         */
+
+        if (
+            progress > 0
+        ) {
+
+            dom.progress.hidden =
+                false;
+
+        }
+
     }
 
 
@@ -715,6 +812,21 @@ function setProgress(
         dom.progressBar
     ) {
 
+        /*
+         * Force browser melakukan layout sebelum
+         * width berikutnya diterapkan.
+         *
+         * Ini membantu transition CSS tetap berjalan
+         * ketika nilai progress berubah cepat.
+         */
+
+        dom.progressBar.style.width =
+            "0%";
+
+
+        void dom.progressBar.offsetWidth;
+
+
         dom.progressBar.style.width =
             `${progress}%`;
 
@@ -725,6 +837,32 @@ function setProgress(
                 String(
                     rounded
                 )
+            );
+
+
+        dom.progressBar
+            .setAttribute(
+                "aria-valuemin",
+                "0"
+            );
+
+
+        dom.progressBar
+            .setAttribute(
+                "aria-valuemax",
+                "100"
+            );
+
+
+        dom.progressBar.dataset.progress =
+            String(
+                rounded
+            );
+
+
+        dom.progressBar.dataset.stage =
+            getProgressStageText(
+                progress
             );
 
     }
@@ -743,6 +881,48 @@ function setProgress(
         dom.progressText.textContent =
             text ||
             `${rounded}%`;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * PAGE PROGRESS DATA
+     * -----------------------------------------------------
+     */
+
+    if (
+        dom.page
+    ) {
+
+        dom.page.dataset.progress =
+            String(
+                rounded
+            );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * PROGRESS CONTAINER DATA
+     * -----------------------------------------------------
+ */
+
+    if (
+        dom.progress
+    ) {
+
+        dom.progress.dataset.progress =
+            String(
+                rounded
+            );
+
+
+        dom.progress.dataset.stage =
+            getProgressStageText(
+                progress
+            );
 
     }
 
@@ -822,7 +1002,7 @@ function setProcessing(
      * -----------------------------------------------------
      * GENERATE BUTTON
      * -----------------------------------------------------
-     */
+ */
 
     if (
         dom.generateButton
@@ -852,7 +1032,7 @@ function setProcessing(
      * -----------------------------------------------------
      * SPINNER
      * -----------------------------------------------------
-     */
+ */
 
     if (
         dom.generateSpinner
@@ -868,7 +1048,7 @@ function setProcessing(
      * -----------------------------------------------------
      * PROGRESS
      * -----------------------------------------------------
-     */
+ */
 
     if (
         dom.progress
@@ -877,6 +1057,20 @@ function setProcessing(
         dom.progress.hidden =
             !active;
 
+
+        dom.progress.classList.toggle(
+            "vision-progress-active",
+            active
+        );
+
+
+        dom.progress.setAttribute(
+            "aria-hidden",
+            active
+                ? "false"
+                : "true"
+        );
+
     }
 
 
@@ -884,7 +1078,7 @@ function setProcessing(
      * -----------------------------------------------------
      * DROPZONE
      * -----------------------------------------------------
-     */
+ */
 
     if (
         dom.dropzone
@@ -902,6 +1096,94 @@ function setProcessing(
                 ? "true"
                 : "false"
         );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * START VISUAL PROGRESS
+     * -----------------------------------------------------
+ *
+     * Jangan mengubah nilai state.
+     *
+     * Jika progress state sudah tersedia,
+     * langsung render nilai tersebut.
+     */
+
+    if (
+        active
+    ) {
+
+        let currentProgress =
+            5;
+
+
+        try {
+
+            const process =
+                getState().get(
+                    "process",
+                    {}
+                );
+
+
+            const stateProgress =
+                Number(
+                    process?.progress
+                );
+
+
+            if (
+                Number.isFinite(
+                    stateProgress
+                ) &&
+                stateProgress > 0
+            ) {
+
+                currentProgress =
+                    stateProgress;
+
+            }
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI Vision] Progress state read failed:",
+                error
+            );
+
+        }
+
+
+        setProgress(
+            currentProgress,
+            `${Math.round(currentProgress)}%`
+        );
+
+    }
+
+    else {
+
+        /*
+         * Jangan menghapus progress 100%
+         * jika proses selesai.
+         *
+         * Caller yang memanggil setProcessing(false)
+         * akan menentukan hasil akhirnya.
+         */
+
+        if (
+            dom.progress
+        ) {
+
+            dom.progress.classList.remove(
+                "vision-progress-active"
+            );
+
+        }
 
     }
 
@@ -939,15 +1221,6 @@ function setGenerateButtonText(
         );
 
 
-    /*
-     * HTML menggunakan:
-     *
-     * #visionGenerateButtonText
-     *
-     * Jadi tidak perlu mencari
-     * selector .vision-action-content.
-     */
-
     if (
         dom.generateButtonText
     ) {
@@ -959,11 +1232,6 @@ function setGenerateButtonText(
 
     }
 
-
-    /*
-     * Fallback jika registry DOM
-     * belum memiliki generateButtonText.
-     */
 
     const textElement =
         dom.generateButton
@@ -1002,12 +1270,6 @@ function resetResult() {
     clearResultMessage();
 
 
-    /*
-     * -----------------------------------------------------
-     * PLACEHOLDER
-     * -----------------------------------------------------
-     */
-
     if (
         dom.promptPlaceholder
     ) {
@@ -1017,12 +1279,6 @@ function resetResult() {
 
     }
 
-
-    /*
-     * -----------------------------------------------------
-     * PROMPT RESULT
-     * -----------------------------------------------------
-     */
 
     if (
         dom.promptResult
@@ -1036,12 +1292,6 @@ function resetResult() {
 
     }
 
-
-    /*
-     * -----------------------------------------------------
-     * COPY
-     * -----------------------------------------------------
-     */
 
     setCopyState(
         false,
@@ -1085,12 +1335,6 @@ function showPrompt(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * HIDE PLACEHOLDER
-     * -----------------------------------------------------
-     */
-
     if (
         dom.promptPlaceholder
     ) {
@@ -1100,12 +1344,6 @@ function showPrompt(
 
     }
 
-
-    /*
-     * -----------------------------------------------------
-     * SHOW RESULT
-     * -----------------------------------------------------
-     */
 
     if (
         dom.promptResult
@@ -1119,12 +1357,6 @@ function showPrompt(
 
     }
 
-
-    /*
-     * -----------------------------------------------------
-     * ENABLE COPY
-     * -----------------------------------------------------
- */
 
     setCopyState(
         true,
@@ -1214,7 +1446,9 @@ function showAnalysis(
         text =
             analysis;
 
-    } else {
+    }
+
+    else {
 
         try {
 
@@ -1225,7 +1459,9 @@ function showAnalysis(
                     2
                 );
 
-        } catch (
+        }
+
+        catch (
             error
         ) {
 
@@ -1257,19 +1493,15 @@ function showAnalysis(
         dom.analysisResult.textContent =
             text;
 
-    } else {
+    }
+
+    else {
 
         dom.analysisResult.textContent =
             "Belum ada hasil analisis.";
 
     }
 
-
-    /*
-     * -----------------------------------------------------
-     * ANALYSIS DETAILS
-     * -----------------------------------------------------
-     */
 
     if (
         dom.analysisDetails
@@ -1382,16 +1614,6 @@ function setCopyState(
     );
 
 
-    /*
-     * HTML saat ini hanya:
-     *
-     * <button id="visionCopyButton">
-     *     COPY
-     * </button>
-     *
-     * Jadi update text langsung.
-     */
-
     if (
         copied
     ) {
@@ -1399,7 +1621,9 @@ function setCopyState(
         dom.copyButton.textContent =
             "COPIED";
 
-    } else {
+    }
+
+    else {
 
         dom.copyButton.textContent =
             "COPY";
@@ -1451,6 +1675,10 @@ function showError(
 
         getDOM().progress.hidden =
             false;
+
+        getDOM().progress.classList.remove(
+            "vision-progress-active"
+        );
 
     }
 
@@ -1542,6 +1770,10 @@ function showSuccess(
         getDOM().progress.hidden =
             false;
 
+        getDOM().progress.classList.remove(
+            "vision-progress-active"
+        );
+
     }
 
 
@@ -1600,11 +1832,6 @@ function setStage(
     );
 
 
-    /*
-     * Progress hanya ditampilkan
-     * saat proses aktif.
-     */
-
     const dom =
         getDOM();
 
@@ -1627,20 +1854,6 @@ function setStage(
 
 /* =========================================================
    UPDATE CREDIT
-   ---------------------------------------------------------
-   Compatibility UI method.
-
-   Fungsi:
-   - Menerima nilai credit terbaru
-   - Memperbarui elemen credit jika tersedia
-   - Menyimpan nilai pada data attribute page
-   - Tidak melakukan:
-     API
-     Supabase
-     reservation
-     deduction
-     refund
-     calculation
 ========================================================= */
 
 function updateCredit(
@@ -1650,12 +1863,6 @@ function updateCredit(
     const dom =
         getDOM();
 
-
-    /*
-     * -----------------------------------------------------
-     * NORMALIZE VALUE
-     * -----------------------------------------------------
-     */
 
     const numericCredits =
         Number(
@@ -1671,12 +1878,6 @@ function updateCredit(
             : 0;
 
 
-    /*
-     * -----------------------------------------------------
-     * PRIMARY CREDIT ELEMENT
-     * -----------------------------------------------------
-     */
-
     if (
         dom.credit
     ) {
@@ -1688,16 +1889,6 @@ function updateCredit(
 
     }
 
-
-    /*
-     * -----------------------------------------------------
-     * COMPATIBILITY ALIASES
-     * -----------------------------------------------------
-     *
-     * Mendukung beberapa kemungkinan nama
-     * element registry tanpa mempengaruhi
-     * logic credit.
-     */
 
     const creditElement =
         dom.creditBalance ||
@@ -1718,12 +1909,6 @@ function updateCredit(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * PAGE DATA ATTRIBUTE
-     * -----------------------------------------------------
-     */
-
     if (
         dom.page
     ) {
@@ -1735,12 +1920,6 @@ function updateCredit(
 
     }
 
-
-    /*
-     * -----------------------------------------------------
-     * RETURN
-     * -----------------------------------------------------
-     */
 
     return value;
 
@@ -1779,7 +1958,7 @@ function initialize() {
      * -----------------------------------------------------
      * PROCESSING
      * -----------------------------------------------------
-     */
+ */
 
     setProcessing(
         false
@@ -1806,7 +1985,7 @@ function initialize() {
      * -----------------------------------------------------
      * PROGRESS
      * -----------------------------------------------------
-     */
+ */
 
     setProgress(
         0,
@@ -1821,6 +2000,15 @@ function initialize() {
         dom.progress.hidden =
             true;
 
+        dom.progress.classList.remove(
+            "vision-progress-active"
+        );
+
+        dom.progress.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
     }
 
 
@@ -1828,7 +2016,7 @@ function initialize() {
      * -----------------------------------------------------
      * COPY
      * -----------------------------------------------------
-     */
+ */
 
     setCopyState(
         false,
@@ -1840,7 +2028,7 @@ function initialize() {
      * -----------------------------------------------------
      * SPINNER
      * -----------------------------------------------------
-     */
+ */
 
     if (
         dom.generateSpinner
@@ -1856,7 +2044,7 @@ function initialize() {
      * -----------------------------------------------------
      * GENERATE BUTTON
      * -----------------------------------------------------
-     */
+ */
 
     if (
         dom.generateButton
@@ -1938,11 +2126,6 @@ function syncFromState() {
         processing
     );
 
-
-    /*
-     * Error / completed tetap
-     * mempertahankan progress visual.
-     */
 
     const dom =
         getDOM();
