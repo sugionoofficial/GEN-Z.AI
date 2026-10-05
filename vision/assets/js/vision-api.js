@@ -1,4 +1,4 @@
-//vision-api.js?v=1.1
+//vision-api.js?v=1.2
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -7,6 +7,8 @@
 
    Fungsi:
    - Komunikasi dengan /api/openkey-chat
+   - Mengambil katalog model OpenKey
+   - Memilih model Vision yang benar-benar tersedia
    - Mengirim multimodal image + text
    - Menjalankan Vision Analysis
    - Menjalankan Prompt Engineering
@@ -418,6 +420,439 @@ async function request(
 
 
 /* =========================================================
+   OPENKEY MODEL CATALOG
+   ---------------------------------------------------------
+   Model tidak boleh ditebak atau di-hardcode.
+
+   Browser meminta katalog melalui endpoint GEN-Z.AI.
+   API key OpenKey tetap server-side.
+========================================================= */
+
+async function getOpenKeyModels(
+    options = {}
+) {
+
+    const response =
+        await request(
+
+            {
+
+                operation:
+                    "openkey_models"
+
+            },
+
+            {
+
+                timeout:
+                    options.timeout ||
+                    VISION_API_CONFIG.timeout
+
+            }
+
+        );
+
+
+    if (
+        !response?.success
+    ) {
+
+        throw createAPIError(
+
+            response?.error ||
+            "Katalog model OpenKey tidak tersedia.",
+
+            {
+
+                code:
+                    response?.code ||
+                    "OPENKEY_MODELS_UNAVAILABLE",
+
+                status:
+                    response?.status ||
+                    null,
+
+                data:
+                    response
+
+            }
+
+        );
+
+    }
+
+
+    const models =
+        Array.isArray(
+            response.models
+        )
+            ? response.models
+            : [];
+
+
+    if (
+        models.length === 0
+    ) {
+
+        throw createAPIError(
+
+            "OpenKey tidak mengembalikan daftar model.",
+
+            {
+
+                code:
+                    "OPENKEY_MODELS_EMPTY",
+
+                data:
+                    response
+
+            }
+
+        );
+
+    }
+
+
+    return models;
+
+}
+
+
+/* =========================================================
+   NORMALIZE MODEL
+========================================================= */
+
+function normalizeVisionModel(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !==
+            "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const id =
+        String(
+            model.model_id ||
+            model.id ||
+            ""
+        ).trim();
+
+
+    if (
+        !id
+    ) {
+
+        return null;
+
+    }
+
+
+    const name =
+        String(
+            model.model_name ||
+            model.name ||
+            id
+        ).trim();
+
+
+    const inputModalities =
+        Array.isArray(
+            model.input_modalities
+        )
+            ? model.input_modalities
+                .map(
+                    value =>
+                        String(
+                            value || ""
+                        )
+                            .trim()
+                            .toLowerCase()
+                )
+                .filter(Boolean)
+            : [];
+
+
+    const outputModalities =
+        Array.isArray(
+            model.output_modalities
+        )
+            ? model.output_modalities
+                .map(
+                    value =>
+                        String(
+                            value || ""
+                        )
+                            .trim()
+                            .toLowerCase()
+                )
+                .filter(Boolean)
+            : [];
+
+
+    return {
+
+        ...model,
+
+        id,
+
+        model_id:
+            id,
+
+        name,
+
+        model_name:
+            name,
+
+        input_modalities:
+            inputModalities,
+
+        output_modalities:
+            outputModalities
+
+    };
+
+}
+
+
+/* =========================================================
+   IMAGE INPUT DETECTION
+   ---------------------------------------------------------
+   Hanya menganggap model Vision apabila katalog OpenKey
+   secara eksplisit menyatakan dukungan image / vision /
+   multimodal.
+
+   Tidak menebak berdasarkan nama model.
+========================================================= */
+
+function supportsImageInput(
+    model
+) {
+
+    const normalized =
+        normalizeVisionModel(
+            model
+        );
+
+
+    if (
+        !normalized
+    ) {
+
+        return false;
+
+    }
+
+
+    const modalities =
+        normalized.input_modalities;
+
+
+    return modalities.some(
+        modality => [
+
+            "image",
+
+            "vision",
+
+            "multimodal",
+
+            "image_url"
+
+        ].includes(
+            modality
+        )
+    );
+
+}
+
+
+/* =========================================================
+   RESOLVE VISION MODEL
+   ---------------------------------------------------------
+   Urutan:
+   1. Model yang sedang dipilih jika tersedia
+      dan mendukung image.
+   2. Model Vision pertama dari katalog OpenKey.
+   3. Jika tidak ada model image-capable,
+      hentikan proses dengan error yang jelas.
+
+   Tidak ada fallback ke:
+   gemini-3.1-pro
+   atau model ID buatan lain.
+========================================================= */
+
+async function resolveVisionModel(
+    requestedModel = null,
+    options = {}
+) {
+
+    const models =
+        await getOpenKeyModels(
+            options
+        );
+
+
+    const normalizedModels =
+        models
+            .map(
+                normalizeVisionModel
+            )
+            .filter(
+                Boolean
+            );
+
+
+    if (
+        normalizedModels.length ===
+        0
+    ) {
+
+        throw createAPIError(
+
+            "Tidak ada model valid yang dikembalikan OpenKey.",
+
+            {
+
+                code:
+                    "OPENKEY_NO_VALID_MODELS",
+
+                data:
+                    models
+
+            }
+
+        );
+
+    }
+
+
+    const requested =
+        normalizeVisionModel(
+            requestedModel
+        );
+
+
+    /* =====================================================
+       REQUESTED MODEL
+    ===================================================== */
+
+    if (
+        requested &&
+        supportsImageInput(
+            requested
+        )
+    ) {
+
+        const exact =
+            normalizedModels.find(
+
+                model =>
+
+                    model.id.toLowerCase() ===
+                    requested.id.toLowerCase()
+
+            );
+
+
+        if (
+            exact
+        ) {
+
+            return exact;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       FIND IMAGE MODEL
+    ===================================================== */
+
+    const visionModels =
+        normalizedModels.filter(
+            supportsImageInput
+        );
+
+
+    if (
+        visionModels.length ===
+        0
+    ) {
+
+        throw createAPIError(
+
+            "OpenKey tidak menyediakan model dengan dukungan input gambar.",
+
+            {
+
+                code:
+                    "OPENKEY_NO_VISION_MODEL",
+
+                data: {
+
+                    models:
+                        normalizedModels.map(
+                            model => ({
+
+                                id:
+                                    model.id,
+
+                                name:
+                                    model.name,
+
+                                input_modalities:
+                                    model.input_modalities
+
+                            })
+                        )
+
+                }
+
+            }
+
+        );
+
+    }
+
+
+    const selected =
+        visionModels[0];
+
+
+    /* =====================================================
+       SYNC STATE
+    ===================================================== */
+
+    const state =
+        getState();
+
+
+    if (
+        typeof state.setModel ===
+        "function"
+    ) {
+
+        state.setModel(
+            selected
+        );
+
+    }
+
+
+    return selected;
+
+}
+
+
+/* =========================================================
    BUILD IMAGE MESSAGE
 ========================================================= */
 
@@ -496,21 +931,7 @@ function getSelectedModel() {
 
     return state.get(
         "model",
-        {
-
-            id:
-                "gemini-3.1-pro",
-
-            name:
-                "Gemini 3.1 Pro",
-
-            providerId:
-                "openkey",
-
-            providerName:
-                "OpenKey"
-
-        }
+        null
     );
 
 }
@@ -675,9 +1096,16 @@ async function analyzeImage(
     }
 
 
-    const model =
+    const requestedModel =
         options.model ||
         getSelectedModel();
+
+
+    const model =
+        await resolveVisionModel(
+            requestedModel,
+            options
+        );
 
 
     const settings =
@@ -964,9 +1392,25 @@ async function generatePrompt(
         getState();
 
 
-    const model =
+    const requestedModel =
         options.model ||
         getSelectedModel();
+
+
+    /*
+     * Prompt engineering tidak mengirim image,
+     * tetapi menggunakan model OpenKey yang sama
+     * setelah model Vision berhasil ditentukan.
+     *
+     * resolveVisionModel() memastikan model masih
+     * benar-benar tersedia di katalog OpenKey.
+     */
+
+    const model =
+        await resolveVisionModel(
+            requestedModel,
+            options
+        );
 
 
     const settings =
@@ -1112,15 +1556,6 @@ function extractAssistantText(
 
     /* =====================================================
        1. GEN-Z.AI NORMALIZED RESPONSE
-       -----------------------------------------------------
-       provider/openkey/chat.js menghasilkan:
-
-       {
-           content: "...",
-           message: {...},
-           model: "...",
-           ...
-       }
     ===================================================== */
 
     if (
@@ -1385,11 +1820,6 @@ function cleanGeneratedPrompt(
             .trim();
 
 
-    /*
-     * Hilangkan fenced markdown jika model
-     * membungkus prompt dengan ```...```.
-     */
-
     if (
         result.startsWith(
             "```"
@@ -1485,11 +1915,6 @@ function parseJSON(
 
     } catch {
 
-        /*
-         * Fallback untuk model yang menyisipkan
-         * sedikit teks di sekitar JSON.
-         */
-
         const firstBrace =
             normalized.indexOf(
                 "{"
@@ -1576,12 +2001,6 @@ async function runVisionPipeline(
 
     } catch {
 
-        /*
-         * Analysis tetap dikembalikan sebagai text
-         * agar modul normalizer berikutnya dapat
-         * menangani fallback.
-         */
-
         normalizedAnalysis =
             null;
 
@@ -1594,7 +2013,14 @@ async function runVisionPipeline(
             normalizedAnalysis ||
             analysis.text,
 
-            options
+            {
+
+                ...options,
+
+                model:
+                    analysis.model
+
+            }
 
         );
 
@@ -1645,6 +2071,14 @@ const GENZVisionAPI =
         request,
 
         getAccessToken,
+
+        getOpenKeyModels,
+
+        normalizeVisionModel,
+
+        supportsImageInput,
+
+        resolveVisionModel,
 
         buildImageMessage,
 
