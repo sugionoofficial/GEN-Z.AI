@@ -1,4 +1,4 @@
-//vision-api.js?v=1.3
+//vision-api.js?v=1.4
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -17,6 +17,21 @@
    - Tidak memotong credit
    - Tidak menyimpan history
    - Tidak menyimpan API key di browser
+
+   CATATAN OPENKEY:
+   Endpoint /models OpenKey tidak selalu mengirim
+   metadata input_modalities / capabilities.
+
+   Karena itu deteksi Vision menggunakan dua lapisan:
+
+   1. Capability metadata yang benar-benar diberikan
+      oleh katalog API.
+   2. Capability policy OpenKey untuk model yang secara
+      eksplisit ditandai "Realtime & vision" pada katalog
+      resmi OpenKey.
+
+   Policy ini BUKAN registry model.
+   Model tetap wajib berasal dari response /models.
 ========================================================= */
 
 
@@ -45,6 +60,38 @@ const VISION_API_CONFIG = Object.freeze({
         5000
 
 });
+
+
+/* =========================================================
+   OPENKEY VISION CAPABILITY POLICY
+   ---------------------------------------------------------
+   OpenKey /models saat ini dapat mengembalikan model
+   tanpa metadata input_modalities / capabilities.
+
+   Model di bawah ini adalah model yang secara eksplisit
+   ditandai sebagai "Realtime & vision" pada katalog
+   OpenKey.
+
+   PENTING:
+   - Ini bukan daftar model yang dibuat oleh aplikasi.
+   - Model tetap harus ditemukan di response /models.
+   - ID tidak digunakan untuk membuat model baru.
+   - Jika model tidak ada di katalog OpenKey, policy ini
+     tidak akan membuatnya tersedia.
+========================================================= */
+
+const OPENKEY_VISION_MODEL_IDS =
+    Object.freeze(
+        new Set([
+
+            "grok-4.5",
+
+            "grok-4.6",
+
+            "qwen3-vl-max"
+
+        ])
+    );
 
 
 /* =========================================================
@@ -424,7 +471,7 @@ async function request(
 /* =========================================================
    OPENKEY MODEL CATALOG
    ---------------------------------------------------------
-   Model tidak boleh ditebak atau di-hardcode.
+   Model tidak boleh dibuat atau ditebak.
 
    Browser meminta katalog melalui endpoint GEN-Z.AI.
    API key OpenKey tetap server-side.
@@ -873,6 +920,62 @@ function getModelCapabilities(
 
 
 /* =========================================================
+   OPENKEY DOCUMENTED VISION CHECK
+   ---------------------------------------------------------
+   Fallback khusus OpenKey.
+
+   Hanya mengembalikan true jika:
+   - model ID memang tercantum dalam policy Vision OpenKey,
+   - dan model tersebut benar-benar datang dari katalog
+     OpenKey /models.
+
+   Tidak menggunakan partial matching.
+   Tidak menggunakan nama display.
+   Tidak menggunakan kata "vision" secara sembarang.
+========================================================= */
+
+function isOpenKeyDocumentedVisionModel(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !==
+            "object"
+    ) {
+
+        return false;
+
+    }
+
+
+    const id =
+        String(
+            model.model_id ||
+            model.id ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        !id
+    ) {
+
+        return false;
+
+    }
+
+
+    return OPENKEY_VISION_MODEL_IDS.has(
+        id
+    );
+
+}
+
+
+/* =========================================================
    NORMALIZE MODEL
 ========================================================= */
 
@@ -1041,12 +1144,18 @@ function normalizeVisionModel(
 /* =========================================================
    IMAGE INPUT DETECTION
    ---------------------------------------------------------
-   Vision detection membaca capability metadata model.
-
    Prioritas:
-   1. input_modalities eksplisit
-   2. capability metadata yang sudah diberikan catalog
-   3. Tidak menggunakan model ID sebagai tebakan
+
+   1. Capability metadata eksplisit.
+   2. Capability metadata dari raw provider response.
+   3. OpenKey documented vision policy.
+   4. False.
+
+   Dengan demikian:
+   - metadata provider tetap memiliki prioritas,
+   - model Vision OpenKey tetap dapat dikenali walaupun
+     /models tidak mengirim capability metadata,
+   - model lain tidak ditebak.
 ========================================================= */
 
 function supportsImageInput(
@@ -1103,6 +1212,12 @@ function supportsImageInput(
     ];
 
 
+    /*
+     * PRIORITY 1:
+     * Capability metadata yang benar-benar diberikan
+     * oleh provider.
+     */
+
     if (
         imageIndicators.some(
             indicator =>
@@ -1118,18 +1233,36 @@ function supportsImageInput(
 
 
     /*
-     * Nested capability objects dapat menghasilkan key
-     * seperti:
+     * PRIORITY 2:
+     * OpenKey documented vision policy.
      *
-     * input:
-     * {
-     *     image: true
-     * }
-     *
-     * getModelCapabilities() sudah mengubah key tersebut
-     * menjadi "image".
+     * Hanya berlaku untuk model yang benar-benar ada
+     * di katalog OpenKey.
      */
 
+    if (
+        isOpenKeyDocumentedVisionModel(
+            normalized
+        )
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+     * Tidak melakukan tebakan berdasarkan:
+     * - nama model
+     * - vendor
+     * - kata "gpt"
+     * - kata "gemini"
+     * - kata "grok"
+     * - kata "vision"
+     *
+     * Jika tidak ada bukti capability,
+     * model dianggap tidak mendukung image.
+     */
 
     return false;
 
@@ -1189,6 +1322,11 @@ async function resolveVisionModel(
 
                 supports_image:
                     supportsImageInput(
+                        model
+                    ),
+
+                openkey_documented_vision:
+                    isOpenKeyDocumentedVisionModel(
                         model
                     )
 
@@ -1302,6 +1440,11 @@ async function resolveVisionModel(
                                 capabilities:
                                     model.capabilities,
 
+                                openkey_documented_vision:
+                                    isOpenKeyDocumentedVisionModel(
+                                        model
+                                    ),
+
                                 raw:
                                     model.raw ||
                                     null
@@ -1356,7 +1499,12 @@ async function resolveVisionModel(
                 selected.input_modalities,
 
             capabilities:
-                selected.capabilities
+                selected.capabilities,
+
+            openkey_documented_vision:
+                isOpenKeyDocumentedVisionModel(
+                    selected
+                )
 
         }
     );
