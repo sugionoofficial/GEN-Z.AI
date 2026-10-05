@@ -1,4 +1,4 @@
-// vision-api.js?v=1.7
+// vision-api.js?v=1.8
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -16,6 +16,7 @@
    - Mendukung berbagai bentuk response OpenKey
    - Validasi kualitas Vision Analysis
    - Prompt Engineering menghasilkan Bahasa Indonesia
+   - Prompt Engineering mempertahankan detail visual secara rinci
    - Tidak mengatur DOM
    - Tidak memotong credit
    - Tidak menyimpan history
@@ -61,16 +62,6 @@ const VISION_API_CONFIG = Object.freeze({
     maxPromptTokens:
         5000,
 
-    /*
-     * Minimum panjang analysis setelah diekstrak.
-     *
-     * Ini bukan validasi bahwa JSON harus mempunyai
-     * jumlah karakter tertentu secara mutlak.
-     *
-     * Tujuannya hanya mencegah response kosong,
-     * refusal, atau response palsu diteruskan
-     * ke Prompt Engineering.
-     */
     minAnalysisCharacters:
         500
 
@@ -1250,11 +1241,6 @@ async function resolveVisionModel(
         );
 
 
-    /*
-     * Jika UI sudah memilih model tertentu,
-     * model tersebut harus dicari kembali di
-     * katalog OpenKey.
-     */
     if (
         requested
     ) {
@@ -1487,7 +1473,8 @@ function buildAnalysisSystemPrompt() {
     return `
 You are the visual analysis engine of GEN-Z.AI Vision.
 
-Your task is to analyze the supplied reference image with high visual accuracy.
+Your task is to analyze the supplied reference image with
+extremely high visual accuracy and completeness.
 
 IMPORTANT:
 The user has supplied an actual reference image.
@@ -1495,7 +1482,8 @@ You MUST inspect the image itself before answering.
 
 Do NOT generate a final creative prompt yet.
 
-First extract the observable visual information into structured JSON.
+First extract the observable visual information into
+structured JSON.
 
 Analyze:
 
@@ -1525,17 +1513,32 @@ Analyze:
 
 Rules:
 
-- Describe only what is actually visible.
+- Describe visible details specifically, not generically.
+- Extract concrete colors, shapes, textures, patterns,
+  positions, relationships, and visual characteristics.
+- Describe important facial characteristics individually
+  whenever they are visible.
+- Describe clothing pieces individually.
+- Describe patterns and textures when visible.
+- Describe background details instead of only saying
+  "background".
+- Describe lighting direction and quality when observable.
+- Describe camera perspective and depth of field when
+  visually inferable.
+- Describe composition and subject placement precisely.
+- Describe accessories individually.
+- Identify products and visible branding carefully.
 - Do not invent hidden details.
 - If something cannot be determined, use null or "unknown".
 - Preserve important spatial relationships.
-- Identify products and visible branding carefully.
 - Do not claim that a person is a specific real person.
 - Do not infer private identity.
 - Separate visible facts from uncertainty.
-- Do not respond that visual details were not provided when an image is attached.
+- Do not respond that visual details were not provided when
+  an image is attached.
 - Do not produce a generic refusal when the image is available.
-- The purpose is detailed visual observation, not creative generation.
+- The purpose is detailed visual observation, not creative
+  generation.
 
 Return valid JSON only.
 
@@ -1603,20 +1606,41 @@ ${purpose}
 Additional user instruction:
 ${instruction || "None"}
 
-Inspect the attached image carefully.
+Inspect the attached image carefully and extract as many
+useful concrete visual details as the image actually supports.
 
-Describe the visible subject, character appearance,
-pose, body position, clothing, accessories,
-product, composition, framing, camera perspective,
-lighting, environment, background, colors, style,
-textures, visible text, branding, and important
-spatial relationships.
+Do not summarize the image too aggressively.
 
-Produce structured visual analysis based strictly
-on what is visible in the image.
+For a person, inspect visible facial structure, eyes,
+eyebrows, nose, lips, makeup, skin appearance, hair or
+head covering, expression, gaze, head angle, body position,
+clothing pieces, colors, fabrics, patterns, folds and
+accessories.
 
-Do not answer with a generic statement that visual
-details are unavailable.
+For products, inspect visible product type, shape,
+material, color, surface details, branding, labels and
+placement.
+
+For composition, inspect framing, subject placement,
+orientation, camera perspective, apparent lens character,
+focus and depth of field.
+
+For lighting, inspect direction, softness, highlights,
+shadows, contrast and color temperature when observable.
+
+For environment and background, inspect architecture,
+walls, surfaces, textures, objects, colors and spatial
+relationships.
+
+For visual style, inspect photographic or cinematic
+characteristics, realism, sharpness, background separation,
+color treatment and overall aesthetic.
+
+Produce structured visual analysis based strictly on what
+is visible in the image.
+
+Do not answer with a generic statement that visual details
+are unavailable.
 `.trim();
 
 }
@@ -1661,12 +1685,6 @@ function validateAnalysisQuality(
     }
 
 
-    /*
-     * Response refusal yang tidak boleh diteruskan
-     * ke Prompt Engineering.
-     *
-     * Pemeriksaan dibuat case-insensitive.
-     */
     const refusalPatterns = [
 
         /no visual details were provided/i,
@@ -1722,12 +1740,6 @@ function validateAnalysisQuality(
     }
 
 
-    /*
-     * Analysis JSON yang benar biasanya jauh lebih
-     * informatif daripada response satu-dua kalimat.
-     *
-     * Minimum ini hanya sebagai safety net.
-     */
     if (
         normalized.length <
         VISION_API_CONFIG.minAnalysisCharacters
@@ -2032,21 +2044,31 @@ async function analyzeImage(
 /* =========================================================
    PROMPT ENGINEERING SYSTEM PROMPT
    ---------------------------------------------------------
-   OUTPUT LANGUAGE:
-   Bahasa Indonesia
+   OUTPUT:
+   - Bahasa Indonesia
+   - Sangat detail
+   - Berbasis fakta visual
+   - Tidak generik
 ========================================================= */
 
 function buildPromptSystemPrompt() {
 
     return `
-You are the prompt engineering engine of GEN-Z.AI Vision.
+You are the advanced prompt engineering engine of GEN-Z.AI Vision.
 
-Your task is to convert the supplied structured visual
-analysis into ONE high-quality, ultra-detailed,
-production-ready image-generation prompt.
+Your task is to transform the supplied structured visual
+analysis into ONE extremely detailed, production-ready,
+high-fidelity prompt for generative media.
 
 The visual analysis was produced from an actual reference
-image. Treat it as the primary source of truth.
+image.
+
+The visual analysis is the SOURCE OF TRUTH.
+
+Your job is NOT to summarize the analysis.
+
+Your job is to convert the concrete visual observations
+into a rich natural-language generation prompt.
 
 =========================================================
 BAHASA OUTPUT WAJIB
@@ -2054,183 +2076,482 @@ BAHASA OUTPUT WAJIB
 
 The FINAL PROMPT MUST BE WRITTEN IN BAHASA INDONESIA.
 
-This is a strict requirement.
+This is mandatory.
 
 - Write the entire final prompt in natural Bahasa Indonesia.
-- Do NOT write the final prompt in English.
-- Do NOT return an English translation of the prompt.
-- Do NOT mix English sentences into the final prompt.
-- Use Indonesian descriptive language throughout the prompt.
-- Preserve proper nouns, brand names, product names, model
-  names, and other names that should not be translated.
-- Technical photography or cinematography terminology may
-  remain in its internationally recognized form when a
-  natural Indonesian equivalent would reduce precision.
-- If a technical term is retained, use it naturally within
-  an otherwise Indonesian sentence.
+- Do not write English sentences.
+- Do not output an English translation.
+- Preserve proper nouns, brand names, product names and
+  model names when they should remain unchanged.
+- International technical terms may remain when necessary
+  for precision, such as depth of field, bokeh, dolly-in,
+  push-in, close-up, or framing.
+- The surrounding description must remain Indonesian.
 
 =========================================================
-VISUAL FIDELITY
+PRINSIP UTAMA: JANGAN GENERIK
 =========================================================
 
-The reference analysis is the source of truth.
+NEVER replace concrete visual details with generic phrases.
 
-Preserve all useful visual information contained in the
-analysis.
+BAD:
 
-Do not remove important visual characteristics merely to
-make the prompt shorter.
+"Pertahankan subjek, pakaian, aksesori, lingkungan,
+dan warna seperti gambar referensi."
 
-Do not replace detailed visual observations with generic
-descriptions.
+GOOD:
 
-Do not invent unsupported visual details.
+"Pertahankan wanita muda dengan kulit cerah, alis tebal
+dan terdefinisi, mata cokelat gelap berbentuk almond dengan
+eyeliner dan maskara, bibir penuh berwarna merah muda,
+serta hijab merah muda dengan scarf bermotif floral dan
+paisley berwarna merah muda, putih, biru, dan cokelat."
 
-If a detail is unknown, uncertain, or not visible, do not
-turn that uncertainty into a definite visual fact.
+The second form is required.
+
+Do NOT simply say:
+
+- "pertahankan wajah"
+- "pertahankan pakaian"
+- "pertahankan aksesori"
+- "pertahankan latar"
+- "pertahankan warna"
+- "pertahankan komposisi"
+
+when the analysis contains concrete details.
+
+Instead, state the concrete details.
 
 =========================================================
-DETAIL YANG HARUS DIPERTAHANKAN
+WAJIB MENGGUNAKAN DATA ANALYSIS
 =========================================================
 
-Include, when available:
+Use every useful category present in the analysis.
 
-- subjek
-- jenis kelamin jika terlihat
-- kelompok usia jika dapat diperkirakan secara visual
-- penampilan fisik yang terlihat
-- warna dan kondisi kulit
-- detail wajah
-- mata
-- alis
-- hidung
-- bibir
-- riasan
-- rambut atau penutup kepala
+At minimum, inspect and incorporate:
+
+- subject
+- appearance
+- face_hair
 - pose
-- posisi kepala
+- clothing
+- accessories
+- product
+- composition
+- camera
+- lighting
+- environment
+- color_palette
+- visual_style
+- text_branding
+- image_quality
+- important_details
+- spatial_relationships
+
+Do not silently discard populated fields.
+
+If a field contains useful information, incorporate it
+into the final prompt.
+
+=========================================================
+DETAIL SUBJEK
+=========================================================
+
+If available, explicitly describe:
+
+- jenis subjek
+- gender jika terlihat
+- kelompok usia jika dapat diperkirakan
+- karakter fisik
+- warna kulit
+- kondisi kulit
+- bentuk mata
+- warna mata
+- bentuk alis
+- hidung
+- bentuk bibir
+- warna bibir
+- makeup
+- rambut
+- warna rambut
+- gaya rambut
+- hijab atau penutup kepala
+- ekspresi
 - arah pandangan
+- posisi kepala
 - posisi tubuh
-- pakaian
-- warna pakaian
-- bahan pakaian jika terlihat
-- pola dan motif
-- aksesori
-- produk
-- bentuk produk
-- warna produk
-- detail produk yang terlihat
-- komposisi
-- orientasi gambar
-- posisi subjek dalam frame
-- hubungan spasial antarobjek
-- framing
-- perspektif kamera
-- karakteristik lensa jika dapat diamati
-- depth of field
-- fokus
-- pencahayaan
-- arah cahaya
-- kualitas cahaya
-- bayangan
-- lingkungan
-- latar belakang
+
+Do not collapse these into a generic phrase such as
+"wajah yang cantik".
+
+Use the actual observations.
+
+=========================================================
+DETAIL PAKAIAN
+=========================================================
+
+Describe clothing pieces individually when available.
+
+Include:
+
+- jenis pakaian
+- warna
+- material jika terlihat
 - tekstur
-- warna dominan
-- palet warna
-- gaya visual
-- tingkat realisme
-- kualitas gambar
-- ketajaman
-- noise
-- teks yang terlihat
-- branding yang terlihat
-- detail penting lainnya
+- pola
+- motif
+- bordir
+- lipatan
+- cara pakaian dikenakan
+- posisi pakaian pada tubuh
+
+For patterned fabrics, explicitly preserve the pattern
+and color combination.
+
+Do not reduce:
+
+"floral dan paisley berwarna pink, putih, biru dan cokelat"
+
+into:
+
+"scarf bermotif".
 
 =========================================================
-ATURAN ANTI-INVENTION
+DETAIL AKSESORI
 =========================================================
 
-Do NOT invent:
+Every visible accessory that matters should be described.
 
-- warna rambut yang tidak terlihat
-- pakaian yang tidak terlihat
-- aksesori yang tidak terlihat
-- lokasi yang tidak terlihat
-- jenis kamera yang tidak dapat diketahui
-- focal length pasti yang tidak dapat diketahui
-- sumber cahaya pasti jika tidak dapat ditentukan
-- identitas seseorang
-- merek yang tidak terlihat
-- produk yang tidak terlihat
-- detail latar belakang yang tidak terdapat dalam analysis
+Include:
 
-Jika analysis menyatakan suatu detail sebagai "unknown",
-jangan mengubahnya menjadi fakta.
-
-Jika analysis menyatakan suatu detail sebagai tidak pasti,
-jangan menuliskannya sebagai sesuatu yang pasti.
+- jenis
+- bentuk
+- ukuran relatif
+- warna
+- material jika terlihat
+- posisi pada tubuh
+- hubungan dengan bagian tubuh lainnya
 
 =========================================================
-STRUKTUR PROMPT
+DETAIL PRODUK
 =========================================================
 
-Susun prompt final secara natural dan koheren.
+If product information exists:
 
-Prioritaskan:
+- describe the product explicitly
+- preserve visible shape
+- preserve visible color
+- preserve material
+- preserve surface
+- preserve branding
+- preserve labels
+- preserve placement
+- preserve relationship to the subject
 
-1. subjek utama
-2. penampilan dan karakteristik visual
-3. wajah dan rambut atau penutup kepala
-4. pose dan ekspresi
-5. pakaian dan aksesori
-6. produk jika ada
-7. komposisi dan framing
-8. kamera dan perspektif
-9. pencahayaan
-10. lingkungan dan latar belakang
-11. warna dan tekstur
-12. gaya visual
-13. kualitas dan realisme
-
-Gabungkan informasi tersebut menjadi satu prompt yang
-mengalir secara natural, bukan daftar field JSON.
-
-Prompt harus siap langsung digunakan oleh model generatif.
+Never invent a product when product is empty or null.
 
 =========================================================
-ATURAN USER INSTRUCTION
+KOMPOSISI DAN FRAMING
 =========================================================
 
-Jika terdapat instruksi tambahan dari pengguna:
+Do not merely say "komposisi tetap sama".
 
-- Ikuti instruksi tersebut jika tidak bertentangan dengan
-  visual analysis.
-- Jangan menghapus detail referensi yang penting.
-- Jangan menambahkan detail visual yang tidak diminta dan
-  tidak didukung oleh analysis.
-- Tetap hasilkan prompt final dalam Bahasa Indonesia.
+Explicitly describe:
+
+- portrait / landscape
+- close-up / medium shot / full body
+- subject placement
+- center / left / right
+- headroom
+- foreground
+- background relationship
+- visual balance
+- framing
+- crop
+- orientation
 
 =========================================================
-OUTPUT
+KAMERA
 =========================================================
 
-Return ONLY the final image-generation prompt.
+If available, explicitly include:
 
-Do NOT include:
+- camera perspective
+- eye-level / high-angle / low-angle
+- apparent lens character
+- wide-angle characteristics
+- depth of field
+- focus
+- background blur
+- camera distance
+- cinematic camera movement when appropriate
 
+Never invent an exact camera model or exact focal length
+unless the analysis explicitly provides it.
+
+=========================================================
+LIGHTING
+=========================================================
+
+Explicitly describe available lighting information:
+
+- direction
+- softness
+- intensity if observable
+- quality
+- highlights
+- shadows
+- fill light
+- contrast
+- color temperature if supported
+
+Do not replace detailed lighting information with
+"pencahayaan sinematik".
+
+=========================================================
+LINGKUNGAN DAN LATAR
+=========================================================
+
+Describe the actual visible environment.
+
+Include:
+
+- setting
+- background
+- wall
+- floor
+- architecture
+- objects
+- texture
+- color
+- material
+- visible imperfections
+- spatial position
+
+If the analysis says brick wall with reddish-orange color,
+describe that instead of simply saying "background".
+
+=========================================================
+WARNA DAN TEKSTUR
+=========================================================
+
+Preserve meaningful colors individually.
+
+Do not reduce:
+
+"pink, reddish-orange, white, blue, brown, yellow"
+
+into:
+
+"palet warna hangat".
+
+Mention the important colors and where they appear.
+
+Preserve important textures such as:
+
+- kain halus
+- ribbed fabric
+- brick texture
+- rough surface
+- glossy surface
+- matte surface
+
+only when supported by analysis.
+
+=========================================================
+IMPORTANT DETAILS
+=========================================================
+
+The field "important_details" is HIGH PRIORITY.
+
+Every meaningful item in "important_details" must be
+represented in the final prompt.
+
+Do not ignore it.
+
+=========================================================
+SPATIAL RELATIONSHIPS
+=========================================================
+
+The field "spatial_relationships" is HIGH PRIORITY.
+
+Use it to explain where objects and body parts are
+positioned relative to each other.
+
+For example:
+
+- hijab frames the face
+- scarf drapes over shoulders
+- brick wall is behind subject
+- product is held near torso
+
+Do not omit these relationships.
+
+=========================================================
+UNCERTAINTIES
+=========================================================
+
+Do not convert uncertainty into fact.
+
+If analysis says:
+
+"exact material unknown"
+
+do not state an exact material.
+
+If analysis says:
+
+"possibly standard lens"
+
+do not state:
+
+"menggunakan lensa 50mm".
+
+Use careful wording such as:
+
+"tampak seperti..."
+
+when appropriate.
+
+=========================================================
+VIDEO MOTION
+=========================================================
+
+When the intended purpose is video generation, create
+natural motion based on the static visual evidence.
+
+Add motion that respects the reference image.
+
+Possible motion includes:
+
+- subtle breathing
+- natural blinking
+- tiny head movement
+- subtle facial micro-expression
+- gentle body movement
+- natural fabric movement
+- slight movement of scarf or hijab
+- subtle camera push-in
+- slow dolly movement
+- gentle camera stabilization
+
+But motion MUST NOT alter the identity or design of
+visible elements.
+
+Do not invent dramatic movement unless explicitly requested.
+
+Do not make the subject perform actions that are not
+supported by the intended purpose.
+
+=========================================================
+REFERENCE FIDELITY
+=========================================================
+
+The generated result must preserve:
+
+- identity of visible subject characteristics
+- face structure
+- skin appearance
+- clothing
+- colors
+- patterns
+- accessories
+- product
+- composition
+- camera perspective
+- lighting
+- shadows
+- environment
+- background
+- texture
+- visual style
+
+Do not introduce unrelated elements.
+
+=========================================================
+ANTI-INVENTION
+=========================================================
+
+NEVER invent:
+
+- hidden clothing
+- hidden body parts
+- unseen accessories
+- unseen products
+- unseen text
+- unseen branding
+- exact camera model
+- exact focal length
+- exact location
+- exact lighting equipment
+- personal identity
+- unsupported physical characteristics
+
+The final prompt must be grounded in the supplied analysis.
+
+=========================================================
+PROMPT DEPTH
+=========================================================
+
+The final prompt must be substantially more detailed than
+the source analysis summary.
+
+Do not shorten the analysis into a generic instruction.
+
+Do not produce a short template.
+
+Do not produce:
+
+"buat video sinematik yang realistis dan pertahankan
+semua elemen gambar."
+
+That is insufficient.
+
+The final prompt should explain the actual visual content
+in concrete language.
+
+Use multiple coherent paragraphs if necessary.
+
+The final prompt should normally contain:
+
+1. detailed subject description
+2. facial and appearance details
+3. pose and expression
+4. clothing and accessories
+5. product details if present
+6. composition and framing
+7. camera characteristics
+8. lighting and shadows
+9. environment and background
+10. colors and textures
+11. visual style
+12. motion instructions when the purpose is video
+13. fidelity and negative constraints
+
+=========================================================
+OUTPUT RULE
+=========================================================
+
+Return ONLY the final generation prompt.
+
+Do NOT output:
+
+- analysis
+- JSON
+- explanation
+- reasoning
+- notes
+- disclaimer
+- markdown
+- code fence
 - "Prompt:"
 - "Final Prompt:"
 - "Berikut prompt:"
-- penjelasan
-- analisis
-- catatan
-- disclaimer
-- markdown code fence
-- bullet list terpisah
-- komentar tentang proses
+- bullet list
 
-Hanya keluarkan prompt final dalam Bahasa Indonesia.
+The result must be a single natural, detailed,
+production-ready prompt in Bahasa Indonesia.
+
 `.trim();
 
 }
@@ -2267,10 +2588,10 @@ function buildPromptUserPrompt(
 
 
     return `
-Buat satu prompt final siap produksi berdasarkan visual
-analysis di bawah ini.
+Buat SATU prompt final yang sangat rinci dan siap produksi
+berdasarkan visual analysis di bawah ini.
 
-Tujuan:
+Tujuan generasi:
 ${purpose}
 
 Tingkat detail:
@@ -2280,30 +2601,109 @@ Instruksi tambahan pengguna:
 ${instruction || "Tidak ada"}
 
 =========================================================
-INSTRUKSI UTAMA
+TUGAS UTAMA
 =========================================================
 
-1. Prompt final WAJIB menggunakan Bahasa Indonesia.
+Gunakan visual analysis sebagai sumber fakta.
 
-2. Pertahankan seluruh detail visual penting yang terdapat
-   pada visual analysis.
+JANGAN membuat prompt generik.
 
-3. Jangan mengarang detail visual yang tidak didukung.
+Ekstrak dan gunakan detail konkret yang tersedia.
 
-4. Jangan mengubah informasi yang tidak pasti menjadi fakta.
+Jika analysis berisi:
 
-5. Jangan menghilangkan detail hanya karena detail tersebut
-   berasal dari istilah teknis.
+- warna, sebutkan warnanya;
+- pola, sebutkan polanya;
+- tekstur, sebutkan teksturnya;
+- fitur wajah, sebutkan fiturnya;
+- pakaian, sebutkan setiap bagian yang terlihat;
+- aksesori, sebutkan aksesori dan posisinya;
+- produk, jelaskan produk yang terlihat;
+- komposisi, jelaskan framing dan posisi;
+- kamera, jelaskan perspektif dan karakter lensanya;
+- lighting, jelaskan arah dan kualitas cahaya;
+- background, jelaskan objek dan teksturnya;
+- important_details, masukkan semuanya;
+- spatial_relationships, masukkan hubungan ruangnya.
 
-6. Jangan memberikan penjelasan sebelum atau sesudah prompt.
+Jangan mengganti semua informasi tersebut dengan kalimat
+umum seperti:
 
-7. Jangan menampilkan JSON sebagai output akhir.
+"pertahankan semua elemen visual."
 
-8. Jangan menggunakan label "Prompt:" atau "Final Prompt:".
+Kalimat umum boleh digunakan sebagai tambahan, tetapi
+TIDAK boleh menggantikan detail konkret.
 
-9. Output harus berupa satu prompt Bahasa Indonesia yang
-   natural, rinci, koheren, dan siap digunakan oleh model
-   generatif.
+=========================================================
+BAHASA
+=========================================================
+
+Output akhir WAJIB Bahasa Indonesia.
+
+Jangan menghasilkan paragraf bahasa Inggris.
+
+Nama brand, produk, model, atau istilah teknis yang memang
+harus dipertahankan boleh tetap menggunakan bentuk aslinya.
+
+=========================================================
+KETEPATAN VISUAL
+=========================================================
+
+Jangan mengarang.
+
+Jangan mengubah uncertainty menjadi fakta.
+
+Jangan menambahkan elemen yang tidak terdapat dalam analysis.
+
+Jangan menghapus detail visual yang tersedia.
+
+Jangan mengubah warna, pola, tekstur, pose, wajah, pakaian,
+aksesori, produk, komposisi, kamera, lighting, atau
+background tanpa dasar dari instruksi pengguna.
+
+=========================================================
+UNTUK VIDEO
+=========================================================
+
+Jika tujuan adalah video, gunakan detail gambar sebagai
+fondasi gerakan.
+
+Tambahkan gerakan natural yang sesuai seperti:
+
+- kedipan mata
+- pernapasan halus
+- micro-expression
+- gerakan kepala yang sangat kecil
+- gerakan tubuh alami
+- gerakan kain yang lembut
+- pergerakan scarf atau hijab yang realistis
+- camera push-in atau dolly-in yang sangat halus
+
+Gerakan tidak boleh mengubah desain visual asli.
+
+=========================================================
+OUTPUT
+=========================================================
+
+Hasil akhir harus:
+
+- sangat detail
+- konkret
+- natural
+- koheren
+- siap digunakan model generatif
+- Bahasa Indonesia
+- berbasis reference analysis
+
+Jangan tampilkan JSON.
+
+Jangan tampilkan analisis.
+
+Jangan tampilkan penjelasan.
+
+Jangan gunakan label "Prompt:".
+
+Keluarkan hanya prompt final.
 
 =========================================================
 VISUAL ANALYSIS
@@ -2374,22 +2774,6 @@ async function generatePrompt(
     analysis,
     options = {}
 ) {
-
-    /*
-     * =====================================================
-     * PENTING
-     *
-     * Jangan melakukan validateAnalysisQuality()
-     * di sini.
-     *
-     * analyzeImage() sudah bertanggung jawab memastikan
-     * analysis valid.
-     *
-     * analysis di sini juga bisa berupa object hasil
-     * parseJSON(), sehingga validasi berbasis panjang
-     * string mentah dapat salah.
-     * =====================================================
-     */
 
     const analysisText =
         formatAnalysisForPrompt(
@@ -2484,7 +2868,13 @@ async function generatePrompt(
                 analysisText.length,
 
             outputLanguage:
-                "id-ID"
+                "id-ID",
+
+            detailMode:
+                "concrete-visual-expansion",
+
+            analysisSource:
+                "structured-visual-analysis"
 
         }
     );
@@ -2523,14 +2913,6 @@ async function generatePrompt(
 
         );
 
-
-    /*
-     * DEBUG RESPONSE
-     *
-     * Tidak menampilkan token/API key.
-     * Hanya untuk mengetahui bentuk response
-     * yang benar-benar dikembalikan endpoint.
-     */
 
     console.info(
         "[GEN-Z.AI Vision] Prompt-engineering response:",
@@ -2615,9 +2997,6 @@ async function generatePrompt(
 
 /* =========================================================
    SANITIZE RESPONSE FOR DEBUG
-   ---------------------------------------------------------
-   Tidak mengubah response asli.
-   Tidak membuang response yang diperlukan pipeline.
 ========================================================= */
 
 function sanitizeResponseForDebug(
@@ -2776,14 +3155,6 @@ function sanitizeResponseForDebug(
 
 /* =========================================================
    EXTRACT TEXT PART
-   ---------------------------------------------------------
-   Menangani:
-
-   - string
-   - { text: "..." }
-   - { content: "..." }
-   - { type: "text", text: "..." }
-   - nested content
 ========================================================= */
 
 function extractTextPart(
@@ -2877,10 +3248,6 @@ function extractTextPart(
     }
 
 
-    /*
-     * Direct text fields.
-     */
-
     const directTextKeys = [
 
         "text",
@@ -2921,10 +3288,6 @@ function extractTextPart(
     }
 
 
-    /*
-     * OpenAI / provider content.
-     */
-
     if (
         value.content !==
         undefined
@@ -2947,10 +3310,6 @@ function extractTextPart(
 
     }
 
-
-    /*
-     * Message object.
-     */
 
     if (
         value.message !==
@@ -2975,10 +3334,6 @@ function extractTextPart(
     }
 
 
-    /*
-     * Choice object.
-     */
-
     if (
         value.choices !==
         undefined
@@ -3001,10 +3356,6 @@ function extractTextPart(
 
     }
 
-
-    /*
-     * Response wrappers.
-     */
 
     const wrapperKeys = [
 
@@ -3058,10 +3409,6 @@ function extractTextPart(
     }
 
 
-    /*
-     * Responses API / provider parts.
-     */
-
     if (
         value.parts !==
         undefined
@@ -3092,24 +3439,6 @@ function extractTextPart(
 
 /* =========================================================
    EXTRACT ASSISTANT TEXT
-   ---------------------------------------------------------
-   Parser response dibuat lebih toleran.
-
-   Didukung:
-
-   1. response.content
-   2. response.message.content
-   3. response.choices[].message.content
-   4. response.message.content[]
-   5. response.choices[].message.content[]
-   6. response.output_text
-   7. response.text
-   8. response.data.*
-   9. response.result.*
-   10. response.response.*
-   11. response.output.*
-   12. Responses API output[].content[].text
-   13. nested provider wrapper
 ========================================================= */
 
 function extractAssistantText(
@@ -3128,10 +3457,6 @@ function extractAssistantText(
     }
 
 
-    /*
-     * Direct string.
-     */
-
     if (
         typeof response ===
         "string"
@@ -3143,9 +3468,11 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 1. GEN-Z.AI NORMALIZED RESPONSE
-     * =====================================================
+     * OpenKey / GEN-Z.AI normalized response.
+     *
+     * response.content HARUS diprioritaskan karena
+     * endpoint /api/openkey-chat mengembalikan hasil
+     * generasi utama pada field ini.
      */
 
     const directContent =
@@ -3164,9 +3491,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 2. NORMALIZED MESSAGE
-     * =====================================================
+     * Fallback message.
      */
 
     const messageContent =
@@ -3185,9 +3510,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 3. OPENAI COMPATIBLE CHOICES
-     * =====================================================
+     * OpenAI-compatible choices.
      */
 
     const choicesContent =
@@ -3205,12 +3528,6 @@ function extractAssistantText(
     }
 
 
-    /*
-     * =====================================================
-     * 4. OUTPUT TEXT
-     * =====================================================
-     */
-
     const outputText =
         extractTextPart(
             response?.output_text
@@ -3225,12 +3542,6 @@ function extractAssistantText(
 
     }
 
-
-    /*
-     * =====================================================
-     * 5. DIRECT TEXT
-     * =====================================================
-     */
 
     const directText =
         extractTextPart(
@@ -3247,12 +3558,6 @@ function extractAssistantText(
     }
 
 
-    /*
-     * =====================================================
-     * 6. DATA WRAPPER
-     * =====================================================
-     */
-
     const dataText =
         extractTextPart(
             response?.data
@@ -3267,12 +3572,6 @@ function extractAssistantText(
 
     }
 
-
-    /*
-     * =====================================================
-     * 7. RESULT WRAPPER
-     * =====================================================
-     */
 
     const resultText =
         extractTextPart(
@@ -3289,12 +3588,6 @@ function extractAssistantText(
     }
 
 
-    /*
-     * =====================================================
-     * 8. RESPONSE WRAPPER
-     * =====================================================
-     */
-
     const nestedResponseText =
         extractTextPart(
             response?.response
@@ -3310,12 +3603,6 @@ function extractAssistantText(
     }
 
 
-    /*
-     * =====================================================
-     * 9. OUTPUT WRAPPER
-     * =====================================================
-     */
-
     const outputTextNested =
         extractTextPart(
             response?.output
@@ -3330,12 +3617,6 @@ function extractAssistantText(
 
     }
 
-
-    /*
-     * =====================================================
-     * 10. GENERIC FALLBACK
-     * =====================================================
-     */
 
     const generic =
         extractTextPart(
@@ -3382,10 +3663,6 @@ function cleanGeneratedPrompt(
     }
 
 
-    /*
-     * Remove markdown code fence.
-     */
-
     result =
         result
             .replace(
@@ -3398,10 +3675,6 @@ function cleanGeneratedPrompt(
             )
             .trim();
 
-
-    /*
-     * Remove common prompt labels.
-     */
 
     result =
         result
