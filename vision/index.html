@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- GEN-Z.AI Vision deployment synchronization -->
 <html lang="id">
 
 <head>
@@ -11,18 +10,14 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <meta
-        name="theme-color"
-        content="#050509"
-    >
+    <title>
+        GEN-Z.AI Vision
+    </title>
 
     <meta
-        name="color-scheme"
-        content="dark"
+        name="description"
+        content="GEN-Z.AI Vision Engine - Image to Ultra Detailed Prompt"
     >
-
-    <title>GEN-Z.AI Vision</title>
-
 
     <!-- =====================================================
          SUPABASE
@@ -34,7 +29,7 @@
 
 
     <!-- =====================================================
-         GEN-Z CONFIG
+         GEN-Z.AI CONFIG
     ====================================================== -->
 
     <script
@@ -43,7 +38,7 @@
 
 
     <!-- =====================================================
-         GLOBAL PREMIUM STYLE
+         PREMIUM GLOBAL STYLE
     ====================================================== -->
 
     <link
@@ -76,16 +71,15 @@
 
 <body>
 
-
     <!-- =====================================================
-         NEW SHARED NAVIGATION
+         NAVIGATION
     ====================================================== -->
 
     <div id="navigation"></div>
 
 
     <!-- =====================================================
-         MAIN
+         VISION PAGE
     ====================================================== -->
 
     <main
@@ -95,25 +89,27 @@
 
 
         <!-- =================================================
-             PAGE HEADER
+             HERO
         ================================================== -->
 
         <section
             class="vision-hero"
-            aria-labelledby="visionTitle"
         >
 
-            <div class="vision-hero-glow"></div>
+            <div
+                class="vision-hero-content"
+            >
 
-            <div class="vision-hero-content">
-
-                <div class="vision-eyebrow">
-                    GEN-Z.AI / VISION ENGINE
+                <div
+                    class="vision-eyebrow"
+                >
+                    GEN-Z.AI
+                    <span>/</span>
+                    VISION ENGINE
                 </div>
 
 
                 <h1
-                    id="visionTitle"
                     class="vision-title"
                 >
                     IMAGE
@@ -122,17 +118,19 @@
                 </h1>
 
 
-                <p class="vision-subtitle">
-                    Analisis visual mendalam untuk mengubah
-                    gambar referensi menjadi prompt AI yang
-                    presisi, terstruktur, dan siap digunakan.
+                <p
+                    class="vision-subtitle"
+                >
+                    Analisis visual berbasis AI untuk mengubah
+                    gambar referensi menjadi prompt generatif
+                    ultra-detail.
                 </p>
 
             </div>
 
 
             <!-- =================================================
-                 CREDIT INDICATOR
+                 CREDIT BADGE
             ================================================== -->
 
             <div
@@ -140,20 +138,17 @@
                 class="vision-credit-badge"
             >
 
-                <span class="vision-credit-label">
+                <span
+                    class="vision-credit-label"
+                >
                     CREDIT
                 </span>
 
                 <strong
                     id="visionCreditValue"
-                    class="vision-credit-value"
                 >
                     --
                 </strong>
-
-                <span class="vision-credit-unit">
-                    / 1 GENERATE
-                </span>
 
             </div>
 
@@ -162,580 +157,706 @@
 
 
         <!-- =================================================
-             MAIN WORKSPACE
+             MAIN GRID
         ================================================== -->
 
         <section
-            class="vision-workspace"
-            aria-label="Vision workspace"
+            class="vision-main-grid"
         >
 
 
             <!-- =============================================
-                 LEFT PANEL
+                 LEFT COLUMN
             ============================================== -->
 
-            <section
-                class="vision-panel vision-input-panel"
+            <div
+                class="vision-left-column"
             >
-
-                <div class="vision-panel-header">
-
-                    <div>
-
-                        <div class="vision-panel-kicker">
-                            STEP 01
-                        </div>
-
-                        <h2 class="vision-panel-title">
-                            Reference Image
-                        </h2>
-
-                        <p class="vision-panel-description">
-                            Upload gambar yang ingin dianalisis.
-                        </p>
-
-                    </div>
-
-                </div>
 
 
                 <!-- =========================================
-                     UPLOAD AREA
+                     UPLOAD CARD
                 ========================================== -->
 
-                <div
-                    id="visionDropzone"
-                    class="vision-dropzone"
-                    tabindex="0"
-                    role="button"
-                    aria-label="Upload reference image"
+                <section
+                    class="vision-card vision-upload-card"
                 >
 
-                    <input
-                        id="visionFileInput"
-                        class="vision-file-input"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
-                    >
-
-
                     <div
-                        id="visionUploadState"
-                        class="vision-upload-state"
+                        class="vision-card-header"
                     >
 
-                        <div class="vision-upload-icon">
-                            ◈
+                        <div>
+
+                            <span
+                                class="vision-card-kicker"
+                            >
+                                STEP 01
+                            </span>
+
+                            <h2>
+                                Reference Image
+                            </h2>
+
+                            <p>
+                                Upload gambar yang ingin
+                                dianalisis.
+                            </p>
+
                         </div>
-
-                        <h3 class="vision-upload-title">
-                            DROP IMAGE HERE
-                        </h3>
-
-                        <p class="vision-upload-description">
-                            JPG, PNG, WEBP atau GIF
-                            <br>
-                            Maksimal 15 MB
-                        </p>
-
-                        <button
-                            id="visionBrowseButton"
-                            class="vision-secondary-button"
-                            type="button"
-                        >
-                            SELECT IMAGE
-                        </button>
 
                     </div>
 
 
                     <!-- =====================================
-                         PREVIEW
+                         DROPZONE
                     ====================================== -->
 
                     <div
-                        id="visionPreviewState"
-                        class="vision-preview-state"
-                        hidden
+                        id="visionDropzone"
+                        class="vision-dropzone"
                     >
 
-                        <div class="vision-preview-frame">
+                        <!-- =================================
+                             FILE INPUT
 
-                            <img
-                                id="visionPreviewImage"
-                                class="vision-preview-image"
-                                alt="Vision reference preview"
-                            >
+                             Sengaja tetap hidden.
+                             Label di bawah akan membuka
+                             native file picker.
+                        ================================== -->
 
-                        </div>
-
-
-                        <div class="vision-preview-meta">
-
-                            <div
-                                id="visionFileName"
-                                class="vision-file-name"
-                            >
-                                --
-                            </div>
-
-                            <div
-                                id="visionFileSize"
-                                class="vision-file-size"
-                            >
-                                --
-                            </div>
-
-                        </div>
-
-
-                        <button
-                            id="visionRemoveButton"
-                            class="vision-remove-button"
-                            type="button"
+                        <input
+                            id="visionFileInput"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
                         >
-                            REMOVE IMAGE
-                        </button>
+
+
+                        <!-- =================================
+                             UPLOAD STATE
+                        ================================== -->
+
+                        <div
+                            id="visionUploadState"
+                            class="vision-upload-state"
+                        >
+
+                            <div
+                                class="vision-upload-icon"
+                                aria-hidden="true"
+                            >
+                                +
+                            </div>
+
+                            <h3>
+                                DROP IMAGE HERE
+                            </h3>
+
+                            <p>
+                                JPG, PNG, WEBP atau GIF
+                            </p>
+
+                            <p>
+                                Maximum 20 MB
+                            </p>
+
+
+                            <!-- =================================
+                                 NATIVE LABEL
+
+                                 Ini menggantikan button
+                                 agar file picker tetap
+                                 bekerja walaupun JS event
+                                 mengalami masalah.
+                            ================================== -->
+
+                            <label
+                                id="visionBrowseButton"
+                                class="vision-secondary-button"
+                                for="visionFileInput"
+                                role="button"
+                                tabindex="0"
+                            >
+                                SELECT IMAGE
+                            </label>
+
+                        </div>
+
+
+                        <!-- =================================
+                             PREVIEW STATE
+                        ================================== -->
+
+                        <div
+                            id="visionPreviewState"
+                            class="vision-preview-state"
+                            hidden
+                        >
+
+                            <div
+                                class="vision-preview-image-wrap"
+                            >
+
+                                <img
+                                    id="visionPreviewImage"
+                                    class="vision-preview-image"
+                                    alt="Vision reference preview"
+                                >
+
+                            </div>
+
+
+                            <div
+                                class="vision-preview-info"
+                            >
+
+                                <strong
+                                    id="visionFileName"
+                                >
+                                    -
+                                </strong>
+
+                                <span
+                                    id="visionFileSize"
+                                >
+                                    -
+                                </span>
+
+                            </div>
+
+
+                            <button
+                                id="visionRemoveButton"
+                                class="vision-remove-button"
+                                type="button"
+                            >
+                                REMOVE IMAGE
+                            </button>
+
+                        </div>
 
                     </div>
 
-                </div>
+                </section>
 
 
 
                 <!-- =========================================
-                     MODEL
+                     SETTINGS CARD
                 ========================================== -->
 
-                <div class="vision-field">
-
-                    <label
-                        class="vision-field-label"
-                        for="visionModel"
-                    >
-                        Vision Model
-                    </label>
-
-
-                    <select
-                        id="visionModel"
-                        class="vision-select"
-                    >
-
-                        <option
-                            value="gemini-3.1-pro"
-                            selected
-                        >
-                            Gemini 3.1 Pro
-                        </option>
-
-                        <option
-                            value="grok-4.6"
-                        >
-                            Grok 4.6
-                        </option>
-
-                        <option
-                            value="qwen3-vl-max"
-                        >
-                            Qwen3 VL Max
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-
-                <!-- =========================================
-                     DETAIL LEVEL
-                ========================================== -->
-
-                <div class="vision-field">
-
-                    <label
-                        class="vision-field-label"
-                        for="visionDetail"
-                    >
-                        Detail Level
-                    </label>
-
-
-                    <select
-                        id="visionDetail"
-                        class="vision-select"
-                    >
-
-                        <option value="standard">
-                            Standard
-                        </option>
-
-                        <option
-                            value="detailed"
-                            selected
-                        >
-                            Detailed
-                        </option>
-
-                        <option value="ultra">
-                            Ultra Detailed
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-
-                <!-- =========================================
-                     PURPOSE
-                ========================================== -->
-
-                <div class="vision-field">
-
-                    <label
-                        class="vision-field-label"
-                        for="visionPurpose"
-                    >
-                        Prompt Purpose
-                    </label>
-
-
-                    <select
-                        id="visionPurpose"
-                        class="vision-select"
-                    >
-
-                        <option value="image-generation">
-                            Image Generation
-                        </option>
-
-                        <option value="image-to-video">
-                            Image-to-Video
-                        </option>
-
-                        <option value="tiktok-affiliate">
-                            TikTok Affiliate
-                        </option>
-
-                        <option value="general">
-                            General
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-
-                <!-- =========================================
-                     EXTRA INSTRUCTION
-                ========================================== -->
-
-                <div class="vision-field">
-
-                    <label
-                        class="vision-field-label"
-                        for="visionInstruction"
-                    >
-                        Additional Instruction
-                    </label>
-
-
-                    <textarea
-                        id="visionInstruction"
-                        class="vision-textarea"
-                        rows="4"
-                        maxlength="5000"
-                        placeholder="Contoh: pertahankan wajah, rambut, produk, komposisi, dan detail pakaian secara akurat..."
-                    ></textarea>
-
-                </div>
-
-
-
-                <!-- =========================================
-                     GENERATE BUTTON
-                ========================================== -->
-
-                <button
-                    id="visionGenerateButton"
-                    class="vision-primary-button"
-                    type="button"
-                    disabled
+                <section
+                    class="vision-card vision-settings-card"
                 >
 
-                    <span
-                        id="visionGenerateButtonText"
+                    <div
+                        class="vision-card-header"
                     >
-                        ANALYZE &amp; GENERATE PROMPT
-                    </span>
 
-                    <span
-                        id="visionGenerateSpinner"
-                        class="vision-button-spinner"
-                        hidden
-                    ></span>
+                        <div>
 
-                </button>
+                            <span
+                                class="vision-card-kicker"
+                            >
+                                STEP 02
+                            </span>
 
+                            <h2>
+                                Vision Settings
+                            </h2>
 
-                <div
-                    id="visionCreditNotice"
-                    class="vision-credit-notice"
-                >
-                    1 credit akan digunakan untuk setiap
-                    analisis dan generate prompt.
-                </div>
+                            <p>
+                                Tentukan engine dan tujuan
+                                prompt.
+                            </p>
 
-            </section>
-
-
-
-            <!-- =============================================
-                 RIGHT PANEL
-            ============================================== -->
-
-            <section
-                class="vision-panel vision-output-panel"
-            >
-
-                <div class="vision-panel-header">
-
-                    <div>
-
-                        <div class="vision-panel-kicker">
-                            STEP 02
                         </div>
 
-                        <h2 class="vision-panel-title">
-                            Generated Prompt
-                        </h2>
+                    </div>
 
-                        <p class="vision-panel-description">
-                            Prompt hasil analisis visual.
-                        </p>
 
+                    <div
+                        class="vision-form-grid"
+                    >
+
+
+                        <!-- =================================
+                             MODEL
+                        ================================== -->
+
+                        <div
+                            class="vision-field"
+                        >
+
+                            <label
+                                for="visionModel"
+                            >
+                                VISION MODEL
+                            </label>
+
+                            <select
+                                id="visionModel"
+                            >
+
+                                <option
+                                    value="gemini-3.1-pro"
+                                >
+                                    Gemini 3.1 Pro
+                                </option>
+
+                                <option
+                                    value="grok-4.6"
+                                >
+                                    Grok 4.6
+                                </option>
+
+                                <option
+                                    value="qwen3-vl-max"
+                                >
+                                    Qwen3 VL Max
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+
+                        <!-- =================================
+                             DETAIL
+                        ================================== -->
+
+                        <div
+                            class="vision-field"
+                        >
+
+                            <label
+                                for="visionDetail"
+                            >
+                                ANALYSIS DETAIL
+                            </label>
+
+                            <select
+                                id="visionDetail"
+                            >
+
+                                <option
+                                    value="standard"
+                                >
+                                    Standard
+                                </option>
+
+                                <option
+                                    value="detailed"
+                                >
+                                    Detailed
+                                </option>
+
+                                <option
+                                    value="ultra"
+                                    selected
+                                >
+                                    Ultra Detailed
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+
+                        <!-- =================================
+                             PURPOSE
+                        ================================== -->
+
+                        <div
+                            class="vision-field"
+                        >
+
+                            <label
+                                for="visionPurpose"
+                            >
+                                PROMPT PURPOSE
+                            </label>
+
+                            <select
+                                id="visionPurpose"
+                            >
+
+                                <option
+                                    value="image-generation"
+                                    selected
+                                >
+                                    AI Image Generation
+                                </option>
+
+                                <option
+                                    value="image-to-video"
+                                >
+                                    Image to Video
+                                </option>
+
+                                <option
+                                    value="tiktok-affiliate"
+                                >
+                                    TikTok Affiliate
+                                </option>
+
+                                <option
+                                    value="general"
+                                >
+                                    General
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+
+                        <!-- =================================
+                             CUSTOM INSTRUCTION
+                        ================================== -->
+
+                        <div
+                            class="vision-field vision-field-full"
+                        >
+
+                            <label
+                                for="visionInstruction"
+                            >
+                                ADDITIONAL INSTRUCTION
+                            </label>
+
+                            <textarea
+                                id="visionInstruction"
+                                rows="5"
+                                placeholder="Contoh: pertahankan detail produk, wajah, pakaian, komposisi kamera, dan lighting dari gambar referensi."
+                            ></textarea>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- =========================================
+                     ACTION CARD
+                ========================================== -->
+
+                <section
+                    class="vision-card vision-action-card"
+                >
+
+                    <div
+                        class="vision-credit-notice"
+                        id="visionCreditNotice"
+                    >
+                        1 credit akan digunakan untuk
+                        setiap proses Vision.
                     </div>
 
 
                     <button
-                        id="visionCopyButton"
-                        class="vision-icon-button"
+                        id="visionGenerateButton"
+                        class="vision-primary-button"
                         type="button"
-                        disabled
-                        title="Copy prompt"
-                        aria-label="Copy prompt"
                     >
-                        COPY
+
+                        <span
+                            id="visionGenerateButtonText"
+                        >
+                            ANALYZE & GENERATE PROMPT
+                        </span>
+
+                        <span
+                            id="visionGenerateSpinner"
+                            class="vision-button-spinner"
+                            hidden
+                        ></span>
+
                     </button>
 
-                </div>
 
-
-
-                <!-- =========================================
-                     STATUS
-                ========================================== -->
-
-                <div
-                    id="visionStatus"
-                    class="vision-status"
-                    data-state="idle"
-                >
-
-                    <span
-                        id="visionStatusIndicator"
-                        class="vision-status-indicator"
-                    ></span>
-
-                    <span
-                        id="visionStatusText"
-                    >
-                        Menunggu gambar...
-                    </span>
-
-                </div>
-
-
-
-                <!-- =========================================
-                     PROGRESS
-                ========================================== -->
-
-                <div
-                    id="visionProgress"
-                    class="vision-progress"
-                    hidden
-                >
-
-                    <div class="vision-progress-track">
-
-                        <div
-                            id="visionProgressBar"
-                            class="vision-progress-bar"
-                        ></div>
-
-                    </div>
-
+                    <!-- =====================================
+                         STATUS
+                    ====================================== -->
 
                     <div
-                        id="visionProgressText"
-                        class="vision-progress-text"
+                        id="visionStatus"
+                        class="vision-status"
+                        data-state="idle"
                     >
-                        INITIALIZING
+
+                        <span
+                            id="visionStatusIndicator"
+                            class="vision-status-indicator"
+                        ></span>
+
+                        <span
+                            id="visionStatusText"
+                        >
+                            Ready
+                        </span>
+
                     </div>
 
-                </div>
 
+                    <!-- =====================================
+                         PROGRESS
+                    ====================================== -->
+
+                    <div
+                        id="visionProgress"
+                        class="vision-progress"
+                        hidden
+                    >
+
+                        <div
+                            class="vision-progress-track"
+                        >
+
+                            <div
+                                id="visionProgressBar"
+                                class="vision-progress-bar"
+                                style="width: 0%;"
+                            ></div>
+
+                        </div>
+
+                        <div
+                            class="vision-progress-meta"
+                        >
+
+                            <span
+                                id="visionProgressText"
+                            >
+                                0%
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+            </div>
+
+
+
+            <!-- =============================================
+                 RIGHT COLUMN
+            ============================================== -->
+
+            <div
+                class="vision-right-column"
+            >
 
 
                 <!-- =========================================
                      PROMPT RESULT
                 ========================================== -->
 
-                <div
+                <section
                     id="visionPromptContainer"
-                    class="vision-prompt-container"
+                    class="vision-card vision-result-card"
                 >
 
                     <div
-                        id="visionPromptPlaceholder"
-                        class="vision-result-placeholder"
+                        class="vision-card-header"
                     >
 
-                        <div class="vision-placeholder-icon">
-                            ✦
+                        <div>
+
+                            <span
+                                class="vision-card-kicker"
+                            >
+                                STEP 03
+                            </span>
+
+                            <h2>
+                                Ultra Detailed Prompt
+                            </h2>
+
+                            <p>
+                                Prompt final hasil analisis
+                                Vision Engine.
+                            </p>
+
                         </div>
 
-                        <div class="vision-placeholder-title">
-                            YOUR PROMPT WILL APPEAR HERE
-                        </div>
 
-                        <div class="vision-placeholder-description">
-                            Upload sebuah gambar lalu jalankan
-                            Vision Engine untuk membuat prompt.
-                        </div>
+                        <button
+                            id="visionCopyButton"
+                            class="vision-copy-button"
+                            type="button"
+                            disabled
+                        >
+                            COPY
+                        </button>
 
                     </div>
 
 
-                    <pre
-                        id="visionPromptResult"
-                        class="vision-prompt-result"
-                        hidden
-                    ></pre>
+                    <div
+                        class="vision-prompt-output"
+                    >
 
-                </div>
+                        <!-- =================================
+                             PLACEHOLDER
+                        ================================== -->
+
+                        <div
+                            id="visionPromptPlaceholder"
+                            class="vision-result-placeholder"
+                        >
+
+                            <div
+                                class="vision-placeholder-icon"
+                            >
+                                ◇
+                            </div>
+
+                            <h3>
+                                PROMPT WILL APPEAR HERE
+                            </h3>
+
+                            <p>
+                                Upload gambar kemudian jalankan
+                                Vision Engine untuk menghasilkan
+                                prompt ultra-detail.
+                            </p>
+
+                        </div>
+
+
+                        <!-- =================================
+                             PROMPT RESULT
+                        ================================== -->
+
+                        <pre
+                            id="visionPromptResult"
+                            class="vision-prompt-result"
+                            hidden
+                        ></pre>
+
+                    </div>
+
+                </section>
 
 
 
                 <!-- =========================================
-                     VISUAL ANALYSIS
+                     ANALYSIS DETAILS
                 ========================================== -->
 
-                <details
+                <section
                     id="visionAnalysisDetails"
-                    class="vision-analysis-details"
+                    class="vision-card vision-analysis-card"
+                    hidden
                 >
 
-                    <summary>
-                        <span>
-                            VISUAL ANALYSIS DATA
-                        </span>
+                    <div
+                        class="vision-card-header"
+                    >
 
-                        <span class="vision-summary-arrow">
-                            +
-                        </span>
-                    </summary>
+                        <div>
+
+                            <span
+                                class="vision-card-kicker"
+                            >
+                                VISION ANALYSIS
+                            </span>
+
+                            <h2>
+                                Analysis Details
+                            </h2>
+
+                        </div>
+
+                    </div>
 
 
                     <div
                         id="visionAnalysisResult"
                         class="vision-analysis-result"
+                    ></div>
+
+                </section>
+
+
+
+                <!-- =========================================
+                     INFO CARDS
+                ========================================== -->
+
+                <div
+                    class="vision-info-grid"
+                >
+
+                    <div
+                        class="vision-info-card"
                     >
 
-                        <div class="vision-analysis-empty">
-                            Belum ada hasil analisis.
-                        </div>
+                        <span>
+                            ENGINE
+                        </span>
+
+                        <strong>
+                            MULTI MODEL
+                        </strong>
+
+                        <small>
+                            Gemini · Grok · Qwen
+                        </small>
 
                     </div>
 
-                </details>
 
-            </section>
+                    <div
+                        class="vision-info-card"
+                    >
+
+                        <span>
+                            OUTPUT
+                        </span>
+
+                        <strong>
+                            PROMPT
+                        </strong>
+
+                        <small>
+                            Ultra detailed generation prompt
+                        </small>
+
+                    </div>
+
+
+                    <div
+                        class="vision-info-card"
+                    >
+
+                        <span>
+                            CREDIT
+                        </span>
+
+                        <strong>
+                            1 / PROCESS
+                        </strong>
+
+                        <small>
+                            Dicatat dalam riwayat akun
+                        </small>
+
+                    </div>
+
+                </div>
+
+            </div>
 
         </section>
-
-
-
-        <!-- =================================================
-             INFORMATION
-        ================================================== -->
-
-        <section class="vision-info-grid">
-
-
-            <article class="vision-info-card">
-
-                <div class="vision-info-number">
-                    01
-                </div>
-
-                <h3>
-                    Visual Understanding
-                </h3>
-
-                <p>
-                    Menganalisis subjek, pose, pakaian,
-                    produk, lingkungan, kamera, pencahayaan,
-                    warna, dan detail visual lainnya.
-                </p>
-
-            </article>
-
-
-            <article class="vision-info-card">
-
-                <div class="vision-info-number">
-                    02
-                </div>
-
-                <h3>
-                    Prompt Engineering
-                </h3>
-
-                <p>
-                    Hasil analisis diubah menjadi prompt
-                    terstruktur yang siap digunakan pada
-                    model generatif.
-                </p>
-
-            </article>
-
-
-            <article class="vision-info-card">
-
-                <div class="vision-info-number">
-                    03
-                </div>
-
-                <h3>
-                    Account History
-                </h3>
-
-                <p>
-                    Setiap proses berhasil dicatat ke
-                    riwayat akun dan menggunakan satu
-                    credit dari saldo pengguna.
-                </p>
-
-            </article>
-
-
-        </section>
-
 
     </main>
 
@@ -751,14 +872,13 @@
 
 
     <!-- =====================================================
-         VISION MODULES
+         VISION APPLICATION
     ====================================================== -->
 
     <script
         type="module"
-        src="./assets/js/vision-loader.js"
+        src="./assets/js/vision-loader.js?v=2"
     ></script>
-
 
 </body>
 
