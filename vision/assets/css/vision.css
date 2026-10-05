@@ -12,6 +12,7 @@
    - Upload card
    - Settings card
    - Generate action
+   - Premium processing loader
    - Result card
    - Analysis card
    - Info cards
@@ -68,9 +69,11 @@
 
 .vision-page {
 
-    position: relative;
+    position:
+        relative;
 
-    isolation: isolate;
+    isolation:
+        isolate;
 
     min-height:
         calc(100vh - 70px);
@@ -96,15 +99,20 @@
 .vision-page::before,
 .vision-page::after {
 
-    content: "";
+    content:
+        "";
 
-    position: fixed;
+    position:
+        fixed;
 
-    z-index: -1;
+    z-index:
+        -1;
 
-    pointer-events: none;
+    pointer-events:
+        none;
 
-    border-radius: 50%;
+    border-radius:
+        50%;
 
     filter:
         blur(80px);
@@ -186,7 +194,8 @@
         hidden;
 
     border:
-        1px solid rgba(255, 23, 79, .24);
+        1px solid
+        rgba(255, 23, 79, .24);
 
     border-radius:
         24px;
@@ -226,7 +235,8 @@
 
 .vision-hero::before {
 
-    content: "";
+    content:
+        "";
 
     position:
         absolute;
@@ -563,7 +573,8 @@
 
 .vision-card::before {
 
-    content: "";
+    content:
+        "";
 
     position:
         absolute;
@@ -1292,6 +1303,22 @@
 
     padding:
         19px;
+
+    background:
+
+        radial-gradient(
+            circle at 50% 100%,
+            rgba(255, 23, 79, .045),
+            transparent 48%
+        ),
+
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, .038),
+            rgba(255, 255, 255, .008)
+        ),
+
+        var(--vision-surface);
 }
 
 
@@ -1342,6 +1369,9 @@
     min-height:
         52px;
 
+    overflow:
+        hidden;
+
     border:
         1px solid
         rgba(255, 23, 79, .48);
@@ -1375,6 +1405,49 @@
 
     letter-spacing:
         .12em;
+}
+
+
+/* =========================================================
+   PRIMARY BUTTON LIGHT
+========================================================= */
+
+.vision-primary-button::before {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    top:
+        0;
+
+    bottom:
+        0;
+
+    left:
+        -45%;
+
+    width:
+        30%;
+
+    pointer-events:
+        none;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, .22),
+            transparent
+        );
+
+    transform:
+        skewX(-18deg);
+
+    animation:
+        visionButtonShimmer 2.8s linear infinite;
 }
 
 
@@ -1497,7 +1570,19 @@
    PROCESSING STATUS
 ========================================================= */
 
-.vision-status[data-state="processing"]
+.vision-status[data-state="analyzing"]
+.vision-status-indicator,
+.vision-status[data-state="engineering"]
+.vision-status-indicator,
+.vision-status[data-state="validating"]
+.vision-status-indicator,
+.vision-status[data-state="checking-credit"]
+.vision-status-indicator,
+.vision-status[data-state="reserving-credit"]
+.vision-status-indicator,
+.vision-status[data-state="saving-history"]
+.vision-status-indicator,
+.vision-status[data-state="refunding"]
 .vision-status-indicator {
 
     background:
@@ -1516,7 +1601,7 @@
    SUCCESS STATUS
 ========================================================= */
 
-.vision-status[data-state="success"]
+.vision-status[data-state="completed"]
 .vision-status-indicator {
 
     background:
@@ -1537,6 +1622,43 @@
 
     background:
         #ff536f;
+
+    box-shadow:
+        0 0 10px
+        rgba(255, 83, 111, .45);
+}
+
+
+/* =========================================================
+   STATUS SUBTEXT
+========================================================= */
+
+.vision-status-subtext {
+
+    max-width:
+        680px;
+
+    margin:
+        -2px auto 0;
+
+    padding:
+        0 10px;
+
+    color:
+        #55555e;
+
+    text-align:
+        center;
+
+    font-size:
+        8px;
+
+    line-height:
+        1.45;
+
+    letter-spacing:
+        .025em;
+
 }
 
 
@@ -1549,45 +1671,56 @@
     position:
         relative;
 
-    margin-top:
-        12px;
+    display:
+        block;
+
+    margin:
+        13px 0 1px;
 
     padding:
-        13px 14px 11px;
+        14px 15px 12px;
 
     overflow:
         hidden;
 
     border:
         1px solid
-        rgba(255, 23, 79, .14);
+        rgba(255, 23, 79, .16);
 
     border-radius:
-        13px;
+        14px;
 
     background:
 
-        linear-gradient(
-            135deg,
-            rgba(255, 23, 79, .055),
-            rgba(255, 255, 255, .018)
+        radial-gradient(
+            ellipse at 50% 0%,
+            rgba(255, 23, 79, .095),
+            transparent 62%
         ),
 
-        rgba(0, 0, 0, .22);
+        linear-gradient(
+            135deg,
+            rgba(255, 255, 255, .035),
+            rgba(255, 255, 255, .008)
+        ),
+
+        rgba(3, 3, 6, .72);
 
     box-shadow:
 
         inset 0 1px
-        rgba(255, 255, 255, .035),
+        rgba(255, 255, 255, .045),
 
-        0 0 24px
-        rgba(255, 23, 79, .035);
+        inset 0 -1px
+        rgba(0, 0, 0, .55),
 
+        0 0 25px
+        rgba(255, 23, 79, .045);
 }
 
 
 /* =========================================================
-   PROGRESS TOP GLOW
+   PREMIUM PROGRESS ACTIVE BORDER
 ========================================================= */
 
 .vision-progress::before {
@@ -1602,10 +1735,10 @@
         0;
 
     left:
-        12%;
+        -35%;
 
     width:
-        76%;
+        35%;
 
     height:
         1px;
@@ -1614,17 +1747,65 @@
         none;
 
     background:
-
         linear-gradient(
             90deg,
             transparent,
-            rgba(255, 23, 79, .55),
+            rgba(255, 23, 79, .95),
+            rgba(255, 110, 140, .80),
             transparent
         );
 
-    opacity:
-        .75;
+    box-shadow:
+        0 0 12px
+        rgba(255, 23, 79, .75);
 
+    animation:
+        visionProgressBorderScan 2.1s linear infinite;
+}
+
+
+/* =========================================================
+   PROGRESS AMBIENT LIGHT
+========================================================= */
+
+.vision-progress::after {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    inset:
+        0;
+
+    pointer-events:
+        none;
+
+    opacity:
+        .30;
+
+    background:
+
+        radial-gradient(
+            circle at 12% 50%,
+            rgba(255, 23, 79, .13),
+            transparent 18%
+        ),
+
+        radial-gradient(
+            circle at 88% 50%,
+            rgba(255, 23, 79, .08),
+            transparent 18%
+        ),
+
+        repeating-linear-gradient(
+            90deg,
+            transparent 0,
+            transparent 31px,
+            rgba(255, 255, 255, .018) 32px,
+            transparent 33px
+        );
 }
 
 
@@ -1637,18 +1818,21 @@
     position:
         relative;
 
+    z-index:
+        1;
+
     width:
         100%;
 
     height:
-        7px;
+        8px;
 
     overflow:
         hidden;
 
     border:
         1px solid
-        rgba(255, 255, 255, .055);
+        rgba(255, 255, 255, .065);
 
     border-radius:
         999px;
@@ -1658,17 +1842,19 @@
         linear-gradient(
             180deg,
             rgba(255, 255, 255, .075),
-            rgba(255, 255, 255, .025)
+            rgba(255, 255, 255, .018)
         );
 
     box-shadow:
 
         inset 0 1px 3px
-        rgba(0, 0, 0, .55),
+        rgba(0, 0, 0, .72),
+
+        inset 0 -1px
+        rgba(255, 255, 255, .018),
 
         0 0 10px
         rgba(255, 23, 79, .025);
-
 }
 
 
@@ -1695,14 +1881,53 @@
         repeating-linear-gradient(
             90deg,
             transparent 0,
-            transparent 9px,
-            rgba(255, 255, 255, .045) 10px,
-            transparent 11px
+            transparent 10px,
+            rgba(255, 255, 255, .075) 11px,
+            transparent 12px
         );
 
     opacity:
-        .45;
+        .48;
+}
 
+
+/* =========================================================
+   PROGRESS TRACK HIGHLIGHT
+========================================================= */
+
+.vision-progress-track::after {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    top:
+        1px;
+
+    left:
+        0;
+
+    right:
+        0;
+
+    height:
+        1px;
+
+    pointer-events:
+        none;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, .14),
+            transparent
+        );
+
+    opacity:
+        .55;
 }
 
 
@@ -1715,11 +1940,20 @@
     position:
         relative;
 
+    z-index:
+        2;
+
+    display:
+        block;
+
     width:
         0%;
 
     height:
         100%;
+
+    min-width:
+        0;
 
     overflow:
         hidden;
@@ -1731,26 +1965,30 @@
 
         linear-gradient(
             90deg,
-            #8d082f 0%,
-            #d80d43 42%,
-            #ff174f 76%,
-            #ff6b87 100%
+            #710627 0%,
+            #a70832 20%,
+            #d80d43 45%,
+            #ff174f 73%,
+            #ff5476 91%,
+            #ff9bad 100%
         );
 
     box-shadow:
 
         0 0 7px
-        rgba(255, 23, 79, .55),
+        rgba(255, 23, 79, .70),
 
-        0 0 18px
-        rgba(255, 23, 79, .38),
+        0 0 17px
+        rgba(255, 23, 79, .52),
 
-        0 0 34px
-        rgba(255, 23, 79, .18);
+        0 0 32px
+        rgba(255, 23, 79, .30),
+
+        inset 0 1px
+        rgba(255, 255, 255, .35);
 
     transition:
-        width .45s cubic-bezier(.22, 1, .36, 1);
-
+        width .55s cubic-bezier(.22, 1, .36, 1);
 }
 
 
@@ -1776,14 +2014,14 @@
 
         linear-gradient(
             180deg,
-            rgba(255, 255, 255, .30),
-            transparent 48%,
-            rgba(0, 0, 0, .08)
+            rgba(255, 255, 255, .38),
+            rgba(255, 255, 255, .08) 38%,
+            transparent 55%,
+            rgba(0, 0, 0, .16)
         );
 
     opacity:
-        .65;
-
+        .72;
 }
 
 
@@ -1800,16 +2038,16 @@
         absolute;
 
     top:
-        0;
+        -30%;
 
     left:
-        -45%;
+        -35%;
 
     width:
-        38%;
+        28%;
 
     height:
-        100%;
+        160%;
 
     pointer-events:
         none;
@@ -1819,7 +2057,8 @@
         linear-gradient(
             90deg,
             transparent,
-            rgba(255, 255, 255, .48),
+            rgba(255, 255, 255, .72),
+            rgba(255, 255, 255, .18),
             transparent
         );
 
@@ -1830,8 +2069,18 @@
         skewX(-18deg);
 
     animation:
-        visionProgressShimmer 1.35s linear infinite;
+        visionProgressShimmer 1.25s linear infinite;
+}
 
+
+/* =========================================================
+   PROGRESS ENERGY DOTS
+========================================================= */
+
+.vision-progress-track {
+
+    --vision-loader-dot:
+        rgba(255, 255, 255, .18);
 }
 
 
@@ -1841,6 +2090,12 @@
 
 .vision-progress-meta {
 
+    position:
+        relative;
+
+    z-index:
+        2;
+
     display:
         flex;
 
@@ -1848,29 +2103,56 @@
         center;
 
     justify-content:
-        flex-end;
+        space-between;
 
     min-height:
-        13px;
+        17px;
 
     margin-top:
-        7px;
+        8px;
 
     color:
-        #85858e;
+        #686871;
 
     font-size:
-        9px;
+        8px;
 
     font-weight:
         800;
 
     letter-spacing:
-        .08em;
+        .10em;
 
     font-variant-numeric:
         tabular-nums;
+}
 
+
+/* =========================================================
+   PROGRESS META LEFT
+   Works with future text elements without breaking
+   current #visionProgressText.
+========================================================= */
+
+.vision-progress-meta::before {
+
+    content:
+        "VISION PROCESSING";
+
+    color:
+        #55555e;
+
+    font-size:
+        7px;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        .18em;
+
+    opacity:
+        .85;
 }
 
 
@@ -1878,73 +2160,176 @@
    ACTIVE PROGRESS
 ========================================================= */
 
-.vision-progress:not([hidden])
-.vision-progress-bar {
+.vision-page.vision-processing
+.vision-progress:not([hidden]) {
+
+    border-color:
+        rgba(255, 23, 79, .27);
+
+    box-shadow:
+
+        inset 0 1px
+        rgba(255, 255, 255, .05),
+
+        inset 0 0 25px
+        rgba(255, 23, 79, .025),
+
+        0 0 18px
+        rgba(255, 23, 79, .07),
+
+        0 0 42px
+        rgba(255, 23, 79, .035);
 
     animation:
-        visionProgressGlow 1.8s ease-in-out infinite alternate;
-
+        visionProgressContainerPulse 2.2s ease-in-out infinite;
 }
 
 
 /* =========================================================
-   PROGRESS ANIMATIONS
+   ACTIVE PROGRESS BAR
 ========================================================= */
 
-@keyframes visionProgressShimmer {
+.vision-page.vision-processing
+.vision-progress:not([hidden])
+.vision-progress-bar {
 
-    0% {
-
-        left:
-            -45%;
-
-    }
-
-    100% {
-
-        left:
-            125%;
-
-    }
-
+    animation:
+        visionProgressGlow 1.35s ease-in-out infinite alternate;
 }
 
 
-@keyframes visionProgressGlow {
+/* =========================================================
+   ACTIVE PROGRESS TRACK
+========================================================= */
 
-    0% {
+.vision-page.vision-processing
+.vision-progress-track {
 
-        filter:
-            brightness(.92);
+    box-shadow:
 
-        box-shadow:
+        inset 0 1px 3px
+        rgba(0, 0, 0, .72),
 
-            0 0 6px
-            rgba(255, 23, 79, .42),
+        0 0 10px
+        rgba(255, 23, 79, .08),
 
-            0 0 15px
-            rgba(255, 23, 79, .25);
+        0 0 20px
+        rgba(255, 23, 79, .035);
+}
 
-    }
 
-    100% {
+/* =========================================================
+   COMPLETED PROGRESS
+========================================================= */
 
-        filter:
-            brightness(1.12);
+.vision-progress[aria-valuenow="100"] {
 
-        box-shadow:
+    border-color:
+        rgba(69, 227, 155, .16);
+}
 
-            0 0 9px
-            rgba(255, 23, 79, .70),
 
-            0 0 23px
-            rgba(255, 23, 79, .42),
+/* =========================================================
+   COMPLETED PROGRESS BAR
+========================================================= */
 
-            0 0 38px
-            rgba(255, 23, 79, .18);
+.vision-progress[aria-valuenow="100"]
+.vision-progress-bar {
 
-    }
+    background:
 
+        linear-gradient(
+            90deg,
+            #238c63,
+            #35c988,
+            #45e39b
+        );
+
+    box-shadow:
+
+        0 0 8px
+        rgba(69, 227, 155, .58),
+
+        0 0 22px
+        rgba(69, 227, 155, .25);
+}
+
+
+/* =========================================================
+   ERROR PROGRESS
+========================================================= */
+
+.vision-status[data-state="error"]
+~ .vision-progress {
+
+    border-color:
+        rgba(255, 83, 111, .22);
+}
+
+
+/* =========================================================
+   RESULT MESSAGE
+========================================================= */
+
+.vision-result-message {
+
+    margin:
+        0 18px 12px;
+
+    padding:
+        11px 13px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, .07);
+
+    border-radius:
+        10px;
+
+    font-size:
+        9px;
+
+    line-height:
+        1.5;
+}
+
+
+.vision-result-success {
+
+    border-color:
+        rgba(69, 227, 155, .18);
+
+    color:
+        #72eab1;
+
+    background:
+        rgba(69, 227, 155, .035);
+}
+
+
+.vision-result-warning {
+
+    border-color:
+        rgba(255, 193, 7, .18);
+
+    color:
+        #e5c56d;
+
+    background:
+        rgba(255, 193, 7, .035);
+}
+
+
+.vision-result-error {
+
+    border-color:
+        rgba(255, 23, 79, .20);
+
+    color:
+        #ff718b;
+
+    background:
+        rgba(255, 23, 79, .045);
 }
 
 
@@ -2021,6 +2406,27 @@
 
     background:
         rgba(255, 23, 79, .10);
+}
+
+
+/* =========================================================
+   COPY SUCCESS
+========================================================= */
+
+.vision-copy-button.vision-copy-success {
+
+    border-color:
+        rgba(69, 227, 155, .30);
+
+    color:
+        #65e7a9;
+
+    background:
+        rgba(69, 227, 155, .045);
+
+    box-shadow:
+        0 0 18px
+        rgba(69, 227, 155, .08);
 }
 
 
@@ -2387,7 +2793,209 @@
 
 
 /* =========================================================
-   ANIMATION
+   BUTTON SHIMMER
+========================================================= */
+
+@keyframes visionButtonShimmer {
+
+    0% {
+
+        left:
+            -45%;
+
+    }
+
+    100% {
+
+        left:
+            135%;
+
+    }
+
+}
+
+
+/* =========================================================
+   PROGRESS BORDER SCAN
+========================================================= */
+
+@keyframes visionProgressBorderScan {
+
+    0% {
+
+        left:
+            -35%;
+
+        opacity:
+            0;
+
+    }
+
+    12% {
+
+        opacity:
+            1;
+
+    }
+
+    75% {
+
+        opacity:
+            1;
+
+    }
+
+    100% {
+
+        left:
+            135%;
+
+        opacity:
+            0;
+
+    }
+
+}
+
+
+/* =========================================================
+   PROGRESS SHIMMER
+========================================================= */
+
+@keyframes visionProgressShimmer {
+
+    0% {
+
+        left:
+            -35%;
+
+        opacity:
+            0;
+
+    }
+
+    10% {
+
+        opacity:
+            1;
+
+    }
+
+    80% {
+
+        opacity:
+            1;
+
+    }
+
+    100% {
+
+        left:
+            135%;
+
+        opacity:
+            0;
+
+    }
+
+}
+
+
+/* =========================================================
+   PROGRESS GLOW
+========================================================= */
+
+@keyframes visionProgressGlow {
+
+    0% {
+
+        filter:
+            brightness(.88);
+
+        box-shadow:
+
+            0 0 6px
+            rgba(255, 23, 79, .48),
+
+            0 0 15px
+            rgba(255, 23, 79, .28),
+
+            0 0 25px
+            rgba(255, 23, 79, .12),
+
+            inset 0 1px
+            rgba(255, 255, 255, .25);
+
+    }
+
+    100% {
+
+        filter:
+            brightness(1.16);
+
+        box-shadow:
+
+            0 0 9px
+            rgba(255, 23, 79, .80),
+
+            0 0 22px
+            rgba(255, 23, 79, .52),
+
+            0 0 38px
+            rgba(255, 23, 79, .22),
+
+            inset 0 1px
+            rgba(255, 255, 255, .42);
+
+    }
+
+}
+
+
+/* =========================================================
+   PROGRESS CONTAINER PULSE
+========================================================= */
+
+@keyframes visionProgressContainerPulse {
+
+    0% {
+
+        box-shadow:
+
+            inset 0 1px
+            rgba(255, 255, 255, .045),
+
+            inset 0 0 18px
+            rgba(255, 23, 79, .015),
+
+            0 0 15px
+            rgba(255, 23, 79, .035);
+
+    }
+
+    100% {
+
+        box-shadow:
+
+            inset 0 1px
+            rgba(255, 255, 255, .055),
+
+            inset 0 0 30px
+            rgba(255, 23, 79, .035),
+
+            0 0 25px
+            rgba(255, 23, 79, .08),
+
+            0 0 45px
+            rgba(255, 23, 79, .025);
+
+    }
+
+}
+
+
+/* =========================================================
+   SPINNER
 ========================================================= */
 
 @keyframes visionSpin {
@@ -2396,9 +3004,15 @@
 
         transform:
             rotate(360deg);
+
     }
+
 }
 
+
+/* =========================================================
+   STATUS PULSE
+========================================================= */
 
 @keyframes visionPulse {
 
@@ -2409,7 +3023,9 @@
 
         transform:
             scale(.75);
+
     }
+
 }
 
 
@@ -2426,7 +3042,226 @@
         animation-duration:
             .001ms !important;
 
+        animation-iteration-count:
+            1 !important;
+
         transition-duration:
             .001ms !important;
+
     }
+
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+
+    .vision-main-grid {
+
+        grid-template-columns:
+            minmax(0, 1fr);
+
+    }
+
+}
+
+
+@media (max-width: 760px) {
+
+    .vision-page {
+
+        width:
+            min(
+                100% - 24px,
+                1440px
+            );
+
+        padding:
+            20px 0 50px;
+
+    }
+
+
+    .vision-hero {
+
+        min-height:
+            auto;
+
+        padding:
+            25px 22px;
+
+        flex-direction:
+            column;
+
+        align-items:
+            flex-start;
+
+    }
+
+
+    .vision-credit-badge {
+
+        width:
+            100%;
+
+        box-sizing:
+            border-box;
+
+    }
+
+
+    .vision-form-grid {
+
+        grid-template-columns:
+            minmax(0, 1fr);
+
+    }
+
+
+    .vision-field-full {
+
+        grid-column:
+            auto;
+
+    }
+
+
+    .vision-info-grid {
+
+        grid-template-columns:
+            minmax(0, 1fr);
+
+    }
+
+
+    .vision-result-card {
+
+        min-height:
+            0;
+
+    }
+
+
+    .vision-prompt-output {
+
+        min-height:
+            360px;
+
+    }
+
+
+    .vision-prompt-result {
+
+        min-height:
+            360px;
+
+        padding:
+            17px;
+
+    }
+
+}
+
+
+@media (max-width: 480px) {
+
+    .vision-page {
+
+        width:
+            calc(100% - 16px);
+
+    }
+
+
+    .vision-hero {
+
+        border-radius:
+            19px;
+
+        padding:
+            22px 17px;
+
+    }
+
+
+    .vision-title {
+
+        font-size:
+            35px;
+
+    }
+
+
+    .vision-card {
+
+        border-radius:
+            17px;
+
+    }
+
+
+    .vision-card-header {
+
+        padding:
+            19px 18px 15px;
+
+    }
+
+
+    .vision-form-grid {
+
+        padding:
+            0 18px 18px;
+
+    }
+
+
+    .vision-action-card {
+
+        padding:
+            15px;
+
+    }
+
+
+    .vision-progress {
+
+        margin-top:
+            12px;
+
+        padding:
+            12px 12px 10px;
+
+    }
+
+
+    .vision-progress-track {
+
+        height:
+            7px;
+
+    }
+
+
+    .vision-progress-meta {
+
+        margin-top:
+            7px;
+
+        font-size:
+            7px;
+
+    }
+
+
+    .vision-progress-meta::before {
+
+        font-size:
+            6px;
+
+    }
+
 }
