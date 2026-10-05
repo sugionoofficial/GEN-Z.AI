@@ -45,7 +45,7 @@ import openKeyModels
 ========================================================= */
 
 const OPENKEY_CHAT_API_VERSION =
-    "2026-10-03-openkey-chat-api-v1";
+    "2026-10-05-openkey-chat-api-v2";
 
 
 /* =========================================================
@@ -350,8 +350,6 @@ async function authenticateUser(
 
 
     /*
-     * Penting:
-     *
      * Token user dikirim hanya untuk verifikasi
      * session Supabase.
      *
@@ -941,6 +939,274 @@ async function loadOpenKeyApiKey() {
 
    Sumber:
    provider/openkey/models.js
+
+   IMPORTANT:
+   - Jangan membuang metadata capability model.
+   - provider/openkey/models.js mempertahankan response
+     asli provider melalui property "raw".
+   - Vision membutuhkan metadata tersebut untuk mendeteksi
+     model image / vision.
+========================================================= */
+
+
+/* =========================================================
+   SAFE MODEL METADATA
+   ---------------------------------------------------------
+   Hanya metadata model yang diteruskan ke browser.
+
+   Tidak pernah meneruskan:
+   - api key
+   - credential
+   - secret
+   - authorization
+========================================================= */
+
+function normalizeOpenKeyModelForClient(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !==
+            "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const raw =
+        model.raw &&
+        typeof model.raw ===
+            "object" &&
+        !Array.isArray(
+            model.raw
+        )
+
+            ? model.raw
+            : {};
+
+
+    const id =
+        String(
+            model?.model_id ||
+            model?.id ||
+            raw?.model_id ||
+            raw?.id ||
+            ""
+        ).trim();
+
+
+    const name =
+        String(
+            model?.model_name ||
+            model?.name ||
+            raw?.model_name ||
+            raw?.name ||
+            id
+        ).trim();
+
+
+    if (
+        !id
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Preserve known normalized fields.
+     */
+
+    const normalized = {
+
+        id,
+
+        model_id:
+            id,
+
+        name,
+
+        model_name:
+            name,
+
+        object:
+            model?.object ??
+            raw?.object ??
+            "model",
+
+        created:
+            model?.created ??
+            raw?.created ??
+            null,
+
+        owned_by:
+            model?.owned_by ??
+            raw?.owned_by ??
+            "",
+
+        permission:
+            model?.permission ??
+            raw?.permission ??
+            null,
+
+        root:
+            model?.root ??
+            raw?.root ??
+            null,
+
+        parent:
+            model?.parent ??
+            raw?.parent ??
+            null,
+
+        pricing:
+            model?.pricing ??
+            raw?.pricing ??
+            null,
+
+        input_modalities:
+            Array.isArray(
+                model?.input_modalities
+            )
+                ? model.input_modalities
+                : Array.isArray(
+                    raw?.input_modalities
+                )
+                    ? raw.input_modalities
+                    : [],
+
+        output_modalities:
+            Array.isArray(
+                model?.output_modalities
+            )
+                ? model.output_modalities
+                : Array.isArray(
+                    raw?.output_modalities
+                )
+                    ? raw.output_modalities
+                    : [],
+
+        context_length:
+            model?.context_length ??
+            raw?.context_length ??
+            null,
+
+        max_output_tokens:
+            model?.max_output_tokens ??
+            raw?.max_output_tokens ??
+            null
+
+    };
+
+
+    /* =====================================================
+       CAPABILITY / MODALITY METADATA
+       -----------------------------------------------------
+       Pertahankan field yang mungkin digunakan provider
+       untuk menjelaskan kemampuan image / vision.
+
+       Kita tidak mengarang nilainya.
+       Nilai hanya diteruskan jika memang tersedia.
+    ===================================================== */
+
+    const capabilityFields = [
+
+        "capabilities",
+
+        "capability",
+
+        "modalities",
+
+        "modality",
+
+        "architecture",
+
+        "input",
+
+        "output",
+
+        "vision",
+
+        "image",
+
+        "images",
+
+        "supports_vision",
+
+        "supports_image",
+
+        "supports_images",
+
+        "supports_multimodal",
+
+        "input_types",
+
+        "output_types",
+
+        "supported_inputs",
+
+        "supported_outputs"
+
+    ];
+
+
+    for (
+        const field
+        of capabilityFields
+    ) {
+
+        const modelValue =
+            model?.[field];
+
+
+        const rawValue =
+            raw?.[field];
+
+
+        const value =
+            modelValue !== undefined
+                ? modelValue
+                : rawValue;
+
+
+        if (
+            value !== undefined
+        ) {
+
+            normalized[field] =
+                value;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       RAW MODEL
+       -----------------------------------------------------
+       Penting untuk debugging dan capability detection.
+
+       raw berasal dari provider/openkey/models.js,
+       sehingga informasi asli provider tetap tersedia.
+
+       Ini tetap hanya metadata model.
+    ===================================================== */
+
+    normalized.raw =
+        raw;
+
+
+    return normalized;
+
+}
+
+
+/* =========================================================
+   HANDLE OPENKEY MODELS OPERATION
 ========================================================= */
 
 async function handleOpenKeyModelsOperation(
@@ -961,63 +1227,75 @@ async function handleOpenKeyModelsOperation(
             models
         )
 
-            ? models.map(
-                model => ({
-
-                    id:
-                        model?.model_id ||
-                        model?.id ||
-                        "",
-
-                    model_id:
-                        model?.model_id ||
-                        model?.id ||
-                        "",
-
-                    name:
-                        model?.model_name ||
-                        model?.name ||
-                        model?.model_id ||
-                        model?.id ||
-                        "",
-
-                    model_name:
-                        model?.model_name ||
-                        model?.name ||
-                        model?.model_id ||
-                        model?.id ||
-                        "",
-
-                    owned_by:
-                        model?.owned_by ||
-                        "",
-
-                    input_modalities:
-                        Array.isArray(
-                            model?.input_modalities
-                        )
-                            ? model.input_modalities
-                            : [],
-
-                    output_modalities:
-                        Array.isArray(
-                            model?.output_modalities
-                        )
-                            ? model.output_modalities
-                            : [],
-
-                    context_length:
-                        model?.context_length ??
-                        null,
-
-                    max_output_tokens:
-                        model?.max_output_tokens ??
-                        null
-
-                })
-            )
+            ? models
+                .map(
+                    normalizeOpenKeyModelForClient
+                )
+                .filter(
+                    Boolean
+                )
 
             : [];
+
+
+    /*
+     * Server-side diagnostic.
+     *
+     * Tidak pernah mencetak API key.
+     */
+
+    console.log(
+        "[openkey-chat] OpenKey model catalog:",
+        normalizedModels.map(
+            model => ({
+
+                id:
+                    model.id,
+
+                name:
+                    model.name,
+
+                input_modalities:
+                    model.input_modalities,
+
+                output_modalities:
+                    model.output_modalities,
+
+                capabilities:
+                    model.capabilities ??
+                    null,
+
+                modalities:
+                    model.modalities ??
+                    null,
+
+                modality:
+                    model.modality ??
+                    null,
+
+                architecture:
+                    model.architecture ??
+                    null,
+
+                input:
+                    model.input ??
+                    null,
+
+                output:
+                    model.output ??
+                    null,
+
+                vision:
+                    model.vision ??
+                    null,
+
+                image:
+                    model.image ??
+                    null
+
+            })
+        )
+    );
 
 
     return json(
@@ -1723,11 +2001,6 @@ function setHeaders(
 
 /* =========================================================
    VISION CREDIT CONFIG
-   ---------------------------------------------------------
-   Vision:
-   - 1 process = 1 credit
-   - deduction dilakukan server-side
-   - refund hanya jika proses Vision gagal
 ========================================================= */
 
 const VISION_CREDIT_COST =
@@ -2214,16 +2487,6 @@ async function handleVisionCreditOperation(
 
 /* =========================================================
    VISION HISTORY
-   ---------------------------------------------------------
-   Vision menggunakan generation_history yang sama
-   dengan Generate.
-
-   Identitas user SELALU berasal dari session Supabase.
-   Browser tidak dipercaya untuk user_id / user_email.
-
-   Credit:
-   - success = 1
-   - failed = 1
 ========================================================= */
 
 function normalizeVisionHistoryStatus(
@@ -2611,7 +2874,6 @@ async function handleVisionHistoryOperation(
                 true,
 
             operation:
-
                 "vision_history_save",
 
             history
@@ -2834,9 +3096,6 @@ export default async function handler(
 
     /* =========================================================
        VISION CREDIT OPERATIONS
-       ---------------------------------------------------------
-       Vision menggunakan endpoint OpenKey yang sama.
-       Operasi credit tidak membutuhkan credential OpenKey.
     ========================================================= */
 
     if (
@@ -2947,11 +3206,6 @@ export default async function handler(
 
     /* =========================================================
        OPENKEY CREDENTIAL CONFIG
-       ---------------------------------------------------------
-       Hanya diperlukan untuk:
-       - Chat
-       - Streaming
-       - Model catalog
     ========================================================= */
 
     if (
@@ -3025,13 +3279,6 @@ export default async function handler(
 
     /* =========================================================
        OPENKEY MODEL CATALOG
-       ---------------------------------------------------------
-       Vision meminta daftar model OpenKey melalui:
-
-       operation:
-           openkey_models
-
-       Credential tetap server-side.
     ========================================================= */
 
     if (
@@ -3065,7 +3312,6 @@ export default async function handler(
                         false,
 
                     operation:
-
                         "openkey_models",
 
                     error:
