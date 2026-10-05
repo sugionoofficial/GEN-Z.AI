@@ -10,6 +10,7 @@
    - Prompt Engineering
    - Validasi prompt
    - Retry jika output masih generik
+   - Outfit Source Control
 ========================================================= */
 
 
@@ -1570,10 +1571,250 @@ function formatAnalysisForPrompt(
 
 
 /* =========================================================
+   OUTFIT SOURCE NORMALIZER
+========================================================= */
+
+function normalizeOutfitSource(
+    value
+) {
+
+    const normalized =
+        String(
+            value ||
+            "reference"
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        normalized ===
+        "character"
+    ) {
+
+        return "character";
+
+    }
+
+
+    return "reference";
+
+}
+
+
+/* =========================================================
+   BUILD OUTFIT SOURCE INSTRUCTIONS
+========================================================= */
+
+function buildOutfitSourceInstructions(
+    outfitSource
+) {
+
+    const source =
+        normalizeOutfitSource(
+            outfitSource
+        );
+
+
+    if (
+        source ===
+        "character"
+    ) {
+
+        return {
+
+            source,
+
+            label:
+                "OUTFIT DARI REPLACEMENT CHARACTER",
+
+            systemInstruction: `
+=========================================================
+OUTFIT SOURCE: REPLACEMENT CHARACTER
+=========================================================
+
+PENTING:
+
+Untuk pakaian/outfit, gunakan REPLACEMENT CHARACTER
+sebagai sumber pakaian.
+
+Artinya:
+
+- pakaian replacement character adalah sumber utama
+  untuk outfit final;
+- pertahankan jenis pakaian replacement character;
+- pertahankan warna pakaian replacement character;
+- pertahankan material atau tekstur jika terlihat;
+- pertahankan pola dan motif jika terlihat;
+- pertahankan layering pakaian jika terlihat;
+- pertahankan aksesori yang merupakan bagian dari outfit
+  jika relevan;
+- jangan mengambil pakaian dari reference image utama
+  sebagai outfit final.
+
+Reference image utama tetap dapat digunakan untuk:
+
+- komposisi;
+- pose;
+- framing;
+- background;
+- environment;
+- lighting;
+- camera perspective;
+- product placement;
+- visual style;
+- dan fakta visual lain yang memang berasal dari
+  reference image.
+
+JANGAN mencampurkan pakaian reference image dengan
+pakaian replacement character.
+
+Jika visual analysis yang tersedia berasal dari reference
+image utama dan memiliki field clothing, field tersebut
+tidak boleh dianggap sebagai sumber outfit final ketika
+OUTFIT SOURCE adalah REPLACEMENT CHARACTER.
+
+Untuk outfit final, prioritaskan instruksi sumber
+replacement character.
+`.trim(),
+
+            userInstruction: `
+=========================================================
+ATURAN OUTFIT FINAL
+=========================================================
+
+SUMBER OUTFIT:
+REPLACEMENT CHARACTER
+
+Gunakan pakaian replacement character sebagai outfit final.
+
+JANGAN menyalin pakaian dari reference image utama.
+
+Pertahankan detail outfit replacement character yang
+terlihat, termasuk:
+
+- jenis pakaian;
+- warna;
+- material;
+- tekstur;
+- pola;
+- motif;
+- layering;
+- potongan;
+- bentuk;
+- aksesori pakaian;
+- detail kecil yang terlihat.
+
+Reference image tetap menjadi sumber untuk elemen lain
+yang relevan seperti pose, komposisi, background,
+environment, lighting, kamera, dan product placement.
+
+Jika terdapat konflik antara pakaian reference image dan
+pakaian replacement character, pakaian replacement
+character HARUS diprioritaskan.
+`.trim()
+
+        };
+
+    }
+
+
+    return {
+
+        source:
+
+            "reference",
+
+        label:
+            "OUTFIT DARI IMAGE REFERENCE",
+
+        systemInstruction: `
+=========================================================
+OUTFIT SOURCE: MAIN REFERENCE IMAGE
+=========================================================
+
+PENTING:
+
+Untuk pakaian/outfit, gunakan MAIN REFERENCE IMAGE
+sebagai sumber pakaian.
+
+Artinya:
+
+- pakaian reference image adalah sumber utama untuk
+  outfit final;
+- pertahankan jenis pakaian reference image;
+- pertahankan warna pakaian reference image;
+- pertahankan material atau tekstur jika terlihat;
+- pertahankan pola dan motif jika terlihat;
+- pertahankan layering pakaian;
+- pertahankan aksesori outfit yang terlihat jika relevan.
+
+Jika terdapat REPLACEMENT CHARACTER, replacement character
+digunakan sebagai sumber identitas/karakter sesuai konteks,
+tetapi BUKAN sebagai sumber pakaian.
+
+JANGAN mengganti outfit reference image dengan outfit
+replacement character.
+
+JANGAN mencampurkan detail pakaian dari kedua sumber.
+
+Reference image utama menjadi sumber kebenaran untuk outfit.
+`.trim(),
+
+        userInstruction: `
+=========================================================
+ATURAN OUTFIT FINAL
+=========================================================
+
+SUMBER OUTFIT:
+MAIN REFERENCE IMAGE
+
+Gunakan pakaian dari main reference image sebagai outfit
+final.
+
+Pertahankan secara konkret:
+
+- jenis pakaian;
+- warna;
+- material;
+- tekstur;
+- pola;
+- motif;
+- layering;
+- potongan;
+- bentuk;
+- detail pakaian;
+- aksesori yang terlihat sebagai bagian dari outfit.
+
+Jika terdapat replacement character, jangan mengambil
+pakaian replacement character.
+
+Replacement character tidak boleh mengubah outfit yang
+berasal dari main reference image.
+
+Jika terdapat konflik antara pakaian reference image dan
+pakaian replacement character, pakaian reference image
+HARUS diprioritaskan.
+`.trim()
+
+    };
+
+}
+
+
+/* =========================================================
    PROMPT SYSTEM
 ========================================================= */
 
-function buildPromptSystemPrompt() {
+function buildPromptSystemPrompt(
+    outfitSource = "reference"
+) {
+
+    const outfitInstructions =
+        buildOutfitSourceInstructions(
+            outfitSource
+        );
+
 
     return `
 You are the advanced prompt engineering engine of GEN-Z.AI Vision.
@@ -1584,6 +1825,8 @@ extremely detailed production-ready prompt.
 The visual analysis comes from an actual reference image.
 
 The analysis is the SOURCE OF TRUTH.
+
+${outfitInstructions.systemInstruction}
 
 =========================================================
 ABSOLUTE RULE: CONCRETE FACTS
@@ -1701,7 +1944,8 @@ WAJIB DETAIL PAKAIAN
 
 Sebutkan setiap pakaian yang terlihat.
 
-Pertahankan:
+Untuk pakaian yang berasal dari sumber outfit yang
+ditentukan di atas, pertahankan:
 
 - warna
 - bahan jika tersedia
@@ -1711,6 +1955,9 @@ Pertahankan:
 - lipatan
 - posisi
 - cara dikenakan
+
+Jangan mengambil detail outfit dari sumber yang tidak
+ditetapkan sebagai OUTFIT SOURCE.
 
 =========================================================
 WAJIB DETAIL AKSESORI
@@ -1804,6 +2051,15 @@ Jika analysis menyatakan uncertainty, jangan mengubahnya
 menjadi fakta pasti.
 
 =========================================================
+OUTFIT SOURCE CONSISTENCY
+=========================================================
+
+${outfitInstructions.userInstruction}
+
+Jangan menghasilkan instruksi outfit yang bertentangan
+dengan sumber outfit yang telah ditentukan.
+
+=========================================================
 OUTPUT
 =========================================================
 
@@ -1875,6 +2131,18 @@ function buildPromptUserPrompt(
         "";
 
 
+    const outfitSource =
+        normalizeOutfitSource(
+            settings.outfitSource
+        );
+
+
+    const outfitInstructions =
+        buildOutfitSourceInstructions(
+            outfitSource
+        );
+
+
     return `
 Buat SATU prompt final yang sangat rinci berdasarkan
 visual analysis reference image.
@@ -1885,8 +2153,17 @@ ${purpose}
 Tingkat detail:
 ${detail}
 
+Sumber outfit:
+${outfitInstructions.label}
+
 Instruksi tambahan:
 ${instruction || "Tidak ada"}
+
+=========================================================
+ATURAN OUTFIT
+=========================================================
+
+${outfitInstructions.userInstruction}
 
 =========================================================
 ATURAN PALING PENTING
@@ -1952,6 +2229,12 @@ Final prompt harus menjelaskan secara konkret:
 21. spatial relationships
 22. motion jika tujuan adalah video
 23. fidelity constraints
+
+Untuk bagian pakaian, WAJIB mengikuti sumber outfit:
+
+${outfitInstructions.label}
+
+Jangan mencampurkan outfit dari sumber lain.
 
 Output hanya prompt final Bahasa Indonesia.
 
@@ -2254,6 +2537,36 @@ async function generatePrompt(
         );
 
 
+    /* -----------------------------------------------------
+       OUTFIT SOURCE
+       -----------------------------------------------------
+       Default:
+       reference
+    ----------------------------------------------------- */
+
+    const outfitSource =
+        normalizeOutfitSource(
+            settings.outfitSource
+        );
+
+
+    /*
+     * Pastikan settings yang diteruskan ke prompt
+     * memiliki outfitSource yang sudah dinormalisasi.
+     *
+     * Ini penting jika state lama tidak memiliki
+     * property outfitSource.
+     */
+
+    const promptSettings = {
+
+        ...settings,
+
+        outfitSource
+
+    };
+
+
     const messages = [
 
         {
@@ -2262,7 +2575,9 @@ async function generatePrompt(
                 "system",
 
             content:
-                buildPromptSystemPrompt()
+                buildPromptSystemPrompt(
+                    outfitSource
+                )
 
         },
 
@@ -2274,7 +2589,7 @@ async function generatePrompt(
             content:
                 buildPromptUserPrompt(
                     normalizedAnalysis,
-                    settings
+                    promptSettings
                 )
 
         }
@@ -2305,7 +2620,9 @@ async function generatePrompt(
                 "concrete-visual-expansion",
 
             analysisSource:
-                "structured-visual-analysis"
+                "structured-visual-analysis",
+
+            outfitSource
 
         }
     );
@@ -2425,7 +2742,9 @@ async function generatePrompt(
                 cleaned.length,
 
             factCount:
-                facts.length
+                facts.length,
+
+            outfitSource
 
         }
     );
@@ -2454,7 +2773,9 @@ async function generatePrompt(
                     quality,
 
                     factCount:
-                        facts.length
+                        facts.length,
+
+                    outfitSource
 
                 }
 
@@ -2498,6 +2819,10 @@ const GENZVisionPromptAPI =
         formatDetailedAnalysisFacts,
 
         formatAnalysisForPrompt,
+
+        normalizeOutfitSource,
+
+        buildOutfitSourceInstructions,
 
         buildPromptSystemPrompt,
 
