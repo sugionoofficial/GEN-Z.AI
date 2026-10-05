@@ -300,14 +300,30 @@ function buildHistoryRecord(
         getState();
 
 
+    /*
+     * Model tidak lagi memiliki fallback
+     * ke model OpenKey tertentu.
+     *
+     * Model harus berasal dari:
+     * - options.model
+     * - state.model.id
+     *
+     * Jika keduanya kosong, history tetap
+     * menggunakan string kosong.
+     *
+     * Pemilihan model Vision dilakukan oleh
+     * vision-api.js berdasarkan katalog
+     * OpenKey yang aktual.
+     */
+
     const model =
         safeString(
             options.model ||
             state.get(
                 "model.id",
-                "gemini-3.1-pro"
+                ""
             ),
-            "gemini-3.1-pro"
+            ""
         );
 
 
@@ -316,9 +332,9 @@ function buildHistoryRecord(
             options.modelName ||
             state.get(
                 "model.name",
-                "Gemini 3.1 Pro"
+                ""
             ),
-            "Gemini 3.1 Pro"
+            ""
         );
 
 
