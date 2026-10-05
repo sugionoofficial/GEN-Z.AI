@@ -46,57 +46,31 @@ const PROMPT_ANALYSIS_KEYS =
     Object.freeze([
 
         "subject",
-
         "appearance",
-
         "face_hair",
-
         "faceHair",
-
         "pose",
-
         "clothing",
-
         "accessories",
-
         "product",
-
         "composition",
-
         "camera",
-
         "lighting",
-
         "shadows",
-
         "environment",
-
         "background",
-
         "color_palette",
-
         "colorPalette",
-
         "visual_style",
-
         "visualStyle",
-
         "text_branding",
-
         "textBranding",
-
         "image_quality",
-
         "imageQuality",
-
         "important_details",
-
         "importantDetails",
-
         "spatial_relationships",
-
         "spatialRelationships",
-
         "uncertainties"
 
     ]);
@@ -105,30 +79,6 @@ const PROMPT_ANALYSIS_KEYS =
 /* =========================================================
    JSON / TEXT EXTRACTION HELPERS
 ========================================================= */
-
-/*
- * Hasil model kadang dikembalikan sebagai:
- *
- * ```json
- * {
- *   ...
- * }
- * ```
- *
- * atau:
- *
- * Some text
- * ```json
- * {
- *   ...
- * }
- * ```
- *
- * JSON.parse() tidak menerima format tersebut secara langsung.
- *
- * Fungsi ini hanya membersihkan wrapper markdown,
- * tidak mengubah isi JSON.
- */
 
 function stripPromptAnalysisCodeFence(
     text
@@ -151,27 +101,12 @@ function stripPromptAnalysisCodeFence(
     }
 
 
-    /*
-     * Hapus opening fence.
-     *
-     * Mendukung:
-     * ```json
-     * ```
-     * ```JSON
-     * ```javascript
-     * ```
-     */
-
     value =
         value.replace(
             /^```(?:json|JSON|javascript|JavaScript)?\s*/i,
             ""
         );
 
-
-    /*
-     * Hapus closing fence.
-     */
 
     value =
         value.replace(
@@ -181,6 +116,282 @@ function stripPromptAnalysisCodeFence(
 
 
     return value.trim();
+
+}
+
+
+/* =========================================================
+   EXTRACT BALANCED OBJECT
+========================================================= */
+
+function extractBalancedPromptObject(
+    text
+) {
+
+    const source =
+        stripPromptAnalysisCodeFence(
+            text
+        );
+
+
+    const start =
+        source.indexOf(
+            "{"
+        );
+
+
+    if (
+        start === -1
+    ) {
+
+        return null;
+
+    }
+
+
+    let depth = 0;
+
+    let inString = false;
+
+    let escaped = false;
+
+
+    for (
+        let index = start;
+
+        index < source.length;
+
+        index++
+    ) {
+
+        const char =
+            source[index];
+
+
+        if (
+            inString
+        ) {
+
+            if (
+                escaped
+            ) {
+
+                escaped = false;
+
+                continue;
+
+            }
+
+
+            if (
+                char === "\\"
+            ) {
+
+                escaped = true;
+
+                continue;
+
+            }
+
+
+            if (
+                char === '"'
+            ) {
+
+                inString = false;
+
+            }
+
+
+            continue;
+
+        }
+
+
+        if (
+            char === '"'
+        ) {
+
+            inString = true;
+
+            continue;
+
+        }
+
+
+        if (
+            char === "{"
+        ) {
+
+            depth++;
+
+            continue;
+
+        }
+
+
+        if (
+            char === "}"
+        ) {
+
+            depth--;
+
+
+            if (
+                depth === 0
+            ) {
+
+                return source.slice(
+                    start,
+                    index + 1
+                );
+
+            }
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   EXTRACT BALANCED ARRAY
+========================================================= */
+
+function extractBalancedPromptArray(
+    text
+) {
+
+    const source =
+        stripPromptAnalysisCodeFence(
+            text
+        );
+
+
+    const start =
+        source.indexOf(
+            "["
+        );
+
+
+    if (
+        start === -1
+    ) {
+
+        return null;
+
+    }
+
+
+    let depth = 0;
+
+    let inString = false;
+
+    let escaped = false;
+
+
+    for (
+        let index = start;
+
+        index < source.length;
+
+        index++
+    ) {
+
+        const char =
+            source[index];
+
+
+        if (
+            inString
+        ) {
+
+            if (
+                escaped
+            ) {
+
+                escaped = false;
+
+                continue;
+
+            }
+
+
+            if (
+                char === "\\"
+            ) {
+
+                escaped = true;
+
+                continue;
+
+            }
+
+
+            if (
+                char === '"'
+            ) {
+
+                inString = false;
+
+            }
+
+
+            continue;
+
+        }
+
+
+        if (
+            char === '"'
+        ) {
+
+            inString = true;
+
+            continue;
+
+        }
+
+
+        if (
+            char === "["
+        ) {
+
+            depth++;
+
+            continue;
+
+        }
+
+
+        if (
+            char === "]"
+        ) {
+
+            depth--;
+
+
+            if (
+                depth === 0
+            ) {
+
+                return source.slice(
+                    start,
+                    index + 1
+                );
+
+            }
+
+        }
+
+    }
+
+
+    return null;
 
 }
 
@@ -209,8 +420,7 @@ function extractEmbeddedPromptAnalysisJSON(
 
 
     /*
-     * Percobaan pertama:
-     * seluruh string memang JSON.
+     * Direct JSON.
      */
 
     try {
@@ -221,53 +431,36 @@ function extractEmbeddedPromptAnalysisJSON(
 
     }
     catch {
-        /*
-         * Lanjutkan ke extraction.
-         */
+
+        /* Continue */
 
     }
 
 
     /*
-     * Cari object JSON pertama.
+     * Balanced object.
      */
 
-    const objectStart =
-        source.indexOf(
-            "{"
-        );
-
-
-    const objectEnd =
-        source.lastIndexOf(
-            "}"
+    const objectText =
+        extractBalancedPromptObject(
+            source
         );
 
 
     if (
-        objectStart !== -1 &&
-        objectEnd > objectStart
+        objectText
     ) {
-
-        const candidate =
-            source.slice(
-                objectStart,
-                objectEnd + 1
-            )
-                .trim();
-
 
         try {
 
             return JSON.parse(
-                candidate
+                objectText
             );
 
         }
         catch {
-            /*
-             * Bukan JSON object yang valid.
-             */
+
+            /* Continue */
 
         }
 
@@ -275,45 +468,29 @@ function extractEmbeddedPromptAnalysisJSON(
 
 
     /*
-     * Cari array JSON pertama.
+     * Balanced array.
      */
 
-    const arrayStart =
-        source.indexOf(
-            "["
-        );
-
-
-    const arrayEnd =
-        source.lastIndexOf(
-            "]"
+    const arrayText =
+        extractBalancedPromptArray(
+            source
         );
 
 
     if (
-        arrayStart !== -1 &&
-        arrayEnd > arrayStart
+        arrayText
     ) {
-
-        const candidate =
-            source.slice(
-                arrayStart,
-                arrayEnd + 1
-            )
-                .trim();
-
 
         try {
 
             return JSON.parse(
-                candidate
+                arrayText
             );
 
         }
         catch {
-            /*
-             * Bukan JSON array yang valid.
-             */
+
+            /* Continue */
 
         }
 
@@ -335,7 +512,8 @@ function findPromptAnalysisWrapper(
 
     if (
         !input ||
-        typeof input !== "object"
+        typeof input !== "object" ||
+        Array.isArray(input)
     ) {
 
         return null;
@@ -346,29 +524,17 @@ function findPromptAnalysisWrapper(
     const wrappers = [
 
         "normalized",
-
         "analysis",
-
         "visualAnalysis",
-
         "visual_analysis",
-
         "visual",
-
         "visualData",
-
         "visual_data",
-
         "analysisResult",
-
         "analysis_result",
-
         "data",
-
         "result",
-
         "output",
-
         "response"
 
     ];
@@ -406,6 +572,36 @@ function findPromptAnalysisWrapper(
 
 
 /* =========================================================
+   HAS DIRECT ANALYSIS STRUCTURE
+========================================================= */
+
+function hasPromptAnalysisStructure(
+    input
+) {
+
+    if (
+        !input ||
+        typeof input !== "object" ||
+        Array.isArray(input)
+    ) {
+
+        return false;
+
+    }
+
+
+    return PROMPT_ANALYSIS_KEYS.some(
+        key =>
+            Object.prototype.hasOwnProperty.call(
+                input,
+                key
+            )
+    );
+
+}
+
+
+/* =========================================================
    NORMALIZE PROMPT ANALYSIS INPUT
 ========================================================= */
 
@@ -423,15 +619,12 @@ function normalizePromptAnalysisInput(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * STRING INPUT
-     * -----------------------------------------------------
-     */
+    /* -----------------------------------------------------
+       STRING
+    ----------------------------------------------------- */
 
     if (
-        typeof input ===
-        "string"
+        typeof input === "string"
     ) {
 
         const text =
@@ -448,7 +641,7 @@ function normalizePromptAnalysisInput(
 
 
         /*
-         * Pertama coba JSON langsung.
+         * Direct JSON.
          */
 
         try {
@@ -465,16 +658,14 @@ function normalizePromptAnalysisInput(
 
         }
         catch {
-            /*
-             * Bukan JSON murni.
-             */
+
+            /* Continue */
 
         }
 
 
         /*
-         * Kemudian coba JSON yang dibungkus
-         * markdown code fence atau teks tambahan.
+         * Embedded JSON.
          */
 
         const extracted =
@@ -495,10 +686,7 @@ function normalizePromptAnalysisInput(
 
 
         /*
-         * Jika memang bukan JSON sama sekali,
-         * pertahankan sebagai raw text.
-         *
-         * Ini penting agar response tidak hilang.
+         * Raw text fallback.
          */
 
         return {
@@ -511,30 +699,9 @@ function normalizePromptAnalysisInput(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * NON OBJECT
-     * -----------------------------------------------------
-     */
-
-    if (
-        typeof input !==
-        "object"
-    ) {
-
-        return null;
-
-    }
-
-
-    /*
-     * -----------------------------------------------------
-     * ARRAY
-     * -----------------------------------------------------
-     *
-     * Jangan membuang array. Analysis tertentu bisa
-     * menggunakan array sebagai struktur utama.
-     */
+    /* -----------------------------------------------------
+       ARRAY
+    ----------------------------------------------------- */
 
     if (
         Array.isArray(input)
@@ -545,27 +712,27 @@ function normalizePromptAnalysisInput(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * DIRECT ANALYSIS STRUCTURE
-     * -----------------------------------------------------
-     *
-     * Jika object sudah memiliki salah satu field analysis,
-     * jangan masuk ke wrapper lagi.
-     */
-
-    const hasAnalysisStructure =
-        PROMPT_ANALYSIS_KEYS.some(
-            key =>
-                Object.prototype.hasOwnProperty.call(
-                    input,
-                    key
-                )
-        );
-
+    /* -----------------------------------------------------
+       NON OBJECT
+    ----------------------------------------------------- */
 
     if (
-        hasAnalysisStructure
+        typeof input !== "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    /* -----------------------------------------------------
+       DIRECT ANALYSIS OBJECT
+    ----------------------------------------------------- */
+
+    if (
+        hasPromptAnalysisStructure(
+            input
+        )
     ) {
 
         return input;
@@ -573,11 +740,9 @@ function normalizePromptAnalysisInput(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * WRAPPED ANALYSIS
-     * -----------------------------------------------------
-     */
+    /* -----------------------------------------------------
+       WRAPPED ANALYSIS
+    ----------------------------------------------------- */
 
     const wrapper =
         findPromptAnalysisWrapper(
@@ -596,49 +761,61 @@ function normalizePromptAnalysisInput(
 
 
         if (
-            nested &&
-            (
-                typeof nested !== "object" ||
-                Array.isArray(nested) ||
-                Object.keys(
-                    nested
-                ).length > 0
-            )
+            nested !== null
         ) {
 
-            return nested;
+            /*
+             * Jangan menerima wrapper kosong.
+             */
+
+            if (
+                Array.isArray(nested)
+            ) {
+
+                if (
+                    nested.length > 0
+                ) {
+
+                    return nested;
+
+                }
+
+            }
+            else if (
+                typeof nested === "object"
+            ) {
+
+                if (
+                    Object.keys(
+                        nested
+                    ).length > 0
+                ) {
+
+                    return nested;
+
+                }
+
+            }
+            else {
+
+                return nested;
+
+            }
 
         }
 
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * TEXT / CONTENT
-     * -----------------------------------------------------
-     *
-     * OpenKey response dapat memiliki:
-     *
-     * {
-     *   content: "```json ... ```"
-     * }
-     *
-     * atau:
-     *
-     * {
-     *   text: "..."
-     * }
-     */
+    /* -----------------------------------------------------
+       TEXT / CONTENT / MESSAGE / ANSWER
+    ----------------------------------------------------- */
 
     const textKeys = [
 
         "text",
-
         "content",
-
         "message",
-
         "answer"
 
     ];
@@ -649,8 +826,7 @@ function normalizePromptAnalysisInput(
     ) {
 
         if (
-            typeof input[key] !==
-            "string"
+            typeof input[key] !== "string"
         ) {
 
             continue;
@@ -665,35 +841,58 @@ function normalizePromptAnalysisInput(
 
 
         if (
-            nested &&
-            (
-                typeof nested !== "object" ||
-                Array.isArray(nested) ||
+            nested === null
+        ) {
+
+            continue;
+
+        }
+
+
+        if (
+            Array.isArray(nested)
+        ) {
+
+            if (
+                nested.length > 0
+            ) {
+
+                return nested;
+
+            }
+
+            continue;
+
+        }
+
+
+        if (
+            typeof nested === "object"
+        ) {
+
+            if (
                 Object.keys(
                     nested
                 ).length > 0
-            )
-        ) {
+            ) {
 
-            return nested;
+                return nested;
+
+            }
+
+            continue;
 
         }
+
+
+        return nested;
 
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * RESPONSE OBJECT FALLBACK
-     * -----------------------------------------------------
-     *
-     * Beberapa response API dapat menyimpan content
-     * lebih dalam seperti:
-     *
-     * choices[0].message.content
-     *
-     * Jangan membuat ketergantungan keras pada satu provider.
-     */
+    /* -----------------------------------------------------
+       CHOICES FALLBACK
+    ----------------------------------------------------- */
 
     if (
         Array.isArray(
@@ -712,30 +911,60 @@ function normalizePromptAnalysisInput(
 
 
             if (
-                nested &&
-                typeof nested === "object" &&
-                (
-                    Array.isArray(nested) ||
+                nested === null
+            ) {
+
+                continue;
+
+            }
+
+
+            if (
+                Array.isArray(nested)
+            ) {
+
+                if (
+                    nested.length > 0
+                ) {
+
+                    return nested;
+
+                }
+
+                continue;
+
+            }
+
+
+            if (
+                typeof nested === "object"
+            ) {
+
+                if (
                     Object.keys(
                         nested
                     ).length > 0
-                )
-            ) {
+                ) {
 
-                return nested;
+                    return nested;
+
+                }
+
+                continue;
 
             }
+
+
+            return nested;
 
         }
 
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * MESSAGE FALLBACK
-     * -----------------------------------------------------
-     */
+    /* -----------------------------------------------------
+       MESSAGE OBJECT FALLBACK
+    ----------------------------------------------------- */
 
     if (
         input.message &&
@@ -749,32 +978,46 @@ function normalizePromptAnalysisInput(
 
 
         if (
-            nested &&
-            typeof nested === "object" &&
-            (
-                Array.isArray(nested) ||
-                Object.keys(
-                    nested
-                ).length > 0
-            )
+            nested !== null
         ) {
 
-            return nested;
+            if (
+                Array.isArray(nested)
+            ) {
+
+                if (
+                    nested.length > 0
+                ) {
+
+                    return nested;
+
+                }
+
+            }
+            else if (
+                typeof nested === "object"
+            ) {
+
+                if (
+                    Object.keys(
+                        nested
+                    ).length > 0
+                ) {
+
+                    return nested;
+
+                }
+
+            }
 
         }
 
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * FINAL OBJECT FALLBACK
-     * -----------------------------------------------------
-     *
-     * Jangan mengubah object yang tidak dikenal.
-     * buildDetailedAnalysisFacts() masih dapat membaca
-     * leaf values dari object tersebut.
-     */
+    /* -----------------------------------------------------
+       FINAL OBJECT
+    ----------------------------------------------------- */
 
     return input;
 
@@ -804,18 +1047,34 @@ function isMeaningfulPromptValue(
     ) {
 
         const normalized =
-            value.trim().toLowerCase();
+            value
+                .trim()
+                .toLowerCase();
 
 
-        return Boolean(
-            normalized &&
-            normalized !== "unknown" &&
-            normalized !== "null" &&
-            normalized !== "n/a" &&
-            normalized !== "none" &&
-            normalized !== "tidak diketahui" &&
-            normalized !== "tidak ada" &&
-            normalized !== "tidak terlihat"
+        if (
+            !normalized
+        ) {
+
+            return false;
+
+        }
+
+
+        return ![
+
+            "unknown",
+            "null",
+            "n/a",
+            "none",
+            "tidak diketahui",
+            "tidak ada",
+            "tidak terlihat",
+            "not visible",
+            "not applicable"
+
+        ].includes(
+            normalized
         );
 
     }
@@ -831,12 +1090,20 @@ function isMeaningfulPromptValue(
     }
 
 
+    /*
+     * Object dan array dianggap memiliki isi jika
+     * memiliki minimal satu descendant yang bermakna.
+     */
+
     if (
         Array.isArray(value)
     ) {
 
         return value.some(
-            isMeaningfulPromptValue
+            item =>
+                isMeaningfulPromptValue(
+                    item
+                )
         );
 
     }
@@ -846,11 +1113,27 @@ function isMeaningfulPromptValue(
         typeof value === "object"
     ) {
 
-        return Object.values(
+        return Object.entries(
             value
         )
             .some(
-                isMeaningfulPromptValue
+                ([key, child]) => {
+
+                    if (
+                        key === "present" &&
+                        child === false
+                    ) {
+
+                        return false;
+
+                    }
+
+
+                    return isMeaningfulPromptValue(
+                        child
+                    );
+
+                }
             );
 
     }
@@ -981,7 +1264,7 @@ function formatFactKey(
 
 
 /* =========================================================
-   BUILD LEAF FACTS
+   BUILD DETAILED ANALYSIS FACTS
 ========================================================= */
 
 function buildDetailedAnalysisFacts(
@@ -1006,16 +1289,12 @@ function buildDetailedAnalysisFacts(
         }
 
 
-        /*
-         * -------------------------------------------------
-         * STRING / NUMBER / BOOLEAN
-         * -------------------------------------------------
-         */
+        /* -------------------------------------------------
+           STRING
+        ------------------------------------------------- */
 
         if (
-            typeof value === "string" ||
-            typeof value === "number" ||
-            typeof value === "boolean"
+            typeof value === "string"
         ) {
 
             if (
@@ -1035,9 +1314,7 @@ function buildDetailedAnalysisFacts(
                     path.join("."),
 
                 value:
-                    String(
-                        value
-                    ).trim()
+                    value.trim()
 
             });
 
@@ -1047,11 +1324,36 @@ function buildDetailedAnalysisFacts(
         }
 
 
-        /*
-         * -------------------------------------------------
-         * ARRAY
-         * -------------------------------------------------
-         */
+        /* -------------------------------------------------
+           NUMBER / BOOLEAN
+        ------------------------------------------------- */
+
+        if (
+            typeof value === "number" ||
+            typeof value === "boolean"
+        ) {
+
+            facts.push({
+
+                path:
+                    path.join("."),
+
+                value:
+                    String(
+                        value
+                    )
+
+            });
+
+
+            return;
+
+        }
+
+
+        /* -------------------------------------------------
+           ARRAY
+        ------------------------------------------------- */
 
         if (
             Array.isArray(value)
@@ -1080,11 +1382,9 @@ function buildDetailedAnalysisFacts(
         }
 
 
-        /*
-         * -------------------------------------------------
-         * OBJECT
-         * -------------------------------------------------
-         */
+        /* -------------------------------------------------
+           OBJECT
+        ------------------------------------------------- */
 
         if (
             typeof value === "object"
@@ -1101,16 +1401,30 @@ function buildDetailedAnalysisFacts(
                         ]
                     ) => {
 
+                        /*
+                         * `present: false` adalah metadata,
+                         * bukan fakta visual.
+                         */
+
                         if (
-                            !isMeaningfulPromptValue(
-                                child
-                            )
+                            key === "present" &&
+                            child === false
                         ) {
 
                             return;
 
                         }
 
+
+                        /*
+                         * Jangan gunakan
+                         * isMeaningfulPromptValue(child)
+                         * sebagai gate.
+                         *
+                         * Kita harus selalu masuk ke nested
+                         * object/array agar seluruh leaf facts
+                         * tetap ditemukan.
+                         */
 
                         walk(
                             child,
@@ -1163,11 +1477,15 @@ function formatDetailedAnalysisFacts(
                 index
             ) => {
 
-                const pathParts =
+                const rawPath =
                     String(
                         fact.path ||
                         ""
-                    )
+                    );
+
+
+                const pathParts =
+                    rawPath
                         .split(".")
                         .filter(
                             Boolean
@@ -1212,8 +1530,7 @@ function formatAnalysisForPrompt(
 ) {
 
     if (
-        typeof analysis ===
-        "string"
+        typeof analysis === "string"
     ) {
 
         return analysis.trim();
@@ -1505,7 +1822,6 @@ Jangan:
 
 Hasil harus berupa prompt natural Bahasa Indonesia yang
 panjang, konkret, rinci dan siap digunakan model generatif.
-
 `.trim();
 
 }
@@ -1643,7 +1959,6 @@ Jangan tampilkan analisis.
 Jangan tampilkan JSON.
 Jangan tampilkan penjelasan.
 Jangan gunakan label "Prompt:".
-
 `.trim();
 
 }
@@ -1685,11 +2000,6 @@ function validateGeneratedPrompt(
 
     }
 
-
-    /*
-     * Prompt generik biasanya pendek dan hanya
-     * berisi instruksi preserve.
-     */
 
     if (
         normalized.length < 900 &&
@@ -1792,11 +2102,9 @@ async function generatePrompt(
         promptResponse();
 
 
-    /*
-     * -----------------------------------------------------
-     * NORMALISASI WAJIB
-     * -----------------------------------------------------
-     */
+    /* -----------------------------------------------------
+       NORMALISASI
+    ----------------------------------------------------- */
 
     const normalizedAnalysis =
         normalizePromptAnalysisInput(
@@ -1867,6 +2175,15 @@ async function generatePrompt(
             analysisLength:
                 analysisText.length,
 
+            topLevelKeys:
+                normalizedAnalysis &&
+                typeof normalizedAnalysis === "object" &&
+                !Array.isArray(normalizedAnalysis)
+                    ? Object.keys(
+                        normalizedAnalysis
+                    )
+                    : [],
+
             factCount:
                 facts.length,
 
@@ -1879,13 +2196,6 @@ async function generatePrompt(
         }
     );
 
-
-    /*
-     * Diagnostic tambahan.
-     *
-     * Jika masalah terjadi lagi, console akan menunjukkan
-     * struktur yang benar-benar diterima Prompt Engineering.
-     */
 
     console.debug(
         "[GEN-Z.AI Vision] Prompt Engineering normalized analysis:",
@@ -2001,6 +2311,20 @@ async function generatePrompt(
     );
 
 
+    const configuredPromptTokens =
+        Number(
+            core.CONFIG
+                .maxPromptTokens
+        ) || 0;
+
+
+    const promptMaxTokens =
+        Math.max(
+            configuredPromptTokens,
+            4096
+        );
+
+
     const response =
         await core.request(
 
@@ -2016,8 +2340,7 @@ async function generatePrompt(
                         .promptTemperature,
 
                 max_tokens:
-                    core.CONFIG
-                        .maxPromptTokens,
+                    promptMaxTokens,
 
                 stream:
                     false
@@ -2160,16 +2483,6 @@ async function generatePrompt(
 /* =========================================================
    GLOBAL MODULE
 ========================================================= */
-
-/*
- * vision-api-prompt.js dan vision-prompt.js menggunakan
- * namespace global yang sama.
- *
- * Jangan menghapus API yang sudah dibuat module sebelumnya.
- *
- * vision-prompt.js nantinya melakukan merge terhadap object
- * ini sehingga generatePrompt() tetap tersedia.
- */
 
 const GENZVisionPromptAPI =
     Object.freeze({
