@@ -69,13 +69,20 @@ const DEFAULT_STATE = {
 
     /* =====================================================
        MODEL
+       -----------------------------------------------------
+       Model TIDAK boleh ditebak / di-hardcode.
+
+       Model aktual akan diisi oleh:
+       vision-loader.js
+
+       setelah katalog OpenKey berhasil dimuat.
     ===================================================== */
 
     model: {
 
-        id: "gemini-3.1-pro",
+        id: "",
 
-        name: "Gemini 3.1 Pro",
+        name: "",
 
         providerId: "openkey",
 
@@ -1308,7 +1315,7 @@ function notify() {
         } catch (error) {
 
             console.error(
-                "[GENZ Vision] State subscriber error:",
+                "[GEN-Z Vision] State subscriber error:",
                 error
             );
 
