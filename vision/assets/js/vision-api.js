@@ -1,4 +1,4 @@
-// vision-api.js?v=1.6
+// vision-api.js?v=1.7
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -15,6 +15,7 @@
    - Menormalisasi response API
    - Mendukung berbagai bentuk response OpenKey
    - Validasi kualitas Vision Analysis
+   - Prompt Engineering menghasilkan Bahasa Indonesia
    - Tidak mengatur DOM
    - Tidak memotong credit
    - Tidak menyimpan history
@@ -2030,6 +2031,9 @@ async function analyzeImage(
 
 /* =========================================================
    PROMPT ENGINEERING SYSTEM PROMPT
+   ---------------------------------------------------------
+   OUTPUT LANGUAGE:
+   Bahasa Indonesia
 ========================================================= */
 
 function buildPromptSystemPrompt() {
@@ -2037,56 +2041,196 @@ function buildPromptSystemPrompt() {
     return `
 You are the prompt engineering engine of GEN-Z.AI Vision.
 
-Convert the supplied structured visual analysis into
-one high-quality, ultra-detailed image-generation prompt.
+Your task is to convert the supplied structured visual
+analysis into ONE high-quality, ultra-detailed,
+production-ready image-generation prompt.
 
 The visual analysis was produced from an actual reference
-image. Treat it as the source of truth.
+image. Treat it as the primary source of truth.
 
-The final prompt must preserve the important visual
-characteristics of the reference image.
+=========================================================
+BAHASA OUTPUT WAJIB
+=========================================================
+
+The FINAL PROMPT MUST BE WRITTEN IN BAHASA INDONESIA.
+
+This is a strict requirement.
+
+- Write the entire final prompt in natural Bahasa Indonesia.
+- Do NOT write the final prompt in English.
+- Do NOT return an English translation of the prompt.
+- Do NOT mix English sentences into the final prompt.
+- Use Indonesian descriptive language throughout the prompt.
+- Preserve proper nouns, brand names, product names, model
+  names, and other names that should not be translated.
+- Technical photography or cinematography terminology may
+  remain in its internationally recognized form when a
+  natural Indonesian equivalent would reduce precision.
+- If a technical term is retained, use it naturally within
+  an otherwise Indonesian sentence.
+
+=========================================================
+VISUAL FIDELITY
+=========================================================
+
+The reference analysis is the source of truth.
+
+Preserve all useful visual information contained in the
+analysis.
+
+Do not remove important visual characteristics merely to
+make the prompt shorter.
+
+Do not replace detailed visual observations with generic
+descriptions.
+
+Do not invent unsupported visual details.
+
+If a detail is unknown, uncertain, or not visible, do not
+turn that uncertainty into a definite visual fact.
+
+=========================================================
+DETAIL YANG HARUS DIPERTAHANKAN
+=========================================================
 
 Include, when available:
 
-- subject
-- physical appearance
-- face and hair
+- subjek
+- jenis kelamin jika terlihat
+- kelompok usia jika dapat diperkirakan secara visual
+- penampilan fisik yang terlihat
+- warna dan kondisi kulit
+- detail wajah
+- mata
+- alis
+- hidung
+- bibir
+- riasan
+- rambut atau penutup kepala
 - pose
-- body position
-- clothing
-- accessories
-- product
-- composition
-- spatial relationships
-- camera angle
+- posisi kepala
+- arah pandangan
+- posisi tubuh
+- pakaian
+- warna pakaian
+- bahan pakaian jika terlihat
+- pola dan motif
+- aksesori
+- produk
+- bentuk produk
+- warna produk
+- detail produk yang terlihat
+- komposisi
+- orientasi gambar
+- posisi subjek dalam frame
+- hubungan spasial antarobjek
 - framing
-- lens feel
+- perspektif kamera
+- karakteristik lensa jika dapat diamati
 - depth of field
-- lighting
-- shadows
-- environment
-- background
-- color palette
-- visual style
-- realism
-- texture
-- image quality
-- visible branding or text
+- fokus
+- pencahayaan
+- arah cahaya
+- kualitas cahaya
+- bayangan
+- lingkungan
+- latar belakang
+- tekstur
+- warna dominan
+- palet warna
+- gaya visual
+- tingkat realisme
+- kualitas gambar
+- ketajaman
+- noise
+- teks yang terlihat
+- branding yang terlihat
+- detail penting lainnya
 
-The prompt must be practical for an image generation model.
+=========================================================
+ATURAN ANTI-INVENTION
+=========================================================
 
-Do not add details that are not supported by the visual
-analysis unless the user explicitly requested them.
+Do NOT invent:
 
-Do not replace missing visual information with invented
-specific details.
+- warna rambut yang tidak terlihat
+- pakaian yang tidak terlihat
+- aksesori yang tidak terlihat
+- lokasi yang tidak terlihat
+- jenis kamera yang tidak dapat diketahui
+- focal length pasti yang tidak dapat diketahui
+- sumber cahaya pasti jika tidak dapat ditentukan
+- identitas seseorang
+- merek yang tidak terlihat
+- produk yang tidak terlihat
+- detail latar belakang yang tidak terdapat dalam analysis
 
-Do not say that visual details are unavailable if the
-analysis contains usable visual information.
+Jika analysis menyatakan suatu detail sebagai "unknown",
+jangan mengubahnya menjadi fakta.
 
-Do not include explanations before or after the prompt.
+Jika analysis menyatakan suatu detail sebagai tidak pasti,
+jangan menuliskannya sebagai sesuatu yang pasti.
 
-Return only the final prompt as plain text.
+=========================================================
+STRUKTUR PROMPT
+=========================================================
+
+Susun prompt final secara natural dan koheren.
+
+Prioritaskan:
+
+1. subjek utama
+2. penampilan dan karakteristik visual
+3. wajah dan rambut atau penutup kepala
+4. pose dan ekspresi
+5. pakaian dan aksesori
+6. produk jika ada
+7. komposisi dan framing
+8. kamera dan perspektif
+9. pencahayaan
+10. lingkungan dan latar belakang
+11. warna dan tekstur
+12. gaya visual
+13. kualitas dan realisme
+
+Gabungkan informasi tersebut menjadi satu prompt yang
+mengalir secara natural, bukan daftar field JSON.
+
+Prompt harus siap langsung digunakan oleh model generatif.
+
+=========================================================
+ATURAN USER INSTRUCTION
+=========================================================
+
+Jika terdapat instruksi tambahan dari pengguna:
+
+- Ikuti instruksi tersebut jika tidak bertentangan dengan
+  visual analysis.
+- Jangan menghapus detail referensi yang penting.
+- Jangan menambahkan detail visual yang tidak diminta dan
+  tidak didukung oleh analysis.
+- Tetap hasilkan prompt final dalam Bahasa Indonesia.
+
+=========================================================
+OUTPUT
+=========================================================
+
+Return ONLY the final image-generation prompt.
+
+Do NOT include:
+
+- "Prompt:"
+- "Final Prompt:"
+- "Berikut prompt:"
+- penjelasan
+- analisis
+- catatan
+- disclaimer
+- markdown code fence
+- bullet list terpisah
+- komentar tentang proses
+
+Hanya keluarkan prompt final dalam Bahasa Indonesia.
 `.trim();
 
 }
@@ -2123,28 +2267,47 @@ function buildPromptUserPrompt(
 
 
     return `
-Create the final production-ready image-generation
-prompt from this visual analysis.
+Buat satu prompt final siap produksi berdasarkan visual
+analysis di bawah ini.
 
-Target purpose:
+Tujuan:
 ${purpose}
 
-Requested detail:
+Tingkat detail:
 ${detail}
 
-Additional instruction:
-${instruction || "None"}
+Instruksi tambahan pengguna:
+${instruction || "Tidak ada"}
 
-IMPORTANT:
+=========================================================
+INSTRUKSI UTAMA
+=========================================================
 
-The VISUAL ANALYSIS below was generated from the actual
-reference image.
+1. Prompt final WAJIB menggunakan Bahasa Indonesia.
 
-Preserve the visual structure of the reference.
+2. Pertahankan seluruh detail visual penting yang terdapat
+   pada visual analysis.
 
-Do not invent unsupported visual details.
+3. Jangan mengarang detail visual yang tidak didukung.
 
-VISUAL ANALYSIS:
+4. Jangan mengubah informasi yang tidak pasti menjadi fakta.
+
+5. Jangan menghilangkan detail hanya karena detail tersebut
+   berasal dari istilah teknis.
+
+6. Jangan memberikan penjelasan sebelum atau sesudah prompt.
+
+7. Jangan menampilkan JSON sebagai output akhir.
+
+8. Jangan menggunakan label "Prompt:" atau "Final Prompt:".
+
+9. Output harus berupa satu prompt Bahasa Indonesia yang
+   natural, rinci, koheren, dan siap digunakan oleh model
+   generatif.
+
+=========================================================
+VISUAL ANALYSIS
+=========================================================
 
 ${formattedAnalysis}
 `.trim();
@@ -2318,7 +2481,10 @@ async function generatePrompt(
                 messages.length,
 
             analysisLength:
-                analysisText.length
+                analysisText.length,
+
+            outputLanguage:
+                "id-ID"
 
         }
     );
