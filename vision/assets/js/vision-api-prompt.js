@@ -103,6 +103,309 @@ const PROMPT_ANALYSIS_KEYS =
 
 
 /* =========================================================
+   JSON / TEXT EXTRACTION HELPERS
+========================================================= */
+
+/*
+ * Hasil model kadang dikembalikan sebagai:
+ *
+ * ```json
+ * {
+ *   ...
+ * }
+ * ```
+ *
+ * atau:
+ *
+ * Some text
+ * ```json
+ * {
+ *   ...
+ * }
+ * ```
+ *
+ * JSON.parse() tidak menerima format tersebut secara langsung.
+ *
+ * Fungsi ini hanya membersihkan wrapper markdown,
+ * tidak mengubah isi JSON.
+ */
+
+function stripPromptAnalysisCodeFence(
+    text
+) {
+
+    let value =
+        String(
+            text ||
+            ""
+        )
+            .trim();
+
+
+    if (
+        !value
+    ) {
+
+        return "";
+
+    }
+
+
+    /*
+     * Hapus opening fence.
+     *
+     * Mendukung:
+     * ```json
+     * ```
+     * ```JSON
+     * ```javascript
+     * ```
+     */
+
+    value =
+        value.replace(
+            /^```(?:json|JSON|javascript|JavaScript)?\s*/i,
+            ""
+        );
+
+
+    /*
+     * Hapus closing fence.
+     */
+
+    value =
+        value.replace(
+            /\s*```\s*$/i,
+            ""
+        );
+
+
+    return value.trim();
+
+}
+
+
+/* =========================================================
+   EXTRACT EMBEDDED JSON
+========================================================= */
+
+function extractEmbeddedPromptAnalysisJSON(
+    text
+) {
+
+    const source =
+        stripPromptAnalysisCodeFence(
+            text
+        );
+
+
+    if (
+        !source
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Percobaan pertama:
+     * seluruh string memang JSON.
+     */
+
+    try {
+
+        return JSON.parse(
+            source
+        );
+
+    }
+    catch {
+        /*
+         * Lanjutkan ke extraction.
+         */
+
+    }
+
+
+    /*
+     * Cari object JSON pertama.
+     */
+
+    const objectStart =
+        source.indexOf(
+            "{"
+        );
+
+
+    const objectEnd =
+        source.lastIndexOf(
+            "}"
+        );
+
+
+    if (
+        objectStart !== -1 &&
+        objectEnd > objectStart
+    ) {
+
+        const candidate =
+            source.slice(
+                objectStart,
+                objectEnd + 1
+            )
+                .trim();
+
+
+        try {
+
+            return JSON.parse(
+                candidate
+            );
+
+        }
+        catch {
+            /*
+             * Bukan JSON object yang valid.
+             */
+
+        }
+
+    }
+
+
+    /*
+     * Cari array JSON pertama.
+     */
+
+    const arrayStart =
+        source.indexOf(
+            "["
+        );
+
+
+    const arrayEnd =
+        source.lastIndexOf(
+            "]"
+        );
+
+
+    if (
+        arrayStart !== -1 &&
+        arrayEnd > arrayStart
+    ) {
+
+        const candidate =
+            source.slice(
+                arrayStart,
+                arrayEnd + 1
+            )
+                .trim();
+
+
+        try {
+
+            return JSON.parse(
+                candidate
+            );
+
+        }
+        catch {
+            /*
+             * Bukan JSON array yang valid.
+             */
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   FIND ANALYSIS WRAPPER
+========================================================= */
+
+function findPromptAnalysisWrapper(
+    input
+) {
+
+    if (
+        !input ||
+        typeof input !== "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const wrappers = [
+
+        "normalized",
+
+        "analysis",
+
+        "visualAnalysis",
+
+        "visual_analysis",
+
+        "visual",
+
+        "visualData",
+
+        "visual_data",
+
+        "analysisResult",
+
+        "analysis_result",
+
+        "data",
+
+        "result",
+
+        "output",
+
+        "response"
+
+    ];
+
+
+    for (
+        const key of wrappers
+    ) {
+
+        if (
+            input[key] === null ||
+            input[key] === undefined
+        ) {
+
+            continue;
+
+        }
+
+
+        return {
+
+            key,
+
+            value:
+                input[key]
+
+        };
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
    NORMALIZE PROMPT ANALYSIS INPUT
 ========================================================= */
 
@@ -119,6 +422,12 @@ function normalizePromptAnalysisInput(
 
     }
 
+
+    /*
+     * -----------------------------------------------------
+     * STRING INPUT
+     * -----------------------------------------------------
+     */
 
     if (
         typeof input ===
@@ -138,28 +447,75 @@ function normalizePromptAnalysisInput(
         }
 
 
+        /*
+         * Pertama coba JSON langsung.
+         */
+
         try {
 
-            return normalizePromptAnalysisInput(
+            const parsed =
                 JSON.parse(
                     text
-                )
+                );
+
+
+            return normalizePromptAnalysisInput(
+                parsed
             );
 
         }
         catch {
-
-            return {
-
-                raw_text:
-                    text
-
-            };
+            /*
+             * Bukan JSON murni.
+             */
 
         }
 
+
+        /*
+         * Kemudian coba JSON yang dibungkus
+         * markdown code fence atau teks tambahan.
+         */
+
+        const extracted =
+            extractEmbeddedPromptAnalysisJSON(
+                text
+            );
+
+
+        if (
+            extracted !== null
+        ) {
+
+            return normalizePromptAnalysisInput(
+                extracted
+            );
+
+        }
+
+
+        /*
+         * Jika memang bukan JSON sama sekali,
+         * pertahankan sebagai raw text.
+         *
+         * Ini penting agar response tidak hilang.
+         */
+
+        return {
+
+            raw_text:
+                text
+
+        };
+
     }
 
+
+    /*
+     * -----------------------------------------------------
+     * NON OBJECT
+     * -----------------------------------------------------
+     */
 
     if (
         typeof input !==
@@ -170,6 +526,33 @@ function normalizePromptAnalysisInput(
 
     }
 
+
+    /*
+     * -----------------------------------------------------
+     * ARRAY
+     * -----------------------------------------------------
+     *
+     * Jangan membuang array. Analysis tertentu bisa
+     * menggunakan array sebagai struktur utama.
+     */
+
+    if (
+        Array.isArray(input)
+    ) {
+
+        return input;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * DIRECT ANALYSIS STRUCTURE
+     * -----------------------------------------------------
+     *
+     * Jika object sudah memiliki salah satu field analysis,
+     * jangan masuk ke wrapper lagi.
+     */
 
     const hasAnalysisStructure =
         PROMPT_ANALYSIS_KEYS.some(
@@ -190,46 +573,33 @@ function normalizePromptAnalysisInput(
     }
 
 
-    const wrappers = [
+    /*
+     * -----------------------------------------------------
+     * WRAPPED ANALYSIS
+     * -----------------------------------------------------
+     */
 
-        "normalized",
-
-        "analysis",
-
-        "visualAnalysis",
-
-        "visual_analysis",
-
-        "data",
-
-        "result"
-
-    ];
+    const wrapper =
+        findPromptAnalysisWrapper(
+            input
+        );
 
 
-    for (
-        const key of wrappers
+    if (
+        wrapper
     ) {
-
-        if (
-            input[key] === null ||
-            input[key] === undefined
-        ) {
-
-            continue;
-
-        }
-
 
         const nested =
             normalizePromptAnalysisInput(
-                input[key]
+                wrapper.value
             );
 
 
         if (
             nested &&
             (
+                typeof nested !== "object" ||
+                Array.isArray(nested) ||
                 Object.keys(
                     nested
                 ).length > 0
@@ -243,11 +613,33 @@ function normalizePromptAnalysisInput(
     }
 
 
+    /*
+     * -----------------------------------------------------
+     * TEXT / CONTENT
+     * -----------------------------------------------------
+     *
+     * OpenKey response dapat memiliki:
+     *
+     * {
+     *   content: "```json ... ```"
+     * }
+     *
+     * atau:
+     *
+     * {
+     *   text: "..."
+     * }
+     */
+
     const textKeys = [
 
         "text",
 
-        "content"
+        "content",
+
+        "message",
+
+        "answer"
 
     ];
 
@@ -274,9 +666,13 @@ function normalizePromptAnalysisInput(
 
         if (
             nested &&
-            Object.keys(
-                nested
-            ).length > 0
+            (
+                typeof nested !== "object" ||
+                Array.isArray(nested) ||
+                Object.keys(
+                    nested
+                ).length > 0
+            )
         ) {
 
             return nested;
@@ -285,6 +681,100 @@ function normalizePromptAnalysisInput(
 
     }
 
+
+    /*
+     * -----------------------------------------------------
+     * RESPONSE OBJECT FALLBACK
+     * -----------------------------------------------------
+     *
+     * Beberapa response API dapat menyimpan content
+     * lebih dalam seperti:
+     *
+     * choices[0].message.content
+     *
+     * Jangan membuat ketergantungan keras pada satu provider.
+     */
+
+    if (
+        Array.isArray(
+            input.choices
+        )
+    ) {
+
+        for (
+            const choice of input.choices
+        ) {
+
+            const nested =
+                normalizePromptAnalysisInput(
+                    choice
+                );
+
+
+            if (
+                nested &&
+                typeof nested === "object" &&
+                (
+                    Array.isArray(nested) ||
+                    Object.keys(
+                        nested
+                    ).length > 0
+                )
+            ) {
+
+                return nested;
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * MESSAGE FALLBACK
+     * -----------------------------------------------------
+     */
+
+    if (
+        input.message &&
+        typeof input.message === "object"
+    ) {
+
+        const nested =
+            normalizePromptAnalysisInput(
+                input.message
+            );
+
+
+        if (
+            nested &&
+            typeof nested === "object" &&
+            (
+                Array.isArray(nested) ||
+                Object.keys(
+                    nested
+                ).length > 0
+            )
+        ) {
+
+            return nested;
+
+        }
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * FINAL OBJECT FALLBACK
+     * -----------------------------------------------------
+     *
+     * Jangan mengubah object yang tidak dikenal.
+     * buildDetailedAnalysisFacts() masih dapat membaca
+     * leaf values dari object tersebut.
+     */
 
     return input;
 
@@ -322,7 +812,10 @@ function isMeaningfulPromptValue(
             normalized !== "unknown" &&
             normalized !== "null" &&
             normalized !== "n/a" &&
-            normalized !== "none"
+            normalized !== "none" &&
+            normalized !== "tidak diketahui" &&
+            normalized !== "tidak ada" &&
+            normalized !== "tidak terlihat"
         );
 
     }
@@ -387,6 +880,9 @@ function formatFactKey(
         face_hair:
             "Wajah dan rambut",
 
+        faceHair:
+            "Wajah dan rambut",
+
         pose:
             "Pose",
 
@@ -420,19 +916,37 @@ function formatFactKey(
         color_palette:
             "Palet warna",
 
+        colorPalette:
+            "Palet warna",
+
         visual_style:
+            "Gaya visual",
+
+        visualStyle:
             "Gaya visual",
 
         text_branding:
             "Teks dan branding",
 
+        textBranding:
+            "Teks dan branding",
+
         image_quality:
+            "Kualitas gambar",
+
+        imageQuality:
             "Kualitas gambar",
 
         important_details:
             "Detail penting",
 
+        importantDetails:
+            "Detail penting",
+
         spatial_relationships:
+            "Hubungan spasial",
+
+        spatialRelationships:
             "Hubungan spasial",
 
         uncertainties:
@@ -492,6 +1006,12 @@ function buildDetailedAnalysisFacts(
         }
 
 
+        /*
+         * -------------------------------------------------
+         * STRING / NUMBER / BOOLEAN
+         * -------------------------------------------------
+         */
+
         if (
             typeof value === "string" ||
             typeof value === "number" ||
@@ -527,6 +1047,12 @@ function buildDetailedAnalysisFacts(
         }
 
 
+        /*
+         * -------------------------------------------------
+         * ARRAY
+         * -------------------------------------------------
+         */
+
         if (
             Array.isArray(value)
         ) {
@@ -553,6 +1079,12 @@ function buildDetailedAnalysisFacts(
 
         }
 
+
+        /*
+         * -------------------------------------------------
+         * OBJECT
+         * -------------------------------------------------
+         */
 
         if (
             typeof value === "object"
@@ -631,9 +1163,19 @@ function formatDetailedAnalysisFacts(
                 index
             ) => {
 
-                const path =
-                    fact.path
+                const pathParts =
+                    String(
+                        fact.path ||
+                        ""
+                    )
                         .split(".")
+                        .filter(
+                            Boolean
+                        );
+
+
+                const path =
+                    pathParts
                         .map(
                             part =>
                                 part
@@ -652,7 +1194,7 @@ function formatDetailedAnalysisFacts(
                         .join(" > ");
 
 
-                return `${index + 1}. ${path}: ${fact.value}`;
+                return `${index + 1}. ${path || "Detail visual"}: ${fact.value}`;
 
             }
         )
@@ -1338,6 +1880,19 @@ async function generatePrompt(
     );
 
 
+    /*
+     * Diagnostic tambahan.
+     *
+     * Jika masalah terjadi lagi, console akan menunjukkan
+     * struktur yang benar-benar diterima Prompt Engineering.
+     */
+
+    console.debug(
+        "[GEN-Z.AI Vision] Prompt Engineering normalized analysis:",
+        normalizedAnalysis
+    );
+
+
     if (
         facts.length === 0
     ) {
@@ -1606,7 +2161,17 @@ async function generatePrompt(
    GLOBAL MODULE
 ========================================================= */
 
-window.GENZVisionPrompt =
+/*
+ * vision-api-prompt.js dan vision-prompt.js menggunakan
+ * namespace global yang sama.
+ *
+ * Jangan menghapus API yang sudah dibuat module sebelumnya.
+ *
+ * vision-prompt.js nantinya melakukan merge terhadap object
+ * ini sehingga generatePrompt() tetap tersedia.
+ */
+
+const GENZVisionPromptAPI =
     Object.freeze({
 
         normalizePromptAnalysisInput,
@@ -1630,3 +2195,30 @@ window.GENZVisionPrompt =
         generatePrompt
 
     });
+
+
+const existingVisionPrompt =
+    window.GENZVisionPrompt;
+
+
+if (
+    existingVisionPrompt &&
+    typeof existingVisionPrompt === "object"
+) {
+
+    window.GENZVisionPrompt =
+        Object.freeze({
+
+            ...existingVisionPrompt,
+
+            ...GENZVisionPromptAPI
+
+        });
+
+}
+else {
+
+    window.GENZVisionPrompt =
+        GENZVisionPromptAPI;
+
+}
