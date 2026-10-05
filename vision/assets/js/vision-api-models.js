@@ -1467,7 +1467,7 @@ function buildMultiImageMessage(
 
     /* =====================================================
        REPLACEMENT CHARACTER
-       ===================================================== */
+    ===================================================== */
 
     if (
         hasCharacter
@@ -1536,13 +1536,33 @@ function buildMultiImageMessage(
    ---------------------------------------------------------
    Helper utama untuk pipeline Vision.
 
-   Jika character image tersedia:
-      -> gunakan multi-image message.
+   Aturan:
 
-   Jika tidak:
-      -> kembali ke single-image message.
+   1. referenceImage TIDAK diberikan secara eksplisit
+      -> ambil dari state.
 
-   Ini menjaga kompatibilitas dengan flow lama.
+   2. referenceImage diberikan secara eksplisit
+      -> gunakan nilai tersebut, termasuk null.
+
+   3. characterImage TIDAK diberikan secara eksplisit
+      -> ambil dari state.
+
+   4. characterImage diberikan secara eksplisit
+      -> gunakan nilai tersebut, termasuk null.
+
+   Ini penting agar:
+
+   Reference Outfit:
+      characterImage: null
+
+   benar-benar berarti:
+      JANGAN mengambil character image dari state.
+
+   Character Outfit:
+      characterImage: dataUrl
+
+   berarti:
+      kirim kedua image.
 ========================================================= */
 
 function buildVisionImageMessage(
@@ -1554,33 +1574,59 @@ function buildVisionImageMessage(
         visionState();
 
 
+    /* =====================================================
+       REFERENCE IMAGE
+    ===================================================== */
+
+    const hasExplicitReferenceImage =
+        Object.prototype.hasOwnProperty.call(
+            options,
+            "referenceImage"
+        );
+
+
     const referenceImage =
-        options.referenceImage ||
+        hasExplicitReferenceImage
+            ? options.referenceImage
+            : (
+                state &&
+                typeof state.getReferenceImage ===
+                    "function"
 
-        (
-            state &&
-            typeof state.getReferenceImage ===
-                "function"
+                    ? state.getReferenceImage()
 
-                ? state.getReferenceImage()
+                    : null
+            );
 
-                : null
+
+    /* =====================================================
+       CHARACTER IMAGE
+    ===================================================== */
+
+    const hasExplicitCharacterImage =
+        Object.prototype.hasOwnProperty.call(
+            options,
+            "characterImage"
         );
 
 
     const characterImage =
-        options.characterImage ||
+        hasExplicitCharacterImage
+            ? options.characterImage
+            : (
+                state &&
+                typeof state.getCharacterImage ===
+                    "function"
 
-        (
-            state &&
-            typeof state.getCharacterImage ===
-                "function"
+                    ? state.getCharacterImage()
 
-                ? state.getCharacterImage()
+                    : null
+            );
 
-                : null
-        );
 
+    /* =====================================================
+       OUTFIT SOURCE
+    ===================================================== */
 
     const outfitSource =
         getCurrentOutfitSource(
@@ -1588,10 +1634,42 @@ function buildVisionImageMessage(
         );
 
 
-    /*
-     * Jika tidak ada character,
-     * gunakan message lama.
-     */
+    /* =====================================================
+       DEBUG
+    ===================================================== */
+
+    console.info(
+        "[GEN-Z.AI Vision] Building Vision image message:",
+        {
+
+            outfitSource,
+
+            referenceImageAvailable:
+                isValidImageDataUrl(
+                    referenceImage
+                ),
+
+            characterImageAvailable:
+                isValidImageDataUrl(
+                    characterImage
+                ),
+
+            characterImageExplicit:
+                hasExplicitCharacterImage
+
+        }
+    );
+
+
+    /* =====================================================
+       SINGLE IMAGE
+       -----------------------------------------------------
+       Digunakan untuk:
+
+       - Reference Outfit
+       - Tidak ada replacement character
+       - Character image secara eksplisit null
+    ===================================================== */
 
     if (
         !isValidImageDataUrl(
@@ -1609,6 +1687,13 @@ function buildVisionImageMessage(
 
     }
 
+
+    /* =====================================================
+       MULTI IMAGE
+       -----------------------------------------------------
+       Digunakan ketika replacement character
+       benar-benar tersedia.
+    ===================================================== */
 
     return buildMultiImageMessage({
 
@@ -1754,6 +1839,12 @@ function getSelectedModel() {
 
 /* =========================================================
    DEBUG IMAGE SOURCES
+   ---------------------------------------------------------
+   Menggunakan aturan explicit option yang sama dengan
+   buildVisionImageMessage().
+
+   Jika characterImage: null diberikan secara eksplisit,
+   fungsi TIDAK mengambil character image dari state.
 ========================================================= */
 
 function getVisionImageSources(
@@ -1764,33 +1855,59 @@ function getVisionImageSources(
         visionState();
 
 
+    /* =====================================================
+       REFERENCE IMAGE
+    ===================================================== */
+
+    const hasExplicitReferenceImage =
+        Object.prototype.hasOwnProperty.call(
+            options,
+            "referenceImage"
+        );
+
+
     const referenceImage =
-        options.referenceImage ||
+        hasExplicitReferenceImage
+            ? options.referenceImage
+            : (
+                state &&
+                typeof state.getReferenceImage ===
+                    "function"
 
-        (
-            state &&
-            typeof state.getReferenceImage ===
-                "function"
+                    ? state.getReferenceImage()
 
-                ? state.getReferenceImage()
+                    : null
+            );
 
-                : null
+
+    /* =====================================================
+       CHARACTER IMAGE
+    ===================================================== */
+
+    const hasExplicitCharacterImage =
+        Object.prototype.hasOwnProperty.call(
+            options,
+            "characterImage"
         );
 
 
     const characterImage =
-        options.characterImage ||
+        hasExplicitCharacterImage
+            ? options.characterImage
+            : (
+                state &&
+                typeof state.getCharacterImage ===
+                    "function"
 
-        (
-            state &&
-            typeof state.getCharacterImage ===
-                "function"
+                    ? state.getCharacterImage()
 
-                ? state.getCharacterImage()
+                    : null
+            );
 
-                : null
-        );
 
+    /* =====================================================
+       OUTFIT SOURCE
+    ===================================================== */
 
     const outfitSource =
         getCurrentOutfitSource(
