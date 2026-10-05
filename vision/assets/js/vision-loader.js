@@ -11,6 +11,8 @@
    - Inisialisasi state
    - Inisialisasi DOM
    - Inisialisasi Supabase
+   - Mengambil katalog model OpenKey
+   - Mengisi dropdown model Vision
    - Inisialisasi preview
    - Inisialisasi upload
    - Inisialisasi UI
@@ -31,7 +33,8 @@
    3. Upload / Preview / UI
    4. Supabase
    5. Credit / API / Analysis / Prompt / History
-   6. Events
+   6. Model Catalog
+   7. Events
 ========================================================= */
 
 import "./vision-state.js";
@@ -299,9 +302,7 @@ function initializeDOM() {
    - vision-credit.js
    - vision-api.js
    - vision-history.js
-
-   vision-supabase.js bertugas membuat:
-   window.supabaseClient
+   - OpenKey model catalog
 ========================================================= */
 
 function initializeSupabase() {
@@ -501,6 +502,425 @@ function initializeUI() {
 
 
     return true;
+
+}
+
+
+/* =========================================================
+   MODEL NORMALIZER
+   ---------------------------------------------------------
+   Digunakan hanya untuk dropdown.
+
+   API tetap menjadi sumber kebenaran utama.
+========================================================= */
+
+function normalizeCatalogModel(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !==
+            "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const id =
+        String(
+            model.model_id ||
+            model.id ||
+            ""
+        ).trim();
+
+
+    if (
+        !id
+    ) {
+
+        return null;
+
+    }
+
+
+    const name =
+        String(
+            model.model_name ||
+            model.name ||
+            id
+        ).trim();
+
+
+    const inputModalities =
+        Array.isArray(
+            model.input_modalities
+        )
+            ? model.input_modalities
+                .map(
+                    value =>
+                        String(
+                            value ||
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase()
+                )
+                .filter(Boolean)
+            : [];
+
+
+    return {
+
+        ...model,
+
+        id,
+
+        model_id:
+            id,
+
+        name,
+
+        model_name:
+            name,
+
+        input_modalities:
+            inputModalities
+
+    };
+
+}
+
+
+/* =========================================================
+   CHECK IMAGE SUPPORT
+   ---------------------------------------------------------
+   Tidak menebak dari nama model.
+
+   Hanya model yang catalog OpenKey-nya
+   menyatakan dukungan image/vision/multimodal
+   yang boleh masuk dropdown.
+========================================================= */
+
+function supportsImageInput(
+    model
+) {
+
+    const normalized =
+        normalizeCatalogModel(
+            model
+        );
+
+
+    if (
+        !normalized
+    ) {
+
+        return false;
+
+    }
+
+
+    return normalized
+        .input_modalities
+        .some(
+            modality => [
+
+                "image",
+
+                "vision",
+
+                "multimodal",
+
+                "image_url"
+
+            ].includes(
+                modality
+            )
+        );
+
+}
+
+
+/* =========================================================
+   POPULATE MODEL SELECT
+========================================================= */
+
+async function initializeModelCatalog() {
+
+    const api =
+        window.GENZVisionAPI;
+
+
+    const domRegistry =
+        window.GENZVisionDOM;
+
+
+    const state =
+        window.GENZVisionState;
+
+
+    if (
+        !api
+    ) {
+
+        throw new Error(
+            "GENZVisionAPI belum tersedia."
+        );
+
+    }
+
+
+    if (
+        !domRegistry
+    ) {
+
+        throw new Error(
+            "GENZVisionDOM belum tersedia."
+        );
+
+    }
+
+
+    if (
+        !state
+    ) {
+
+        throw new Error(
+            "GENZVisionState belum tersedia."
+        );
+
+    }
+
+
+    if (
+        typeof api.getOpenKeyModels !==
+        "function"
+    ) {
+
+        throw new Error(
+            "GENZVisionAPI.getOpenKeyModels() belum tersedia."
+        );
+
+    }
+
+
+    const dom =
+        domRegistry.getDOM();
+
+
+    const select =
+        dom.model;
+
+
+    if (
+        !select
+    ) {
+
+        throw new Error(
+            "visionModel tidak ditemukan."
+        );
+
+    }
+
+
+    /*
+     * Ambil katalog aktual dari OpenKey.
+     *
+     * Tidak menggunakan option hardcode
+     * dari HTML sebagai sumber model.
+     */
+
+    const catalog =
+        await api.getOpenKeyModels();
+
+
+    if (
+        !Array.isArray(catalog)
+    ) {
+
+        throw new Error(
+            "Katalog model OpenKey tidak valid."
+        );
+
+    }
+
+
+    const models =
+        catalog
+            .map(
+                normalizeCatalogModel
+            )
+            .filter(
+                Boolean
+            )
+            .filter(
+                supportsImageInput
+            );
+
+
+    if (
+        models.length ===
+        0
+    ) {
+
+        throw new Error(
+            "OpenKey tidak menyediakan model yang mendukung input gambar."
+        );
+
+    }
+
+
+    /*
+     * Simpan pilihan lama bila masih valid.
+     */
+
+    const previousModelId =
+        String(
+            state.get(
+                "model.id",
+                ""
+            ) ||
+            select.value ||
+            ""
+        ).trim();
+
+
+    /*
+     * Bersihkan seluruh option lama.
+     */
+
+    select.innerHTML =
+        "";
+
+
+    /*
+     * Tambahkan model aktual dari OpenKey.
+     */
+
+    models.forEach(
+        model => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+
+            option.value =
+                model.id;
+
+
+            option.textContent =
+                model.name;
+
+
+            /*
+             * Simpan metadata yang berguna
+             * untuk debugging / inspection.
+             */
+
+            option.dataset.provider =
+                "openkey";
+
+
+            option.dataset.modelId =
+                model.id;
+
+
+            select.appendChild(
+                option
+            );
+
+        }
+    );
+
+
+    /*
+     * Pertahankan model sebelumnya bila
+     * model tersebut memang masih tersedia.
+     *
+     * Jika tidak, pilih model Vision pertama
+     * yang benar-benar dikembalikan OpenKey.
+     */
+
+    const previousExists =
+        models.some(
+            model =>
+                model.id ===
+                previousModelId
+        );
+
+
+    const selectedModel =
+        previousExists
+            ? models.find(
+                model =>
+                    model.id ===
+                    previousModelId
+            )
+            : models[0];
+
+
+    if (
+        !selectedModel
+    ) {
+
+        throw new Error(
+            "Tidak dapat menentukan model Vision."
+        );
+
+    }
+
+
+    select.value =
+        selectedModel.id;
+
+
+    /*
+     * Sinkronkan object model lengkap
+     * ke state.
+     */
+
+    if (
+        typeof state.setModel ===
+        "function"
+    ) {
+
+        state.setModel({
+
+            ...selectedModel,
+
+            providerId:
+                "openkey",
+
+            providerName:
+                "OpenKey"
+
+        });
+
+    }
+
+
+    console.info(
+        "[GEN-Z.AI Vision] OpenKey Vision models loaded:",
+        models.map(
+            model =>
+                model.id
+        )
+    );
+
+
+    return {
+
+        models,
+
+        selected:
+            selectedModel
+
+    };
 
 }
 
@@ -753,13 +1173,7 @@ async function initialize() {
          * SUPABASE
          * -------------------------------------------------
          *
-         * WAJIB sebelum credit/API/history.
-         *
-         * Ini membuat:
-         *
-         * window.supabaseClient
-         *
-         * tersedia untuk seluruh module Vision.
+         * WAJIB sebelum credit/API/history/model catalog.
          */
 
         initializeSupabase();
@@ -794,13 +1208,29 @@ async function initialize() {
 
         /*
          * -------------------------------------------------
+         * OPENKEY MODEL CATALOG
+         * -------------------------------------------------
+         *
+         * HARUS dilakukan sebelum events.
+         *
+         * Tujuannya supaya:
+         *
+         * #visionModel
+         *
+         * sudah berisi model aktual OpenKey ketika
+         * vision-events.js melakukan syncFormToState().
+         */
+
+        await initializeModelCatalog();
+
+
+        /*
+         * -------------------------------------------------
          * EVENTS
          * -------------------------------------------------
          *
-         * Setelah ini tombol SELECT IMAGE,
-         * dropzone, remove, generate, copy,
-         * model, detail, purpose dan instruction
-         * sudah memiliki event listener.
+         * Setelah model catalog tersedia, tombol,
+         * upload, form dan generate event dipasang.
          */
 
         initializeEvents();
@@ -907,7 +1337,9 @@ const GENZVisionLoader =
 
         getMissingModules,
 
-        initialize
+        initialize,
+
+        initializeModelCatalog
 
     });
 
