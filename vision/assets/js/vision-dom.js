@@ -307,12 +307,45 @@ function buildDOM() {
 
 
 /* =========================================================
+   CHECK CACHE INTEGRITY
+   ---------------------------------------------------------
+   Jika cache sebelumnya dibuat terlalu awal, beberapa
+   element dapat bernilai null.
+
+   Cache harus dibangun ulang setelah element DOM tersedia.
+========================================================= */
+
+function hasMissingCachedElements() {
+
+    if (!DOM) {
+
+        return true;
+
+    }
+
+
+    return VISION_REQUIRED_DOM_KEYS.some(
+        key =>
+            !DOM[key]
+    );
+
+}
+
+
+/* =========================================================
    GET DOM
+   ---------------------------------------------------------
+   FIX:
+   Jangan mempertahankan cache lama jika sebelumnya dibuat
+   sebelum seluruh HTML Vision tersedia.
 ========================================================= */
 
 function getDOM() {
 
-    if (!DOM) {
+    if (
+        !DOM ||
+        hasMissingCachedElements()
+    ) {
 
         buildDOM();
 
