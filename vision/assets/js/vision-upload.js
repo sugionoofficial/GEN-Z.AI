@@ -5,71 +5,68 @@
    vision/assets/js/vision-upload.js
 
    Fungsi:
-   - Validasi file gambar
+   - Validasi image reference
+   - Validasi replacement character
    - Membaca file sebagai Data URL
-   - Validasi ukuran file
-   - Validasi MIME type
-   - Validasi dimensi gambar
-   - Menyimpan file ke GENZVisionState
-   - Tidak melakukan API call
-   - Tidak melakukan credit
-   - Tidak melakukan history
-   - Tidak melakukan analysis
+   - Membaca dimensi image
+   - Menyimpan metadata file
+   - Menyimpan reference image ke state
+   - Menyimpan replacement character ke state
+
+   Tidak menangani:
+   - DOM
+   - Preview rendering
+   - API
+   - Credit
+   - History
+   - Analysis
+   - Prompt generation
 ========================================================= */
 
 
 /* =========================================================
-   CONFIGURATION
+   CONFIG
 ========================================================= */
 
 const VISION_UPLOAD_CONFIG = Object.freeze({
 
-    /* Maksimum file: 20 MB */
     maxFileSize:
         20 * 1024 * 1024,
 
-    /* Dimensi maksimum gambar */
-    maxWidth:
-        12000,
-
-    maxHeight:
-        12000,
-
-    /* Dimensi minimum */
     minWidth:
-        32,
+        64,
 
     minHeight:
-        32,
+        64,
 
-    /* MIME type yang diperbolehkan */
-    allowedTypes:
+    maxWidth:
+        16384,
+
+    maxHeight:
+        16384,
+
+    acceptedMimeTypes:
         Object.freeze([
-
             "image/jpeg",
             "image/png",
             "image/webp",
             "image/gif"
-
         ]),
 
-    /* Extension fallback */
-    allowedExtensions:
+    acceptedExtensions:
         Object.freeze([
-
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".webp",
-            ".gif"
-
+            "jpg",
+            "jpeg",
+            "png",
+            "webp",
+            "gif"
         ])
 
 });
 
 
 /* =========================================================
-   INTERNAL HELPERS
+   STATE ACCESS
 ========================================================= */
 
 function getState() {
@@ -90,121 +87,42 @@ function getState() {
 }
 
 
-function getDOM() {
+/* =========================================================
+   VALIDATE FILE OBJECT
+========================================================= */
+
+function validateFileObject(
+    file
+) {
 
     if (
-        !window.GENZVisionDOM
+        !file ||
+        typeof file !== "object"
     ) {
 
         throw new Error(
-            "GENZVisionDOM belum tersedia."
+            "File image tidak valid."
         );
 
     }
 
 
-    return window.GENZVisionDOM.getDOM();
-
-}
-
-
-/* =========================================================
-   ERROR FACTORY
-========================================================= */
-
-function createUploadError(
-    code,
-    message
-) {
-
-    const error =
-        new Error(message);
-
-    error.name =
-        "VisionUploadError";
-
-    error.code =
-        code;
-
-    return error;
-
-}
-
-
-/* =========================================================
-   FORMAT FILE SIZE
-========================================================= */
-
-function formatFileSize(
-    bytes
-) {
-
-    const value =
-        Number(bytes);
-
-
     if (
-        !Number.isFinite(value) ||
-        value <= 0
+        typeof file.size !== "number" ||
+        file.size <= 0
     ) {
 
-        return "0 B";
+        throw new Error(
+            "File image kosong atau tidak valid."
+        );
 
     }
-
-
-    const units = [
-
-        "B",
-        "KB",
-        "MB",
-        "GB"
-
-    ];
-
-
-    let size =
-        value;
-
-    let index =
-        0;
-
-
-    while (
-        size >= 1024 &&
-        index <
-            units.length - 1
-    ) {
-
-        size /=
-            1024;
-
-        index++;
-
-    }
-
-
-    const decimals =
-        index === 0
-            ? 0
-            : size >= 10
-                ? 1
-                : 2;
-
-
-    return (
-        size.toFixed(
-            decimals
-        ) +
-        " " +
-        units[index]
-    );
 
 }
 
 
 /* =========================================================
-   GET FILE EXTENSION
+   GET EXTENSION
 ========================================================= */
 
 function getFileExtension(
@@ -220,18 +138,20 @@ function getFileExtension(
     }
 
 
-    const normalized =
+    const cleanName =
         fileName
-            .trim()
-            .toLowerCase();
+            .split("?")[0]
+            .split("#")[0];
 
 
-    const lastDot =
-        normalized.lastIndexOf(".");
+    const parts =
+        cleanName
+            .split(".")
+            .filter(Boolean);
 
 
     if (
-        lastDot === -1
+        parts.length < 2
     ) {
 
         return "";
@@ -239,50 +159,26 @@ function getFileExtension(
     }
 
 
-    return normalized.slice(
-        lastDot
-    );
+    return String(
+        parts[parts.length - 1]
+    ).toLowerCase();
 
 }
 
 
 /* =========================================================
-   TYPE VALIDATION
+   VALIDATE MIME
 ========================================================= */
 
-function isAllowedMimeType(
+function validateMimeType(
     file
 ) {
 
-    if (!file) {
-
-        return false;
-
-    }
-
-
-    return VISION_UPLOAD_CONFIG
-        .allowedTypes
-        .includes(
-            file.type
-        );
-
-}
-
-
-/* =========================================================
-   EXTENSION VALIDATION
-========================================================= */
-
-function isAllowedExtension(
-    file
-) {
-
-    if (!file) {
-
-        return false;
-
-    }
+    const mimeType =
+        String(
+            file.type ||
+            ""
+        ).toLowerCase();
 
 
     const extension =
@@ -291,43 +187,20 @@ function isAllowedExtension(
         );
 
 
-    return VISION_UPLOAD_CONFIG
-        .allowedExtensions
-        .includes(
-            extension
-        );
-
-}
-
-
-/* =========================================================
-   IMAGE FILE VALIDATION
-========================================================= */
-
-function validateFileType(
-    file
-) {
-
-    if (!file) {
-
-        throw createUploadError(
-            "NO_FILE",
-            "Tidak ada file gambar yang dipilih."
-        );
-
-    }
-
-
     const mimeValid =
-        isAllowedMimeType(
-            file
-        );
+        VISION_UPLOAD_CONFIG
+            .acceptedMimeTypes
+            .includes(
+                mimeType
+            );
 
 
     const extensionValid =
-        isAllowedExtension(
-            file
-        );
+        VISION_UPLOAD_CONFIG
+            .acceptedExtensions
+            .includes(
+                extension
+            );
 
 
     if (
@@ -335,9 +208,8 @@ function validateFileType(
         !extensionValid
     ) {
 
-        throw createUploadError(
-            "INVALID_TYPE",
-            "Format gambar tidak didukung. Gunakan JPG, PNG, WEBP, atau GIF."
+        throw new Error(
+            "Format image tidak didukung. Gunakan JPG, PNG, WEBP, atau GIF."
         );
 
     }
@@ -349,61 +221,26 @@ function validateFileType(
 
 
 /* =========================================================
-   FILE SIZE VALIDATION
+   VALIDATE SIZE
 ========================================================= */
 
 function validateFileSize(
     file
 ) {
 
-    if (!file) {
-
-        throw createUploadError(
-            "NO_FILE",
-            "Tidak ada file gambar yang dipilih."
-        );
-
-    }
-
-
-    const size =
-        Number(file.size);
-
-
     if (
-        !Number.isFinite(size)
-    ) {
-
-        throw createUploadError(
-            "INVALID_SIZE",
-            "Ukuran file tidak dapat dibaca."
-        );
-
-    }
-
-
-    if (
-        size <= 0
-    ) {
-
-        throw createUploadError(
-            "EMPTY_FILE",
-            "File gambar kosong."
-        );
-
-    }
-
-
-    if (
-        size >
+        file.size >
         VISION_UPLOAD_CONFIG.maxFileSize
     ) {
 
-        throw createUploadError(
-            "FILE_TOO_LARGE",
-            `Ukuran gambar terlalu besar. Maksimum ${formatFileSize(
-                VISION_UPLOAD_CONFIG.maxFileSize
-            )}.`
+        const maxMB =
+            VISION_UPLOAD_CONFIG.maxFileSize /
+            1024 /
+            1024;
+
+
+        throw new Error(
+            `Ukuran image terlalu besar. Maksimal ${maxMB} MB.`
         );
 
     }
@@ -415,7 +252,33 @@ function validateFileSize(
 
 
 /* =========================================================
-   READ FILE
+   VALIDATE FILE
+========================================================= */
+
+function validateFile(
+    file
+) {
+
+    validateFileObject(
+        file
+    );
+
+    validateMimeType(
+        file
+    );
+
+    validateFileSize(
+        file
+    );
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   READ FILE AS DATA URL
 ========================================================= */
 
 function readFileAsDataURL(
@@ -432,80 +295,61 @@ function readFileAsDataURL(
                 new FileReader();
 
 
-            reader.onload =
-                () => {
+            reader.onload = () => {
 
-                    const result =
-                        reader.result;
-
-
-                    if (
-                        typeof result !==
-                        "string"
-                    ) {
-
-                        reject(
-                            createUploadError(
-                                "READ_FAILED",
-                                "File gambar gagal dibaca."
-                            )
-                        );
-
-                        return;
-
-                    }
+                const result =
+                    reader.result;
 
 
-                    resolve(
-                        result
-                    );
-
-                };
-
-
-            reader.onerror =
-                () => {
+                if (
+                    typeof result !==
+                    "string" ||
+                    !result
+                ) {
 
                     reject(
-                        createUploadError(
-                            "READ_FAILED",
-                            "Terjadi kesalahan saat membaca file gambar."
+                        new Error(
+                            "Image gagal dibaca."
                         )
                     );
 
-                };
+                    return;
+
+                }
 
 
-            reader.onabort =
-                () => {
-
-                    reject(
-                        createUploadError(
-                            "READ_ABORTED",
-                            "Pembacaan file gambar dibatalkan."
-                        )
-                    );
-
-                };
-
-
-            try {
-
-                reader.readAsDataURL(
-                    file
+                resolve(
+                    result
                 );
 
-            } catch (error) {
+            };
+
+
+            reader.onerror = () => {
 
                 reject(
-                    createUploadError(
-                        "READ_FAILED",
-                        error?.message ||
-                        "File gambar gagal dibaca."
+                    new Error(
+                        "Gagal membaca file image."
                     )
                 );
 
-            }
+            };
+
+
+            reader.onabort = () => {
+
+                reject(
+                    new Error(
+                        "Pembacaan file image dibatalkan."
+                    )
+                );
+
+            };
+
+
+            reader.readAsDataURL(
+                file
+            );
 
         }
     );
@@ -531,27 +375,24 @@ function loadImage(
                 new Image();
 
 
-            image.onload =
-                () => {
+            image.onload = () => {
 
-                    resolve(
-                        image
-                    );
+                resolve(
+                    image
+                );
 
-                };
+            };
 
 
-            image.onerror =
-                () => {
+            image.onerror = () => {
 
-                    reject(
-                        createUploadError(
-                            "INVALID_IMAGE",
-                            "File tidak dapat dibaca sebagai gambar."
-                        )
-                    );
+                reject(
+                    new Error(
+                        "Image tidak dapat diproses oleh browser."
+                    )
+                );
 
-                };
+            };
 
 
             image.src =
@@ -564,34 +405,26 @@ function loadImage(
 
 
 /* =========================================================
-   IMAGE DIMENSION VALIDATION
+   VALIDATE IMAGE DIMENSIONS
 ========================================================= */
 
 function validateImageDimensions(
     image
 ) {
 
-    if (!image) {
-
-        throw createUploadError(
-            "INVALID_IMAGE",
-            "Data gambar tidak valid."
-        );
-
-    }
-
-
     const width =
         Number(
-            image.naturalWidth ||
-            image.width
+            image?.naturalWidth ||
+            image?.width ||
+            0
         );
 
 
     const height =
         Number(
-            image.naturalHeight ||
-            image.height
+            image?.naturalHeight ||
+            image?.height ||
+            0
         );
 
 
@@ -600,9 +433,8 @@ function validateImageDimensions(
         !height
     ) {
 
-        throw createUploadError(
-            "INVALID_DIMENSIONS",
-            "Dimensi gambar tidak dapat dibaca."
+        throw new Error(
+            "Dimensi image tidak dapat dibaca."
         );
 
     }
@@ -615,9 +447,8 @@ function validateImageDimensions(
         VISION_UPLOAD_CONFIG.minHeight
     ) {
 
-        throw createUploadError(
-            "IMAGE_TOO_SMALL",
-            `Resolusi gambar terlalu kecil. Minimum ${VISION_UPLOAD_CONFIG.minWidth} × ${VISION_UPLOAD_CONFIG.minHeight} piksel.`
+        throw new Error(
+            `Resolusi image terlalu kecil. Minimal ${VISION_UPLOAD_CONFIG.minWidth} × ${VISION_UPLOAD_CONFIG.minHeight}px.`
         );
 
     }
@@ -630,9 +461,8 @@ function validateImageDimensions(
         VISION_UPLOAD_CONFIG.maxHeight
     ) {
 
-        throw createUploadError(
-            "IMAGE_TOO_LARGE",
-            `Resolusi gambar terlalu besar. Maksimum ${VISION_UPLOAD_CONFIG.maxWidth} × ${VISION_UPLOAD_CONFIG.maxHeight} piksel.`
+        throw new Error(
+            `Resolusi image terlalu besar. Maksimal ${VISION_UPLOAD_CONFIG.maxWidth} × ${VISION_UPLOAD_CONFIG.maxHeight}px.`
         );
 
     }
@@ -641,6 +471,7 @@ function validateImageDimensions(
     return {
 
         width,
+
         height
 
     };
@@ -649,57 +480,14 @@ function validateImageDimensions(
 
 
 /* =========================================================
-   VALIDATE FILE
+   CREATE FILE DATA
 ========================================================= */
 
-function validateFile(
-    file
+function createFileData(
+    file,
+    dataUrl,
+    dimensions
 ) {
-
-    validateFileType(
-        file
-    );
-
-    validateFileSize(
-        file
-    );
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   PROCESS FILE
-========================================================= */
-
-async function processFile(
-    file
-) {
-
-    validateFile(
-        file
-    );
-
-
-    const dataUrl =
-        await readFileAsDataURL(
-            file
-        );
-
-
-    const image =
-        await loadImage(
-            dataUrl
-        );
-
-
-    const dimensions =
-        validateImageDimensions(
-            image
-        );
-
 
     const mimeType =
         file.type ||
@@ -712,7 +500,7 @@ async function processFile(
         );
 
 
-    const fileData = {
+    return {
 
         original:
             file,
@@ -742,6 +530,47 @@ async function processFile(
 
     };
 
+}
+
+
+/* =========================================================
+   PROCESS REFERENCE IMAGE
+========================================================= */
+
+async function processFile(
+    file
+) {
+
+    validateFile(
+        file
+    );
+
+
+    const dataUrl =
+        await readFileAsDataURL(
+            file
+        );
+
+
+    const image =
+        await loadImage(
+            dataUrl
+        );
+
+
+    const dimensions =
+        validateImageDimensions(
+            image
+        );
+
+
+    const fileData =
+        createFileData(
+            file,
+            dataUrl,
+            dimensions
+        );
+
 
     getState().setFile(
         fileData
@@ -754,49 +583,70 @@ async function processFile(
 
 
 /* =========================================================
-   HANDLE FILE INPUT
+   PROCESS REPLACEMENT CHARACTER
+========================================================= */
+
+async function processReplacementCharacter(
+    file
+) {
+
+    validateFile(
+        file
+    );
+
+
+    const dataUrl =
+        await readFileAsDataURL(
+            file
+        );
+
+
+    const image =
+        await loadImage(
+            dataUrl
+        );
+
+
+    const dimensions =
+        validateImageDimensions(
+            image
+        );
+
+
+    const fileData =
+        createFileData(
+            file,
+            dataUrl,
+            dimensions
+        );
+
+
+    getState()
+        .setReplacementCharacter(
+            fileData
+        );
+
+
+    return fileData;
+
+}
+
+
+/* =========================================================
+   HANDLE REFERENCE FILE INPUT
 ========================================================= */
 
 async function handleFileInput(
     event
 ) {
 
-    const file =
-        event?.target
-            ?.files?.[0] ||
-        null;
-
-
-    if (!file) {
-
-        return null;
-
-    }
-
-
-    return processFile(
-        file
-    );
-
-}
-
-
-/* =========================================================
-   HANDLE DROP
-========================================================= */
-
-async function handleDrop(
-    event
-) {
-
-    event?.preventDefault?.();
-    event?.stopPropagation?.();
+    const input =
+        event?.target;
 
 
     const files =
         Array.from(
-            event?.dataTransfer
-                ?.files ||
+            input?.files ||
             []
         );
 
@@ -805,118 +655,183 @@ async function handleDrop(
         files.length === 0
     ) {
 
-        throw createUploadError(
-            "NO_FILE",
-            "Tidak ada file gambar yang dilepas."
-        );
+        return null;
 
     }
-
-
-    const file =
-        files[0];
 
 
     return processFile(
-        file
+        files[0]
     );
 
 }
 
 
 /* =========================================================
-   OPEN FILE PICKER
+   HANDLE REFERENCE DROP
 ========================================================= */
 
-function openFilePicker() {
+async function handleDrop(
+    event
+) {
 
-    const dom =
-        getDOM();
-
-
-    if (
-        !dom.fileInput
-    ) {
-
-        throw new Error(
-            "Input file Vision tidak ditemukan."
+    const files =
+        Array.from(
+            event?.dataTransfer?.files ||
+            []
         );
 
-    }
-
-
-    dom.fileInput.click();
-
-}
-
-
-/* =========================================================
-   RESET FILE INPUT
-========================================================= */
-
-function resetFileInput() {
-
-    const dom =
-        getDOM();
-
 
     if (
-        !dom.fileInput
+        files.length === 0
     ) {
 
-        return;
+        return null;
 
     }
 
 
-    try {
-
-        dom.fileInput.value =
-            "";
-
-    } catch {
-
-        /* Tidak perlu menghentikan proses reset state. */
-
-    }
-
-}
-
-
-/* =========================================================
-   CLEAR FILE
-========================================================= */
-
-function clearFile() {
-
-    getState().clearFile();
-
-    resetFileInput();
-
-}
-
-
-/* =========================================================
-   GET CURRENT FILE
-========================================================= */
-
-function getCurrentFile() {
-
-    return getState().get(
-        "file",
-        null
+    return processFile(
+        files[0]
     );
 
 }
 
 
 /* =========================================================
-   HAS FILE
+   HANDLE REPLACEMENT CHARACTER INPUT
+========================================================= */
+
+async function handleReplacementCharacterInput(
+    event
+) {
+
+    const input =
+        event?.target;
+
+
+    const files =
+        Array.from(
+            input?.files ||
+            []
+        );
+
+
+    if (
+        files.length === 0
+    ) {
+
+        return null;
+
+    }
+
+
+    return processReplacementCharacter(
+        files[0]
+    );
+
+}
+
+
+/* =========================================================
+   HANDLE REPLACEMENT CHARACTER DROP
+========================================================= */
+
+async function handleReplacementCharacterDrop(
+    event
+) {
+
+    const files =
+        Array.from(
+            event?.dataTransfer?.files ||
+            []
+        );
+
+
+    if (
+        files.length === 0
+    ) {
+
+        return null;
+
+    }
+
+
+    return processReplacementCharacter(
+        files[0]
+    );
+
+}
+
+
+/* =========================================================
+   REMOVE REFERENCE IMAGE
+========================================================= */
+
+function removeFile() {
+
+    return getState()
+        .clearFile();
+
+}
+
+
+/* =========================================================
+   REMOVE REPLACEMENT CHARACTER
+========================================================= */
+
+function removeReplacementCharacter() {
+
+    return getState()
+        .clearReplacementCharacter();
+
+}
+
+
+/* =========================================================
+   GET REFERENCE IMAGE
+========================================================= */
+
+function getFile() {
+
+    return getState()
+        .getFile();
+
+}
+
+
+/* =========================================================
+   GET REPLACEMENT CHARACTER
+========================================================= */
+
+function getReplacementCharacter() {
+
+    return getState()
+        .getReplacementCharacter();
+
+}
+
+
+/* =========================================================
+   CHECK REFERENCE IMAGE
 ========================================================= */
 
 function hasFile() {
 
-    return getState().hasFile();
+    return getState()
+        .hasFile();
+
+}
+
+
+/* =========================================================
+   CHECK REPLACEMENT CHARACTER
+========================================================= */
+
+function hasReplacementCharacter() {
+
+    return getState()
+        .hasReplacementCharacter();
 
 }
 
@@ -925,7 +840,7 @@ function hasFile() {
    GET CONFIG
 ========================================================= */
 
-function getUploadConfig() {
+function getConfig() {
 
     return VISION_UPLOAD_CONFIG;
 
@@ -936,50 +851,79 @@ function getUploadConfig() {
    PUBLIC API
 ========================================================= */
 
-const GENZVisionUpload = Object.freeze({
+const GENZVisionUpload =
+    Object.freeze({
 
-    CONFIG:
-        VISION_UPLOAD_CONFIG,
+        /* -------------------------------------------------
+           CONFIG
+        ------------------------------------------------- */
 
-    formatFileSize,
+        config:
+            VISION_UPLOAD_CONFIG,
 
-    getFileExtension,
+        getConfig,
 
-    isAllowedMimeType,
 
-    isAllowedExtension,
+        /* -------------------------------------------------
+           VALIDATION
+        ------------------------------------------------- */
 
-    validateFileType,
+        validateFile,
 
-    validateFileSize,
+        validateMimeType,
 
-    validateImageDimensions,
+        validateFileSize,
 
-    validateFile,
+        validateImageDimensions,
 
-    readFileAsDataURL,
 
-    loadImage,
+        /* -------------------------------------------------
+           FILE HELPERS
+        ------------------------------------------------- */
 
-    processFile,
+        getFileExtension,
 
-    handleFileInput,
+        readFileAsDataURL,
 
-    handleDrop,
+        loadImage,
 
-    openFilePicker,
+        createFileData,
 
-    resetFileInput,
 
-    clearFile,
+        /* -------------------------------------------------
+           REFERENCE IMAGE
+        ------------------------------------------------- */
 
-    getCurrentFile,
+        processFile,
 
-    hasFile,
+        handleFileInput,
 
-    getUploadConfig
+        handleDrop,
 
-});
+        removeFile,
+
+        getFile,
+
+        hasFile,
+
+
+        /* -------------------------------------------------
+           REPLACEMENT CHARACTER
+        ------------------------------------------------- */
+
+        processReplacementCharacter,
+
+        handleReplacementCharacterInput,
+
+        handleReplacementCharacterDrop,
+
+        removeReplacementCharacter,
+
+        getReplacementCharacter,
+
+        hasReplacementCharacter
+
+    });
 
 
 /* =========================================================
