@@ -1,4 +1,4 @@
-//vision-api.js?v=1.4
+//vision-api.js?v=1.5
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -13,6 +13,7 @@
    - Menjalankan Vision Analysis
    - Menjalankan Prompt Engineering
    - Menormalisasi response API
+   - Mendukung berbagai bentuk response OpenKey
    - Tidak mengatur DOM
    - Tidak memotong credit
    - Tidak menyimpan history
@@ -64,20 +65,6 @@ const VISION_API_CONFIG = Object.freeze({
 
 /* =========================================================
    OPENKEY VISION CAPABILITY POLICY
-   ---------------------------------------------------------
-   OpenKey /models saat ini dapat mengembalikan model
-   tanpa metadata input_modalities / capabilities.
-
-   Model di bawah ini adalah model yang secara eksplisit
-   ditandai sebagai "Realtime & vision" pada katalog
-   OpenKey.
-
-   PENTING:
-   - Ini bukan daftar model yang dibuat oleh aplikasi.
-   - Model tetap harus ditemukan di response /models.
-   - ID tidak digunakan untuk membuat model baru.
-   - Jika model tidak ada di katalog OpenKey, policy ini
-     tidak akan membuatnya tersedia.
 ========================================================= */
 
 const OPENKEY_VISION_MODEL_IDS =
@@ -470,11 +457,6 @@ async function request(
 
 /* =========================================================
    OPENKEY MODEL CATALOG
-   ---------------------------------------------------------
-   Model tidak boleh dibuat atau ditebak.
-
-   Browser meminta katalog melalui endpoint GEN-Z.AI.
-   API key OpenKey tetap server-side.
 ========================================================= */
 
 async function getOpenKeyModels(
@@ -562,15 +544,6 @@ async function getOpenKeyModels(
     }
 
 
-    /*
-     * DEBUG CATALOG
-     *
-     * Tidak menampilkan API key.
-     *
-     * Tujuannya memastikan object yang benar-benar
-     * sampai ke browser.
-     */
-
     console.info(
         "[GEN-Z.AI Vision] OpenKey catalog received:",
         models.map(
@@ -625,10 +598,6 @@ async function getOpenKeyModels(
 
 /* =========================================================
    VALUE TO MODALITY LIST
-   ---------------------------------------------------------
-   Helper untuk membaca berbagai bentuk metadata capability
-   tanpa menganggap satu schema tertentu sebagai satu-satunya
-   schema OpenKey.
 ========================================================= */
 
 function collectModalityValues(
@@ -724,17 +693,6 @@ function collectModalityValues(
                     ]
                 ) => {
 
-                    /*
-                     * Simpan key sebagai metadata capability
-                     * agar object seperti:
-                     *
-                     * {
-                     *     image: true
-                     * }
-                     *
-                     * dapat dibaca.
-                     */
-
                     const normalizedKey =
                         String(
                             key
@@ -805,10 +763,6 @@ function getModelCapabilities(
     const values = [];
 
 
-    /*
-     * Explicit OpenAI-compatible fields.
-     */
-
     collectModalityValues(
         model.input_modalities,
         values
@@ -833,29 +787,17 @@ function getModelCapabilities(
     );
 
 
-    /*
-     * Capability metadata.
-     */
-
     collectModalityValues(
         model.capabilities,
         values
     );
 
 
-    /*
-     * Architecture metadata.
-     */
-
     collectModalityValues(
         model.architecture,
         values
     );
 
-
-    /*
-     * Raw provider metadata jika tersedia.
-     */
 
     if (
         model.raw &&
@@ -921,17 +863,6 @@ function getModelCapabilities(
 
 /* =========================================================
    OPENKEY DOCUMENTED VISION CHECK
-   ---------------------------------------------------------
-   Fallback khusus OpenKey.
-
-   Hanya mengembalikan true jika:
-   - model ID memang tercantum dalam policy Vision OpenKey,
-   - dan model tersebut benar-benar datang dari katalog
-     OpenKey /models.
-
-   Tidak menggunakan partial matching.
-   Tidak menggunakan nama display.
-   Tidak menggunakan kata "vision" secara sembarang.
 ========================================================= */
 
 function isOpenKeyDocumentedVisionModel(
@@ -1019,10 +950,6 @@ function normalizeVisionModel(
         ).trim();
 
 
-    /*
-     * Explicit modalities tetap menjadi sumber utama.
-     */
-
     const explicitInputModalities = [
 
         ...(
@@ -1089,14 +1016,6 @@ function normalizeVisionModel(
         );
 
 
-    /*
-     * Gabungkan explicit input modalities dengan
-     * capability metadata.
-     *
-     * Tidak mengubah model ID.
-     * Tidak membuat model baru.
-     */
-
     const inputModalities = [
 
         ...new Set([
@@ -1143,19 +1062,6 @@ function normalizeVisionModel(
 
 /* =========================================================
    IMAGE INPUT DETECTION
-   ---------------------------------------------------------
-   Prioritas:
-
-   1. Capability metadata eksplisit.
-   2. Capability metadata dari raw provider response.
-   3. OpenKey documented vision policy.
-   4. False.
-
-   Dengan demikian:
-   - metadata provider tetap memiliki prioritas,
-   - model Vision OpenKey tetap dapat dikenali walaupun
-     /models tidak mengirim capability metadata,
-   - model lain tidak ditebak.
 ========================================================= */
 
 function supportsImageInput(
@@ -1212,12 +1118,6 @@ function supportsImageInput(
     ];
 
 
-    /*
-     * PRIORITY 1:
-     * Capability metadata yang benar-benar diberikan
-     * oleh provider.
-     */
-
     if (
         imageIndicators.some(
             indicator =>
@@ -1232,14 +1132,6 @@ function supportsImageInput(
     }
 
 
-    /*
-     * PRIORITY 2:
-     * OpenKey documented vision policy.
-     *
-     * Hanya berlaku untuk model yang benar-benar ada
-     * di katalog OpenKey.
-     */
-
     if (
         isOpenKeyDocumentedVisionModel(
             normalized
@@ -1251,19 +1143,6 @@ function supportsImageInput(
     }
 
 
-    /*
-     * Tidak melakukan tebakan berdasarkan:
-     * - nama model
-     * - vendor
-     * - kata "gpt"
-     * - kata "gemini"
-     * - kata "grok"
-     * - kata "vision"
-     *
-     * Jika tidak ada bukti capability,
-     * model dianggap tidak mendukung image.
-     */
-
     return false;
 
 }
@@ -1271,15 +1150,6 @@ function supportsImageInput(
 
 /* =========================================================
    RESOLVE VISION MODEL
-   ---------------------------------------------------------
-   Urutan:
-   1. Model yang sedang dipilih jika tersedia
-      dan mendukung image.
-   2. Model Vision pertama dari katalog OpenKey.
-   3. Jika tidak ada model image-capable,
-      hentikan proses dengan error yang jelas.
-
-   Tidak ada fallback ke model ID buatan.
 ========================================================= */
 
 async function resolveVisionModel(
@@ -1365,10 +1235,6 @@ async function resolveVisionModel(
         );
 
 
-    /* =====================================================
-       REQUESTED MODEL
-    ===================================================== */
-
     if (
         requested &&
         supportsImageInput(
@@ -1397,10 +1263,6 @@ async function resolveVisionModel(
 
     }
 
-
-    /* =====================================================
-       FIND IMAGE MODEL
-    ===================================================== */
 
     const visionModels =
         normalizedModels.filter(
@@ -1464,10 +1326,6 @@ async function resolveVisionModel(
     const selected =
         visionModels[0];
 
-
-    /* =====================================================
-       SYNC STATE
-    ===================================================== */
 
     const state =
         getState();
@@ -2060,15 +1918,6 @@ async function generatePrompt(
         getSelectedModel();
 
 
-    /*
-     * Prompt engineering tidak mengirim image,
-     * tetapi menggunakan model OpenKey yang sama
-     * setelah model Vision berhasil ditentukan.
-     *
-     * resolveVisionModel() memastikan model masih
-     * benar-benar tersedia di katalog OpenKey.
-     */
-
     const model =
         await resolveVisionModel(
             requestedModel,
@@ -2112,6 +1961,28 @@ async function generatePrompt(
     ];
 
 
+    console.info(
+        "[GEN-Z.AI Vision] Sending prompt-engineering request:",
+        {
+
+            model:
+                model.id,
+
+            messageCount:
+                messages.length,
+
+            analysisLength:
+                typeof analysis ===
+                "string"
+                    ? analysis.length
+                    : JSON.stringify(
+                        analysis
+                    ).length
+
+        }
+    );
+
+
     const response =
         await request(
 
@@ -2146,6 +2017,22 @@ async function generatePrompt(
         );
 
 
+    /*
+     * DEBUG RESPONSE
+     *
+     * Tidak menampilkan token/API key.
+     * Hanya untuk mengetahui bentuk response
+     * yang benar-benar dikembalikan endpoint.
+     */
+
+    console.info(
+        "[GEN-Z.AI Vision] Prompt-engineering response:",
+        sanitizeResponseForDebug(
+            response
+        )
+    );
+
+
     const text =
         extractAssistantText(
             response
@@ -2175,12 +2062,39 @@ async function generatePrompt(
     }
 
 
+    const cleaned =
+        cleanGeneratedPrompt(
+            text
+        );
+
+
+    if (
+        !cleaned
+    ) {
+
+        throw createAPIError(
+
+            "Vision model mengembalikan response kosong setelah normalisasi prompt.",
+
+            {
+
+                code:
+                    "EMPTY_CLEANED_PROMPT_RESPONSE",
+
+                data:
+                    response
+
+            }
+
+        );
+
+    }
+
+
     return {
 
         text:
-            cleanGeneratedPrompt(
-                text
-            ),
+            cleaned,
 
         raw:
             response,
@@ -2193,257 +2107,771 @@ async function generatePrompt(
 
 
 /* =========================================================
+   SANITIZE RESPONSE FOR DEBUG
+   ---------------------------------------------------------
+   Tidak mengubah response asli.
+   Tidak membuang response yang diperlukan pipeline.
+========================================================= */
+
+function sanitizeResponseForDebug(
+    response
+) {
+
+    if (
+        response ===
+        null ||
+        response ===
+        undefined
+    ) {
+
+        return response;
+
+    }
+
+
+    try {
+
+        const cloned =
+            JSON.parse(
+                JSON.stringify(
+                    response
+                )
+            );
+
+
+        /*
+         * Hindari kemungkinan data sensitif
+         * ikut masuk console.
+         */
+
+        const sensitiveKeys = [
+
+            "api_key",
+
+            "apiKey",
+
+            "authorization",
+
+            "Authorization",
+
+            "token",
+
+            "access_token",
+
+            "refresh_token"
+
+        ];
+
+
+        function redact(
+            value,
+            depth = 0
+        ) {
+
+            if (
+                depth > 8
+            ) {
+
+                return "[MAX_DEPTH]";
+
+            }
+
+
+            if (
+                Array.isArray(
+                    value
+                )
+            ) {
+
+                return value.map(
+                    item =>
+                        redact(
+                            item,
+                            depth + 1
+                        )
+                );
+
+            }
+
+
+            if (
+                value &&
+                typeof value ===
+                    "object"
+            ) {
+
+                const result = {};
+
+
+                Object.entries(
+                    value
+                )
+                    .forEach(
+                        (
+                            [
+                                key,
+                                item
+                            ]
+                        ) => {
+
+                            if (
+                                sensitiveKeys.includes(
+                                    key
+                                )
+                            ) {
+
+                                result[key] =
+                                    "[REDACTED]";
+
+                            }
+                            else {
+
+                                result[key] =
+                                    redact(
+                                        item,
+                                        depth + 1
+                                    );
+
+                            }
+
+                        }
+                    );
+
+
+                return result;
+
+            }
+
+
+            return value;
+
+        }
+
+
+        return redact(
+            cloned
+        );
+
+    }
+    catch {
+
+        return {
+
+            type:
+                typeof response,
+
+            value:
+                String(
+                    response
+                )
+
+        };
+
+    }
+
+}
+
+
+/* =========================================================
+   EXTRACT TEXT PART
+   ---------------------------------------------------------
+   Menangani:
+
+   - string
+   - { text: "..." }
+   - { content: "..." }
+   - { type: "text", text: "..." }
+   - nested content
+========================================================= */
+
+function extractTextPart(
+    value,
+    depth = 0
+) {
+
+    if (
+        value ===
+        null ||
+        value ===
+        undefined
+    ) {
+
+        return "";
+
+    }
+
+
+    if (
+        depth > 12
+    ) {
+
+        return "";
+
+    }
+
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        const text =
+            value.trim();
+
+
+        return text;
+
+    }
+
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+
+        const parts = [];
+
+
+        for (
+            const item
+            of value
+        ) {
+
+            const part =
+                extractTextPart(
+                    item,
+                    depth + 1
+                );
+
+
+            if (
+                part
+            ) {
+
+                parts.push(
+                    part
+                );
+
+            }
+
+        }
+
+
+        return parts
+            .join("")
+            .trim();
+
+    }
+
+
+    if (
+        typeof value !==
+        "object"
+    ) {
+
+        return "";
+
+    }
+
+
+    /*
+     * Direct text fields.
+     */
+
+    const directTextKeys = [
+
+        "text",
+
+        "output_text",
+
+        "generated_text",
+
+        "generatedText"
+
+    ];
+
+
+    for (
+        const key
+        of directTextKeys
+    ) {
+
+        if (
+            typeof value[key] ===
+            "string"
+        ) {
+
+            const text =
+                value[key].trim();
+
+
+            if (
+                text
+            ) {
+
+                return text;
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * OpenAI / provider content.
+     */
+
+    if (
+        value.content !==
+        undefined
+    ) {
+
+        const content =
+            extractTextPart(
+                value.content,
+                depth + 1
+            );
+
+
+        if (
+            content
+        ) {
+
+            return content;
+
+        }
+
+    }
+
+
+    /*
+     * Message object.
+     */
+
+    if (
+        value.message !==
+        undefined
+    ) {
+
+        const message =
+            extractTextPart(
+                value.message,
+                depth + 1
+            );
+
+
+        if (
+            message
+        ) {
+
+            return message;
+
+        }
+
+    }
+
+
+    /*
+     * Choice object.
+     */
+
+    if (
+        value.choices !==
+        undefined
+    ) {
+
+        const choices =
+            extractTextPart(
+                value.choices,
+                depth + 1
+            );
+
+
+        if (
+            choices
+        ) {
+
+            return choices;
+
+        }
+
+    }
+
+
+    /*
+     * Response wrappers yang sering digunakan
+     * oleh backend.
+     */
+
+    const wrapperKeys = [
+
+        "data",
+
+        "result",
+
+        "response",
+
+        "output",
+
+        "completion",
+
+        "result_data",
+
+        "resultData"
+
+    ];
+
+
+    for (
+        const key
+        of wrapperKeys
+    ) {
+
+        if (
+            value[key] ===
+            undefined
+        ) {
+
+            continue;
+
+        }
+
+
+        const nested =
+            extractTextPart(
+                value[key],
+                depth + 1
+            );
+
+
+        if (
+            nested
+        ) {
+
+            return nested;
+
+        }
+
+    }
+
+
+    /*
+     * Responses API style:
+     *
+     * output: [
+     *   {
+     *      content: [
+     *         {
+     *            type: "output_text",
+     *            text: "..."
+     *         }
+     *      ]
+     *   }
+     * ]
+     *
+     * Sudah tercakup oleh output/content,
+     * tetapi blok ini menjaga provider yang
+     * menggunakan field "parts".
+     */
+
+    if (
+        value.parts !==
+        undefined
+    ) {
+
+        const parts =
+            extractTextPart(
+                value.parts,
+                depth + 1
+            );
+
+
+        if (
+            parts
+        ) {
+
+            return parts;
+
+        }
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
    EXTRACT ASSISTANT TEXT
+   ---------------------------------------------------------
+   Parser response dibuat lebih toleran.
+
+   Didukung:
+
+   1. response.content
+   2. response.message.content
+   3. response.choices[].message.content
+   4. response.message.content[]
+   5. response.choices[].message.content[]
+   6. response.output_text
+   7. response.text
+   8. response.data.*
+   9. response.result.*
+   10. response.response.*
+   11. response.output.*
+   12. Responses API output[].content[].text
+   13. nested provider wrapper
 ========================================================= */
 
 function extractAssistantText(
     response
 ) {
 
-    /* =====================================================
-       1. GEN-Z.AI NORMALIZED RESPONSE
-    ===================================================== */
+    /*
+     * Jangan menerima primitive kosong.
+     */
 
     if (
-        typeof response?.content ===
+        response ===
+        null ||
+        response ===
+        undefined
+    ) {
+
+        return "";
+
+    }
+
+
+    /*
+     * Jika endpoint secara langsung
+     * mengembalikan string.
+     */
+
+    if (
+        typeof response ===
         "string"
     ) {
 
-        const content =
-            response.content.trim();
-
-
-        if (
-            content
-        ) {
-
-            return content;
-
-        }
+        return response.trim();
 
     }
 
 
-    /* =====================================================
-       2. NORMALIZED MESSAGE
-    ===================================================== */
+    /*
+     * =====================================================
+     * 1. GEN-Z.AI NORMALIZED RESPONSE
+     * =====================================================
+     */
 
-    if (
-        typeof response?.message?.content ===
-        "string"
-    ) {
-
-        const content =
-            response.message.content.trim();
-
-
-        if (
-            content
-        ) {
-
-            return content;
-
-        }
-
-    }
-
-
-    /* =====================================================
-       3. OPENAI-COMPATIBLE RESPONSE
-    ===================================================== */
-
-    const choiceContent =
-        response
-            ?.choices?.[0]
-            ?.message
-            ?.content;
+    const directContent =
+        extractTextPart(
+            response?.content
+        );
 
 
     if (
-        typeof choiceContent ===
-        "string"
+        directContent
     ) {
 
-        const content =
-            choiceContent.trim();
-
-
-        if (
-            content
-        ) {
-
-            return content;
-
-        }
+        return directContent;
 
     }
 
 
-    /* =====================================================
-       4. NORMALIZED MESSAGE CONTENT ARRAY
-    ===================================================== */
+    /*
+     * =====================================================
+     * 2. NORMALIZED MESSAGE
+     * =====================================================
+     */
+
+    const messageContent =
+        extractTextPart(
+            response?.message
+        );
+
 
     if (
-        Array.isArray(
-            response?.message?.content
-        )
+        messageContent
     ) {
 
-        const content =
-            response.message.content
-
-                .map(
-                    part => {
-
-                        if (
-                            typeof part ===
-                            "string"
-                        ) {
-
-                            return part;
-
-                        }
-
-
-                        if (
-                            typeof part?.text ===
-                            "string"
-                        ) {
-
-                            return part.text;
-
-                        }
-
-
-                        return "";
-
-                    }
-                )
-
-                .join("")
-
-                .trim();
-
-
-        if (
-            content
-        ) {
-
-            return content;
-
-        }
+        return messageContent;
 
     }
 
 
-    /* =====================================================
-       5. OPENAI CHOICES CONTENT ARRAY
-    ===================================================== */
+    /*
+     * =====================================================
+     * 3. OPENAI COMPATIBLE CHOICES
+     * =====================================================
+     */
+
+    const choicesContent =
+        extractTextPart(
+            response?.choices
+        );
+
 
     if (
-        Array.isArray(
-            choiceContent
-        )
+        choicesContent
     ) {
 
-        const content =
-            choiceContent
-
-                .map(
-                    part => {
-
-                        if (
-                            typeof part ===
-                            "string"
-                        ) {
-
-                            return part;
-
-                        }
-
-
-                        if (
-                            typeof part?.text ===
-                            "string"
-                        ) {
-
-                            return part.text;
-
-                        }
-
-
-                        return "";
-
-                    }
-                )
-
-                .join("")
-
-                .trim();
-
-
-        if (
-            content
-        ) {
-
-            return content;
-
-        }
+        return choicesContent;
 
     }
 
 
-    /* =====================================================
-       6. OUTPUT TEXT
-    ===================================================== */
+    /*
+     * =====================================================
+     * 4. OUTPUT TEXT
+     * =====================================================
+     */
+
+    const outputText =
+        extractTextPart(
+            response?.output_text
+        );
+
 
     if (
-        typeof response?.output_text ===
-        "string"
+        outputText
     ) {
 
-        const content =
-            response.output_text.trim();
-
-
-        if (
-            content
-        ) {
-
-            return content;
-
-        }
+        return outputText;
 
     }
 
 
-    /* =====================================================
-       7. TEXT
-    ===================================================== */
+    /*
+     * =====================================================
+     * 5. DIRECT TEXT
+     * =====================================================
+     */
+
+    const directText =
+        extractTextPart(
+            response?.text
+        );
+
 
     if (
-        typeof response?.text ===
-        "string"
+        directText
     ) {
 
-        const content =
-            response.text.trim();
-
-
-        if (
-            content
-        ) {
-
-            return content;
-
-        }
+        return directText;
 
     }
 
 
-    /* =====================================================
-       8. NO CONTENT
-    ===================================================== */
+    /*
+     * =====================================================
+     * 6. DATA WRAPPER
+     * =====================================================
+     */
+
+    const dataText =
+        extractTextPart(
+            response?.data
+        );
+
+
+    if (
+        dataText
+    ) {
+
+        return dataText;
+
+    }
+
+
+    /*
+     * =====================================================
+     * 7. RESULT WRAPPER
+     * =====================================================
+     */
+
+    const resultText =
+        extractTextPart(
+            response?.result
+        );
+
+
+    if (
+        resultText
+    ) {
+
+        return resultText;
+
+    }
+
+
+    /*
+     * =====================================================
+     * 8. RESPONSE WRAPPER
+     * =====================================================
+     */
+
+    const nestedResponseText =
+        extractTextPart(
+            response?.response
+        );
+
+
+    if (
+        nestedResponseText
+    ) {
+
+        return nestedResponseText;
+
+    }
+
+
+    /*
+     * =====================================================
+     * 9. OUTPUT WRAPPER
+     * =====================================================
+     */
+
+    const outputTextNested =
+        extractTextPart(
+            response?.output
+        );
+
+
+    if (
+        outputTextNested
+    ) {
+
+        return outputTextNested;
+
+    }
+
+
+    /*
+     * =====================================================
+     * 10. GENERIC FALLBACK
+     * =====================================================
+     *
+     * Hanya dijalankan sebagai langkah terakhir.
+     */
+
+    const generic =
+        extractTextPart(
+            response
+        );
+
+
+    if (
+        generic
+    ) {
+
+        return generic;
+
+    }
+
 
     return "";
 
@@ -2467,27 +2895,46 @@ function cleanGeneratedPrompt(
 
 
     if (
-        result.startsWith(
-            "```"
-        ) &&
-        result.endsWith(
-            "```"
-        )
+        !result
     ) {
 
-        result =
-            result
-                .replace(
-                    /^```[a-zA-Z0-9_-]*\s*/,
-                    ""
-                )
-                .replace(
-                    /\s*```$/,
-                    ""
-                )
-                .trim();
+        return "";
 
     }
+
+
+    /*
+     * Remove markdown code fence.
+     */
+
+    result =
+        result
+            .replace(
+                /^```(?:text|markdown|md|prompt)?\s*/i,
+                ""
+            )
+            .replace(
+                /\s*```$/i,
+                ""
+            )
+            .trim();
+
+
+    /*
+     * Remove common prompt labels.
+     */
+
+    result =
+        result
+            .replace(
+                /^(?:final\s+)?prompt\s*:\s*/i,
+                ""
+            )
+            .replace(
+                /^generated\s+prompt\s*:\s*/i,
+                ""
+            )
+            .trim();
 
 
     return result;
