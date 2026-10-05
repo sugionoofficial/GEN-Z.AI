@@ -382,6 +382,14 @@
 
                         <!-- =================================
                              MODEL
+                             ---------------------------------
+                             MODEL TIDAK LAGI HARDCODE.
+
+                             vision-loader.js akan mengisi
+                             option berdasarkan katalog
+                             OpenKey yang aktual dan hanya
+                             memilih model yang mendukung
+                             input image.
                         ================================== -->
 
                         <div
@@ -396,24 +404,14 @@
 
                             <select
                                 id="visionModel"
+                                disabled
                             >
 
                                 <option
-                                    value="gemini-3.1-pro"
+                                    value=""
+                                    selected
                                 >
-                                    Gemini 3.1 Pro
-                                </option>
-
-                                <option
-                                    value="grok-4.6"
-                                >
-                                    Grok 4.6
-                                </option>
-
-                                <option
-                                    value="qwen3-vl-max"
-                                >
-                                    Qwen3 VL Max
+                                    Loading Vision Models...
                                 </option>
 
                             </select>
@@ -805,11 +803,11 @@
                         </span>
 
                         <strong>
-                            MULTI MODEL
+                            OPENKEY VISION
                         </strong>
 
                         <small>
-                            Gemini · Grok · Qwen
+                            Model otomatis dari katalog OpenKey
                         </small>
 
                     </div>
