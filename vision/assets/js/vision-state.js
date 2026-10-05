@@ -5,18 +5,31 @@
    vision/assets/js/vision-state.js
 
    Fungsi:
-   - Menyimpan seluruh state Vision
-   - Menjadi single source of truth
-   - Menyediakan getter / setter state
-   - Tidak mengakses DOM
-   - Tidak melakukan API request
-   - Tidak melakukan Supabase query
-   - Tidak melakukan upload
-   - Tidak melakukan credit deduction
-   - Tidak melakukan history
+   - Single source of truth Vision
+   - Menyimpan reference image
+   - Menyimpan replacement character image
+   - Menyimpan model
+   - Menyimpan settings
+   - Menyimpan analysis
+   - Menyimpan generated prompt
+   - Menyimpan process state
+   - Menyimpan credit state
+   - Menyimpan history state
+   - Menyimpan UI state
 
-   Public:
-   window.GENZVisionState
+   Tidak menangani:
+   - DOM
+   - API
+   - Upload
+   - Analysis
+   - Prompt generation
+   - Credit transaction
+   - History persistence
+========================================================= */
+
+
+/* =========================================================
+   DEFAULT STATE
 ========================================================= */
 
 const DEFAULT_STATE = {
@@ -27,66 +40,69 @@ const DEFAULT_STATE = {
 
     auth: {
 
-        initialized: false,
+        user:
+            null,
 
-        authenticated: false,
+        profile:
+            null,
 
-        userId: null,
-
-        email: "",
-
-        profile: null,
-
-        credits: 0
+        initialized:
+            false
 
     },
 
 
     /* =====================================================
-       FILE
+       REFERENCE IMAGE
+       -----------------------------------------------------
+       File utama yang akan dibedah / dianalisis.
+       Property "file" dipertahankan untuk kompatibilitas
+       dengan modul Vision yang sudah ada.
     ===================================================== */
 
-    file: {
+    file:
+        null,
 
-        original: null,
 
-        name: "",
+    /* =====================================================
+       REPLACEMENT CHARACTER
+       -----------------------------------------------------
+       Image karakter pengganti.
 
-        size: 0,
+       Tidak menggantikan "file".
+       Kedua image memiliki lifecycle terpisah.
+    ===================================================== */
 
-        type: "",
-
-        dataUrl: "",
-
-        mimeType: "",
-
-        width: 0,
-
-        height: 0
-
-    },
+    replacementCharacter:
+        null,
 
 
     /* =====================================================
        MODEL
-       -----------------------------------------------------
-       Model TIDAK boleh ditebak / di-hardcode.
-
-       Model aktual akan diisi oleh:
-       vision-loader.js
-
-       setelah katalog OpenKey berhasil dimuat.
     ===================================================== */
 
     model: {
 
-        id: "",
+        id:
+            "",
 
-        name: "",
+        name:
+            "",
 
-        providerId: "openkey",
+        providerId:
+            "openkey",
 
-        providerName: "OpenKey"
+        providerName:
+            "OpenKey",
+
+        inputModalities:
+            [],
+
+        outputModalities:
+            [],
+
+        capabilities:
+            null
 
     },
 
@@ -97,11 +113,14 @@ const DEFAULT_STATE = {
 
     settings: {
 
-        detail: "ultra",
+        detail:
+            "balanced",
 
-        purpose: "image-generation",
+        purpose:
+            "general",
 
-        instruction: ""
+        instruction:
+            ""
 
     },
 
@@ -112,13 +131,17 @@ const DEFAULT_STATE = {
 
     analysis: {
 
-        raw: null,
+        status:
+            "idle",
 
-        normalized: null,
+        result:
+            null,
 
-        text: "",
+        raw:
+            null,
 
-        completed: false
+        error:
+            null
 
     },
 
@@ -129,11 +152,14 @@ const DEFAULT_STATE = {
 
     prompt: {
 
-        text: "",
+        status:
+            "idle",
 
-        completed: false,
+        value:
+            "",
 
-        copied: false
+        error:
+            null
 
     },
 
@@ -144,19 +170,17 @@ const DEFAULT_STATE = {
 
     process: {
 
-        status: "idle",
+        status:
+            "idle",
 
-        stage: "",
+        stage:
+            "",
 
-        progress: 0,
+        progress:
+            0,
 
-        taskId: null,
-
-        startedAt: null,
-
-        completedAt: null,
-
-        error: null
+        error:
+            null
 
     },
 
@@ -167,15 +191,17 @@ const DEFAULT_STATE = {
 
     credit: {
 
-        cost: 1,
+        available:
+            0,
 
-        checked: false,
+        reserved:
+            false,
 
-        reserved: false,
+        charged:
+            false,
 
-        deducted: false,
-
-        refunded: false
+        refunded:
+            false
 
     },
 
@@ -186,9 +212,14 @@ const DEFAULT_STATE = {
 
     history: {
 
-        saved: false,
+        items:
+            [],
 
-        historyId: null
+        loading:
+            false,
+
+        error:
+            null
 
     },
 
@@ -199,13 +230,11 @@ const DEFAULT_STATE = {
 
     ui: {
 
-        uploadDragging: false,
+        initialized:
+            false,
 
-        processing: false,
-
-        copyAvailable: false,
-
-        showAnalysis: false
+        loading:
+            false
 
     }
 
@@ -216,30 +245,162 @@ const DEFAULT_STATE = {
    STATE CLONE
 ========================================================= */
 
-function cloneState(value) {
+function cloneDefaultState() {
 
-    if (
-        value === null ||
-        typeof value !== "object"
-    ) {
+    return {
 
-        return value;
+        auth: {
 
-    }
+            user:
+                DEFAULT_STATE.auth.user,
 
+            profile:
+                DEFAULT_STATE.auth.profile,
 
-    if (
-        typeof structuredClone === "function"
-    ) {
+            initialized:
+                DEFAULT_STATE.auth.initialized
 
-        return structuredClone(value);
-
-    }
+        },
 
 
-    return JSON.parse(
-        JSON.stringify(value)
-    );
+        file:
+            DEFAULT_STATE.file,
+
+
+        replacementCharacter:
+            DEFAULT_STATE.replacementCharacter,
+
+
+        model: {
+
+            id:
+                DEFAULT_STATE.model.id,
+
+            name:
+                DEFAULT_STATE.model.name,
+
+            providerId:
+                DEFAULT_STATE.model.providerId,
+
+            providerName:
+                DEFAULT_STATE.model.providerName,
+
+            inputModalities:
+                [],
+
+            outputModalities:
+                [],
+
+            capabilities:
+                DEFAULT_STATE.model.capabilities
+
+        },
+
+
+        settings: {
+
+            detail:
+                DEFAULT_STATE.settings.detail,
+
+            purpose:
+                DEFAULT_STATE.settings.purpose,
+
+            instruction:
+                DEFAULT_STATE.settings.instruction
+
+        },
+
+
+        analysis: {
+
+            status:
+                DEFAULT_STATE.analysis.status,
+
+            result:
+                DEFAULT_STATE.analysis.result,
+
+            raw:
+                DEFAULT_STATE.analysis.raw,
+
+            error:
+                DEFAULT_STATE.analysis.error
+
+        },
+
+
+        prompt: {
+
+            status:
+                DEFAULT_STATE.prompt.status,
+
+            value:
+                DEFAULT_STATE.prompt.value,
+
+            error:
+                DEFAULT_STATE.prompt.error
+
+        },
+
+
+        process: {
+
+            status:
+                DEFAULT_STATE.process.status,
+
+            stage:
+                DEFAULT_STATE.process.stage,
+
+            progress:
+                DEFAULT_STATE.process.progress,
+
+            error:
+                DEFAULT_STATE.process.error
+
+        },
+
+
+        credit: {
+
+            available:
+                DEFAULT_STATE.credit.available,
+
+            reserved:
+                DEFAULT_STATE.credit.reserved,
+
+            charged:
+                DEFAULT_STATE.credit.charged,
+
+            refunded:
+                DEFAULT_STATE.credit.refunded
+
+        },
+
+
+        history: {
+
+            items:
+                [],
+
+            loading:
+                DEFAULT_STATE.history.loading,
+
+            error:
+                DEFAULT_STATE.history.error
+
+        },
+
+
+        ui: {
+
+            initialized:
+                DEFAULT_STATE.ui.initialized,
+
+            loading:
+                DEFAULT_STATE.ui.loading
+
+        }
+
+    };
 
 }
 
@@ -248,72 +409,41 @@ function cloneState(value) {
    INTERNAL STATE
 ========================================================= */
 
-let state =
-    cloneState(DEFAULT_STATE);
+let STATE =
+    cloneDefaultState();
 
 
 /* =========================================================
-   RESET
+   GET STATE
 ========================================================= */
 
-function resetState() {
-
-    state =
-        cloneState(DEFAULT_STATE);
-
-    notify();
-
-}
-
-
-/* =========================================================
-   GET WHOLE STATE
-========================================================= */
-
-function getState() {
-
-    return state;
-
-}
-
-
-/* =========================================================
-   GET CLONED STATE
-========================================================= */
-
-function getStateSnapshot() {
-
-    return cloneState(state);
-
-}
-
-
-/* =========================================================
-   GET PATH
-========================================================= */
-
-function get(path, fallback = null) {
+function getState(
+    path,
+    fallback = undefined
+) {
 
     if (
-        typeof path !== "string" ||
-        !path.trim()
+        !path
     ) {
 
-        return fallback;
+        return STATE;
 
     }
 
 
     const parts =
-        path.split(".").filter(Boolean);
+        String(path)
+            .split(".")
+            .filter(Boolean);
 
 
     let current =
-        state;
+        STATE;
 
 
     for (
-        const part of parts
+        const part
+        of parts
     ) {
 
         if (
@@ -342,18 +472,16 @@ function get(path, fallback = null) {
 
 
 /* =========================================================
-   SET PATH
+   SET STATE
 ========================================================= */
 
-function set(
+function setState(
     path,
-    value,
-    options = {}
+    value
 ) {
 
     if (
-        typeof path !== "string" ||
-        !path.trim()
+        !path
     ) {
 
         return false;
@@ -362,7 +490,9 @@ function set(
 
 
     const parts =
-        path.split(".").filter(Boolean);
+        String(path)
+            .split(".")
+            .filter(Boolean);
 
 
     if (
@@ -375,13 +505,13 @@ function set(
 
 
     let current =
-        state;
+        STATE;
 
 
     for (
         let index = 0;
         index < parts.length - 1;
-        index += 1
+        index++
     ) {
 
         const part =
@@ -393,7 +523,8 @@ function set(
             typeof current[part] !== "object"
         ) {
 
-            current[part] = {};
+            current[part] =
+                {};
 
         }
 
@@ -404,264 +535,170 @@ function set(
     }
 
 
-    const finalKey =
-        parts[parts.length - 1];
-
-
-    current[finalKey] =
+    current[
+        parts[parts.length - 1]
+    ] =
         value;
 
 
-    if (
-        options.notify !== false
-    ) {
-
-        notify();
-
-    }
-
-
     return true;
 
 }
 
 
 /* =========================================================
-   MERGE OBJECT
+   RESET STATE
 ========================================================= */
 
-function merge(
-    path,
-    value,
-    options = {}
-) {
+function resetState() {
 
-    if (
-        !value ||
-        typeof value !== "object" ||
-        Array.isArray(value)
-    ) {
-
-        return false;
-
-    }
+    STATE =
+        cloneDefaultState();
 
 
-    const current =
-        get(path);
-
-
-    if (
-        !current ||
-        typeof current !== "object" ||
-        Array.isArray(current)
-    ) {
-
-        return set(
-            path,
-            cloneState(value),
-            options
-        );
-
-    }
-
-
-    Object.assign(
-        current,
-        value
-    );
-
-
-    if (
-        options.notify !== false
-    ) {
-
-        notify();
-
-    }
-
-
-    return true;
+    return STATE;
 
 }
 
 
 /* =========================================================
-   AUTH STATE
+   AUTH
 ========================================================= */
 
-function setAuth(auth = {}) {
-
-    state.auth = {
-
-        ...state.auth,
-
-        ...auth
-
-    };
-
-
-    notify();
-
-}
-
-
-function setAuthenticated(
-    authenticated,
-    user = null
+function setAuth(
+    auth = {}
 ) {
 
-    state.auth.authenticated =
-        Boolean(authenticated);
+    if (
+        Object.prototype.hasOwnProperty.call(
+            auth,
+            "user"
+        )
+    ) {
 
-
-    if (user) {
-
-        state.auth.userId =
-            user.id ||
-            null;
-
-        state.auth.email =
-            user.email ||
-            "";
+        STATE.auth.user =
+            auth.user;
 
     }
 
 
-    state.auth.initialized =
-        true;
+    if (
+        Object.prototype.hasOwnProperty.call(
+            auth,
+            "profile"
+        )
+    ) {
 
+        STATE.auth.profile =
+            auth.profile;
 
-    notify();
-
-}
-
-
-/* =========================================================
-   PROFILE
-========================================================= */
-
-function setProfile(profile) {
-
-    state.auth.profile =
-        profile || null;
+    }
 
 
     if (
-        profile &&
-        profile.credits !== undefined
+        Object.prototype.hasOwnProperty.call(
+            auth,
+            "initialized"
+        )
     ) {
 
-        state.auth.credits =
-            normalizeCredits(
-                profile.credits
+        STATE.auth.initialized =
+            Boolean(
+                auth.initialized
             );
 
     }
 
 
-    notify();
+    return STATE.auth;
 
 }
 
 
 /* =========================================================
-   CREDITS
+   MODEL
 ========================================================= */
 
-function normalizeCredits(value) {
-
-    const number =
-        Number(value);
-
-
-    if (
-        !Number.isFinite(number) ||
-        number < 0
-    ) {
-
-        return 0;
-
-    }
-
-
-    return number;
-
-}
-
-
-function setCredits(value) {
-
-    state.auth.credits =
-        normalizeCredits(value);
-
-
-    notify();
-
-}
-
-
-function getCredits() {
-
-    return normalizeCredits(
-        state.auth.credits
-    );
-
-}
-
-
-function hasEnoughCredits(
-    amount = 1
+function setModel(
+    model = {}
 ) {
 
-    const cost =
-        Number(amount);
+    STATE.model = {
 
+        id:
+            model.id ||
+            "",
 
-    if (
-        !Number.isFinite(cost) ||
-        cost <= 0
-    ) {
+        name:
+            model.name ||
+            "",
 
-        return false;
+        providerId:
+            model.providerId ||
+            "openkey",
 
-    }
+        providerName:
+            model.providerName ||
+            "OpenKey",
 
+        inputModalities:
+            Array.isArray(
+                model.inputModalities
+            )
+                ? model.inputModalities
+                : [],
 
-    return getCredits() >= cost;
+        outputModalities:
+            Array.isArray(
+                model.outputModalities
+            )
+                ? model.outputModalities
+                : [],
 
-}
-
-
-/* =========================================================
-   FILE STATE
-========================================================= */
-
-function setFile(fileData = {}) {
-
-    state.file = {
-
-        ...state.file,
-
-        ...fileData
+        capabilities:
+            model.capabilities ??
+            null
 
     };
 
 
-    notify();
+    return STATE.model;
+
+}
+
+
+/* =========================================================
+   REFERENCE IMAGE
+========================================================= */
+
+function setFile(
+    file
+) {
+
+    STATE.file =
+        file ||
+        null;
+
+
+    return STATE.file;
+
+}
+
+
+function getFile() {
+
+    return STATE.file;
 
 }
 
 
 function clearFile() {
 
-    state.file =
-        cloneState(
-            DEFAULT_STATE.file
-        );
+    STATE.file =
+        null;
 
 
-    notify();
+    return true;
 
 }
 
@@ -669,29 +706,103 @@ function clearFile() {
 function hasFile() {
 
     return Boolean(
-        state.file.original ||
-        state.file.dataUrl
+        STATE.file
     );
 
 }
 
 
 /* =========================================================
-   MODEL STATE
+   REPLACEMENT CHARACTER
 ========================================================= */
 
-function setModel(model = {}) {
+function setReplacementCharacter(
+    file
+) {
 
-    state.model = {
-
-        ...state.model,
-
-        ...model
-
-    };
+    STATE.replacementCharacter =
+        file ||
+        null;
 
 
-    notify();
+    return STATE.replacementCharacter;
+
+}
+
+
+function getReplacementCharacter() {
+
+    return STATE.replacementCharacter;
+
+}
+
+
+function clearReplacementCharacter() {
+
+    STATE.replacementCharacter =
+        null;
+
+
+    return true;
+
+}
+
+
+function hasReplacementCharacter() {
+
+    return Boolean(
+        STATE.replacementCharacter
+    );
+
+}
+
+
+/* =========================================================
+   IMAGE HELPERS
+========================================================= */
+
+function getReferenceImage() {
+
+    return STATE.file;
+
+}
+
+
+function getCharacterImage() {
+
+    return STATE.replacementCharacter;
+
+}
+
+
+function hasReferenceImage() {
+
+    return Boolean(
+        STATE.file
+    );
+
+}
+
+
+function hasCharacterImage() {
+
+    return Boolean(
+        STATE.replacementCharacter
+    );
+
+}
+
+
+function clearImages() {
+
+    STATE.file =
+        null;
+
+    STATE.replacementCharacter =
+        null;
+
+
+    return true;
 
 }
 
@@ -700,18 +811,50 @@ function setModel(model = {}) {
    SETTINGS
 ========================================================= */
 
-function setSettings(settings = {}) {
+function setSettings(
+    settings = {}
+) {
 
-    state.settings = {
+    if (
+        Object.prototype.hasOwnProperty.call(
+            settings,
+            "detail"
+        )
+    ) {
 
-        ...state.settings,
+        STATE.settings.detail =
+            settings.detail;
 
-        ...settings
-
-    };
+    }
 
 
-    notify();
+    if (
+        Object.prototype.hasOwnProperty.call(
+            settings,
+            "purpose"
+        )
+    ) {
+
+        STATE.settings.purpose =
+            settings.purpose;
+
+    }
+
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            settings,
+            "instruction"
+        )
+    ) {
+
+        STATE.settings.instruction =
+            settings.instruction;
+
+    }
+
+
+    return STATE.settings;
 
 }
 
@@ -721,46 +864,43 @@ function setSettings(settings = {}) {
 ========================================================= */
 
 function setAnalysis(
-    analysis,
-    options = {}
+    analysis = {}
 ) {
 
-    state.analysis.raw =
-        analysis;
+    STATE.analysis = {
+
+        ...STATE.analysis,
+
+        ...analysis
+
+    };
 
 
-    state.analysis.normalized =
-        options.normalized !== undefined
-            ? options.normalized
-            : analysis;
-
-
-    state.analysis.text =
-        options.text !== undefined
-            ? String(options.text || "")
-            : state.analysis.text;
-
-
-    state.analysis.completed =
-        options.completed !== undefined
-            ? Boolean(options.completed)
-            : true;
-
-
-    notify();
+    return STATE.analysis;
 
 }
 
 
 function clearAnalysis() {
 
-    state.analysis =
-        cloneState(
-            DEFAULT_STATE.analysis
-        );
+    STATE.analysis = {
+
+        status:
+            "idle",
+
+        result:
+            null,
+
+        raw:
+            null,
+
+        error:
+            null
+
+    };
 
 
-    notify();
+    return true;
 
 }
 
@@ -770,53 +910,56 @@ function clearAnalysis() {
 ========================================================= */
 
 function setPrompt(
-    prompt,
-    options = {}
+    prompt = {}
 ) {
 
-    state.prompt.text =
-        String(prompt || "");
+    STATE.prompt = {
+
+        ...STATE.prompt,
+
+        ...prompt
+
+    };
 
 
-    state.prompt.completed =
-        options.completed !== undefined
-            ? Boolean(options.completed)
-            : Boolean(
-                state.prompt.text
-            );
+    return STATE.prompt;
+
+}
 
 
-    state.prompt.copied =
-        false;
+function setPromptValue(
+    value
+) {
+
+    STATE.prompt.value =
+        value === null ||
+        value === undefined
+            ? ""
+            : String(value);
 
 
-    notify();
+    return STATE.prompt.value;
 
 }
 
 
 function clearPrompt() {
 
-    state.prompt =
-        cloneState(
-            DEFAULT_STATE.prompt
-        );
+    STATE.prompt = {
+
+        status:
+            "idle",
+
+        value:
+            "",
+
+        error:
+            null
+
+    };
 
 
-    notify();
-
-}
-
-
-function markPromptCopied(
-    copied = true
-) {
-
-    state.prompt.copied =
-        Boolean(copied);
-
-
-    notify();
+    return true;
 
 }
 
@@ -825,62 +968,20 @@ function markPromptCopied(
    PROCESS
 ========================================================= */
 
-const PROCESS_STAGES = Object.freeze({
-
-    IDLE:
-        "idle",
-
-    VALIDATING:
-        "validating",
-
-    CHECKING_CREDIT:
-        "checking-credit",
-
-    RESERVING_CREDIT:
-        "reserving-credit",
-
-    ANALYZING:
-        "analyzing",
-
-    ENGINEERING:
-        "engineering",
-
-    SAVING_HISTORY:
-        "saving-history",
-
-    COMPLETED:
-        "completed",
-
-    REFUNDING:
-        "refunding",
-
-    ERROR:
-        "error"
-
-});
-
-
 function setProcess(
-    process = {},
-    options = {}
+    process = {}
 ) {
 
-    state.process = {
+    STATE.process = {
 
-        ...state.process,
+        ...STATE.process,
 
         ...process
 
     };
 
 
-    if (
-        options.notify !== false
-    ) {
-
-        notify();
-
-    }
+    return STATE.process;
 
 }
 
@@ -888,440 +989,225 @@ function setProcess(
 function setProcessStatus(
     status,
     stage = "",
-    progress = null
+    progress = 0,
+    error = null
 ) {
 
-    state.process.status =
-        String(status || "idle");
+    STATE.process = {
+
+        status:
+            status ||
+            "idle",
+
+        stage:
+            stage ||
+            "",
+
+        progress:
+            Number.isFinite(
+                Number(progress)
+            )
+                ? Number(progress)
+                : 0,
+
+        error:
+            error
+
+    };
 
 
-    state.process.stage =
-        String(stage || "");
-
-
-    if (
-        progress !== null &&
-        Number.isFinite(
-            Number(progress)
-        )
-    ) {
-
-        state.process.progress =
-            Math.max(
-                0,
-                Math.min(
-                    100,
-                    Number(progress)
-                )
-            );
-
-    }
-
-
-    notify();
+    return STATE.process;
 
 }
 
 
-function setProcessing(
-    processing
+function setProcessError(
+    error
 ) {
 
-    state.ui.processing =
-        Boolean(processing);
+    STATE.process.status =
+        "error";
 
-
-    notify();
-
-}
-
-
-/* =========================================================
-   PROCESS ERROR
-========================================================= */
-
-function setProcessError(error) {
-
-    state.process.error =
-        normalizeError(error);
-
-
-    state.process.status =
-        PROCESS_STAGES.ERROR;
-
-
-    notify();
-
-}
-
-
-function clearProcessError() {
-
-    state.process.error =
+    STATE.process.error =
+        error ||
         null;
 
 
-    notify();
+    return STATE.process;
 
 }
 
 
 /* =========================================================
-   CREDIT TRANSACTION STATE
+   CREDIT
 ========================================================= */
 
-function markCreditChecked(
-    checked = true
+function setCredit(
+    credit = {}
 ) {
 
-    state.credit.checked =
-        Boolean(checked);
+    STATE.credit = {
+
+        ...STATE.credit,
+
+        ...credit
+
+    };
 
 
-    notify();
-
-}
-
-
-function markCreditReserved(
-    reserved = true
-) {
-
-    state.credit.reserved =
-        Boolean(reserved);
-
-
-    notify();
-
-}
-
-
-function markCreditDeducted(
-    deducted = true
-) {
-
-    state.credit.deducted =
-        Boolean(deducted);
-
-
-    notify();
-
-}
-
-
-function markCreditRefunded(
-    refunded = true
-) {
-
-    state.credit.refunded =
-        Boolean(refunded);
-
-
-    notify();
+    return STATE.credit;
 
 }
 
 
 /* =========================================================
-   HISTORY STATE
+   HISTORY
 ========================================================= */
 
-function markHistorySaved(
-    historyId = null
+function setHistory(
+    history = {}
 ) {
 
-    state.history.saved =
-        true;
+    STATE.history = {
 
-    state.history.historyId =
-        historyId || null;
+        ...STATE.history,
 
+        ...history
 
-    notify();
-
-}
+    };
 
 
-/* =========================================================
-   TASK
-========================================================= */
-
-function setTaskId(taskId) {
-
-    state.process.taskId =
-        taskId || null;
-
-
-    notify();
+    return STATE.history;
 
 }
 
 
 /* =========================================================
-   PROGRESS
-========================================================= */
-
-function setProgress(
-    progress,
-    stage = null
-) {
-
-    const numeric =
-        Number(progress);
-
-
-    if (
-        Number.isFinite(numeric)
-    ) {
-
-        state.process.progress =
-            Math.max(
-                0,
-                Math.min(
-                    100,
-                    numeric
-                )
-            );
-
-    }
-
-
-    if (
-        stage !== null
-    ) {
-
-        state.process.stage =
-            String(stage || "");
-
-    }
-
-
-    notify();
-
-}
-
-
-/* =========================================================
-   UI STATE
+   UI
 ========================================================= */
 
 function setUI(
-    ui = {},
-    options = {}
+    ui = {}
 ) {
 
-    state.ui = {
+    STATE.ui = {
 
-        ...state.ui,
+        ...STATE.ui,
 
         ...ui
 
     };
 
 
-    if (
-        options.notify !== false
-    ) {
-
-        notify();
-
-    }
+    return STATE.ui;
 
 }
 
 
 /* =========================================================
-   VALIDATION HELPERS
+   CHECK
 ========================================================= */
 
-function isValidImageFile(file) {
+function isReadyForAnalysis() {
 
-    if (!file) {
+    return Boolean(
+        hasReferenceImage() &&
+        STATE.model.id
+    );
 
-        return false;
-
-    }
-
-
-    if (
-        typeof file.type === "string" &&
-        file.type.startsWith("image/")
-    ) {
-
-        return true;
-
-    }
+}
 
 
-    const name =
-        String(
-            file.name || ""
-        ).toLowerCase();
+function isReadyForCharacterReplacement() {
 
-
-    return /\.(jpg|jpeg|png|webp|gif|bmp)$/i
-        .test(name);
+    return Boolean(
+        hasReferenceImage() &&
+        hasCharacterImage()
+    );
 
 }
 
 
 /* =========================================================
-   ERROR NORMALIZER
+   SNAPSHOT
 ========================================================= */
 
-function normalizeError(error) {
-
-    if (!error) {
-
-        return {
-
-            message:
-                "Terjadi kesalahan yang tidak diketahui."
-
-        };
-
-    }
-
-
-    if (
-        typeof error === "string"
-    ) {
-
-        return {
-
-            message:
-                error
-
-        };
-
-    }
-
-
-    if (
-        error instanceof Error
-    ) {
-
-        return {
-
-            name:
-                error.name || "Error",
-
-            message:
-                error.message ||
-                "Terjadi kesalahan.",
-
-            stack:
-                error.stack || ""
-
-        };
-
-    }
-
-
-    if (
-        typeof error === "object"
-    ) {
-
-        return {
-
-            name:
-                error.name ||
-                "",
-
-            message:
-                error.message ||
-                error.error ||
-                error.detail ||
-                "Terjadi kesalahan.",
-
-            code:
-                error.code ||
-                null,
-
-            status:
-                error.status ||
-                error.statusCode ||
-                null
-
-        };
-
-    }
-
+function getSnapshot() {
 
     return {
 
-        message:
-            String(error)
+        ...STATE,
 
-    };
+        auth: {
 
-}
+            ...STATE.auth
 
+        },
 
-/* =========================================================
-   STATE SUBSCRIBERS
-========================================================= */
+        model: {
 
-const subscribers =
-    new Set();
+            ...STATE.model,
 
+            inputModalities:
+                [
+                    ...STATE.model.inputModalities
+                ],
 
-function subscribe(
-    callback
-) {
+            outputModalities:
+                [
+                    ...STATE.model.outputModalities
+                ]
 
-    if (
-        typeof callback !== "function"
-    ) {
+        },
 
-        return () => {};
+        settings: {
 
-    }
+            ...STATE.settings
 
+        },
 
-    subscribers.add(
-        callback
-    );
+        analysis: {
 
+            ...STATE.analysis
 
-    return () => {
+        },
 
-        subscribers.delete(
-            callback
-        );
+        prompt: {
 
-    };
+            ...STATE.prompt
 
-}
+        },
 
+        process: {
 
-/* =========================================================
-   NOTIFY
-========================================================= */
+            ...STATE.process
 
-function notify() {
+        },
 
-    for (
-        const callback
-        of subscribers
-    ) {
+        credit: {
 
-        try {
+            ...STATE.credit
 
-            callback(
-                state
-            );
+        },
 
-        } catch (error) {
+        history: {
 
-            console.error(
-                "[GEN-Z Vision] State subscriber error:",
-                error
-            );
+            ...STATE.history,
+
+            items:
+                [
+                    ...STATE.history.items
+                ]
+
+        },
+
+        ui: {
+
+            ...STATE.ui
 
         }
 
-    }
+    };
 
 }
 
@@ -1330,54 +1216,33 @@ function notify() {
    DEBUG
 ========================================================= */
 
-function getDebugState() {
+function getDebugInfo() {
 
     return {
 
-        authenticated:
-            state.auth.authenticated,
+        hasReferenceImage:
+            hasReferenceImage(),
 
-        userId:
-            state.auth.userId,
-
-        credits:
-            state.auth.credits,
-
-        file:
-            Boolean(state.file.original),
-
-        fileName:
-            state.file.name,
+        hasReplacementCharacter:
+            hasCharacterImage(),
 
         model:
-            state.model.id,
+            STATE.model.id,
 
-        detail:
-            state.settings.detail,
+        analysisStatus:
+            STATE.analysis.status,
 
-        purpose:
-            state.settings.purpose,
+        promptStatus:
+            STATE.prompt.status,
 
-        process:
-            state.process.status,
+        processStatus:
+            STATE.process.status,
 
-        progress:
-            state.process.progress,
+        processProgress:
+            STATE.process.progress,
 
-        creditChecked:
-            state.credit.checked,
-
-        creditDeducted:
-            state.credit.deducted,
-
-        creditRefunded:
-            state.credit.refunded,
-
-        historySaved:
-            state.history.saved,
-
-        promptReady:
-            state.prompt.completed
+        creditAvailable:
+            STATE.credit.available
 
     };
 
@@ -1388,89 +1253,80 @@ function getDebugState() {
    PUBLIC API
 ========================================================= */
 
-const GENZVisionState = Object.freeze({
+const GENZVisionState =
+    Object.freeze({
 
-    getState,
+        DEFAULT_STATE,
 
-    getStateSnapshot,
+        getState,
 
-    get,
+        setState,
 
-    set,
+        resetState,
 
-    merge,
+        getSnapshot,
 
-    resetState,
+        getDebugInfo,
 
-    subscribe,
+        setAuth,
 
-    setAuth,
+        setModel,
 
-    setAuthenticated,
+        setFile,
 
-    setProfile,
+        getFile,
 
-    setCredits,
+        clearFile,
 
-    getCredits,
+        hasFile,
 
-    hasEnoughCredits,
+        setReplacementCharacter,
 
-    setFile,
+        getReplacementCharacter,
 
-    clearFile,
+        clearReplacementCharacter,
 
-    hasFile,
+        hasReplacementCharacter,
 
-    setModel,
+        getReferenceImage,
 
-    setSettings,
+        getCharacterImage,
 
-    setAnalysis,
+        hasReferenceImage,
 
-    clearAnalysis,
+        hasCharacterImage,
 
-    setPrompt,
+        clearImages,
 
-    clearPrompt,
+        setSettings,
 
-    markPromptCopied,
+        setAnalysis,
 
-    setProcess,
+        clearAnalysis,
 
-    setProcessStatus,
+        setPrompt,
 
-    setProcessing,
+        setPromptValue,
 
-    setProcessError,
+        clearPrompt,
 
-    clearProcessError,
+        setProcess,
 
-    markCreditChecked,
+        setProcessStatus,
 
-    markCreditReserved,
+        setProcessError,
 
-    markCreditDeducted,
+        setCredit,
 
-    markCreditRefunded,
+        setHistory,
 
-    markHistorySaved,
+        setUI,
 
-    setTaskId,
+        isReadyForAnalysis,
 
-    setProgress,
+        isReadyForCharacterReplacement
 
-    setUI,
-
-    isValidImageFile,
-
-    normalizeError,
-
-    getDebugState,
-
-    PROCESS_STAGES
-
-});
+    });
 
 
 /* =========================================================
