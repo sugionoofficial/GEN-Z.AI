@@ -11,11 +11,12 @@
    - Menampilkan error / success / warning
    - Mengatur hasil prompt
    - Mengatur panel analysis
+   - Mengatur tampilan credit
    - Tidak menangani:
      API
      Supabase
      Upload
-     Credit
+     Credit logic
      History
 ========================================================= */
 
@@ -867,7 +868,7 @@ function setProcessing(
      * -----------------------------------------------------
      * PROGRESS
      * -----------------------------------------------------
- */
+     */
 
     if (
         dom.progress
@@ -1040,7 +1041,7 @@ function resetResult() {
      * -----------------------------------------------------
      * COPY
      * -----------------------------------------------------
- */
+     */
 
     setCopyState(
         false,
@@ -1104,7 +1105,7 @@ function showPrompt(
      * -----------------------------------------------------
      * SHOW RESULT
      * -----------------------------------------------------
- */
+     */
 
     if (
         dom.promptResult
@@ -1625,6 +1626,128 @@ function setStage(
 
 
 /* =========================================================
+   UPDATE CREDIT
+   ---------------------------------------------------------
+   Compatibility UI method.
+
+   Fungsi:
+   - Menerima nilai credit terbaru
+   - Memperbarui elemen credit jika tersedia
+   - Menyimpan nilai pada data attribute page
+   - Tidak melakukan:
+     API
+     Supabase
+     reservation
+     deduction
+     refund
+     calculation
+========================================================= */
+
+function updateCredit(
+    credits
+) {
+
+    const dom =
+        getDOM();
+
+
+    /*
+     * -----------------------------------------------------
+     * NORMALIZE VALUE
+     * -----------------------------------------------------
+     */
+
+    const numericCredits =
+        Number(
+            credits
+        );
+
+
+    const value =
+        Number.isFinite(
+            numericCredits
+        )
+            ? numericCredits
+            : 0;
+
+
+    /*
+     * -----------------------------------------------------
+     * PRIMARY CREDIT ELEMENT
+     * -----------------------------------------------------
+     */
+
+    if (
+        dom.credit
+    ) {
+
+        dom.credit.textContent =
+            String(
+                value
+            );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * COMPATIBILITY ALIASES
+     * -----------------------------------------------------
+     *
+     * Mendukung beberapa kemungkinan nama
+     * element registry tanpa mempengaruhi
+     * logic credit.
+     */
+
+    const creditElement =
+        dom.creditBalance ||
+        dom.credits ||
+        dom.userCredits ||
+        dom.accountCredits;
+
+
+    if (
+        creditElement
+    ) {
+
+        creditElement.textContent =
+            String(
+                value
+            );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * PAGE DATA ATTRIBUTE
+     * -----------------------------------------------------
+     */
+
+    if (
+        dom.page
+    ) {
+
+        dom.page.dataset.credits =
+            String(
+                value
+            );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * RETURN
+     * -----------------------------------------------------
+     */
+
+    return value;
+
+}
+
+
+/* =========================================================
    INITIALIZE
 ========================================================= */
 
@@ -1876,6 +1999,8 @@ const GENZVisionUI =
         setProcessing,
 
         setGenerateButtonText,
+
+        updateCredit,
 
         resetResult,
 
