@@ -7,60 +7,10 @@
    Fungsi:
    - Vision Analysis system prompt
    - Vision Analysis user prompt
-   - Parse structured visual analysis
+   - JSON extraction
    - Quality validation
    - Analyze image
 ========================================================= */
-
-
-/* =========================================================
-   ANALYSIS STRUCTURE KEYS
-========================================================= */
-
-const VISION_ANALYSIS_KEYS =
-    Object.freeze([
-
-        "subject",
-
-        "appearance",
-
-        "face_hair",
-
-        "pose",
-
-        "clothing",
-
-        "accessories",
-
-        "product",
-
-        "composition",
-
-        "camera",
-
-        "lighting",
-
-        "shadows",
-
-        "environment",
-
-        "background",
-
-        "color_palette",
-
-        "visual_style",
-
-        "text_branding",
-
-        "image_quality",
-
-        "important_details",
-
-        "spatial_relationships",
-
-        "uncertainties"
-
-    ]);
 
 
 /* =========================================================
@@ -73,103 +23,15 @@ function buildAnalysisSystemPrompt() {
 You are the visual analysis engine of GEN-Z.AI Vision.
 
 Your task is to analyze the supplied reference image with
-extremely high visual accuracy, specificity and completeness.
+extremely high visual accuracy and completeness.
 
-The attached image is the PRIMARY SOURCE OF TRUTH.
+The attached image is the primary source of truth.
 
-DO NOT generate a creative prompt yet.
+Do NOT generate a creative prompt yet.
 
-Your ONLY task is to inspect the actual image and extract
-CONCRETE, OBSERVABLE visual facts into structured JSON.
+Extract observable visual information into structured JSON.
 
-=========================================================
-CRITICAL REQUIREMENT
-=========================================================
-
-THE IMAGE CONTAINS VISUAL INFORMATION.
-
-You MUST inspect the attached image before producing JSON.
-
-Do NOT return an empty analysis.
-
-Do NOT return:
-
-{
-  "subject": {},
-  "appearance": {},
-  "face_hair": {},
-  ...
-}
-
-Empty objects and empty arrays are NOT acceptable when the
-corresponding visual information is visible in the image.
-
-Every visible subject, object, color, texture, position,
-relationship, clothing item, facial characteristic and
-environmental element must be described concretely.
-
-=========================================================
-NO GENERIC PLACEHOLDERS
-=========================================================
-
-DO NOT use vague descriptions such as:
-
-"person"
-
-"clothing"
-
-"beautiful face"
-
-"some accessories"
-
-"background"
-
-"indoor environment"
-
-"cinematic lighting"
-
-"realistic image"
-
-when the image allows a more specific description.
-
-Instead describe what is actually visible.
-
-For example:
-
-BAD:
-"subject": {
-  "type": "person"
-}
-
-GOOD:
-"subject": {
-  "type": "woman",
-  "apparent_age_range": "dewasa muda",
-  "position": "berada di tengah frame",
-  "orientation": "menghadap kamera"
-}
-
-BAD:
-"clothing": {}
-
-GOOD:
-"clothing": {
-  "head_cover": {
-    "type": "hijab",
-    "color": "merah muda",
-    "texture": "ribbed"
-  },
-  "top": {
-    "type": "long-sleeve top",
-    "color": "..."
-  }
-}
-
-=========================================================
-MANDATORY VISUAL INSPECTION
-=========================================================
-
-Analyze all applicable categories:
+Analyze:
 
 1. subject
 2. appearance
@@ -181,7 +43,7 @@ Analyze all applicable categories:
 8. composition
 9. framing
 10. camera perspective
-11. apparent lens characteristics
+11. lens characteristics
 12. depth of field
 13. lighting
 14. shadows
@@ -195,547 +57,98 @@ Analyze all applicable categories:
 22. spatial relationships
 23. uncertainty
 
-=========================================================
-PERSON ANALYSIS
-=========================================================
+Rules:
 
-If a person is visible, inspect every observable feature.
+- Inspect the actual attached image.
+- The attached image MUST be used as the visual source.
+- Describe observable details specifically.
+- Extract concrete colors, shapes, textures, patterns,
+  positions and spatial relationships.
+- Describe facial characteristics individually when visible.
+- Describe clothing pieces individually.
+- Describe patterns and textures when visible.
+- Describe background details specifically.
+- Describe lighting direction and quality when observable.
+- Describe camera perspective when visually inferable.
+- Describe composition and subject placement precisely.
+- Describe accessories individually.
+- Identify products and visible branding carefully.
+- Never invent hidden details.
+- Use null or "unknown" when something cannot be determined.
+- Preserve spatial relationships.
+- Separate visible facts from uncertainty.
+- Never claim a person's real-world identity.
 
-Analyze individually:
+IMPORTANT:
 
-- apparent age range
-- apparent gender presentation when visually relevant
-- skin tone
-- visible skin condition
-- face shape
-- eyes
-- eye shape
-- eye color
-- eyebrows
-- nose
-- lips
-- lip shape
-- makeup
-- eyelashes
-- eyeliner
-- facial expression
-- gaze direction
-- head angle
-- hair
-- hair color
-- hair texture
-- hairstyle
-- hijab or head covering
-- hijab color
-- hijab material
-- hijab texture
-- scarf
-- scarf pattern
-- scarf colors
-- visible neck or shoulders
-- body orientation
-- hand position
-- arm position
-- leg position
-- posture
+The returned JSON MUST contain actual observable information.
 
-ONLY describe details that are actually visible.
+Do NOT return an empty schema.
 
-Do not infer identity.
+Do NOT return:
 
-Do not identify the person.
-
-=========================================================
-CLOTHING ANALYSIS
-=========================================================
-
-Describe every visible clothing item individually.
-
-For each item inspect:
-
-- type
-- color
-- secondary colors
-- material when visually observable
-- texture
-- pattern
-- print
-- motif
-- folds
-- seams
-- shape
-- fit
-- position
-- how it is worn
-
-Do not collapse multiple visible garments into "pakaian".
-
-=========================================================
-ACCESSORIES
-=========================================================
-
-Describe each visible accessory individually.
-
-Inspect:
-
-- type
-- shape
-- color
-- material when observable
-- size
-- position
-- relationship to the subject
-
-Do not invent accessories that are hidden.
-
-=========================================================
-PRODUCT ANALYSIS
-=========================================================
-
-If a product is visible, inspect:
-
-- product category
-- apparent model/type when visually identifiable
-- shape
-- dimensions/proportions
-- color
-- surface
-- material
-- texture
-- buttons
-- controls
-- labels
-- logo
-- branding
-- visible text
-- orientation
-- position
-- relationship to hands or body
-
-If no product is visible, use:
-
-"product": {
-  "present": false
+{
+  "subject": {},
+  "appearance": {},
+  "face_hair": {},
+  "pose": {},
+  "clothing": {},
+  "product": {},
+  "composition": {},
+  "camera": {},
+  "lighting": {},
+  "environment": {},
+  "background": {},
+  "visual_style": {},
+  "image_quality": {}
 }
 
-Do NOT invent a product.
+with all fields empty.
 
-=========================================================
-COMPOSITION
-=========================================================
+If a category is genuinely not applicable, use:
 
-Describe:
-
-- image orientation
-- aspect ratio appearance
-- framing
-- shot type
-- subject placement
-- subject scale
-- foreground
-- middle ground
-- background
-- negative space
-- symmetry/asymmetry
-- camera-to-subject relationship
-- visual hierarchy
-
-Use concrete spatial descriptions.
-
-=========================================================
-CAMERA
-=========================================================
-
-Analyze only visually inferable characteristics.
-
-Describe:
-
-- camera perspective
-- viewpoint height
-- angle
-- frontal/side/three-quarter view
-- apparent focal perspective
-- apparent lens character
-- depth of field
-- focus plane
-- background separation
-- distortion if visible
-
-Do NOT invent an exact camera model.
-
-Do NOT invent an exact focal length.
-
-If an exact value cannot be determined, describe the
-observable characteristic instead.
-
-=========================================================
-LIGHTING
-=========================================================
-
-Analyze:
-
-- light direction
-- primary light source when observable
-- softness
-- hardness
-- highlights
-- shadow direction
-- shadow density
-- fill light
-- contrast
-- color temperature
-- reflections
-- specular highlights
-
-Do NOT simply write "cinematic lighting" when actual
-lighting characteristics can be described.
-
-=========================================================
-BACKGROUND AND ENVIRONMENT
-=========================================================
-
-Describe the actual visible environment.
-
-Inspect:
-
-- walls
-- floor
-- ceiling when visible
-- furniture
-- architecture
-- doors
-- windows
-- shelves
-- plants
-- objects
-- surfaces
-- textures
-- materials
-- colors
-- patterns
-- spatial depth
-
-If a wall is visible, describe its actual appearance.
-
-For example:
-
-- brick
-- painted wall
-- concrete
-- wood
-- tile
-- patterned surface
-
-Do not invent an environment that is not visible.
-
-=========================================================
-COLOR
-=========================================================
-
-Extract dominant and secondary visible colors.
-
-Describe:
-
-- dominant colors
-- secondary colors
-- accent colors
-- approximate hue
-- relative prominence
-- color relationships
-
-Do not use meaningless color names when a more precise
-description is visually possible.
-
-=========================================================
-VISUAL STYLE
-=========================================================
-
-Describe observable visual characteristics such as:
-
-- photographic appearance
-- studio appearance
-- editorial appearance
-- naturalistic appearance
-- realism
-- sharpness
-- contrast
-- saturation
-- tonal range
-- color treatment
-- background separation
-- texture rendering
-- image aesthetic
-
-Do not invent a named photography style unless supported
-by the image.
-
-=========================================================
-TEXT AND BRANDING
-=========================================================
-
-Inspect all visible text.
-
-If text is readable:
-
-- transcribe it accurately
-- identify its location
-- describe typography appearance when observable
-- identify visible branding
-
-If text is not readable but text-like elements are visible,
-describe them as unreadable text rather than inventing words.
-
-If no text is visible:
-
-"text_branding": {
+{
   "present": false
-}
-
-=========================================================
-SPATIAL RELATIONSHIPS
-=========================================================
-
-Explicitly describe relationships such as:
-
-- subject in front of background
-- object held by subject
-- product positioned beside subject
-- hand touching object
-- object on table
-- subject centered relative to frame
-- scarf crossing shoulder
-- shadow falling behind subject
-
-These relationships are extremely important for image
-reconstruction.
-
-=========================================================
-IMPORTANT DETAILS
-=========================================================
-
-Record small but visually important details.
-
-Examples:
-
-- distinctive pattern
-- unusual texture
-- specific accessory
-- visible stitching
-- product detail
-- hand placement
-- shadow shape
-- background object
-- color accent
-- fabric fold
-- visible reflection
-
-=========================================================
-UNCERTAINTY
-=========================================================
-
-Separate uncertain observations from concrete observations.
-
-If something cannot be determined:
-
-- use "unknown"
-- use null
-- or record the uncertainty explicitly
-
-Do NOT turn an uncertain observation into a definite fact.
-
-=========================================================
-ANTI-INVENTION
-=========================================================
-
-NEVER invent:
-
-- identity
-- exact age
-- exact location
-- hidden clothing
-- hidden accessories
-- unseen product details
-- unreadable text
-- exact camera model
-- exact focal length
-- unseen environment
-- unseen objects
-
-Only describe what is visible or visually inferable.
-
-=========================================================
-OUTPUT REQUIREMENT
-=========================================================
-
-Return VALID JSON ONLY.
-
-No markdown.
-
-No code fence.
-
-No explanation.
-
-No prose before JSON.
-
-No prose after JSON.
-
-The JSON MUST contain concrete populated values.
-
-Do NOT leave applicable categories as empty objects.
-
-Do NOT leave applicable categories as empty arrays.
-
-If a category genuinely does not apply, explicitly state
-that it is not present rather than silently returning an
-empty structure.
-
-For example:
-
-"accessories": {
-  "present": false,
-  "items": []
 }
 
 or:
 
-"product": {
-  "present": false
+{
+  "value": null
 }
 
-=========================================================
-REQUIRED JSON STRUCTURE
-=========================================================
+But all categories that are visibly applicable MUST contain
+concrete observations.
+
+Return valid JSON only.
+
+Do not use Markdown fences.
+
+Do not add explanations before or after the JSON.
+
+Use this structure:
 
 {
-  "subject": {
-    "type": "...",
-    "position": "...",
-    "orientation": "...",
-    "apparent_age_range": "..."
-  },
-
-  "appearance": {
-    "skin": "...",
-    "overall_appearance": "..."
-  },
-
-  "face_hair": {
-    "face": "...",
-    "eyes": "...",
-    "eyebrows": "...",
-    "nose": "...",
-    "lips": "...",
-    "makeup": "...",
-    "hair_or_head_covering": "..."
-  },
-
-  "pose": {
-    "body_position": "...",
-    "head_position": "...",
-    "arms": "...",
-    "hands": "...",
-    "gaze": "...",
-    "expression": "..."
-  },
-
-  "clothing": {
-    "items": [
-      {
-        "type": "...",
-        "color": "...",
-        "material": "...",
-        "texture": "...",
-        "pattern": "...",
-        "position": "..."
-      }
-    ]
-  },
-
-  "accessories": {
-    "present": true,
-    "items": []
-  },
-
-  "product": {
-    "present": false
-  },
-
-  "composition": {
-    "framing": "...",
-    "subject_placement": "...",
-    "foreground": "...",
-    "middle_ground": "...",
-    "background": "...",
-    "negative_space": "..."
-  },
-
-  "camera": {
-    "perspective": "...",
-    "viewpoint": "...",
-    "apparent_lens_character": "...",
-    "depth_of_field": "...",
-    "focus": "..."
-  },
-
-  "lighting": {
-    "direction": "...",
-    "quality": "...",
-    "highlights": "...",
-    "contrast": "..."
-  },
-
-  "shadows": {
-    "direction": "...",
-    "density": "...",
-    "shape": "..."
-  },
-
-  "environment": {
-    "setting": "...",
-    "surfaces": "...",
-    "objects": "..."
-  },
-
-  "background": {
-    "description": "...",
-    "color": "...",
-    "texture": "...",
-    "spatial_position": "..."
-  },
-
-  "color_palette": [
-    "..."
-  ],
-
-  "visual_style": {
-    "appearance": "...",
-    "realism": "...",
-    "color_treatment": "...",
-    "sharpness": "..."
-  },
-
-  "text_branding": {
-    "present": false
-  },
-
-  "image_quality": {
-    "resolution_character": "...",
-    "sharpness": "...",
-    "noise": "...",
-    "compression": "..."
-  },
-
-  "important_details": [
-    "..."
-  ],
-
-  "spatial_relationships": [
-    "..."
-  ],
-
-  "uncertainties": [
-    "..."
-  ]
+  "subject": {},
+  "appearance": {},
+  "face_hair": {},
+  "pose": {},
+  "clothing": {},
+  "accessories": [],
+  "product": {},
+  "composition": {},
+  "camera": {},
+  "lighting": {},
+  "shadows": {},
+  "environment": {},
+  "background": {},
+  "color_palette": [],
+  "visual_style": {},
+  "text_branding": [],
+  "image_quality": {},
+  "important_details": [],
+  "spatial_relationships": [],
+  "uncertainties": []
 }
 `.trim();
 
@@ -766,19 +179,9 @@ function buildAnalysisUserPrompt(
 
 
     return `
-Analyze the attached reference image now.
+Analyze this reference image for GEN-Z.AI Vision.
 
-IMPORTANT:
-The image is attached to this request.
-
-You MUST visually inspect the image itself.
-
-Do not answer from the text instructions alone.
-
-Do not return an empty schema.
-
-Populate the JSON with concrete observations from the
-actual image.
+The attached image is the primary source of truth.
 
 Analysis detail level:
 ${detail}
@@ -789,92 +192,142 @@ ${purpose}
 Additional user instruction:
 ${instruction || "None"}
 
-=========================================================
-REQUIRED PROCESS
-=========================================================
+Inspect the actual attached image carefully before producing
+the result.
 
-1. Inspect the entire image.
-2. Identify every major visible subject.
-3. Inspect the face and hair/head covering if present.
-4. Inspect clothing item by item.
-5. Inspect accessories individually.
-6. Inspect products individually.
-7. Inspect composition and framing.
-8. Inspect camera perspective.
-9. Inspect lighting and shadows.
-10. Inspect environment and background.
-11. Inspect colors and textures.
-12. Inspect text and branding.
-13. Inspect small important visual details.
-14. Record spatial relationships.
-15. Record uncertainty separately.
+For a person, inspect:
 
-Do not summarize aggressively.
+- visible facial structure
+- eyes
+- eyebrows
+- nose
+- lips
+- makeup
+- skin appearance
+- hair or head covering
+- expression
+- gaze
+- head angle
+- body position
+- clothing
+- colors
+- fabrics
+- patterns
+- folds
+- accessories
 
-Do not replace concrete observations with category names.
+For products, inspect:
 
-Do not invent hidden information.
+- type
+- shape
+- material
+- color
+- surface
+- branding
+- labels
+- placement
 
-=========================================================
-MINIMUM DETAIL STANDARD
-=========================================================
+For composition, inspect:
 
-For every visible person, provide multiple concrete facts.
+- framing
+- subject placement
+- orientation
+- camera perspective
+- apparent lens character
+- focus
+- depth of field
 
-For every visible clothing item, provide color and visible
-texture/pattern whenever available.
+For lighting, inspect:
 
-For every visible background element, provide its actual
-appearance and spatial position.
+- direction
+- softness
+- highlights
+- shadows
+- contrast
+- color temperature when observable
 
-For every visible product, provide its actual visible
-characteristics.
+For environment and background, inspect:
 
-For composition, provide concrete framing and placement.
+- architecture
+- walls
+- surfaces
+- textures
+- objects
+- colors
+- spatial relationships
 
-For lighting, provide observable direction and quality.
+For visual style, inspect:
 
-For camera, provide visually inferable perspective.
+- photographic or cinematic characteristics
+- realism
+- sharpness
+- background separation
+- color treatment
+- aesthetic
 
-The result must contain real visual facts, not an empty
-template.
+Do not summarize too aggressively.
 
-=========================================================
-OUTPUT
-=========================================================
+Do not invent information.
 
-Return VALID JSON ONLY.
+Every visibly applicable category should contain
+specific observations.
 
-Do not use markdown code fences.
+Do NOT return an empty JSON schema.
 
-Do not explain the analysis.
+Return ONLY valid JSON.
 
-Do not write anything outside the JSON.
+Do not use Markdown code fences.
 
-The JSON must be populated from the attached image.
+Do not write any explanation outside the JSON.
 `.trim();
 
 }
 
 
 /* =========================================================
-   EXTRACT JSON FROM MODEL TEXT
+   JSON CLEANER
 ========================================================= */
 
-function extractAnalysisJSON(
+function cleanJSONString(
+    value
+) {
+
+    return String(
+        value ||
+        ""
+    )
+        .replace(
+            /^\uFEFF/,
+            ""
+        )
+        .trim();
+
+}
+
+
+/* =========================================================
+   EXTRACT JSON FROM CODE FENCE
+========================================================= */
+
+function extractJSONFromCodeFence(
     text
 ) {
 
     const source =
-        String(
-            text ||
-            ""
-        )
-            .trim();
+        cleanJSONString(
+            text
+        );
+
+
+    const match =
+        source.match(
+            /```(?:json|JSON)?\s*([\s\S]*?)\s*```/
+        );
 
 
     if (
-        !source
+        !match ||
+        !match[1]
     ) {
 
         return null;
@@ -882,103 +335,146 @@ function extractAnalysisJSON(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * DIRECT JSON
-     * -----------------------------------------------------
-     */
+    return cleanJSONString(
+        match[1]
+    );
 
-    try {
+}
 
-        return JSON.parse(
-            source
+
+/* =========================================================
+   EXTRACT BALANCED JSON OBJECT
+========================================================= */
+
+function extractBalancedJSONObject(
+    text
+) {
+
+    const source =
+        cleanJSONString(
+            text
         );
 
-    }
-    catch {
-        /*
-         * Continue.
-         */
 
-    }
-
-
-    /*
-     * -----------------------------------------------------
-     * REMOVE MARKDOWN FENCE
-     * -----------------------------------------------------
-     */
-
-    let cleaned =
-        source
-            .replace(
-                /^```(?:json)?\s*/i,
-                ""
-            )
-            .replace(
-                /\s*```\s*$/i,
-                ""
-            )
-            .trim();
-
-
-    try {
-
-        return JSON.parse(
-            cleaned
-        );
-
-    }
-    catch {
-        /*
-         * Continue.
-         */
-
-    }
-
-
-    /*
-     * -----------------------------------------------------
-     * EXTRACT OBJECT
-     * -----------------------------------------------------
-     */
-
-    const objectStart =
-        cleaned.indexOf(
+    const firstBrace =
+        source.indexOf(
             "{"
         );
 
 
-    const objectEnd =
-        cleaned.lastIndexOf(
-            "}"
-        );
-
-
     if (
-        objectStart !== -1 &&
-        objectEnd > objectStart
+        firstBrace === -1
     ) {
 
-        const candidate =
-            cleaned.slice(
-                objectStart,
-                objectEnd + 1
-            )
-                .trim();
+        return null;
+
+    }
 
 
-        try {
+    let depth = 0;
 
-            return JSON.parse(
-                candidate
-            );
+    let inString = false;
+
+    let escaped = false;
+
+
+    for (
+        let index =
+            firstBrace;
+
+        index <
+            source.length;
+
+        index++
+    ) {
+
+        const char =
+            source[index];
+
+
+        if (
+            inString
+        ) {
+
+            if (
+                escaped
+            ) {
+
+                escaped =
+                    false;
+
+                continue;
+
+            }
+
+
+            if (
+                char === "\\"
+            ) {
+
+                escaped =
+                    true;
+
+                continue;
+
+            }
+
+
+            if (
+                char === '"'
+            ) {
+
+                inString =
+                    false;
+
+            }
+
+
+            continue;
 
         }
-        catch {
-            /*
-             * Invalid JSON.
-             */
+
+
+        if (
+            char === '"'
+        ) {
+
+            inString =
+                true;
+
+            continue;
+
+        }
+
+
+        if (
+            char === "{"
+        ) {
+
+            depth++;
+
+            continue;
+
+        }
+
+
+        if (
+            char === "}"
+        ) {
+
+            depth--;
+
+
+            if (
+                depth === 0
+            ) {
+
+                return source.slice(
+                    firstBrace,
+                    index + 1
+                );
+
+            }
 
         }
 
@@ -991,7 +487,402 @@ function extractAnalysisJSON(
 
 
 /* =========================================================
-   ANALYSIS VALUE INSPECTION
+   EXTRACT BALANCED JSON ARRAY
+========================================================= */
+
+function extractBalancedJSONArray(
+    text
+) {
+
+    const source =
+        cleanJSONString(
+            text
+        );
+
+
+    const firstBracket =
+        source.indexOf(
+            "["
+        );
+
+
+    if (
+        firstBracket === -1
+    ) {
+
+        return null;
+
+    }
+
+
+    let depth = 0;
+
+    let inString = false;
+
+    let escaped = false;
+
+
+    for (
+        let index =
+            firstBracket;
+
+        index <
+            source.length;
+
+        index++
+    ) {
+
+        const char =
+            source[index];
+
+
+        if (
+            inString
+        ) {
+
+            if (
+                escaped
+            ) {
+
+                escaped =
+                    false;
+
+                continue;
+
+            }
+
+
+            if (
+                char === "\\"
+            ) {
+
+                escaped =
+                    true;
+
+                continue;
+
+            }
+
+
+            if (
+                char === '"'
+            ) {
+
+                inString =
+                    false;
+
+            }
+
+
+            continue;
+
+        }
+
+
+        if (
+            char === '"'
+        ) {
+
+            inString =
+                true;
+
+            continue;
+
+        }
+
+
+        if (
+            char === "["
+        ) {
+
+            depth++;
+
+            continue;
+
+        }
+
+
+        if (
+            char === "]"
+        ) {
+
+            depth--;
+
+
+            if (
+                depth === 0
+            ) {
+
+                return source.slice(
+                    firstBracket,
+                    index + 1
+                );
+
+            }
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   EXTRACT ANALYSIS JSON
+========================================================= */
+
+function extractAnalysisJSON(
+    text
+) {
+
+    const source =
+        cleanJSONString(
+            text
+        );
+
+
+    if (
+        !source
+    ) {
+
+        return {
+
+            parsed:
+                null,
+
+            jsonText:
+                null,
+
+            method:
+                "empty"
+
+        };
+
+    }
+
+
+    /* -----------------------------------------------------
+       1. DIRECT JSON
+    ----------------------------------------------------- */
+
+    try {
+
+        const direct =
+            JSON.parse(
+                source
+            );
+
+
+        if (
+            direct &&
+            typeof direct === "object"
+        ) {
+
+            return {
+
+                parsed:
+                    direct,
+
+                jsonText:
+                    source,
+
+                method:
+                    "direct"
+
+            };
+
+        }
+
+    }
+    catch (
+        error
+    ) {
+
+        /* Continue */
+
+    }
+
+
+    /* -----------------------------------------------------
+       2. MARKDOWN CODE FENCE
+    ----------------------------------------------------- */
+
+    const fenced =
+        extractJSONFromCodeFence(
+            source
+        );
+
+
+    if (
+        fenced
+    ) {
+
+        try {
+
+            const parsed =
+                JSON.parse(
+                    fenced
+                );
+
+
+            if (
+                parsed &&
+                typeof parsed === "object"
+            ) {
+
+                return {
+
+                    parsed,
+
+                    jsonText:
+                        fenced,
+
+                    method:
+                        "code-fence"
+
+                };
+
+            }
+
+        }
+        catch (
+            error
+        ) {
+
+            /* Continue */
+
+        }
+
+    }
+
+
+    /* -----------------------------------------------------
+       3. BALANCED OBJECT
+    ----------------------------------------------------- */
+
+    const objectText =
+        extractBalancedJSONObject(
+            source
+        );
+
+
+    if (
+        objectText
+    ) {
+
+        try {
+
+            const parsed =
+                JSON.parse(
+                    objectText
+                );
+
+
+            if (
+                parsed &&
+                typeof parsed === "object"
+            ) {
+
+                return {
+
+                    parsed,
+
+                    jsonText:
+                        objectText,
+
+                    method:
+                        "balanced-object"
+
+                };
+
+            }
+
+        }
+        catch (
+            error
+        ) {
+
+            /* Continue */
+
+        }
+
+    }
+
+
+    /* -----------------------------------------------------
+       4. BALANCED ARRAY
+    ----------------------------------------------------- */
+
+    const arrayText =
+        extractBalancedJSONArray(
+            source
+        );
+
+
+    if (
+        arrayText
+    ) {
+
+        try {
+
+            const parsed =
+                JSON.parse(
+                    arrayText
+                );
+
+
+            if (
+                parsed &&
+                typeof parsed === "object"
+            ) {
+
+                return {
+
+                    parsed,
+
+                    jsonText:
+                        arrayText,
+
+                    method:
+                        "balanced-array"
+
+                };
+
+            }
+
+        }
+        catch (
+            error
+        ) {
+
+            /* Continue */
+
+        }
+
+    }
+
+
+    return {
+
+        parsed:
+            null,
+
+        jsonText:
+            null,
+
+        method:
+            "failed"
+
+    };
+
+}
+
+
+/* =========================================================
+   CONCRETE VALUE CHECK
 ========================================================= */
 
 function hasConcreteAnalysisValue(
@@ -1018,17 +909,31 @@ function hasConcreteAnalysisValue(
                 .toLowerCase();
 
 
-        return Boolean(
-            normalized &&
-            normalized !== "unknown" &&
-            normalized !== "null" &&
-            normalized !== "n/a" &&
-            normalized !== "none" &&
-            normalized !== "tidak diketahui" &&
-            normalized !== "tidak ada" &&
-            normalized !== "tidak terlihat" &&
-            normalized !== "tidak dapat ditentukan"
-        );
+        if (
+            !normalized
+        ) {
+
+            return false;
+
+        }
+
+
+        if (
+            normalized === "unknown" ||
+            normalized === "n/a" ||
+            normalized === "na" ||
+            normalized === "null" ||
+            normalized === "none" ||
+            normalized === "not visible" ||
+            normalized === "not applicable"
+        ) {
+
+            return false;
+
+        }
+
+
+        return true;
 
     }
 
@@ -1044,11 +949,16 @@ function hasConcreteAnalysisValue(
 
 
     if (
-        Array.isArray(value)
+        Array.isArray(
+            value
+        )
     ) {
 
         return value.some(
-            hasConcreteAnalysisValue
+            item =>
+                hasConcreteAnalysisValue(
+                    item
+                )
         );
 
     }
@@ -1058,11 +968,27 @@ function hasConcreteAnalysisValue(
         typeof value === "object"
     ) {
 
-        return Object.values(
+        return Object.entries(
             value
         )
             .some(
-                hasConcreteAnalysisValue
+                ([key, item]) => {
+
+                    if (
+                        key === "present" &&
+                        item === false
+                    ) {
+
+                        return false;
+
+                    }
+
+
+                    return hasConcreteAnalysisValue(
+                        item
+                    );
+
+                }
             );
 
     }
@@ -1074,97 +1000,121 @@ function hasConcreteAnalysisValue(
 
 
 /* =========================================================
-   COUNT CONCRETE ANALYSIS FACTS
+   COUNT ANALYSIS FACTS
 ========================================================= */
 
 function countAnalysisFacts(
-    analysis
+    value
 ) {
 
-    let count = 0;
-
-
-    function walk(
-        value
+    if (
+        value === null ||
+        value === undefined
     ) {
 
-        if (
-            value === null ||
-            value === undefined
-        ) {
-
-            return;
-
-        }
-
-
-        if (
-            typeof value === "string"
-        ) {
-
-            if (
-                hasConcreteAnalysisValue(
-                    value
-                )
-            ) {
-
-                count++;
-
-            }
-
-
-            return;
-
-        }
-
-
-        if (
-            typeof value === "number" ||
-            typeof value === "boolean"
-        ) {
-
-            count++;
-
-            return;
-
-        }
-
-
-        if (
-            Array.isArray(value)
-        ) {
-
-            value.forEach(
-                walk
-            );
-
-            return;
-
-        }
-
-
-        if (
-            typeof value === "object"
-        ) {
-
-            Object.values(
-                value
-            )
-                .forEach(
-                    walk
-                );
-
-        }
+        return 0;
 
     }
 
 
-    walk(
-        analysis
-    );
+    if (
+        typeof value === "string"
+    ) {
+
+        const normalized =
+            value
+                .trim()
+                .toLowerCase();
 
 
-    return count;
+        if (
+            !normalized ||
+            normalized === "unknown" ||
+            normalized === "n/a" ||
+            normalized === "na" ||
+            normalized === "null" ||
+            normalized === "none" ||
+            normalized === "not visible" ||
+            normalized === "not applicable"
+        ) {
+
+            return 0;
+
+        }
+
+
+        return 1;
+
+    }
+
+
+    if (
+        typeof value === "number" ||
+        typeof value === "boolean"
+    ) {
+
+        return 1;
+
+    }
+
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return value.reduce(
+            (
+                total,
+                item
+            ) =>
+                total +
+                countAnalysisFacts(
+                    item
+                ),
+            0
+        );
+
+    }
+
+
+    if (
+        typeof value === "object"
+    ) {
+
+        return Object.entries(
+            value
+        )
+            .reduce(
+                (
+                    total,
+                    [key, item]
+                ) => {
+
+                    if (
+                        key === "present" &&
+                        item === false
+                    ) {
+
+                        return total;
+
+                    }
+
+
+                    return total +
+                        countAnalysisFacts(
+                            item
+                        );
+
+                },
+                0
+            );
+
+    }
+
+
+    return 0;
 
 }
 
@@ -1178,11 +1128,9 @@ function validateAnalysisQuality(
 ) {
 
     const normalized =
-        String(
-            text ||
-            ""
-        )
-            .trim();
+        cleanJSONString(
+            text
+        );
 
 
     if (
@@ -1204,7 +1152,10 @@ function validateAnalysisQuality(
                 0,
 
             factCount:
-                0
+                0,
+
+            parsed:
+                null
 
         };
 
@@ -1258,17 +1209,28 @@ function validateAnalysisQuality(
                 normalized.length,
 
             factCount:
-                0
+                0,
+
+            parsed:
+                null
 
         };
 
     }
 
 
+    const minimumCharacters =
+        Number(
+            window.GENZVisionCore
+                ?.CONFIG
+                ?.minAnalysisCharacters
+        ) || 0;
+
+
     if (
+        minimumCharacters > 0 &&
         normalized.length <
-        window.GENZVisionCore.CONFIG
-            .minAnalysisCharacters
+        minimumCharacters
     ) {
 
         return {
@@ -1286,29 +1248,24 @@ function validateAnalysisQuality(
                 normalized.length,
 
             factCount:
-                0
+                0,
+
+            parsed:
+                null
 
         };
 
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * PARSE STRUCTURED ANALYSIS
-     * -----------------------------------------------------
-     */
-
-    const parsed =
+    const extraction =
         extractAnalysisJSON(
             normalized
         );
 
 
     if (
-        !parsed ||
-        typeof parsed !== "object" ||
-        Array.isArray(parsed)
+        !extraction.parsed
     ) {
 
         return {
@@ -1326,36 +1283,24 @@ function validateAnalysisQuality(
                 normalized.length,
 
             factCount:
-                0
+                0,
+
+            parsed:
+                null,
+
+            extractionMethod:
+                extraction.method
 
         };
 
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * COUNT REAL VISUAL FACTS
-     * -----------------------------------------------------
-     */
-
     const factCount =
         countAnalysisFacts(
-            parsed
+            extraction.parsed
         );
 
-
-    console.info(
-        "[GEN-Z.AI Vision] Visual-analysis concrete fact count:",
-        factCount
-    );
-
-
-    /*
-     * -----------------------------------------------------
-     * EMPTY ANALYSIS DETECTION
-     * -----------------------------------------------------
-     */
 
     if (
         factCount === 0
@@ -1367,7 +1312,7 @@ function validateAnalysisQuality(
                 false,
 
             reason:
-                "Vision model mengembalikan struktur analysis tetapi tidak mengisi fakta visual konkret.",
+                "Visual analysis tidak mengandung fakta visual yang dapat digunakan untuk Prompt Engineering.",
 
             code:
                 "ANALYSIS_EMPTY_FACTS",
@@ -1378,17 +1323,16 @@ function validateAnalysisQuality(
             factCount:
                 0,
 
-            parsed
+            parsed:
+                extraction.parsed,
+
+            extractionMethod:
+                extraction.method
 
         };
 
     }
 
-
-    /*
-     * Untuk visual analysis yang sangat pendek, jumlah
-     * fakta harus tetap masuk akal.
-     */
 
     if (
         factCount < 5
@@ -1400,7 +1344,7 @@ function validateAnalysisQuality(
                 false,
 
             reason:
-                "Visual analysis hanya mengandung sedikit fakta visual dan belum cukup lengkap.",
+                "Visual analysis mengandung terlalu sedikit fakta visual.",
 
             code:
                 "ANALYSIS_INSUFFICIENT_FACTS",
@@ -1410,7 +1354,11 @@ function validateAnalysisQuality(
 
             factCount,
 
-            parsed
+            parsed:
+                extraction.parsed,
+
+            extractionMethod:
+                extraction.method
 
         };
 
@@ -1433,7 +1381,11 @@ function validateAnalysisQuality(
 
         factCount,
 
-        parsed
+        parsed:
+            extraction.parsed,
+
+        extractionMethod:
+            extraction.method
 
     };
 
@@ -1544,6 +1496,28 @@ async function analyzeImage(
     ];
 
 
+    /*
+     * Vision Analysis membutuhkan output JSON yang cukup besar.
+     *
+     * Jangan mengubah konfigurasi global.
+     * Gunakan nilai minimum khusus untuk analisis ini
+     * agar JSON tidak terpotong di tengah object.
+     */
+
+    const configuredMaxTokens =
+        Number(
+            core.CONFIG
+                .maxAnalysisTokens
+        ) || 0;
+
+
+    const analysisMaxTokens =
+        Math.max(
+            configuredMaxTokens,
+            4096
+        );
+
+
     console.info(
         "[GEN-Z.AI Vision] Sending visual-analysis request:",
         {
@@ -1568,7 +1542,11 @@ async function analyzeImage(
                 String(
                     file.dataUrl ||
                     ""
-                ).length
+                ).length,
+
+            configuredMaxTokens,
+
+            analysisMaxTokens
 
         }
     );
@@ -1589,8 +1567,7 @@ async function analyzeImage(
                         .analysisTemperature,
 
                 max_tokens:
-                    core.CONFIG
-                        .maxAnalysisTokens,
+                    analysisMaxTokens,
 
                 stream:
                     false
@@ -1622,6 +1599,12 @@ async function analyzeImage(
         );
 
 
+    console.info(
+        "[GEN-Z.AI Vision] Visual-analysis raw text:",
+        text
+    );
+
+
     if (
         !text
     ) {
@@ -1645,12 +1628,6 @@ async function analyzeImage(
     }
 
 
-    console.info(
-        "[GEN-Z.AI Vision] Visual-analysis raw text:",
-        text
-    );
-
-
     const quality =
         validateAnalysisQuality(
             text
@@ -1659,14 +1636,7 @@ async function analyzeImage(
 
     console.info(
         "[GEN-Z.AI Vision] Visual-analysis quality:",
-        {
-
-            ...quality,
-
-            parsed:
-                undefined
-
-        }
+        quality
     );
 
 
@@ -1701,23 +1671,10 @@ async function analyzeImage(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * RETURN STRUCTURED ANALYSIS
-     * -----------------------------------------------------
-     *
-     * Sebelumnya pipeline mengembalikan raw text.
-     * Sekarang hasil JSON yang sudah divalidasi dikembalikan
-     * sebagai object agar Prompt Engineering menerima data
-     * yang benar-benar terstruktur.
-     * -----------------------------------------------------
-     */
-
-    const parsedAnalysis =
-        quality.parsed ||
-        extractAnalysisJSON(
-            text
-        );
+    console.info(
+        "[GEN-Z.AI Vision] Visual-analysis concrete fact count:",
+        quality.factCount
+    );
 
 
     return {
@@ -1725,7 +1682,7 @@ async function analyzeImage(
         text,
 
         analysis:
-            parsedAnalysis,
+            quality.parsed,
 
         raw:
             response,
@@ -1760,10 +1717,6 @@ const GENZVisionAnalysisAPI =
 
     });
 
-
-/* =========================================================
-   MERGE GLOBAL NAMESPACE
-========================================================= */
 
 const existingVisionAnalysis =
     window.GENZVisionAnalysis;
