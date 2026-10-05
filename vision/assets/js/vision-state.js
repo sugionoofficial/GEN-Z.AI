@@ -23,8 +23,10 @@
        set()
        merge()
        setProcessing()
-       isProcessing()
        setProcessingState()
+       isProcessing()
+       setProgress()
+       getProgress()
 
    Catatan:
    - Tetap menggunakan global window.GENZVisionState
@@ -47,13 +49,9 @@
         --------------------------------------------- */
 
         auth: {
-
             user: null,
-
             profile: null,
-
             initialized: false
-
         },
 
 
@@ -247,16 +245,6 @@
 
     /* =====================================================
        GET STATE
-       -----------------------------------------------------
-       Supports:
-
-       getState()
-
-       getState("model")
-
-       getState("model.id")
-
-       getState("credit.available")
     ===================================================== */
 
     function getState(
@@ -881,14 +869,7 @@
 
 
     /* =====================================================
-       LEGACY PROCESS COMPATIBILITY
-       -----------------------------------------------------
-       vision-events.js menggunakan:
-
-       getState().setProcessing(...)
-
-       Method ini mempertahankan process state
-       yang sudah digunakan sistem sekarang.
+       LEGACY setProcessing()
     ===================================================== */
 
     function setProcessing(
@@ -897,10 +878,7 @@
     ) {
 
         /* ---------------------------------------------
-           Boolean form
-
-           setProcessing(true)
-           setProcessing(false)
+           BOOLEAN
         --------------------------------------------- */
 
         if (
@@ -945,7 +923,6 @@
                     progress:
                         options.progress ??
                         STATE.process.progress ??
-                        STATE.process.progress ??
                         0,
 
                     error:
@@ -963,13 +940,7 @@
 
 
         /* ---------------------------------------------
-           Object form
-
-           setProcessing({
-               status: "...",
-               stage: "...",
-               progress: ...
-           })
+           OBJECT
         --------------------------------------------- */
 
         if (
@@ -997,9 +968,7 @@
 
 
         /* ---------------------------------------------
-           String form
-
-           setProcessing("processing")
+           STRING
         --------------------------------------------- */
 
         if (
@@ -1026,7 +995,7 @@
 
 
     /* =====================================================
-       LEGACY PROCESS STATE
+       LEGACY setProcessingState()
     ===================================================== */
 
     function setProcessingState(
@@ -1081,6 +1050,94 @@
             STATE.process.status ===
             "processing"
 
+        );
+
+    }
+
+
+    /* =====================================================
+       LEGACY setProgress()
+       -----------------------------------------------------
+       vision-events.js menggunakan:
+
+       getState().setProgress(25)
+
+       Progress selalu disimpan di:
+
+       state.process.progress
+    ===================================================== */
+
+    function setProgress(
+        progress
+    ) {
+
+        let normalizedProgress =
+            Number(progress);
+
+
+        if (
+            !Number.isFinite(
+                normalizedProgress
+            )
+        ) {
+
+            normalizedProgress = 0;
+
+        }
+
+
+        normalizedProgress =
+            Math.max(
+                0,
+                Math.min(
+                    100,
+                    normalizedProgress
+                )
+            );
+
+
+        STATE.process = {
+
+            ...STATE.process,
+
+            progress:
+                normalizedProgress
+
+        };
+
+
+        return normalizedProgress;
+
+    }
+
+
+    /* =====================================================
+       GET PROGRESS
+    ===================================================== */
+
+    function getProgress() {
+
+        const progress =
+            Number(
+                STATE.process.progress
+            );
+
+
+        if (
+            !Number.isFinite(progress)
+        ) {
+
+            return 0;
+
+        }
+
+
+        return Math.max(
+            0,
+            Math.min(
+                100,
+                progress
+            )
         );
 
     }
@@ -1250,6 +1307,9 @@
 
             processStatus:
                 STATE.process.status,
+
+            processProgress:
+                getProgress(),
 
             credit:
                 STATE.credit,
@@ -1423,6 +1483,10 @@
             setProcessingState,
 
             isProcessing,
+
+            setProgress,
+
+            getProgress,
 
 
             /* -----------------------------------------
