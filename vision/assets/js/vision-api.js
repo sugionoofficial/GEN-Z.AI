@@ -1,4 +1,3 @@
-// vision-api.js?v=2.1
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -19,94 +18,52 @@
    - vision-api-prompt.js
 
    PENTING:
-   - Tidak melakukan dependency validation di top-level.
+   - Tidak melakukan dependency validation di top-level
+     sebelum module lain siap.
    - Tidak membaca dependency API secara eager ketika
      module pertama kali dievaluasi.
    - Dependency divalidasi ketika API benar-benar digunakan.
    - Kegagalan API tidak boleh menghentikan loader Vision.
+   - validateModules menjadi bagian dari object sebelum
+     Object.freeze().
 ========================================================= */
 
 
 /* =========================================================
-   DEPENDENCY CHECK
+   DEPENDENCY VALIDATION
 ========================================================= */
 
 function validateVisionAPIModules() {
 
     const required = [
-
-        [
-            "GENZVisionCore",
-            window.GENZVisionCore
-        ],
-
-        [
-            "GENZVisionModels",
-            window.GENZVisionModels
-        ],
-
-        [
-            "GENZVisionResponse",
-            window.GENZVisionResponse
-        ],
-
-        [
-            "GENZVisionAnalysis",
-            window.GENZVisionAnalysis
-        ],
-
-        [
-            "GENZVisionPrompt",
-            window.GENZVisionPrompt
-        ]
-
+        ["GENZVisionCore", window.GENZVisionCore],
+        ["GENZVisionModels", window.GENZVisionModels],
+        ["GENZVisionResponse", window.GENZVisionResponse],
+        ["GENZVisionAnalysis", window.GENZVisionAnalysis],
+        ["GENZVisionPrompt", window.GENZVisionPrompt]
     ];
 
+    const missing = required
+        .filter(([ , module ]) => !module)
+        .map(([name]) => name);
 
-    const missing =
-        required
-            .filter(
-                (
-                    [
-                        ,
-                        module
-                    ]
-                ) =>
-                    !module
-            )
-            .map(
-                (
-                    [
-                        name
-                    ]
-                ) =>
-                    name
-            );
-
-
-    if (
-        missing.length
-    ) {
+    if (missing.length) {
 
         throw new Error(
-
             `[GEN-Z.AI Vision] Module API belum dimuat: ${missing.join(", ")}`
-
         );
 
     }
 
-
     return true;
-
 }
 
 
 /* =========================================================
-   API MODULE ACCESSORS
+   LAZY DEPENDENCY ACCESS
    ---------------------------------------------------------
-   Dependency diambil saat fungsi dipanggil.
-   Bukan saat vision-api.js pertama kali dievaluasi.
+   Jangan mengambil dependency saat module pertama kali
+   dievaluasi. Ambil hanya ketika fungsi benar-benar dipakai.
 ========================================================= */
 
 function getCore() {
@@ -114,7 +71,6 @@ function getCore() {
     validateVisionAPIModules();
 
     return window.GENZVisionCore;
-
 }
 
 
@@ -123,7 +79,6 @@ function getModels() {
     validateVisionAPIModules();
 
     return window.GENZVisionModels;
-
 }
 
 
@@ -132,7 +87,6 @@ function getResponse() {
     validateVisionAPIModules();
 
     return window.GENZVisionResponse;
-
 }
 
 
@@ -141,7 +95,6 @@ function getAnalysis() {
     validateVisionAPIModules();
 
     return window.GENZVisionAnalysis;
-
 }
 
 
@@ -150,127 +103,98 @@ function getPrompt() {
     validateVisionAPIModules();
 
     return window.GENZVisionPrompt;
-
 }
 
 
 /* =========================================================
-   RUN COMPLETE PIPELINE
+   VISION PIPELINE
+   ---------------------------------------------------------
+   Analysis
+      ↓
+   Normalize Analysis
+      ↓
+   Prompt Engineering
 ========================================================= */
 
-async function runVisionPipeline(
-    options = {}
-) {
+async function runVisionPipeline(options = {}) {
 
     validateVisionAPIModules();
 
-
-    const analysisModule =
-        getAnalysis();
-
-
-    const responseModule =
-        getResponse();
+    const analysisModule = getAnalysis();
+    const responseModule = getResponse();
+    const promptModule = getPrompt();
 
 
-    const promptModule =
-        getPrompt();
-
+    /* -----------------------------------------------------
+       STEP 1
+       IMAGE ANALYSIS
+    ----------------------------------------------------- */
 
     const analysis =
-        await analysisModule
-            .analyzeImage(
-                options
-            );
+        await analysisModule.analyzeImage(options);
 
 
-    let normalizedAnalysis;
+    /* -----------------------------------------------------
+       STEP 2
+       NORMALIZE ANALYSIS
+    ----------------------------------------------------- */
 
+    let normalizedAnalysis = null;
 
     try {
 
         normalizedAnalysis =
-            responseModule
-                .parseJSON(
-                    analysis.text
-                );
-
-    }
-    catch {
-
-        normalizedAnalysis =
-            null;
-
-    }
-
-
-    /*
-     * -----------------------------------------------------
-     * PROMPT ENGINEERING INPUT
-     * -----------------------------------------------------
-     *
-     * Jika response Vision merupakan JSON valid,
-     * kirim object hasil parse.
-     *
-     * Jika bukan JSON valid, kirim text mentah.
-     *
-     * Jangan mengirim wrapper:
-     *
-     * {
-     *     analysis: ...
-     * }
-     *
-     * karena Prompt Engineering membutuhkan
-     * isi analysis sebenarnya.
-     * -----------------------------------------------------
-     */
-
-    const prompt =
-        await promptModule
-            .generatePrompt(
-
-                normalizedAnalysis ||
-                analysis.text,
-
-                {
-
-                    ...options,
-
-                    model:
-                        analysis.model
-
-                }
-
+            responseModule.parseJSON(
+                analysis.text
             );
 
+    } catch {
+
+        normalizedAnalysis = null;
+
+    }
+
+
+    /* -----------------------------------------------------
+       STEP 3
+       PROMPT ENGINEERING
+    ----------------------------------------------------- */
+
+    const prompt =
+        await promptModule.generatePrompt(
+            normalizedAnalysis || analysis.text,
+            {
+                ...options,
+                model: analysis.model
+            }
+        );
+
+
+    /* -----------------------------------------------------
+       RESULT
+    ----------------------------------------------------- */
 
     return {
 
         analysis: {
 
-            text:
-                analysis.text,
+            text: analysis.text,
 
-            normalized:
-                normalizedAnalysis,
+            normalized: normalizedAnalysis,
 
-            raw:
-                analysis.raw
+            raw: analysis.raw
 
         },
 
         prompt: {
 
-            text:
-                prompt.text,
+            text: prompt.text,
 
-            raw:
-                prompt.raw
+            raw: prompt.raw
 
         },
 
-        model:
-            analysis.model
+        model: analysis.model
 
     };
 
@@ -278,15 +202,7 @@ async function runVisionPipeline(
 
 
 /* =========================================================
-   SAFE API WRAPPERS
-   ---------------------------------------------------------
-   Semua fungsi mengambil dependency ketika dipanggil.
-   Ini mencegah eager dependency access saat module load.
-========================================================= */
-
-
-/* =========================================================
-   CORE
+   CORE API
 ========================================================= */
 
 function getConfig() {
@@ -296,108 +212,82 @@ function getConfig() {
 }
 
 
-async function request(
-    options = {}
-) {
+async function request(options = {}) {
 
-    return getCore()
-        .request(
-            options
-        );
+    return getCore().request(options);
 
 }
 
 
 async function getAccessToken() {
 
-    return getCore()
-        .getAccessToken();
+    return getCore().getAccessToken();
 
 }
 
 
 /* =========================================================
-   MODELS
+   MODEL API
 ========================================================= */
 
 async function getOpenKeyModels() {
 
-    return getModels()
-        .getOpenKeyModels();
+    return getModels().getOpenKeyModels();
 
 }
 
 
-function collectModalityValues(
-    model,
-    key
-) {
+function collectModalityValues(model, key) {
 
-    return getModels()
-        .collectModalityValues(
-            model,
-            key
-        );
+    return getModels().collectModalityValues(
+        model,
+        key
+    );
 
 }
 
 
-function getModelCapabilities(
-    model
-) {
+function getModelCapabilities(model) {
 
-    return getModels()
-        .getModelCapabilities(
-            model
-        );
+    return getModels().getModelCapabilities(
+        model
+    );
 
 }
 
 
-function isOpenKeyDocumentedVisionModel(
-    model
-) {
+function isOpenKeyDocumentedVisionModel(model) {
 
-    return getModels()
-        .isOpenKeyDocumentedVisionModel(
-            model
-        );
+    return getModels().isOpenKeyDocumentedVisionModel(
+        model
+    );
 
 }
 
 
-function normalizeVisionModel(
-    model
-) {
+function normalizeVisionModel(model) {
 
-    return getModels()
-        .normalizeVisionModel(
-            model
-        );
+    return getModels().normalizeVisionModel(
+        model
+    );
 
 }
 
 
-function supportsImageInput(
-    model
-) {
+function supportsImageInput(model) {
 
-    return getModels()
-        .supportsImageInput(
-            model
-        );
+    return getModels().supportsImageInput(
+        model
+    );
 
 }
 
 
-async function resolveVisionModel(
-    modelId
-) {
+async function resolveVisionModel(modelId) {
 
-    return getModels()
-        .resolveVisionModel(
-            modelId
-        );
+    return getModels().resolveVisionModel(
+        modelId
+    );
 
 }
 
@@ -407,35 +297,32 @@ function buildImageMessage(
     options = {}
 ) {
 
-    return getModels()
-        .buildImageMessage(
-            dataUrl,
-            options
-        );
+    return getModels().buildImageMessage(
+        dataUrl,
+        options
+    );
 
 }
 
 
 function getSelectedModel() {
 
-    return getModels()
-        .getSelectedModel();
+    return getModels().getSelectedModel();
 
 }
 
 
 /* =========================================================
-   ANALYSIS
+   ANALYSIS API
 ========================================================= */
 
 function buildAnalysisSystemPrompt(
     options = {}
 ) {
 
-    return getAnalysis()
-        .buildAnalysisSystemPrompt(
-            options
-        );
+    return getAnalysis().buildAnalysisSystemPrompt(
+        options
+    );
 
 }
 
@@ -444,10 +331,9 @@ function buildAnalysisUserPrompt(
     options = {}
 ) {
 
-    return getAnalysis()
-        .buildAnalysisUserPrompt(
-            options
-        );
+    return getAnalysis().buildAnalysisUserPrompt(
+        options
+    );
 
 }
 
@@ -457,11 +343,10 @@ function validateAnalysisQuality(
     options = {}
 ) {
 
-    return getAnalysis()
-        .validateAnalysisQuality(
-            text,
-            options
-        );
+    return getAnalysis().validateAnalysisQuality(
+        text,
+        options
+    );
 
 }
 
@@ -470,62 +355,49 @@ async function analyzeImage(
     options = {}
 ) {
 
-    return getAnalysis()
-        .analyzeImage(
-            options
-        );
+    return getAnalysis().analyzeImage(
+        options
+    );
 
 }
 
 
 /* =========================================================
-   PROMPT
+   PROMPT ENGINEERING API
 ========================================================= */
 
-function normalizePromptAnalysisInput(
-    input
-) {
+function normalizePromptAnalysisInput(input) {
 
-    return getPrompt()
-        .normalizePromptAnalysisInput(
-            input
-        );
+    return getPrompt().normalizePromptAnalysisInput(
+        input
+    );
 
 }
 
 
-function buildDetailedAnalysisFacts(
-    analysis
-) {
+function buildDetailedAnalysisFacts(analysis) {
 
-    return getPrompt()
-        .buildDetailedAnalysisFacts(
-            analysis
-        );
+    return getPrompt().buildDetailedAnalysisFacts(
+        analysis
+    );
 
 }
 
 
-function formatDetailedAnalysisFacts(
-    facts
-) {
+function formatDetailedAnalysisFacts(facts) {
 
-    return getPrompt()
-        .formatDetailedAnalysisFacts(
-            facts
-        );
+    return getPrompt().formatDetailedAnalysisFacts(
+        facts
+    );
 
 }
 
 
-function formatAnalysisForPrompt(
-    analysis
-) {
+function formatAnalysisForPrompt(analysis) {
 
-    return getPrompt()
-        .formatAnalysisForPrompt(
-            analysis
-        );
+    return getPrompt().formatAnalysisForPrompt(
+        analysis
+    );
 
 }
 
@@ -534,10 +406,9 @@ function buildPromptSystemPrompt(
     options = {}
 ) {
 
-    return getPrompt()
-        .buildPromptSystemPrompt(
-            options
-        );
+    return getPrompt().buildPromptSystemPrompt(
+        options
+    );
 
 }
 
@@ -547,11 +418,10 @@ function buildPromptUserPrompt(
     options = {}
 ) {
 
-    return getPrompt()
-        .buildPromptUserPrompt(
-            analysis,
-            options
-        );
+    return getPrompt().buildPromptUserPrompt(
+        analysis,
+        options
+    );
 
 }
 
@@ -561,11 +431,10 @@ function validateGeneratedPrompt(
     options = {}
 ) {
 
-    return getPrompt()
-        .validateGeneratedPrompt(
-            text,
-            options
-        );
+    return getPrompt().validateGeneratedPrompt(
+        text,
+        options
+    );
 
 }
 
@@ -575,75 +444,59 @@ async function generatePrompt(
     options = {}
 ) {
 
-    return getPrompt()
-        .generatePrompt(
-            analysis,
-            options
-        );
+    return getPrompt().generatePrompt(
+        analysis,
+        options
+    );
 
 }
 
 
 /* =========================================================
-   RESPONSE
+   RESPONSE API
 ========================================================= */
 
-function sanitizeResponseForDebug(
-    response
-) {
+function sanitizeResponseForDebug(response) {
 
-    return getResponse()
-        .sanitizeResponseForDebug(
-            response
-        );
+    return getResponse().sanitizeResponseForDebug(
+        response
+    );
 
 }
 
 
-function extractTextPart(
-    part
-) {
+function extractTextPart(part) {
 
-    return getResponse()
-        .extractTextPart(
-            part
-        );
+    return getResponse().extractTextPart(
+        part
+    );
 
 }
 
 
-function extractAssistantText(
-    response
-) {
+function extractAssistantText(response) {
 
-    return getResponse()
-        .extractAssistantText(
-            response
-        );
+    return getResponse().extractAssistantText(
+        response
+    );
 
 }
 
 
-function cleanGeneratedPrompt(
-    text
-) {
+function cleanGeneratedPrompt(text) {
 
-    return getResponse()
-        .cleanGeneratedPrompt(
-            text
-        );
+    return getResponse().cleanGeneratedPrompt(
+        text
+    );
 
 }
 
 
-function parseJSON(
-    text
-) {
+function parseJSON(text) {
 
-    return getResponse()
-        .parseJSON(
-            text
-        );
+    return getResponse().parseJSON(
+        text
+    );
 
 }
 
@@ -651,126 +504,130 @@ function parseJSON(
 /* =========================================================
    PUBLIC API
    ---------------------------------------------------------
-   API object dibuat tanpa mengakses dependency module
-   secara eager.
+   Semua dependency dibungkus function lazy.
+   Tidak ada dereference seperti:
+
+       window.GENZVisionCore.request
+
+   pada saat module pertama kali dimuat.
 ========================================================= */
 
-const GENZVisionAPI =
-    Object.freeze({
+const GENZVisionAPI = Object.freeze({
 
-        /* ---------------------------------------------
-           CORE
-        --------------------------------------------- */
+    /* -----------------------------------------------------
+       CORE
+    ----------------------------------------------------- */
 
-        get CONFIG() {
+    get CONFIG() {
 
-            return getConfig();
+        return getConfig();
 
-        },
+    },
 
-        request,
+    request,
 
-        getAccessToken,
-
-
-        /* ---------------------------------------------
-           MODELS
-        --------------------------------------------- */
-
-        getOpenKeyModels,
-
-        collectModalityValues,
-
-        getModelCapabilities,
-
-        isOpenKeyDocumentedVisionModel,
-
-        normalizeVisionModel,
-
-        supportsImageInput,
-
-        resolveVisionModel,
-
-        buildImageMessage,
-
-        getSelectedModel,
+    getAccessToken,
 
 
-        /* ---------------------------------------------
-           ANALYSIS
-        --------------------------------------------- */
+    /* -----------------------------------------------------
+       MODELS
+    ----------------------------------------------------- */
 
-        buildAnalysisSystemPrompt,
+    getOpenKeyModels,
 
-        buildAnalysisUserPrompt,
+    collectModalityValues,
 
-        validateAnalysisQuality,
+    getModelCapabilities,
 
-        analyzeImage,
+    isOpenKeyDocumentedVisionModel,
 
+    normalizeVisionModel,
 
-        /* ---------------------------------------------
-           PROMPT
-        --------------------------------------------- */
+    supportsImageInput,
 
-        normalizePromptAnalysisInput,
+    resolveVisionModel,
 
-        buildDetailedAnalysisFacts,
+    buildImageMessage,
 
-        formatDetailedAnalysisFacts,
-
-        formatAnalysisForPrompt,
-
-        buildPromptSystemPrompt,
-
-        buildPromptUserPrompt,
-
-        validateGeneratedPrompt,
-
-        generatePrompt,
+    getSelectedModel,
 
 
-        /* ---------------------------------------------
-           RESPONSE
-        --------------------------------------------- */
+    /* -----------------------------------------------------
+       ANALYSIS
+    ----------------------------------------------------- */
 
-        sanitizeResponseForDebug,
+    buildAnalysisSystemPrompt,
 
-        extractTextPart,
+    buildAnalysisUserPrompt,
 
-        extractAssistantText,
+    validateAnalysisQuality,
 
-        cleanGeneratedPrompt,
-
-        parseJSON,
+    analyzeImage,
 
 
-        /* ---------------------------------------------
-           PIPELINE
-        --------------------------------------------- */
+    /* -----------------------------------------------------
+       PROMPT ENGINEERING
+    ----------------------------------------------------- */
 
-        runVisionPipeline
+    normalizePromptAnalysisInput,
 
-    });
+    buildDetailedAnalysisFacts,
+
+    formatDetailedAnalysisFacts,
+
+    formatAnalysisForPrompt,
+
+    buildPromptSystemPrompt,
+
+    buildPromptUserPrompt,
+
+    validateGeneratedPrompt,
+
+    generatePrompt,
+
+
+    /* -----------------------------------------------------
+       RESPONSE
+    ----------------------------------------------------- */
+
+    sanitizeResponseForDebug,
+
+    extractTextPart,
+
+    extractAssistantText,
+
+    cleanGeneratedPrompt,
+
+    parseJSON,
+
+
+    /* -----------------------------------------------------
+       PIPELINE
+    ----------------------------------------------------- */
+
+    runVisionPipeline,
+
+
+    /* -----------------------------------------------------
+       DIAGNOSTIC
+       -----------------------------------------------------
+       Dimasukkan SEBELUM Object.freeze(), sehingga tidak
+       terjadi lagi:
+
+       Cannot add property validateModules,
+       object is not extensible
+    ----------------------------------------------------- */
+
+    validateModules: validateVisionAPIModules
+
+});
 
 
 /* =========================================================
    GLOBAL EXPORT
 ========================================================= */
 
-window.GENZVisionAPI =
-    GENZVisionAPI;
-
-
-/* =========================================================
-   GLOBAL VALIDATION HELPER
-   ---------------------------------------------------------
-   Tidak dijalankan otomatis.
-   Hanya tersedia untuk debugging / diagnostics.
-========================================================= */
-
-window.GENZVisionAPI.validateModules =
-    validateVisionAPIModules;
+window.GENZVisionAPI = GENZVisionAPI;
 
 
 /* =========================================================
@@ -780,25 +637,15 @@ window.GENZVisionAPI.validateModules =
 console.info(
     "[GEN-Z.AI Vision] Vision API entry point ready.",
     {
-
-        version:
-            "2.1",
+        version: "2.1.1",
 
         modules: [
-
             "core",
-
             "models",
-
             "response",
-
             "analysis",
-
             "prompt",
-
             "entry"
-
         ]
-
     }
 );
