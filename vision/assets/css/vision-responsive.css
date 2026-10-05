@@ -1100,3 +1100,588 @@ and (max-height: 600px) {
             auto !important;
     }
 }
+
+/* =========================================================
+   GEN-Z.AI VISION
+   FINAL MOBILE WIDTH LOCK
+   ---------------------------------------------------------
+   Fix:
+   - STEP 01 tidak keluar kanan
+   - STEP 02 tidak keluar kanan
+   - ACTION CARD tidak keluar kanan
+   - ANALYZE & GENERATE PROMPT tetap center
+   - Tidak ada horizontal overflow
+   - Menggunakan selector DOM Vision yang sebenarnya
+========================================================= */
+
+@media (max-width: 900px) {
+
+    /* =====================================================
+       GLOBAL BOX SIZING
+    ===================================================== */
+
+    .vision-page,
+    .vision-page *,
+    .vision-page *::before,
+    .vision-page *::after {
+
+        box-sizing:
+            border-box;
+    }
+
+
+    /* =====================================================
+       MAIN PAGE
+    ===================================================== */
+
+    .vision-page {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        margin-left:
+            auto;
+
+        margin-right:
+            auto;
+
+        overflow-x:
+            hidden;
+    }
+
+
+    /* =====================================================
+       MAIN GRID
+       -----------------------------------------------------
+       Desktop grid sebelumnya:
+       390px + 520px
+
+       Pada HP wajib menjadi 1 kolom.
+    ===================================================== */
+
+    .vision-main-grid {
+
+        display:
+            grid;
+
+        grid-template-columns:
+            minmax(0, 1fr);
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        margin-left:
+            auto;
+
+        margin-right:
+            auto;
+
+        gap:
+            14px;
+    }
+
+
+    /* =====================================================
+       COLUMNS
+    ===================================================== */
+
+    .vision-left-column,
+    .vision-right-column {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+    }
+
+
+    /* =====================================================
+       STEP 01 / STEP 02 / STEP 03 CARDS
+    ===================================================== */
+
+    .vision-card {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        margin-left:
+            0;
+
+        margin-right:
+            0;
+
+        box-sizing:
+            border-box;
+    }
+
+
+    /* =====================================================
+       CARD HEADER
+    ===================================================== */
+
+    .vision-card-header {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        box-sizing:
+            border-box;
+    }
+
+
+    .vision-card-header > div {
+
+        min-width:
+            0;
+
+        max-width:
+            100%;
+    }
+
+
+    /* =====================================================
+       STEP 01 DROPZONE
+    ===================================================== */
+
+    .vision-dropzone {
+
+        width:
+            auto;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        margin-left:
+            0;
+
+        margin-right:
+            0;
+
+        box-sizing:
+            border-box;
+    }
+
+
+    /* =====================================================
+       STEP 02 FORM
+    ===================================================== */
+
+    .vision-form-grid {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        grid-template-columns:
+            minmax(0, 1fr);
+
+        box-sizing:
+            border-box;
+    }
+
+
+    .vision-field {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        box-sizing:
+            border-box;
+    }
+
+
+    .vision-field-full {
+
+        grid-column:
+            auto;
+    }
+
+
+    .vision-field select,
+    .vision-field textarea {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        box-sizing:
+            border-box;
+    }
+
+
+    /* =====================================================
+       ACTION CARD
+       -----------------------------------------------------
+       Tombol ANALYZE harus mengikuti lebar card,
+       bukan lebar konten teks.
+    ===================================================== */
+
+    .vision-action-card {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        box-sizing:
+            border-box;
+
+        margin-left:
+            0;
+
+        margin-right:
+            0;
+    }
+
+
+    /* =====================================================
+       ANALYZE & GENERATE PROMPT
+    ===================================================== */
+
+    .vision-primary-button {
+
+        display:
+            flex;
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        box-sizing:
+            border-box;
+
+        margin-left:
+            0;
+
+        margin-right:
+            0;
+
+        padding-left:
+            12px;
+
+        padding-right:
+            12px;
+
+        text-align:
+            center;
+
+        overflow:
+            hidden;
+    }
+
+
+    /* =====================================================
+       BUTTON TEXT
+       -----------------------------------------------------
+       Teks panjang tidak boleh memaksa button melebar.
+    ===================================================== */
+
+    #visionGenerateButtonText {
+
+        display:
+            block;
+
+        min-width:
+            0;
+
+        max-width:
+            100%;
+
+        overflow:
+            hidden;
+
+        text-overflow:
+            ellipsis;
+
+        white-space:
+            nowrap;
+
+        text-align:
+            center;
+    }
+
+
+    /* =====================================================
+       ACTION CONTENT
+    ===================================================== */
+
+    .vision-action-content {
+
+        min-width:
+            0;
+
+        max-width:
+            100%;
+
+        justify-content:
+            center;
+    }
+
+
+    /* =====================================================
+       PREVENT CHILD OVERFLOW
+    ===================================================== */
+
+    .vision-preview-state,
+    .vision-upload-state,
+    .vision-preview-image-wrap,
+    .vision-preview-image,
+    .vision-preview-info {
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        box-sizing:
+            border-box;
+    }
+
+
+    /* =====================================================
+       INFO GRID
+    ===================================================== */
+
+    .vision-info-grid {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        min-width:
+            0;
+
+        grid-template-columns:
+            minmax(0, 1fr);
+    }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 420px) {
+
+    .vision-page {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        padding-left:
+            9px;
+
+        padding-right:
+            9px;
+
+        overflow-x:
+            hidden;
+    }
+
+
+    .vision-main-grid {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        grid-template-columns:
+            minmax(0, 1fr);
+    }
+
+
+    .vision-card {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+    }
+
+
+    .vision-card-header {
+
+        padding-left:
+            14px;
+
+        padding-right:
+            14px;
+    }
+
+
+    .vision-form-grid {
+
+        padding-left:
+            14px;
+
+        padding-right:
+            14px;
+    }
+
+
+    .vision-action-card {
+
+        padding:
+            14px;
+    }
+
+
+    .vision-primary-button {
+
+        width:
+            100%;
+
+        max-width:
+            100%;
+
+        padding-left:
+            8px;
+
+        padding-right:
+            8px;
+
+        font-size:
+            10px;
+
+        letter-spacing:
+            .08em;
+    }
+
+
+    #visionGenerateButtonText {
+
+        max-width:
+            100%;
+
+        white-space:
+            normal;
+
+        line-height:
+            1.25;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+========================================================= */
+
+@media (max-width: 340px) {
+
+    .vision-page {
+
+        padding-left:
+            7px;
+
+        padding-right:
+            7px;
+    }
+
+
+    .vision-card-header {
+
+        padding-left:
+            12px;
+
+        padding-right:
+            12px;
+    }
+
+
+    .vision-form-grid {
+
+        padding-left:
+            12px;
+
+        padding-right:
+            12px;
+    }
+
+
+    .vision-action-card {
+
+        padding:
+            12px;
+    }
+
+
+    .vision-primary-button {
+
+        min-height:
+            46px;
+
+        padding-left:
+            6px;
+
+        padding-right:
+            6px;
+
+        font-size:
+            9px;
+
+        letter-spacing:
+            .06em;
+    }
+}
