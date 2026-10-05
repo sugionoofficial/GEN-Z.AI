@@ -7,6 +7,8 @@
    Fungsi:
    - Vision Analysis system prompt
    - Vision Analysis user prompt
+   - Reference / Character outfit source
+   - Multimodal reference + character analysis
    - JSON extraction
    - Quality validation
    - Analyze image
@@ -15,22 +17,318 @@
 
 
 /* =========================================================
+   OUTFIT SOURCE
+========================================================= */
+
+function normalizeAnalysisOutfitSource(
+    value
+) {
+
+    const normalized =
+        String(
+            value ||
+            "reference"
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        normalized ===
+        "character"
+    ) {
+
+        return "character";
+
+    }
+
+
+    return "reference";
+
+}
+
+
+/* =========================================================
+   GET OUTFIT SOURCE
+========================================================= */
+
+function getAnalysisOutfitSource(
+    state,
+    settings = {}
+) {
+
+    /*
+     * State getter menjadi sumber utama.
+     */
+
+    if (
+        state &&
+        typeof state.getOutfitSource ===
+            "function"
+    ) {
+
+        return normalizeAnalysisOutfitSource(
+            state.getOutfitSource()
+        );
+
+    }
+
+
+    /*
+     * Fallback ke settings.
+     */
+
+    return normalizeAnalysisOutfitSource(
+        settings?.outfitSource
+    );
+
+}
+
+
+/* =========================================================
+   GET REPLACEMENT CHARACTER
+========================================================= */
+
+function getAnalysisCharacterFile(
+    state
+) {
+
+    if (
+        state &&
+        typeof state.getReplacementCharacter ===
+            "function"
+    ) {
+
+        return state.getReplacementCharacter();
+
+    }
+
+
+    /*
+     * Compatibility fallback untuk state
+     * yang menyediakan get(key).
+     */
+
+    if (
+        state &&
+        typeof state.get ===
+            "function"
+    ) {
+
+        return state.get(
+            "replacementCharacter",
+            null
+        );
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   BUILD OUTFIT SOURCE RULES
+========================================================= */
+
+function buildAnalysisOutfitRules(
+    outfitSource
+) {
+
+    const normalized =
+        normalizeAnalysisOutfitSource(
+            outfitSource
+        );
+
+
+    if (
+        normalized ===
+        "character"
+    ) {
+
+        return `
+=========================================================
+OUTFIT SOURCE: REPLACEMENT CHARACTER
+=========================================================
+
+Two images may be attached:
+
+IMAGE 1 = REFERENCE IMAGE
+IMAGE 2 = REPLACEMENT CHARACTER
+
+IMAGE 2 is the authoritative source for:
+
+- final clothing
+- outfit design
+- garment type
+- garment colors
+- garment materials
+- garment patterns
+- garment textures
+- garment construction
+- clothing accessories
+- outfit-specific details
+
+IMAGE 1 MUST NOT contribute clothing or outfit details.
+
+Use IMAGE 1 for:
+
+- composition
+- pose
+- body positioning
+- scene structure
+- environment
+- background
+- product placement
+- camera perspective
+- framing
+- lighting
+- shadows
+- spatial relationships
+
+Use IMAGE 2 for:
+
+- character identity
+- face
+- hair
+- visible body characteristics
+- final clothing
+- final outfit
+
+IMPORTANT:
+
+Do NOT mix clothing between IMAGE 1 and IMAGE 2.
+
+Do NOT transfer the reference image's:
+
+- shirt
+- blouse
+- jacket
+- dress
+- pants
+- skirt
+- shoes
+- clothing colors
+- clothing patterns
+- clothing textures
+- clothing accessories
+
+into the final outfit when IMAGE 2 is the selected outfit source.
+
+If a clothing detail is visible only in IMAGE 1,
+do NOT report it as the replacement character's final outfit.
+
+The replacement character's outfit must be derived
+from IMAGE 2.
+
+=========================================================
+`.trim();
+
+    }
+
+
+    return `
+=========================================================
+OUTFIT SOURCE: REFERENCE IMAGE
+=========================================================
+
+IMAGE 1 = REFERENCE IMAGE
+
+IMAGE 1 is the authoritative source for:
+
+- final clothing
+- outfit design
+- garment type
+- garment colors
+- garment materials
+- garment patterns
+- garment textures
+- garment construction
+- clothing accessories
+- outfit-specific details
+
+If IMAGE 2 is attached, IMAGE 2 is the
+REPLACEMENT CHARACTER image.
+
+IMAGE 2 may be used for:
+
+- character identity
+- face
+- hair
+- visible body characteristics
+
+IMAGE 2 MUST NOT contribute clothing or outfit details.
+
+IMPORTANT:
+
+Do NOT mix clothing between IMAGE 1 and IMAGE 2.
+
+Do NOT transfer the replacement character's:
+
+- shirt
+- blouse
+- jacket
+- dress
+- pants
+- skirt
+- shoes
+- clothing colors
+- clothing patterns
+- clothing textures
+- clothing accessories
+
+into the final outfit when IMAGE 1 is the selected outfit source.
+
+The final outfit must be derived from IMAGE 1.
+
+=========================================================
+`.trim();
+
+}
+
+
+/* =========================================================
    ANALYSIS SYSTEM PROMPT
 ========================================================= */
 
-function buildAnalysisSystemPrompt() {
+function buildAnalysisSystemPrompt(
+    settings = {}
+) {
+
+    const outfitSource =
+        normalizeAnalysisOutfitSource(
+            settings?.outfitSource
+        );
+
+
+    const outfitRules =
+        buildAnalysisOutfitRules(
+            outfitSource
+        );
+
 
     return `
 You are the visual analysis engine of GEN-Z.AI Vision.
 
-Your task is to analyze the supplied reference image with
+Your task is to analyze the supplied image source(s) with
 extremely high visual accuracy and completeness.
-
-The attached image is the primary source of truth.
 
 Do NOT generate a creative prompt yet.
 
 Extract observable visual information into structured JSON.
+
+${outfitRules}
+
+IMAGE SOURCE RULES:
+
+- Inspect every attached image carefully.
+- IMAGE 1 is always the main reference image.
+- If IMAGE 2 is attached, it is the replacement character image.
+- Never confuse IMAGE 1 and IMAGE 2.
+- Never invent information that is not visibly present.
+- Never assume that clothing from one image belongs to another image.
+- Follow the selected OUTFIT SOURCE rule exactly.
 
 Analyze:
 
@@ -60,8 +358,8 @@ Analyze:
 
 Rules:
 
-- Inspect the actual attached image.
-- The attached image MUST be used as the visual source.
+- Inspect the actual attached image source(s).
+- The actual image content MUST be used as the visual source.
 - Describe observable details specifically.
 - Extract concrete colors, shapes, textures, patterns,
   positions and spatial relationships.
@@ -81,6 +379,17 @@ Rules:
 - Never claim a person's real-world identity.
 
 IMPORTANT:
+
+The "clothing" category MUST follow the selected
+OUTFIT SOURCE.
+
+When OUTFIT SOURCE is REFERENCE IMAGE:
+- clothing must come from IMAGE 1.
+
+When OUTFIT SOURCE is REPLACEMENT CHARACTER:
+- clothing must come from IMAGE 2.
+
+Do not merge clothing information from both images.
 
 The returned JSON MUST contain actual observable information.
 
@@ -173,10 +482,56 @@ function buildAnalysisUserPrompt(
         "";
 
 
-    return `
-Analyze this reference image for GEN-Z.AI Vision.
+    const outfitSource =
+        normalizeAnalysisOutfitSource(
+            settings?.outfitSource
+        );
 
-The attached image is the primary source of truth.
+
+    const outfitLabel =
+        outfitSource === "character"
+
+            ? "Replacement Character Outfit"
+
+            : "Reference Image Outfit";
+
+
+    const outfitInstructions =
+        outfitSource === "character"
+
+            ? `
+OUTFIT SOURCE SELECTED:
+Replacement Character Outfit.
+
+IMAGE 2 is the authoritative source for
+the final clothing and outfit.
+
+Do NOT use clothing from IMAGE 1.
+`
+
+            : `
+OUTFIT SOURCE SELECTED:
+Reference Image Outfit.
+
+IMAGE 1 is the authoritative source for
+the final clothing and outfit.
+
+Do NOT use clothing from IMAGE 2.
+`;
+
+
+    return `
+Analyze the supplied image source(s) for GEN-Z.AI Vision.
+
+IMAGE 1 is the main reference image.
+
+If IMAGE 2 is attached, IMAGE 2 is the replacement
+character image.
+
+Selected outfit source:
+${outfitLabel}
+
+${outfitInstructions}
 
 Analysis detail level:
 ${detail}
@@ -187,8 +542,8 @@ ${purpose}
 Additional user instruction:
 ${instruction || "None"}
 
-Inspect the actual attached image carefully before producing
-the result.
+Inspect the actual attached image source(s) carefully
+before producing the result.
 
 For a person, inspect:
 
@@ -210,6 +565,19 @@ For a person, inspect:
 - patterns
 - folds
 - accessories
+
+IMPORTANT CLOTHING RULE:
+
+Only describe final outfit details from the selected
+OUTFIT SOURCE.
+
+If the selected source is REFERENCE IMAGE:
+- clothing comes from IMAGE 1
+- IMAGE 2 must not contribute clothing
+
+If the selected source is REPLACEMENT CHARACTER:
+- clothing comes from IMAGE 2
+- IMAGE 1 must not contribute clothing
 
 For products, inspect:
 
@@ -1629,8 +1997,15 @@ function buildAnalysisRequest(
 function buildRetryMessages(
     settings,
     models,
-    file
+    file,
+    characterFile = null
 ) {
+
+    const outfitSource =
+        normalizeAnalysisOutfitSource(
+            settings?.outfitSource
+        );
+
 
     const retryInstruction = `
 =========================================================
@@ -1640,7 +2015,17 @@ RETRY: COMPLETE JSON REQUIRED
 The previous Vision Analysis response was incomplete or
 could not be parsed as a complete structured JSON object.
 
-Analyze the SAME reference image again.
+Analyze the SAME image source configuration again.
+
+The image source configuration is:
+
+IMAGE 1 = REFERENCE IMAGE
+IMAGE 2 = REPLACEMENT CHARACTER when provided
+
+OUTFIT SOURCE =
+${outfitSource === "character"
+    ? "REPLACEMENT CHARACTER"
+    : "REFERENCE IMAGE"}
 
 Prioritize:
 
@@ -1649,6 +2034,7 @@ Prioritize:
 3. All applicable analysis categories.
 4. Properly closed objects and arrays.
 5. Complete strings.
+6. Correct outfit-source separation.
 
 NEVER stop in the middle of a property name.
 
@@ -1656,12 +2042,24 @@ NEVER stop in the middle of a string.
 
 NEVER stop before the final closing braces.
 
+NEVER mix clothing between the selected outfit source
+and the non-selected image.
+
 Do not summarize.
 
 Do not explain.
 
 Return ONLY the complete JSON object.
 `.trim();
+
+
+    const retrySettings = {
+
+        ...(settings || {}),
+
+        outfitSource
+
+    };
 
 
     return [
@@ -1672,7 +2070,9 @@ Return ONLY the complete JSON object.
                 "system",
 
             content:
-                buildAnalysisSystemPrompt()
+                buildAnalysisSystemPrompt(
+                    retrySettings
+                )
 
         },
 
@@ -1682,15 +2082,29 @@ Return ONLY the complete JSON object.
                 "user",
 
             content:
-                models.buildImageMessage(
+                models.buildVisionImageMessage(
 
                     `${buildAnalysisUserPrompt(
-                        settings
+                        retrySettings
                     )}
 
 ${retryInstruction}`,
 
-                    file.dataUrl
+                    {
+
+                        referenceImage:
+                            file?.dataUrl ||
+
+                            null,
+
+                        characterImage:
+                            characterFile?.dataUrl ||
+
+                            null,
+
+                        outfitSource
+
+                    }
 
                 )
 
@@ -1752,6 +2166,88 @@ async function analyzeImage(
     }
 
 
+    /* =====================================================
+       REPLACEMENT CHARACTER
+    ===================================================== */
+
+    const characterFile =
+        getAnalysisCharacterFile(
+            state
+        );
+
+
+    /* =====================================================
+       OUTFIT SOURCE
+    ===================================================== */
+
+    const requestedOutfitSource =
+        (
+            typeof state.getOutfitSource ===
+                "function"
+
+                ? state.getOutfitSource()
+
+                : (
+                    options?.outfitSource ||
+
+                    options?.settings?.outfitSource ||
+
+                    "reference"
+                )
+        );
+
+
+    const normalizedOutfitSource =
+        normalizeAnalysisOutfitSource(
+            requestedOutfitSource
+        );
+
+
+    /* =====================================================
+       CHARACTER REQUIREMENT
+    ===================================================== */
+
+    if (
+        normalizedOutfitSource ===
+            "character" &&
+        !characterFile?.dataUrl
+    ) {
+
+        throw core.createAPIError(
+
+            "Replacement character diperlukan ketika Outfit Source menggunakan Replacement Character Outfit.",
+
+            {
+
+                code:
+                    "REPLACEMENT_CHARACTER_REQUIRED",
+
+                data: {
+
+                    outfitSource:
+                        normalizedOutfitSource,
+
+                    hasReferenceImage:
+                        Boolean(
+                            file?.dataUrl
+                        ),
+
+                    hasReplacementCharacter:
+                        false
+
+                }
+
+            }
+
+        );
+
+    }
+
+
+    /* =====================================================
+       REQUESTED MODEL
+    ===================================================== */
+
     const requestedModel =
         options.model ||
         models.getSelectedModel();
@@ -1764,13 +2260,55 @@ async function analyzeImage(
         );
 
 
-    const settings =
-        options.settings ||
-        state.get(
-            "settings",
+    /* =====================================================
+       SETTINGS
+    ===================================================== */
+
+    const settings = {
+
+        ...(
+            options.settings ||
+            state.get(
+                "settings",
+                {}
+            ) ||
             {}
+        ),
+
+        outfitSource:
+            normalizedOutfitSource
+
+    };
+
+
+    /* =====================================================
+       IMAGE CONFIGURATION
+    ===================================================== */
+
+    const hasReferenceImage =
+        Boolean(
+            file?.dataUrl
         );
 
+
+    const hasReplacementCharacter =
+        Boolean(
+            characterFile?.dataUrl
+        );
+
+
+    const imageCount =
+        normalizedOutfitSource ===
+            "character"
+
+            ? 2
+
+            : 1;
+
+
+    /* =====================================================
+       INITIAL MULTIMODAL MESSAGE
+    ===================================================== */
 
     const initialMessages = [
 
@@ -1780,7 +2318,9 @@ async function analyzeImage(
                 "system",
 
             content:
-                buildAnalysisSystemPrompt()
+                buildAnalysisSystemPrompt(
+                    settings
+                )
 
         },
 
@@ -1790,13 +2330,29 @@ async function analyzeImage(
                 "user",
 
             content:
-                models.buildImageMessage(
+                models.buildVisionImageMessage(
 
                     buildAnalysisUserPrompt(
                         settings
                     ),
 
-                    file.dataUrl
+                    {
+
+                        referenceImage:
+                            file.dataUrl,
+
+                        characterImage:
+                            normalizedOutfitSource ===
+                                "character"
+
+                                ? characterFile.dataUrl
+
+                                : null,
+
+                        outfitSource:
+                            normalizedOutfitSource
+
+                    }
 
                 )
 
@@ -1847,7 +2403,16 @@ async function analyzeImage(
 
             analysisMaxTokens,
 
-            maxAttempts
+            maxAttempts,
+
+            outfitSource:
+                normalizedOutfitSource,
+
+            hasReferenceImage,
+
+            hasReplacementCharacter,
+
+            imageCount
 
         }
     );
@@ -1875,11 +2440,19 @@ async function analyzeImage(
 
         const messages =
             attempt === 1
+
                 ? initialMessages
+
                 : buildRetryMessages(
+
                     settings,
+
                     models,
-                    file
+
+                    file,
+
+                    characterFile
+
                 );
 
 
@@ -1892,7 +2465,12 @@ async function analyzeImage(
                 maxAttempts,
 
                 model:
-                    model.id
+                    model.id,
+
+                outfitSource:
+                    normalizedOutfitSource,
+
+                imageCount
 
             }
         );
@@ -1910,10 +2488,7 @@ async function analyzeImage(
                 messageCount:
                     messages.length,
 
-                hasReferenceImage:
-                    Boolean(
-                        file.dataUrl
-                    ),
+                hasReferenceImage,
 
                 referenceMimeType:
                     file?.mimeType ||
@@ -1922,9 +2497,27 @@ async function analyzeImage(
 
                 referenceDataLength:
                     String(
-                        file.dataUrl ||
+                        file?.dataUrl ||
                         ""
                     ).length,
+
+                hasReplacementCharacter,
+
+                replacementCharacterMimeType:
+                    characterFile?.mimeType ||
+                    characterFile?.type ||
+                    null,
+
+                replacementCharacterDataLength:
+                    String(
+                        characterFile?.dataUrl ||
+                        ""
+                    ).length,
+
+                outfitSource:
+                    normalizedOutfitSource,
+
+                imageCount,
 
                 configuredMaxTokens,
 
@@ -2101,6 +2694,11 @@ async function analyzeImage(
 
                     attempt,
 
+                    outfitSource:
+                        normalizedOutfitSource,
+
+                    imageCount,
+
                     error
 
                 }
@@ -2150,6 +2748,15 @@ async function analyzeImage(
             attempts:
                 maxAttempts,
 
+            outfitSource:
+                normalizedOutfitSource,
+
+            imageCount,
+
+            hasReferenceImage,
+
+            hasReplacementCharacter,
+
             lastQuality,
 
             lastTextLength:
@@ -2182,7 +2789,16 @@ async function analyzeImage(
                     maxAttempts,
 
                 response:
-                    lastResponse
+                    lastResponse,
+
+                outfitSource:
+                    normalizedOutfitSource,
+
+                hasReferenceImage,
+
+                hasReplacementCharacter,
+
+                imageCount
 
             }
 
