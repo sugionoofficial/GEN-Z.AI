@@ -673,6 +673,59 @@ function extractPrompt(
 
 
 /* =========================================================
+   NORMALIZE PROMPT
+   ---------------------------------------------------------
+   Compatibility API untuk vision-events.js.
+
+   Fungsi:
+   - Menerima string prompt
+   - Menerima response object
+   - Mengambil text prompt jika response berupa object
+   - Membersihkan markdown/code fence
+   - Menghapus wrapper/explanation
+   - Mengembalikan prompt final sebagai string
+
+   Tidak melakukan:
+   - API request
+   - Credit
+   - History
+========================================================= */
+
+function normalizePrompt(
+    response
+) {
+
+    /*
+     * Jika response berupa object,
+     * gunakan extractor yang sudah tersedia.
+     */
+
+    if (
+        response !== null &&
+        response !== undefined &&
+        typeof response === "object"
+    ) {
+
+        return extractPrompt(
+            response
+        );
+
+    }
+
+
+    /*
+     * Jika response berupa string,
+     * langsung gunakan cleanPrompt().
+     */
+
+    return cleanPrompt(
+        response
+    );
+
+}
+
+
+/* =========================================================
    STORE PROMPT
 ========================================================= */
 
@@ -1089,6 +1142,8 @@ const GENZVisionPrompt =
             VISION_PROMPT_CONFIG,
 
         cleanPrompt,
+
+        normalizePrompt,
 
         validatePrompt,
 
