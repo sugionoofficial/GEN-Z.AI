@@ -10,6 +10,7 @@
    - JSON extraction
    - Quality validation
    - Analyze image
+   - Retry jika output terpotong / tidak lengkap
 ========================================================= */
 
 
@@ -119,6 +120,39 @@ or:
 
 But all categories that are visibly applicable MUST contain
 concrete observations.
+
+IMPORTANT OUTPUT COMPLETENESS RULE:
+
+The JSON object MUST be completely closed before you finish.
+
+Do NOT stop in the middle of a property name.
+
+Do NOT stop in the middle of a string.
+
+Do NOT stop before the final closing braces and brackets.
+
+The following fields MUST appear in the final JSON:
+
+subject
+appearance
+face_hair
+pose
+clothing
+accessories
+product
+composition
+camera
+lighting
+shadows
+environment
+background
+color_palette
+visual_style
+text_branding
+image_quality
+important_details
+spatial_relationships
+uncertainties
 
 Return valid JSON only.
 
@@ -273,6 +307,16 @@ Every visibly applicable category should contain
 specific observations.
 
 Do NOT return an empty JSON schema.
+
+CRITICAL:
+
+Complete the ENTIRE JSON object.
+
+Do not stop before all required categories are present.
+
+Do not truncate a property name or string.
+
+The response is invalid if the JSON is incomplete.
 
 Return ONLY valid JSON.
 
@@ -697,9 +741,7 @@ function extractAnalysisJSON(
         }
 
     }
-    catch (
-        error
-    ) {
+    catch {
 
         /* Continue */
 
@@ -748,9 +790,7 @@ function extractAnalysisJSON(
             }
 
         }
-        catch (
-            error
-        ) {
+        catch {
 
             /* Continue */
 
@@ -801,9 +841,7 @@ function extractAnalysisJSON(
             }
 
         }
-        catch (
-            error
-        ) {
+        catch {
 
             /* Continue */
 
@@ -854,9 +892,7 @@ function extractAnalysisJSON(
             }
 
         }
-        catch (
-            error
-        ) {
+        catch {
 
             /* Continue */
 
@@ -1120,6 +1156,125 @@ function countAnalysisFacts(
 
 
 /* =========================================================
+   REQUIRED ANALYSIS CATEGORIES
+========================================================= */
+
+const REQUIRED_ANALYSIS_CATEGORIES =
+    Object.freeze([
+
+        "subject",
+        "appearance",
+        "face_hair",
+        "pose",
+        "clothing",
+        "accessories",
+        "product",
+        "composition",
+        "camera",
+        "lighting",
+        "shadows",
+        "environment",
+        "background",
+        "color_palette",
+        "visual_style",
+        "text_branding",
+        "image_quality",
+        "important_details",
+        "spatial_relationships",
+        "uncertainties"
+
+    ]);
+
+
+/* =========================================================
+   COUNT POPULATED CATEGORIES
+========================================================= */
+
+function countPopulatedAnalysisCategories(
+    analysis
+) {
+
+    if (
+        !analysis ||
+        typeof analysis !== "object" ||
+        Array.isArray(analysis)
+    ) {
+
+        return 0;
+
+    }
+
+
+    return REQUIRED_ANALYSIS_CATEGORIES
+        .reduce(
+            (
+                total,
+                key
+            ) => {
+
+                if (
+                    !Object.prototype.hasOwnProperty.call(
+                        analysis,
+                        key
+                    )
+                ) {
+
+                    return total;
+
+                }
+
+
+                const value =
+                    analysis[key];
+
+
+                if (
+                    value === null ||
+                    value === undefined
+                ) {
+
+                    return total;
+
+                }
+
+
+                if (
+                    typeof value === "object" &&
+                    !Array.isArray(value)
+                ) {
+
+                    if (
+                        value.present === false
+                    ) {
+
+                        return total;
+
+                    }
+
+                }
+
+
+                if (
+                    hasConcreteAnalysisValue(
+                        value
+                    )
+                ) {
+
+                    return total + 1;
+
+                }
+
+
+                return total;
+
+            },
+            0
+        );
+
+}
+
+
+/* =========================================================
    ANALYSIS QUALITY
 ========================================================= */
 
@@ -1152,6 +1307,9 @@ function validateAnalysisQuality(
                 0,
 
             factCount:
+                0,
+
+            populatedCategories:
                 0,
 
             parsed:
@@ -1211,6 +1369,9 @@ function validateAnalysisQuality(
             factCount:
                 0,
 
+            populatedCategories:
+                0,
+
             parsed:
                 null
 
@@ -1230,7 +1391,7 @@ function validateAnalysisQuality(
     if (
         minimumCharacters > 0 &&
         normalized.length <
-        minimumCharacters
+            minimumCharacters
     ) {
 
         return {
@@ -1248,6 +1409,9 @@ function validateAnalysisQuality(
                 normalized.length,
 
             factCount:
+                0,
+
+            populatedCategories:
                 0,
 
             parsed:
@@ -1285,6 +1449,9 @@ function validateAnalysisQuality(
             factCount:
                 0,
 
+            populatedCategories:
+                0,
+
             parsed:
                 null,
 
@@ -1300,6 +1467,42 @@ function validateAnalysisQuality(
         countAnalysisFacts(
             extraction.parsed
         );
+
+
+    const populatedCategories =
+        countPopulatedAnalysisCategories(
+            extraction.parsed
+        );
+
+
+    const topLevelKeys =
+        extraction.parsed &&
+        typeof extraction.parsed === "object" &&
+        !Array.isArray(extraction.parsed)
+            ? Object.keys(
+                extraction.parsed
+            )
+            : [];
+
+
+    console.debug(
+        "[GEN-Z.AI Vision] Analysis structure diagnostic:",
+        {
+
+            extractionMethod:
+                extraction.method,
+
+            topLevelKeyCount:
+                topLevelKeys.length,
+
+            topLevelKeys,
+
+            populatedCategories,
+
+            factCount
+
+        }
+    );
 
 
     if (
@@ -1322,6 +1525,8 @@ function validateAnalysisQuality(
 
             factCount:
                 0,
+
+            populatedCategories,
 
             parsed:
                 extraction.parsed,
@@ -1354,6 +1559,49 @@ function validateAnalysisQuality(
 
             factCount,
 
+            populatedCategories,
+
+            parsed:
+                extraction.parsed,
+
+            extractionMethod:
+                extraction.method
+
+        };
+
+    }
+
+
+    /*
+     * Untuk analysis dengan struktur lengkap,
+     * minimal beberapa kategori harus benar-benar terisi.
+     *
+     * Jangan mensyaratkan seluruh 20 kategori karena
+     * beberapa memang dapat legitimately berisi present:false.
+     */
+
+    if (
+        populatedCategories < 5
+    ) {
+
+        return {
+
+            valid:
+                false,
+
+            reason:
+                "Visual analysis belum memiliki cukup kategori visual yang terisi.",
+
+            code:
+                "ANALYSIS_INSUFFICIENT_CATEGORIES",
+
+            length:
+                normalized.length,
+
+            factCount,
+
+            populatedCategories,
+
             parsed:
                 extraction.parsed,
 
@@ -1381,11 +1629,46 @@ function validateAnalysisQuality(
 
         factCount,
 
+        populatedCategories,
+
         parsed:
             extraction.parsed,
 
         extractionMethod:
             extraction.method
+
+    };
+
+}
+
+
+/* =========================================================
+   BUILD ANALYSIS REQUEST
+========================================================= */
+
+function buildAnalysisRequest(
+    model,
+    messages,
+    maxTokens,
+    core
+) {
+
+    return {
+
+        model:
+            model.id,
+
+        messages,
+
+        temperature:
+            core.CONFIG
+                .analysisTemperature,
+
+        max_tokens:
+            maxTokens,
+
+        stream:
+            false
 
     };
 
@@ -1496,13 +1779,11 @@ async function analyzeImage(
     ];
 
 
-    /*
-     * Vision Analysis membutuhkan output JSON yang cukup besar.
-     *
-     * Jangan mengubah konfigurasi global.
-     * Gunakan nilai minimum khusus untuk analisis ini
-     * agar JSON tidak terpotong di tengah object.
-     */
+    /* -----------------------------------------------------
+       TOKEN BUDGET
+       -----------------------------------------------------
+       Vision JSON cukup besar. Gunakan minimum 8192.
+    ----------------------------------------------------- */
 
     const configuredMaxTokens =
         Number(
@@ -1514,182 +1795,523 @@ async function analyzeImage(
     const analysisMaxTokens =
         Math.max(
             configuredMaxTokens,
-            4096
+            8192
         );
 
 
-    console.info(
-        "[GEN-Z.AI Vision] Sending visual-analysis request:",
-        {
-
-            model:
-                model.id,
-
-            messageCount:
-                messages.length,
-
-            hasReferenceImage:
-                Boolean(
-                    file.dataUrl
+    const maxAttempts =
+        Number(
+            options.analysisAttempts
+        ) > 0
+            ? Math.min(
+                Number(
+                    options.analysisAttempts
                 ),
+                3
+            )
+            : 2;
 
-            referenceMimeType:
-                file?.mimeType ||
-                file?.type ||
-                null,
 
-            referenceDataLength:
-                String(
-                    file.dataUrl ||
-                    ""
-                ).length,
+    console.info(
+        "[GEN-Z.AI Vision] Vision Analysis configuration:",
+        {
 
             configuredMaxTokens,
 
-            analysisMaxTokens
+            analysisMaxTokens,
+
+            maxAttempts,
+
+            model:
+                model.id
 
         }
     );
 
 
-    const response =
-        await core.request(
+    let lastResponse =
+        null;
 
+
+    let lastText =
+        "";
+
+
+    let lastQuality =
+        null;
+
+
+    for (
+        let attempt = 1;
+
+        attempt <= maxAttempts;
+
+        attempt++
+    ) {
+
+        console.info(
+            "[GEN-Z.AI Vision] Starting visual-analysis attempt:",
             {
+
+                attempt,
+
+                maxAttempts,
+
+                model:
+                    model.id
+
+            }
+        );
+
+
+        let requestMessages =
+            messages;
+
+
+        /*
+         * Pada retry, berikan instruksi khusus agar model
+         * menyelesaikan JSON sampai penutup terakhir.
+         */
+
+        if (
+            attempt > 1
+        ) {
+
+            requestMessages = [
+
+                {
+
+                    role:
+                        "system",
+
+                    content:
+                        buildAnalysisSystemPrompt()
+
+                },
+
+                {
+
+                    role:
+                        "user",
+
+                    content:
+                        `${buildAnalysisUserPrompt(
+                            settings
+                        )}
+
+=========================================================
+RETRY COMPLETENESS REQUIREMENT
+=========================================================
+
+Percobaan sebelumnya menghasilkan output yang tidak dapat
+digunakan sebagai JSON lengkap.
+
+Ulangi analisis dari reference image.
+
+Kali ini prioritaskan:
+
+1. JSON VALID
+2. SEMUA KATEGORI TERISI SESUAI VISIBILITAS
+3. SEMUA STRING HARUS SELESAI
+4. OBJECT DAN ARRAY HARUS DITUTUP
+5. JSON HARUS BERAKHIR DENGAN PENUTUP YANG VALID
+
+Jangan berhenti di tengah property.
+
+Jangan berhenti di tengah kalimat.
+
+Jangan menghasilkan Markdown.
+
+Return ONLY the complete JSON object.
+`.trim(),
+
+                    content:
+                        models.buildImageMessage(
+
+                            `${buildAnalysisUserPrompt(
+                                settings
+                            )}
+
+=========================================================
+RETRY COMPLETENESS REQUIREMENT
+=========================================================
+
+Percobaan sebelumnya menghasilkan output yang tidak dapat
+digunakan sebagai JSON lengkap.
+
+Ulangi analisis dari reference image.
+
+Prioritaskan JSON VALID dan LENGKAP.
+
+Semua object dan array harus ditutup.
+
+Jangan berhenti di tengah property atau string.
+
+Return ONLY the complete JSON object.
+`.trim(),
+
+                    image:
+                        undefined
+
+                }
+
+            ];
+
+            /*
+             * Jangan menggunakan struktur retry di atas.
+             * Rebuild message dengan format yang sama seperti
+             * provider image-message sebelumnya.
+             */
+
+            requestMessages = [
+
+                {
+
+                    role:
+                        "system",
+
+                    content:
+                        buildAnalysisSystemPrompt()
+
+                },
+
+                {
+
+                    role:
+                        "user",
+
+                    content:
+                        models.buildImageMessage(
+
+                            `${buildAnalysisUserPrompt(
+                                settings
+                            )}
+
+=========================================================
+RETRY COMPLETENESS REQUIREMENT
+=========================================================
+
+Percobaan sebelumnya menghasilkan output yang tidak dapat
+digunakan sebagai JSON lengkap.
+
+Ulangi analisis dari reference image.
+
+Prioritaskan JSON VALID dan LENGKAP.
+
+Semua object dan array harus ditutup.
+
+Jangan berhenti di tengah property atau string.
+
+Return ONLY the complete JSON object.
+`.trim(),
+
+                            file.dataUrl
+
+                        )
+
+                }
+
+            ];
+
+        }
+
+
+        console.info(
+            "[GEN-Z.AI Vision] Sending visual-analysis request:",
+            {
+
+                attempt,
 
                 model:
                     model.id,
 
-                messages,
+                messageCount:
+                    requestMessages.length,
 
-                temperature:
-                    core.CONFIG
-                        .analysisTemperature,
+                hasReferenceImage:
+                    Boolean(
+                        file.dataUrl
+                    ),
 
-                max_tokens:
-                    analysisMaxTokens,
+                referenceMimeType:
+                    file?.mimeType ||
+                    file?.type ||
+                    null,
 
-                stream:
-                    false
+                referenceDataLength:
+                    String(
+                        file.dataUrl ||
+                        ""
+                    ).length,
 
-            },
+                configuredMaxTokens,
 
-            {
-
-                timeout:
-                    options.timeout ||
-                    core.CONFIG.timeout
+                analysisMaxTokens
 
             }
-
         );
 
 
-    console.info(
-        "[GEN-Z.AI Vision] Visual-analysis response:",
-        responseAPI.sanitizeResponseForDebug(
-            response
-        )
-    );
+        try {
+
+            const response =
+                await core.request(
+
+                    buildAnalysisRequest(
+                        model,
+                        requestMessages,
+                        analysisMaxTokens,
+                        core
+                    ),
+
+                    {
+
+                        timeout:
+                            options.timeout ||
+                            core.CONFIG.timeout
+
+                    }
+
+                );
 
 
-    const text =
-        responseAPI.extractAssistantText(
-            response
-        );
+            lastResponse =
+                response;
 
 
-    console.info(
-        "[GEN-Z.AI Vision] Visual-analysis raw text:",
-        text
-    );
-
-
-    if (
-        !text
-    ) {
-
-        throw core.createAPIError(
-
-            "Vision model tidak mengembalikan hasil analisis.",
-
-            {
-
-                code:
-                    "EMPTY_ANALYSIS_RESPONSE",
-
-                data:
+            console.info(
+                "[GEN-Z.AI Vision] Visual-analysis response:",
+                responseAPI.sanitizeResponseForDebug(
                     response
+                )
+            );
+
+
+            const text =
+                responseAPI.extractAssistantText(
+                    response
+                );
+
+
+            lastText =
+                text ||
+                "";
+
+
+            console.info(
+                "[GEN-Z.AI Vision] Visual-analysis raw text:",
+                lastText
+            );
+
+
+            if (
+                !lastText
+            ) {
+
+                lastQuality = {
+
+                    valid:
+                        false,
+
+                    reason:
+                        "Vision model tidak mengembalikan hasil analisis.",
+
+                    code:
+                        "EMPTY_ANALYSIS_RESPONSE",
+
+                    length:
+                        0,
+
+                    factCount:
+                        0,
+
+                    populatedCategories:
+                        0,
+
+                    parsed:
+                        null
+
+                };
+
+            }
+            else {
+
+                lastQuality =
+                    validateAnalysisQuality(
+                        lastText
+                    );
 
             }
 
-        );
 
-    }
+            console.info(
+                "[GEN-Z.AI Vision] Visual-analysis quality:",
+                {
 
+                    attempt,
 
-    const quality =
-        validateAnalysisQuality(
-            text
-        );
+                    valid:
+                        lastQuality.valid,
 
+                    reason:
+                        lastQuality.reason,
 
-    console.info(
-        "[GEN-Z.AI Vision] Visual-analysis quality:",
-        quality
-    );
+                    code:
+                        lastQuality.code,
 
+                    length:
+                        lastQuality.length,
 
-    if (
-        !quality.valid
-    ) {
+                    factCount:
+                        lastQuality.factCount,
 
-        throw core.createAPIError(
+                    populatedCategories:
+                        lastQuality.populatedCategories,
 
-            quality.reason ||
-            "Visual analysis belum cukup untuk membuat prompt.",
-
-            {
-
-                code:
-                    quality.code ||
-                    "INVALID_ANALYSIS",
-
-                data: {
-
-                    analysis:
-                        text,
-
-                    quality
+                    extractionMethod:
+                        lastQuality.extractionMethod
 
                 }
+            );
+
+
+            if (
+                lastQuality.valid
+            ) {
+
+                console.info(
+                    "[GEN-Z.AI Vision] Visual-analysis concrete fact count:",
+                    lastQuality.factCount
+                );
+
+
+                console.info(
+                    "[GEN-Z.AI Vision] Visual-analysis populated categories:",
+                    lastQuality.populatedCategories
+                );
+
+
+                return {
+
+                    text:
+                        lastText,
+
+                    analysis:
+                        lastQuality.parsed,
+
+                    raw:
+                        lastResponse,
+
+                    model
+
+                };
 
             }
 
-        );
+        }
+        catch (
+            error
+        ) {
+
+            console.error(
+                "[GEN-Z.AI Vision] Visual-analysis attempt failed:",
+                {
+
+                    attempt,
+
+                    error
+
+                }
+            );
+
+
+            /*
+             * Simpan error terakhir agar dapat dilempar
+             * setelah seluruh retry selesai.
+             */
+
+            lastQuality = {
+
+                valid:
+                    false,
+
+                reason:
+                    error?.message ||
+                    "Vision analysis request failed.",
+
+                code:
+                    error?.code ||
+                    "ANALYSIS_REQUEST_FAILED",
+
+                length:
+                    lastText.length,
+
+                factCount:
+                    0,
+
+                populatedCategories:
+                    0,
+
+                parsed:
+                    null
+
+            };
+
+        }
 
     }
 
 
-    console.info(
-        "[GEN-Z.AI Vision] Visual-analysis concrete fact count:",
-        quality.factCount
+    /* =====================================================
+       ALL ATTEMPTS FAILED
+    ===================================================== */
+
+    console.error(
+        "[GEN-Z.AI Vision] Visual analysis failed after all attempts:",
+        {
+
+            attempts:
+                maxAttempts,
+
+            lastQuality,
+
+            lastTextLength:
+                lastText.length
+
+        }
     );
 
 
-    return {
+    throw core.createAPIError(
 
-        text,
+        lastQuality?.reason ||
+        "Visual analysis belum cukup untuk membuat prompt.",
 
-        analysis:
-            quality.parsed,
+        {
 
-        raw:
-            response,
+            code:
+                lastQuality?.code ||
+                "INVALID_ANALYSIS",
 
-        model
+            data: {
 
-    };
+                analysis:
+                    lastText,
+
+                quality:
+                    lastQuality,
+
+                attempts:
+                    maxAttempts,
+
+                response:
+                    lastResponse
+
+            }
+
+        }
+
+    );
 
 }
 
@@ -1710,6 +2332,8 @@ const GENZVisionAnalysisAPI =
         hasConcreteAnalysisValue,
 
         countAnalysisFacts,
+
+        countPopulatedAnalysisCategories,
 
         validateAnalysisQuality,
 
