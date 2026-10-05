@@ -1,2315 +1,1328 @@
-//vision-events.js?v=1.1
-/* =========================================================
-   GEN-Z.AI VISION
-   ---------------------------------------------------------
-   File:
-   vision/assets/js/vision-events.js
+// =========================================================
+// GEN-Z.AI
+// VISION ENGINE
+// ---------------------------------------------------------
+// File:
+// vision/assets/js/vision-events.js
+//
+// Fungsi:
+// - Bind seluruh event Vision
+// - Upload image
+// - Drag & drop
+// - Form settings
+// - Generate Vision
+// - Copy prompt
+// - Remove image
+// - Tidak mengubah logic API / credit / history
+// =========================================================
 
-   Fungsi:
-   - Menghubungkan event UI Vision
-   - Menjalankan pipeline Vision
-   - Check credit
-   - Deduct 1 credit
-   - Analyze image
-   - Generate final prompt
-   - Save history
-   - Refund credit jika proses gagal
-   - Copy prompt
-   - Reset process
-   - Menangani koneksi UI upload
-   - Tidak menangani detail API
-   - Tidak menangani upload processing
-   - Tidak menangani rendering CSS
-========================================================= */
+(function () {
+
+    "use strict";
 
 
-/* =========================================================
-   CONFIG
-========================================================= */
+    // =====================================================
+    // CONSTANT
+    // =====================================================
 
-const VISION_EVENTS_CONFIG =
-    Object.freeze({
-
-        CREDIT_COST:
-            1,
-
-        DEFAULT_MODEL:
-            "gemini-3.1-pro",
-
-        DEFAULT_DETAIL:
-            "ultra",
-
-        DEFAULT_PURPOSE:
-            "image-generation"
-
-    });
+    const CREDIT_COST = 1;
 
 
-/* =========================================================
-   INTERNAL INITIALIZATION LOCK
-   ---------------------------------------------------------
-   Mencegah event listener terpasang dua kali jika loader
-   menjalankan initialize() lebih dari satu kali.
-========================================================= */
+    // =====================================================
+    // MODULE GETTERS
+    // =====================================================
 
-let visionEventsInitialized =
-    false;
+    function getState() {
 
+        if (!window.GENZVisionState) {
+            throw new Error(
+                "GENZVisionState belum tersedia."
+            );
+        }
 
-/* =========================================================
-   MODULE ACCESS
-========================================================= */
-
-function getModule(
-    name
-) {
-
-    const module =
-        window[name];
-
-
-    if (
-        !module
-    ) {
-
-        throw new Error(
-            `${name} belum tersedia.`
-        );
-
+        return window.GENZVisionState;
     }
 
 
-    return module;
-
-}
-
-
-/* =========================================================
-   MODULES
-========================================================= */
-
-function getState() {
-
-    return getModule(
-        "GENZVisionState"
-    );
-
-}
-
-
-function getDOM() {
-
-    return getModule(
-        "GENZVisionDOM"
-    );
-
-}
-
-
-function getUI() {
-
-    return getModule(
-        "GENZVisionUI"
-    );
-
-}
-
-
-function getUpload() {
-
-    return getModule(
-        "GENZVisionUpload"
-    );
-
-}
-
-
-function getPreview() {
-
-    return getModule(
-        "GENZVisionPreview"
-    );
-
-}
-
-
-function getAPI() {
-
-    return getModule(
-        "GENZVisionAPI"
-    );
-
-}
-
-
-function getCredit() {
-
-    return getModule(
-        "GENZVisionCredit"
-    );
-
-}
-
-
-function getAnalysis() {
-
-    return getModule(
-        "GENZVisionAnalysis"
-    );
-
-}
-
-
-function getPrompt() {
-
-    return getModule(
-        "GENZVisionPrompt"
-    );
-
-}
-
-
-function getHistory() {
-
-    return getModule(
-        "GENZVisionHistory"
-    );
-
-}
-
-
-/* =========================================================
-   DOM HELPER
-========================================================= */
-
-function element(
-    name
-) {
-
-    const dom =
-        getDOM();
-
-
-    return dom[name] ||
-        null;
-
-}
-
-
-/* =========================================================
-   READ FORM
-========================================================= */
-
-function readForm() {
-
-    const model =
-        element(
-            "model"
-        );
-
-
-    const detail =
-        element(
-            "detail"
-        );
-
-
-    const purpose =
-        element(
-            "purpose"
-        );
-
-
-    const instruction =
-        element(
-            "instruction"
-        );
-
-
-    const modelId =
-        model?.value ||
-        VISION_EVENTS_CONFIG
-            .DEFAULT_MODEL;
-
-
-    const detailValue =
-        detail?.value ||
-        VISION_EVENTS_CONFIG
-            .DEFAULT_DETAIL;
-
-
-    const purposeValue =
-        purpose?.value ||
-        VISION_EVENTS_CONFIG
-            .DEFAULT_PURPOSE;
-
-
-    const instructionValue =
-        instruction?.value ||
-        "";
-
-
-    return {
-
-        model:
-            modelId,
-
-        detail:
-            detailValue,
-
-        purpose:
-            purposeValue,
-
-        instruction:
-            instructionValue.trim()
-
-    };
-
-}
-
-
-/* =========================================================
-   MODEL INFORMATION
-========================================================= */
-
-function getModelName(
-    modelId
-) {
-
-    const names = {
-
-        "gemini-3.1-pro":
-            "Gemini 3.1 Pro",
-
-        "grok-4.6":
-            "Grok 4.6",
-
-        "qwen3-vl-max":
-            "Qwen3 VL Max"
-
-    };
-
-
-    return (
-        names[modelId] ||
-        modelId ||
-        "Vision Model"
-    );
-
-}
-
-
-/* =========================================================
-   UPDATE STATE SETTINGS
-========================================================= */
-
-function syncFormToState() {
-
-    const state =
-        getState();
-
-
-    const form =
-        readForm();
-
-
-    state.set(
-        "model.id",
-        form.model
-    );
-
-
-    state.set(
-        "model.name",
-        getModelName(
-            form.model
-        )
-    );
-
-
-    state.set(
-        "settings.detail",
-        form.detail
-    );
-
-
-    state.set(
-        "settings.purpose",
-        form.purpose
-    );
-
-
-    state.set(
-        "settings.instruction",
-        form.instruction
-    );
-
-
-    return form;
-
-}
-
-
-/* =========================================================
-   CHECK READY
-========================================================= */
-
-function validateReady() {
-
-    const state =
-        getState();
-
-
-    const file =
-        state.get(
-            "file.original",
-            null
-        );
-
-
-    if (
-        !file
-    ) {
-
-        return {
-
-            valid:
-                false,
-
-            message:
-                "Upload gambar terlebih dahulu."
-
-        };
-
+    function getDOM() {
+
+        if (!window.GENZVisionDOM) {
+            throw new Error(
+                "GENZVisionDOM belum tersedia."
+            );
+        }
+
+        return window.GENZVisionDOM.get();
     }
 
 
-    const dataUrl =
-        state.get(
-            "file.dataUrl",
-            ""
-        );
+    function getUpload() {
 
+        if (!window.GENZVisionUpload) {
+            throw new Error(
+                "GENZVisionUpload belum tersedia."
+            );
+        }
 
-    if (
-        !dataUrl
-    ) {
-
-        return {
-
-            valid:
-                false,
-
-            message:
-                "Data gambar belum siap diproses."
-
-        };
-
+        return window.GENZVisionUpload;
     }
 
 
-    const form =
-        readForm();
+    function getPreview() {
 
+        if (!window.GENZVisionPreview) {
+            throw new Error(
+                "GENZVisionPreview belum tersedia."
+            );
+        }
 
-    if (
-        !form.model
-    ) {
-
-        return {
-
-            valid:
-                false,
-
-            message:
-                "Model Vision belum dipilih."
-
-        };
-
+        return window.GENZVisionPreview;
     }
 
 
-    return {
+    function getUI() {
 
-        valid:
-            true,
+        if (!window.GENZVisionUI) {
+            throw new Error(
+                "GENZVisionUI belum tersedia."
+            );
+        }
 
-        form
-
-    };
-
-}
-
-
-/* =========================================================
-   GENERATE BUTTON LOCK
-========================================================= */
-
-function setGenerateLock(
-    locked
-) {
-
-    const button =
-        element(
-            "generateButton"
-        );
-
-
-    if (
-        !button
-    ) {
-
-        return;
-
+        return window.GENZVisionUI;
     }
 
 
-    button.disabled =
-        Boolean(
-            locked
-        );
-
-
-    button.setAttribute(
-        "aria-busy",
-        locked
-            ? "true"
-            : "false"
-    );
-
-}
-
-
-/* =========================================================
-   RESET PROCESS STATE
-========================================================= */
-
-function resetProcessState() {
-
-    const state =
-        getState();
-
-
-    const credit =
-        getCredit();
-
-
-    state.setProcessStatus(
-        "idle"
-    );
-
-
-    state.clearProcessError();
-
-
-    state.setProgress(
-        0
-    );
-
-
-    credit.resetOperationState();
-
-}
-
-
-/* =========================================================
-   RESET UI OUTPUT
-========================================================= */
-
-function resetUIOutput() {
-
-    const ui =
-        getUI();
-
-
-    ui.resetResult();
-
-
-    ui.resetAnalysis();
-
-
-    ui.resetPrompt();
-
-
-    ui.clearResultMessage();
-
-
-    ui.setCopyState(
-        false
-    );
-
-}
-
-
-/* =========================================================
-   RESET AFTER NEW IMAGE
-========================================================= */
-
-function resetAfterNewImage() {
-
-    const state =
-        getState();
-
-
-    /*
-     * Hasil Vision sebelumnya
-     * tidak boleh tetap tampil
-     * ketika gambar baru dipilih.
-     */
-
-    getAnalysis()
-        .clearAnalysis();
-
-
-    getPrompt()
-        .clearPrompt();
-
-
-    state.set(
-        "analysis.completed",
-        false
-    );
-
-
-    state.set(
-        "prompt.completed",
-        false
-    );
-
-
-    state.set(
-        "history.saved",
-        false
-    );
-
-
-    state.set(
-        "history.historyId",
-        null
-    );
-
-
-    resetProcessState();
-
-
-    resetUIOutput();
-
-}
-
-
-/* =========================================================
-   START PROCESS
-========================================================= */
-
-async function startVisionProcess() {
-
-    const state =
-        getState();
-
-
-    const ui =
-        getUI();
-
-
-    const validation =
-        validateReady();
-
-
-    if (
-        !validation.valid
-    ) {
-
-        ui.showError(
-            validation.message
-        );
-
-
-        return {
-
-            success:
-                false,
-
-            error:
-                validation.message
-
-        };
-
+    function getCredit() {
+
+        if (!window.GENZVisionCredit) {
+            throw new Error(
+                "GENZVisionCredit belum tersedia."
+            );
+        }
+
+        return window.GENZVisionCredit;
     }
 
 
-    if (
-        state.get(
-            "process.status",
-            "idle"
-        ) ===
-        "processing"
-    ) {
+    function getAPI() {
 
-        return {
+        if (!window.GENZVisionAPI) {
+            throw new Error(
+                "GENZVisionAPI belum tersedia."
+            );
+        }
 
-            success:
-                false,
-
-            error:
-                "Vision sedang diproses."
-
-        };
-
+        return window.GENZVisionAPI;
     }
 
 
-    syncFormToState();
+    function getAnalysis() {
+
+        if (!window.GENZVisionAnalysis) {
+            throw new Error(
+                "GENZVisionAnalysis belum tersedia."
+            );
+        }
+
+        return window.GENZVisionAnalysis;
+    }
 
 
-    const form =
-        validation.form;
+    function getPrompt() {
+
+        if (!window.GENZVisionPrompt) {
+            throw new Error(
+                "GENZVisionPrompt belum tersedia."
+            );
+        }
+
+        return window.GENZVisionPrompt;
+    }
 
 
-    let creditDeducted =
-        false;
+    function getHistory() {
+
+        if (!window.GENZVisionHistory) {
+            throw new Error(
+                "GENZVisionHistory belum tersedia."
+            );
+        }
+
+        return window.GENZVisionHistory;
+    }
 
 
-    try {
+    // =====================================================
+    // SAFE ERROR
+    // =====================================================
 
-        /*
-         * -------------------------------------------------
-         * RESET PROCESS
-         * -------------------------------------------------
-         */
-
-        resetProcessState();
-
-
-        state.set(
-            "credit.cost",
-            VISION_EVENTS_CONFIG
-                .CREDIT_COST
-        );
-
-
-        state.set(
-            "process.taskId",
-            getHistory()
-                .createTaskId()
-        );
-
-
-        /*
-         * -------------------------------------------------
-         * UI START
-         * -------------------------------------------------
-         */
-
-        setGenerateLock(
-            true
-        );
-
-
-        ui.setProcessing(
-            true
-        );
-
-
-        ui.setStage(
-            "checking",
-            {
-                progress:
-                    5
-            }
-        );
-
-
-        /*
-         * -------------------------------------------------
-         * CREDIT CHECK
-         * -------------------------------------------------
-         */
-
-        const credit =
-            getCredit();
-
-
-        const creditCheck =
-            await credit.checkCredit();
-
+    function normalizeError(error) {
 
         if (
-            !creditCheck ||
-            creditCheck.sufficient !== true
+            error &&
+            typeof error === "object"
         ) {
 
-            throw new Error(
-                "Credit tidak mencukupi."
-            );
+            if (
+                typeof error.message === "string" &&
+                error.message.trim()
+            ) {
+
+                return error.message.trim();
+
+            }
 
         }
 
 
-        state.set(
-            "credit.checked",
-            true
-        );
-
-
-        /*
-         * -------------------------------------------------
-         * DEDUCT
-         * -------------------------------------------------
-         */
-
-        ui.setStage(
-            "reserving",
-            {
-                progress:
-                    10
-            }
-        );
-
-
-        const deduction =
-            await credit.deductCredit({
-
-                taskId:
-                    state.get(
-                        "process.taskId",
-                        ""
-                    ),
-
-                modelId:
-                    form.model,
-
-                model:
-                    form.model,
-
-                modelName:
-                    getModelName(
-                        form.model
-                    )
-
-            });
-
-
         if (
-            !deduction ||
-            (
-                deduction.success === false &&
-                deduction.alreadyDeducted !== true
-            )
+            typeof error === "string" &&
+            error.trim()
         ) {
 
-            throw new Error(
-                deduction?.message ||
-                "Credit gagal dipotong."
-            );
+            return error.trim();
 
         }
 
 
-        creditDeducted =
-            true;
+        return "Terjadi kesalahan pada Vision Engine.";
+
+    }
 
 
-        state.set(
-            "credit.deducted",
-            true
+    // =====================================================
+    // FORM
+    // =====================================================
+
+    function readFormValues() {
+
+        const dom = getDOM();
+
+
+        const model =
+            dom.model?.value ||
+            "gemini-3.1-pro";
+
+
+        const detail =
+            dom.detail?.value ||
+            "ultra";
+
+
+        const purpose =
+            dom.purpose?.value ||
+            "image-generation";
+
+
+        const instruction =
+            String(
+                dom.instruction?.value || ""
+            ).trim();
+
+
+        return {
+
+            model,
+            detail,
+            purpose,
+            instruction
+
+        };
+
+    }
+
+
+    function syncFormToState() {
+
+        const values =
+            readFormValues();
+
+
+        getState().setModel(
+            values.model
         );
 
 
-        /*
-         * -------------------------------------------------
-         * ANALYSIS
-         * -------------------------------------------------
-         */
+        getState().setSettings({
 
-        ui.setStage(
-            "analyzing",
-            {
-                progress:
-                    25
-            }
-        );
+            detail:
+                values.detail,
 
+            purpose:
+                values.purpose,
 
-        const api =
-            getAPI();
-
-
-        const fileDataUrl =
-            state.get(
-                "file.dataUrl",
-                ""
-            );
-
-
-        const analysisResponse =
-            await api.analyzeImage({
-
-                dataUrl:
-                    fileDataUrl,
-
-                model:
-                    form.model,
-
-                detail:
-                    form.detail,
-
-                purpose:
-                    form.purpose,
-
-                instruction:
-                    form.instruction
-
-            });
-
-
-        ui.setStage(
-            "analyzing",
-            {
-                progress:
-                    45
-            }
-        );
-
-
-        /*
-         * -------------------------------------------------
-         * NORMALIZE ANALYSIS
-         * -------------------------------------------------
-         */
-
-        const analysis =
-            getAnalysis();
-
-
-        const analysisResult =
-            analysis.storeAnalysis(
-                analysisResponse
-            );
-
-
-        if (
-            !analysisResult ||
-            !analysisResult.normalized
-        ) {
-
-            throw new Error(
-                "Hasil analisis gambar tidak valid."
-            );
-
-        }
-
-
-        state.set(
-            "analysis.completed",
-            true
-        );
-
-
-        ui.showAnalysis(
-            analysisResult.normalized
-        );
-
-
-        /*
-         * -------------------------------------------------
-         * GENERATE PROMPT
-         * -------------------------------------------------
-         */
-
-        ui.setStage(
-            "engineering",
-            {
-                progress:
-                    58
-            }
-        );
-
-
-        const promptResponse =
-            await api.generatePrompt({
-
-                analysis:
-                    analysisResult.normalized,
-
-                model:
-                    form.model,
-
-                detail:
-                    form.detail,
-
-                purpose:
-                    form.purpose,
-
-                instruction:
-                    form.instruction
-
-            });
-
-
-        ui.setStage(
-            "engineering",
-            {
-                progress:
-                    75
-            }
-        );
-
-
-        /*
-         * -------------------------------------------------
-         * CLEAN + VALIDATE PROMPT
-         * -------------------------------------------------
-         */
-
-        const prompt =
-            getPrompt();
-
-
-        const finalPrompt =
-            prompt.extractPrompt(
-                promptResponse
-            );
-
-
-        const promptValidation =
-            prompt.validatePrompt(
-                finalPrompt
-            );
-
-
-        if (
-            !promptValidation ||
-            !promptValidation.valid
-        ) {
-
-            throw new Error(
-
-                promptValidation?.reason ||
-                "Prompt yang dihasilkan tidak valid."
-
-            );
-
-        }
-
-
-        prompt.storePrompt(
-            finalPrompt
-        );
-
-
-        state.set(
-            "prompt.completed",
-            true
-        );
-
-
-        /*
-         * -------------------------------------------------
-         * RESULT
-         * -------------------------------------------------
-         */
-
-        ui.setStage(
-            "finalizing",
-            {
-                progress:
-                    88
-            }
-        );
-
-
-        ui.showPrompt(
-            finalPrompt
-        );
-
-
-        /*
-         * -------------------------------------------------
-         * SAVE HISTORY
-         * -------------------------------------------------
-         */
-
-        const history =
-            getHistory();
-
-
-        await history.saveSuccess({
-
-            taskId:
-                state.get(
-                    "process.taskId",
-                    ""
-                ),
-
-            model:
-                form.model,
-
-            modelName:
-                getModelName(
-                    form.model
-                ),
-
-            prompt:
-                finalPrompt,
-
-            settings:
-                {
-
-                    detail:
-                        form.detail,
-
-                    purpose:
-                        form.purpose,
-
-                    instruction:
-                        form.instruction
-
-                },
-
-            imageReferenceUrl:
-                null
+            instruction:
+                values.instruction
 
         });
 
-
-        /*
-         * -------------------------------------------------
-         * COMPLETE
-         * -------------------------------------------------
-         */
-
-        state.set(
-            "process.status",
-            "success"
-        );
+    }
 
 
-        state.set(
-            "process.stage",
-            "completed"
-        );
+    // =====================================================
+    // FILE INPUT
+    // =====================================================
 
+    async function handleNewImage(file) {
 
-        state.set(
-            "process.progress",
-            100
-        );
-
-
-        ui.setStage(
-            "completed",
-            {
-                progress:
-                    100
-            }
-        );
-
-
-        ui.showSuccess(
-            "Vision selesai. Prompt berhasil dibuat."
-        );
-
-
-        return {
-
-            success:
-                true,
-
-            prompt:
-                finalPrompt,
-
-            analysis:
-                analysisResult.normalized
-
-        };
-
-    } catch (
-        error
-    ) {
-
-        /*
-         * -------------------------------------------------
-         * ERROR
-         * -------------------------------------------------
-         */
-
-        const message =
-            error instanceof Error
-                ? error.message
-                : String(
-                    error ||
-                    "Vision process gagal."
-                );
-
-
-        state.set(
-            "process.status",
-            "failed"
-        );
-
-
-        state.set(
-            "process.error",
-            message
-        );
-
-
-        /*
-         * -------------------------------------------------
-         * REFUND
-         * -------------------------------------------------
-         */
-
-        if (
-            creditDeducted
-        ) {
-
-            try {
-
-                await getCredit()
-                    .refundCredit({
-
-                        taskId:
-                            state.get(
-                                "process.taskId",
-                                ""
-                            ),
-
-                        reason:
-                            message
-
-                    });
-
-
-                state.set(
-                    "credit.refunded",
-                    true
-                );
-
-
-            } catch (
-                refundError
-            ) {
-
-                console.error(
-                    "[GEN-Z.AI Vision] Refund gagal:",
-                    refundError
-                );
-
-            }
-
+        if (!file) {
+            return null;
         }
 
 
-        /*
-         * -------------------------------------------------
-         * FAILED HISTORY
-         * -------------------------------------------------
-         */
+        const ui =
+            getUI();
+
 
         try {
 
-            await getHistory()
-                .saveFailed(
-                    message,
-                    {
-
-                        taskId:
-                            state.get(
-                                "process.taskId",
-                                ""
-                            ),
-
-                        model:
-                            form.model,
-
-                        modelName:
-                            getModelName(
-                                form.model
-                            ),
-
-                        settings:
-                            {
-
-                                detail:
-                                    form.detail,
-
-                                purpose:
-                                    form.purpose,
-
-                                instruction:
-                                    form.instruction
-
-                            }
-
-                    }
-                );
-
-
-        } catch (
-            historyError
-        ) {
-
-            console.error(
-                "[GEN-Z.AI Vision] History gagal:",
-                historyError
-            );
-
-        }
-
-
-        ui.showError(
-            message
-        );
-
-
-        return {
-
-            success:
-                false,
-
-            error:
-                message
-
-        };
-
-    } finally {
-
-        /*
-         * -------------------------------------------------
-         * RESTORE UI
-         * -------------------------------------------------
-         */
-
-        setGenerateLock(
-            false
-        );
-
-
-        ui.setProcessing(
-            false
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   COPY BUTTON
-========================================================= */
-
-async function handleCopyPrompt() {
-
-    const ui =
-        getUI();
-
-
-    try {
-
-        const prompt =
-            getPrompt();
-
-
-        await prompt.copyPrompt();
-
-
-        ui.setCopyState(
-            true
-        );
-
-
-        setTimeout(
-
-            () => {
-
-                ui.setCopyState(
-                    false
-                );
-
-            },
-
-            1800
-
-        );
-
-
-    } catch (
-        error
-    ) {
-
-        ui.showError(
-
-            error instanceof Error
-                ? error.message
-                : "Prompt gagal disalin."
-
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   REMOVE IMAGE
-========================================================= */
-
-function handleRemoveImage() {
-
-    const upload =
-        getUpload();
-
-
-    const preview =
-        getPreview();
-
-
-    const state =
-        getState();
-
-
-    try {
-
-        upload.clearFile();
-
-    } catch (
-        error
-    ) {
-
-        console.error(
-            "[GEN-Z.AI Vision] Upload clear:",
-            error
-        );
-
-    }
-
-
-    try {
-
-        preview.clearPreview();
-
-    } catch (
-        error
-    ) {
-
-        console.error(
-            "[GEN-Z.AI Vision] Preview clear:",
-            error
-        );
-
-    }
-
-
-    state.clearFile();
-
-
-    resetProcessState();
-
-
-    state.set(
-        "history.saved",
-        false
-    );
-
-
-    state.set(
-        "history.historyId",
-        null
-    );
-
-
-    getAnalysis()
-        .clearAnalysis();
-
-
-    getPrompt()
-        .clearPrompt();
-
-
-    resetUIOutput();
-
-}
-
-
-/* =========================================================
-   RESET OUTPUT
-========================================================= */
-
-function resetOutput() {
-
-    const state =
-        getState();
-
-
-    getAnalysis()
-        .clearAnalysis();
-
-
-    getPrompt()
-        .clearPrompt();
-
-
-    resetProcessState();
-
-
-    state.set(
-        "history.saved",
-        false
-    );
-
-
-    state.set(
-        "history.historyId",
-        null
-    );
-
-
-    resetUIOutput();
-
-}
-
-
-/* =========================================================
-   HANDLE MODEL CHANGE
-========================================================= */
-
-function handleModelChange(
-    event
-) {
-
-    const state =
-        getState();
-
-
-    const value =
-        event?.target?.value ||
-        VISION_EVENTS_CONFIG
-            .DEFAULT_MODEL;
-
-
-    state.set(
-        "model.id",
-        value
-    );
-
-
-    state.set(
-        "model.name",
-        getModelName(
-            value
-        )
-    );
-
-}
-
-
-/* =========================================================
-   HANDLE DETAIL CHANGE
-========================================================= */
-
-function handleDetailChange(
-    event
-) {
-
-    const state =
-        getState();
-
-
-    state.set(
-        "settings.detail",
-        event?.target?.value ||
-        VISION_EVENTS_CONFIG
-            .DEFAULT_DETAIL
-    );
-
-}
-
-
-/* =========================================================
-   HANDLE PURPOSE CHANGE
-========================================================= */
-
-function handlePurposeChange(
-    event
-) {
-
-    const state =
-        getState();
-
-
-    state.set(
-        "settings.purpose",
-        event?.target?.value ||
-        VISION_EVENTS_CONFIG
-            .DEFAULT_PURPOSE
-    );
-
-}
-
-
-/* =========================================================
-   HANDLE INSTRUCTION INPUT
-========================================================= */
-
-function handleInstructionInput(
-    event
-) {
-
-    const state =
-        getState();
-
-
-    state.set(
-        "settings.instruction",
-        event?.target?.value ||
-        ""
-    );
-
-}
-
-
-/* =========================================================
-   HANDLE NEW IMAGE
-========================================================= */
-
-function handleNewImage(
-    file
-) {
-
-    if (
-        !file
-    ) {
-
-        return false;
-
-    }
-
-
-    /*
-     * File dari vision-upload.js sudah
-     * berisi dataUrl dan metadata.
-     *
-     * Render preview terlebih dahulu.
-     */
-
-    const preview =
-        getPreview();
-
-
-    preview.renderPreview(
-        file
-    );
-
-
-    /*
-     * Bersihkan hasil Vision lama.
-     *
-     * Penting:
-     * resetAfterNewImage() TIDAK menghapus
-     * file baru dari state.
-     */
-
-    resetAfterNewImage();
-
-
-    /*
-     * Pastikan state berisi file terbaru.
-     */
-
-    const state =
-        getState();
-
-
-    state.set(
-        "file.original",
-        file.original
-    );
-
-
-    state.set(
-        "file.name",
-        file.name
-    );
-
-
-    state.set(
-        "file.size",
-        file.size
-    );
-
-
-    state.set(
-        "file.type",
-        file.type
-    );
-
-
-    state.set(
-        "file.mimeType",
-        file.mimeType
-    );
-
-
-    state.set(
-        "file.dataUrl",
-        file.dataUrl
-    );
-
-
-    state.set(
-        "file.width",
-        file.width
-    );
-
-
-    state.set(
-        "file.height",
-        file.height
-    );
-
-
-    /*
-     * Pastikan dropzone kembali aktif
-     * setelah gambar berhasil dipilih.
-     */
-
-    try {
-
-        preview.setDropzoneActive(
-            false
-        );
-
-    } catch (
-        error
-    ) {
-
-        console.warn(
-            "[GEN-Z.AI Vision] Dropzone state:",
-            error
-        );
-
-    }
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   HANDLE UPLOAD ERROR
-========================================================= */
-
-function handleUploadError(
-    error
-) {
-
-    const message =
-        error?.message ||
-        "Gambar gagal diproses.";
-
-
-    try {
-
-        getPreview()
-            .setDropzoneActive(
+            ui.setProcessing(
                 false
             );
 
-    } catch (
-        previewError
-    ) {
 
-        console.warn(
-            "[GEN-Z.AI Vision] Preview error:",
-            previewError
-        );
-
-    }
+            ui.resetResult();
 
 
-    try {
+            const fileData =
+                await getUpload().processFile(
+                    file
+                );
 
-        getUI()
-            .showError(
+
+            getPreview().renderPreview(
+                fileData
+            );
+
+
+            ui.setStatus(
+                "ready",
+                "Image siap dianalisis."
+            );
+
+
+            return fileData;
+
+        } catch (error) {
+
+            const message =
+                normalizeError(error);
+
+
+            getState().setProcessError(
                 message
             );
 
-    } catch (
-        uiError
+
+            ui.setStatus(
+                "error",
+                message
+            );
+
+
+            return null;
+
+        }
+
+    }
+
+
+    // =====================================================
+    // FILE INPUT CHANGE
+    // =====================================================
+
+    async function handleFileInput(
+        event
     ) {
 
-        console.error(
-            "[GEN-Z.AI Vision] Upload UI error:",
-            uiError
+        const input =
+            event?.target;
+
+
+        const files =
+            Array.from(
+                input?.files || []
+            );
+
+
+        if (
+            files.length === 0
+        ) {
+
+            return;
+
+        }
+
+
+        await handleNewImage(
+            files[0]
         );
 
     }
 
 
-    return false;
+    // =====================================================
+    // DROP
+    // =====================================================
 
-}
-
-
-/* =========================================================
-   OPEN FILE PICKER
-   ---------------------------------------------------------
-   Semua jalur pemilihan file diarahkan ke module upload.
-   Jangan memproses File secara langsung di events module.
-========================================================= */
-
-function openFilePicker() {
-
-    const dom =
-        getDOM();
-
-
-    const upload =
-        getUpload();
-
-
-    /*
-     * Jalur utama.
-     */
-
-    if (
-        typeof upload.openFilePicker ===
-        "function"
+    async function handleDrop(
+        event
     ) {
 
-        upload.openFilePicker();
+        event.preventDefault();
 
-        return true;
+
+        event.stopPropagation();
+
+
+        const files =
+            Array.from(
+                event
+                    ?.dataTransfer
+                    ?.files || []
+            );
+
+
+        if (
+            files.length === 0
+        ) {
+
+            return;
+
+        }
+
+
+        await handleNewImage(
+            files[0]
+        );
 
     }
 
 
-    /*
-     * Fallback jika fungsi module upload
-     * tidak tersedia.
-     */
+    // =====================================================
+    // DRAG OVER
+    // =====================================================
 
-    if (
-        dom.fileInput &&
-        typeof dom.fileInput.click ===
-            "function"
+    function handleDragOver(
+        event
     ) {
 
-        dom.fileInput.click();
+        event.preventDefault();
 
-        return true;
+
+        event.stopPropagation();
+
+
+        getPreview().setDropzoneActive(
+            true
+        );
 
     }
 
 
-    console.error(
-        "[GEN-Z.AI Vision] File picker tidak tersedia."
-    );
+    // =====================================================
+    // DRAG LEAVE
+    // =====================================================
 
-
-    return false;
-
-}
-
-
-/* =========================================================
-   BIND EVENT
-========================================================= */
-
-function bindEvent(
-    target,
-    event,
-    handler
-) {
-
-    if (
-        !target ||
-        typeof target.addEventListener !==
-            "function"
+    function handleDragLeave(
+        event
     ) {
 
-        return false;
+        event.preventDefault();
+
+
+        event.stopPropagation();
+
+
+        getPreview().setDropzoneActive(
+            false
+        );
 
     }
 
 
-    target.addEventListener(
-        event,
-        handler
-    );
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   BIND EVENTS
-========================================================= */
-
-function bindEvents() {
-
-    const dom =
-        getDOM();
-
-
-    /* =====================================================
-       FILE INPUT
-       -----------------------------------------------------
-       Ini adalah jalur utama setelah user memilih file
-       dari native file picker.
-    ===================================================== */
-
-    bindEvent(
-
-        dom.fileInput,
-
-        "change",
-
-        async event => {
-
-            try {
-
-                const file =
-                    await getUpload()
-                        .handleFileInput(
-                            event
-                        );
-
-
-                /*
-                 * handleFileInput() dari module upload
-                 * mengembalikan fileData jika berhasil.
-                 */
-
-                if (
-                    file
-                ) {
-
-                    handleNewImage(
-                        file
-                    );
-
-                }
-
-            } catch (
-                error
-            ) {
-
-                handleUploadError(
-                    error
-                );
-
-            }
-
-        }
-
-    );
-
-
-    /* =====================================================
-       BROWSE BUTTON
-       -----------------------------------------------------
-       Jangan mengandalkan bubbling dropzone.
-       Tombol Browse mempunyai jalur picker sendiri.
-    ===================================================== */
-
-    bindEvent(
-
-        dom.browseButton,
-
-        "click",
-
-        event => {
-
-            event.preventDefault();
-            event.stopPropagation();
-
-
-            openFilePicker();
-
-        }
-
-    );
-
-
-    /* =====================================================
-       DROPZONE DRAG OVER
-    ===================================================== */
-
-    bindEvent(
-
-        dom.dropzone,
-
-        "dragover",
-
-        event => {
-
-            event.preventDefault();
-            event.stopPropagation();
-
-
-            try {
-
-                getPreview()
-                    .setDropzoneActive(
-                        true
-                    );
-
-            } catch (
-                error
-            ) {
-
-                console.warn(
-                    "[GEN-Z.AI Vision] Dragover:",
-                    error
-                );
-
-            }
-
-        }
-
-    );
-
-
-    /* =====================================================
-       DROPZONE DRAG LEAVE
-    ===================================================== */
-
-    bindEvent(
-
-        dom.dropzone,
-
-        "dragleave",
-
-        event => {
-
-            event.preventDefault();
-            event.stopPropagation();
-
-
-            try {
-
-                getPreview()
-                    .setDropzoneActive(
-                        false
-                    );
-
-            } catch (
-                error
-            ) {
-
-                console.warn(
-                    "[GEN-Z.AI Vision] Dragleave:",
-                    error
-                );
-
-            }
-
-        }
-
-    );
-
-
-    /* =====================================================
-       DROPZONE DROP
-    ===================================================== */
-
-    bindEvent(
-
-        dom.dropzone,
-
-        "drop",
-
-        async event => {
-
-            event.preventDefault();
-            event.stopPropagation();
-
-
-            try {
-
-                getPreview()
-                    .setDropzoneActive(
-                        false
-                    );
-
-            } catch (
-                error
-            ) {
-
-                console.warn(
-                    "[GEN-Z.AI Vision] Dropzone reset:",
-                    error
-                );
-
-            }
-
-
-            try {
-
-                const file =
-                    await getUpload()
-                        .handleDrop(
-                            event
-                        );
-
-
-                if (
-                    file
-                ) {
-
-                    handleNewImage(
-                        file
-                    );
-
-                }
-
-            } catch (
-                error
-            ) {
-
-                handleUploadError(
-                    error
-                );
-
-            }
-
-        }
-
-    );
-
-
-    /* =====================================================
-       DROPZONE CLICK
-       -----------------------------------------------------
-       Klik area kosong membuka native file picker.
-       
-       Jangan menggunakan fileInput.click() langsung
-       sebagai jalur utama. Semua picker diarahkan
-       melalui vision-upload.js.
-    ===================================================== */
-
-    bindEvent(
-
-        dom.dropzone,
-
-        "click",
-
-        event => {
-
-            /*
-             * Jangan proses klik tombol.
-             *
-             * Browse button sudah mempunyai handler sendiri.
-             */
-
-            if (
-                dom.browseButton &&
-                (
-                    event.target ===
-                        dom.browseButton ||
-                    dom.browseButton.contains(
-                        event.target
-                    )
-                )
-            ) {
-
-                return;
-
-            }
-
-
-            /*
-             * Jangan proses klik button lain
-             * di dalam dropzone.
-             */
-
-            if (
-                event.target?.closest(
-                    "button"
-                )
-            ) {
-
-                return;
-
-            }
-
-
-            /*
-             * Jangan memproses klik langsung
-             * pada input file.
-             */
-
-            if (
-                event.target ===
-                dom.fileInput
-            ) {
-
-                return;
-
-            }
-
-
-            /*
-             * Semua klik area upload menuju
-             * module upload.
-             */
-
-            openFilePicker();
-
-        }
-
-    );
-
-
-    /* =====================================================
-       REMOVE IMAGE
-    ===================================================== */
-
-    bindEvent(
-
-        dom.removeButton,
-
-        "click",
-
-        handleRemoveImage
-
-    );
-
-
-    /* =====================================================
-       GENERATE
-    ===================================================== */
-
-    bindEvent(
-
-        dom.generateButton,
-
-        "click",
-
-        startVisionProcess
-
-    );
-
-
-    /* =====================================================
-       COPY
-    ===================================================== */
-
-    bindEvent(
-
-        dom.copyButton,
-
-        "click",
-
-        handleCopyPrompt
-
-    );
-
-
-    /* =====================================================
-       MODEL
-    ===================================================== */
-
-    bindEvent(
-
-        dom.model,
-
-        "change",
-
-        handleModelChange
-
-    );
-
-
-    /* =====================================================
-       DETAIL
-    ===================================================== */
-
-    bindEvent(
-
-        dom.detail,
-
-        "change",
-
-        handleDetailChange
-
-    );
-
-
-    /* =====================================================
-       PURPOSE
-    ===================================================== */
-
-    bindEvent(
-
-        dom.purpose,
-
-        "change",
-
-        handlePurposeChange
-
-    );
-
-
-    /* =====================================================
-       INSTRUCTION
-    ===================================================== */
-
-    bindEvent(
-
-        dom.instruction,
-
-        "input",
-
-        handleInstructionInput
-
-    );
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   INITIALIZE EVENTS
-========================================================= */
-
-function initialize() {
-
-    /*
-     * Loader dapat memanggil initialize lebih dari sekali.
-     * Jangan pasang listener berulang.
-     */
-
-    if (
-        visionEventsInitialized
+    // =====================================================
+    // DROPZONE CLICK
+    // =====================================================
+
+    function handleDropzoneClick(
+        event
     ) {
-
-        return true;
-
-    }
-
-
-    try {
 
         const dom =
             getDOM();
 
 
         /*
-         * Pastikan elemen penting tersedia
-         * sebelum memasang event.
+         * Jika click berasal dari:
+         *
+         * - SELECT IMAGE label
+         * - file input
+         * - remove button
+         *
+         * jangan jalankan handler dropzone.
          */
 
         if (
-            !dom.fileInput
+            event.target ===
+            dom.fileInput
         ) {
+
+            return;
+
+        }
+
+
+        if (
+            event.target ===
+            dom.browseButton ||
+            dom.browseButton?.contains(
+                event.target
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            event.target ===
+            dom.removeButton ||
+            dom.removeButton?.contains(
+                event.target
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        /*
+         * Untuk area kosong dropzone,
+         * kita tetap gunakan helper upload.
+         */
+
+        getUpload().openFilePicker();
+
+    }
+
+
+    // =====================================================
+    // BROWSE BUTTON
+    // =====================================================
+
+    function handleBrowseClick(
+        event
+    ) {
+
+        /*
+         * visionBrowseButton sekarang adalah:
+         *
+         * <label for="visionFileInput">
+         *
+         * Browser sendiri yang membuka
+         * native file picker.
+         *
+         * Jangan gunakan preventDefault().
+         *
+         * Jangan memanggil openFilePicker()
+         * lagi karena akan berpotensi membuka
+         * picker dua kali.
+         */
+
+        event.stopPropagation();
+
+    }
+
+
+    // =====================================================
+    // REMOVE IMAGE
+    // =====================================================
+
+    function handleRemoveImage(
+        event
+    ) {
+
+        event.preventDefault();
+
+
+        event.stopPropagation();
+
+
+        try {
+
+            getPreview().clearPreview(
+                true
+            );
+
+
+            getState().clearAnalysis();
+
+
+            getState().clearPrompt();
+
+
+            getUI().resetResult();
+
+
+            getUI().setStatus(
+                "ready",
+                "Reference image dihapus."
+            );
+
+        } catch (error) {
+
+            const message =
+                normalizeError(error);
+
+
+            getUI().setStatus(
+                "error",
+                message
+            );
+
+        }
+
+    }
+
+
+    // =====================================================
+    // FORM EVENTS
+    // =====================================================
+
+    function handleModelChange() {
+
+        syncFormToState();
+
+    }
+
+
+    function handleDetailChange() {
+
+        syncFormToState();
+
+    }
+
+
+    function handlePurposeChange() {
+
+        syncFormToState();
+
+    }
+
+
+    function handleInstructionInput() {
+
+        syncFormToState();
+
+    }
+
+
+    // =====================================================
+    // COPY PROMPT
+    // =====================================================
+
+    async function handleCopyPrompt(
+        event
+    ) {
+
+        event.preventDefault();
+
+
+        event.stopPropagation();
+
+
+        try {
+
+            const prompt =
+                getPrompt().getPrompt();
+
+
+            if (!prompt) {
+
+                return;
+
+            }
+
+
+            await getPrompt().copyPrompt();
+
+
+            getUI().setCopyState(
+                true
+            );
+
+
+            window.setTimeout(
+                () => {
+
+                    getUI().setCopyState(
+                        false
+                    );
+
+                },
+                1800
+            );
+
+        } catch (error) {
+
+            getUI().setStatus(
+                "error",
+                normalizeError(error)
+            );
+
+        }
+
+    }
+
+
+    // =====================================================
+    // VALIDATE READY
+    // =====================================================
+
+    function validateReady() {
+
+        const state =
+            getState().getState();
+
+
+        if (
+            !state.file ||
+            !state.file.original ||
+            !state.file.dataUrl
+        ) {
+
+            throw new Error(
+                "Silakan upload reference image terlebih dahulu."
+            );
+
+        }
+
+
+        return true;
+
+    }
+
+
+    // =====================================================
+    // VISION PROCESS
+    // =====================================================
+
+    async function startVisionProcess() {
+
+        if (
+            getState()
+                .getState()
+                .process
+                .processing
+        ) {
+
+            return;
+
+        }
+
+
+        try {
+
+            validateReady();
+
+
+            syncFormToState();
+
+
+            const state =
+                getState().getState();
+
+
+            // =============================================
+            // CREDIT CHECK
+            // =============================================
+
+            getUI().setStatus(
+                "checking",
+                "Memeriksa credit..."
+            );
+
+
+            const credit =
+                await getCredit().checkCredit(
+                    CREDIT_COST
+                );
+
+
+            if (
+                !credit ||
+                credit.allowed !== true
+            ) {
+
+                throw new Error(
+                    credit?.message ||
+                    "Credit tidak mencukupi."
+                );
+
+            }
+
+
+            // =============================================
+            // RESET RESULT
+            // =============================================
+
+            getUI().resetResult();
+
+
+            getUI().setProcessing(
+                true
+            );
+
+
+            getUI().setStatus(
+                "processing",
+                "Memulai Vision Engine..."
+            );
+
+
+            getState().setProcessing(
+                true
+            );
+
+
+            getState().setProgress(
+                5
+            );
+
+
+            // =============================================
+            // DEDUCT CREDIT
+            // =============================================
+
+            await getCredit().deductCredit(
+                CREDIT_COST
+            );
+
+
+            getState().markCreditDeducted();
+
+
+            getUI().updateCredit();
+
+
+            // =============================================
+            // ANALYSIS
+            // =============================================
+
+            getUI().setStatus(
+                "processing",
+                "Menganalisis gambar..."
+            );
+
+
+            getState().setProgress(
+                25
+            );
+
+
+            const analysisResponse =
+                await getAPI().analyzeImage({
+
+                    model:
+                        state.model.id,
+
+                    detail:
+                        state.settings.detail,
+
+                    purpose:
+                        state.settings.purpose,
+
+                    instruction:
+                        state.settings.instruction,
+
+                    image:
+                        state.file.dataUrl
+
+                });
+
+
+            getState().setProgress(
+                50
+            );
+
+
+            // =============================================
+            // NORMALIZE ANALYSIS
+            // =============================================
+
+            const normalizedAnalysis =
+                getAnalysis().normalizeAnalysis(
+                    analysisResponse
+                );
+
+
+            getState().setAnalysis(
+                normalizedAnalysis
+            );
+
+
+            getUI().showAnalysis(
+                normalizedAnalysis
+            );
+
+
+            // =============================================
+            // PROMPT GENERATION
+            // =============================================
+
+            getUI().setStatus(
+                "processing",
+                "Membangun ultra detailed prompt..."
+            );
+
+
+            getState().setProgress(
+                70
+            );
+
+
+            const promptResponse =
+                await getAPI().generatePrompt({
+
+                    analysis:
+                        normalizedAnalysis,
+
+                    model:
+                        state.model.id,
+
+                    detail:
+                        state.settings.detail,
+
+                    purpose:
+                        state.settings.purpose,
+
+                    instruction:
+                        state.settings.instruction
+
+                });
+
+
+            const prompt =
+                getPrompt().normalizePrompt(
+                    promptResponse
+                );
+
+
+            if (!prompt) {
+
+                throw new Error(
+                    "Vision Engine tidak menghasilkan prompt."
+                );
+
+            }
+
+
+            getState().setPrompt(
+                prompt
+            );
+
+
+            getState().setProgress(
+                88
+            );
+
+
+            // =============================================
+            // SAVE HISTORY
+            // =============================================
+
+            getUI().setStatus(
+                "processing",
+                "Menyimpan riwayat..."
+            );
+
+
+            try {
+
+                const history =
+                    await getHistory().saveSuccess({
+
+                        taskId:
+                            state.process.taskId,
+
+                        modelId:
+                            state.model.id,
+
+                        modelName:
+                            state.model.name,
+
+                        prompt,
+
+                        analysis:
+                            normalizedAnalysis,
+
+                        creditCost:
+                            CREDIT_COST
+
+                    });
+
+
+                if (history?.id) {
+
+                    getState().setHistoryId(
+                        history.id
+                    );
+
+                }
+
+            } catch (historyError) {
+
+                /*
+                 * History failure tidak membatalkan
+                 * hasil Vision yang sudah berhasil.
+                 */
+
+                console.warn(
+                    "[GEN-Z.AI Vision] History save gagal:",
+                    historyError
+                );
+
+            }
+
+
+            // =============================================
+            // COMPLETE
+            // =============================================
+
+            getState().setProgress(
+                100
+            );
+
+
+            getState().setProcessStatus(
+                "completed",
+                "READY",
+                100
+            );
+
+
+            getState().setProcessing(
+                false
+            );
+
+
+            getUI().setProcessing(
+                false
+            );
+
+
+            getUI().showPrompt(
+                prompt
+            );
+
+
+            getUI().setStatus(
+                "success",
+                "Vision analysis selesai."
+            );
+
+
+            getUI().updateCredit();
+
+
+        } catch (error) {
+
+            const message =
+                normalizeError(error);
+
+
+            console.error(
+                "[GEN-Z.AI Vision]",
+                error
+            );
+
+
+            const state =
+                getState().getState();
+
+
+            // =============================================
+            // REFUND
+            // =============================================
+
+            if (
+                state.credit?.deducted === true &&
+                state.credit?.refunded !== true
+            ) {
+
+                try {
+
+                    await getCredit().refundCredit(
+                        CREDIT_COST
+                    );
+
+                    getState().markCreditRefunded();
+
+                    getUI().updateCredit();
+
+                } catch (refundError) {
+
+                    console.error(
+                        "[GEN-Z.AI Vision] Refund gagal:",
+                        refundError
+                    );
+
+                }
+
+            }
+
+
+            // =============================================
+            // FAILED HISTORY
+            // =============================================
+
+            try {
+
+                await getHistory().saveFailed({
+
+                    taskId:
+                        state.process.taskId,
+
+                    modelId:
+                        state.model.id,
+
+                    modelName:
+                        state.model.name,
+
+                    error:
+                        message,
+
+                    creditCost:
+                        CREDIT_COST
+
+                });
+
+            } catch (historyError) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision] Failed history save gagal:",
+                    historyError
+                );
+
+            }
+
+
+            // =============================================
+            // ERROR STATE
+            // =============================================
+
+            getState().setProcessError(
+                message
+            );
+
+
+            getState().setProcessing(
+                false
+            );
+
+
+            getUI().setProcessing(
+                false
+            );
+
+
+            getUI().setStatus(
+                "error",
+                message
+            );
+
+        }
+
+    }
+
+
+    // =====================================================
+    // GENERATE BUTTON
+    // =====================================================
+
+    function handleGenerateClick(
+        event
+    ) {
+
+        event.preventDefault();
+
+
+        event.stopPropagation();
+
+
+        startVisionProcess();
+
+    }
+
+
+    // =====================================================
+    // EVENT HELPER
+    // =====================================================
+
+    function bindEvent(
+        element,
+        eventName,
+        handler
+    ) {
+
+        if (!element) {
+            return;
+        }
+
+
+        element.addEventListener(
+            eventName,
+            handler
+        );
+
+    }
+
+
+    // =====================================================
+    // BIND EVENTS
+    // =====================================================
+
+    function bindEvents() {
+
+        const dom =
+            getDOM();
+
+
+        // ================================================
+        // FILE INPUT
+        // ================================================
+
+        bindEvent(
+            dom.fileInput,
+            "change",
+            handleFileInput
+        );
+
+
+        // ================================================
+        // BROWSE LABEL
+        // ================================================
+
+        bindEvent(
+            dom.browseButton,
+            "click",
+            handleBrowseClick
+        );
+
+
+        // ================================================
+        // DROPZONE
+        // ================================================
+
+        bindEvent(
+            dom.dropzone,
+            "click",
+            handleDropzoneClick
+        );
+
+
+        bindEvent(
+            dom.dropzone,
+            "dragover",
+            handleDragOver
+        );
+
+
+        bindEvent(
+            dom.dropzone,
+            "dragleave",
+            handleDragLeave
+        );
+
+
+        bindEvent(
+            dom.dropzone,
+            "drop",
+            handleDrop
+        );
+
+
+        // ================================================
+        // REMOVE
+        // ================================================
+
+        bindEvent(
+            dom.removeButton,
+            "click",
+            handleRemoveImage
+        );
+
+
+        // ================================================
+        // FORM
+        // ================================================
+
+        bindEvent(
+            dom.model,
+            "change",
+            handleModelChange
+        );
+
+
+        bindEvent(
+            dom.detail,
+            "change",
+            handleDetailChange
+        );
+
+
+        bindEvent(
+            dom.purpose,
+            "change",
+            handlePurposeChange
+        );
+
+
+        bindEvent(
+            dom.instruction,
+            "input",
+            handleInstructionInput
+        );
+
+
+        // ================================================
+        // GENERATE
+        // ================================================
+
+        bindEvent(
+            dom.generateButton,
+            "click",
+            handleGenerateClick
+        );
+
+
+        // ================================================
+        // COPY
+        // ================================================
+
+        bindEvent(
+            dom.copyButton,
+            "click",
+            handleCopyPrompt
+        );
+
+    }
+
+
+    // =====================================================
+    // INITIALIZE
+    // =====================================================
+
+    function initialize() {
+
+        const dom =
+            getDOM();
+
+
+        if (!dom.fileInput) {
 
             throw new Error(
                 "visionFileInput tidak ditemukan."
@@ -2318,9 +1331,7 @@ function initialize() {
         }
 
 
-        if (
-            !dom.dropzone
-        ) {
+        if (!dom.dropzone) {
 
             throw new Error(
                 "visionDropzone tidak ditemukan."
@@ -2335,67 +1346,54 @@ function initialize() {
         syncFormToState();
 
 
-        visionEventsInitialized =
-            true;
+        getPreview().renderFromState();
 
 
         return true;
 
-    } catch (
-        error
-    ) {
-
-        console.error(
-            "[GEN-Z.AI Vision] Event initialization failed:",
-            error
-        );
-
-
-        return false;
-
     }
 
-}
+
+    // =====================================================
+    // PUBLIC API
+    // =====================================================
+
+    const GENZVisionEvents =
+        Object.freeze({
+
+            initialize,
+
+            bindEvents,
+
+            syncFormToState,
+
+            handleNewImage,
+
+            handleFileInput,
+
+            handleDrop,
+
+            handleDragOver,
+
+            handleDragLeave,
+
+            handleDropzoneClick,
+
+            handleBrowseClick,
+
+            handleRemoveImage,
+
+            startVisionProcess,
+
+            handleGenerateClick,
+
+            handleCopyPrompt
+
+        });
 
 
-/* =========================================================
-   PUBLIC API
-========================================================= */
-
-const GENZVisionEvents =
-    Object.freeze({
-
-        CONFIG:
-            VISION_EVENTS_CONFIG,
-
-        readForm,
-
-        syncFormToState,
-
-        validateReady,
-
-        startVisionProcess,
-
-        handleCopyPrompt,
-
-        handleRemoveImage,
-
-        resetOutput,
-
-        openFilePicker,
-
-        bindEvents,
-
-        initialize
-
-    });
+    window.GENZVisionEvents =
+        GENZVisionEvents;
 
 
-/* =========================================================
-   GLOBAL EXPORT
-========================================================= */
-
-window.GENZVisionEvents =
-    GENZVisionEvents;
-
-/* GEN-Z.AI Vision deployment synchronization */
+})();
