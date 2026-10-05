@@ -13,6 +13,7 @@
    - Inisialisasi Supabase
    - Mengambil katalog model OpenKey
    - Mengisi dropdown model Vision
+   - Mengaktifkan dropdown setelah model tersedia
    - Inisialisasi preview
    - Inisialisasi upload
    - Inisialisasi UI
@@ -727,6 +728,21 @@ async function initializeModelCatalog() {
 
 
     /*
+     * -----------------------------------------------------
+     * LOCK DROPDOWN SELAMA KATALOG DIMUAT
+     * -----------------------------------------------------
+     *
+     * HTML memang memulai dropdown dalam keadaan disabled.
+     *
+     * Jangan membuka dropdown sebelum model valid
+     * benar-benar tersedia.
+     */
+
+    select.disabled =
+        true;
+
+
+    /*
      * Ambil katalog aktual dari OpenKey.
      *
      * Tidak menggunakan option hardcode
@@ -765,6 +781,15 @@ async function initializeModelCatalog() {
         models.length ===
         0
     ) {
+
+        /*
+         * Tetap terkunci karena tidak ada
+         * model Vision yang aman untuk dipilih.
+         */
+
+        select.disabled =
+            true;
+
 
         throw new Error(
             "OpenKey tidak menyediakan model yang mendukung input gambar."
@@ -868,6 +893,10 @@ async function initializeModelCatalog() {
         !selectedModel
     ) {
 
+        select.disabled =
+            true;
+
+
         throw new Error(
             "Tidak dapat menentukan model Vision."
         );
@@ -904,12 +933,39 @@ async function initializeModelCatalog() {
     }
 
 
+    /*
+     * -----------------------------------------------------
+     * AKTIFKAN DROPDOWN
+     * -----------------------------------------------------
+     *
+     * Ini penting.
+     *
+     * index.html memang menggunakan:
+     *
+     * <select id="visionModel" disabled>
+     *
+     * sehingga setelah katalog berhasil dimuat,
+     * dropdown WAJIB dibuka kembali.
+     *
+     * Sebelumnya bagian ini tidak ada.
+     */
+
+    select.disabled =
+        false;
+
+
     console.info(
         "[GEN-Z.AI Vision] OpenKey Vision models loaded:",
         models.map(
             model =>
                 model.id
         )
+    );
+
+
+    console.info(
+        "[GEN-Z.AI Vision] Vision model selected:",
+        selectedModel.id
     );
 
 
