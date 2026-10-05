@@ -1,572 +1,234 @@
 /* =========================================================
-   GEN-Z.AI VISION
+   GEN-Z.AI
+   VISION PREVIEW MODULE
    ---------------------------------------------------------
    File:
    vision/assets/js/vision-preview.js
 
    Fungsi:
-   - Menampilkan preview gambar
-   - Menampilkan nama file
-   - Menampilkan ukuran file
-   - Menampilkan dimensi gambar
-   - Mengatur state upload / preview
-   - Membersihkan preview
-   - Tidak melakukan API
-   - Tidak melakukan credit
-   - Tidak melakukan history
-   - Tidak melakukan analysis
+   - Render preview Reference Image
+   - Render preview Replacement Character
+   - Update informasi file
+   - Clear preview masing-masing image secara independen
+   - Restore preview dari state
+   - Tidak mengubah fungsi upload / API / analysis
 ========================================================= */
+
+import { getState } from "./vision-state.js";
+import { getDOM } from "./vision-dom.js";
 
 
 /* =========================================================
    INTERNAL HELPERS
 ========================================================= */
 
-function getDOM() {
+function isValidDataUrl(dataUrl) {
 
-    if (
-        !window.GENZVisionDOM
-    ) {
-
-        throw new Error(
-            "GENZVisionDOM belum tersedia."
-        );
-
-    }
-
-
-    return window.GENZVisionDOM.getDOM();
+    return (
+        typeof dataUrl === "string" &&
+        dataUrl.trim().length > 0
+    );
 
 }
 
 
-function getState() {
+function formatFileSize(bytes) {
 
-    if (
-        !window.GENZVisionState
-    ) {
+    const size = Number(bytes);
 
-        throw new Error(
-            "GENZVisionState belum tersedia."
-        );
-
+    if (!Number.isFinite(size) || size <= 0) {
+        return "Unknown size";
     }
 
-
-    return window.GENZVisionState;
-
-}
-
-
-function getUpload() {
-
-    if (
-        !window.GENZVisionUpload
-    ) {
-
-        throw new Error(
-            "GENZVisionUpload belum tersedia."
-        );
-
+    if (size < 1024) {
+        return `${size} B`;
     }
 
+    if (size < 1024 * 1024) {
+        return `${(size / 1024).toFixed(1)} KB`;
+    }
 
-    return window.GENZVisionUpload;
+    return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 
 }
 
 
 /* =========================================================
-   FORMAT DIMENSIONS
+   REFERENCE IMAGE
 ========================================================= */
 
-function formatDimensions(
-    width,
-    height
-) {
+function setPreviewImage(dataUrl) {
 
-    const safeWidth =
-        Number(width);
+    const dom = getDOM();
 
-
-    const safeHeight =
-        Number(height);
-
-
-    if (
-        !Number.isFinite(
-            safeWidth
-        ) ||
-        !Number.isFinite(
-            safeHeight
-        ) ||
-        safeWidth <= 0 ||
-        safeHeight <= 0
-    ) {
-
-        return "";
-
+    if (!dom.previewImage) {
+        return false;
     }
 
+    if (!isValidDataUrl(dataUrl)) {
 
-    return `${safeWidth} × ${safeHeight} px`;
+        dom.previewImage.removeAttribute("src");
+        dom.previewImage.removeAttribute("alt");
 
+        return false;
+    }
+
+    dom.previewImage.src = dataUrl;
+    dom.previewImage.alt = "Vision reference image";
+
+    return true;
 }
 
 
-/* =========================================================
-   FORMAT FILE INFORMATION
-========================================================= */
+function updatePreviewInformation(file) {
 
-function formatFileInformation(
-    file
-) {
+    const dom = getDOM();
 
     if (!file) {
-
-        return {
-
-            name:
-                "",
-
-            size:
-                "",
-
-            dimensions:
-                "",
-
-            type:
-                ""
-
-        };
-
+        return false;
     }
 
+    if (dom.previewName) {
 
-    const upload =
-        getUpload();
-
-
-    return {
-
-        name:
+        dom.previewName.textContent =
             file.name ||
-            "reference-image",
-
-        size:
-            upload.formatFileSize(
-                file.size
-            ),
-
-        dimensions:
-            formatDimensions(
-                file.width,
-                file.height
-            ),
-
-        type:
-            String(
-                file.mimeType ||
-                file.type ||
-                ""
-            )
-                .replace(
-                    "image/",
-                    ""
-                )
-                .toUpperCase()
-
-    };
-
-}
-
-
-/* =========================================================
-   SET PREVIEW IMAGE
-========================================================= */
-
-function setPreviewImage(
-    dataUrl
-) {
-
-    const dom =
-        getDOM();
-
-
-    if (
-        !dom.previewImage
-    ) {
-
-        return false;
+            file.original?.name ||
+            "Reference image";
 
     }
 
+    if (dom.previewSize) {
 
-    if (
-        typeof dataUrl !==
-        "string" ||
-        !dataUrl
-    ) {
-
-        dom.previewImage.removeAttribute(
-            "src"
-        );
-
-        dom.previewImage.removeAttribute(
-            "alt"
-        );
-
-        return false;
+        dom.previewSize.textContent =
+            formatFileSize(
+                file.size ||
+                file.original?.size
+            );
 
     }
-
-
-    dom.previewImage.src =
-        dataUrl;
-
-
-    dom.previewImage.alt =
-        "Vision reference image";
-
 
     return true;
-
 }
 
-
-/* =========================================================
-   CLEAR PREVIEW IMAGE
-========================================================= */
-
-function clearPreviewImage() {
-
-    const dom =
-        getDOM();
-
-
-    if (
-        !dom.previewImage
-    ) {
-
-        return false;
-
-    }
-
-
-    dom.previewImage.removeAttribute(
-        "src"
-    );
-
-
-    dom.previewImage.removeAttribute(
-        "alt"
-    );
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   UPDATE FILE NAME
-========================================================= */
-
-function updateFileName(
-    file
-) {
-
-    const dom =
-        getDOM();
-
-
-    if (
-        !dom.previewName
-    ) {
-
-        return false;
-
-    }
-
-
-    const info =
-        formatFileInformation(
-            file
-        );
-
-
-    dom.previewName.textContent =
-        info.name;
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   UPDATE FILE SIZE
-========================================================= */
-
-function updateFileSize(
-    file
-) {
-
-    const dom =
-        getDOM();
-
-
-    if (
-        !dom.previewSize
-    ) {
-
-        return false;
-
-    }
-
-
-    const info =
-        formatFileInformation(
-            file
-        );
-
-
-    const parts = [];
-
-
-    if (
-        info.size
-    ) {
-
-        parts.push(
-            info.size
-        );
-
-    }
-
-
-    if (
-        info.dimensions
-    ) {
-
-        parts.push(
-            info.dimensions
-        );
-
-    }
-
-
-    if (
-        info.type
-    ) {
-
-        parts.push(
-            info.type
-        );
-
-    }
-
-
-    dom.previewSize.textContent =
-        parts.join(
-            " • "
-        );
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   UPDATE PREVIEW INFORMATION
-========================================================= */
-
-function updatePreviewInformation(
-    file
-) {
-
-    if (!file) {
-
-        return false;
-
-    }
-
-
-    updateFileName(
-        file
-    );
-
-
-    updateFileSize(
-        file
-    );
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   SHOW UPLOAD STATE
-========================================================= */
 
 function showUploadState() {
 
-    const dom =
-        getDOM();
+    const dom = getDOM();
 
+    if (dom.uploadState) {
 
-    if (
-        dom.uploadState
-    ) {
+        dom.uploadState.hidden = false;
 
-        dom.uploadState.hidden =
-            false;
-
-        dom.uploadState
-            .classList
-            .remove(
-                "vision-hidden"
-            );
-
+        dom.uploadState.classList.remove(
+            "vision-hidden"
+        );
     }
 
+    if (dom.previewState) {
 
-    if (
-        dom.previewState
-    ) {
+        dom.previewState.hidden = true;
 
-        dom.previewState.hidden =
-            true;
+        dom.previewState.classList.add(
+            "vision-hidden"
+        );
 
-        dom.previewState
-            .classList
-            .add(
-                "vision-hidden"
-            );
-
-        /*
-         * Pastikan CSS preview tidak tetap
-         * berada dalam keadaan visible.
-         */
-        dom.previewState
-            .classList
-            .remove(
-                "is-visible"
-            );
-
+        dom.previewState.classList.remove(
+            "is-visible"
+        );
     }
-
-
-    return true;
 
 }
 
-
-/* =========================================================
-   SHOW PREVIEW STATE
-========================================================= */
 
 function showPreviewState() {
 
-    const dom =
-        getDOM();
+    const dom = getDOM();
 
+    if (dom.uploadState) {
 
-    if (
-        dom.uploadState
-    ) {
+        dom.uploadState.hidden = true;
 
-        dom.uploadState.hidden =
-            true;
-
-        dom.uploadState
-            .classList
-            .add(
-                "vision-hidden"
-            );
-
+        dom.uploadState.classList.add(
+            "vision-hidden"
+        );
     }
 
+    if (dom.previewState) {
 
-    if (
-        dom.previewState
-    ) {
+        dom.previewState.hidden = false;
 
-        dom.previewState.hidden =
-            false;
+        dom.previewState.classList.remove(
+            "vision-hidden"
+        );
 
-        dom.previewState
-            .classList
-            .remove(
-                "vision-hidden"
-            );
-
-        /*
-         * CSS Vision menggunakan class
-         * "is-visible" untuk menampilkan
-         * preview state.
-         *
-         * Tanpa class ini preview dapat tetap
-         * tersembunyi walaupun hidden=false.
-         */
-        dom.previewState
-            .classList
-            .add(
-                "is-visible"
-            );
-
+        dom.previewState.classList.add(
+            "is-visible"
+        );
     }
 
+}
 
-    return true;
+
+function clearPreviewImage() {
+
+    const dom = getDOM();
+
+    if (!dom.previewImage) {
+        return;
+    }
+
+    dom.previewImage.removeAttribute("src");
+    dom.previewImage.removeAttribute("alt");
+
+}
+
+
+function clearPreview() {
+
+    const dom = getDOM();
+
+    clearPreviewImage();
+
+    if (dom.previewName) {
+        dom.previewName.textContent = "";
+    }
+
+    if (dom.previewSize) {
+        dom.previewSize.textContent = "";
+    }
+
+    showUploadState();
 
 }
 
 
 /* =========================================================
-   RENDER PREVIEW
+   RENDER REFERENCE IMAGE
 ========================================================= */
 
-function renderPreview(
-    file
-) {
+function renderPreview(file) {
 
     if (!file) {
 
         clearPreview();
 
         return false;
-
     }
 
+    const imageSet = setPreviewImage(
+        file.dataUrl
+    );
 
-    const imageSet =
-        setPreviewImage(
-            file.dataUrl
-        );
-
-
-    if (
-        !imageSet
-    ) {
+    if (!imageSet) {
 
         showUploadState();
 
         return false;
-
     }
 
-
-    updatePreviewInformation(
-        file
-    );
-
+    updatePreviewInformation(file);
 
     showPreviewState();
-
 
     return true;
 
@@ -574,14 +236,207 @@ function renderPreview(
 
 
 /* =========================================================
-   RENDER FROM STATE
+   REPLACEMENT CHARACTER
+========================================================= */
+
+function setCharacterPreviewImage(dataUrl) {
+
+    const dom = getDOM();
+
+    if (!dom.characterPreviewImage) {
+        return false;
+    }
+
+    if (!isValidDataUrl(dataUrl)) {
+
+        dom.characterPreviewImage.removeAttribute(
+            "src"
+        );
+
+        dom.characterPreviewImage.removeAttribute(
+            "alt"
+        );
+
+        return false;
+    }
+
+    dom.characterPreviewImage.src = dataUrl;
+
+    dom.characterPreviewImage.alt =
+        "Replacement character image";
+
+    return true;
+
+}
+
+
+function updateCharacterPreviewInformation(file) {
+
+    const dom = getDOM();
+
+    if (!file) {
+        return false;
+    }
+
+    if (dom.characterPreviewName) {
+
+        dom.characterPreviewName.textContent =
+            file.name ||
+            file.original?.name ||
+            "Replacement character";
+
+    }
+
+    if (dom.characterPreviewSize) {
+
+        dom.characterPreviewSize.textContent =
+            formatFileSize(
+                file.size ||
+                file.original?.size
+            );
+
+    }
+
+    return true;
+
+}
+
+
+function showCharacterUploadState() {
+
+    const dom = getDOM();
+
+    if (dom.characterUploadState) {
+
+        dom.characterUploadState.hidden = false;
+
+        dom.characterUploadState.classList.remove(
+            "vision-hidden"
+        );
+    }
+
+    if (dom.characterPreviewState) {
+
+        dom.characterPreviewState.hidden = true;
+
+        dom.characterPreviewState.classList.add(
+            "vision-hidden"
+        );
+
+        dom.characterPreviewState.classList.remove(
+            "is-visible"
+        );
+    }
+
+}
+
+
+function showCharacterPreviewState() {
+
+    const dom = getDOM();
+
+    if (dom.characterUploadState) {
+
+        dom.characterUploadState.hidden = true;
+
+        dom.characterUploadState.classList.add(
+            "vision-hidden"
+        );
+    }
+
+    if (dom.characterPreviewState) {
+
+        dom.characterPreviewState.hidden = false;
+
+        dom.characterPreviewState.classList.remove(
+            "vision-hidden"
+        );
+
+        dom.characterPreviewState.classList.add(
+            "is-visible"
+        );
+    }
+
+}
+
+
+function clearCharacterPreviewImage() {
+
+    const dom = getDOM();
+
+    if (!dom.characterPreviewImage) {
+        return;
+    }
+
+    dom.characterPreviewImage.removeAttribute(
+        "src"
+    );
+
+    dom.characterPreviewImage.removeAttribute(
+        "alt"
+    );
+
+}
+
+
+function clearCharacterPreview() {
+
+    const dom = getDOM();
+
+    clearCharacterPreviewImage();
+
+    if (dom.characterPreviewName) {
+        dom.characterPreviewName.textContent = "";
+    }
+
+    if (dom.characterPreviewSize) {
+        dom.characterPreviewSize.textContent = "";
+    }
+
+    showCharacterUploadState();
+
+}
+
+
+function renderCharacterPreview(file) {
+
+    if (!file) {
+
+        clearCharacterPreview();
+
+        return false;
+    }
+
+    const imageSet =
+        setCharacterPreviewImage(
+            file.dataUrl
+        );
+
+    if (!imageSet) {
+
+        showCharacterUploadState();
+
+        return false;
+    }
+
+    updateCharacterPreviewInformation(
+        file
+    );
+
+    showCharacterPreviewState();
+
+    return true;
+
+}
+
+
+/* =========================================================
+   RESTORE REFERENCE PREVIEW FROM STATE
 ========================================================= */
 
 function renderFromState() {
 
-    const state =
-        getState();
-
+    const state = getState();
 
     const file =
         state.get(
@@ -589,320 +444,52 @@ function renderFromState() {
             null
         );
 
-
     if (
         !file ||
-        !file.dataUrl
+        !isValidDataUrl(file.dataUrl)
     ) {
 
         showUploadState();
 
         clearPreviewImage();
 
-        return false;
+    } else {
+
+        renderPreview(file);
 
     }
 
 
-    return renderPreview(
-        file
-    );
-
-}
-
-
-/* =========================================================
-   CLEAR PREVIEW INFORMATION
-========================================================= */
-
-function clearPreviewInformation() {
-
-    const dom =
-        getDOM();
-
+    const replacementCharacter =
+        state.get(
+            "replacementCharacter",
+            null
+        );
 
     if (
-        dom.previewName
+        !replacementCharacter ||
+        !isValidDataUrl(
+            replacementCharacter.dataUrl
+        )
     ) {
 
-        dom.previewName.textContent =
-            "";
+        showCharacterUploadState();
+
+        clearCharacterPreviewImage();
+
+    } else {
+
+        renderCharacterPreview(
+            replacementCharacter
+        );
 
     }
-
-
-    if (
-        dom.previewSize
-    ) {
-
-        dom.previewSize.textContent =
-            "";
-
-    }
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   CLEAR PREVIEW
-========================================================= */
-
-function clearPreview(
-    options = {}
-) {
-
-    const state =
-        getState();
-
-
-    clearPreviewImage();
-
-    clearPreviewInformation();
-
-    showUploadState();
-
-
-    if (
-        options.clearState !== false
-    ) {
-
-        state.clearFile();
-
-    }
-
-
-    if (
-        options.resetInput !== false &&
-        window.GENZVisionUpload
-    ) {
-
-        window.GENZVisionUpload
-            .resetFileInput();
-
-    }
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   PREVIEW IMAGE LOAD CHECK
-========================================================= */
-
-function isPreviewLoaded() {
-
-    const dom =
-        getDOM();
-
-
-    if (
-        !dom.previewImage
-    ) {
-
-        return false;
-
-    }
-
-
-    return Boolean(
-        dom.previewImage.complete &&
-        dom.previewImage.naturalWidth > 0 &&
-        dom.previewImage.naturalHeight > 0
-    );
-
-}
-
-
-/* =========================================================
-   GET PREVIEW DIMENSIONS
-========================================================= */
-
-function getPreviewDimensions() {
-
-    const dom =
-        getDOM();
-
-
-    if (
-        !dom.previewImage
-    ) {
-
-        return {
-
-            width:
-                0,
-
-            height:
-                0
-
-        };
-
-    }
-
 
     return {
-
-        width:
-            Number(
-                dom.previewImage
-                    .naturalWidth ||
-                0
-            ),
-
-        height:
-            Number(
-                dom.previewImage
-                    .naturalHeight ||
-                0
-            )
-
+        reference: !!file,
+        replacementCharacter:
+            !!replacementCharacter
     };
-
-}
-
-
-/* =========================================================
-   HANDLE IMAGE LOAD
-========================================================= */
-
-function handlePreviewImageLoad() {
-
-    const dimensions =
-        getPreviewDimensions();
-
-
-    const state =
-        getState();
-
-
-    if (
-        dimensions.width > 0 &&
-        dimensions.height > 0
-    ) {
-
-        state.merge(
-            "file",
-            {
-
-                width:
-                    dimensions.width,
-
-                height:
-                    dimensions.height
-
-            }
-        );
-
-    }
-
-
-    return dimensions;
-
-}
-
-
-/* =========================================================
-   SET DROPZONE ACTIVE
-========================================================= */
-
-function setDropzoneActive(
-    active
-) {
-
-    const dom =
-        getDOM();
-
-
-    if (
-        !dom.dropzone
-    ) {
-
-        return false;
-
-    }
-
-
-    dom.dropzone
-        .classList
-        .toggle(
-            "vision-dropzone-active",
-            Boolean(active)
-        );
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   SET DROPZONE DISABLED
-========================================================= */
-
-function setDropzoneDisabled(
-    disabled
-) {
-
-    const dom =
-        getDOM();
-
-
-    if (
-        !dom.dropzone
-    ) {
-
-        return false;
-
-    }
-
-
-    dom.dropzone
-        .classList
-        .toggle(
-            "vision-dropzone-disabled",
-            Boolean(disabled)
-        );
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   PREVIEW STATE FROM FILE
-========================================================= */
-
-function updateFromFile(
-    file
-) {
-
-    if (
-        !file
-    ) {
-
-        return clearPreview();
-
-    }
-
-
-    const rendered =
-        renderPreview(
-            file
-        );
-
-
-    setDropzoneActive(
-        false
-    );
-
-
-    return rendered;
 
 }
 
@@ -911,52 +498,60 @@ function updateFromFile(
    PUBLIC API
 ========================================================= */
 
-const GENZVisionPreview = Object.freeze({
+const GENZVisionPreview = {
 
-    formatDimensions,
-
-    formatFileInformation,
-
+    /* Reference */
     setPreviewImage,
-
-    clearPreviewImage,
-
-    updateFileName,
-
-    updateFileSize,
-
     updatePreviewInformation,
-
     showUploadState,
-
     showPreviewState,
-
+    clearPreviewImage,
+    clearPreview,
     renderPreview,
 
-    renderFromState,
+    /* Replacement Character */
+    setCharacterPreviewImage,
+    updateCharacterPreviewInformation,
+    showCharacterUploadState,
+    showCharacterPreviewState,
+    clearCharacterPreviewImage,
+    clearCharacterPreview,
+    renderCharacterPreview,
 
-    clearPreviewInformation,
+    /* State restore */
+    renderFromState
 
+};
+
+
+export {
+
+    setPreviewImage,
+    updatePreviewInformation,
+    showUploadState,
+    showPreviewState,
+    clearPreviewImage,
     clearPreview,
+    renderPreview,
 
-    isPreviewLoaded,
+    setCharacterPreviewImage,
+    updateCharacterPreviewInformation,
+    showCharacterUploadState,
+    showCharacterPreviewState,
+    clearCharacterPreviewImage,
+    clearCharacterPreview,
+    renderCharacterPreview,
 
-    getPreviewDimensions,
+    renderFromState
 
-    handlePreviewImageLoad,
-
-    setDropzoneActive,
-
-    setDropzoneDisabled,
-
-    updateFromFile
-
-});
+};
 
 
-/* =========================================================
-   GLOBAL EXPORT
-========================================================= */
+if (
+    typeof window !== "undefined"
+) {
 
-window.GENZVisionPreview =
-    GENZVisionPreview;
+    window.GENZVisionPreview =
+        GENZVisionPreview;
+
+}
