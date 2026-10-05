@@ -1541,13 +1541,90 @@
 
 
 /* =========================================================
-   PROGRESS
+   PREMIUM PROGRESS
 ========================================================= */
 
 .vision-progress {
 
+    position:
+        relative;
+
     margin-top:
-        3px;
+        12px;
+
+    padding:
+        13px 14px 11px;
+
+    overflow:
+        hidden;
+
+    border:
+        1px solid
+        rgba(255, 23, 79, .14);
+
+    border-radius:
+        13px;
+
+    background:
+
+        linear-gradient(
+            135deg,
+            rgba(255, 23, 79, .055),
+            rgba(255, 255, 255, .018)
+        ),
+
+        rgba(0, 0, 0, .22);
+
+    box-shadow:
+
+        inset 0 1px
+        rgba(255, 255, 255, .035),
+
+        0 0 24px
+        rgba(255, 23, 79, .035);
+
+}
+
+
+/* =========================================================
+   PROGRESS TOP GLOW
+========================================================= */
+
+.vision-progress::before {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    top:
+        0;
+
+    left:
+        12%;
+
+    width:
+        76%;
+
+    height:
+        1px;
+
+    pointer-events:
+        none;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 23, 79, .55),
+            transparent
+        );
+
+    opacity:
+        .75;
+
 }
 
 
@@ -1557,17 +1634,75 @@
 
 .vision-progress-track {
 
+    position:
+        relative;
+
+    width:
+        100%;
+
     height:
-        4px;
+        7px;
 
     overflow:
         hidden;
 
+    border:
+        1px solid
+        rgba(255, 255, 255, .055);
+
     border-radius:
-        99px;
+        999px;
 
     background:
-        rgba(255, 255, 255, .07);
+
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, .075),
+            rgba(255, 255, 255, .025)
+        );
+
+    box-shadow:
+
+        inset 0 1px 3px
+        rgba(0, 0, 0, .55),
+
+        0 0 10px
+        rgba(255, 23, 79, .025);
+
+}
+
+
+/* =========================================================
+   PROGRESS TRACK GRID
+========================================================= */
+
+.vision-progress-track::before {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    inset:
+        0;
+
+    pointer-events:
+        none;
+
+    background:
+
+        repeating-linear-gradient(
+            90deg,
+            transparent 0,
+            transparent 9px,
+            rgba(255, 255, 255, .045) 10px,
+            transparent 11px
+        );
+
+    opacity:
+        .45;
+
 }
 
 
@@ -1577,8 +1712,17 @@
 
 .vision-progress-bar {
 
+    position:
+        relative;
+
+    width:
+        0%;
+
     height:
         100%;
+
+    overflow:
+        hidden;
 
     border-radius:
         inherit;
@@ -1587,17 +1731,107 @@
 
         linear-gradient(
             90deg,
-            #a90835,
-            #ff174f,
-            #ff6382
+            #8d082f 0%,
+            #d80d43 42%,
+            #ff174f 76%,
+            #ff6b87 100%
         );
 
     box-shadow:
-        0 0 16px
-        rgba(255, 23, 79, .38);
+
+        0 0 7px
+        rgba(255, 23, 79, .55),
+
+        0 0 18px
+        rgba(255, 23, 79, .38),
+
+        0 0 34px
+        rgba(255, 23, 79, .18);
 
     transition:
-        width .25s ease;
+        width .45s cubic-bezier(.22, 1, .36, 1);
+
+}
+
+
+/* =========================================================
+   PROGRESS BAR INNER LIGHT
+========================================================= */
+
+.vision-progress-bar::before {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    inset:
+        0;
+
+    pointer-events:
+        none;
+
+    background:
+
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, .30),
+            transparent 48%,
+            rgba(0, 0, 0, .08)
+        );
+
+    opacity:
+        .65;
+
+}
+
+
+/* =========================================================
+   PROGRESS BAR SHIMMER
+========================================================= */
+
+.vision-progress-bar::after {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    top:
+        0;
+
+    left:
+        -45%;
+
+    width:
+        38%;
+
+    height:
+        100%;
+
+    pointer-events:
+        none;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, .48),
+            transparent
+        );
+
+    filter:
+        blur(1px);
+
+    transform:
+        skewX(-18deg);
+
+    animation:
+        visionProgressShimmer 1.35s linear infinite;
+
 }
 
 
@@ -1610,17 +1844,107 @@
     display:
         flex;
 
+    align-items:
+        center;
+
     justify-content:
         flex-end;
 
+    min-height:
+        13px;
+
     margin-top:
-        6px;
+        7px;
 
     color:
-        #66666e;
+        #85858e;
 
     font-size:
-        8px;
+        9px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        .08em;
+
+    font-variant-numeric:
+        tabular-nums;
+
+}
+
+
+/* =========================================================
+   ACTIVE PROGRESS
+========================================================= */
+
+.vision-progress:not([hidden])
+.vision-progress-bar {
+
+    animation:
+        visionProgressGlow 1.8s ease-in-out infinite alternate;
+
+}
+
+
+/* =========================================================
+   PROGRESS ANIMATIONS
+========================================================= */
+
+@keyframes visionProgressShimmer {
+
+    0% {
+
+        left:
+            -45%;
+
+    }
+
+    100% {
+
+        left:
+            125%;
+
+    }
+
+}
+
+
+@keyframes visionProgressGlow {
+
+    0% {
+
+        filter:
+            brightness(.92);
+
+        box-shadow:
+
+            0 0 6px
+            rgba(255, 23, 79, .42),
+
+            0 0 15px
+            rgba(255, 23, 79, .25);
+
+    }
+
+    100% {
+
+        filter:
+            brightness(1.12);
+
+        box-shadow:
+
+            0 0 9px
+            rgba(255, 23, 79, .70),
+
+            0 0 23px
+            rgba(255, 23, 79, .42),
+
+            0 0 38px
+            rgba(255, 23, 79, .18);
+
+    }
+
 }
 
 
