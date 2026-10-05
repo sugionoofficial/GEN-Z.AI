@@ -18,8 +18,26 @@ const VISION_API_CONFIG = Object.freeze({
     endpoint:
         "/api/openkey-chat",
 
+    /*
+     * =====================================================
+     * REQUEST TIMEOUT
+     * =====================================================
+     *
+     * Default timeout:
+     * 300 detik = 5 menit
+     *
+     * AI Vision dan Prompt Engineering dapat membutuhkan
+     * waktu lebih lama daripada request API biasa.
+     */
+
     timeout:
-        120000,
+        300000,
+
+    analysisTimeout:
+        300000,
+
+    promptTimeout:
+        300000,
 
     analysisTemperature:
         0.2,
@@ -132,6 +150,12 @@ function createTimeoutController(
         new AbortController();
 
 
+    const safeTimeout =
+        Number(timeout) > 0
+            ? Number(timeout)
+            : VISION_API_CONFIG.timeout;
+
+
     const timer =
         setTimeout(
             () => {
@@ -139,7 +163,7 @@ function createTimeoutController(
                 controller.abort();
 
             },
-            timeout
+            safeTimeout
         );
 
 
@@ -266,11 +290,32 @@ async function request(
         await getAccessToken();
 
 
-    const timeout =
+    /*
+     * Prioritas:
+     *
+     * 1. options.timeout
+     * 2. VISION_API_CONFIG.timeout
+     *
+     * Jangan gunakan || secara langsung untuk nilai timeout
+     * supaya nilai 0 tidak dianggap sebagai konfigurasi
+     * yang valid secara diam-diam.
+     */
+
+    const requestedTimeout =
         Number(
-            options.timeout ||
-            VISION_API_CONFIG.timeout
+            options.timeout
         );
+
+
+    const timeout =
+        Number.isFinite(
+            requestedTimeout
+        ) &&
+        requestedTimeout > 0
+
+            ? requestedTimeout
+
+            : VISION_API_CONFIG.timeout;
 
 
     const {
