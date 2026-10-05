@@ -1382,10 +1382,141 @@
             // NORMALIZE ANALYSIS
             // =============================================
 
+            /*
+             * PENTING:
+             *
+             * vision-api-analysis.js sudah melakukan:
+             *
+             * 1. request ke provider
+             * 2. validasi quality
+             * 3. parsing JSON
+             * 4. menghasilkan:
+             *
+             *    analysisResponse.analysis
+             *
+             * Jangan memberikan seluruh API wrapper ke
+             * normalizeAnalysis() jika field analysis
+             * sudah tersedia.
+             *
+             * Sebelumnya:
+             *
+             * normalizeAnalysis(analysisResponse)
+             *
+             * dapat menyebabkan processing module
+             * mencari payload wrapper lain.
+             *
+             * Sekarang:
+             *
+             * normalizeAnalysis(
+             *     analysisResponse.analysis
+             * )
+             *
+             * menggunakan parsed analysis yang sudah
+             * lolos validateAnalysisQuality().
+             */
+
+            const analysisPayload =
+                analysisResponse?.analysis &&
+                typeof analysisResponse.analysis ===
+                    "object"
+                    ? analysisResponse.analysis
+                    : (
+                        typeof analysisResponse?.text ===
+                        "string"
+                            ? analysisResponse.text
+                            : analysisResponse
+                    );
+
+
+            /*
+             * Diagnostic:
+             * memastikan payload yang benar diteruskan.
+             */
+
+            console.info(
+                "[GEN-Z.AI Vision] Analysis payload selected:",
+                {
+                    source:
+                        analysisResponse?.analysis &&
+                        typeof analysisResponse.analysis ===
+                            "object"
+                            ? "analysisResponse.analysis"
+                            : (
+                                typeof analysisResponse?.text ===
+                                "string"
+                                    ? "analysisResponse.text"
+                                    : "analysisResponse"
+                            ),
+
+                    topLevelKeys:
+                        analysisPayload &&
+                        typeof analysisPayload ===
+                            "object"
+                            ? Object.keys(
+                                analysisPayload
+                            )
+                            : [],
+
+                    textLength:
+                        typeof analysisPayload ===
+                            "string"
+                            ? analysisPayload.length
+                            : null
+                }
+            );
+
+
             const normalizedAnalysis =
                 getAnalysis().normalizeAnalysis(
-                    analysisResponse
+                    analysisPayload
                 );
+
+
+            /*
+             * Diagnostic setelah normalisasi.
+             *
+             * Jika data model benar, object ini harus
+             * tetap membawa nilai konkret dari Vision
+             * Analysis, bukan hanya schema kosong.
+             */
+
+            console.info(
+                "[GEN-Z.AI Vision] Analysis normalized:",
+                {
+                    topLevelKeys:
+                        normalizedAnalysis &&
+                        typeof normalizedAnalysis ===
+                            "object"
+                            ? Object.keys(
+                                normalizedAnalysis
+                            )
+                            : [],
+
+                    subject:
+                        normalizedAnalysis?.subject,
+
+                    appearance:
+                        normalizedAnalysis?.appearance,
+
+                    face_hair:
+                        normalizedAnalysis?.face_hair,
+
+                    pose:
+                        normalizedAnalysis?.pose,
+
+                    clothing:
+                        normalizedAnalysis?.clothing,
+
+                    product:
+                        normalizedAnalysis?.product,
+
+                    environment:
+                        normalizedAnalysis?.environment,
+
+                    visual_style:
+                        normalizedAnalysis?.visual_style
+                }
+            );
 
 
             getState().setAnalysis(
