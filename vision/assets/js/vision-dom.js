@@ -11,6 +11,7 @@
    - Menjaga kompatibilitas DOM lama
    - Mendukung Reference Image
    - Mendukung Replacement Character Image
+   - Mendukung Outfit Source
    - Tidak mengubah logic upload / preview / API
 ========================================================= */
 
@@ -108,6 +109,22 @@ const VISION_DOM_IDS = {
 
     characterRemoveButton:
         "visionCharacterRemoveButton",
+
+
+    /* =====================================================
+       OUTFIT SOURCE
+       -----------------------------------------------------
+       Pilihan sumber outfit:
+       - reference
+       - character
+
+       Sengaja TIDAK dimasukkan ke required DOM karena
+       HTML kontrol outfit belum wajib tersedia pada versi
+       lama.
+    ===================================================== */
+
+    outfitSource:
+        "visionOutfitSource",
 
 
     /* =====================================================
@@ -210,8 +227,9 @@ const VISION_DOM_IDS = {
    REQUIRED DOM
    ---------------------------------------------------------
    Hanya element yang memang sudah ada pada HTML saat ini.
-   
-   Replacement Character TIDAK dimasukkan di sini dulu.
+
+   Replacement Character dan Outfit Source TIDAK
+   dimasukkan di sini agar halaman lama tetap kompatibel.
 ========================================================= */
 
 const VISION_REQUIRED_DOM_KEYS = [
@@ -601,6 +619,7 @@ function hasClass(
     return element.classList.contains(
         className
     );
+
 }
 
 
