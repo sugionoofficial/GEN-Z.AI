@@ -1,4 +1,4 @@
-//vision-api.js?v=1.2
+//vision-api.js?v=1.3
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -385,7 +385,8 @@ async function request(
 
         return data;
 
-    } catch (error) {
+    }
+    catch (error) {
 
         if (
             error?.name ===
@@ -410,7 +411,8 @@ async function request(
 
         throw error;
 
-    } finally {
+    }
+    finally {
 
         clear();
 
@@ -513,7 +515,359 @@ async function getOpenKeyModels(
     }
 
 
+    /*
+     * DEBUG CATALOG
+     *
+     * Tidak menampilkan API key.
+     *
+     * Tujuannya memastikan object yang benar-benar
+     * sampai ke browser.
+     */
+
+    console.info(
+        "[GEN-Z.AI Vision] OpenKey catalog received:",
+        models.map(
+            model => ({
+
+                id:
+                    model?.model_id ||
+                    model?.id ||
+                    null,
+
+                name:
+                    model?.model_name ||
+                    model?.name ||
+                    null,
+
+                input_modalities:
+                    model?.input_modalities ||
+                    null,
+
+                output_modalities:
+                    model?.output_modalities ||
+                    null,
+
+                capabilities:
+                    model?.capabilities ||
+                    null,
+
+                modality:
+                    model?.modality ||
+                    null,
+
+                modalities:
+                    model?.modalities ||
+                    null,
+
+                architecture:
+                    model?.architecture ||
+                    null,
+
+                raw:
+                    model
+
+            })
+        )
+    );
+
+
     return models;
+
+}
+
+
+/* =========================================================
+   VALUE TO MODALITY LIST
+   ---------------------------------------------------------
+   Helper untuk membaca berbagai bentuk metadata capability
+   tanpa menganggap satu schema tertentu sebagai satu-satunya
+   schema OpenKey.
+========================================================= */
+
+function collectModalityValues(
+    value,
+    result = []
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return result;
+
+    }
+
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        value.forEach(
+            item => {
+
+                collectModalityValues(
+                    item,
+                    result
+                );
+
+            }
+        );
+
+
+        return result;
+
+    }
+
+
+    if (
+        typeof value === "string"
+    ) {
+
+        const normalized =
+            value
+                .trim()
+                .toLowerCase();
+
+
+        if (
+            normalized
+        ) {
+
+            result.push(
+                normalized
+            );
+
+        }
+
+
+        return result;
+
+    }
+
+
+    if (
+        typeof value === "boolean"
+    ) {
+
+        result.push(
+            value
+                ? "true"
+                : "false"
+        );
+
+
+        return result;
+
+    }
+
+
+    if (
+        typeof value === "object"
+    ) {
+
+        Object.entries(
+            value
+        )
+            .forEach(
+                (
+                    [
+                        key,
+                        item
+                    ]
+                ) => {
+
+                    /*
+                     * Simpan key sebagai metadata capability
+                     * agar object seperti:
+                     *
+                     * {
+                     *     image: true
+                     * }
+                     *
+                     * dapat dibaca.
+                     */
+
+                    const normalizedKey =
+                        String(
+                            key
+                        )
+                            .trim()
+                            .toLowerCase();
+
+
+                    if (
+                        normalizedKey
+                    ) {
+
+                        result.push(
+                            normalizedKey
+                        );
+
+                    }
+
+
+                    if (
+                        item === true
+                    ) {
+
+                        result.push(
+                            normalizedKey
+                        );
+
+                    }
+                    else {
+
+                        collectModalityValues(
+                            item,
+                            result
+                        );
+
+                    }
+
+                }
+            );
+
+    }
+
+
+    return result;
+
+}
+
+
+/* =========================================================
+   GET MODEL CAPABILITIES
+========================================================= */
+
+function getModelCapabilities(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !==
+            "object"
+    ) {
+
+        return [];
+
+    }
+
+
+    const values = [];
+
+
+    /*
+     * Explicit OpenAI-compatible fields.
+     */
+
+    collectModalityValues(
+        model.input_modalities,
+        values
+    );
+
+
+    collectModalityValues(
+        model.inputModalities,
+        values
+    );
+
+
+    collectModalityValues(
+        model.modalities,
+        values
+    );
+
+
+    collectModalityValues(
+        model.modality,
+        values
+    );
+
+
+    /*
+     * Capability metadata.
+     */
+
+    collectModalityValues(
+        model.capabilities,
+        values
+    );
+
+
+    /*
+     * Architecture metadata.
+     */
+
+    collectModalityValues(
+        model.architecture,
+        values
+    );
+
+
+    /*
+     * Raw provider metadata jika tersedia.
+     */
+
+    if (
+        model.raw &&
+        typeof model.raw ===
+            "object"
+    ) {
+
+        collectModalityValues(
+            model.raw.input_modalities,
+            values
+        );
+
+
+        collectModalityValues(
+            model.raw.inputModalities,
+            values
+        );
+
+
+        collectModalityValues(
+            model.raw.modalities,
+            values
+        );
+
+
+        collectModalityValues(
+            model.raw.modality,
+            values
+        );
+
+
+        collectModalityValues(
+            model.raw.capabilities,
+            values
+        );
+
+
+        collectModalityValues(
+            model.raw.architecture,
+            values
+        );
+
+    }
+
+
+    return [
+        ...new Set(
+            values
+                .map(
+                    value =>
+                        String(
+                            value
+                        )
+                            .trim()
+                            .toLowerCase()
+                )
+                .filter(Boolean)
+        )
+    ];
 
 }
 
@@ -562,38 +916,95 @@ function normalizeVisionModel(
         ).trim();
 
 
-    const inputModalities =
-        Array.isArray(
-            model.input_modalities
+    /*
+     * Explicit modalities tetap menjadi sumber utama.
+     */
+
+    const explicitInputModalities = [
+
+        ...(
+            Array.isArray(
+                model.input_modalities
+            )
+                ? model.input_modalities
+                : []
+        ),
+
+        ...(
+            Array.isArray(
+                model.inputModalities
+            )
+                ? model.inputModalities
+                : []
         )
-            ? model.input_modalities
-                .map(
-                    value =>
-                        String(
-                            value || ""
-                        )
-                            .trim()
-                            .toLowerCase()
+
+    ]
+        .map(
+            value =>
+                String(
+                    value || ""
                 )
-                .filter(Boolean)
-            : [];
+                    .trim()
+                    .toLowerCase()
+        )
+        .filter(Boolean);
 
 
-    const outputModalities =
-        Array.isArray(
-            model.output_modalities
+    const outputModalities = [
+
+        ...(
+            Array.isArray(
+                model.output_modalities
+            )
+                ? model.output_modalities
+                : []
+        ),
+
+        ...(
+            Array.isArray(
+                model.outputModalities
+            )
+                ? model.outputModalities
+                : []
         )
-            ? model.output_modalities
-                .map(
-                    value =>
-                        String(
-                            value || ""
-                        )
-                            .trim()
-                            .toLowerCase()
+
+    ]
+        .map(
+            value =>
+                String(
+                    value || ""
                 )
-                .filter(Boolean)
-            : [];
+                    .trim()
+                    .toLowerCase()
+        )
+        .filter(Boolean);
+
+
+    const capabilities =
+        getModelCapabilities(
+            model
+        );
+
+
+    /*
+     * Gabungkan explicit input modalities dengan
+     * capability metadata.
+     *
+     * Tidak mengubah model ID.
+     * Tidak membuat model baru.
+     */
+
+    const inputModalities = [
+
+        ...new Set([
+
+            ...explicitInputModalities,
+
+            ...capabilities
+
+        ])
+
+    ];
 
 
     return {
@@ -614,7 +1025,13 @@ function normalizeVisionModel(
             inputModalities,
 
         output_modalities:
-            outputModalities
+            [
+                ...new Set(
+                    outputModalities
+                )
+            ],
+
+        capabilities
 
     };
 
@@ -624,11 +1041,12 @@ function normalizeVisionModel(
 /* =========================================================
    IMAGE INPUT DETECTION
    ---------------------------------------------------------
-   Hanya menganggap model Vision apabila katalog OpenKey
-   secara eksplisit menyatakan dukungan image / vision /
-   multimodal.
+   Vision detection membaca capability metadata model.
 
-   Tidak menebak berdasarkan nama model.
+   Prioritas:
+   1. input_modalities eksplisit
+   2. capability metadata yang sudah diberikan catalog
+   3. Tidak menggunakan model ID sebagai tebakan
 ========================================================= */
 
 function supportsImageInput(
@@ -651,24 +1069,69 @@ function supportsImageInput(
 
 
     const modalities =
-        normalized.input_modalities;
+        new Set([
+
+            ...normalized.input_modalities,
+
+            ...normalized.capabilities
+
+        ]);
 
 
-    return modalities.some(
-        modality => [
+    const imageIndicators = [
 
-            "image",
+        "image",
 
-            "vision",
+        "images",
 
-            "multimodal",
+        "vision",
 
-            "image_url"
+        "multimodal",
 
-        ].includes(
-            modality
+        "multimodal_input",
+
+        "image_url",
+
+        "image-input",
+
+        "image_input",
+
+        "visual",
+
+        "visual_input"
+
+    ];
+
+
+    if (
+        imageIndicators.some(
+            indicator =>
+                modalities.has(
+                    indicator
+                )
         )
-    );
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+     * Nested capability objects dapat menghasilkan key
+     * seperti:
+     *
+     * input:
+     * {
+     *     image: true
+     * }
+     *
+     * getModelCapabilities() sudah mengubah key tersebut
+     * menjadi "image".
+     */
+
+
+    return false;
 
 }
 
@@ -683,9 +1146,7 @@ function supportsImageInput(
    3. Jika tidak ada model image-capable,
       hentikan proses dengan error yang jelas.
 
-   Tidak ada fallback ke:
-   gemini-3.1-pro
-   atau model ID buatan lain.
+   Tidak ada fallback ke model ID buatan.
 ========================================================= */
 
 async function resolveVisionModel(
@@ -707,6 +1168,33 @@ async function resolveVisionModel(
             .filter(
                 Boolean
             );
+
+
+    console.info(
+        "[GEN-Z.AI Vision] Normalized OpenKey models:",
+        normalizedModels.map(
+            model => ({
+
+                id:
+                    model.id,
+
+                name:
+                    model.name,
+
+                input_modalities:
+                    model.input_modalities,
+
+                capabilities:
+                    model.capabilities,
+
+                supports_image:
+                    supportsImageInput(
+                        model
+                    )
+
+            })
+        )
+    );
 
 
     if (
@@ -809,7 +1297,14 @@ async function resolveVisionModel(
                                     model.name,
 
                                 input_modalities:
-                                    model.input_modalities
+                                    model.input_modalities,
+
+                                capabilities:
+                                    model.capabilities,
+
+                                raw:
+                                    model.raw ||
+                                    null
 
                             })
                         )
@@ -845,6 +1340,26 @@ async function resolveVisionModel(
         );
 
     }
+
+
+    console.info(
+        "[GEN-Z.AI Vision] Vision model selected:",
+        {
+
+            id:
+                selected.id,
+
+            name:
+                selected.name,
+
+            input_modalities:
+                selected.input_modalities,
+
+            capabilities:
+                selected.capabilities
+
+        }
+    );
 
 
     return selected;
@@ -1531,23 +2046,6 @@ async function generatePrompt(
 
 /* =========================================================
    EXTRACT ASSISTANT TEXT
-   ---------------------------------------------------------
-   Mendukung:
-
-   1. GEN-Z.AI normalized response
-      response.content
-
-   2. normalized message
-      response.message.content
-
-   3. OpenAI-compatible response
-      response.choices[0].message.content
-
-   4. content array
-
-   5. output_text
-
-   6. text
 ========================================================= */
 
 function extractAssistantText(
@@ -1913,7 +2411,8 @@ function parseJSON(
             normalized
         );
 
-    } catch {
+    }
+    catch {
 
         const firstBrace =
             normalized.indexOf(
@@ -1945,7 +2444,8 @@ function parseJSON(
                     candidate
                 );
 
-            } catch {
+            }
+            catch {
 
                 /* lanjut ke error asli */
 
@@ -1999,7 +2499,8 @@ async function runVisionPipeline(
                 analysis.text
             );
 
-    } catch {
+    }
+    catch {
 
         normalizedAnalysis =
             null;
@@ -2073,6 +2574,10 @@ const GENZVisionAPI =
         getAccessToken,
 
         getOpenKeyModels,
+
+        collectModalityValues,
+
+        getModelCapabilities,
 
         normalizeVisionModel,
 
