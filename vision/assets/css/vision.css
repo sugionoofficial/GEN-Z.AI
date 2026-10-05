@@ -3031,6 +3031,14 @@
 
 /* =========================================================
    REDUCED MOTION
+   ---------------------------------------------------------
+   Accessibility:
+   Animasi dekoratif tetap dikurangi ketika perangkat meminta
+   reduced motion.
+
+   FIX:
+   Loading aktif tetap bergerak agar pengguna mendapat feedback
+   bahwa proses Vision masih berjalan, termasuk pada HP.
 ========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
@@ -3047,6 +3055,107 @@
 
         transition-duration:
             .001ms !important;
+
+    }
+
+
+    /* -----------------------------------------------------
+       ACTIVE BUTTON SPINNER
+       -----------------------------------------------------
+       Spinner adalah indikator status proses, bukan dekorasi.
+    ----------------------------------------------------- */
+
+    .vision-page.vision-processing
+    .vision-button-spinner {
+
+        animation:
+            visionSpin .75s linear infinite !important;
+
+    }
+
+
+    /* -----------------------------------------------------
+       ACTIVE PROGRESS CONTAINER
+    ----------------------------------------------------- */
+
+    .vision-page.vision-processing
+    .vision-progress:not([hidden]) {
+
+        animation:
+            visionProgressContainerPulse 2.2s ease-in-out infinite !important;
+
+    }
+
+
+    /* -----------------------------------------------------
+       ACTIVE PROGRESS BAR
+    ----------------------------------------------------- */
+
+    .vision-page.vision-processing
+    .vision-progress:not([hidden])
+    .vision-progress-bar {
+
+        animation:
+            visionProgressGlow 1.35s ease-in-out infinite alternate !important;
+
+    }
+
+
+    /* -----------------------------------------------------
+       ACTIVE PROGRESS SHIMMER
+    ----------------------------------------------------- */
+
+    .vision-page.vision-processing
+    .vision-progress:not([hidden])
+    .vision-progress-bar::after {
+
+        animation:
+            visionProgressShimmer 1.25s linear infinite !important;
+
+    }
+
+
+    /* -----------------------------------------------------
+       ACTIVE PROGRESS BORDER
+    ----------------------------------------------------- */
+
+    .vision-page.vision-processing
+    .vision-progress:not([hidden])::before {
+
+        animation:
+            visionProgressBorderScan 2.1s linear infinite !important;
+
+    }
+
+
+    /* -----------------------------------------------------
+       ACTIVE STATUS INDICATOR
+    ----------------------------------------------------- */
+
+    .vision-page.vision-processing
+    .vision-status[data-state="analyzing"]
+    .vision-status-indicator,
+    .vision-page.vision-processing
+    .vision-status[data-state="engineering"]
+    .vision-status-indicator,
+    .vision-page.vision-processing
+    .vision-status[data-state="validating"]
+    .vision-status-indicator,
+    .vision-page.vision-processing
+    .vision-status[data-state="checking-credit"]
+    .vision-status-indicator,
+    .vision-page.vision-processing
+    .vision-status[data-state="reserving-credit"]
+    .vision-status-indicator,
+    .vision-page.vision-processing
+    .vision-status[data-state="saving-history"]
+    .vision-status-indicator,
+    .vision-page.vision-processing
+    .vision-status[data-state="refunding"]
+    .vision-status-indicator {
+
+        animation:
+            visionPulse 1s ease-in-out infinite !important;
 
     }
 
