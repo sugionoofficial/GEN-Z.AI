@@ -9,7 +9,9 @@
    - Capability detection
    - Vision model detection
    - Vision model resolution
-   - Image message
+   - Single image message
+   - Multi image message
+   - Reference / Character outfit source
 ========================================================= */
 
 
@@ -34,6 +36,26 @@ const OPENKEY_VISION_MODEL_IDS =
 function visionCore() {
 
     return window.GENZVisionCore;
+
+}
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+function visionState() {
+
+    if (
+        window.GENZVisionState
+    ) {
+
+        return window.GENZVisionState;
+
+    }
+
+
+    return null;
 
 }
 
@@ -942,7 +964,7 @@ async function resolveVisionModel(
                         model:
                             exact
 
-                        }
+                    }
 
                 }
 
@@ -982,7 +1004,7 @@ async function resolveVisionModel(
 
     /* =====================================================
        TIDAK ADA REQUESTED MODEL
-       ===================================================== */
+    ===================================================== */
 
     const visionModels =
         normalizedModels.filter(
@@ -1089,7 +1111,146 @@ async function resolveVisionModel(
 
 
 /* =========================================================
+   NORMALIZE OUTFIT SOURCE
+========================================================= */
+
+function normalizeOutfitSource(
+    source
+) {
+
+    const normalized =
+        String(
+            source || "reference"
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        normalized === "character"
+    ) {
+
+        return "character";
+
+    }
+
+
+    return "reference";
+
+}
+
+
+/* =========================================================
+   GET CURRENT OUTFIT SOURCE
+========================================================= */
+
+function getCurrentOutfitSource(
+    source = null
+) {
+
+    if (
+        source !== null &&
+        source !== undefined
+    ) {
+
+        return normalizeOutfitSource(
+            source
+        );
+
+    }
+
+
+    const state =
+        visionState();
+
+
+    if (
+        state &&
+        typeof state.getOutfitSource ===
+            "function"
+    ) {
+
+        return normalizeOutfitSource(
+            state.getOutfitSource()
+        );
+
+    }
+
+
+    return "reference";
+
+}
+
+
+/* =========================================================
+   VALIDATE IMAGE DATA URL
+========================================================= */
+
+function isValidImageDataUrl(
+    dataUrl
+) {
+
+    return (
+
+        typeof dataUrl ===
+            "string" &&
+
+        dataUrl.startsWith(
+            "data:image/"
+        )
+
+    );
+
+}
+
+
+/* =========================================================
+   VALIDATE IMAGE
+========================================================= */
+
+function validateVisionImage(
+    dataUrl,
+    label = "Image"
+) {
+
+    if (
+        !isValidImageDataUrl(
+            dataUrl
+        )
+    ) {
+
+        throw visionCore().createAPIError(
+
+            label +
+            " tidak valid.",
+
+            {
+
+                code:
+                    "INVALID_VISION_IMAGE"
+
+            }
+
+        );
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
    BUILD IMAGE MESSAGE
+   ---------------------------------------------------------
+   BACKWARD COMPATIBILITY
+
+   Fungsi lama tetap dipertahankan.
+
+   Dipakai untuk:
+   - satu image
+   - reference image saja
 ========================================================= */
 
 function buildImageMessage(
@@ -1097,28 +1258,10 @@ function buildImageMessage(
     dataUrl
 ) {
 
-    if (
-        typeof dataUrl !==
-            "string" ||
-        !dataUrl.startsWith(
-            "data:image/"
-        )
-    ) {
-
-        throw visionCore().createAPIError(
-
-            "Reference image tidak valid.",
-
-            {
-
-                code:
-                    "INVALID_REFERENCE_IMAGE"
-
-            }
-
-        );
-
-    }
+    validateVisionImage(
+        dataUrl,
+        "Reference image"
+    );
 
 
     return [
@@ -1156,17 +1299,532 @@ function buildImageMessage(
 
 
 /* =========================================================
-   SELECTED MODEL
+   BUILD MULTI IMAGE MESSAGE
+   ---------------------------------------------------------
+   Digunakan ketika:
+
+   Reference image
+          +
+   Replacement character
+
+   tersedia bersamaan.
+
+   Urutan image:
+   1. Reference image
+   2. Replacement character
+
+   Label dibuat eksplisit supaya model Vision
+   mengetahui fungsi masing-masing gambar.
+========================================================= */
+
+function buildMultiImageMessage(
+    options = {}
+) {
+
+    const {
+
+        text = "",
+
+        referenceImage = null,
+
+        characterImage = null,
+
+        outfitSource = null
+
+    } = options;
+
+
+    const normalizedOutfitSource =
+        getCurrentOutfitSource(
+            outfitSource
+        );
+
+
+    const hasReference =
+        isValidImageDataUrl(
+            referenceImage
+        );
+
+
+    const hasCharacter =
+        isValidImageDataUrl(
+            characterImage
+        );
+
+
+    if (
+        !hasReference
+    ) {
+
+        throw visionCore().createAPIError(
+
+            "Reference image tidak tersedia atau tidak valid.",
+
+            {
+
+                code:
+                    "INVALID_REFERENCE_IMAGE"
+
+            }
+
+        );
+
+    }
+
+
+    /*
+     * Jika outfit source = character,
+     * replacement character WAJIB tersedia.
+     */
+
+    if (
+        normalizedOutfitSource ===
+            "character" &&
+        !hasCharacter
+    ) {
+
+        throw visionCore().createAPIError(
+
+            "Replacement Character wajib tersedia ketika Outfit Source menggunakan Replacement Character Outfit.",
+
+            {
+
+                code:
+                    "CHARACTER_IMAGE_REQUIRED_FOR_OUTFIT"
+
+            }
+
+        );
+
+    }
+
+
+    const content = [];
+
+
+    /* =====================================================
+       INSTRUCTION TEXT
+    ===================================================== */
+
+    const baseText =
+        String(
+            text ||
+            ""
+        ).trim();
+
+
+    if (
+        baseText
+    ) {
+
+        content.push({
+
+            type:
+                "text",
+
+            text:
+                baseText
+
+        });
+
+    }
+
+
+    /* =====================================================
+       REFERENCE IMAGE
+    ===================================================== */
+
+    content.push({
+
+        type:
+            "text",
+
+        text:
+            normalizedOutfitSource ===
+                "reference"
+
+                ? "REFERENCE IMAGE: Gunakan gambar ini sebagai sumber outfit/pakaian utama. Replacement character, jika ada, tidak boleh menyumbangkan outfit."
+
+                : "REFERENCE IMAGE: Gunakan gambar ini untuk komposisi, pose, produk, lingkungan, pencahayaan, kamera, dan elemen visual lainnya. JANGAN mengambil outfit dari gambar ini."
+
+    });
+
+
+    content.push({
+
+        type:
+            "image_url",
+
+        image_url: {
+
+            url:
+                referenceImage
+
+        }
+
+    });
+
+
+    /* =====================================================
+       REPLACEMENT CHARACTER
+       ===================================================== */
+
+    if (
+        hasCharacter
+    ) {
+
+        content.push({
+
+            type:
+                "text",
+
+            text:
+                normalizedOutfitSource ===
+                    "character"
+
+                    ? "REPLACEMENT CHARACTER IMAGE: Gunakan karakter ini sebagai sumber identitas karakter dan outfit/pakaian final. Jangan mengambil outfit dari REFERENCE IMAGE."
+
+                    : "REPLACEMENT CHARACTER IMAGE: Gunakan gambar ini untuk identitas karakter, wajah, rambut, bentuk tubuh, dan karakteristik orang. JANGAN mengambil outfit/pakaian dari gambar ini."
+
+        });
+
+
+        content.push({
+
+            type:
+                "image_url",
+
+            image_url: {
+
+                url:
+                    characterImage
+
+            }
+
+        });
+
+    }
+
+
+    /* =====================================================
+       FINAL OUTFIT RULE
+    ===================================================== */
+
+    content.push({
+
+        type:
+            "text",
+
+        text:
+            normalizedOutfitSource ===
+                "character"
+
+                ? "OUTFIT SOURCE FINAL: REPLACEMENT CHARACTER. Outfit/pakaian final harus mengikuti replacement character. Jangan mencampur pakaian, warna pakaian, desain pakaian, aksesori pakaian, atau detail outfit dari reference image."
+
+                : "OUTFIT SOURCE FINAL: REFERENCE IMAGE. Outfit/pakaian final harus mengikuti reference image. Replacement character tidak boleh menjadi sumber pakaian atau aksesori outfit."
+
+    });
+
+
+    return content;
+
+}
+
+
+/* =========================================================
+   BUILD VISION IMAGE MESSAGE
+   ---------------------------------------------------------
+   Helper utama untuk pipeline Vision.
+
+   Jika character image tersedia:
+      -> gunakan multi-image message.
+
+   Jika tidak:
+      -> kembali ke single-image message.
+
+   Ini menjaga kompatibilitas dengan flow lama.
+========================================================= */
+
+function buildVisionImageMessage(
+    text,
+    options = {}
+) {
+
+    const state =
+        visionState();
+
+
+    const referenceImage =
+        options.referenceImage ||
+
+        (
+            state &&
+            typeof state.getReferenceImage ===
+                "function"
+
+                ? state.getReferenceImage()
+
+                : null
+        );
+
+
+    const characterImage =
+        options.characterImage ||
+
+        (
+            state &&
+            typeof state.getCharacterImage ===
+                "function"
+
+                ? state.getCharacterImage()
+
+                : null
+        );
+
+
+    const outfitSource =
+        getCurrentOutfitSource(
+            options.outfitSource
+        );
+
+
+    /*
+     * Jika tidak ada character,
+     * gunakan message lama.
+     */
+
+    if (
+        !isValidImageDataUrl(
+            characterImage
+        )
+    ) {
+
+        return buildImageMessage(
+
+            text,
+
+            referenceImage
+
+        );
+
+    }
+
+
+    return buildMultiImageMessage({
+
+        text,
+
+        referenceImage,
+
+        characterImage,
+
+        outfitSource
+
+    });
+
+}
+
+
+/* =========================================================
+   BUILD OUTFIT SOURCE INSTRUCTIONS
+========================================================= */
+
+function buildOutfitSourceInstructions(
+    source = null
+) {
+
+    const outfitSource =
+        getCurrentOutfitSource(
+            source
+        );
+
+
+    if (
+        outfitSource ===
+            "character"
+    ) {
+
+        return [
+
+            "OUTFIT SOURCE: REPLACEMENT CHARACTER.",
+
+            "Gunakan replacement character sebagai sumber outfit/pakaian final.",
+
+            "Jangan mengambil outfit dari reference image.",
+
+            "Jangan mencampur pakaian, warna, desain, aksesori, tekstur, atau detail outfit dari reference image.",
+
+            "Reference image tetap digunakan untuk komposisi, pose, produk, lingkungan, pencahayaan, kamera, dan elemen visual lain yang relevan.",
+
+            "Pertahankan identitas replacement character secara konsisten."
+
+        ];
+
+    }
+
+
+    return [
+
+        "OUTFIT SOURCE: REFERENCE IMAGE.",
+
+        "Gunakan reference image sebagai sumber outfit/pakaian final.",
+
+        "Jangan mengambil outfit dari replacement character.",
+
+        "Jangan mencampur pakaian, warna, desain, aksesori, tekstur, atau detail outfit dari replacement character.",
+
+        "Replacement character tetap digunakan untuk identitas karakter apabila tersedia."
+
+    ];
+
+}
+
+
+/* =========================================================
+   GET SELECTED MODEL
+   ---------------------------------------------------------
+   Kompatibel dengan:
+
+   - GENZVisionState.getModel()
+   - raw state object
+   - legacy state.get()
 ========================================================= */
 
 function getSelectedModel() {
 
-    return visionCore()
-        .getState()
-        .get(
-            "model",
-            null
+    const stateModule =
+        visionState();
+
+
+    if (
+        stateModule &&
+        typeof stateModule.getModel ===
+            "function"
+    ) {
+
+        return stateModule.getModel();
+
+    }
+
+
+    const core =
+        visionCore();
+
+
+    if (
+        core &&
+        typeof core.getState ===
+            "function"
+    ) {
+
+        const state =
+            core.getState();
+
+
+        if (
+            state &&
+            typeof state.get ===
+                "function"
+        ) {
+
+            return state.get(
+                "model",
+                null
+            );
+
+        }
+
+
+        if (
+            state &&
+            state.model
+        ) {
+
+            return state.model;
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   DEBUG IMAGE SOURCES
+========================================================= */
+
+function getVisionImageSources(
+    options = {}
+) {
+
+    const state =
+        visionState();
+
+
+    const referenceImage =
+        options.referenceImage ||
+
+        (
+            state &&
+            typeof state.getReferenceImage ===
+                "function"
+
+                ? state.getReferenceImage()
+
+                : null
         );
+
+
+    const characterImage =
+        options.characterImage ||
+
+        (
+            state &&
+            typeof state.getCharacterImage ===
+                "function"
+
+                ? state.getCharacterImage()
+
+                : null
+        );
+
+
+    const outfitSource =
+        getCurrentOutfitSource(
+            options.outfitSource
+        );
+
+
+    return {
+
+        referenceImageAvailable:
+            isValidImageDataUrl(
+                referenceImage
+            ),
+
+        characterImageAvailable:
+            isValidImageDataUrl(
+                characterImage
+            ),
+
+        outfitSource,
+
+        imageCount:
+            Number(
+                isValidImageDataUrl(
+                    referenceImage
+                )
+            ) +
+            Number(
+                isValidImageDataUrl(
+                    characterImage
+                )
+            )
+
+    };
 
 }
 
@@ -1177,6 +1835,10 @@ function getSelectedModel() {
 
 window.GENZVisionModels =
     Object.freeze({
+
+        /* -----------------------------------------
+           MODEL CATALOG
+        ----------------------------------------- */
 
         getOpenKeyModels,
 
@@ -1192,7 +1854,43 @@ window.GENZVisionModels =
 
         resolveVisionModel,
 
+
+        /* -----------------------------------------
+           OUTFIT SOURCE
+        ----------------------------------------- */
+
+        normalizeOutfitSource,
+
+        getCurrentOutfitSource,
+
+        buildOutfitSourceInstructions,
+
+
+        /* -----------------------------------------
+           IMAGE VALIDATION
+        ----------------------------------------- */
+
+        isValidImageDataUrl,
+
+        validateVisionImage,
+
+
+        /* -----------------------------------------
+           IMAGE MESSAGE
+        ----------------------------------------- */
+
         buildImageMessage,
+
+        buildMultiImageMessage,
+
+        buildVisionImageMessage,
+
+        getVisionImageSources,
+
+
+        /* -----------------------------------------
+           MODEL
+        ----------------------------------------- */
 
         getSelectedModel
 
