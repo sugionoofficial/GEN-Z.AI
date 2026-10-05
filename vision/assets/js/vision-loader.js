@@ -28,14 +28,35 @@
    ---------------------------------------------------------
    Semua module Vision dimuat dari satu entry point.
 
-   URUTAN PENTING:
+   URUTAN DEPENDENCY API:
+
    1. State
    2. DOM
-   3. Upload / Preview / UI
-   4. Supabase
-   5. Credit / API / Analysis / Prompt / History
-   6. Model Catalog
-   7. Events
+   3. Upload
+   4. Preview
+   5. UI
+   6. Supabase
+   7. Credit
+
+   API:
+   8.  Core
+   9.  Models
+   10. Response
+   11. API Analysis
+   12. API Prompt
+   13. API Entry Point
+
+   Vision process:
+   14. Analysis
+   15. Prompt
+   16. History
+   17. Events
+
+   PENTING:
+   vision-api.js adalah entry point gabungan.
+   Seluruh API split harus dimuat SEBELUM
+   vision-api.js karena vision-api.js melakukan
+   validation dependency ketika module dievaluasi.
 ========================================================= */
 
 import "./vision-state.js";
@@ -45,7 +66,24 @@ import "./vision-preview.js";
 import "./vision-ui.js";
 import "./vision-supabase.js";
 import "./vision-credit.js";
+
+
+/* =========================================================
+   VISION API DEPENDENCY CHAIN
+========================================================= */
+
+import "./vision-api-core.js";
+import "./vision-api-models.js";
+import "./vision-api-response.js";
+import "./vision-api-analysis.js";
+import "./vision-api-prompt.js";
 import "./vision-api.js";
+
+
+/* =========================================================
+   VISION PROCESS MODULES
+========================================================= */
+
 import "./vision-analysis.js";
 import "./vision-prompt.js";
 import "./vision-history.js";
@@ -512,20 +550,10 @@ function initializeUI() {
    ---------------------------------------------------------
    Digunakan hanya untuk dropdown.
 
-   PENTING:
    Loader TIDAK lagi mempunyai normalizer Vision sendiri.
 
    Semua normalisasi model harus menggunakan:
    GENZVisionAPI.normalizeVisionModel()
-
-   Dengan begitu metadata seperti:
-   - input_modalities
-   - capabilities
-   - modality
-   - modalities
-   - architecture
-   - raw
-   tetap dipertahankan.
 
    API tetap menjadi sumber kebenaran utama.
 ========================================================= */
@@ -567,20 +595,11 @@ function normalizeCatalogModel(
 /* =========================================================
    CHECK IMAGE SUPPORT
    ---------------------------------------------------------
-   Loader TIDAK lagi melakukan pemeriksaan capability
-   sendiri.
+   Loader TIDAK melakukan pemeriksaan capability sendiri.
 
    Satu-satunya sumber kebenaran:
 
    GENZVisionAPI.supportsImageInput()
-
-   Ini penting agar:
-   - loader
-   - analysis
-   - prompt
-   - resolveVisionModel
-
-   menggunakan aturan Vision yang sama.
 ========================================================= */
 
 function supportsImageInput(
@@ -764,8 +783,6 @@ async function initializeModelCatalog() {
      * -----------------------------------------------------
      * NORMALIZE
      * -----------------------------------------------------
-     *
-     * Gunakan normalizer yang sama dengan Vision API.
      */
 
     const normalizedCatalog =
@@ -788,9 +805,6 @@ async function initializeModelCatalog() {
      * -----------------------------------------------------
      * FILTER VISION
      * -----------------------------------------------------
-     *
-     * Gunakan supportsImageInput()
-     * dari GENZVisionAPI.
      */
 
     const models =
@@ -801,10 +815,9 @@ async function initializeModelCatalog() {
 
 
     /*
+     * -----------------------------------------------------
      * DEBUG DETAIL
-     *
-     * Menampilkan alasan setiap model masuk / tidak masuk
-     * tanpa menebak berdasarkan nama model.
+     * -----------------------------------------------------
      */
 
     console.info(
@@ -876,7 +889,7 @@ async function initializeModelCatalog() {
      * -----------------------------------------------------
      * BERSIHKAN OPTION LAMA
      * -----------------------------------------------------
-     */
+ */
 
     select.innerHTML =
         "";
@@ -886,7 +899,7 @@ async function initializeModelCatalog() {
      * -----------------------------------------------------
      * TAMBAHKAN MODEL AKTUAL OPENKEY
      * -----------------------------------------------------
-     */
+ */
 
     models.forEach(
         model => {
@@ -904,11 +917,6 @@ async function initializeModelCatalog() {
             option.textContent =
                 model.name;
 
-
-            /*
-             * Simpan metadata yang berguna
-             * untuk debugging / inspection.
-             */
 
             option.dataset.provider =
                 "openkey";
@@ -930,7 +938,7 @@ async function initializeModelCatalog() {
      * -----------------------------------------------------
      * TENTUKAN MODEL TERPILIH
      * -----------------------------------------------------
-     */
+ */
 
     const previousExists =
         models.some(
@@ -973,7 +981,7 @@ async function initializeModelCatalog() {
      * -----------------------------------------------------
      * SINKRONKAN MODEL KE STATE
      * -----------------------------------------------------
-     */
+ */
 
     if (
         typeof state.setModel ===
@@ -999,7 +1007,7 @@ async function initializeModelCatalog() {
      * -----------------------------------------------------
      * AKTIFKAN DROPDOWN
      * -----------------------------------------------------
-     */
+ */
 
     select.disabled =
         false;
@@ -1034,6 +1042,17 @@ async function initializeModelCatalog() {
 
 /* =========================================================
    INITIALIZE EVENTS
+   ---------------------------------------------------------
+   PENTING:
+   Events diaktifkan SEBELUM model catalog.
+
+   Dengan demikian:
+   - upload tetap berfungsi
+   - drag & drop tetap berfungsi
+   - preview tetap berfungsi
+   - remove image tetap berfungsi
+
+   Bahkan jika OpenKey catalog gagal.
 ========================================================= */
 
 function initializeEvents() {
@@ -1150,9 +1169,6 @@ async function initializeCredit() {
         /*
          * Gagal membaca credit tidak
          * membuat seluruh halaman mati.
-         *
-         * Saat Generate ditekan,
-         * credit akan diperiksa kembali.
          */
 
         console.warn(
@@ -1309,29 +1325,56 @@ async function initialize() {
 
         /*
          * -------------------------------------------------
-         * OPENKEY MODEL CATALOG
+         * EVENTS
          * -------------------------------------------------
          *
-         * HARUS dilakukan sebelum events.
+         * PENTING:
+         * Event upload / drop / preview harus hidup
+         * sebelum remote model catalog dipanggil.
          *
-         * Tujuannya supaya:
-         *
-         * #visionModel
-         *
-         * sudah berisi model aktual OpenKey ketika
-         * vision-events.js melakukan syncFormToState().
+         * Jika OpenKey gagal, halaman upload tetap
+         * dapat digunakan dan preview tidak mati.
          */
 
-        await initializeModelCatalog();
+        initializeEvents();
 
 
         /*
          * -------------------------------------------------
-         * EVENTS
+         * OPENKEY MODEL CATALOG
          * -------------------------------------------------
+         *
+         * Model catalog sekarang dijalankan SETELAH
+         * event listener aktif.
+         *
+         * Kegagalan catalog tidak boleh membatalkan
+         * event upload / preview yang sudah aktif.
          */
 
-        initializeEvents();
+        try {
+
+            await initializeModelCatalog();
+
+        }
+        catch (
+            catalogError
+        ) {
+
+            console.error(
+                "[GEN-Z.AI Vision] OpenKey model catalog gagal:",
+                catalogError
+            );
+
+
+            /*
+             * Jangan lempar kembali error catalog.
+             *
+             * Event upload dan preview sudah aktif.
+             * Generate akan tetap melakukan validasi
+             * model ketika proses dimulai.
+             */
+
+        }
 
 
         /*
@@ -1469,8 +1512,10 @@ if (
         },
 
         {
+
             once:
                 true
+
         }
 
     );
