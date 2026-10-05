@@ -110,6 +110,21 @@
 
         /* ---------------------------------------------
            PROMPT
+           ---------------------------------------------
+           value:
+           Legacy compatibility.
+
+           text:
+           Current prompt reader compatibility.
+
+           completed:
+           Menandai prompt berhasil dibuat.
+
+           copied:
+           Menandai prompt sudah disalin.
+
+           status:
+           Status prompt.
         --------------------------------------------- */
 
         prompt: {
@@ -117,6 +132,12 @@
             status: "idle",
 
             value: "",
+
+            text: "",
+
+            completed: false,
+
+            copied: false,
 
             error: null
 
@@ -722,25 +743,211 @@
 
     /* =====================================================
        PROMPT
+       -----------------------------------------------------
+       Mendukung dua bentuk:
+
+       1. String:
+          setPrompt("prompt hasil AI")
+
+       2. Object:
+          setPrompt({
+              text: "...",
+              status: "completed"
+          })
+
+       Untuk kompatibilitas:
+       - prompt.text
+       - prompt.value
+
+       selalu disinkronkan.
     ===================================================== */
 
     function setPrompt(
         prompt = {}
     ) {
 
-        STATE.prompt = {
+        /*
+         * -------------------------------------------------
+         * STRING PROMPT
+         * -------------------------------------------------
+         */
 
-            ...STATE.prompt,
+        if (
+            typeof prompt ===
+            "string"
+        ) {
 
-            ...prompt
+            const text =
+                prompt.trim();
 
-        };
 
+            STATE.prompt = {
+
+                ...STATE.prompt,
+
+                value:
+                    text,
+
+                text:
+                    text,
+
+                status:
+                    text
+                        ? "completed"
+                        : "idle",
+
+                completed:
+                    Boolean(
+                        text
+                    ),
+
+                error:
+                    null
+
+            };
+
+
+            return STATE.prompt;
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * NULL / UNDEFINED
+         * -------------------------------------------------
+         */
+
+        if (
+            prompt === null ||
+            prompt === undefined
+        ) {
+
+            return STATE.prompt;
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * OBJECT PROMPT
+         * -------------------------------------------------
+         */
+
+        if (
+            typeof prompt ===
+                "object" &&
+            !Array.isArray(prompt)
+        ) {
+
+            const next =
+                {
+
+                    ...STATE.prompt,
+
+                    ...prompt
+
+                };
+
+
+            /*
+             * Jika object menggunakan "text",
+             * sinkronkan ke "value".
+             */
+
+            if (
+                typeof next.text ===
+                "string"
+            ) {
+
+                next.value =
+                    next.text;
+
+            }
+
+
+            /*
+             * Jika object hanya menggunakan "value",
+             * sinkronkan ke "text".
+             */
+
+            else if (
+                typeof next.value ===
+                "string"
+            ) {
+
+                next.text =
+                    next.value;
+
+            }
+
+
+            /*
+             * Jika prompt memiliki text/value,
+             * status completed otomatis.
+             */
+
+            if (
+                (
+                    typeof next.text ===
+                    "string" &&
+                    next.text.trim()
+                ) ||
+                (
+                    typeof next.value ===
+                    "string" &&
+                    next.value.trim()
+                )
+            ) {
+
+                if (
+                    !next.status ||
+                    next.status ===
+                        "idle"
+                ) {
+
+                    next.status =
+                        "completed";
+
+                }
+
+
+                if (
+                    next.completed ===
+                    undefined
+                ) {
+
+                    next.completed =
+                        true;
+
+                }
+
+            }
+
+
+            STATE.prompt =
+                next;
+
+
+            return STATE.prompt;
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * TIPE LAIN
+         * -------------------------------------------------
+         */
 
         return STATE.prompt;
 
     }
 
+
+    /* =====================================================
+       GET PROMPT
+    ===================================================== */
 
     function getPrompt() {
 
@@ -749,18 +956,56 @@
     }
 
 
+    /* =====================================================
+       SET PROMPT VALUE
+       -----------------------------------------------------
+       Legacy compatibility.
+       Selalu sinkron dengan prompt.text.
+    ===================================================== */
+
     function setPromptValue(
         value
     ) {
 
+        const text =
+            value === null ||
+            value === undefined
+                ? ""
+                : String(value);
+
+
         STATE.prompt.value =
-            value || "";
+            text;
+
+
+        STATE.prompt.text =
+            text;
+
+
+        STATE.prompt.status =
+            text
+                ? "completed"
+                : "idle";
+
+
+        STATE.prompt.completed =
+            Boolean(
+                text
+            );
+
+
+        STATE.prompt.error =
+            null;
 
 
         return STATE.prompt.value;
 
     }
 
+
+    /* =====================================================
+       CLEAR PROMPT
+    ===================================================== */
 
     function clearPrompt() {
 
@@ -1340,6 +1585,17 @@
 
             promptStatus:
                 STATE.prompt.status,
+
+            promptLength:
+                typeof STATE.prompt.text ===
+                "string"
+                    ? STATE.prompt.text.length
+                    : 0,
+
+            promptCompleted:
+                Boolean(
+                    STATE.prompt.completed
+                ),
 
             processStatus:
                 STATE.process.status,
