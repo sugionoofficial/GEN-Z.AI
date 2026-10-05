@@ -377,11 +377,11 @@
                         ================================== -->
 
                         <input
-    type="file"
-    id="visionCharacterFileInput"
-    style="display: none;"
-    accept="image/jpeg,image/png,image/webp,image/gif"
->
+                            type="file"
+                            id="visionCharacterFileInput"
+                            style="display: none;"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                        >
 
 
                         <!-- =================================
@@ -1004,6 +1004,665 @@
         type="module"
         src="./assets/js/vision-loader.js?v=2"
     ></script>
+
+
+    <!-- =====================================================
+         COPY PROMPT FEEDBACK
+         -----------------------------------------------------
+         Fungsi:
+         - Copy hasil Vision
+         - Feedback berhasil/gagal
+         - Fallback clipboard
+         - Restore label tombol
+         
+         Tidak mengubah proses Vision lainnya.
+    ====================================================== -->
+
+    <script>
+
+    (() => {
+
+        "use strict";
+
+
+        const COPY_DEFAULT_TEXT =
+            "COPY";
+
+        const COPY_SUCCESS_TEXT =
+            "✓ COPIED";
+
+        const COPY_FAILED_TEXT =
+            "✕ COPY FAILED";
+
+        const COPY_FEEDBACK_DELAY =
+            2000;
+
+
+        let copyResetTimer =
+            null;
+
+
+        /* =================================================
+           GET ELEMENTS
+        ================================================= */
+
+        function getCopyButton() {
+
+            return document.getElementById(
+                "visionCopyButton"
+            );
+
+        }
+
+
+        function getPromptElement() {
+
+            return document.getElementById(
+                "visionPromptResult"
+            );
+
+        }
+
+
+        /* =================================================
+           GET PROMPT TEXT
+        ================================================= */
+
+        function getPromptText() {
+
+            const promptElement =
+                getPromptElement();
+
+
+            if (!promptElement) {
+
+                return "";
+
+            }
+
+
+            /*
+             * textContent dipakai karena output Vision
+             * adalah <pre>, bukan textarea.
+             */
+
+            return String(
+                promptElement.textContent || ""
+            ).trim();
+
+        }
+
+
+        /* =================================================
+           BUTTON STATE
+        ================================================= */
+
+        function setCopyButtonState(
+            state
+        ) {
+
+            const button =
+                getCopyButton();
+
+
+            if (!button) {
+
+                return;
+
+            }
+
+
+            if (copyResetTimer) {
+
+                clearTimeout(
+                    copyResetTimer
+                );
+
+                copyResetTimer =
+                    null;
+
+            }
+
+
+            /*
+             * Selama feedback:
+             * jangan izinkan double click.
+             */
+
+            button.disabled =
+                true;
+
+
+            if (
+                state === "success"
+            ) {
+
+                button.textContent =
+                    COPY_SUCCESS_TEXT;
+
+            }
+            else if (
+                state === "failed"
+            ) {
+
+                button.textContent =
+                    COPY_FAILED_TEXT;
+
+            }
+            else {
+
+                button.textContent =
+                    COPY_DEFAULT_TEXT;
+
+            }
+
+
+            /*
+             * Feedback hanya sementara.
+             */
+
+            if (
+                state === "success" ||
+                state === "failed"
+            ) {
+
+                copyResetTimer =
+                    setTimeout(() => {
+
+                        const currentButton =
+                            getCopyButton();
+
+
+                        if (
+                            !currentButton
+                        ) {
+
+                            return;
+
+                        }
+
+
+                        currentButton.textContent =
+                            COPY_DEFAULT_TEXT;
+
+
+                        /*
+                         * Kembalikan status disabled
+                         * berdasarkan isi prompt saat ini.
+                         */
+
+                        currentButton.disabled =
+                            !getPromptText();
+
+
+                        copyResetTimer =
+                            null;
+
+                    }, COPY_FEEDBACK_DELAY);
+
+            }
+
+        }
+
+
+        /* =================================================
+           CLIPBOARD FALLBACK
+        ================================================= */
+
+        function copyUsingFallback(
+            text
+        ) {
+
+            /*
+             * Clipboard API dapat ditolak browser,
+             * terutama pada kondisi mobile tertentu.
+             *
+             * Fallback menggunakan textarea sementara.
+             */
+
+            const textarea =
+                document.createElement(
+                    "textarea"
+                );
+
+
+            textarea.value =
+                text;
+
+
+            textarea.setAttribute(
+                "readonly",
+                ""
+            );
+
+
+            textarea.style.position =
+                "fixed";
+
+            textarea.style.left =
+                "-9999px";
+
+            textarea.style.top =
+                "0";
+
+            textarea.style.opacity =
+                "0";
+
+            textarea.style.pointerEvents =
+                "none";
+
+
+            document.body.appendChild(
+                textarea
+            );
+
+
+            textarea.focus();
+
+            textarea.select();
+
+            textarea.setSelectionRange(
+                0,
+                textarea.value.length
+            );
+
+
+            let copied =
+                false;
+
+
+            try {
+
+                copied =
+                    document.execCommand(
+                        "copy"
+                    );
+
+            }
+            catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI Vision] Clipboard fallback failed:",
+                    error
+                );
+
+                copied =
+                    false;
+
+            }
+
+
+            textarea.remove();
+
+
+            return copied;
+
+        }
+
+
+        /* =================================================
+           COPY TEXT
+        ================================================= */
+
+        async function copyPrompt() {
+
+            const button =
+                getCopyButton();
+
+
+            if (!button) {
+
+                console.error(
+                    "[GEN-Z.AI Vision] #visionCopyButton tidak ditemukan."
+                );
+
+                return;
+
+            }
+
+
+            const text =
+                getPromptText();
+
+
+            /*
+             * Jangan mencoba copy jika prompt kosong.
+             */
+
+            if (!text) {
+
+                setCopyButtonState(
+                    "failed"
+                );
+
+                return;
+
+            }
+
+
+            /*
+             * Hindari copy ketika tombol sedang
+             * menjalankan feedback.
+             */
+
+            if (
+                button.dataset.copyBusy ===
+                "true"
+            ) {
+
+                return;
+
+            }
+
+
+            button.dataset.copyBusy =
+                "true";
+
+
+            let copied =
+                false;
+
+
+            try {
+
+                /*
+                 * PRIMARY:
+                 * Clipboard API.
+                 */
+
+                if (
+                    navigator.clipboard &&
+                    typeof navigator.clipboard.writeText ===
+                        "function"
+                ) {
+
+                    try {
+
+                        await navigator.clipboard.writeText(
+                            text
+                        );
+
+                        copied =
+                            true;
+
+                    }
+                    catch (clipboardError) {
+
+                        console.warn(
+                            "[GEN-Z.AI Vision] Clipboard API gagal, menggunakan fallback.",
+                            clipboardError
+                        );
+
+                    }
+
+                }
+
+
+                /*
+                 * FALLBACK:
+                 * document.execCommand("copy")
+                 */
+
+                if (!copied) {
+
+                    copied =
+                        copyUsingFallback(
+                            text
+                        );
+
+                }
+
+
+                if (!copied) {
+
+                    throw new Error(
+                        "Browser menolak operasi copy."
+                    );
+
+                }
+
+
+                /*
+                 * SUCCESS
+                 */
+
+                setCopyButtonState(
+                    "success"
+                );
+
+
+            }
+            catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI Vision] Copy prompt gagal:",
+                    error
+                );
+
+
+                /*
+                 * FAILURE
+                 */
+
+                setCopyButtonState(
+                    "failed"
+                );
+
+            }
+            finally {
+
+                button.dataset.copyBusy =
+                    "false";
+
+            }
+
+        }
+
+
+        /* =================================================
+           BIND COPY BUTTON
+        ================================================= */
+
+        function bindCopyButton() {
+
+            const button =
+                getCopyButton();
+
+
+            if (!button) {
+
+                return false;
+
+            }
+
+
+            /*
+             * Hindari listener ganda.
+             */
+
+            if (
+                button.dataset.copyBound ===
+                "true"
+            ) {
+
+                return true;
+
+            }
+
+
+            button.addEventListener(
+                "click",
+                copyPrompt
+            );
+
+
+            button.dataset.copyBound =
+                "true";
+
+
+            /*
+             * Pastikan state awal sesuai
+             * dengan isi prompt.
+             */
+
+            button.disabled =
+                !getPromptText();
+
+
+            return true;
+
+        }
+
+
+        /* =================================================
+           OBSERVE PROMPT RESULT
+           -------------------------------------------------
+           Vision module dapat mengisi hasil prompt
+           setelah proses async selesai.
+           
+           Observer memastikan tombol COPY otomatis
+           aktif ketika prompt sudah tersedia.
+        ================================================= */
+
+        function observePromptResult() {
+
+            const promptElement =
+                getPromptElement();
+
+
+            if (!promptElement) {
+
+                return;
+
+            }
+
+
+            const observer =
+                new MutationObserver(() => {
+
+                    const button =
+                        getCopyButton();
+
+
+                    if (!button) {
+
+                        return;
+
+                    }
+
+
+                    /*
+                     * Jangan mengganggu tombol ketika
+                     * sedang menampilkan feedback.
+                     */
+
+                    if (
+                        button.dataset.copyBusy ===
+                        "true"
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    if (
+                        button.textContent ===
+                            COPY_SUCCESS_TEXT ||
+                        button.textContent ===
+                            COPY_FAILED_TEXT
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    button.disabled =
+                        !getPromptText();
+
+                });
+
+
+            observer.observe(
+                promptElement,
+                {
+                    childList: true,
+                    characterData: true,
+                    subtree: true
+                }
+            );
+
+        }
+
+
+        /* =================================================
+           INITIALIZE
+        ================================================= */
+
+        function initializeCopy() {
+
+            /*
+             * Tombol mungkin sudah ada ketika script
+             * berjalan, tetapi module Vision tetap
+             * berjalan secara asynchronous.
+             */
+
+            bindCopyButton();
+
+            observePromptResult();
+
+
+            /*
+             * Cek ulang setelah module Vision selesai
+             * melakukan render.
+             */
+
+            setTimeout(
+                bindCopyButton,
+                250
+            );
+
+            setTimeout(
+                bindCopyButton,
+                750
+            );
+
+            setTimeout(
+                bindCopyButton,
+                1500
+            );
+
+        }
+
+
+        /* =================================================
+           DOM READY
+        ================================================= */
+
+        if (
+            document.readyState ===
+            "loading"
+        ) {
+
+            document.addEventListener(
+                "DOMContentLoaded",
+                initializeCopy,
+                {
+                    once: true
+                }
+            );
+
+        }
+        else {
+
+            initializeCopy();
+
+        }
+
+    })();
+
+    </script>
 
 </body>
 
