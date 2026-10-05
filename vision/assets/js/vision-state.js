@@ -18,6 +18,7 @@
    - Credit state
    - History state
    - UI state
+   - Backward compatibility aliases
 ========================================================= */
 
 (function () {
@@ -393,7 +394,10 @@
         STATE.auth.authenticated =
             Boolean(user);
 
-        if (user && user.email) {
+        if (
+            user &&
+            user.email
+        ) {
 
             STATE.auth.email =
                 user.email;
@@ -503,6 +507,51 @@
         return Boolean(
             STATE.file
         );
+
+    }
+
+
+    /* =====================================================
+       REFERENCE IMAGE
+       BACKWARD COMPATIBILITY ALIASES
+       -----------------------------------------------------
+       Beberapa modul lama masih menggunakan:
+       - setFile()
+       - getFile()
+       - clearFile()
+       - hasFile()
+
+       Semua diarahkan ke reference file yang sama.
+    ===================================================== */
+
+    function setFile(
+        file
+    ) {
+
+        return setReferenceFile(
+            file
+        );
+
+    }
+
+
+    function getFile() {
+
+        return getReferenceFile();
+
+    }
+
+
+    function clearFile() {
+
+        return clearReferenceFile();
+
+    }
+
+
+    function hasFile() {
+
+        return hasReferenceFile();
 
     }
 
@@ -1766,6 +1815,20 @@
         clearReferenceFile,
 
         hasReferenceFile,
+
+
+        /* -----------------------------------------
+           REFERENCE IMAGE
+           BACKWARD COMPATIBILITY
+        ----------------------------------------- */
+
+        setFile,
+
+        getFile,
+
+        clearFile,
+
+        hasFile,
 
 
         /* -----------------------------------------
