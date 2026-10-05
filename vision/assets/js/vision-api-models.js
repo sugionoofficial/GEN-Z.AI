@@ -12,6 +12,7 @@
    - Image message
 ========================================================= */
 
+
 const OPENKEY_VISION_MODEL_IDS =
     Object.freeze(
         new Set([
@@ -723,6 +724,18 @@ function supportsImageInput(
 
 /* =========================================================
    RESOLVE VISION MODEL
+   ---------------------------------------------------------
+   ATURAN PENTING:
+
+   1. Jika user sudah memilih model:
+      - Cari model tersebut di katalog.
+      - Jika ditemukan dan Vision-capable:
+        gunakan model tersebut.
+      - Jika tidak ditemukan:
+        jangan ganti diam-diam ke model lain.
+
+   2. Fallback ke model Vision pertama hanya
+      jika TIDAK ada requested model.
 ========================================================= */
 
 async function resolveVisionModel(
@@ -776,34 +789,200 @@ async function resolveVisionModel(
         );
 
 
+    /* =====================================================
+       USER MEMILIH MODEL TERTENTU
+    ===================================================== */
+
     if (
         requested
     ) {
+
+        const requestedId =
+            requested.id
+                .trim()
+                .toLowerCase();
+
+
+        console.info(
+            "[GEN-Z.AI Vision] Resolving requested model:",
+            {
+
+                requestedModel:
+                    requestedId
+
+            }
+        );
+
 
         const exact =
             normalizedModels.find(
 
                 model =>
 
-                    model.id.toLowerCase() ===
-                    requested.id.toLowerCase()
+                    model.id
+                        .trim()
+                        .toLowerCase() ===
+                    requestedId
 
             );
 
 
+        /* =================================================
+           MODEL PILIHAN TIDAK ADA DI KATALOG
+        ================================================= */
+
         if (
-            exact &&
-            supportsImageInput(
+            !exact
+        ) {
+
+            console.error(
+                "[GEN-Z.AI Vision] Requested Vision model tidak ditemukan di katalog OpenKey:",
+                {
+
+                    requestedModel:
+                        requestedId,
+
+                    availableModels:
+                        normalizedModels.map(
+                            model =>
+                                model.id
+                        )
+
+                }
+            );
+
+
+            throw visionCore().createAPIError(
+
+                "Model Vision yang dipilih tidak tersedia di OpenKey: " +
+                requested.id,
+
+                {
+
+                    code:
+                        "OPENKEY_REQUESTED_MODEL_NOT_FOUND",
+
+                    data: {
+
+                        requestedModel:
+                            requested,
+
+                        availableModels:
+                            normalizedModels.map(
+                                model => ({
+
+                                    id:
+                                        model.id,
+
+                                    name:
+                                        model.name,
+
+                                    input_modalities:
+                                        model.input_modalities,
+
+                                    capabilities:
+                                        model.capabilities
+
+                                })
+                            )
+
+                    }
+
+                }
+
+            );
+
+        }
+
+
+        /* =================================================
+           MODEL PILIHAN TIDAK MENDUKUNG IMAGE
+        ================================================= */
+
+        if (
+            !supportsImageInput(
                 exact
             )
         ) {
 
-            return exact;
+            console.error(
+                "[GEN-Z.AI Vision] Requested model tidak mendukung image input:",
+                {
+
+                    requestedModel:
+                        exact.id,
+
+                    input_modalities:
+                        exact.input_modalities,
+
+                    capabilities:
+                        exact.capabilities,
+
+                    documentedVision:
+                        isOpenKeyDocumentedVisionModel(
+                            exact
+                        )
+
+                }
+            );
+
+
+            throw visionCore().createAPIError(
+
+                "Model Vision yang dipilih tidak mendukung input gambar: " +
+                exact.id,
+
+                {
+
+                    code:
+                        "OPENKEY_REQUESTED_MODEL_NOT_VISION",
+
+                    data: {
+
+                        model:
+                            exact
+
+                        }
+
+                }
+
+            );
 
         }
 
+
+        /* =================================================
+           MODEL USER DIPERTAHANKAN
+        ================================================= */
+
+        console.info(
+            "[GEN-Z.AI Vision] Using requested Vision model:",
+            {
+
+                id:
+                    exact.id,
+
+                name:
+                    exact.name,
+
+                input_modalities:
+                    exact.input_modalities,
+
+                capabilities:
+                    exact.capabilities
+
+            }
+        );
+
+
+        return exact;
+
     }
 
+
+    /* =====================================================
+       TIDAK ADA REQUESTED MODEL
+       ===================================================== */
 
     const visionModels =
         normalizedModels.filter(
@@ -860,6 +1039,10 @@ async function resolveVisionModel(
     }
 
 
+    /* =====================================================
+       FALLBACK HANYA JIKA TIDAK ADA PILIHAN USER
+    ===================================================== */
+
     const selected =
         visionModels[0];
 
@@ -881,7 +1064,7 @@ async function resolveVisionModel(
 
 
     console.info(
-        "[GEN-Z.AI Vision] Vision model selected:",
+        "[GEN-Z.AI Vision] Vision model fallback selected:",
         {
 
             id:
