@@ -1,92 +1,64 @@
 /* =========================================================
    GEN-Z.AI VISION
+   PREMIUM CORE STYLES
    ---------------------------------------------------------
    File:
    vision/assets/css/vision.css
 
-   Fungsi:
-   - Layout utama Vision
-   - Premium dark theme
-   - Red neon visual system
-   - Hero section
-   - Workspace layout
-   - Panel dasar
-   - Typography
-   - Form dasar
-   - Result area dasar
+   Scope:
+   - Vision page layout
+   - Hero
+   - Credit badge
+   - Upload card
+   - Settings card
+   - Generate action
+   - Result card
+   - Analysis card
+   - Info cards
 
-   Catatan:
-   - Tidak mengatur responsive/mobile detail
-   - Tidak mengatur komponen kecil secara detail
-   - Tidak mengubah navigation
+   IMPORTANT:
+   - Tidak mengubah JavaScript
+   - Tidak mengubah API
+   - Tidak mengubah credit logic
+   - Tidak mengubah history logic
 ========================================================= */
 
 
 /* =========================================================
-   ROOT
+   VISION VARIABLES
 ========================================================= */
 
 :root {
 
+    --vision-red:
+        #ff174f;
+
+    --vision-red-2:
+        #ff365f;
+
+    --vision-red-soft:
+        rgba(255, 23, 79, .14);
+
     --vision-bg:
         #050507;
 
-    --vision-bg-soft:
-        #09090d;
+    --vision-surface:
+        rgba(15, 15, 19, .88);
 
-    --vision-panel:
-        rgba(13, 13, 18, 0.92);
+    --vision-surface-2:
+        rgba(10, 10, 14, .94);
 
-    --vision-panel-soft:
-        rgba(18, 18, 24, 0.78);
-
-    --vision-border:
-        rgba(255, 38, 72, 0.22);
-
-    --vision-border-strong:
-        rgba(255, 38, 72, 0.48);
-
-    --vision-red:
-        #ff274f;
-
-    --vision-red-soft:
-        #ff4f6d;
-
-    --vision-red-dark:
-        #9e102d;
+    --vision-line:
+        rgba(255, 255, 255, .075);
 
     --vision-text:
-        #f4f4f6;
+        #f7f7f9;
 
-    --vision-text-soft:
-        #a7a7b2;
+    --vision-muted:
+        #898991;
 
-    --vision-text-muted:
-        #70707c;
-
-    --vision-success:
-        #42e89d;
-
-    --vision-warning:
-        #ffbd55;
-
-    --vision-danger:
-        #ff4f68;
-
-    --vision-shadow:
-        0 24px 80px rgba(0, 0, 0, 0.55);
-
-    --vision-glow:
-        0 0 30px rgba(255, 39, 79, 0.12);
-
-    --vision-radius:
-        22px;
-
-    --vision-radius-small:
-        14px;
-
-    --vision-max-width:
-        1480px;
+    --vision-green:
+        #45e39b;
 }
 
 
@@ -98,106 +70,85 @@
 
     position: relative;
 
-    min-height: 100vh;
+    isolation: isolate;
 
-    width: 100%;
+    min-height:
+        calc(100vh - 70px);
+
+    width:
+        min(1440px, calc(100% - 48px));
+
+    margin:
+        0 auto;
 
     padding:
-        34px
-        28px
-        80px;
-
-    box-sizing: border-box;
+        34px 0 72px;
 
     color:
         var(--vision-text);
-
-    background:
-        radial-gradient(
-            circle at 50% -10%,
-            rgba(255, 25, 66, 0.10),
-            transparent 38%
-        ),
-        radial-gradient(
-            circle at 100% 30%,
-            rgba(255, 25, 66, 0.055),
-            transparent 32%
-        ),
-        linear-gradient(
-            180deg,
-            #050507 0%,
-            #07070a 45%,
-            #040406 100%
-        );
-
-    overflow-x: hidden;
 }
 
 
 /* =========================================================
-   BACKGROUND EFFECT
+   BACKGROUND GLOW
 ========================================================= */
 
-.vision-page::before {
+.vision-page::before,
+.vision-page::after {
 
     content: "";
 
     position: fixed;
 
-    inset: 0;
+    z-index: -1;
 
     pointer-events: none;
 
-    z-index: 0;
+    border-radius: 50%;
 
-    opacity: 0.42;
+    filter:
+        blur(80px);
 
-    background-image:
-        linear-gradient(
-            rgba(255, 255, 255, 0.018) 1px,
-            transparent 1px
-        ),
-        linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0.018) 1px,
-            transparent 1px
-        );
-
-    background-size:
-        42px 42px;
-
-    mask-image:
-        linear-gradient(
-            to bottom,
-            black,
-            transparent 82%
-        );
+    opacity:
+        .20;
 }
 
 
-/* =========================================================
-   MAIN CONTENT CONTAINER
-========================================================= */
+.vision-page::before {
 
-.vision-page > * {
+    width:
+        360px;
 
-    position: relative;
+    height:
+        360px;
 
-    z-index: 1;
+    top:
+        80px;
+
+    left:
+        -180px;
+
+    background:
+        rgba(255, 23, 79, .22);
 }
 
 
-.vision-hero,
-.vision-workspace,
-.vision-info-grid {
+.vision-page::after {
 
-    width: 100%;
+    width:
+        420px;
 
-    max-width:
-        var(--vision-max-width);
+    height:
+        420px;
 
-    margin-left: auto;
-    margin-right: auto;
+    right:
+        -230px;
+
+    bottom:
+        0;
+
+    background:
+        rgba(117, 53, 255, .10);
 }
 
 
@@ -207,201 +158,232 @@
 
 .vision-hero {
 
-    position: relative;
+    position:
+        relative;
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: flex-end;
+    align-items:
+        center;
 
-    justify-content: space-between;
+    justify-content:
+        space-between;
 
-    gap: 30px;
+    gap:
+        30px;
 
-    margin-bottom: 28px;
+    min-height:
+        190px;
 
     padding:
-        30px 32px;
+        34px 38px;
+
+    margin-bottom:
+        22px;
+
+    overflow:
+        hidden;
 
     border:
-        1px solid
-        var(--vision-border);
+        1px solid rgba(255, 23, 79, .24);
 
     border-radius:
-        var(--vision-radius);
+        24px;
 
     background:
+
+        radial-gradient(
+            circle at 82% 15%,
+            rgba(255, 23, 79, .12),
+            transparent 34%
+        ),
+
         linear-gradient(
             135deg,
-            rgba(25, 10, 15, 0.96),
-            rgba(10, 10, 14, 0.94)
-        );
+            rgba(255, 255, 255, .045),
+            rgba(255, 255, 255, .012)
+        ),
+
+        rgba(8, 8, 11, .92);
 
     box-shadow:
-        var(--vision-shadow),
-        inset 0 1px 0
-        rgba(255, 255, 255, 0.035);
 
-    overflow: hidden;
+        0 24px 70px
+        rgba(0, 0, 0, .42),
+
+        inset 0 1px
+        rgba(255, 255, 255, .045),
+
+        0 0 45px
+        rgba(255, 23, 79, .045);
 }
 
+
+/* =========================================================
+   HERO GRID OVERLAY
+========================================================= */
 
 .vision-hero::before {
 
     content: "";
 
-    position: absolute;
+    position:
+        absolute;
 
-    top: -120px;
-    right: -80px;
+    inset:
+        0;
 
-    width: 360px;
-    height: 360px;
-
-    border-radius: 50%;
-
-    background:
-        radial-gradient(
-            circle,
-            rgba(255, 39, 79, 0.16),
-            transparent 68%
-        );
-
-    pointer-events: none;
-}
-
-
-.vision-hero::after {
-
-    content: "";
-
-    position: absolute;
-
-    left: 0;
-    right: 0;
-    bottom: 0;
-
-    height: 1px;
+    pointer-events:
+        none;
 
     background:
+
         linear-gradient(
             90deg,
-            transparent,
-            rgba(255, 39, 79, 0.75),
-            transparent
+            transparent 0 49.8%,
+            rgba(255, 255, 255, .025) 50%,
+            transparent 50.2%
+        ),
+
+        linear-gradient(
+            0deg,
+            transparent 0 49.8%,
+            rgba(255, 255, 255, .018) 50%,
+            transparent 50.2%
         );
 
-    opacity: 0.75;
+    background-size:
+        34px 34px;
+
+    mask-image:
+        linear-gradient(
+            90deg,
+            black,
+            transparent 78%
+        );
+
+    opacity:
+        .32;
 }
 
 
 /* =========================================================
-   HERO TEXT
+   HERO CONTENT
 ========================================================= */
 
 .vision-hero-content {
 
-    position: relative;
+    position:
+        relative;
 
-    z-index: 2;
+    z-index:
+        1;
 
-    min-width: 0;
+    max-width:
+        850px;
 }
 
 
+/* =========================================================
+   EYEBROW
+========================================================= */
+
 .vision-eyebrow {
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    gap: 9px;
+    gap:
+        9px;
 
-    margin-bottom: 12px;
+    margin-bottom:
+        12px;
 
     color:
-        var(--vision-red-soft);
+        #ff5275;
 
     font-size:
-        11px;
+        10px;
 
     font-weight:
-        800;
+        900;
 
     letter-spacing:
-        0.22em;
+        .24em;
 
     text-transform:
         uppercase;
 }
 
 
-.vision-eyebrow::before {
+.vision-eyebrow span {
 
-    content: "";
-
-    width: 7px;
-    height: 7px;
-
-    border-radius: 50%;
-
-    background:
-        var(--vision-red);
-
-    box-shadow:
-        0 0 12px
-        rgba(255, 39, 79, 0.85);
+    color:
+        #4d4d55;
 }
 
+
+/* =========================================================
+   TITLE
+========================================================= */
 
 .vision-title {
 
-    margin: 0;
+    margin:
+        0;
 
     font-size:
-        clamp(30px, 4vw, 54px);
+        clamp(34px, 4.2vw, 62px);
 
     line-height:
-        0.98;
-
-    font-weight:
-        900;
+        .95;
 
     letter-spacing:
-        -0.045em;
+        -.055em;
 
-    background:
-        linear-gradient(
-            120deg,
-            #ffffff 0%,
-            #ffffff 42%,
-            #ff5574 76%,
-            #ff274f 100%
-        );
-
-    -webkit-background-clip:
-        text;
-
-    background-clip:
-        text;
-
-    color:
-        transparent;
+    font-weight:
+        950;
 }
 
+
+.vision-title span {
+
+    display:
+        inline-block;
+
+    margin:
+        0 5px;
+
+    color:
+        var(--vision-red);
+
+    text-shadow:
+        0 0 24px
+        rgba(255, 23, 79, .42);
+}
+
+
+/* =========================================================
+   SUBTITLE
+========================================================= */
 
 .vision-subtitle {
 
     max-width:
-        720px;
+        650px;
 
     margin:
-        15px 0 0;
+        16px 0 0;
 
     color:
-        var(--vision-text-soft);
+        #9d9da5;
 
     font-size:
-        14px;
+        13px;
 
     line-height:
         1.65;
@@ -414,452 +396,584 @@
 
 .vision-credit-badge {
 
-    position: relative;
+    position:
+        relative;
 
-    z-index: 2;
+    z-index:
+        2;
 
     flex:
         0 0 auto;
 
     min-width:
-        150px;
+        128px;
 
     padding:
         15px 18px;
 
+    text-align:
+        center;
+
     border:
         1px solid
-        rgba(255, 39, 79, 0.30);
+        rgba(255, 23, 79, .30);
 
     border-radius:
-        15px;
+        16px;
 
     background:
-        rgba(255, 39, 79, 0.055);
+        rgba(0, 0, 0, .34);
 
     box-shadow:
-        inset 0 0 24px
-        rgba(255, 39, 79, 0.045);
+
+        inset 0 1px
+        rgba(255, 255, 255, .04),
+
+        0 0 28px
+        rgba(255, 23, 79, .08);
 }
 
 
 .vision-credit-label {
 
-    display: block;
+    display:
+        block;
 
-    margin-bottom: 5px;
-
-    color:
-        var(--vision-text-muted);
-
-    font-size:
-        9px;
-
-    font-weight:
-        800;
-
-    letter-spacing:
-        0.16em;
-
-    text-transform:
-        uppercase;
-}
-
-
-.vision-credit-value {
-
-    display: block;
+    margin-bottom:
+        5px;
 
     color:
-        #ffffff;
+        #73737c;
 
     font-size:
-        23px;
+        8px;
 
     font-weight:
         900;
 
-    line-height:
-        1.1;
+    letter-spacing:
+        .20em;
 }
 
 
-.vision-credit-unit {
+.vision-credit-badge strong {
 
-    margin-left: 4px;
+    display:
+        block;
 
     color:
-        var(--vision-red-soft);
+        #fff;
 
     font-size:
-        11px;
+        25px;
 
-    font-weight:
-        800;
+    line-height:
+        1;
+
+    text-shadow:
+        0 0 18px
+        rgba(255, 23, 79, .35);
 }
 
 
 /* =========================================================
-   WORKSPACE
+   MAIN GRID
 ========================================================= */
 
-.vision-workspace {
+.vision-main-grid {
 
-    display: grid;
+    display:
+        grid;
 
     grid-template-columns:
-        minmax(0, 0.92fr)
-        minmax(0, 1.08fr);
+        minmax(390px, .92fr)
+        minmax(520px, 1.08fr);
 
     gap:
         22px;
 
     align-items:
-        stretch;
+        start;
 }
 
 
 /* =========================================================
-   PANEL
+   COLUMN
 ========================================================= */
 
-.vision-panel {
+.vision-left-column,
+.vision-right-column {
 
-    position: relative;
+    display:
+        grid;
 
-    display: flex;
-
-    flex-direction: column;
-
-    min-width: 0;
-
-    padding:
+    gap:
         22px;
 
-    border:
-        1px solid
-        var(--vision-border);
-
-    border-radius:
-        var(--vision-radius);
-
-    background:
-        linear-gradient(
-            145deg,
-            rgba(17, 17, 23, 0.96),
-            rgba(8, 8, 12, 0.97)
-        );
-
-    box-shadow:
-        var(--vision-shadow),
-        inset 0 1px 0
-        rgba(255, 255, 255, 0.025);
-
-    overflow: hidden;
+    min-width:
+        0;
 }
 
 
-.vision-panel::before {
+/* =========================================================
+   GENERIC CARD
+========================================================= */
+
+.vision-card {
+
+    position:
+        relative;
+
+    overflow:
+        hidden;
+
+    border:
+        1px solid
+        var(--vision-line);
+
+    border-radius:
+        21px;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, .038),
+            rgba(255, 255, 255, .008)
+        ),
+
+        var(--vision-surface);
+
+    box-shadow:
+
+        0 20px 55px
+        rgba(0, 0, 0, .32),
+
+        inset 0 1px
+        rgba(255, 255, 255, .035);
+
+    backdrop-filter:
+        blur(18px);
+}
+
+
+/* =========================================================
+   CARD TOP LIGHT
+========================================================= */
+
+.vision-card::before {
 
     content: "";
 
-    position: absolute;
+    position:
+        absolute;
 
-    top: 0;
-    left: 18px;
-    right: 18px;
+    left:
+        0;
 
-    height: 1px;
+    right:
+        0;
+
+    top:
+        0;
+
+    height:
+        1px;
 
     background:
         linear-gradient(
             90deg,
             transparent,
-            rgba(255, 39, 79, 0.55),
+            rgba(255, 23, 79, .65),
             transparent
         );
 
-    opacity: 0.7;
-}
-
-
-.vision-panel-header {
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    gap: 16px;
-
-    margin-bottom: 18px;
-}
-
-
-.vision-panel-title {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 10px;
-
-    margin: 0;
-
-    color:
-        #ffffff;
-
-    font-size:
-        15px;
-
-    font-weight:
-        850;
-
-    letter-spacing:
-        -0.01em;
-}
-
-
-.vision-panel-title::before {
-
-    content: "";
-
-    width: 8px;
-    height: 8px;
-
-    flex:
-        0 0 auto;
-
-    border-radius: 50%;
-
-    background:
-        var(--vision-red);
-
-    box-shadow:
-        0 0 14px
-        rgba(255, 39, 79, 0.75);
-}
-
-
-.vision-panel-description {
-
-    margin:
-        4px 0 0;
-
-    color:
-        var(--vision-text-muted);
-
-    font-size:
-        11px;
-
-    line-height:
-        1.5;
+    opacity:
+        .65;
 }
 
 
 /* =========================================================
-   UPLOAD AREA
+   CARD HEADER
 ========================================================= */
 
-.vision-dropzone {
+.vision-card-header {
 
-    position: relative;
+    display:
+        flex;
 
-    display: flex;
+    align-items:
+        flex-start;
 
-    flex-direction: column;
+    justify-content:
+        space-between;
 
-    align-items: center;
-
-    justify-content: center;
-
-    min-height:
-        330px;
+    gap:
+        18px;
 
     padding:
-        28px;
-
-    border:
-        1px dashed
-        rgba(255, 39, 79, 0.34);
-
-    border-radius:
-        18px;
-
-    background:
-        radial-gradient(
-            circle at center,
-            rgba(255, 39, 79, 0.055),
-            transparent 62%
-        ),
-        rgba(255, 255, 255, 0.012);
-
-    text-align:
-        center;
-
-    cursor:
-        pointer;
-
-    transition:
-        border-color 180ms ease,
-        background 180ms ease,
-        box-shadow 180ms ease,
-        transform 180ms ease;
+        23px 24px 18px;
 }
 
 
-.vision-dropzone:hover {
-
-    border-color:
-        rgba(255, 39, 79, 0.62);
-
-    background:
-        radial-gradient(
-            circle at center,
-            rgba(255, 39, 79, 0.085),
-            transparent 62%
-        ),
-        rgba(255, 255, 255, 0.016);
-
-    box-shadow:
-        inset 0 0 40px
-        rgba(255, 39, 79, 0.045);
-}
-
-
-.vision-dropzone.is-dragover {
-
-    border-color:
-        var(--vision-red);
-
-    box-shadow:
-        0 0 0 1px
-        rgba(255, 39, 79, 0.20),
-        0 0 35px
-        rgba(255, 39, 79, 0.14);
-
-    transform:
-        translateY(-1px);
-}
-
-
-.vision-dropzone-icon {
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    width: 64px;
-    height: 64px;
-
-    margin-bottom: 17px;
-
-    border:
-        1px solid
-        rgba(255, 39, 79, 0.34);
-
-    border-radius:
-        18px;
-
-    color:
-        var(--vision-red-soft);
-
-    background:
-        rgba(255, 39, 79, 0.07);
-
-    box-shadow:
-        0 0 25px
-        rgba(255, 39, 79, 0.08);
-}
-
-
-.vision-dropzone-title {
-
-    margin: 0;
-
-    color:
-        #ffffff;
-
-    font-size:
-        15px;
-
-    font-weight:
-        800;
-}
-
-
-.vision-dropzone-text {
-
-    max-width:
-        400px;
+.vision-card-header h2 {
 
     margin:
-        8px 0 0;
-
-    color:
-        var(--vision-text-soft);
+        4px 0 6px;
 
     font-size:
-        12px;
+        18px;
+
+    line-height:
+        1.15;
+
+    letter-spacing:
+        -.025em;
+}
+
+
+.vision-card-header p {
+
+    margin:
+        0;
+
+    color:
+        var(--vision-muted);
+
+    font-size:
+        11px;
 
     line-height:
         1.55;
 }
 
 
-.vision-dropzone-hint {
+/* =========================================================
+   CARD KICKER
+========================================================= */
 
-    margin-top:
-        13px;
+.vision-card-kicker {
 
     color:
-        var(--vision-text-muted);
+        #ff426b;
 
     font-size:
-        10px;
+        8px;
+
+    font-weight:
+        900;
 
     letter-spacing:
-        0.04em;
+        .19em;
 }
 
 
 /* =========================================================
-   PREVIEW
+   DROPZONE
 ========================================================= */
 
-.vision-preview {
+.vision-dropzone {
 
-    position: relative;
+    position:
+        relative;
 
-    display: none;
+    display:
+        grid;
+
+    place-items:
+        center;
 
     min-height:
-        330px;
+        315px;
 
-    border:
-        1px solid
-        rgba(255, 39, 79, 0.20);
+    margin:
+        0 16px 16px;
 
-    border-radius:
-        18px;
-
-    background:
-        #030305;
+    padding:
+        24px;
 
     overflow:
         hidden;
+
+    text-align:
+        center;
+
+    border:
+        1px dashed
+        rgba(255, 255, 255, .14);
+
+    border-radius:
+        17px;
+
+    background:
+
+        radial-gradient(
+            circle at 50% 35%,
+            rgba(255, 23, 79, .08),
+            transparent 35%
+        ),
+
+        rgba(0, 0, 0, .25);
+
+    transition:
+
+        border-color .2s ease,
+
+        background .2s ease,
+
+        box-shadow .2s ease;
 }
 
 
-.vision-preview.is-visible {
+/* =========================================================
+   DROPZONE HOVER
+========================================================= */
+
+.vision-dropzone:hover {
+
+    border-color:
+        rgba(255, 23, 79, .38);
+
+    box-shadow:
+        inset 0 0 45px
+        rgba(255, 23, 79, .035);
+}
+
+
+/* =========================================================
+   UPLOAD STATE
+========================================================= */
+
+.vision-upload-state {
 
     display:
-        flex;
+        grid;
+
+    justify-items:
+        center;
 }
 
+
+/* =========================================================
+   UPLOAD ICON
+========================================================= */
+
+.vision-upload-icon {
+
+    display:
+        grid;
+
+    place-items:
+        center;
+
+    width:
+        64px;
+
+    height:
+        64px;
+
+    margin-bottom:
+        15px;
+
+    border:
+        1px solid
+        rgba(255, 23, 79, .30);
+
+    border-radius:
+        19px;
+
+    color:
+        #ff3f68;
+
+    font-size:
+        30px;
+
+    font-weight:
+        300;
+
+    background:
+        rgba(255, 23, 79, .06);
+
+    box-shadow:
+
+        0 0 32px
+        rgba(255, 23, 79, .09),
+
+        inset 0 1px
+        rgba(255, 255, 255, .05);
+}
+
+
+/* =========================================================
+   UPLOAD TITLE
+========================================================= */
+
+.vision-upload-state h3 {
+
+    margin:
+        0 0 8px;
+
+    font-size:
+        13px;
+
+    letter-spacing:
+        .12em;
+}
+
+
+/* =========================================================
+   UPLOAD DESCRIPTION
+========================================================= */
+
+.vision-upload-state p {
+
+    margin:
+        3px 0;
+
+    color:
+        #74747d;
+
+    font-size:
+        10px;
+}
+
+
+/* =========================================================
+   BUTTON BASE
+========================================================= */
+
+.vision-secondary-button,
+.vision-primary-button,
+.vision-remove-button,
+.vision-copy-button {
+
+    font:
+        inherit;
+
+    cursor:
+        pointer;
+
+    transition:
+
+        transform .18s ease,
+
+        border-color .18s ease,
+
+        box-shadow .18s ease,
+
+        background .18s ease;
+}
+
+
+/* =========================================================
+   SECONDARY BUTTON
+========================================================= */
+
+.vision-secondary-button {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    min-height:
+        40px;
+
+    margin-top:
+        18px;
+
+    padding:
+        0 17px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, .13);
+
+    border-radius:
+        10px;
+
+    color:
+        #ededf0;
+
+    background:
+        rgba(255, 255, 255, .045);
+
+    font-size:
+        9px;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        .10em;
+}
+
+
+/* =========================================================
+   SECONDARY BUTTON HOVER
+========================================================= */
+
+.vision-secondary-button:hover {
+
+    border-color:
+        rgba(255, 23, 79, .40);
+
+    background:
+        rgba(255, 23, 79, .08);
+
+    box-shadow:
+        0 0 24px
+        rgba(255, 23, 79, .08);
+}
+
+
+/* =========================================================
+   PREVIEW STATE
+========================================================= */
+
+.vision-preview-state {
+
+    width:
+        100%;
+}
+
+
+/* =========================================================
+   PREVIEW IMAGE WRAPPER
+========================================================= */
+
+.vision-preview-image-wrap {
+
+    position:
+        relative;
+
+    display:
+        grid;
+
+    place-items:
+        center;
+
+    height:
+        260px;
+
+    overflow:
+        hidden;
+
+    border-radius:
+        13px;
+
+    background:
+        #020204;
+}
+
+
+/* =========================================================
+   PREVIEW IMAGE
+========================================================= */
 
 .vision-preview-image {
 
@@ -870,69 +984,49 @@
         100%;
 
     height:
-        330px;
+        100%;
 
     object-fit:
         contain;
-
-    background:
-        #020204;
 }
 
 
-.vision-preview-overlay {
+/* =========================================================
+   PREVIEW INFO
+========================================================= */
 
-    position: absolute;
+.vision-preview-info {
 
-    left: 0;
-    right: 0;
-    bottom: 0;
+    display:
+        flex;
 
-    display: flex;
+    justify-content:
+        space-between;
 
-    align-items: flex-end;
+    gap:
+        12px;
 
-    justify-content: space-between;
+    margin-top:
+        11px;
 
-    gap: 15px;
-
-    padding:
-        42px 16px 15px;
-
-    background:
-        linear-gradient(
-            180deg,
-            transparent,
-            rgba(0, 0, 0, 0.82)
-        );
+    text-align:
+        left;
 }
 
 
-.vision-preview-meta {
+.vision-preview-info strong {
 
     min-width:
         0;
-}
-
-
-.vision-preview-name {
-
-    display: block;
-
-    max-width:
-        320px;
 
     overflow:
         hidden;
 
     color:
-        #ffffff;
+        #e7e7ea;
 
     font-size:
-        12px;
-
-    font-weight:
-        750;
+        10px;
 
     text-overflow:
         ellipsis;
@@ -942,40 +1036,75 @@
 }
 
 
-.vision-preview-size {
+.vision-preview-info span {
 
-    display: block;
-
-    margin-top:
-        3px;
+    flex:
+        0 0 auto;
 
     color:
-        rgba(255, 255, 255, 0.55);
+        #74747d;
 
     font-size:
-        10px;
+        9px;
 }
 
 
 /* =========================================================
-   FORM AREA
+   REMOVE BUTTON
 ========================================================= */
 
-.vision-form {
+.vision-remove-button {
 
-    display:
-        flex;
+    width:
+        100%;
 
-    flex-direction:
-        column;
-
-    gap:
-        16px;
+    min-height:
+        35px;
 
     margin-top:
-        18px;
+        10px;
+
+    border:
+        1px solid
+        rgba(255, 23, 79, .22);
+
+    border-radius:
+        9px;
+
+    color:
+        #ff718b;
+
+    background:
+        rgba(255, 23, 79, .045);
+
+    font-size:
+        8px;
+
+    font-weight:
+        900;
+
+    letter-spacing:
+        .12em;
 }
 
+
+/* =========================================================
+   REMOVE BUTTON HOVER
+========================================================= */
+
+.vision-remove-button:hover {
+
+    border-color:
+        rgba(255, 23, 79, .48);
+
+    background:
+        rgba(255, 23, 79, .09);
+}
+
+
+/* =========================================================
+   FORM GRID
+========================================================= */
 
 .vision-form-grid {
 
@@ -986,9 +1115,16 @@
         repeat(2, minmax(0, 1fr));
 
     gap:
-        13px;
+        15px;
+
+    padding:
+        0 24px 24px;
 }
 
+
+/* =========================================================
+   FORM FIELD
+========================================================= */
 
 .vision-field {
 
@@ -997,6 +1133,10 @@
 }
 
 
+/* =========================================================
+   FULL WIDTH FIELD
+========================================================= */
+
 .vision-field-full {
 
     grid-column:
@@ -1004,34 +1144,38 @@
 }
 
 
-.vision-label {
+/* =========================================================
+   FIELD LABEL
+========================================================= */
+
+.vision-field label {
 
     display:
         block;
 
-    margin-bottom:
-        7px;
+    margin:
+        0 0 7px;
 
     color:
-        #d7d7de;
+        #8e8e97;
 
     font-size:
-        10px;
+        8px;
 
     font-weight:
-        800;
+        900;
 
     letter-spacing:
-        0.07em;
-
-    text-transform:
-        uppercase;
+        .16em;
 }
 
 
-.vision-input,
-.vision-select,
-.vision-textarea {
+/* =========================================================
+   SELECT + TEXTAREA
+========================================================= */
+
+.vision-field select,
+.vision-field textarea {
 
     width:
         100%;
@@ -1041,7 +1185,7 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.095);
+        rgba(255, 255, 255, .09);
 
     border-radius:
         11px;
@@ -1050,213 +1194,104 @@
         none;
 
     color:
-        #f5f5f7;
+        #e9e9ec;
 
     background:
-        rgba(255, 255, 255, 0.035);
+        rgba(0, 0, 0, .34);
 
     font:
         inherit;
 
     transition:
-        border-color 160ms ease,
-        box-shadow 160ms ease,
-        background 160ms ease;
+
+        border-color .18s ease,
+
+        box-shadow .18s ease;
 }
 
 
-.vision-input,
-.vision-select {
+/* =========================================================
+   SELECT
+========================================================= */
+
+.vision-field select {
 
     min-height:
-        44px;
+        45px;
 
     padding:
-        0 13px;
+        0 12px;
 
     font-size:
-        12px;
+        11px;
 }
 
 
-.vision-textarea {
+/* =========================================================
+   TEXTAREA
+========================================================= */
+
+.vision-field textarea {
 
     min-height:
-        92px;
+        108px;
 
     padding:
-        12px 13px;
+        12px;
 
     resize:
         vertical;
 
     font-size:
-        12px;
+        11px;
 
     line-height:
         1.55;
 }
 
 
-.vision-input:hover,
-.vision-select:hover,
-.vision-textarea:hover {
+/* =========================================================
+   FIELD FOCUS
+========================================================= */
+
+.vision-field select:focus,
+.vision-field textarea:focus {
 
     border-color:
-        rgba(255, 255, 255, 0.16);
-}
-
-
-.vision-input:focus,
-.vision-select:focus,
-.vision-textarea:focus {
-
-    border-color:
-        rgba(255, 39, 79, 0.58);
-
-    background:
-        rgba(255, 39, 79, 0.035);
+        rgba(255, 23, 79, .50);
 
     box-shadow:
+
         0 0 0 3px
-        rgba(255, 39, 79, 0.075);
-}
+        rgba(255, 23, 79, .06),
 
-
-.vision-select {
-
-    appearance:
-        auto;
-
-    cursor:
-        pointer;
-}
-
-
-.vision-select option {
-
-    color:
-        #ffffff;
-
-    background:
-        #111116;
+        0 0 25px
+        rgba(255, 23, 79, .05);
 }
 
 
 /* =========================================================
-   PRIMARY ACTION
+   SELECT OPTIONS
 ========================================================= */
 
-.vision-action {
-
-    width:
-        100%;
-
-    min-height:
-        50px;
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        center;
-
-    gap:
-        10px;
-
-    margin-top:
-        3px;
-
-    padding:
-        0 18px;
-
-    border:
-        1px solid
-        rgba(255, 73, 103, 0.70);
-
-    border-radius:
-        13px;
+.vision-field option {
 
     color:
-        #ffffff;
+        #eee;
 
     background:
-        linear-gradient(
-            135deg,
-            #d71942,
-            #ff3157
-        );
-
-    box-shadow:
-        0 8px 30px
-        rgba(255, 39, 79, 0.20),
-        inset 0 1px 0
-        rgba(255, 255, 255, 0.16);
-
-    font:
-        inherit;
-
-    font-size:
-        12px;
-
-    font-weight:
-        850;
-
-    letter-spacing:
-        0.045em;
-
-    cursor:
-        pointer;
-
-    transition:
-        transform 160ms ease,
-        box-shadow 160ms ease,
-        filter 160ms ease;
+        #101014;
 }
 
 
-.vision-action:hover {
+/* =========================================================
+   ACTION CARD
+========================================================= */
 
-    filter:
-        brightness(1.08);
+.vision-action-card {
 
-    box-shadow:
-        0 10px 38px
-        rgba(255, 39, 79, 0.30),
-        inset 0 1px 0
-        rgba(255, 255, 255, 0.18);
-
-    transform:
-        translateY(-1px);
-}
-
-
-.vision-action:active {
-
-    transform:
-        translateY(0);
-}
-
-
-.vision-action:disabled {
-
-    opacity:
-        0.48;
-
-    cursor:
-        not-allowed;
-
-    filter:
-        grayscale(0.35);
-
-    box-shadow:
-        none;
-
-    transform:
-        none;
+    padding:
+        19px;
 }
 
 
@@ -1266,54 +1301,28 @@
 
 .vision-credit-notice {
 
-    display:
-        flex;
+    margin-bottom:
+        11px;
 
-    align-items:
+    color:
+        #777780;
+
+    text-align:
         center;
 
-    gap:
-        8px;
-
-    color:
-        var(--vision-text-muted);
-
     font-size:
-        10px;
-
-    line-height:
-        1.45;
-}
-
-
-.vision-credit-notice strong {
-
-    color:
-        var(--vision-red-soft);
-
-    font-weight:
-        800;
+        9px;
 }
 
 
 /* =========================================================
-   RESULT PANEL
+   PRIMARY GENERATE BUTTON
 ========================================================= */
 
-.vision-result-panel {
+.vision-primary-button {
 
-    min-height:
-        100%;
-
-    display:
-        flex;
-
-    flex-direction:
-        column;
-}
-
-
-.vision-result-header {
+    position:
+        relative;
 
     display:
         flex;
@@ -1322,29 +1331,113 @@
         center;
 
     justify-content:
-        space-between;
+        center;
 
     gap:
-        15px;
+        10px;
 
-    margin-bottom:
-        15px;
+    width:
+        100%;
+
+    min-height:
+        52px;
+
+    border:
+        1px solid
+        rgba(255, 23, 79, .48);
+
+    border-radius:
+        12px;
+
+    color:
+        #fff;
+
+    background:
+        linear-gradient(
+            135deg,
+            #c70d3d,
+            #ff174f
+        );
+
+    box-shadow:
+
+        0 10px 30px
+        rgba(255, 23, 79, .18),
+
+        inset 0 1px
+        rgba(255, 255, 255, .18);
+
+    font-size:
+        10px;
+
+    font-weight:
+        950;
+
+    letter-spacing:
+        .12em;
 }
 
 
-.vision-result-title {
+/* =========================================================
+   PRIMARY BUTTON HOVER
+========================================================= */
 
-    margin:
-        0;
+.vision-primary-button:hover:not(:disabled) {
 
-    color:
-        #ffffff;
+    transform:
+        translateY(-1px);
 
-    font-size:
-        15px;
+    box-shadow:
 
-    font-weight:
-        850;
+        0 14px 38px
+        rgba(255, 23, 79, .25),
+
+        0 0 25px
+        rgba(255, 23, 79, .12);
+}
+
+
+/* =========================================================
+   PRIMARY BUTTON DISABLED
+========================================================= */
+
+.vision-primary-button:disabled {
+
+    cursor:
+        not-allowed;
+
+    opacity:
+        .55;
+
+    transform:
+        none;
+}
+
+
+/* =========================================================
+   BUTTON SPINNER
+========================================================= */
+
+.vision-button-spinner {
+
+    width:
+        13px;
+
+    height:
+        13px;
+
+    border:
+        2px solid
+        rgba(255, 255, 255, .35);
+
+    border-top-color:
+        #fff;
+
+    border-radius:
+        50%;
+
+    animation:
+        visionSpin .75s linear infinite;
 }
 
 
@@ -1355,47 +1448,36 @@
 .vision-status {
 
     display:
-        inline-flex;
+        flex;
 
     align-items:
+        center;
+
+    justify-content:
         center;
 
     gap:
         7px;
 
-    padding:
-        6px 9px;
+    min-height:
+        27px;
 
-    border:
-        1px solid
-        rgba(255, 255, 255, 0.08);
-
-    border-radius:
-        999px;
+    margin-top:
+        9px;
 
     color:
-        var(--vision-text-muted);
-
-    background:
-        rgba(255, 255, 255, 0.025);
+        #777780;
 
     font-size:
         9px;
-
-    font-weight:
-        800;
-
-    letter-spacing:
-        0.06em;
-
-    text-transform:
-        uppercase;
 }
 
 
-.vision-status::before {
+/* =========================================================
+   STATUS INDICATOR
+========================================================= */
 
-    content: "";
+.vision-status-indicator {
 
     width:
         6px;
@@ -1407,35 +1489,54 @@
         50%;
 
     background:
-        currentColor;
+        #55555d;
 }
 
 
-.vision-status[data-state="ready"] {
+/* =========================================================
+   PROCESSING STATUS
+========================================================= */
 
-    color:
-        var(--vision-text-muted);
+.vision-status[data-state="processing"]
+.vision-status-indicator {
+
+    background:
+        var(--vision-red);
+
+    box-shadow:
+        0 0 12px
+        rgba(255, 23, 79, .8);
+
+    animation:
+        visionPulse 1s ease-in-out infinite;
 }
 
 
-.vision-status[data-state="processing"] {
+/* =========================================================
+   SUCCESS STATUS
+========================================================= */
 
-    color:
-        var(--vision-warning);
+.vision-status[data-state="success"]
+.vision-status-indicator {
+
+    background:
+        var(--vision-green);
+
+    box-shadow:
+        0 0 10px
+        rgba(69, 227, 155, .55);
 }
 
 
-.vision-status[data-state="success"] {
+/* =========================================================
+   ERROR STATUS
+========================================================= */
 
-    color:
-        var(--vision-success);
-}
+.vision-status[data-state="error"]
+.vision-status-indicator {
 
-
-.vision-status[data-state="error"] {
-
-    color:
-        var(--vision-danger);
+    background:
+        #ff536f;
 }
 
 
@@ -1445,72 +1546,36 @@
 
 .vision-progress {
 
-    display:
-        none;
-
-    margin-bottom:
-        15px;
+    margin-top:
+        3px;
 }
 
 
-.vision-progress.is-visible {
-
-    display:
-        block;
-}
-
-
-.vision-progress-top {
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        space-between;
-
-    gap:
-        12px;
-
-    margin-bottom:
-        7px;
-
-    color:
-        var(--vision-text-muted);
-
-    font-size:
-        9px;
-
-    font-weight:
-        750;
-}
-
+/* =========================================================
+   PROGRESS TRACK
+========================================================= */
 
 .vision-progress-track {
-
-    width:
-        100%;
 
     height:
         4px;
 
-    border-radius:
-        999px;
-
-    background:
-        rgba(255, 255, 255, 0.065);
-
     overflow:
         hidden;
+
+    border-radius:
+        99px;
+
+    background:
+        rgba(255, 255, 255, .07);
 }
 
 
-.vision-progress-bar {
+/* =========================================================
+   PROGRESS BAR
+========================================================= */
 
-    width:
-        0%;
+.vision-progress-bar {
 
     height:
         100%;
@@ -1519,171 +1584,66 @@
         inherit;
 
     background:
+
         linear-gradient(
             90deg,
-            #9e102d,
-            #ff274f
+            #a90835,
+            #ff174f,
+            #ff6382
         );
 
     box-shadow:
-        0 0 14px
-        rgba(255, 39, 79, 0.50);
+        0 0 16px
+        rgba(255, 23, 79, .38);
 
     transition:
-        width 260ms ease;
+        width .25s ease;
 }
 
 
 /* =========================================================
-   PROMPT RESULT
+   PROGRESS META
 ========================================================= */
 
-.vision-result-container {
-
-    position:
-        relative;
-
-    flex:
-        1;
-
-    min-height:
-        430px;
-
-    border:
-        1px solid
-        rgba(255, 39, 79, 0.18);
-
-    border-radius:
-        17px;
-
-    background:
-        rgba(0, 0, 0, 0.24);
-
-    overflow:
-        hidden;
-}
-
-
-.vision-prompt-placeholder {
-
-    position:
-        absolute;
-
-    inset:
-        0;
+.vision-progress-meta {
 
     display:
         flex;
 
-    flex-direction:
-        column;
+    justify-content:
+        flex-end;
+
+    margin-top:
+        6px;
+
+    color:
+        #66666e;
+
+    font-size:
+        8px;
+}
+
+
+/* =========================================================
+   RESULT CARD
+========================================================= */
+
+.vision-result-card {
+
+    min-height:
+        690px;
+}
+
+
+/* =========================================================
+   RESULT HEADER
+========================================================= */
+
+.vision-result-card
+.vision-card-header {
 
     align-items:
         center;
-
-    justify-content:
-        center;
-
-    padding:
-        30px;
-
-    color:
-        var(--vision-text-muted);
-
-    text-align:
-        center;
-
-    pointer-events:
-        none;
-}
-
-
-.vision-prompt-placeholder strong {
-
-    margin-bottom:
-        7px;
-
-    color:
-        rgba(255, 255, 255, 0.72);
-
-    font-size:
-        13px;
-}
-
-
-.vision-prompt-placeholder span {
-
-    max-width:
-        320px;
-
-    font-size:
-        10px;
-
-    line-height:
-        1.6;
-}
-
-
-.vision-prompt-result {
-
-    display:
-        none;
-
-    width:
-        100%;
-
-    min-height:
-        430px;
-
-    box-sizing:
-        border-box;
-
-    margin:
-        0;
-
-    padding:
-        20px;
-
-    color:
-        #eeeeF2;
-
-    background:
-        transparent;
-
-    font-family:
-        "SFMono-Regular",
-        Consolas,
-        "Liberation Mono",
-        monospace;
-
-    font-size:
-        11px;
-
-    line-height:
-        1.7;
-
-    white-space:
-        pre-wrap;
-
-    word-break:
-        break-word;
-
-    overflow:
-        auto;
-}
-
-
-.vision-prompt-result.is-visible {
-
-    display:
-        block;
-}
-
-
-.vision-prompt-placeholder.is-hidden {
-
-    display:
-        none;
 }
 
 
@@ -1693,193 +1653,334 @@
 
 .vision-copy-button {
 
+    flex:
+        0 0 auto;
+
     min-height:
         34px;
 
     padding:
-        0 11px;
+        0 12px;
 
     border:
         1px solid
-        rgba(255, 39, 79, 0.25);
+        rgba(255, 23, 79, .28);
 
     border-radius:
         9px;
 
     color:
-        var(--vision-text-soft);
+        #ff6481;
 
     background:
-        rgba(255, 39, 79, 0.045);
-
-    font:
-        inherit;
+        rgba(255, 23, 79, .045);
 
     font-size:
-        10px;
+        8px;
 
     font-weight:
-        800;
+        900;
 
-    cursor:
-        pointer;
-
-    transition:
-        color 160ms ease,
-        border-color 160ms ease,
-        background 160ms ease;
-}
-
-
-.vision-copy-button:hover {
-
-    color:
-        #ffffff;
-
-    border-color:
-        rgba(255, 39, 79, 0.58);
-
-    background:
-        rgba(255, 39, 79, 0.09);
-}
-
-
-.vision-copy-button:disabled {
-
-    opacity:
-        0.4;
-
-    cursor:
-        not-allowed;
+    letter-spacing:
+        .12em;
 }
 
 
 /* =========================================================
-   ANALYSIS DETAILS
+   COPY BUTTON HOVER
 ========================================================= */
 
-.vision-analysis-details {
+.vision-copy-button:hover {
 
-    margin-top:
-        13px;
+    border-color:
+        rgba(255, 23, 79, .55);
+
+    background:
+        rgba(255, 23, 79, .10);
+}
+
+
+/* =========================================================
+   PROMPT OUTPUT
+========================================================= */
+
+.vision-prompt-output {
+
+    position:
+        relative;
+
+    min-height:
+        440px;
+
+    margin:
+        0 18px 18px;
+
+    overflow:
+        hidden;
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.07);
+        rgba(255, 255, 255, .075);
+
+    border-radius:
+        15px;
+
+    background:
+        #050507;
+}
+
+
+/* =========================================================
+   RESULT PLACEHOLDER
+========================================================= */
+
+.vision-result-placeholder {
+
+    position:
+        absolute;
+
+    inset:
+        0;
+
+    display:
+        grid;
+
+    place-items:
+        center;
+
+    padding:
+        30px;
+
+    text-align:
+        center;
+
+    color:
+        #6d6d76;
+}
+
+
+/* =========================================================
+   PLACEHOLDER ICON
+========================================================= */
+
+.vision-placeholder-icon {
+
+    display:
+        grid;
+
+    place-items:
+        center;
+
+    width:
+        58px;
+
+    height:
+        58px;
+
+    margin:
+        0 auto 14px;
+
+    border:
+        1px solid
+        rgba(255, 23, 79, .18);
+
+    border-radius:
+        17px;
+
+    color:
+        #ff3d68;
+
+    background:
+        rgba(255, 23, 79, .045);
+
+    font-size:
+        22px;
+}
+
+
+/* =========================================================
+   PLACEHOLDER TITLE
+========================================================= */
+
+.vision-result-placeholder strong {
+
+    display:
+        block;
+
+    color:
+        #a4a4ac;
+
+    font-size:
+        12px;
+}
+
+
+/* =========================================================
+   PLACEHOLDER TEXT
+========================================================= */
+
+.vision-result-placeholder p {
+
+    max-width:
+        390px;
+
+    margin:
+        8px auto 0;
+
+    color:
+        #5f5f67;
+
+    font-size:
+        9px;
+
+    line-height:
+        1.55;
+}
+
+
+/* =========================================================
+   PROMPT RESULT
+========================================================= */
+
+.vision-prompt-result {
+
+    margin:
+        0;
+
+    padding:
+        22px;
+
+    min-height:
+        440px;
+
+    box-sizing:
+        border-box;
+
+    overflow:
+        auto;
+
+    color:
+        #e9e9ec;
+
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+
+    font-size:
+        11px;
+
+    line-height:
+        1.75;
+
+    white-space:
+        pre-wrap;
+
+    word-break:
+        break-word;
+
+    background:
+
+        linear-gradient(
+            rgba(255, 255, 255, .018) 1px,
+            transparent 1px
+        ),
+
+        #050507;
+
+    background-size:
+        100% 27px;
+}
+
+
+/* =========================================================
+   ANALYSIS CARD
+========================================================= */
+
+.vision-analysis-card {
+
+    margin:
+        0 18px 18px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, .06);
 
     border-radius:
         13px;
 
     background:
-        rgba(255, 255, 255, 0.018);
-
-    overflow:
-        hidden;
+        rgba(255, 255, 255, .018);
 }
 
 
-.vision-analysis-summary {
+/* =========================================================
+   ANALYSIS SUMMARY
+========================================================= */
 
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        space-between;
-
-    min-height:
-        42px;
+.vision-analysis-card > summary {
 
     padding:
-        0 13px;
-
-    color:
-        var(--vision-text-soft);
-
-    font-size:
-        10px;
-
-    font-weight:
-        800;
+        12px 14px;
 
     cursor:
         pointer;
 
-    list-style:
-        none;
-}
-
-
-.vision-analysis-summary::-webkit-details-marker {
-
-    display:
-        none;
-}
-
-
-.vision-analysis-summary::after {
-
-    content:
-        "+";
-
     color:
-        var(--vision-red-soft);
+        #8f8f98;
 
     font-size:
-        14px;
+        9px;
 
     font-weight:
-        400;
+        900;
+
+    letter-spacing:
+        .10em;
 }
 
 
-.vision-analysis-details[open]
-.vision-analysis-summary::after {
-
-    content:
-        "−";
-}
-
+/* =========================================================
+   ANALYSIS RESULT
+========================================================= */
 
 .vision-analysis-result {
 
     max-height:
         260px;
 
+    overflow:
+        auto;
+
     margin:
         0;
 
     padding:
-        13px;
-
-    border-top:
-        1px solid
-        rgba(255, 255, 255, 0.05);
+        0 14px 14px;
 
     color:
-        var(--vision-text-muted);
-
-    background:
-        rgba(0, 0, 0, 0.18);
+        #777780;
 
     font-family:
-        "SFMono-Regular",
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
         Consolas,
         monospace;
 
     font-size:
-        9px;
+        8px;
 
     line-height:
-        1.6;
+        1.55;
 
     white-space:
         pre-wrap;
 
-    overflow:
-        auto;
+    word-break:
+        break-word;
 }
 
 
@@ -1903,141 +2004,88 @@
 }
 
 
-.vision-info-card {
+/* =========================================================
+   INFO CARD
+========================================================= */
 
-    position:
-        relative;
+.vision-info-card {
 
     padding:
         18px;
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.07);
+        rgba(255, 255, 255, .06);
 
     border-radius:
         16px;
 
     background:
-        rgba(255, 255, 255, 0.018);
-
-    overflow:
-        hidden;
+        rgba(10, 10, 13, .70);
 }
 
 
-.vision-info-card::before {
-
-    content: "";
-
-    position:
-        absolute;
-
-    top: 0;
-    left: 18px;
-    right: 18px;
-
-    height: 1px;
-
-    background:
-        linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 39, 79, 0.40),
-            transparent
-        );
-}
-
+/* =========================================================
+   INFO TITLE
+========================================================= */
 
 .vision-info-title {
 
-    margin:
-        0 0 7px;
+    margin-bottom:
+        7px;
 
     color:
-        #eeeeF2;
-
-    font-size:
-        11px;
-
-    font-weight:
-        850;
-}
-
-
-.vision-info-text {
-
-    margin:
-        0;
-
-    color:
-        var(--vision-text-muted);
+        #c8c8ce;
 
     font-size:
         10px;
 
+    font-weight:
+        900;
+}
+
+
+/* =========================================================
+   INFO TEXT
+========================================================= */
+
+.vision-info-text {
+
+    color:
+        #696971;
+
+    font-size:
+        9px;
+
     line-height:
-        1.6;
+        1.55;
 }
 
 
 /* =========================================================
-   HIDDEN UTILITY
+   ANIMATION
 ========================================================= */
 
-.vision-hidden {
+@keyframes visionSpin {
 
-    display:
-        none !important;
+    to {
+
+        transform:
+            rotate(360deg);
+    }
 }
 
 
-/* =========================================================
-   DISABLED INTERACTION
-========================================================= */
+@keyframes visionPulse {
 
-.vision-page [disabled] {
+    50% {
 
-    pointer-events:
-        none;
-}
+        opacity:
+            .35;
 
-
-/* =========================================================
-   SCROLLBAR
-========================================================= */
-
-.vision-page ::-webkit-scrollbar {
-
-    width:
-        7px;
-
-    height:
-        7px;
-}
-
-
-.vision-page ::-webkit-scrollbar-track {
-
-    background:
-        rgba(255, 255, 255, 0.025);
-}
-
-
-.vision-page ::-webkit-scrollbar-thumb {
-
-    border-radius:
-        999px;
-
-    background:
-        rgba(255, 39, 79, 0.24);
-}
-
-
-.vision-page ::-webkit-scrollbar-thumb:hover {
-
-    background:
-        rgba(255, 39, 79, 0.42);
+        transform:
+            scale(.75);
+    }
 }
 
 
@@ -2047,12 +2095,14 @@
 
 @media (prefers-reduced-motion: reduce) {
 
-    .vision-dropzone,
-    .vision-action,
-    .vision-copy-button,
-    .vision-progress-bar {
+    .vision-page *,
+    .vision-page *::before,
+    .vision-page *::after {
 
-        transition:
-            none !important;
+        animation-duration:
+            .001ms !important;
+
+        transition-duration:
+            .001ms !important;
     }
 }
