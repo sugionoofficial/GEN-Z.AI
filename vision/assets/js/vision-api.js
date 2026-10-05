@@ -1,4 +1,4 @@
-//vision-api.js?v=1.5
+//vision-api.js?v=1.6
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -19,20 +19,15 @@
    - Tidak menyimpan history
    - Tidak menyimpan API key di browser
 
-   CATATAN OPENKEY:
-   Endpoint /models OpenKey tidak selalu mengirim
-   metadata input_modalities / capabilities.
-
-   Karena itu deteksi Vision menggunakan dua lapisan:
-
-   1. Capability metadata yang benar-benar diberikan
-      oleh katalog API.
-   2. Capability policy OpenKey untuk model yang secara
-      eksplisit ditandai "Realtime & vision" pada katalog
-      resmi OpenKey.
-
-   Policy ini BUKAN registry model.
-   Model tetap wajib berasal dari response /models.
+   PERBAIKAN v1.6:
+   - Vision analysis dibuat lebih detail
+   - Tidak membiarkan analysis terlalu pendek
+   - Analysis tetap terstruktur JSON
+   - Parser JSON lebih toleran
+   - Response OpenKey lebih fleksibel
+   - Prompt engineering menerima analysis lengkap
+   - Debug analysis diperjelas
+   - Tidak mengubah credit / history / DOM / event
 ========================================================= */
 
 
@@ -58,7 +53,19 @@ const VISION_API_CONFIG = Object.freeze({
         5000,
 
     maxPromptTokens:
-        5000
+        5000,
+
+    /*
+     * Analysis yang hanya beberapa ratus karakter
+     * tidak cukup untuk membangun prompt visual.
+     *
+     * Nilai ini bukan target panjang wajib.
+     * Ini hanya safety guard agar response yang jelas
+     * terlalu pendek tidak diteruskan ke Prompt Engineering.
+     */
+
+    minAnalysisCharacters:
+        500
 
 });
 
@@ -280,7 +287,8 @@ async function parseResponse(
             text
         );
 
-    } catch {
+    }
+    catch {
 
         return {
 
@@ -1460,6 +1468,13 @@ function getSelectedModel() {
 
 /* =========================================================
    ANALYSIS SYSTEM PROMPT
+   ---------------------------------------------------------
+   IMPORTANT:
+   Jangan membuat instruksi analysis terlalu pendek.
+
+   Model Vision harus terlebih dahulu melakukan pekerjaan
+   visual secara lengkap sebelum hasilnya dikirim ke
+   Prompt Engineering.
 ========================================================= */
 
 function buildAnalysisSystemPrompt() {
@@ -1467,71 +1482,395 @@ function buildAnalysisSystemPrompt() {
     return `
 You are the visual analysis engine of GEN-Z.AI Vision.
 
-Your task is to analyze the supplied reference image with high visual accuracy.
+You are looking at an actual reference image supplied together with this request.
 
-Do NOT generate a final creative prompt yet.
+Your job is to inspect the image itself and extract detailed, observable visual information.
 
-First extract the observable visual information into structured JSON.
+Do NOT generate the final image-generation prompt yet.
 
-Analyze:
+Do NOT refuse simply because some information is unavailable.
 
-1. subject
-2. appearance
-3. face and hair
-4. pose and body position
-5. clothing
-6. accessories
-7. product
-8. composition
-9. framing
-10. camera perspective
-11. lens characteristics
-12. depth of field
-13. lighting
-14. shadows
-15. environment
-16. background
-17. color palette
-18. visual style
-19. text and branding
-20. image quality
-21. important visual details
-22. uncertainty
+Do NOT say that visual details were not provided unless the image itself is genuinely unavailable.
 
-Rules:
+The image is the primary source of truth.
 
-- Describe only what is actually visible.
-- Do not invent hidden details.
-- If something cannot be determined, use null or "unknown".
-- Preserve important spatial relationships.
-- Identify products and visible branding carefully.
-- Do not claim that a person is a specific real person.
+Analyze the image carefully before producing your response.
+
+Your analysis must contain enough concrete visual information for another AI system to reconstruct the same scene.
+
+Analyze the following categories in detail.
+
+1. SUBJECT
+- number of visible subjects
+- subject type
+- approximate apparent age range when visually reasonable
+- apparent gender presentation when visually apparent
+- body position
+- subject placement
+- orientation relative to camera
+
+2. PHYSICAL APPEARANCE
+- skin tone when visible
+- body build when visually apparent
+- visible facial structure
+- visible distinguishing physical characteristics
+- proportions when visually apparent
+
+3. FACE AND HAIR
+- face shape
+- hairstyle
+- hair length
+- hair color
+- hair texture
+- hair direction
+- bangs or other visible styling
+- eyes
+- eyebrows
+- nose
+- lips
+- visible makeup
+- facial expression
+- gaze direction
+
+4. POSE
+- standing / sitting / walking / leaning / other
+- head position
+- torso orientation
+- shoulder position
+- arm position
+- elbow position
+- hand position
+- finger position when visible
+- leg position
+- foot position
+- interaction with objects
+- body orientation toward or away from camera
+
+5. CLOTHING
+Describe every clearly visible garment.
+
+Include:
+- garment type
+- color
+- material
+- texture
+- pattern
+- fit
+- sleeve length
+- neckline
+- collar
+- buttons
+- seams
+- visible logos
+- visible prints
+- lower-body clothing
+- footwear
+- visible layering
+
+6. ACCESSORIES
+Identify visible:
+- jewelry
+- glasses
+- watches
+- hats
+- bags
+- belts
+- hair accessories
+- other wearable accessories
+
+7. PRODUCT OR MAIN OBJECT
+If the image contains a product or important object:
+- identify what is visibly present
+- shape
+- color
+- material
+- size relative to subject
+- orientation
+- position
+- visible branding
+- visible text
+- interaction with subject
+
+Never invent a product model if it cannot be identified.
+
+8. ENVIRONMENT
+Describe:
+- indoor / outdoor
+- location type
+- architecture
+- furniture
+- surfaces
+- walls
+- floor
+- ceiling
+- windows
+- doors
+- plants
+- props
+- background objects
+- foreground objects
+- environmental context
+
+9. COMPOSITION
+Describe:
+- subject position in frame
+- left / center / right placement
+- foreground / middle ground / background
+- negative space
+- symmetry or asymmetry
+- major visual balance
+- relationship between subject and environment
+
+10. FRAMING
+Describe:
+- close-up
+- medium shot
+- medium-full shot
+- full-body
+- wide shot
+- other appropriate framing
+- amount of visible body
+- crop boundaries
+
+11. CAMERA
+Describe only visually supported characteristics:
+- camera height
+- camera angle
+- front / side / rear / three-quarter view
+- eye-level / low-angle / high-angle
+- perspective
+- apparent lens character
+- apparent focal-length feel
+- distortion if visible
+
+Do not invent an exact focal length when it cannot be determined.
+
+12. DEPTH OF FIELD
+Describe:
+- foreground focus
+- subject focus
+- background focus
+- background blur
+- bokeh
+- apparent depth separation
+
+13. LIGHTING
+Describe:
+- primary light direction
+- light source when visible
+- natural / artificial
+- soft / hard
+- warm / cool
+- highlights
+- shadows
+- shadow direction
+- rim light if visible
+- reflections
+- exposure
+- contrast
+
+14. COLOR
+Describe:
+- dominant colors
+- secondary colors
+- background colors
+- clothing colors
+- object colors
+- overall palette
+- warm / cool character
+- contrast
+- saturation
+
+15. VISUAL STYLE
+Describe what is actually visible:
+- photorealistic
+- cinematic
+- commercial
+- editorial
+- lifestyle
+- studio
+- documentary
+- illustrative
+- other observable characteristics
+
+Do not invent a style that is not visually supported.
+
+16. TEXT AND BRANDING
+Transcribe clearly visible text when readable.
+
+If text cannot be read:
+- say "text present but unreadable"
+
+Identify visible logos or branding only when actually visible.
+
+17. IMAGE QUALITY
+Describe:
+- sharpness
+- focus quality
+- visible noise
+- compression
+- resolution appearance
+- detail level
+- photographic characteristics
+
+18. IMPORTANT VISUAL RELATIONSHIPS
+Explain spatial relationships between:
+- subject and product
+- subject and background
+- hands and objects
+- body and camera
+- foreground and background
+- light and subject
+
+19. UNCERTAINTY
+List details that genuinely cannot be determined.
+
+IMPORTANT RULES:
+
+- The reference image itself is the source of truth.
+- Describe visible information, not assumptions.
+- Do not invent hidden information.
+- Do not invent exact camera settings.
+- Do not invent exact product specifications.
+- Do not identify a real person.
 - Do not infer private identity.
-- Separate visible facts from uncertainty.
+- Do not replace missing information with generic filler.
+- Preserve spatial relationships.
+- Preserve pose.
+- Preserve composition.
+- Preserve lighting.
+- Preserve environment.
+- Preserve clothing.
+- Preserve visible product details.
+- Preserve visible branding and text.
+- Be detailed.
 
 Return valid JSON only.
 
 Use this structure:
 
 {
-  "subject": {},
-  "appearance": {},
-  "face_hair": {},
-  "pose": {},
-  "clothing": {},
+  "subject": {
+    "count": null,
+    "type": "",
+    "age_range": "",
+    "gender_presentation": "",
+    "position": "",
+    "orientation": ""
+  },
+  "appearance": {
+    "skin_tone": "",
+    "body_build": "",
+    "visible_features": []
+  },
+  "face_hair": {
+    "face_shape": "",
+    "hair_style": "",
+    "hair_length": "",
+    "hair_color": "",
+    "hair_texture": "",
+    "eyes": "",
+    "eyebrows": "",
+    "nose": "",
+    "lips": "",
+    "makeup": "",
+    "expression": "",
+    "gaze": ""
+  },
+  "pose": {
+    "overall": "",
+    "head": "",
+    "torso": "",
+    "shoulders": "",
+    "arms": "",
+    "hands": "",
+    "legs": "",
+    "feet": "",
+    "interaction": ""
+  },
+  "clothing": {
+    "upper_body": "",
+    "lower_body": "",
+    "outerwear": "",
+    "footwear": "",
+    "materials": [],
+    "colors": [],
+    "patterns": [],
+    "visible_details": []
+  },
   "accessories": [],
-  "product": {},
-  "composition": {},
-  "camera": {},
-  "lighting": {},
-  "environment": {},
+  "product": {
+    "present": false,
+    "description": "",
+    "position": "",
+    "orientation": "",
+    "visible_branding": "",
+    "visible_text": ""
+  },
+  "composition": {
+    "subject_placement": "",
+    "foreground": "",
+    "middle_ground": "",
+    "background": "",
+    "negative_space": "",
+    "visual_balance": ""
+  },
+  "framing": {
+    "shot_type": "",
+    "crop": "",
+    "body_visibility": ""
+  },
+  "camera": {
+    "angle": "",
+    "height": "",
+    "viewpoint": "",
+    "perspective": "",
+    "lens_feel": ""
+  },
+  "depth_of_field": {
+    "focus": "",
+    "background_blur": "",
+    "separation": ""
+  },
+  "lighting": {
+    "direction": "",
+    "source": "",
+    "quality": "",
+    "temperature": "",
+    "highlights": "",
+    "shadows": "",
+    "contrast": ""
+  },
+  "environment": {
+    "location_type": "",
+    "indoor_outdoor": "",
+    "architecture": "",
+    "furniture": [],
+    "objects": [],
+    "surfaces": "",
+    "background_details": []
+  },
   "color_palette": [],
-  "visual_style": {},
+  "visual_style": {
+    "style": "",
+    "mood": "",
+    "realism": "",
+    "texture": ""
+  },
   "text_branding": [],
-  "image_quality": {},
+  "image_quality": {
+    "sharpness": "",
+    "focus_quality": "",
+    "noise": "",
+    "compression": "",
+    "detail": ""
+  },
   "important_details": [],
+  "spatial_relationships": [],
   "uncertainties": []
 }
+
+Return the JSON only.
 `.trim();
 
 }
@@ -1561,7 +1900,13 @@ function buildAnalysisUserPrompt(
 
 
     return `
-Analyze this reference image for GEN-Z.AI Vision.
+Analyze the attached reference image directly.
+
+This is the actual REFERENCE IMAGE for GEN-Z.AI Vision.
+
+The image has been attached as an image input in this request.
+
+Inspect the visual content before answering.
 
 Analysis detail level:
 ${detail}
@@ -1572,8 +1917,157 @@ ${purpose}
 Additional user instruction:
 ${instruction || "None"}
 
-Produce structured visual analysis based strictly on the image.
+IMPORTANT:
+
+Do not respond with a generic statement such as:
+"No visual details were provided."
+
+The visual details are contained in the attached reference image.
+
+If a particular detail is not visible, mark that specific field as unknown or null, but continue analyzing every other visible part of the image.
+
+Provide a detailed structured visual analysis according to the system schema.
+
+Return valid JSON only.
 `.trim();
+
+}
+
+
+/* =========================================================
+   VALIDATE ANALYSIS QUALITY
+========================================================= */
+
+function validateAnalysisQuality(
+    text
+) {
+
+    const normalized =
+        String(
+            text ||
+            ""
+        )
+            .trim();
+
+
+    if (
+        !normalized
+    ) {
+
+        return {
+
+            valid:
+                false,
+
+            length:
+                0,
+
+            reason:
+                "Vision model mengembalikan analysis kosong."
+
+        };
+
+    }
+
+
+    const lower =
+        normalized
+            .toLowerCase();
+
+
+    /*
+     * Beberapa refusal generik yang menandakan
+     * model tidak melakukan visual analysis.
+     */
+
+    const refusalPatterns = [
+
+        "no visual details were provided",
+
+        "no visual information was provided",
+
+        "cannot analyze the image",
+
+        "cannot see the image",
+
+        "image was not provided",
+
+        "image is not provided",
+
+        "visual details were not provided",
+
+        "visual information was not provided"
+
+    ];
+
+
+    const looksLikeRefusal =
+        refusalPatterns.some(
+            phrase =>
+                lower.includes(
+                    phrase
+                )
+        );
+
+
+    if (
+        looksLikeRefusal
+    ) {
+
+        return {
+
+            valid:
+                false,
+
+            length:
+                normalized.length,
+
+            reason:
+                "Vision model tidak melakukan analisis terhadap reference image."
+
+        };
+
+    }
+
+
+    const minimum =
+        VISION_API_CONFIG
+            .minAnalysisCharacters;
+
+
+    if (
+        normalized.length <
+        minimum
+    ) {
+
+        return {
+
+            valid:
+                false,
+
+            length:
+                normalized.length,
+
+            reason:
+                `Analysis terlalu pendek (${normalized.length} karakter). Minimum ${minimum} karakter.`
+
+        };
+
+    }
+
+
+    return {
+
+        valid:
+            true,
+
+        length:
+            normalized.length,
+
+        reason:
+            null
+
+    };
 
 }
 
@@ -1637,6 +2131,75 @@ async function analyzeImage(
         );
 
 
+    const analysisSystemPrompt =
+        buildAnalysisSystemPrompt();
+
+
+    const analysisUserPrompt =
+        buildAnalysisUserPrompt(
+            settings
+        );
+
+
+    const imageMessage =
+        buildImageMessage(
+
+            analysisUserPrompt,
+
+            file.dataUrl
+
+        );
+
+
+    /*
+     * Pastikan multimodal message benar-benar
+     * memiliki text + image.
+     */
+
+    console.info(
+        "[GEN-Z.AI Vision] Sending vision-analysis request:",
+        {
+
+            model:
+                model.id,
+
+            messageCount:
+                2,
+
+            contentParts:
+                imageMessage.length,
+
+            hasText:
+                imageMessage.some(
+                    part =>
+                        part?.type ===
+                        "text"
+                ),
+
+            hasImage:
+                imageMessage.some(
+                    part =>
+                        part?.type ===
+                        "image_url"
+                ),
+
+            imageMime:
+                typeof file.dataUrl ===
+                "string"
+                    ? file.dataUrl
+                        .split(";")[0]
+                    : null,
+
+            imageDataLength:
+                typeof file.dataUrl ===
+                "string"
+                    ? file.dataUrl.length
+                    : 0
+
+        }
+    );
+
+
     const messages = [
 
         {
@@ -1645,7 +2208,7 @@ async function analyzeImage(
                 "system",
 
             content:
-                buildAnalysisSystemPrompt()
+                analysisSystemPrompt
 
         },
 
@@ -1655,15 +2218,7 @@ async function analyzeImage(
                 "user",
 
             content:
-                buildImageMessage(
-
-                    buildAnalysisUserPrompt(
-                        settings
-                    ),
-
-                    file.dataUrl
-
-                )
+                imageMessage
 
         }
 
@@ -1704,24 +2259,62 @@ async function analyzeImage(
         );
 
 
+    /*
+     * Debug response analysis.
+     */
+
+    console.info(
+        "[GEN-Z.AI Vision] Vision-analysis response:",
+        sanitizeResponseForDebug(
+            response
+        )
+    );
+
+
     const text =
         extractAssistantText(
             response
         );
 
 
+    const quality =
+        validateAnalysisQuality(
+            text
+        );
+
+
+    console.info(
+        "[GEN-Z.AI Vision] Vision-analysis result:",
+        {
+
+            length:
+                quality.length,
+
+            valid:
+                quality.valid,
+
+            reason:
+                quality.reason
+
+        }
+    );
+
+
     if (
-        !text
+        !quality.valid
     ) {
 
         throw createAPIError(
 
-            "Vision model tidak mengembalikan hasil analisis.",
+            quality.reason ||
+            "Vision model tidak mengembalikan hasil analisis yang cukup.",
 
             {
 
                 code:
-                    "EMPTY_ANALYSIS_RESPONSE",
+                    quality.length === 0
+                        ? "EMPTY_ANALYSIS_RESPONSE"
+                        : "INSUFFICIENT_ANALYSIS_RESPONSE",
 
                 data:
                     response
@@ -1756,22 +2349,31 @@ function buildPromptSystemPrompt() {
     return `
 You are the prompt engineering engine of GEN-Z.AI Vision.
 
-Convert structured visual analysis into one high-quality, ultra-detailed image prompt.
+Convert the supplied structured visual analysis into ONE high-quality, ultra-detailed production-ready image-generation prompt.
 
-The final prompt must preserve the important visual characteristics of the reference image.
+The visual analysis was created from an actual reference image.
 
-Include, when available:
+Your job is to preserve the visual characteristics of that reference image as accurately as possible.
 
-- subject
+The final prompt must preserve, when available:
+
+- number of subjects
+- subject placement
 - physical appearance
 - face and hair
 - pose
+- body position
+- facial expression
+- gaze
 - clothing
 - accessories
 - product
+- object relationships
 - composition
-- camera angle
 - framing
+- camera angle
+- viewpoint
+- perspective
 - lens feel
 - depth of field
 - lighting
@@ -1783,14 +2385,39 @@ Include, when available:
 - realism
 - texture
 - image quality
+- visible text
+- visible branding
 
-The prompt must be practical for an image generation model.
+IMPORTANT:
 
-Do not add details that are not supported by the visual analysis unless the user explicitly requested them.
+- Do not invent unsupported visual details.
+- Do not replace known visual details with generic descriptions.
+- Do not omit important details simply to make the prompt shorter.
+- Preserve spatial relationships.
+- Preserve pose.
+- Preserve composition.
+- Preserve lighting.
+- Preserve environment.
+- Preserve clothing.
+- Preserve visible product details.
+- Preserve visible branding and text.
+- If the analysis marks a detail as unknown, do not fabricate it.
+- The final result must be usable directly by an image-generation model.
 
-Do not include explanations before or after the prompt.
+Return ONLY the final image-generation prompt.
 
-Return only the final prompt as plain text.
+Do not add:
+- explanations
+- analysis
+- headings
+- notes
+- disclaimers
+- quotation marks
+- markdown code fences
+- "Final Prompt:"
+- "Prompt:"
+
+Return only the production-ready prompt as plain text.
 `.trim();
 
 }
@@ -1821,7 +2448,7 @@ function buildPromptUserPrompt(
 
 
     return `
-Create the final production-ready prompt from this visual analysis.
+Create the final production-ready image-generation prompt from the visual analysis below.
 
 Target purpose:
 ${purpose}
@@ -1829,14 +2456,22 @@ ${purpose}
 Requested detail:
 ${detail}
 
-Additional instruction:
+Additional user instruction:
 ${instruction || "None"}
+
+The visual analysis below comes from the actual reference image.
+
+Preserve all important visible characteristics.
+
+Do not invent unsupported details.
 
 VISUAL ANALYSIS:
 
 ${formatAnalysisForPrompt(
     analysis
 )}
+
+Now return ONLY the final production-ready image prompt.
 `.trim();
 
 }
@@ -1868,7 +2503,8 @@ function formatAnalysisForPrompt(
             2
         );
 
-    } catch {
+    }
+    catch {
 
         return String(
             analysis ||
@@ -1901,6 +2537,53 @@ async function generatePrompt(
 
                 code:
                     "ANALYSIS_REQUIRED"
+
+            }
+
+        );
+
+    }
+
+
+    /*
+     * Jangan meneruskan analysis kosong atau
+     * sangat pendek ke Prompt Engineering.
+     */
+
+    const analysisText =
+        formatAnalysisForPrompt(
+            analysis
+        );
+
+
+    const analysisQuality =
+        validateAnalysisQuality(
+            analysisText
+        );
+
+
+    if (
+        !analysisQuality.valid
+    ) {
+
+        throw createAPIError(
+
+            "Visual analysis belum cukup untuk membuat prompt.",
+
+            {
+
+                code:
+                    "ANALYSIS_INSUFFICIENT_FOR_PROMPT",
+
+                data: {
+
+                    length:
+                        analysisQuality.length,
+
+                    reason:
+                        analysisQuality.reason
+
+                }
 
             }
 
@@ -1972,12 +2655,7 @@ async function generatePrompt(
                 messages.length,
 
             analysisLength:
-                typeof analysis ===
-                "string"
-                    ? analysis.length
-                    : JSON.stringify(
-                        analysis
-                    ).length
+                analysisText.length
 
         }
     );
@@ -2108,9 +2786,6 @@ async function generatePrompt(
 
 /* =========================================================
    SANITIZE RESPONSE FOR DEBUG
-   ---------------------------------------------------------
-   Tidak mengubah response asli.
-   Tidak membuang response yang diperlukan pipeline.
 ========================================================= */
 
 function sanitizeResponseForDebug(
@@ -2138,11 +2813,6 @@ function sanitizeResponseForDebug(
                 )
             );
 
-
-        /*
-         * Hindari kemungkinan data sensitif
-         * ikut masuk console.
-         */
 
         const sensitiveKeys = [
 
@@ -2282,6 +2952,9 @@ function sanitizeResponseForDebug(
    - { content: "..." }
    - { type: "text", text: "..." }
    - nested content
+   - OpenAI choices
+   - Responses API output
+   - provider wrapper
 ========================================================= */
 
 function extractTextPart(
@@ -2315,11 +2988,7 @@ function extractTextPart(
         "string"
     ) {
 
-        const text =
-            value.trim();
-
-
-        return text;
+        return value.trim();
 
     }
 
@@ -2359,7 +3028,7 @@ function extractTextPart(
 
 
         return parts
-            .join("")
+            .join("\n")
             .trim();
 
     }
@@ -2501,8 +3170,7 @@ function extractTextPart(
 
 
     /*
-     * Response wrappers yang sering digunakan
-     * oleh backend.
+     * Wrapper umum.
      */
 
     const wrapperKeys = [
@@ -2558,22 +3226,7 @@ function extractTextPart(
 
 
     /*
-     * Responses API style:
-     *
-     * output: [
-     *   {
-     *      content: [
-     *         {
-     *            type: "output_text",
-     *            text: "..."
-     *         }
-     *      ]
-     *   }
-     * ]
-     *
-     * Sudah tercakup oleh output/content,
-     * tetapi blok ini menjaga provider yang
-     * menggunakan field "parts".
+     * Provider yang menggunakan parts.
      */
 
     if (
@@ -2606,33 +3259,11 @@ function extractTextPart(
 
 /* =========================================================
    EXTRACT ASSISTANT TEXT
-   ---------------------------------------------------------
-   Parser response dibuat lebih toleran.
-
-   Didukung:
-
-   1. response.content
-   2. response.message.content
-   3. response.choices[].message.content
-   4. response.message.content[]
-   5. response.choices[].message.content[]
-   6. response.output_text
-   7. response.text
-   8. response.data.*
-   9. response.result.*
-   10. response.response.*
-   11. response.output.*
-   12. Responses API output[].content[].text
-   13. nested provider wrapper
 ========================================================= */
 
 function extractAssistantText(
     response
 ) {
-
-    /*
-     * Jangan menerima primitive kosong.
-     */
 
     if (
         response ===
@@ -2646,11 +3277,6 @@ function extractAssistantText(
     }
 
 
-    /*
-     * Jika endpoint secara langsung
-     * mengembalikan string.
-     */
-
     if (
         typeof response ===
         "string"
@@ -2662,9 +3288,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 1. GEN-Z.AI NORMALIZED RESPONSE
-     * =====================================================
+     * 1. GEN-Z.AI normalized response.
      */
 
     const directContent =
@@ -2683,9 +3307,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 2. NORMALIZED MESSAGE
-     * =====================================================
+     * 2. Message.
      */
 
     const messageContent =
@@ -2704,9 +3326,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 3. OPENAI COMPATIBLE CHOICES
-     * =====================================================
+     * 3. OpenAI choices.
      */
 
     const choicesContent =
@@ -2725,9 +3345,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 4. OUTPUT TEXT
-     * =====================================================
+     * 4. output_text.
      */
 
     const outputText =
@@ -2746,9 +3364,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 5. DIRECT TEXT
-     * =====================================================
+     * 5. Direct text.
      */
 
     const directText =
@@ -2767,9 +3383,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 6. DATA WRAPPER
-     * =====================================================
+     * 6. data.
      */
 
     const dataText =
@@ -2788,9 +3402,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 7. RESULT WRAPPER
-     * =====================================================
+     * 7. result.
      */
 
     const resultText =
@@ -2809,9 +3421,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 8. RESPONSE WRAPPER
-     * =====================================================
+     * 8. nested response.
      */
 
     const nestedResponseText =
@@ -2830,9 +3440,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 9. OUTPUT WRAPPER
-     * =====================================================
+     * 9. output.
      */
 
     const outputTextNested =
@@ -2851,11 +3459,7 @@ function extractAssistantText(
 
 
     /*
-     * =====================================================
-     * 10. GENERIC FALLBACK
-     * =====================================================
-     *
-     * Hanya dijalankan sebagai langkah terakhir.
+     * 10. Generic fallback.
      */
 
     const generic =
@@ -3009,6 +3613,10 @@ function parseJSON(
     }
     catch {
 
+        /*
+         * Cari object JSON pertama.
+         */
+
         const firstBrace =
             normalized.indexOf(
                 "{"
@@ -3042,7 +3650,7 @@ function parseJSON(
             }
             catch {
 
-                /* lanjut ke error asli */
+                /* lanjut */
 
             }
 
@@ -3078,11 +3686,21 @@ async function runVisionPipeline(
     options = {}
 ) {
 
+    /*
+     * Tahap 1:
+     * Vision Analysis.
+     */
+
     const analysis =
         await analyzeImage(
             options
         );
 
+
+    /*
+     * Tahap 2:
+     * Parse analysis JSON.
+     */
 
     let normalizedAnalysis;
 
@@ -3103,11 +3721,24 @@ async function runVisionPipeline(
     }
 
 
+    /*
+     * Jangan pernah mengirim analysis kosong.
+     */
+
+    const analysisForPrompt =
+        normalizedAnalysis ||
+        analysis.text;
+
+
+    /*
+     * Tahap 3:
+     * Prompt Engineering.
+     */
+
     const prompt =
         await generatePrompt(
 
-            normalizedAnalysis ||
-            analysis.text,
+            analysisForPrompt,
 
             {
 
@@ -3188,11 +3819,15 @@ const GENZVisionAPI =
 
         analyzeImage,
 
+        validateAnalysisQuality,
+
         buildPromptSystemPrompt,
 
         buildPromptUserPrompt,
 
         generatePrompt,
+
+        extractTextPart,
 
         extractAssistantText,
 
