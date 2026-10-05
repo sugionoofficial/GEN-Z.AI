@@ -1132,10 +1132,16 @@ function getPromptPreview(
 
 
 /* =========================================================
-   PUBLIC API
+   LOCAL PUBLIC API
+   ---------------------------------------------------------
+   API ini khusus fungsi pengelolaan prompt/UI.
+
+   Jangan langsung menimpa window.GENZVisionPrompt
+   karena vision-api-prompt.js sudah memasang API
+   generatePrompt().
 ========================================================= */
 
-const GENZVisionPrompt =
+const GENZVisionPromptUI =
     Object.freeze({
 
         CONFIG:
@@ -1172,7 +1178,44 @@ const GENZVisionPrompt =
 
 /* =========================================================
    GLOBAL EXPORT
+   ---------------------------------------------------------
+   PERTAHANKAN API YANG SUDAH DIBUAT OLEH
+   vision-api-prompt.js.
+
+   Jika API tersebut sudah tersedia:
+       {
+           generatePrompt,
+           ...
+       }
+
+   maka gabungkan dengan API UI ini.
+
+   Jika belum tersedia, gunakan API UI saja.
 ========================================================= */
 
-window.GENZVisionPrompt =
-    GENZVisionPrompt;
+const existingVisionPrompt =
+    window.GENZVisionPrompt;
+
+
+if (
+    existingVisionPrompt &&
+    typeof existingVisionPrompt ===
+        "object"
+) {
+
+    window.GENZVisionPrompt =
+        Object.freeze({
+
+            ...existingVisionPrompt,
+
+            ...GENZVisionPromptUI
+
+        });
+
+}
+else {
+
+    window.GENZVisionPrompt =
+        GENZVisionPromptUI;
+
+}
