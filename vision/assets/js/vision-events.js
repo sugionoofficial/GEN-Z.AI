@@ -58,18 +58,6 @@
         }
 
 
-        /*
-         * IMPORTANT
-         * -------------------------------------------------
-         * vision-dom.js menyediakan:
-         *
-         * GENZVisionDOM.getDOM()
-         *
-         * BUKAN:
-         *
-         * GENZVisionDOM.get()
-         */
-
         if (
             typeof window.GENZVisionDOM.getDOM !==
             "function"
@@ -257,9 +245,11 @@
             getDOM();
 
 
-        const model =
-            dom.model?.value ||
-            "gemini-3.1-pro";
+        const selectedValue =
+            String(
+                dom.model?.value ||
+                ""
+            ).trim();
 
 
         const detail =
@@ -280,7 +270,8 @@
 
         return {
 
-            model,
+            model:
+                selectedValue,
 
             detail,
 
@@ -293,15 +284,118 @@
     }
 
 
+    // =====================================================
+    // MODEL STATE
+    // =====================================================
+
+    function syncModelToState() {
+
+        const state =
+            getState();
+
+
+        const dom =
+            getDOM();
+
+
+        const selectedId =
+            String(
+                dom.model?.value ||
+                ""
+            ).trim();
+
+
+        if (
+            !selectedId
+        ) {
+
+            return null;
+
+        }
+
+
+        const currentModel =
+            state.get(
+                "model",
+                null
+            );
+
+
+        /*
+         * Jangan mengubah model menjadi string.
+         *
+         * vision-state.js menyimpan model sebagai object:
+         *
+         * {
+         *     id,
+         *     name,
+         *     providerId,
+         *     providerName
+         * }
+         *
+         * Jika model lama cocok dengan select,
+         * pertahankan metadata yang sudah ada.
+         */
+
+        if (
+            currentModel &&
+            typeof currentModel === "object" &&
+            String(
+                currentModel.id ||
+                ""
+            ) === selectedId
+        ) {
+
+            return currentModel;
+
+        }
+
+
+        const model = {
+
+            id:
+                selectedId,
+
+            name:
+                dom.model?.selectedOptions?.[0]?.textContent
+                    ?.trim() ||
+                selectedId,
+
+            providerId:
+                "openkey",
+
+            providerName:
+                "OpenKey"
+
+        };
+
+
+        state.setModel(
+            model
+        );
+
+
+        return model;
+
+    }
+
+
+    // =====================================================
+    // FORM -> STATE
+    // =====================================================
+
     function syncFormToState() {
 
         const values =
             readFormValues();
 
 
-        getState().setModel(
-            values.model
-        );
+        /*
+         * Model diproses terpisah agar state.model
+         * selalu berupa object.
+         */
+
+        syncModelToState();
 
 
         getState().setSettings({
@@ -341,27 +435,13 @@
 
         try {
 
-            /*
-             * Pastikan proses sebelumnya
-             * tidak meninggalkan state processing.
-             */
-
             ui.setProcessing(
                 false
             );
 
 
-            /*
-             * Bersihkan hasil sebelumnya.
-             */
-
             ui.resetResult();
 
-
-            /*
-             * Process file menggunakan
-             * modul upload resmi.
-             */
 
             const fileData =
                 await getUpload().processFile(
@@ -369,18 +449,10 @@
                 );
 
 
-            /*
-             * Render preview.
-             */
-
             getPreview().renderPreview(
                 fileData
             );
 
-
-            /*
-             * Update status.
-             */
 
             ui.setStatus(
                 "ready",
@@ -460,7 +532,6 @@
 
         event.preventDefault();
 
-
         event.stopPropagation();
 
 
@@ -503,7 +574,6 @@
 
         event.preventDefault();
 
-
         event.stopPropagation();
 
 
@@ -523,7 +593,6 @@
     ) {
 
         event.preventDefault();
-
 
         event.stopPropagation();
 
@@ -547,11 +616,6 @@
             getDOM();
 
 
-        /*
-         * Jika click berasal dari
-         * file input, jangan lakukan apa pun.
-         */
-
         if (
             event.target ===
             dom.fileInput
@@ -561,13 +625,6 @@
 
         }
 
-
-        /*
-         * Jika click berasal dari
-         * SELECT IMAGE label,
-         * biarkan browser menjalankan
-         * native label -> file input.
-         */
 
         if (
             event.target ===
@@ -582,12 +639,6 @@
         }
 
 
-        /*
-         * Jika click berasal dari
-         * REMOVE IMAGE, jangan membuka
-         * file picker.
-         */
-
         if (
             event.target ===
             dom.removeButton ||
@@ -601,11 +652,6 @@
         }
 
 
-        /*
-         * Click pada area dropzone lainnya
-         * tetap membuka file picker.
-         */
-
         getUpload().openFilePicker();
 
     }
@@ -618,27 +664,6 @@
     function handleBrowseClick(
         event
     ) {
-
-        /*
-         * visionBrowseButton menggunakan:
-         *
-         * <label for="visionFileInput">
-         *
-         * Browser secara native akan mengaktifkan
-         * input file.
-         *
-         * JANGAN:
-         *
-         * event.preventDefault()
-         *
-         * dan JANGAN:
-         *
-         * openFilePicker()
-         *
-         * Karena keduanya dapat membuat native
-         * file picker tidak bekerja atau terbuka
-         * dua kali.
-         */
 
         event.stopPropagation();
 
@@ -655,7 +680,6 @@
 
         event.preventDefault();
 
-
         event.stopPropagation();
 
 
@@ -668,9 +692,7 @@
 
             getState().clearAnalysis();
 
-
             getState().clearPrompt();
-
 
             getUI().resetResult();
 
@@ -704,7 +726,7 @@
 
     function handleModelChange() {
 
-        syncFormToState();
+        syncModelToState();
 
     }
 
@@ -739,7 +761,6 @@
     ) {
 
         event.preventDefault();
-
 
         event.stopPropagation();
 
@@ -828,11 +849,6 @@
             getState().getState();
 
 
-        /*
-         * Jangan menjalankan dua proses Vision
-         * bersamaan.
-         */
-
         if (
             currentState
                 ?.process
@@ -844,7 +860,8 @@
         }
 
 
-        let creditWasDeducted = false;
+        let creditWasDeducted =
+            false;
 
 
         try {
@@ -954,23 +971,6 @@
             );
 
 
-            /*
-             * IMPORTANT
-             * -------------------------------------------------
-             * vision-api.js mengharapkan:
-             *
-             * analyzeImage({
-             *     model: {...},
-             *     settings: {...}
-             * })
-             *
-             * Bukan model.id / detail / image langsung.
-             *
-             * Image dibaca oleh vision-api.js dari:
-             *
-             * state.file.dataUrl
-             */
-
             const analysisResponse =
                 await getAPI().analyzeImage({
 
@@ -981,6 +981,28 @@
                         state.settings
 
                 });
+
+
+            /*
+             * analyzeImage() dapat memilih model aktual
+             * dari katalog OpenKey.
+             *
+             * Karena object model dikembalikan oleh API,
+             * sinkronkan kembali state agar history dan
+             * prompt generation menggunakan model aktual.
+             */
+
+            if (
+                analysisResponse?.model &&
+                typeof analysisResponse.model ===
+                    "object"
+            ) {
+
+                getState().setModel(
+                    analysisResponse.model
+                );
+
+            }
 
 
             getState().setProgress(
@@ -1023,20 +1045,6 @@
             );
 
 
-            /*
-             * IMPORTANT
-             * -------------------------------------------------
-             * vision-api.js mengharapkan:
-             *
-             * generatePrompt(
-             *     analysis,
-             *     {
-             *         model: {...},
-             *         settings: {...}
-             *     }
-             * )
-             */
-
             const promptResponse =
                 await getAPI().generatePrompt(
 
@@ -1045,7 +1053,10 @@
                     {
 
                         model:
-                            state.model,
+                            getState().get(
+                                "model",
+                                state.model
+                            ),
 
                         settings:
                             state.settings
@@ -1096,16 +1107,26 @@
 
             try {
 
+                const finalState =
+                    getState().getState();
+
+
                 await getHistory().saveSuccess({
 
                     taskId:
-                        state.process.taskId,
+                        finalState
+                            .process
+                            .taskId,
 
                     modelId:
-                        state.model.id,
+                        finalState
+                            .model
+                            .id,
 
                     modelName:
-                        state.model.name,
+                        finalState
+                            .model
+                            .name,
 
                     prompt,
 
@@ -1118,13 +1139,6 @@
                 });
 
             } catch (historyError) {
-
-                /*
-                 * Hasil Vision tetap dianggap berhasil
-                 * walaupun penyimpanan history gagal.
-                 *
-                 * Error history hanya dicatat di console.
-                 */
 
                 console.warn(
                     "[GEN-Z.AI Vision] History save gagal:",
@@ -1172,6 +1186,7 @@
 
 
             getUI().updateCredit();
+
 
         } catch (error) {
 
@@ -1233,13 +1248,19 @@
                 await getHistory().saveFailed({
 
                     taskId:
-                        state.process.taskId,
+                        state
+                            .process
+                            .taskId,
 
                     modelId:
-                        state.model.id,
+                        state
+                            .model
+                            .id,
 
                     modelName:
-                        state.model.name,
+                        state
+                            .model
+                            .name,
 
                     error:
                         message,
@@ -1297,7 +1318,6 @@
     ) {
 
         event.preventDefault();
-
 
         event.stopPropagation();
 
@@ -1490,10 +1510,6 @@
 
         }
 
-
-        /*
-         * Pastikan seluruh DOM wajib tersedia.
-         */
 
         if (
             typeof window.GENZVisionDOM.validateDOM ===
