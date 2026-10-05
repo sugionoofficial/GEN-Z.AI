@@ -12,6 +12,7 @@
    - Menyimpan prompt ke state
    - Mengambil prompt dari state
    - Menyalin prompt ke clipboard
+   - Menyediakan prompt context
    - Tidak melakukan API request
    - Tidak melakukan credit
    - Tidak melakukan history
@@ -971,6 +972,22 @@ function clearPrompt() {
 
 /* =========================================================
    BUILD PROMPT CONTEXT
+   ---------------------------------------------------------
+   Menyiapkan context yang dapat digunakan oleh modul
+   pembuat prompt.
+
+   Outfit source:
+   - reference
+       Outfit diambil dari main reference image.
+   - character
+       Outfit diambil dari replacement character.
+
+   Default:
+   reference
+
+   Catatan:
+   Fungsi ini TIDAK membuat prompt.
+   Fungsi ini hanya menyiapkan context.
 ========================================================= */
 
 function buildPromptContext(
@@ -986,6 +1003,22 @@ function buildPromptContext(
                     analysis
                 )
             : analysis;
+
+
+    const normalizedOutfitSource =
+        String(
+            settings.outfitSource ||
+            "reference"
+        )
+            .trim()
+            .toLowerCase();
+
+
+    const outfitSource =
+        normalizedOutfitSource ===
+            "character"
+            ? "character"
+            : "reference";
 
 
     return {
@@ -1006,7 +1039,24 @@ function buildPromptContext(
             instruction:
                 safeString(
                     settings.instruction
-                )
+                ),
+
+            outfitSource
+
+        },
+
+        outfit: {
+
+            source:
+                outfitSource,
+
+            useReferenceOutfit:
+                outfitSource ===
+                "reference",
+
+            useCharacterOutfit:
+                outfitSource ===
+                "character"
 
         }
 
@@ -1063,8 +1113,7 @@ function inspectPromptQuality(
         )
             .filter(
                 Boolean
-            )
-            .length;
+            ).length;
 
 
     const total =
