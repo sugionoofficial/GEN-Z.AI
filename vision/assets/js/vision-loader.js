@@ -25,38 +25,6 @@
 
 /* =========================================================
    MODULE IMPORT
-   ---------------------------------------------------------
-   Semua module Vision dimuat dari satu entry point.
-
-   URUTAN DEPENDENCY API:
-
-   1. State
-   2. DOM
-   3. Upload
-   4. Preview
-   5. UI
-   6. Supabase
-   7. Credit
-
-   API:
-   8.  Core
-   9.  Models
-   10. Response
-   11. API Analysis
-   12. API Prompt
-   13. API Entry Point
-
-   Vision process:
-   14. Analysis
-   15. Prompt
-   16. History
-   17. Events
-
-   PENTING:
-   vision-api.js adalah entry point gabungan.
-   Seluruh API split harus dimuat SEBELUM
-   vision-api.js karena vision-api.js melakukan
-   validation dependency ketika module dievaluasi.
 ========================================================= */
 
 import "./vision-state.js";
@@ -283,14 +251,6 @@ function initializeDOM() {
     }
 
 
-    /*
-     * vision-dom.js saat ini tidak
-     * membutuhkan initialize().
-     *
-     * getDOM() akan membangun cache
-     * ketika pertama kali digunakan.
-     */
-
     if (
         typeof dom.resetDOMCache ===
         "function"
@@ -321,11 +281,6 @@ function initializeDOM() {
     }
 
 
-    /*
-     * Paksa DOM cache dibuat setelah
-     * seluruh HTML tersedia.
-     */
-
     dom.getDOM();
 
 
@@ -336,12 +291,6 @@ function initializeDOM() {
 
 /* =========================================================
    INITIALIZE SUPABASE
-   ---------------------------------------------------------
-   Supabase harus tersedia SEBELUM:
-   - vision-credit.js
-   - vision-api.js
-   - vision-history.js
-   - OpenKey model catalog
 ========================================================= */
 
 function initializeSupabase() {
@@ -387,11 +336,6 @@ function initializeSupabase() {
 
     }
 
-
-    /*
-     * Pastikan global client benar-benar
-     * tersedia untuk seluruh module Vision.
-     */
 
     if (
         !window.supabaseClient
@@ -547,15 +491,6 @@ function initializeUI() {
 
 /* =========================================================
    MODEL NORMALIZER
-   ---------------------------------------------------------
-   Digunakan hanya untuk dropdown.
-
-   Loader TIDAK lagi mempunyai normalizer Vision sendiri.
-
-   Semua normalisasi model harus menggunakan:
-   GENZVisionAPI.normalizeVisionModel()
-
-   API tetap menjadi sumber kebenaran utama.
 ========================================================= */
 
 function normalizeCatalogModel(
@@ -594,12 +529,6 @@ function normalizeCatalogModel(
 
 /* =========================================================
    CHECK IMAGE SUPPORT
-   ---------------------------------------------------------
-   Loader TIDAK melakukan pemeriksaan capability sendiri.
-
-   Satu-satunya sumber kebenaran:
-
-   GENZVisionAPI.supportsImageInput()
 ========================================================= */
 
 function supportsImageInput(
@@ -742,21 +671,17 @@ async function initializeModelCatalog() {
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * LOCK DROPDOWN SELAMA KATALOG DIMUAT
-     * -----------------------------------------------------
-     */
+    /* -----------------------------------------------------
+       LOCK DROPDOWN
+    ----------------------------------------------------- */
 
     select.disabled =
         true;
 
 
-    /*
-     * -----------------------------------------------------
-     * AMBIL KATALOG AKTUAL OPENKEY
-     * -----------------------------------------------------
-     */
+    /* -----------------------------------------------------
+       AMBIL KATALOG OPENKEY
+    ----------------------------------------------------- */
 
     const catalog =
         await api.getOpenKeyModels();
@@ -779,11 +704,9 @@ async function initializeModelCatalog() {
     );
 
 
-    /*
-     * -----------------------------------------------------
-     * NORMALIZE
-     * -----------------------------------------------------
-     */
+    /* -----------------------------------------------------
+       NORMALIZE
+    ----------------------------------------------------- */
 
     const normalizedCatalog =
         catalog
@@ -801,11 +724,9 @@ async function initializeModelCatalog() {
     );
 
 
-    /*
-     * -----------------------------------------------------
-     * FILTER VISION
-     * -----------------------------------------------------
-     */
+    /* -----------------------------------------------------
+       FILTER VISION MODELS
+    ----------------------------------------------------- */
 
     const models =
         normalizedCatalog
@@ -814,11 +735,9 @@ async function initializeModelCatalog() {
             );
 
 
-    /*
-     * -----------------------------------------------------
-     * DEBUG DETAIL
-     * -----------------------------------------------------
-     */
+    /* -----------------------------------------------------
+       DEBUG CAPABILITY
+    ----------------------------------------------------- */
 
     console.info(
         "[GEN-Z.AI Vision] Vision capability evaluation:",
@@ -852,11 +771,6 @@ async function initializeModelCatalog() {
         0
     ) {
 
-        /*
-         * Tetap terkunci karena tidak ada
-         * model Vision yang aman untuk dipilih.
-         */
-
         select.disabled =
             true;
 
@@ -868,38 +782,52 @@ async function initializeModelCatalog() {
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * SIMPAN PILIHAN LAMA JIKA MASIH VALID
-     * -----------------------------------------------------
-     */
+    /* -----------------------------------------------------
+       AMBIL MODEL SEBELUMNYA
+    ----------------------------------------------------- */
 
-    const previousModelId =
-        String(
-            state.get(
-                "model.id",
+    let previousModelId =
+        "";
+
+
+    if (
+        typeof state.getModelId ===
+        "function"
+    ) {
+
+        previousModelId =
+            String(
+                state.getModelId() ||
                 ""
-            ) ||
-            select.value ||
-            ""
-        ).trim();
+            ).trim();
+
+    }
 
 
-    /*
-     * -----------------------------------------------------
-     * BERSIHKAN OPTION LAMA
-     * -----------------------------------------------------
- */
+    if (
+        !previousModelId
+    ) {
+
+        previousModelId =
+            String(
+                select.value ||
+                ""
+            ).trim();
+
+    }
+
+
+    /* -----------------------------------------------------
+       CLEAR OPTION LAMA
+    ----------------------------------------------------- */
 
     select.innerHTML =
         "";
 
 
-    /*
-     * -----------------------------------------------------
-     * TAMBAHKAN MODEL AKTUAL OPENKEY
-     * -----------------------------------------------------
- */
+    /* -----------------------------------------------------
+       TAMBAHKAN MODEL
+    ----------------------------------------------------- */
 
     models.forEach(
         model => {
@@ -934,11 +862,9 @@ async function initializeModelCatalog() {
     );
 
 
-    /*
-     * -----------------------------------------------------
-     * TENTUKAN MODEL TERPILIH
-     * -----------------------------------------------------
- */
+    /* -----------------------------------------------------
+       TENTUKAN MODEL TERPILIH
+    ----------------------------------------------------- */
 
     const previousExists =
         models.some(
@@ -977,11 +903,9 @@ async function initializeModelCatalog() {
         selectedModel.id;
 
 
-    /*
-     * -----------------------------------------------------
-     * SINKRONKAN MODEL KE STATE
-     * -----------------------------------------------------
- */
+    /* -----------------------------------------------------
+       SINKRONKAN MODEL KE STATE
+    ----------------------------------------------------- */
 
     if (
         typeof state.setModel ===
@@ -1003,11 +927,57 @@ async function initializeModelCatalog() {
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * AKTIFKAN DROPDOWN
-     * -----------------------------------------------------
- */
+    if (
+        typeof state.setModelId ===
+        "function"
+    ) {
+
+        state.setModelId(
+            selectedModel.id
+        );
+
+    }
+
+
+    if (
+        typeof state.setModelName ===
+        "function"
+    ) {
+
+        state.setModelName(
+            selectedModel.name
+        );
+
+    }
+
+
+    if (
+        typeof state.setModelProvider ===
+        "function"
+    ) {
+
+        state.setModelProvider(
+            "openkey"
+        );
+
+    }
+
+
+    if (
+        typeof state.setModelAvailable ===
+        "function"
+    ) {
+
+        state.setModelAvailable(
+            true
+        );
+
+    }
+
+
+    /* -----------------------------------------------------
+       ENABLE DROPDOWN
+    ----------------------------------------------------- */
 
     select.disabled =
         false;
@@ -1042,17 +1012,6 @@ async function initializeModelCatalog() {
 
 /* =========================================================
    INITIALIZE EVENTS
-   ---------------------------------------------------------
-   PENTING:
-   Events diaktifkan SEBELUM model catalog.
-
-   Dengan demikian:
-   - upload tetap berfungsi
-   - drag & drop tetap berfungsi
-   - preview tetap berfungsi
-   - remove image tetap berfungsi
-
-   Bahkan jika OpenKey catalog gagal.
 ========================================================= */
 
 function initializeEvents() {
@@ -1105,13 +1064,31 @@ function initializeEvents() {
 
 
 /* =========================================================
-   LOAD INITIAL CREDIT
+   INITIALIZE CREDIT
+   ---------------------------------------------------------
+   Sumber credit:
+   profiles.credits
+
+   State:
+   GENZVisionState.credit.balance
+
+   PENTING:
+   Jangan menggunakan:
+       state.set("auth.credits", ...)
+
+   karena GENZVisionState tidak mempunyai
+   fungsi set() generik dan credit bukan
+   bagian dari auth.
 ========================================================= */
 
 async function initializeCredit() {
 
     const credit =
         window.GENZVisionCredit;
+
+
+    const state =
+        window.GENZVisionState;
 
 
     if (
@@ -1125,36 +1102,238 @@ async function initializeCredit() {
     }
 
 
+    if (
+        !state
+    ) {
+
+        throw new Error(
+            "GENZVisionState belum tersedia."
+        );
+
+    }
+
+
     /*
-     * checkCredit() hanya membaca
-     * dan memvalidasi saldo.
-     *
-     * Tidak melakukan deduction.
+     * Pastikan API state credit tersedia.
      */
 
+    if (
+        typeof state.setCreditBalance !==
+        "function"
+    ) {
+
+        throw new Error(
+            "GENZVisionState.setCreditBalance() belum tersedia."
+        );
+
+    }
+
+
     try {
+
+        /*
+         * -------------------------------------------------
+         * CHECK CREDIT
+         * -------------------------------------------------
+         *
+         * checkCredit() membaca saldo dari
+         * profiles.credits.
+         *
+         * Tidak melakukan deduction.
+         */
 
         const result =
             await credit.checkCredit();
 
 
+        console.info(
+            "[GEN-Z.AI Vision] Initial credit result:",
+            result
+        );
+
+
+        /*
+         * -------------------------------------------------
+         * AMBIL NILAI CREDIT
+         * -------------------------------------------------
+         *
+         * Prioritas:
+         *
+         * 1. result.credits
+         * 2. result.balance
+         * 3. result.credit
+         *
+         * Ini hanya normalisasi output.
+         */
+
+        let credits =
+            null;
+
+
         if (
-            result?.credits !==
+            result &&
+            result.credits !==
             undefined &&
-            result?.credits !==
+            result.credits !==
             null
         ) {
 
-            const state =
-                window.GENZVisionState;
-
-
-            state.set(
-                "auth.credits",
+            credits =
                 Number(
                     result.credits
-                )
+                );
+
+        }
+        else if (
+            result &&
+            result.balance !==
+            undefined &&
+            result.balance !==
+            null
+        ) {
+
+            credits =
+                Number(
+                    result.balance
+                );
+
+        }
+        else if (
+            result &&
+            result.credit !==
+            undefined &&
+            result.credit !==
+            null
+        ) {
+
+            credits =
+                Number(
+                    result.credit
+                );
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * SIMPAN CREDIT KE STATE
+         * -------------------------------------------------
+         */
+
+        if (
+            Number.isFinite(
+                credits
+            )
+        ) {
+
+            state.setCreditBalance(
+                credits
             );
+
+
+            /*
+             * Credit sudah berhasil
+             * dimuat ke state.
+             */
+
+            if (
+                typeof state.setCreditLoaded ===
+                "function"
+            ) {
+
+                state.setCreditLoaded(
+                    true
+                );
+
+            }
+
+
+            /*
+             * Remaining mengikuti balance
+             * pada initial load.
+             *
+             * Required masih 0 sampai
+             * proses generate menentukan
+             * kebutuhan credit.
+             */
+
+            if (
+                typeof state.getCreditRequired ===
+                "function" &&
+                typeof state.setCreditRemaining ===
+                "function"
+            ) {
+
+                const required =
+                    Number(
+                        state.getCreditRequired()
+                    );
+
+
+                if (
+                    Number.isFinite(
+                        required
+                    )
+                ) {
+
+                    state.setCreditRemaining(
+
+                        Math.max(
+                            0,
+                            credits -
+                            required
+                        )
+
+                    );
+
+                }
+
+            }
+
+
+            console.info(
+                "[GEN-Z.AI Vision] Credit balance synced:",
+                credits
+            );
+
+        }
+        else {
+
+            console.warn(
+                "[GEN-Z.AI Vision] Credit value tidak ditemukan pada hasil checkCredit():",
+                result
+            );
+
+
+            if (
+                typeof state.setCreditLoaded ===
+                "function"
+            ) {
+
+                state.setCreditLoaded(
+                    false
+                );
+
+            }
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * REFRESH CREDIT DISPLAY
+         * -------------------------------------------------
+         *
+         * refreshDisplay() dijalankan setelah
+         * state sudah berisi saldo.
+         */
+
+        if (
+            typeof credit.refreshDisplay ===
+            "function"
+        ) {
+
+            credit.refreshDisplay();
 
         }
 
@@ -1167,14 +1346,40 @@ async function initializeCredit() {
     ) {
 
         /*
-         * Gagal membaca credit tidak
-         * membuat seluruh halaman mati.
+         * -------------------------------------------------
+         * CREDIT ERROR
+         * -------------------------------------------------
+         *
+         * Error credit tidak boleh menghancurkan
+         * seluruh halaman Vision.
          */
 
         console.warn(
             "[GEN-Z.AI Vision] Initial credit check gagal:",
             error
         );
+
+
+        if (
+            typeof state.setCreditLoaded ===
+            "function"
+        ) {
+
+            state.setCreditLoaded(
+                false
+            );
+
+        }
+
+
+        if (
+            typeof credit.refreshDisplay ===
+            "function"
+        ) {
+
+            credit.refreshDisplay();
+
+        }
 
 
         return {
@@ -1327,13 +1532,6 @@ async function initialize() {
          * -------------------------------------------------
          * EVENTS
          * -------------------------------------------------
-         *
-         * PENTING:
-         * Event upload / drop / preview harus hidup
-         * sebelum remote model catalog dipanggil.
-         *
-         * Jika OpenKey gagal, halaman upload tetap
-         * dapat digunakan dan preview tidak mati.
          */
 
         initializeEvents();
@@ -1344,11 +1542,8 @@ async function initialize() {
          * OPENKEY MODEL CATALOG
          * -------------------------------------------------
          *
-         * Model catalog sekarang dijalankan SETELAH
-         * event listener aktif.
-         *
-         * Kegagalan catalog tidak boleh membatalkan
-         * event upload / preview yang sudah aktif.
+         * Kegagalan katalog tidak mematikan
+         * upload / preview / UI.
          */
 
         try {
@@ -1364,15 +1559,6 @@ async function initialize() {
                 "[GEN-Z.AI Vision] OpenKey model catalog gagal:",
                 catalogError
             );
-
-
-            /*
-             * Jangan lempar kembali error catalog.
-             *
-             * Event upload dan preview sudah aktif.
-             * Generate akan tetap melakukan validasi
-             * model ketika proses dimulai.
-             */
 
         }
 
