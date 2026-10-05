@@ -35,120 +35,176 @@
     function getState() {
 
         if (!window.GENZVisionState) {
+
             throw new Error(
                 "GENZVisionState belum tersedia."
             );
+
         }
 
         return window.GENZVisionState;
+
     }
 
 
     function getDOM() {
 
         if (!window.GENZVisionDOM) {
+
             throw new Error(
                 "GENZVisionDOM belum tersedia."
             );
+
         }
 
-        return window.GENZVisionDOM.get();
+
+        /*
+         * IMPORTANT
+         * -------------------------------------------------
+         * vision-dom.js menyediakan:
+         *
+         * GENZVisionDOM.getDOM()
+         *
+         * BUKAN:
+         *
+         * GENZVisionDOM.get()
+         *
+         */
+
+        if (
+            typeof window.GENZVisionDOM.getDOM !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZVisionDOM.getDOM() belum tersedia."
+            );
+
+        }
+
+
+        return window.GENZVisionDOM.getDOM();
+
     }
 
 
     function getUpload() {
 
         if (!window.GENZVisionUpload) {
+
             throw new Error(
                 "GENZVisionUpload belum tersedia."
             );
+
         }
 
         return window.GENZVisionUpload;
+
     }
 
 
     function getPreview() {
 
         if (!window.GENZVisionPreview) {
+
             throw new Error(
                 "GENZVisionPreview belum tersedia."
             );
+
         }
 
         return window.GENZVisionPreview;
+
     }
 
 
     function getUI() {
 
         if (!window.GENZVisionUI) {
+
             throw new Error(
                 "GENZVisionUI belum tersedia."
             );
+
         }
 
         return window.GENZVisionUI;
+
     }
 
 
     function getCredit() {
 
         if (!window.GENZVisionCredit) {
+
             throw new Error(
                 "GENZVisionCredit belum tersedia."
             );
+
         }
 
         return window.GENZVisionCredit;
+
     }
 
 
     function getAPI() {
 
         if (!window.GENZVisionAPI) {
+
             throw new Error(
                 "GENZVisionAPI belum tersedia."
             );
+
         }
 
         return window.GENZVisionAPI;
+
     }
 
 
     function getAnalysis() {
 
         if (!window.GENZVisionAnalysis) {
+
             throw new Error(
                 "GENZVisionAnalysis belum tersedia."
             );
+
         }
 
         return window.GENZVisionAnalysis;
+
     }
 
 
     function getPrompt() {
 
         if (!window.GENZVisionPrompt) {
+
             throw new Error(
                 "GENZVisionPrompt belum tersedia."
             );
+
         }
 
         return window.GENZVisionPrompt;
+
     }
 
 
     function getHistory() {
 
         if (!window.GENZVisionHistory) {
+
             throw new Error(
                 "GENZVisionHistory belum tersedia."
             );
+
         }
 
         return window.GENZVisionHistory;
+
     }
 
 
@@ -185,7 +241,9 @@
         }
 
 
-        return "Terjadi kesalahan pada Vision Engine.";
+        return (
+            "Terjadi kesalahan pada Vision Engine."
+        );
 
     }
 
@@ -196,7 +254,8 @@
 
     function readFormValues() {
 
-        const dom = getDOM();
+        const dom =
+            getDOM();
 
 
         const model =
@@ -223,8 +282,11 @@
         return {
 
             model,
+
             detail,
+
             purpose,
+
             instruction
 
         };
@@ -263,10 +325,14 @@
     // FILE INPUT
     // =====================================================
 
-    async function handleNewImage(file) {
+    async function handleNewImage(
+        file
+    ) {
 
         if (!file) {
+
             return null;
+
         }
 
 
@@ -276,13 +342,27 @@
 
         try {
 
+            /*
+             * Pastikan proses sebelumnya
+             * tidak meninggalkan state processing.
+             */
+
             ui.setProcessing(
                 false
             );
 
 
+            /*
+             * Bersihkan hasil sebelumnya.
+             */
+
             ui.resetResult();
 
+
+            /*
+             * Process file menggunakan
+             * modul upload resmi.
+             */
 
             const fileData =
                 await getUpload().processFile(
@@ -290,10 +370,18 @@
                 );
 
 
+            /*
+             * Render preview.
+             */
+
             getPreview().renderPreview(
                 fileData
             );
 
+
+            /*
+             * Update status.
+             */
 
             ui.setStatus(
                 "ready",
@@ -306,7 +394,9 @@
         } catch (error) {
 
             const message =
-                normalizeError(error);
+                normalizeError(
+                    error
+                );
 
 
             getState().setProcessError(
@@ -373,6 +463,11 @@
 
 
         event.stopPropagation();
+
+
+        getPreview().setDropzoneActive(
+            false
+        );
 
 
         const files =
@@ -454,13 +549,8 @@
 
 
         /*
-         * Jika click berasal dari:
-         *
-         * - SELECT IMAGE label
-         * - file input
-         * - remove button
-         *
-         * jangan jalankan handler dropzone.
+         * Jika click berasal dari
+         * file input, jangan lakukan apa pun.
          */
 
         if (
@@ -472,6 +562,13 @@
 
         }
 
+
+        /*
+         * Jika click berasal dari
+         * SELECT IMAGE label,
+         * biarkan browser menjalankan
+         * native label -> file input.
+         */
 
         if (
             event.target ===
@@ -485,6 +582,12 @@
 
         }
 
+
+        /*
+         * Jika click berasal dari
+         * REMOVE IMAGE, jangan membuka
+         * file picker.
+         */
 
         if (
             event.target ===
@@ -500,8 +603,8 @@
 
 
         /*
-         * Untuk area kosong dropzone,
-         * kita tetap gunakan helper upload.
+         * Click pada area dropzone lainnya
+         * tetap membuka file picker.
          */
 
         getUpload().openFilePicker();
@@ -518,18 +621,25 @@
     ) {
 
         /*
-         * visionBrowseButton sekarang adalah:
+         * visionBrowseButton menggunakan:
          *
          * <label for="visionFileInput">
          *
-         * Browser sendiri yang membuka
-         * native file picker.
+         * Browser secara native akan mengaktifkan
+         * input file.
          *
-         * Jangan gunakan preventDefault().
+         * JANGAN:
          *
-         * Jangan memanggil openFilePicker()
-         * lagi karena akan berpotensi membuka
-         * picker dua kali.
+         * event.preventDefault()
+         *
+         * dan JANGAN:
+         *
+         * openFilePicker()
+         *
+         *
+         * Karena keduanya dapat membuat native
+         * file picker tidak bekerja atau terbuka
+         * dua kali.
          */
 
         event.stopPropagation();
@@ -575,7 +685,9 @@
         } catch (error) {
 
             const message =
-                normalizeError(error);
+                normalizeError(
+                    error
+                );
 
 
             getUI().setStatus(
@@ -670,7 +782,9 @@
 
             getUI().setStatus(
                 "error",
-                normalizeError(error)
+                normalizeError(
+                    error
+                )
             );
 
         }
@@ -712,11 +826,19 @@
 
     async function startVisionProcess() {
 
+        const currentState =
+            getState().getState();
+
+
+        /*
+         * Jangan menjalankan dua proses Vision
+         * bersamaan.
+         */
+
         if (
-            getState()
-                .getState()
-                .process
-                .processing
+            currentState
+                ?.process
+                ?.processing === true
         ) {
 
             return;
@@ -724,7 +846,14 @@
         }
 
 
+        let creditWasDeducted = false;
+
+
         try {
+
+            // =============================================
+            // VALIDATE
+            // =============================================
 
             validateReady();
 
@@ -800,6 +929,10 @@
             await getCredit().deductCredit(
                 CREDIT_COST
             );
+
+
+            creditWasDeducted =
+                true;
 
 
             getState().markCreditDeducted();
@@ -905,6 +1038,10 @@
                 });
 
 
+            // =============================================
+            // NORMALIZE PROMPT
+            // =============================================
+
             const prompt =
                 getPrompt().normalizePrompt(
                     promptResponse
@@ -942,42 +1079,34 @@
 
             try {
 
-                const history =
-                    await getHistory().saveSuccess({
+                await getHistory().saveSuccess({
 
-                        taskId:
-                            state.process.taskId,
+                    taskId:
+                        state.process.taskId,
 
-                        modelId:
-                            state.model.id,
+                    modelId:
+                        state.model.id,
 
-                        modelName:
-                            state.model.name,
+                    modelName:
+                        state.model.name,
 
-                        prompt,
+                    prompt,
 
-                        analysis:
-                            normalizedAnalysis,
+                    analysis:
+                        normalizedAnalysis,
 
-                        creditCost:
-                            CREDIT_COST
+                    creditCost:
+                        CREDIT_COST
 
-                    });
-
-
-                if (history?.id) {
-
-                    getState().setHistoryId(
-                        history.id
-                    );
-
-                }
+                });
 
             } catch (historyError) {
 
                 /*
-                 * History failure tidak membatalkan
-                 * hasil Vision yang sudah berhasil.
+                 * Hasil Vision tetap dianggap berhasil
+                 * walaupun penyimpanan history gagal.
+                 *
+                 * Error history hanya dicatat di console.
                  */
 
                 console.warn(
@@ -1027,11 +1156,12 @@
 
             getUI().updateCredit();
 
-
         } catch (error) {
 
             const message =
-                normalizeError(error);
+                normalizeError(
+                    error
+                );
 
 
             console.error(
@@ -1049,7 +1179,7 @@
             // =============================================
 
             if (
-                state.credit?.deducted === true &&
+                creditWasDeducted === true &&
                 state.credit?.refunded !== true
             ) {
 
@@ -1059,7 +1189,9 @@
                         CREDIT_COST
                     );
 
+
                     getState().markCreditRefunded();
+
 
                     getUI().updateCredit();
 
@@ -1169,7 +1301,9 @@
     ) {
 
         if (!element) {
+
             return;
+
         }
 
 
@@ -1340,11 +1474,49 @@
         }
 
 
+        /*
+         * Pastikan seluruh DOM wajib tersedia.
+         */
+
+        if (
+            typeof window.GENZVisionDOM.validateDOM ===
+            "function"
+        ) {
+
+            const validation =
+                window.GENZVisionDOM.validateDOM({
+                    log: true
+                });
+
+
+            if (!validation.valid) {
+
+                throw new Error(
+                    "Vision DOM tidak lengkap."
+                );
+
+            }
+
+        }
+
+
+        // =============================================
+        // BIND EVENTS
+        // =============================================
+
         bindEvents();
 
 
+        // =============================================
+        // SYNC FORM
+        // =============================================
+
         syncFormToState();
 
+
+        // =============================================
+        // RESTORE PREVIEW
+        // =============================================
 
         getPreview().renderFromState();
 
@@ -1391,6 +1563,10 @@
 
         });
 
+
+    // =====================================================
+    // GLOBAL EXPORT
+    // =====================================================
 
     window.GENZVisionEvents =
         GENZVisionEvents;
