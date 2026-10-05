@@ -447,6 +447,16 @@ function showUploadState() {
                 "vision-hidden"
             );
 
+        /*
+         * Pastikan CSS preview tidak tetap
+         * berada dalam keadaan visible.
+         */
+        dom.previewState
+            .classList
+            .remove(
+                "is-visible"
+            );
+
     }
 
 
@@ -494,6 +504,20 @@ function showPreviewState() {
                 "vision-hidden"
             );
 
+        /*
+         * CSS Vision menggunakan class
+         * "is-visible" untuk menampilkan
+         * preview state.
+         *
+         * Tanpa class ini preview dapat tetap
+         * tersembunyi walaupun hidden=false.
+         */
+        dom.previewState
+            .classList
+            .add(
+                "is-visible"
+            );
+
     }
 
 
@@ -519,9 +543,21 @@ function renderPreview(
     }
 
 
-    setPreviewImage(
-        file.dataUrl
-    );
+    const imageSet =
+        setPreviewImage(
+            file.dataUrl
+        );
+
+
+    if (
+        !imageSet
+    ) {
+
+        showUploadState();
+
+        return false;
+
+    }
 
 
     updatePreviewInformation(
