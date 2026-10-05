@@ -1,1423 +1,1092 @@
 /* =========================================================
-   GEN-Z.AI VISION
+   GEN-Z.AI
+   VISION STATE
    ---------------------------------------------------------
    File:
    vision/assets/js/vision-state.js
 
    Fungsi:
-   - Single source of truth Vision
-   - Menyimpan reference image
-   - Menyimpan replacement character image
-   - Menyimpan model
-   - Menyimpan settings
-   - Menyimpan analysis
-   - Menyimpan generated prompt
-   - Menyimpan process state
-   - Menyimpan credit state
-   - Menyimpan history state
-   - Menyimpan UI state
-   - Menyediakan compatibility API get() / set()
+   - Global state management
+   - Auth state
+   - Reference image state
+   - Replacement character state
+   - Model state
+   - Settings state
+   - Analysis state
+   - Prompt state
+   - Process state
+   - Credit state
+   - History state
+   - UI state
+   - Legacy compatibility:
+       get()
+       set()
+       merge()
 
-   Tidak menangani:
-   - DOM
-   - API
-   - Upload
-   - Analysis
-   - Prompt generation
-   - Credit transaction
-   - History persistence
+   Catatan:
+   - Tetap menggunakan global window.GENZVisionState
+   - BUKAN ES MODULE
 ========================================================= */
 
+(function () {
 
-/* =========================================================
-   DEFAULT STATE
-========================================================= */
-
-const DEFAULT_STATE = {
-
-    /* =====================================================
-       AUTH
-    ===================================================== */
-
-    auth: {
-
-        user:
-            null,
-
-        profile:
-            null,
-
-        initialized:
-            false
-
-    },
+    "use strict";
 
 
     /* =====================================================
-       REFERENCE IMAGE
-       -----------------------------------------------------
-       File utama yang akan dibedah / dianalisis.
-
-       Property "file" dipertahankan untuk kompatibilitas
-       dengan modul Vision yang sudah ada.
+       DEFAULT STATE
     ===================================================== */
 
-    file:
-        null,
-
-
-    /* =====================================================
-       REPLACEMENT CHARACTER
-       -----------------------------------------------------
-       Image karakter pengganti.
-
-       Tidak menggantikan "file".
-       Kedua image memiliki lifecycle terpisah.
-    ===================================================== */
-
-    replacementCharacter:
-        null,
-
-
-    /* =====================================================
-       MODEL
-    ===================================================== */
-
-    model: {
-
-        id:
-            "",
-
-        name:
-            "",
-
-        providerId:
-            "openkey",
-
-        providerName:
-            "OpenKey",
-
-        inputModalities:
-            [],
-
-        outputModalities:
-            [],
-
-        capabilities:
-            null
-
-    },
-
-
-    /* =====================================================
-       SETTINGS
-    ===================================================== */
-
-    settings: {
-
-        detail:
-            "balanced",
-
-        purpose:
-            "general",
-
-        instruction:
-            ""
-
-    },
-
-
-    /* =====================================================
-       ANALYSIS
-    ===================================================== */
-
-    analysis: {
-
-        status:
-            "idle",
-
-        result:
-            null,
-
-        raw:
-            null,
-
-        error:
-            null
-
-    },
-
-
-    /* =====================================================
-       PROMPT
-    ===================================================== */
-
-    prompt: {
-
-        status:
-            "idle",
-
-        value:
-            "",
-
-        error:
-            null
-
-    },
-
-
-    /* =====================================================
-       PROCESS
-    ===================================================== */
-
-    process: {
-
-        status:
-            "idle",
-
-        stage:
-            "",
-
-        progress:
-            0,
-
-        error:
-            null
-
-    },
-
-
-    /* =====================================================
-       CREDIT
-    ===================================================== */
-
-    credit: {
-
-        available:
-            0,
-
-        reserved:
-            false,
-
-        charged:
-            false,
-
-        refunded:
-            false
-
-    },
-
-
-    /* =====================================================
-       HISTORY
-    ===================================================== */
-
-    history: {
-
-        items:
-            [],
-
-        loading:
-            false,
-
-        error:
-            null
-
-    },
-
-
-    /* =====================================================
-       UI
-    ===================================================== */
-
-    ui: {
-
-        initialized:
-            false,
-
-        loading:
-            false
-
-    }
-
-};
-
-
-/* =========================================================
-   STATE CLONE
-========================================================= */
-
-function cloneDefaultState() {
-
-    return {
+    const DEFAULT_STATE = {
+
+        /* ---------------------------------------------
+           AUTH
+        --------------------------------------------- */
 
         auth: {
 
-            user:
-                DEFAULT_STATE.auth.user,
+            user: null,
 
-            profile:
-                DEFAULT_STATE.auth.profile,
+            profile: null,
 
-            initialized:
-                DEFAULT_STATE.auth.initialized
+            initialized: false
 
         },
 
 
-        file:
-            DEFAULT_STATE.file,
+        /* ---------------------------------------------
+           REFERENCE IMAGE
+        --------------------------------------------- */
+
+        file: null,
 
 
-        replacementCharacter:
-            DEFAULT_STATE.replacementCharacter,
+        /* ---------------------------------------------
+           REPLACEMENT CHARACTER IMAGE
+        --------------------------------------------- */
 
+        replacementCharacter: null,
+
+
+        /* ---------------------------------------------
+           MODEL
+        --------------------------------------------- */
 
         model: {
 
-            id:
-                DEFAULT_STATE.model.id,
+            id: "",
 
-            name:
-                DEFAULT_STATE.model.name,
+            name: "",
 
-            providerId:
-                DEFAULT_STATE.model.providerId,
+            providerId: "openkey",
 
-            providerName:
-                DEFAULT_STATE.model.providerName,
+            providerName: "OpenKey",
 
-            inputModalities:
-                [],
+            inputModalities: [],
 
-            outputModalities:
-                [],
+            outputModalities: [],
 
-            capabilities:
-                DEFAULT_STATE.model.capabilities
+            capabilities: null
 
         },
 
+
+        /* ---------------------------------------------
+           SETTINGS
+        --------------------------------------------- */
 
         settings: {
 
-            detail:
-                DEFAULT_STATE.settings.detail,
+            detail: "balanced",
 
-            purpose:
-                DEFAULT_STATE.settings.purpose,
+            purpose: "general",
 
-            instruction:
-                DEFAULT_STATE.settings.instruction
+            instruction: ""
 
         },
 
+
+        /* ---------------------------------------------
+           ANALYSIS
+        --------------------------------------------- */
 
         analysis: {
 
-            status:
-                DEFAULT_STATE.analysis.status,
+            status: "idle",
 
-            result:
-                DEFAULT_STATE.analysis.result,
+            result: null,
 
-            raw:
-                DEFAULT_STATE.analysis.raw,
+            raw: null,
 
-            error:
-                DEFAULT_STATE.analysis.error
+            error: null
 
         },
 
+
+        /* ---------------------------------------------
+           PROMPT
+        --------------------------------------------- */
 
         prompt: {
 
-            status:
-                DEFAULT_STATE.prompt.status,
+            status: "idle",
 
-            value:
-                DEFAULT_STATE.prompt.value,
+            value: "",
 
-            error:
-                DEFAULT_STATE.prompt.error
+            error: null
 
         },
 
+
+        /* ---------------------------------------------
+           PROCESS
+        --------------------------------------------- */
 
         process: {
 
-            status:
-                DEFAULT_STATE.process.status,
+            status: "idle",
 
-            stage:
-                DEFAULT_STATE.process.stage,
+            stage: "",
 
-            progress:
-                DEFAULT_STATE.process.progress,
+            progress: 0,
 
-            error:
-                DEFAULT_STATE.process.error
+            error: null
 
         },
 
+
+        /* ---------------------------------------------
+           CREDIT
+        --------------------------------------------- */
 
         credit: {
 
-            available:
-                DEFAULT_STATE.credit.available,
+            available: 0,
 
-            reserved:
-                DEFAULT_STATE.credit.reserved,
+            reserved: false,
 
-            charged:
-                DEFAULT_STATE.credit.charged,
+            charged: false,
 
-            refunded:
-                DEFAULT_STATE.credit.refunded
+            refunded: false
 
         },
 
+
+        /* ---------------------------------------------
+           HISTORY
+        --------------------------------------------- */
 
         history: {
 
-            items:
-                [],
+            items: [],
 
-            loading:
-                DEFAULT_STATE.history.loading,
+            loading: false,
 
-            error:
-                DEFAULT_STATE.history.error
+            error: null
 
         },
 
 
+        /* ---------------------------------------------
+           UI
+        --------------------------------------------- */
+
         ui: {
 
-            initialized:
-                DEFAULT_STATE.ui.initialized,
+            initialized: false,
 
-            loading:
-                DEFAULT_STATE.ui.loading
+            loading: false
 
         }
 
     };
 
-}
+
+    /* =====================================================
+       INTERNAL STATE
+    ===================================================== */
+
+    let STATE = cloneDefaultState();
 
 
-/* =========================================================
-   INTERNAL STATE
-========================================================= */
+    /* =====================================================
+       CLONE DEFAULT STATE
+    ===================================================== */
 
-let STATE =
-    cloneDefaultState();
+    function cloneDefaultState() {
 
-
-/* =========================================================
-   INITIALIZE
-   ---------------------------------------------------------
-   Dipanggil oleh vision-loader.js.
-
-   State hanya perlu memastikan internal state tersedia.
-   Tidak melakukan API / DOM / network operation.
-========================================================= */
-
-function initialize() {
-
-    if (
-        !STATE ||
-        typeof STATE !== "object"
-    ) {
-
-        STATE =
-            cloneDefaultState();
+        return JSON.parse(
+            JSON.stringify(DEFAULT_STATE)
+        );
 
     }
 
 
-    return true;
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
 
-}
+    function initialize() {
+
+        if (
+            !STATE ||
+            typeof STATE !== "object"
+        ) {
+
+            STATE = cloneDefaultState();
+
+        }
+
+        return true;
+
+    }
 
 
-/* =========================================================
-   GET STATE
-   ---------------------------------------------------------
-   API utama.
+    /* =====================================================
+       GET STATE
+       -----------------------------------------------------
+       Supports dotted paths:
 
-   Contoh:
-   getState()
-   getState("model.id")
-   getState("auth.profile")
-========================================================= */
+       getState()
+       getState("model")
+       getState("model.id")
+       getState("credit.available")
+    ===================================================== */
 
-function getState(
-    path,
-    fallback = undefined
-) {
-
-    if (
-        !path
+    function getState(
+        path,
+        fallback = undefined
     ) {
+
+        if (
+            path === undefined ||
+            path === null ||
+            path === ""
+        ) {
+
+            return STATE;
+
+        }
+
+
+        const parts = String(path).split(".");
+
+        let current = STATE;
+
+
+        for (const part of parts) {
+
+            if (
+                current === null ||
+                current === undefined ||
+                typeof current !== "object" ||
+                !(part in current)
+            ) {
+
+                return fallback;
+
+            }
+
+            current = current[part];
+
+        }
+
+
+        return current;
+
+    }
+
+
+    /* =====================================================
+       SET STATE
+       -----------------------------------------------------
+       Supports dotted paths:
+
+       setState("model.id", "grok-4.5")
+       setState("credit.available", 100)
+    ===================================================== */
+
+    function setState(
+        path,
+        value
+    ) {
+
+        if (
+            path === undefined ||
+            path === null ||
+            path === ""
+        ) {
+
+            return false;
+
+        }
+
+
+        const parts = String(path).split(".");
+
+        let current = STATE;
+
+
+        for (
+            let index = 0;
+            index < parts.length - 1;
+            index++
+        ) {
+
+            const part = parts[index];
+
+
+            if (
+                !current[part] ||
+                typeof current[part] !== "object"
+            ) {
+
+                current[part] = {};
+
+            }
+
+
+            current = current[part];
+
+        }
+
+
+        current[parts[parts.length - 1]] = value;
+
+
+        return value;
+
+    }
+
+
+    /* =====================================================
+       LEGACY GET
+       -----------------------------------------------------
+       Compatibility for older modules.
+    ===================================================== */
+
+    function get(
+        path,
+        fallback = undefined
+    ) {
+
+        return getState(
+            path,
+            fallback
+        );
+
+    }
+
+
+    /* =====================================================
+       LEGACY SET
+       -----------------------------------------------------
+       Compatibility for older modules.
+    ===================================================== */
+
+    function set(
+        path,
+        value
+    ) {
+
+        return setState(
+            path,
+            value
+        );
+
+    }
+
+
+    /* =====================================================
+       LEGACY MERGE
+       -----------------------------------------------------
+       Compatibility for modules that use:
+
+       state.merge("credit", {
+           available: 100
+       });
+
+       or:
+
+       state.merge("settings", {
+           detail: "detailed"
+       });
+
+       Existing properties are preserved.
+    ===================================================== */
+
+    function merge(
+        path,
+        patch
+    ) {
+
+        if (
+            path === undefined ||
+            path === null ||
+            path === ""
+        ) {
+
+            return false;
+
+        }
+
+
+        if (
+            !patch ||
+            typeof patch !== "object" ||
+            Array.isArray(patch)
+        ) {
+
+            return setState(
+                path,
+                patch
+            );
+
+        }
+
+
+        const current = getState(
+            path,
+            {}
+        );
+
+
+        let base;
+
+
+        if (
+            current &&
+            typeof current === "object" &&
+            !Array.isArray(current)
+        ) {
+
+            base = current;
+
+        } else {
+
+            base = {};
+
+        }
+
+
+        const merged = {
+
+            ...base,
+
+            ...patch
+
+        };
+
+
+        return setState(
+            path,
+            merged
+        );
+
+    }
+
+
+    /* =====================================================
+       RESET STATE
+    ===================================================== */
+
+    function resetState() {
+
+        STATE = cloneDefaultState();
 
         return STATE;
 
     }
 
 
-    const parts =
-        String(path)
-            .split(".")
-            .filter(Boolean);
+    /* =====================================================
+       AUTH
+    ===================================================== */
 
-
-    let current =
-        STATE;
-
-
-    for (
-        const part
-        of parts
+    function setAuth(
+        auth = {}
     ) {
 
-        if (
-            current === null ||
-            current === undefined ||
-            !Object.prototype.hasOwnProperty.call(
-                current,
-                part
-            )
-        ) {
+        STATE.auth = {
 
-            return fallback;
+            ...STATE.auth,
 
-        }
+            ...auth
+
+        };
 
 
-        current =
-            current[part];
+        return STATE.auth;
 
     }
 
 
-    return current;
+    /* =====================================================
+       MODEL
+    ===================================================== */
 
-}
-
-
-/* =========================================================
-   SET STATE
-   ---------------------------------------------------------
-   API utama.
-
-   Contoh:
-   setState("model.id", "grok-4.6")
-========================================================= */
-
-function setState(
-    path,
-    value
-) {
-
-    if (
-        !path
+    function setModel(
+        model = {}
     ) {
 
-        return false;
-
-    }
-
-
-    const parts =
-        String(path)
-            .split(".")
-            .filter(Boolean);
-
-
-    if (
-        parts.length === 0
-    ) {
-
-        return false;
-
-    }
-
-
-    let current =
-        STATE;
-
-
-    for (
-        let index = 0;
-        index < parts.length - 1;
-        index++
-    ) {
-
-        const part =
-            parts[index];
-
-
-        if (
-            !current[part] ||
-            typeof current[part] !== "object"
-        ) {
-
-            current[part] =
-                {};
-
-        }
-
-
-        current =
-            current[part];
-
-    }
-
-
-    current[
-        parts[parts.length - 1]
-    ] =
-        value;
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   COMPATIBILITY GET
-   ---------------------------------------------------------
-   Compatibility layer untuk modul Vision lama.
-
-   Modul lama menggunakan:
-
-       state.get("model.id")
-
-   Sedangkan API utama menggunakan:
-
-       state.getState("model.id")
-
-   Keduanya sekarang diarahkan ke sumber state yang sama.
-========================================================= */
-
-function get(
-    path,
-    fallback = undefined
-) {
-
-    return getState(
-        path,
-        fallback
-    );
-
-}
-
-
-/* =========================================================
-   COMPATIBILITY SET
-   ---------------------------------------------------------
-   Compatibility layer untuk modul Vision lama.
-
-   Modul lama menggunakan:
-
-       state.set(
-           "auth.credits",
-           10
-       )
-
-   Sedangkan API utama menggunakan:
-
-       state.setState(
-           "auth.credits",
-           10
-       )
-========================================================= */
-
-function set(
-    path,
-    value
-) {
-
-    return setState(
-        path,
-        value
-    );
-
-}
-
-
-/* =========================================================
-   RESET STATE
-========================================================= */
-
-function resetState() {
-
-    STATE =
-        cloneDefaultState();
-
-
-    return STATE;
-
-}
-
-
-/* =========================================================
-   AUTH
-========================================================= */
-
-function setAuth(
-    auth = {}
-) {
-
-    if (
-        Object.prototype.hasOwnProperty.call(
-            auth,
-            "user"
-        )
-    ) {
-
-        STATE.auth.user =
-            auth.user;
-
-    }
-
-
-    if (
-        Object.prototype.hasOwnProperty.call(
-            auth,
-            "profile"
-        )
-    ) {
-
-        STATE.auth.profile =
-            auth.profile;
-
-    }
-
-
-    if (
-        Object.prototype.hasOwnProperty.call(
-            auth,
-            "initialized"
-        )
-    ) {
-
-        STATE.auth.initialized =
-            Boolean(
-                auth.initialized
-            );
-
-    }
-
-
-    return STATE.auth;
-
-}
-
-
-/* =========================================================
-   MODEL
-========================================================= */
-
-function setModel(
-    model = {}
-) {
-
-    STATE.model = {
-
-        id:
-            model.id ||
-            "",
-
-        name:
-            model.name ||
-            "",
-
-        providerId:
-            model.providerId ||
-            "openkey",
-
-        providerName:
-            model.providerName ||
-            "OpenKey",
-
-        inputModalities:
-            Array.isArray(
-                model.inputModalities
-            )
-                ? model.inputModalities
-                : [],
-
-        outputModalities:
-            Array.isArray(
-                model.outputModalities
-            )
-                ? model.outputModalities
-                : [],
-
-        capabilities:
-            model.capabilities ??
-            null
-
-    };
-
-
-    return STATE.model;
-
-}
-
-
-function getModel() {
-
-    return STATE.model;
-
-}
-
-
-/* =========================================================
-   REFERENCE IMAGE
-========================================================= */
-
-function setFile(
-    file
-) {
-
-    STATE.file =
-        file ||
-        null;
-
-
-    return STATE.file;
-
-}
-
-
-function getFile() {
-
-    return STATE.file;
-
-}
-
-
-function clearFile() {
-
-    STATE.file =
-        null;
-
-
-    return true;
-
-}
-
-
-function hasFile() {
-
-    return Boolean(
-        STATE.file
-    );
-
-}
-
-
-/* =========================================================
-   REPLACEMENT CHARACTER
-========================================================= */
-
-function setReplacementCharacter(
-    file
-) {
-
-    STATE.replacementCharacter =
-        file ||
-        null;
-
-
-    return STATE.replacementCharacter;
-
-}
-
-
-function getReplacementCharacter() {
-
-    return STATE.replacementCharacter;
-
-}
-
-
-function clearReplacementCharacter() {
-
-    STATE.replacementCharacter =
-        null;
-
-
-    return true;
-
-}
-
-
-function hasReplacementCharacter() {
-
-    return Boolean(
-        STATE.replacementCharacter
-    );
-
-}
-
-
-/* =========================================================
-   IMAGE HELPERS
-========================================================= */
-
-function getReferenceImage() {
-
-    return STATE.file;
-
-}
-
-
-function getCharacterImage() {
-
-    return STATE.replacementCharacter;
-
-}
-
-
-function hasReferenceImage() {
-
-    return Boolean(
-        STATE.file
-    );
-
-}
-
-
-function hasCharacterImage() {
-
-    return Boolean(
-        STATE.replacementCharacter
-    );
-
-}
-
-
-function clearImages() {
-
-    STATE.file =
-        null;
-
-    STATE.replacementCharacter =
-        null;
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   SETTINGS
-========================================================= */
-
-function setSettings(
-    settings = {}
-) {
-
-    if (
-        Object.prototype.hasOwnProperty.call(
-            settings,
-            "detail"
-        )
-    ) {
-
-        STATE.settings.detail =
-            settings.detail;
-
-    }
-
-
-    if (
-        Object.prototype.hasOwnProperty.call(
-            settings,
-            "purpose"
-        )
-    ) {
-
-        STATE.settings.purpose =
-            settings.purpose;
-
-    }
-
-
-    if (
-        Object.prototype.hasOwnProperty.call(
-            settings,
-            "instruction"
-        )
-    ) {
-
-        STATE.settings.instruction =
-            settings.instruction;
-
-    }
-
-
-    return STATE.settings;
-
-}
-
-
-function getSettings() {
-
-    return STATE.settings;
-
-}
-
-
-/* =========================================================
-   ANALYSIS
-========================================================= */
-
-function setAnalysis(
-    analysis = {}
-) {
-
-    STATE.analysis = {
-
-        ...STATE.analysis,
-
-        ...analysis
-
-    };
-
-
-    return STATE.analysis;
-
-}
-
-
-function getAnalysis() {
-
-    return STATE.analysis;
-
-}
-
-
-function clearAnalysis() {
-
-    STATE.analysis = {
-
-        status:
-            "idle",
-
-        result:
-            null,
-
-        raw:
-            null,
-
-        error:
-            null
-
-    };
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   PROMPT
-========================================================= */
-
-function setPrompt(
-    prompt = {}
-) {
-
-    STATE.prompt = {
-
-        ...STATE.prompt,
-
-        ...prompt
-
-    };
-
-
-    return STATE.prompt;
-
-}
-
-
-function getPrompt() {
-
-    return STATE.prompt;
-
-}
-
-
-function setPromptValue(
-    value
-) {
-
-    STATE.prompt.value =
-        value === null ||
-        value === undefined
-            ? ""
-            : String(value);
-
-
-    return STATE.prompt.value;
-
-}
-
-
-function clearPrompt() {
-
-    STATE.prompt = {
-
-        status:
-            "idle",
-
-        value:
-            "",
-
-        error:
-            null
-
-    };
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   PROCESS
-========================================================= */
-
-function setProcess(
-    process = {}
-) {
-
-    STATE.process = {
-
-        ...STATE.process,
-
-        ...process
-
-    };
-
-
-    return STATE.process;
-
-}
-
-
-function getProcess() {
-
-    return STATE.process;
-
-}
-
-
-function setProcessStatus(
-    status,
-    stage = "",
-    progress = 0,
-    error = null
-) {
-
-    STATE.process = {
-
-        status:
-            status ||
-            "idle",
-
-        stage:
-            stage ||
-            "",
-
-        progress:
-            Number.isFinite(
-                Number(progress)
-            )
-                ? Number(progress)
-                : 0,
-
-        error:
-            error
-
-    };
-
-
-    return STATE.process;
-
-}
-
-
-function setProcessError(
-    error
-) {
-
-    STATE.process.status =
-        "error";
-
-    STATE.process.error =
-        error ||
-        null;
-
-
-    return STATE.process;
-
-}
-
-
-/* =========================================================
-   CREDIT
-========================================================= */
-
-function setCredit(
-    credit = {}
-) {
-
-    STATE.credit = {
-
-        ...STATE.credit,
-
-        ...credit
-
-    };
-
-
-    return STATE.credit;
-
-}
-
-
-function getCredit() {
-
-    return STATE.credit;
-
-}
-
-
-/* =========================================================
-   HISTORY
-========================================================= */
-
-function setHistory(
-    history = {}
-) {
-
-    STATE.history = {
-
-        ...STATE.history,
-
-        ...history
-
-    };
-
-
-    return STATE.history;
-
-}
-
-
-function getHistory() {
-
-    return STATE.history;
-
-}
-
-
-/* =========================================================
-   UI
-========================================================= */
-
-function setUI(
-    ui = {}
-) {
-
-    STATE.ui = {
-
-        ...STATE.ui,
-
-        ...ui
-
-    };
-
-
-    return STATE.ui;
-
-}
-
-
-function getUI() {
-
-    return STATE.ui;
-
-}
-
-
-/* =========================================================
-   CHECK
-========================================================= */
-
-function isReadyForAnalysis() {
-
-    return Boolean(
-        hasReferenceImage() &&
-        STATE.model.id
-    );
-
-}
-
-
-function isReadyForCharacterReplacement() {
-
-    return Boolean(
-        hasReferenceImage() &&
-        hasCharacterImage()
-    );
-
-}
-
-
-/* =========================================================
-   SNAPSHOT
-========================================================= */
-
-function getSnapshot() {
-
-    return {
-
-        ...STATE,
-
-        auth: {
-
-            ...STATE.auth
-
-        },
-
-        model: {
+        STATE.model = {
 
             ...STATE.model,
 
-            inputModalities:
-                [
-                    ...STATE.model.inputModalities
-                ],
+            ...model
 
-            outputModalities:
-                [
-                    ...STATE.model.outputModalities
-                ]
+        };
 
-        },
 
-        settings: {
+        return STATE.model;
 
-            ...STATE.settings
+    }
 
-        },
 
-        analysis: {
+    function getModel() {
 
-            ...STATE.analysis
+        return STATE.model;
 
-        },
+    }
 
-        prompt: {
 
-            ...STATE.prompt
+    /* =====================================================
+       REFERENCE FILE
+    ===================================================== */
 
-        },
+    function setFile(
+        file
+    ) {
 
-        process: {
+        STATE.file = file || null;
 
-            ...STATE.process
+        return STATE.file;
 
-        },
+    }
 
-        credit: {
 
-            ...STATE.credit
+    function getFile() {
 
-        },
+        return STATE.file;
 
-        history: {
+    }
+
+
+    function clearFile() {
+
+        STATE.file = null;
+
+        return true;
+
+    }
+
+
+    function hasFile() {
+
+        return Boolean(
+            STATE.file
+        );
+
+    }
+
+
+    /* =====================================================
+       REPLACEMENT CHARACTER
+    ===================================================== */
+
+    function setReplacementCharacter(
+        file
+    ) {
+
+        STATE.replacementCharacter =
+            file || null;
+
+
+        return STATE.replacementCharacter;
+
+    }
+
+
+    function getReplacementCharacter() {
+
+        return STATE.replacementCharacter;
+
+    }
+
+
+    function clearReplacementCharacter() {
+
+        STATE.replacementCharacter = null;
+
+        return true;
+
+    }
+
+
+    function hasReplacementCharacter() {
+
+        return Boolean(
+            STATE.replacementCharacter
+        );
+
+    }
+
+
+    /* =====================================================
+       IMAGE ALIASES
+    ===================================================== */
+
+    function getReferenceImage() {
+
+        return STATE.file;
+
+    }
+
+
+    function getCharacterImage() {
+
+        return STATE.replacementCharacter;
+
+    }
+
+
+    function hasReferenceImage() {
+
+        return Boolean(
+            STATE.file
+        );
+
+    }
+
+
+    function hasCharacterImage() {
+
+        return Boolean(
+            STATE.replacementCharacter
+        );
+
+    }
+
+
+    function clearImages() {
+
+        STATE.file = null;
+
+        STATE.replacementCharacter = null;
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       SETTINGS
+    ===================================================== */
+
+    function setSettings(
+        settings = {}
+    ) {
+
+        STATE.settings = {
+
+            ...STATE.settings,
+
+            ...settings
+
+        };
+
+
+        return STATE.settings;
+
+    }
+
+
+    function getSettings() {
+
+        return STATE.settings;
+
+    }
+
+
+    /* =====================================================
+       ANALYSIS
+    ===================================================== */
+
+    function setAnalysis(
+        analysis = {}
+    ) {
+
+        STATE.analysis = {
+
+            ...STATE.analysis,
+
+            ...analysis
+
+        };
+
+
+        return STATE.analysis;
+
+    }
+
+
+    function getAnalysis() {
+
+        return STATE.analysis;
+
+    }
+
+
+    function clearAnalysis() {
+
+        STATE.analysis = {
+
+            ...DEFAULT_STATE.analysis
+
+        };
+
+
+        return STATE.analysis;
+
+    }
+
+
+    /* =====================================================
+       PROMPT
+    ===================================================== */
+
+    function setPrompt(
+        prompt = {}
+    ) {
+
+        STATE.prompt = {
+
+            ...STATE.prompt,
+
+            ...prompt
+
+        };
+
+
+        return STATE.prompt;
+
+    }
+
+
+    function getPrompt() {
+
+        return STATE.prompt;
+
+    }
+
+
+    function setPromptValue(
+        value
+    ) {
+
+        STATE.prompt.value =
+            value || "";
+
+
+        return STATE.prompt.value;
+
+    }
+
+
+    function clearPrompt() {
+
+        STATE.prompt = {
+
+            ...DEFAULT_STATE.prompt
+
+        };
+
+
+        return STATE.prompt;
+
+    }
+
+
+    /* =====================================================
+       PROCESS
+    ===================================================== */
+
+    function setProcess(
+        process = {}
+    ) {
+
+        STATE.process = {
+
+            ...STATE.process,
+
+            ...process
+
+        };
+
+
+        return STATE.process;
+
+    }
+
+
+    function getProcess() {
+
+        return STATE.process;
+
+    }
+
+
+    function setProcessStatus(
+        status,
+        stage = "",
+        progress = 0,
+        error = null
+    ) {
+
+        STATE.process = {
+
+            ...STATE.process,
+
+            status,
+
+            stage,
+
+            progress,
+
+            error
+
+        };
+
+
+        return STATE.process;
+
+    }
+
+
+    function setProcessError(
+        error
+    ) {
+
+        STATE.process = {
+
+            ...STATE.process,
+
+            status: "error",
+
+            error
+
+        };
+
+
+        return STATE.process;
+
+    }
+
+
+    /* =====================================================
+       CREDIT
+    ===================================================== */
+
+    function setCredit(
+        credit = {}
+    ) {
+
+        STATE.credit = {
+
+            ...STATE.credit,
+
+            ...credit
+
+        };
+
+
+        return STATE.credit;
+
+    }
+
+
+    function getCredit() {
+
+        return STATE.credit;
+
+    }
+
+
+    /* =====================================================
+       HISTORY
+    ===================================================== */
+
+    function setHistory(
+        history = {}
+    ) {
+
+        STATE.history = {
 
             ...STATE.history,
 
-            items:
-                [
-                    ...STATE.history.items
-                ]
+            ...history
 
-        },
-
-        ui: {
-
-            ...STATE.ui
-
-        }
-
-    };
-
-}
+        };
 
 
-/* =========================================================
-   DEBUG
-========================================================= */
+        return STATE.history;
 
-function getDebugInfo() {
-
-    return {
-
-        hasReferenceImage:
-            hasReferenceImage(),
-
-        hasReplacementCharacter:
-            hasCharacterImage(),
-
-        model:
-            STATE.model.id,
-
-        analysisStatus:
-            STATE.analysis.status,
-
-        promptStatus:
-            STATE.prompt.status,
-
-        processStatus:
-            STATE.process.status,
-
-        processProgress:
-            STATE.process.progress,
-
-        creditAvailable:
-            STATE.credit.available
-
-    };
-
-}
+    }
 
 
-/* =========================================================
-   PUBLIC API
-========================================================= */
+    function getHistory() {
 
-const GENZVisionState =
-    Object.freeze({
+        return STATE.history;
 
-        /* -------------------------------------------------
+    }
+
+
+    /* =====================================================
+       UI
+    ===================================================== */
+
+    function setUI(
+        ui = {}
+    ) {
+
+        STATE.ui = {
+
+            ...STATE.ui,
+
+            ...ui
+
+        };
+
+
+        return STATE.ui;
+
+    }
+
+
+    function getUI() {
+
+        return STATE.ui;
+
+    }
+
+
+    /* =====================================================
+       READY CHECK
+    ===================================================== */
+
+    function isReadyForAnalysis() {
+
+        return Boolean(
+
+            hasReferenceImage() &&
+
+            STATE.model.id
+
+        );
+
+    }
+
+
+    /* =====================================================
+       CHARACTER REPLACEMENT READY CHECK
+    ===================================================== */
+
+    function isReadyForCharacterReplacement() {
+
+        return Boolean(
+
+            hasReferenceImage() &&
+
+            hasCharacterImage()
+
+        );
+
+    }
+
+
+    /* =====================================================
+       SNAPSHOT
+    ===================================================== */
+
+    function getSnapshot() {
+
+        return cloneState(
+            STATE
+        );
+
+    }
+
+
+    /* =====================================================
+       DEBUG INFO
+    ===================================================== */
+
+    function getDebugInfo() {
+
+        return {
+
+            initialized: true,
+
+            hasReferenceImage:
+                hasReferenceImage(),
+
+            hasReplacementCharacter:
+                hasCharacterImage(),
+
+            model:
+                STATE.model,
+
+            settings:
+                STATE.settings,
+
+            analysisStatus:
+                STATE.analysis.status,
+
+            promptStatus:
+                STATE.prompt.status,
+
+            processStatus:
+                STATE.process.status,
+
+            credit:
+                STATE.credit,
+
+            historyCount:
+                Array.isArray(
+                    STATE.history.items
+                )
+                    ? STATE.history.items.length
+                    : 0
+
+        };
+
+    }
+
+
+    /* =====================================================
+       CLONE STATE
+    ===================================================== */
+
+    function cloneState(
+        value
+    ) {
+
+        return JSON.parse(
+            JSON.stringify(value)
+        );
+
+    }
+
+
+    /* =====================================================
+       PUBLIC API
+    ===================================================== */
+
+    const GENZVisionState = Object.freeze({
+
+        /* ---------------------------------------------
            CORE
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         DEFAULT_STATE,
 
@@ -1427,16 +1096,11 @@ const GENZVisionState =
 
         setState,
 
-        /* -------------------------------------------------
-           COMPATIBILITY API
-           -----------------------------------------------
-           Dipertahankan karena modul Vision existing
-           masih menggunakan state.get() / state.set().
-        ------------------------------------------------- */
-
         get,
 
         set,
+
+        merge,
 
         resetState,
 
@@ -1445,25 +1109,25 @@ const GENZVisionState =
         getDebugInfo,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            AUTH
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setAuth,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            MODEL
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setModel,
 
         getModel,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            REFERENCE IMAGE
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setFile,
 
@@ -1474,9 +1138,9 @@ const GENZVisionState =
         hasFile,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            REPLACEMENT CHARACTER
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setReplacementCharacter,
 
@@ -1487,9 +1151,9 @@ const GENZVisionState =
         hasReplacementCharacter,
 
 
-        /* -------------------------------------------------
-           IMAGE HELPERS
-        ------------------------------------------------- */
+        /* ---------------------------------------------
+           IMAGE ALIASES
+        --------------------------------------------- */
 
         getReferenceImage,
 
@@ -1502,18 +1166,18 @@ const GENZVisionState =
         clearImages,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            SETTINGS
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setSettings,
 
         getSettings,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            ANALYSIS
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setAnalysis,
 
@@ -1522,9 +1186,9 @@ const GENZVisionState =
         clearAnalysis,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            PROMPT
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setPrompt,
 
@@ -1535,9 +1199,9 @@ const GENZVisionState =
         clearPrompt,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            PROCESS
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setProcess,
 
@@ -1548,36 +1212,36 @@ const GENZVisionState =
         setProcessError,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            CREDIT
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setCredit,
 
         getCredit,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            HISTORY
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setHistory,
 
         getHistory,
 
 
-        /* -------------------------------------------------
+        /* ---------------------------------------------
            UI
-        ------------------------------------------------- */
+        --------------------------------------------- */
 
         setUI,
 
         getUI,
 
 
-        /* -------------------------------------------------
-           CHECK
-        ------------------------------------------------- */
+        /* ---------------------------------------------
+           READY CHECKS
+        --------------------------------------------- */
 
         isReadyForAnalysis,
 
@@ -1586,9 +1250,12 @@ const GENZVisionState =
     });
 
 
-/* =========================================================
-   GLOBAL EXPORT
-========================================================= */
+    /* =====================================================
+       GLOBAL EXPORT
+    ===================================================== */
 
-window.GENZVisionState =
-    GENZVisionState;
+    window.GENZVisionState =
+        GENZVisionState;
+
+
+})();
