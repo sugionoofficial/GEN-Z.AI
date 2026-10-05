@@ -68,7 +68,6 @@
          * BUKAN:
          *
          * GENZVisionDOM.get()
-         *
          */
 
         if (
@@ -636,7 +635,6 @@
          *
          * openFilePicker()
          *
-         *
          * Karena keduanya dapat membuat native
          * file picker tidak bekerja atau terbuka
          * dua kali.
@@ -956,23 +954,31 @@
             );
 
 
+            /*
+             * IMPORTANT
+             * -------------------------------------------------
+             * vision-api.js mengharapkan:
+             *
+             * analyzeImage({
+             *     model: {...},
+             *     settings: {...}
+             * })
+             *
+             * Bukan model.id / detail / image langsung.
+             *
+             * Image dibaca oleh vision-api.js dari:
+             *
+             * state.file.dataUrl
+             */
+
             const analysisResponse =
                 await getAPI().analyzeImage({
 
                     model:
-                        state.model.id,
+                        state.model,
 
-                    detail:
-                        state.settings.detail,
-
-                    purpose:
-                        state.settings.purpose,
-
-                    instruction:
-                        state.settings.instruction,
-
-                    image:
-                        state.file.dataUrl
+                    settings:
+                        state.settings
 
                 });
 
@@ -1017,25 +1023,36 @@
             );
 
 
+            /*
+             * IMPORTANT
+             * -------------------------------------------------
+             * vision-api.js mengharapkan:
+             *
+             * generatePrompt(
+             *     analysis,
+             *     {
+             *         model: {...},
+             *         settings: {...}
+             *     }
+             * )
+             */
+
             const promptResponse =
-                await getAPI().generatePrompt({
+                await getAPI().generatePrompt(
 
-                    analysis:
-                        normalizedAnalysis,
+                    normalizedAnalysis,
 
-                    model:
-                        state.model.id,
+                    {
 
-                    detail:
-                        state.settings.detail,
+                        model:
+                            state.model,
 
-                    purpose:
-                        state.settings.purpose,
+                        settings:
+                            state.settings
 
-                    instruction:
-                        state.settings.instruction
+                    }
 
-                });
+                );
 
 
             // =============================================
