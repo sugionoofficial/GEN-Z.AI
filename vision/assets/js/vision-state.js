@@ -18,19 +18,7 @@
    - Credit state
    - History state
    - UI state
-   - Legacy compatibility:
-       get()
-       set()
-       merge()
-       setProcessing()
-       setProcessingState()
-       isProcessing()
-       setProgress()
-       getProgress()
-
-   Catatan:
-   - Tetap menggunakan global window.GENZVisionState
-   - BUKAN ES MODULE
+   - Legacy compatibility
 ========================================================= */
 
 (function () {
@@ -43,10 +31,6 @@
     ===================================================== */
 
     const DEFAULT_STATE = {
-
-        /* ---------------------------------------------
-           AUTH
-        --------------------------------------------- */
 
         auth: {
             user: null,
@@ -63,7 +47,7 @@
 
 
         /* ---------------------------------------------
-           REPLACEMENT CHARACTER IMAGE
+           REPLACEMENT CHARACTER
         --------------------------------------------- */
 
         replacementCharacter: null,
@@ -207,7 +191,8 @@
        INTERNAL STATE
     ===================================================== */
 
-    let STATE = cloneDefaultState();
+    let STATE =
+        cloneDefaultState();
 
 
     /* =====================================================
@@ -217,7 +202,9 @@
     function cloneDefaultState() {
 
         return JSON.parse(
-            JSON.stringify(DEFAULT_STATE)
+            JSON.stringify(
+                DEFAULT_STATE
+            )
         );
 
     }
@@ -234,7 +221,8 @@
             typeof STATE !== "object"
         ) {
 
-            STATE = cloneDefaultState();
+            STATE =
+                cloneDefaultState();
 
         }
 
@@ -284,7 +272,8 @@
             }
 
 
-            current = current[part];
+            current =
+                current[part];
 
         }
 
@@ -327,7 +316,8 @@
             index++
         ) {
 
-            const part = parts[index];
+            const part =
+                parts[index];
 
 
             if (
@@ -340,7 +330,8 @@
             }
 
 
-            current = current[part];
+            current =
+                current[part];
 
         }
 
@@ -430,22 +421,15 @@
             );
 
 
-        let base;
+        const base = (
 
-
-        if (
             current &&
             typeof current === "object" &&
             !Array.isArray(current)
-        ) {
 
-            base = current;
-
-        } else {
-
-            base = {};
-
-        }
+        )
+            ? current
+            : {};
 
 
         const merged = {
@@ -877,10 +861,6 @@
         options = {}
     ) {
 
-        /* ---------------------------------------------
-           BOOLEAN
-        --------------------------------------------- */
-
         if (
             typeof value === "boolean"
         ) {
@@ -939,10 +919,6 @@
         }
 
 
-        /* ---------------------------------------------
-           OBJECT
-        --------------------------------------------- */
-
         if (
             value &&
             typeof value === "object" &&
@@ -966,10 +942,6 @@
 
         }
 
-
-        /* ---------------------------------------------
-           STRING
-        --------------------------------------------- */
 
         if (
             typeof value === "string"
@@ -1056,15 +1028,7 @@
 
 
     /* =====================================================
-       LEGACY setProgress()
-       -----------------------------------------------------
-       vision-events.js menggunakan:
-
-       getState().setProgress(25)
-
-       Progress selalu disimpan di:
-
-       state.process.progress
+       setProgress()
     ===================================================== */
 
     function setProgress(
@@ -1112,7 +1076,7 @@
 
 
     /* =====================================================
-       GET PROGRESS
+       getProgress()
     ===================================================== */
 
     function getProgress() {
@@ -1168,6 +1132,78 @@
     function getCredit() {
 
         return STATE.credit;
+
+    }
+
+
+    /* =====================================================
+       CREDIT COMPATIBILITY
+       -----------------------------------------------------
+       Legacy vision-credit.js API.
+    ===================================================== */
+
+    function markCreditReserved(
+        value = true
+    ) {
+
+        STATE.credit.reserved =
+            Boolean(value);
+
+
+        return STATE.credit.reserved;
+
+    }
+
+
+    function markCreditDeducted(
+        value = true
+    ) {
+
+        STATE.credit.charged =
+            Boolean(value);
+
+
+        return STATE.credit.charged;
+
+    }
+
+
+    function markCreditRefunded(
+        value = true
+    ) {
+
+        STATE.credit.refunded =
+            Boolean(value);
+
+
+        return STATE.credit.refunded;
+
+    }
+
+
+    function isCreditReserved() {
+
+        return Boolean(
+            STATE.credit.reserved
+        );
+
+    }
+
+
+    function isCreditDeducted() {
+
+        return Boolean(
+            STATE.credit.charged
+        );
+
+    }
+
+
+    function isCreditRefunded() {
+
+        return Boolean(
+            STATE.credit.refunded
+        );
 
     }
 
@@ -1496,6 +1532,18 @@
             setCredit,
 
             getCredit,
+
+            markCreditReserved,
+
+            markCreditDeducted,
+
+            markCreditRefunded,
+
+            isCreditReserved,
+
+            isCreditDeducted,
+
+            isCreditRefunded,
 
 
             /* -----------------------------------------
