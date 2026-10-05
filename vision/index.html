@@ -175,7 +175,7 @@
 
 
                 <!-- =========================================
-                     UPLOAD CARD
+                     REFERENCE IMAGE CARD
                 ========================================== -->
 
                 <section
@@ -209,7 +209,7 @@
 
 
                     <!-- =====================================
-                         DROPZONE
+                         REFERENCE DROPZONE
                     ====================================== -->
 
                     <div
@@ -219,10 +219,6 @@
 
                         <!-- =================================
                              FILE INPUT
-
-                             Sengaja tetap hidden.
-                             Label di bawah akan membuka
-                             native file picker.
                         ================================== -->
 
                         <input
@@ -261,15 +257,6 @@
                             </p>
 
 
-                            <!-- =================================
-                                 NATIVE LABEL
-
-                                 Ini menggantikan button
-                                 agar file picker tetap
-                                 bekerja walaupun JS event
-                                 mengalami masalah.
-                            ================================== -->
-
                             <label
                                 id="visionBrowseButton"
                                 class="vision-secondary-button"
@@ -284,7 +271,7 @@
 
 
                         <!-- =================================
-                             PREVIEW STATE
+                             REFERENCE PREVIEW STATE
                         ================================== -->
 
                         <div
@@ -342,6 +329,161 @@
 
 
                 <!-- =========================================
+                     REPLACEMENT CHARACTER CARD
+                ========================================== -->
+
+                <section
+                    class="vision-card vision-upload-card vision-character-card"
+                >
+
+                    <div
+                        class="vision-card-header"
+                    >
+
+                        <div>
+
+                            <span
+                                class="vision-card-kicker"
+                            >
+                                CHARACTER REPLACEMENT
+                            </span>
+
+                            <h2>
+                                Replacement Character
+                            </h2>
+
+                            <p>
+                                Upload karakter yang akan
+                                menggantikan karakter pada
+                                gambar referensi.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =====================================
+                         CHARACTER DROPZONE
+                    ====================================== -->
+
+                    <div
+                        id="visionCharacterDropzone"
+                        class="vision-dropzone"
+                    >
+
+                        <!-- =================================
+                             CHARACTER FILE INPUT
+                        ================================== -->
+
+                        <input
+                            id="visionCharacterFileInput"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                        >
+
+
+                        <!-- =================================
+                             CHARACTER UPLOAD STATE
+                        ================================== -->
+
+                        <div
+                            id="visionCharacterUploadState"
+                            class="vision-upload-state"
+                        >
+
+                            <div
+                                class="vision-upload-icon"
+                                aria-hidden="true"
+                            >
+                                +
+                            </div>
+
+                            <h3>
+                                DROP CHARACTER IMAGE HERE
+                            </h3>
+
+                            <p>
+                                JPG, PNG, WEBP atau GIF
+                            </p>
+
+                            <p>
+                                Maximum 20 MB
+                            </p>
+
+
+                            <label
+                                id="visionCharacterBrowseButton"
+                                class="vision-secondary-button"
+                                for="visionCharacterFileInput"
+                                role="button"
+                                tabindex="0"
+                            >
+                                SELECT CHARACTER
+                            </label>
+
+                        </div>
+
+
+                        <!-- =================================
+                             CHARACTER PREVIEW STATE
+                        ================================== -->
+
+                        <div
+                            id="visionCharacterPreviewState"
+                            class="vision-preview-state"
+                            hidden
+                        >
+
+                            <div
+                                class="vision-preview-image-wrap"
+                            >
+
+                                <img
+                                    id="visionCharacterPreviewImage"
+                                    class="vision-preview-image"
+                                    alt="Replacement character preview"
+                                >
+
+                            </div>
+
+
+                            <div
+                                class="vision-preview-info"
+                            >
+
+                                <strong
+                                    id="visionCharacterFileName"
+                                >
+                                    -
+                                </strong>
+
+                                <span
+                                    id="visionCharacterFileSize"
+                                >
+                                    -
+                                </span>
+
+                            </div>
+
+
+                            <button
+                                id="visionCharacterRemoveButton"
+                                class="vision-remove-button"
+                                type="button"
+                            >
+                                REMOVE CHARACTER
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- =========================================
                      SETTINGS CARD
                 ========================================== -->
 
@@ -382,14 +524,6 @@
 
                         <!-- =================================
                              MODEL
-                             ---------------------------------
-                             MODEL TIDAK LAGI HARDCODE.
-
-                             vision-loader.js akan mengisi
-                             option berdasarkan katalog
-                             OpenKey yang aktual dan hanya
-                             memilih model yang mendukung
-                             input image.
                         ================================== -->
 
                         <div
@@ -702,10 +836,6 @@
                         class="vision-prompt-output"
                     >
 
-                        <!-- =================================
-                             PLACEHOLDER
-                        ================================== -->
-
                         <div
                             id="visionPromptPlaceholder"
                             class="vision-result-placeholder"
@@ -729,10 +859,6 @@
 
                         </div>
 
-
-                        <!-- =================================
-                             PROMPT RESULT
-                        ================================== -->
 
                         <pre
                             id="visionPromptResult"
