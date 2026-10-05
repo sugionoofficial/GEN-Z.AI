@@ -22,6 +22,9 @@
        get()
        set()
        merge()
+       setProcessing()
+       isProcessing()
+       setProcessingState()
 
    Catatan:
    - Tetap menggunakan global window.GENZVisionState
@@ -245,11 +248,14 @@
     /* =====================================================
        GET STATE
        -----------------------------------------------------
-       Supports dotted paths:
+       Supports:
 
        getState()
+
        getState("model")
+
        getState("model.id")
+
        getState("credit.available")
     ===================================================== */
 
@@ -269,7 +275,9 @@
         }
 
 
-        const parts = String(path).split(".");
+        const parts =
+            String(path).split(".");
+
 
         let current = STATE;
 
@@ -287,6 +295,7 @@
 
             }
 
+
             current = current[part];
 
         }
@@ -299,11 +308,6 @@
 
     /* =====================================================
        SET STATE
-       -----------------------------------------------------
-       Supports dotted paths:
-
-       setState("model.id", "grok-4.5")
-       setState("credit.available", 100)
     ===================================================== */
 
     function setState(
@@ -322,7 +326,9 @@
         }
 
 
-        const parts = String(path).split(".");
+        const parts =
+            String(path).split(".");
+
 
         let current = STATE;
 
@@ -351,7 +357,9 @@
         }
 
 
-        current[parts[parts.length - 1]] = value;
+        current[
+            parts[parts.length - 1]
+        ] = value;
 
 
         return value;
@@ -361,8 +369,6 @@
 
     /* =====================================================
        LEGACY GET
-       -----------------------------------------------------
-       Compatibility for older modules.
     ===================================================== */
 
     function get(
@@ -380,8 +386,6 @@
 
     /* =====================================================
        LEGACY SET
-       -----------------------------------------------------
-       Compatibility for older modules.
     ===================================================== */
 
     function set(
@@ -399,20 +403,6 @@
 
     /* =====================================================
        LEGACY MERGE
-       -----------------------------------------------------
-       Compatibility for modules that use:
-
-       state.merge("credit", {
-           available: 100
-       });
-
-       or:
-
-       state.merge("settings", {
-           detail: "detailed"
-       });
-
-       Existing properties are preserved.
     ===================================================== */
 
     function merge(
@@ -445,10 +435,11 @@
         }
 
 
-        const current = getState(
-            path,
-            {}
-        );
+        const current =
+            getState(
+                path,
+                {}
+            );
 
 
         let base;
@@ -492,7 +483,9 @@
 
     function resetState() {
 
-        STATE = cloneDefaultState();
+        STATE =
+            cloneDefaultState();
+
 
         return STATE;
 
@@ -558,7 +551,9 @@
         file
     ) {
 
-        STATE.file = file || null;
+        STATE.file =
+            file || null;
+
 
         return STATE.file;
 
@@ -616,7 +611,9 @@
 
     function clearReplacementCharacter() {
 
-        STATE.replacementCharacter = null;
+        STATE.replacementCharacter =
+            null;
+
 
         return true;
 
@@ -884,6 +881,212 @@
 
 
     /* =====================================================
+       LEGACY PROCESS COMPATIBILITY
+       -----------------------------------------------------
+       vision-events.js menggunakan:
+
+       getState().setProcessing(...)
+
+       Method ini mempertahankan process state
+       yang sudah digunakan sistem sekarang.
+    ===================================================== */
+
+    function setProcessing(
+        value = true,
+        options = {}
+    ) {
+
+        /* ---------------------------------------------
+           Boolean form
+
+           setProcessing(true)
+           setProcessing(false)
+        --------------------------------------------- */
+
+        if (
+            typeof value === "boolean"
+        ) {
+
+            if (value) {
+
+                STATE.process = {
+
+                    ...STATE.process,
+
+                    status: "processing",
+
+                    stage:
+                        options.stage ??
+                        STATE.process.stage ??
+                        "",
+
+                    progress:
+                        options.progress ??
+                        STATE.process.progress ??
+                        0,
+
+                    error: null
+
+                };
+
+            } else {
+
+                STATE.process = {
+
+                    ...STATE.process,
+
+                    status: "idle",
+
+                    stage:
+                        options.stage ??
+                        STATE.process.stage ??
+                        "",
+
+                    progress:
+                        options.progress ??
+                        STATE.process.progress ??
+                        STATE.process.progress ??
+                        0,
+
+                    error:
+                        options.error ??
+                        null
+
+                };
+
+            }
+
+
+            return STATE.process;
+
+        }
+
+
+        /* ---------------------------------------------
+           Object form
+
+           setProcessing({
+               status: "...",
+               stage: "...",
+               progress: ...
+           })
+        --------------------------------------------- */
+
+        if (
+            value &&
+            typeof value === "object" &&
+            !Array.isArray(value)
+        ) {
+
+            STATE.process = {
+
+                ...STATE.process,
+
+                ...value,
+
+                status:
+                    value.status ??
+                    "processing"
+
+            };
+
+
+            return STATE.process;
+
+        }
+
+
+        /* ---------------------------------------------
+           String form
+
+           setProcessing("processing")
+        --------------------------------------------- */
+
+        if (
+            typeof value === "string"
+        ) {
+
+            STATE.process = {
+
+                ...STATE.process,
+
+                status: value
+
+            };
+
+
+            return STATE.process;
+
+        }
+
+
+        return STATE.process;
+
+    }
+
+
+    /* =====================================================
+       LEGACY PROCESS STATE
+    ===================================================== */
+
+    function setProcessingState(
+        processing,
+        stage = "",
+        progress = 0,
+        error = null
+    ) {
+
+        if (
+            processing
+        ) {
+
+            return setProcessStatus(
+
+                "processing",
+
+                stage,
+
+                progress,
+
+                error
+
+            );
+
+        }
+
+
+        return setProcessStatus(
+
+            "idle",
+
+            stage,
+
+            progress,
+
+            error
+
+        );
+
+    }
+
+
+    /* =====================================================
+       PROCESS CHECK
+    ===================================================== */
+
+    function isProcessing() {
+
+        return (
+
+            STATE.process.status ===
+            "processing"
+
+        );
+
+    }
+
+
+    /* =====================================================
        CREDIT
     ===================================================== */
 
@@ -1052,10 +1255,13 @@
                 STATE.credit,
 
             historyCount:
+
                 Array.isArray(
                     STATE.history.items
                 )
+
                     ? STATE.history.items.length
+
                     : 0
 
         };
@@ -1082,172 +1288,179 @@
        PUBLIC API
     ===================================================== */
 
-    const GENZVisionState = Object.freeze({
+    const GENZVisionState =
+        Object.freeze({
 
-        /* ---------------------------------------------
-           CORE
-        --------------------------------------------- */
+            /* -----------------------------------------
+               CORE
+            ----------------------------------------- */
 
-        DEFAULT_STATE,
+            DEFAULT_STATE,
 
-        initialize,
+            initialize,
 
-        getState,
+            getState,
 
-        setState,
+            setState,
 
-        get,
+            get,
 
-        set,
+            set,
 
-        merge,
+            merge,
 
-        resetState,
+            resetState,
 
-        getSnapshot,
+            getSnapshot,
 
-        getDebugInfo,
+            getDebugInfo,
 
 
-        /* ---------------------------------------------
-           AUTH
-        --------------------------------------------- */
+            /* -----------------------------------------
+               AUTH
+            ----------------------------------------- */
 
-        setAuth,
+            setAuth,
 
 
-        /* ---------------------------------------------
-           MODEL
-        --------------------------------------------- */
+            /* -----------------------------------------
+               MODEL
+            ----------------------------------------- */
 
-        setModel,
+            setModel,
 
-        getModel,
+            getModel,
 
 
-        /* ---------------------------------------------
-           REFERENCE IMAGE
-        --------------------------------------------- */
+            /* -----------------------------------------
+               REFERENCE IMAGE
+            ----------------------------------------- */
 
-        setFile,
+            setFile,
 
-        getFile,
+            getFile,
 
-        clearFile,
+            clearFile,
 
-        hasFile,
+            hasFile,
 
 
-        /* ---------------------------------------------
-           REPLACEMENT CHARACTER
-        --------------------------------------------- */
+            /* -----------------------------------------
+               REPLACEMENT CHARACTER
+            ----------------------------------------- */
 
-        setReplacementCharacter,
+            setReplacementCharacter,
 
-        getReplacementCharacter,
+            getReplacementCharacter,
 
-        clearReplacementCharacter,
+            clearReplacementCharacter,
 
-        hasReplacementCharacter,
+            hasReplacementCharacter,
 
 
-        /* ---------------------------------------------
-           IMAGE ALIASES
-        --------------------------------------------- */
+            /* -----------------------------------------
+               IMAGE ALIASES
+            ----------------------------------------- */
 
-        getReferenceImage,
+            getReferenceImage,
 
-        getCharacterImage,
+            getCharacterImage,
 
-        hasReferenceImage,
+            hasReferenceImage,
 
-        hasCharacterImage,
+            hasCharacterImage,
 
-        clearImages,
+            clearImages,
 
 
-        /* ---------------------------------------------
-           SETTINGS
-        --------------------------------------------- */
+            /* -----------------------------------------
+               SETTINGS
+            ----------------------------------------- */
 
-        setSettings,
+            setSettings,
 
-        getSettings,
+            getSettings,
 
 
-        /* ---------------------------------------------
-           ANALYSIS
-        --------------------------------------------- */
+            /* -----------------------------------------
+               ANALYSIS
+            ----------------------------------------- */
 
-        setAnalysis,
+            setAnalysis,
 
-        getAnalysis,
+            getAnalysis,
 
-        clearAnalysis,
+            clearAnalysis,
 
 
-        /* ---------------------------------------------
-           PROMPT
-        --------------------------------------------- */
+            /* -----------------------------------------
+               PROMPT
+            ----------------------------------------- */
 
-        setPrompt,
+            setPrompt,
 
-        getPrompt,
+            getPrompt,
 
-        setPromptValue,
+            setPromptValue,
 
-        clearPrompt,
+            clearPrompt,
 
 
-        /* ---------------------------------------------
-           PROCESS
-        --------------------------------------------- */
+            /* -----------------------------------------
+               PROCESS
+            ----------------------------------------- */
 
-        setProcess,
+            setProcess,
 
-        getProcess,
+            getProcess,
 
-        setProcessStatus,
+            setProcessStatus,
 
-        setProcessError,
+            setProcessError,
 
+            setProcessing,
 
-        /* ---------------------------------------------
-           CREDIT
-        --------------------------------------------- */
+            setProcessingState,
 
-        setCredit,
+            isProcessing,
 
-        getCredit,
 
+            /* -----------------------------------------
+               CREDIT
+            ----------------------------------------- */
 
-        /* ---------------------------------------------
-           HISTORY
-        --------------------------------------------- */
+            setCredit,
 
-        setHistory,
+            getCredit,
 
-        getHistory,
 
+            /* -----------------------------------------
+               HISTORY
+            ----------------------------------------- */
 
-        /* ---------------------------------------------
-           UI
-        --------------------------------------------- */
+            setHistory,
 
-        setUI,
+            getHistory,
 
-        getUI,
 
+            /* -----------------------------------------
+               UI
+            ----------------------------------------- */
 
-        /* ---------------------------------------------
-           READY CHECKS
-        --------------------------------------------- */
+            setUI,
 
-        isReadyForAnalysis,
+            getUI,
 
-        isReadyForCharacterReplacement
 
-    });
+            /* -----------------------------------------
+               READY CHECKS
+            ----------------------------------------- */
+
+            isReadyForAnalysis,
+
+            isReadyForCharacterReplacement
+
+        });
 
 
     /* =====================================================
