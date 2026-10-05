@@ -648,6 +648,43 @@
 
 
                         <!-- =================================
+                             OUTFIT SOURCE
+                        ================================== -->
+
+                        <div
+                            class="vision-field"
+                        >
+
+                            <label
+                                for="visionOutfitSource"
+                            >
+                                OUTFIT SOURCE
+                            </label>
+
+                            <select
+                                id="visionOutfitSource"
+                            >
+
+                                <option
+                                    value="reference"
+                                    selected
+                                >
+                                    Reference Image Outfit
+                                </option>
+
+                                <option
+                                    value="character"
+                                >
+                                    Replacement Character Outfit
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+
+                        <!-- =================================
                              CUSTOM INSTRUCTION
                         ================================== -->
 
@@ -1014,7 +1051,7 @@
          - Feedback berhasil/gagal
          - Fallback clipboard
          - Restore label tombol
-         
+
          Tidak mengubah proses Vision lainnya.
     ====================================================== -->
 
@@ -1519,7 +1556,7 @@
            -------------------------------------------------
            Vision module dapat mengisi hasil prompt
            setelah proses async selesai.
-           
+
            Observer memastikan tombol COPY otomatis
            aktif ketika prompt sudah tersedia.
         ================================================= */
