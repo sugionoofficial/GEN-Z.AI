@@ -1087,13 +1087,91 @@ async function generatePrompt(
 
 /* =========================================================
    EXTRACT ASSISTANT TEXT
+   ---------------------------------------------------------
+   Mendukung:
+
+   1. GEN-Z.AI normalized response
+      response.content
+
+   2. normalized message
+      response.message.content
+
+   3. OpenAI-compatible response
+      response.choices[0].message.content
+
+   4. content array
+
+   5. output_text
+
+   6. text
 ========================================================= */
 
 function extractAssistantText(
     response
 ) {
 
-    const content =
+    /* =====================================================
+       1. GEN-Z.AI NORMALIZED RESPONSE
+       -----------------------------------------------------
+       provider/openkey/chat.js menghasilkan:
+
+       {
+           content: "...",
+           message: {...},
+           model: "...",
+           ...
+       }
+    ===================================================== */
+
+    if (
+        typeof response?.content ===
+        "string"
+    ) {
+
+        const content =
+            response.content.trim();
+
+
+        if (
+            content
+        ) {
+
+            return content;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       2. NORMALIZED MESSAGE
+    ===================================================== */
+
+    if (
+        typeof response?.message?.content ===
+        "string"
+    ) {
+
+        const content =
+            response.message.content.trim();
+
+
+        if (
+            content
+        ) {
+
+            return content;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       3. OPENAI-COMPATIBLE RESPONSE
+    ===================================================== */
+
+    const choiceContent =
         response
             ?.choices?.[0]
             ?.message
@@ -1101,79 +1179,190 @@ function extractAssistantText(
 
 
     if (
-        typeof content ===
+        typeof choiceContent ===
         "string"
     ) {
 
-        return content.trim();
+        const content =
+            choiceContent.trim();
+
+
+        if (
+            content
+        ) {
+
+            return content;
+
+        }
 
     }
 
+
+    /* =====================================================
+       4. NORMALIZED MESSAGE CONTENT ARRAY
+    ===================================================== */
 
     if (
         Array.isArray(
-            content
+            response?.message?.content
         )
     ) {
 
-        return content
+        const content =
+            response.message.content
 
-            .map(
-                part => {
+                .map(
+                    part => {
 
-                    if (
-                        typeof part ===
-                        "string"
-                    ) {
+                        if (
+                            typeof part ===
+                            "string"
+                        ) {
 
-                        return part;
+                            return part;
+
+                        }
+
+
+                        if (
+                            typeof part?.text ===
+                            "string"
+                        ) {
+
+                            return part.text;
+
+                        }
+
+
+                        return "";
 
                     }
+                )
+
+                .join("")
+
+                .trim();
 
 
-                    if (
-                        typeof part?.text ===
-                        "string"
-                    ) {
+        if (
+            content
+        ) {
 
-                        return part.text;
+            return content;
 
-                    }
-
-
-                    return "";
-
-                }
-            )
-
-            .join(
-                ""
-            )
-
-            .trim();
+        }
 
     }
 
+
+    /* =====================================================
+       5. OPENAI CHOICES CONTENT ARRAY
+    ===================================================== */
+
+    if (
+        Array.isArray(
+            choiceContent
+        )
+    ) {
+
+        const content =
+            choiceContent
+
+                .map(
+                    part => {
+
+                        if (
+                            typeof part ===
+                            "string"
+                        ) {
+
+                            return part;
+
+                        }
+
+
+                        if (
+                            typeof part?.text ===
+                            "string"
+                        ) {
+
+                            return part.text;
+
+                        }
+
+
+                        return "";
+
+                    }
+                )
+
+                .join("")
+
+                .trim();
+
+
+        if (
+            content
+        ) {
+
+            return content;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       6. OUTPUT TEXT
+    ===================================================== */
 
     if (
         typeof response?.output_text ===
         "string"
     ) {
 
-        return response.output_text.trim();
+        const content =
+            response.output_text.trim();
+
+
+        if (
+            content
+        ) {
+
+            return content;
+
+        }
 
     }
 
+
+    /* =====================================================
+       7. TEXT
+    ===================================================== */
 
     if (
         typeof response?.text ===
         "string"
     ) {
 
-        return response.text.trim();
+        const content =
+            response.text.trim();
+
+
+        if (
+            content
+        ) {
+
+            return content;
+
+        }
 
     }
 
+
+    /* =====================================================
+       8. NO CONTENT
+    ===================================================== */
 
     return "";
 
