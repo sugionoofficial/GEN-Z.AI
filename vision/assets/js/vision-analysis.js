@@ -1,4 +1,4 @@
-//vision-analysis.js?v=1.1
+// vision-analysis.js?v=1.2
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -8,6 +8,7 @@
    Fungsi:
    - Normalisasi hasil Vision Analysis
    - Parsing JSON analysis
+   - Menangani response wrapper dari API
    - Menjaga struktur analysis tetap konsisten
    - Menyediakan fallback jika model mengembalikan text
    - Membuat ringkasan analysis
@@ -666,62 +667,476 @@ function parseAnalysisText(
 
     try {
 
-        return JSON.parse(
-            cleaned
-        );
-
-    } catch {
-
-        /*
-         * Fallback:
-         * cari object JSON pertama
-         * yang lengkap.
-         */
-
-        const firstBrace =
-            cleaned.indexOf(
-                "{"
-            );
-
-
-        const lastBrace =
-            cleaned.lastIndexOf(
-                "}"
+        const parsed =
+            JSON.parse(
+                cleaned
             );
 
 
         if (
-            firstBrace ===
-                -1 ||
-            lastBrace <=
-                firstBrace
+            parsed &&
+            typeof parsed ===
+                "object" &&
+            !Array.isArray(
+                parsed
+            )
         ) {
 
-            return null;
+            return parsed;
+
+        }
+
+    } catch {
+
+        /*
+         * Lanjutkan ke fallback
+         * object extraction.
+         */
+
+    }
+
+
+    /*
+     * Fallback:
+     * cari object JSON pertama
+     * yang lengkap.
+     */
+
+    const firstBrace =
+        cleaned.indexOf(
+            "{"
+        );
+
+
+    const lastBrace =
+        cleaned.lastIndexOf(
+            "}"
+        );
+
+
+    if (
+        firstBrace ===
+            -1 ||
+        lastBrace <=
+            firstBrace
+    ) {
+
+        return null;
+
+    }
+
+
+    const candidate =
+        cleaned.slice(
+            firstBrace,
+            lastBrace + 1
+        );
+
+
+    try {
+
+        const parsed =
+            JSON.parse(
+                candidate
+            );
+
+
+        if (
+            parsed &&
+            typeof parsed ===
+                "object" &&
+            !Array.isArray(
+                parsed
+            )
+        ) {
+
+            return parsed;
 
         }
 
 
-        const candidate =
-            cleaned.slice(
-                firstBrace,
-                lastBrace + 1
+    } catch {
+
+        return null;
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   FIND ANALYSIS PAYLOAD
+   ---------------------------------------------------------
+   API response OpenKey dapat berbentuk:
+
+   1. Direct analysis object
+   2. { content: "```json ... ```" }
+   3. { message: { content: "..." } }
+   4. { data: { content: "..." } }
+   5. { analysis: "..." }
+   6. { result: "..." }
+   7. Nested wrapper beberapa tingkat
+
+   Fungsi ini hanya mencari payload.
+   Tidak melakukan request atau side effect.
+========================================================= */
+
+function extractAnalysisPayload(
+    value
+) {
+
+    if (
+        value ===
+        null ||
+        value ===
+        undefined
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+     * String kemungkinan besar
+     * adalah JSON analysis langsung.
+     */
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        const parsed =
+            parseAnalysisText(
+                value
             );
 
 
-        try {
+        if (
+            parsed
+        ) {
 
-            return JSON.parse(
+            return parsed;
+
+        }
+
+
+        return null;
+
+    }
+
+
+    if (
+        typeof value !==
+            "object" ||
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Jika object sudah mempunyai
+     * field analysis utama, gunakan
+     * object tersebut langsung.
+     */
+
+    const analysisKeys = [
+
+        "subject",
+        "appearance",
+        "face_hair",
+        "faceHair",
+        "pose",
+        "clothing",
+        "accessories",
+        "product",
+        "composition",
+        "camera",
+        "lighting",
+        "environment",
+        "color_palette",
+        "colorPalette",
+        "visual_style",
+        "visualStyle",
+        "text_branding",
+        "textBranding",
+        "image_quality",
+        "imageQuality",
+        "important_details",
+        "importantDetails",
+        "uncertainties"
+
+    ];
+
+
+    const hasAnalysisField =
+        analysisKeys.some(
+            key =>
+                Object.prototype.hasOwnProperty.call(
+                    value,
+                    key
+                )
+        );
+
+
+    if (
+        hasAnalysisField
+    ) {
+
+        return value;
+
+    }
+
+
+    /*
+     * OpenKey chat response:
+     *
+     * {
+     *   success: true,
+     *   content: "```json..."
+     * }
+     */
+
+    const directCandidates = [
+
+        value.content,
+
+        value.analysis,
+
+        value.result,
+
+        value.output,
+
+        value.text
+
+    ];
+
+
+    for (
+        const candidate
+        of directCandidates
+    ) {
+
+        if (
+            candidate ===
+            null ||
+            candidate ===
+            undefined
+        ) {
+
+            continue;
+
+        }
+
+
+        const extracted =
+            extractAnalysisPayload(
                 candidate
             );
 
-        } catch {
 
-            return null;
+        if (
+            extracted
+        ) {
+
+            return extracted;
 
         }
 
     }
+
+
+    /*
+     * OpenAI-compatible response:
+     *
+     * {
+     *   choices: [
+     *     {
+     *       message: {
+     *         content: "..."
+     *       }
+     *     }
+     *   ]
+     * }
+     */
+
+    if (
+        Array.isArray(
+            value.choices
+        )
+    ) {
+
+        for (
+            const choice
+            of value.choices
+        ) {
+
+            const extracted =
+                extractAnalysisPayload(
+                    choice
+                );
+
+
+            if (
+                extracted
+            ) {
+
+                return extracted;
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * Message wrapper.
+     */
+
+    if (
+        value.message
+    ) {
+
+        const extracted =
+            extractAnalysisPayload(
+                value.message
+            );
+
+
+        if (
+            extracted
+        ) {
+
+            return extracted;
+
+        }
+
+    }
+
+
+    /*
+     * Data wrapper.
+     */
+
+    if (
+        value.data
+    ) {
+
+        const extracted =
+            extractAnalysisPayload(
+                value.data
+            );
+
+
+        if (
+            extracted
+        ) {
+
+            return extracted;
+
+        }
+
+    }
+
+
+    /*
+     * Raw wrapper.
+     */
+
+    if (
+        value.raw
+    ) {
+
+        const extracted =
+            extractAnalysisPayload(
+                value.raw
+            );
+
+
+        if (
+            extracted
+        ) {
+
+            return extracted;
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   ANALYSIS OBJECT CHECK
+========================================================= */
+
+function isAnalysisObject(
+    value
+) {
+
+    if (
+        !value ||
+        typeof value !==
+            "object" ||
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return false;
+
+    }
+
+
+    const analysisKeys = [
+
+        "subject",
+        "appearance",
+        "face_hair",
+        "faceHair",
+        "pose",
+        "clothing",
+        "accessories",
+        "product",
+        "composition",
+        "camera",
+        "lighting",
+        "environment",
+        "color_palette",
+        "colorPalette",
+        "visual_style",
+        "visualStyle",
+        "text_branding",
+        "textBranding",
+        "image_quality",
+        "imageQuality",
+        "important_details",
+        "importantDetails",
+        "uncertainties"
+
+    ];
+
+
+    return analysisKeys.some(
+        key =>
+            Object.prototype.hasOwnProperty.call(
+                value,
+                key
+            )
+    );
 
 }
 
@@ -735,7 +1150,12 @@ function parseAnalysis(
 ) {
 
     if (
-        !value
+        value ===
+        null ||
+        value ===
+        undefined ||
+        value ===
+        ""
     ) {
 
         return {
@@ -756,30 +1176,14 @@ function parseAnalysis(
     }
 
 
-    if (
-        typeof value ===
-        "object"
-    ) {
-
-        return {
-
-            normalized:
-                normalizeAnalysis(
-                    value
-                ),
-
-            raw:
-                clone(
-                    value
-                ),
-
-            parsed:
-                true
-
-        };
-
-    }
-
+    /*
+     * =====================================================
+     * STRING
+     * =====================================================
+     *
+     * JSON analysis dari model biasanya
+     * berada di dalam markdown code fence.
+     */
 
     if (
         typeof value ===
@@ -845,6 +1249,130 @@ function parseAnalysis(
 
     }
 
+
+    /*
+     * =====================================================
+     * OBJECT
+     * =====================================================
+     *
+     * PENTING:
+     * Jangan langsung normalize object.
+     *
+     * Response OpenKey dapat berupa wrapper:
+     *
+     * {
+     *   success: true,
+     *   content: "```json ...```",
+     *   message: {
+     *      content: "```json ...```"
+     *   }
+     * }
+     *
+     * Kita harus mengambil analysis payload
+     * terlebih dahulu.
+     */
+
+    if (
+        typeof value ===
+            "object" &&
+        !Array.isArray(
+            value
+        )
+    ) {
+
+        /*
+         * Direct analysis object.
+         */
+
+        if (
+            isAnalysisObject(
+                value
+            )
+        ) {
+
+            return {
+
+                normalized:
+                    normalizeAnalysis(
+                        value
+                    ),
+
+                raw:
+                    clone(
+                        value
+                    ),
+
+                parsed:
+                    true
+
+            };
+
+        }
+
+
+        /*
+         * Wrapper response.
+         */
+
+        const extracted =
+            extractAnalysisPayload(
+                value
+            );
+
+
+        if (
+            extracted
+        ) {
+
+            return {
+
+                normalized:
+                    normalizeAnalysis(
+                        extracted
+                    ),
+
+                raw:
+                    clone(
+                        value
+                    ),
+
+                parsed:
+                    true
+
+            };
+
+        }
+
+
+        /*
+         * Tidak ditemukan payload analysis.
+         */
+
+        return {
+
+            normalized:
+                clone(
+                    DEFAULT_VISION_ANALYSIS
+                ),
+
+            raw:
+                clone(
+                    value
+                ),
+
+            parsed:
+                false
+
+        };
+
+    }
+
+
+    /*
+     * =====================================================
+     * FALLBACK
+     * =====================================================
+     */
 
     return {
 
@@ -1118,10 +1646,21 @@ function hasUsefulAnalysis(
     }
 
 
-    const normalized =
-        normalizeAnalysis(
+    /*
+     * Parse wrapper terlebih dahulu.
+     *
+     * Ini penting jika fungsi dipanggil
+     * langsung dengan response OpenKey.
+     */
+
+    const parsed =
+        parseAnalysis(
             analysis
         );
+
+
+    const normalized =
+        parsed.normalized;
 
 
     const fields = [
@@ -1184,15 +1723,48 @@ function formatAnalysisForDisplay(
         "string"
     ) {
 
+        const parsed =
+            parseAnalysisText(
+                analysis
+            );
+
+
+        if (
+            parsed
+        ) {
+
+            try {
+
+                return JSON.stringify(
+                    normalizeAnalysis(
+                        parsed
+                    ),
+                    null,
+                    2
+                );
+
+            } catch {
+
+                return analysis;
+
+            }
+
+        }
+
+
         return analysis;
 
     }
 
 
-    const normalized =
-        normalizeAnalysis(
+    const parsed =
+        parseAnalysis(
             analysis
         );
+
+
+    const normalized =
+        parsed.normalized;
 
 
     try {
@@ -1223,10 +1795,20 @@ function formatAnalysisForPrompt(
     analysis
 ) {
 
-    const normalized =
-        normalizeAnalysis(
+    /*
+     * Penting:
+     * formatAnalysisForPrompt juga harus mampu
+     * menerima wrapper API maupun direct object.
+     */
+
+    const parsed =
+        parseAnalysis(
             analysis
         );
+
+
+    const normalized =
+        parsed.normalized;
 
 
     try {
@@ -1288,6 +1870,10 @@ const GENZVisionAnalysis =
         normalizeAnalysis,
 
         parseAnalysisText,
+
+        extractAnalysisPayload,
+
+        isAnalysisObject,
 
         parseAnalysis,
 
