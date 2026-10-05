@@ -16,6 +16,7 @@
    - Menyimpan credit state
    - Menyimpan history state
    - Menyimpan UI state
+   - Menyediakan compatibility API get() / set()
 
    Tidak menangani:
    - DOM
@@ -56,6 +57,7 @@ const DEFAULT_STATE = {
        REFERENCE IMAGE
        -----------------------------------------------------
        File utama yang akan dibedah / dianalisis.
+
        Property "file" dipertahankan untuk kompatibilitas
        dengan modul Vision yang sudah ada.
     ===================================================== */
@@ -414,7 +416,41 @@ let STATE =
 
 
 /* =========================================================
+   INITIALIZE
+   ---------------------------------------------------------
+   Dipanggil oleh vision-loader.js.
+
+   State hanya perlu memastikan internal state tersedia.
+   Tidak melakukan API / DOM / network operation.
+========================================================= */
+
+function initialize() {
+
+    if (
+        !STATE ||
+        typeof STATE !== "object"
+    ) {
+
+        STATE =
+            cloneDefaultState();
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
    GET STATE
+   ---------------------------------------------------------
+   API utama.
+
+   Contoh:
+   getState()
+   getState("model.id")
+   getState("auth.profile")
 ========================================================= */
 
 function getState(
@@ -473,6 +509,11 @@ function getState(
 
 /* =========================================================
    SET STATE
+   ---------------------------------------------------------
+   API utama.
+
+   Contoh:
+   setState("model.id", "grok-4.6")
 ========================================================= */
 
 function setState(
@@ -542,6 +583,68 @@ function setState(
 
 
     return true;
+
+}
+
+
+/* =========================================================
+   COMPATIBILITY GET
+   ---------------------------------------------------------
+   Compatibility layer untuk modul Vision lama.
+
+   Modul lama menggunakan:
+
+       state.get("model.id")
+
+   Sedangkan API utama menggunakan:
+
+       state.getState("model.id")
+
+   Keduanya sekarang diarahkan ke sumber state yang sama.
+========================================================= */
+
+function get(
+    path,
+    fallback = undefined
+) {
+
+    return getState(
+        path,
+        fallback
+    );
+
+}
+
+
+/* =========================================================
+   COMPATIBILITY SET
+   ---------------------------------------------------------
+   Compatibility layer untuk modul Vision lama.
+
+   Modul lama menggunakan:
+
+       state.set(
+           "auth.credits",
+           10
+       )
+
+   Sedangkan API utama menggunakan:
+
+       state.setState(
+           "auth.credits",
+           10
+       )
+========================================================= */
+
+function set(
+    path,
+    value
+) {
+
+    return setState(
+        path,
+        value
+    );
 
 }
 
@@ -661,6 +764,13 @@ function setModel(
 
     };
 
+
+    return STATE.model;
+
+}
+
+
+function getModel() {
 
     return STATE.model;
 
@@ -859,6 +969,13 @@ function setSettings(
 }
 
 
+function getSettings() {
+
+    return STATE.settings;
+
+}
+
+
 /* =========================================================
    ANALYSIS
 ========================================================= */
@@ -875,6 +992,13 @@ function setAnalysis(
 
     };
 
+
+    return STATE.analysis;
+
+}
+
+
+function getAnalysis() {
 
     return STATE.analysis;
 
@@ -921,6 +1045,13 @@ function setPrompt(
 
     };
 
+
+    return STATE.prompt;
+
+}
+
+
+function getPrompt() {
 
     return STATE.prompt;
 
@@ -980,6 +1111,13 @@ function setProcess(
 
     };
 
+
+    return STATE.process;
+
+}
+
+
+function getProcess() {
 
     return STATE.process;
 
@@ -1060,6 +1198,13 @@ function setCredit(
 }
 
 
+function getCredit() {
+
+    return STATE.credit;
+
+}
+
+
 /* =========================================================
    HISTORY
 ========================================================= */
@@ -1082,6 +1227,13 @@ function setHistory(
 }
 
 
+function getHistory() {
+
+    return STATE.history;
+
+}
+
+
 /* =========================================================
    UI
 ========================================================= */
@@ -1098,6 +1250,13 @@ function setUI(
 
     };
 
+
+    return STATE.ui;
+
+}
+
+
+function getUI() {
 
     return STATE.ui;
 
@@ -1256,11 +1415,28 @@ function getDebugInfo() {
 const GENZVisionState =
     Object.freeze({
 
+        /* -------------------------------------------------
+           CORE
+        ------------------------------------------------- */
+
         DEFAULT_STATE,
+
+        initialize,
 
         getState,
 
         setState,
+
+        /* -------------------------------------------------
+           COMPATIBILITY API
+           -----------------------------------------------
+           Dipertahankan karena modul Vision existing
+           masih menggunakan state.get() / state.set().
+        ------------------------------------------------- */
+
+        get,
+
+        set,
 
         resetState,
 
@@ -1268,9 +1444,26 @@ const GENZVisionState =
 
         getDebugInfo,
 
+
+        /* -------------------------------------------------
+           AUTH
+        ------------------------------------------------- */
+
         setAuth,
 
+
+        /* -------------------------------------------------
+           MODEL
+        ------------------------------------------------- */
+
         setModel,
+
+        getModel,
+
+
+        /* -------------------------------------------------
+           REFERENCE IMAGE
+        ------------------------------------------------- */
 
         setFile,
 
@@ -1280,6 +1473,11 @@ const GENZVisionState =
 
         hasFile,
 
+
+        /* -------------------------------------------------
+           REPLACEMENT CHARACTER
+        ------------------------------------------------- */
+
         setReplacementCharacter,
 
         getReplacementCharacter,
@@ -1287,6 +1485,11 @@ const GENZVisionState =
         clearReplacementCharacter,
 
         hasReplacementCharacter,
+
+
+        /* -------------------------------------------------
+           IMAGE HELPERS
+        ------------------------------------------------- */
 
         getReferenceImage,
 
@@ -1298,29 +1501,83 @@ const GENZVisionState =
 
         clearImages,
 
+
+        /* -------------------------------------------------
+           SETTINGS
+        ------------------------------------------------- */
+
         setSettings,
+
+        getSettings,
+
+
+        /* -------------------------------------------------
+           ANALYSIS
+        ------------------------------------------------- */
 
         setAnalysis,
 
+        getAnalysis,
+
         clearAnalysis,
 
+
+        /* -------------------------------------------------
+           PROMPT
+        ------------------------------------------------- */
+
         setPrompt,
+
+        getPrompt,
 
         setPromptValue,
 
         clearPrompt,
 
+
+        /* -------------------------------------------------
+           PROCESS
+        ------------------------------------------------- */
+
         setProcess,
+
+        getProcess,
 
         setProcessStatus,
 
         setProcessError,
 
+
+        /* -------------------------------------------------
+           CREDIT
+        ------------------------------------------------- */
+
         setCredit,
+
+        getCredit,
+
+
+        /* -------------------------------------------------
+           HISTORY
+        ------------------------------------------------- */
 
         setHistory,
 
+        getHistory,
+
+
+        /* -------------------------------------------------
+           UI
+        ------------------------------------------------- */
+
         setUI,
+
+        getUI,
+
+
+        /* -------------------------------------------------
+           CHECK
+        ------------------------------------------------- */
 
         isReadyForAnalysis,
 
