@@ -16,6 +16,7 @@
    - OpenKey streaming
    - Tool calling transport
    - SSE response
+   - OpenKey model catalog
 
    TIDAK DIGUNAKAN UNTUK:
    - KIE
@@ -34,6 +35,9 @@ import openKeyChat
 
 import openKeyStream
     from "../provider/openkey/stream.js";
+
+import openKeyModels
+    from "../provider/openkey/models.js";
 
 
 /* =========================================================
@@ -926,6 +930,120 @@ async function loadOpenKeyApiKey() {
 
 
 /* =========================================================
+   OPENKEY MODEL CATALOG
+   ---------------------------------------------------------
+   Digunakan oleh Vision untuk mendapatkan model OpenKey
+   yang benar-benar tersedia.
+
+   API key:
+   - tetap server-side
+   - tidak pernah dikirim ke browser
+
+   Sumber:
+   provider/openkey/models.js
+========================================================= */
+
+async function handleOpenKeyModelsOperation(
+    res,
+    apiKey
+) {
+
+    const models =
+        await openKeyModels.loadModels({
+
+            apiKey
+
+        });
+
+
+    const normalizedModels =
+        Array.isArray(
+            models
+        )
+
+            ? models.map(
+                model => ({
+
+                    id:
+                        model?.model_id ||
+                        model?.id ||
+                        "",
+
+                    model_id:
+                        model?.model_id ||
+                        model?.id ||
+                        "",
+
+                    name:
+                        model?.model_name ||
+                        model?.name ||
+                        model?.model_id ||
+                        model?.id ||
+                        "",
+
+                    model_name:
+                        model?.model_name ||
+                        model?.name ||
+                        model?.model_id ||
+                        model?.id ||
+                        "",
+
+                    owned_by:
+                        model?.owned_by ||
+                        "",
+
+                    input_modalities:
+                        Array.isArray(
+                            model?.input_modalities
+                        )
+                            ? model.input_modalities
+                            : [],
+
+                    output_modalities:
+                        Array.isArray(
+                            model?.output_modalities
+                        )
+                            ? model.output_modalities
+                            : [],
+
+                    context_length:
+                        model?.context_length ??
+                        null,
+
+                    max_output_tokens:
+                        model?.max_output_tokens ??
+                        null
+
+                })
+            )
+
+            : [];
+
+
+    return json(
+        res,
+        200,
+        {
+
+            success:
+                true,
+
+            operation:
+                "openkey_models",
+
+            models:
+                normalizedModels,
+
+            count:
+                normalizedModels.length
+
+        }
+    );
+
+}
+
+
+/* =========================================================
    VALIDATE MESSAGES
 ========================================================= */
 
@@ -1602,6 +1720,7 @@ function setHeaders(
 
 }
 
+
 /* =========================================================
    VISION CREDIT CONFIG
    ---------------------------------------------------------
@@ -1611,7 +1730,8 @@ function setHeaders(
    - refund hanya jika proses Vision gagal
 ========================================================= */
 
-const VISION_CREDIT_COST = 1;
+const VISION_CREDIT_COST =
+    1;
 
 
 /* =========================================================
@@ -1622,7 +1742,9 @@ async function getVisionCredits(
     userId
 ) {
 
-    if (!userId) {
+    if (
+        !userId
+    ) {
 
         throw createError(
             "User ID tidak tersedia.",
@@ -2088,6 +2210,7 @@ async function handleVisionCreditOperation(
     return null;
 
 }
+
 
 /* =========================================================
    VISION HISTORY
@@ -2586,6 +2709,7 @@ export default async function handler(
 
     }
 
+
     /*
      * AUTHENTICATION
      */
@@ -2593,14 +2717,14 @@ export default async function handler(
     let authenticatedUser;
 
 
-try {
+    try {
 
-    authenticatedUser =
-        await authenticateUser(
-            req
-        );
+        authenticatedUser =
+            await authenticateUser(
+                req
+            );
 
-} catch (error) {
+    } catch (error) {
 
         console.error(
             "[openkey-chat] Authentication failed:",
@@ -2696,160 +2820,170 @@ try {
 
     }
 
-   /* =========================================================
-   VISION CREDIT OPERATIONS
-   ---------------------------------------------------------
-   Vision menggunakan endpoint OpenKey yang sama.
-   Operasi credit tidak membutuhkan credential OpenKey.
-========================================================= */
 
-const operation =
-    String(
-        body?.operation ||
-        ""
-    ).trim();
+    /* =========================================================
+       OPERATION
+    ========================================================= */
 
-
-if (
-    operation ===
-        "vision_credit_check" ||
-    operation ===
-        "vision_credit_deduct" ||
-    operation ===
-        "vision_credit_refund"
-) {
-
-    try {
-
-        return await handleVisionCreditOperation(
-            res,
-            authenticatedUser,
-            operation
-        );
-
-    } catch (error) {
-
-        console.error(
-            "[openkey-chat] Vision credit operation failed:",
-            error
-        );
-
-
-        return json(
-            res,
-            error.status ||
-                500,
-            {
-
-                success:
-                    false,
-
-                operation,
-
-                error:
-                    error.message ||
-                    "Vision credit operation failed",
-
-                code:
-                    error.code ||
-                    "VISION_CREDIT_OPERATION_FAILED"
-
-            }
-        );
-
-    }
-
-}
-
-   /* =========================================================
-   VISION HISTORY OPERATION
-========================================================= */
-
-if (
-    operation ===
-        "vision_history_save"
-) {
-
-    try {
-
-        return await handleVisionHistoryOperation(
-            res,
-            authenticatedUser,
-            operation,
-            body
-        );
-
-    } catch (error) {
-
-        console.error(
-            "[openkey-chat] Vision history operation failed:",
-            error
-        );
-
-
-        return json(
-            res,
-            error.status ||
-                500,
-            {
-
-                success:
-                    false,
-
-                operation,
-
-                error:
-                    error.message ||
-                    "Vision history operation failed",
-
-                code:
-                    error.code ||
-                    "VISION_HISTORY_OPERATION_FAILED"
-
-            }
-        );
-
-    }
-
-}
+    const operation =
+        String(
+            body?.operation ||
+            ""
+        ).trim();
 
 
     /* =========================================================
-   OPENKEY CREDENTIAL CONFIG
-   ---------------------------------------------------------
-   Hanya diperlukan untuk chat OpenKey.
-   Vision credit/history tidak membutuhkan ini.
-========================================================= */
+       VISION CREDIT OPERATIONS
+       ---------------------------------------------------------
+       Vision menggunakan endpoint OpenKey yang sama.
+       Operasi credit tidak membutuhkan credential OpenKey.
+    ========================================================= */
 
-if (
-    !PROVIDER_CREDENTIAL_ENCRYPTION_KEY
-) {
+    if (
+        operation ===
+            "vision_credit_check" ||
+        operation ===
+            "vision_credit_deduct" ||
+        operation ===
+            "vision_credit_refund"
+    ) {
 
-    return json(
-        res,
-        500,
-        {
+        try {
 
-            success:
-                false,
+            return await handleVisionCreditOperation(
+                res,
+                authenticatedUser,
+                operation
+            );
 
-            error:
-                "Provider credential encryption belum dikonfigurasi.",
+        } catch (error) {
 
-            code:
-                "ENCRYPTION_CONFIG_MISSING"
+            console.error(
+                "[openkey-chat] Vision credit operation failed:",
+                error
+            );
+
+
+            return json(
+                res,
+                error.status ||
+                    500,
+                {
+
+                    success:
+                        false,
+
+                    operation,
+
+                    error:
+                        error.message ||
+                        "Vision credit operation failed",
+
+                    code:
+                        error.code ||
+                        "VISION_CREDIT_OPERATION_FAILED"
+
+                }
+            );
 
         }
-    );
 
-}
+    }
 
 
-/*
- * LOAD OPENKEY CREDENTIAL
- */
+    /* =========================================================
+       VISION HISTORY OPERATION
+    ========================================================= */
 
-let apiKey;
+    if (
+        operation ===
+            "vision_history_save"
+    ) {
+
+        try {
+
+            return await handleVisionHistoryOperation(
+                res,
+                authenticatedUser,
+                operation,
+                body
+            );
+
+        } catch (error) {
+
+            console.error(
+                "[openkey-chat] Vision history operation failed:",
+                error
+            );
+
+
+            return json(
+                res,
+                error.status ||
+                    500,
+                {
+
+                    success:
+                        false,
+
+                    operation,
+
+                    error:
+                        error.message ||
+                        "Vision history operation failed",
+
+                    code:
+                        error.code ||
+                        "VISION_HISTORY_OPERATION_FAILED"
+
+                }
+
+            );
+
+        }
+
+    }
+
+
+    /* =========================================================
+       OPENKEY CREDENTIAL CONFIG
+       ---------------------------------------------------------
+       Hanya diperlukan untuk:
+       - Chat
+       - Streaming
+       - Model catalog
+    ========================================================= */
+
+    if (
+        !PROVIDER_CREDENTIAL_ENCRYPTION_KEY
+    ) {
+
+        return json(
+            res,
+            500,
+            {
+
+                success:
+                    false,
+
+                error:
+                    "Provider credential encryption belum dikonfigurasi.",
+
+                code:
+                    "ENCRYPTION_CONFIG_MISSING"
+
+            }
+
+        );
+
+    }
+
+
+    /* =========================================================
+       LOAD OPENKEY CREDENTIAL
+    ========================================================= */
+
+    let apiKey;
 
 
     try {
@@ -2883,14 +3017,82 @@ let apiKey;
                     "OPENKEY_CREDENTIAL_FAILED"
 
             }
+
         );
 
     }
 
 
-    /*
-     * STREAM
-     */
+    /* =========================================================
+       OPENKEY MODEL CATALOG
+       ---------------------------------------------------------
+       Vision meminta daftar model OpenKey melalui:
+
+       operation:
+           openkey_models
+
+       Credential tetap server-side.
+    ========================================================= */
+
+    if (
+        operation ===
+            "openkey_models"
+    ) {
+
+        try {
+
+            return await handleOpenKeyModelsOperation(
+                res,
+                apiKey
+            );
+
+        } catch (error) {
+
+            console.error(
+                "[openkey-chat] OpenKey model catalog failed:",
+                error
+            );
+
+
+            return json(
+                res,
+                error.status ||
+                    error.statusCode ||
+                    502,
+                {
+
+                    success:
+                        false,
+
+                    operation:
+
+                        "openkey_models",
+
+                    error:
+                        error.message ||
+                        "Gagal mengambil daftar model OpenKey.",
+
+                    code:
+                        error.code ||
+                        "OPENKEY_MODELS_FAILED",
+
+                    provider_status:
+                        error.status ||
+                        error.statusCode ||
+                        null
+
+                }
+
+            );
+
+        }
+
+    }
+
+
+    /* =========================================================
+       STREAM
+    ========================================================= */
 
     const wantsStream =
         body.stream === true ||
@@ -2911,9 +3113,9 @@ let apiKey;
     }
 
 
-    /*
-     * NON STREAM
-     */
+    /* =========================================================
+       NON STREAM
+    ========================================================= */
 
     try {
 
@@ -2955,6 +3157,7 @@ let apiKey;
                     null
 
             }
+
         );
 
     }
