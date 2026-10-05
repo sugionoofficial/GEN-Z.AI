@@ -1,1608 +1,767 @@
-// =========================================================
-// GEN-Z.AI
-// VISION ENGINE
-// ---------------------------------------------------------
-// File:
-// vision/assets/js/vision-events.js
-//
-// Fungsi:
-// - Bind seluruh event Vision
-// - Upload image
-// - Drag & drop
-// - Form settings
-// - Generate Vision
-// - Copy prompt
-// - Remove image
-// - Tidak mengubah logic API / credit / history
-// =========================================================
+/* =========================================================
+   GEN-Z.AI
+   VISION EVENTS MODULE
+   ---------------------------------------------------------
+   File:
+   vision/assets/js/vision-events.js
 
-(function () {
+   Fungsi:
+   - Event Reference Image
+   - Event Replacement Character
+   - Drag & Drop
+   - Browse / File Input
+   - Remove Reference Image
+   - Remove Replacement Character
+   - Sinkronisasi form ke state
+   - Inisialisasi event
+   - Tidak mengubah API / Analysis / Prompt
+========================================================= */
 
-    "use strict";
-
-
-    // =====================================================
-    // CONSTANT
-    // =====================================================
-
-    const CREDIT_COST = 1;
+import { getState } from "./vision-state.js";
+import { getDOM } from "./vision-dom.js";
+import { getUpload } from "./vision-upload.js";
+import { getPreview } from "./vision-preview.js";
+import { getUI } from "./vision-ui.js";
 
 
-    // =====================================================
-    // MODULE GETTERS
-    // =====================================================
+/* =========================================================
+   ERROR NORMALIZER
+========================================================= */
 
-    function getState() {
+function normalizeError(error) {
 
-        if (!window.GENZVisionState) {
-
-            throw new Error(
-                "GENZVisionState belum tersedia."
-            );
-
-        }
-
-        return window.GENZVisionState;
-
+    if (!error) {
+        return "Terjadi kesalahan.";
     }
 
-
-    function getDOM() {
-
-        if (!window.GENZVisionDOM) {
-
-            throw new Error(
-                "GENZVisionDOM belum tersedia."
-            );
-
-        }
-
-
-        if (
-            typeof window.GENZVisionDOM.getDOM !==
-            "function"
-        ) {
-
-            throw new Error(
-                "GENZVisionDOM.getDOM() belum tersedia."
-            );
-
-        }
-
-
-        return window.GENZVisionDOM.getDOM();
-
-    }
-
-
-    function getUpload() {
-
-        if (!window.GENZVisionUpload) {
-
-            throw new Error(
-                "GENZVisionUpload belum tersedia."
-            );
-
-        }
-
-        return window.GENZVisionUpload;
-
-    }
-
-
-    function getPreview() {
-
-        if (!window.GENZVisionPreview) {
-
-            throw new Error(
-                "GENZVisionPreview belum tersedia."
-            );
-
-        }
-
-        return window.GENZVisionPreview;
-
-    }
-
-
-    function getUI() {
-
-        if (!window.GENZVisionUI) {
-
-            throw new Error(
-                "GENZVisionUI belum tersedia."
-            );
-
-        }
-
-        return window.GENZVisionUI;
-
-    }
-
-
-    function getCredit() {
-
-        if (!window.GENZVisionCredit) {
-
-            throw new Error(
-                "GENZVisionCredit belum tersedia."
-            );
-
-        }
-
-        return window.GENZVisionCredit;
-
-    }
-
-
-    function getAPI() {
-
-        if (!window.GENZVisionAPI) {
-
-            throw new Error(
-                "GENZVisionAPI belum tersedia."
-            );
-
-        }
-
-        return window.GENZVisionAPI;
-
-    }
-
-
-    function getAnalysis() {
-
-        if (!window.GENZVisionAnalysis) {
-
-            throw new Error(
-                "GENZVisionAnalysis belum tersedia."
-            );
-
-        }
-
-        return window.GENZVisionAnalysis;
-
-    }
-
-
-    function getPrompt() {
-
-        if (!window.GENZVisionPrompt) {
-
-            throw new Error(
-                "GENZVisionPrompt belum tersedia."
-            );
-
-        }
-
-        return window.GENZVisionPrompt;
-
-    }
-
-
-    function getHistory() {
-
-        if (!window.GENZVisionHistory) {
-
-            throw new Error(
-                "GENZVisionHistory belum tersedia."
-            );
-
-        }
-
-        return window.GENZVisionHistory;
-
-    }
-
-
-    // =====================================================
-    // SAFE ERROR
-    // =====================================================
-
-    function normalizeError(error) {
-
-        if (
-            error &&
-            typeof error === "object"
-        ) {
-
-            if (
-                typeof error.message === "string" &&
-                error.message.trim()
-            ) {
-
-                return error.message.trim();
-
-            }
-
-        }
-
-
-        if (
-            typeof error === "string" &&
-            error.trim()
-        ) {
-
-            return error.trim();
-
-        }
-
-
-        return (
-            "Terjadi kesalahan pada Vision Engine."
-        );
-
-    }
-
-
-    // =====================================================
-    // FORM
-    // =====================================================
-
-    function readFormValues() {
-
-        const dom =
-            getDOM();
-
-
-        const selectedValue =
-            String(
-                dom.model?.value ||
-                ""
-            ).trim();
-
-
-        const detail =
-            dom.detail?.value ||
-            "ultra";
-
-
-        const purpose =
-            dom.purpose?.value ||
-            "image-generation";
-
-
-        const instruction =
-            String(
-                dom.instruction?.value || ""
-            ).trim();
-
-
-        return {
-
-            model:
-                selectedValue,
-
-            detail,
-
-            purpose,
-
-            instruction
-
-        };
-
-    }
-
-
-    // =====================================================
-    // MODEL STATE
-    // =====================================================
-
-    function syncModelToState() {
-
-        const state =
-            getState();
-
-
-        const dom =
-            getDOM();
-
-
-        const selectedId =
-            String(
-                dom.model?.value ||
-                ""
-            ).trim();
-
-
-        if (
-            !selectedId
-        ) {
-
-            return null;
-
-        }
-
-
-        const currentModel =
-            state.get(
-                "model",
-                null
-            );
-
-
-        /*
-         * Jangan mengubah model menjadi string.
-         *
-         * vision-state.js menyimpan model sebagai object:
-         *
-         * {
-         *     id,
-         *     name,
-         *     providerId,
-         *     providerName
-         * }
-         *
-         * Jika model lama cocok dengan select,
-         * pertahankan metadata yang sudah ada.
-         */
-
-        if (
-            currentModel &&
-            typeof currentModel === "object" &&
-            String(
-                currentModel.id ||
-                ""
-            ) === selectedId
-        ) {
-
-            return currentModel;
-
-        }
-
-
-        const model = {
-
-            id:
-                selectedId,
-
-            name:
-                dom.model?.selectedOptions?.[0]?.textContent
-                    ?.trim() ||
-                selectedId,
-
-            providerId:
-                "openkey",
-
-            providerName:
-                "OpenKey"
-
-        };
-
-
-        state.setModel(
-            model
-        );
-
-
-        return model;
-
-    }
-
-
-    // =====================================================
-    // FORM -> STATE
-    // =====================================================
-
-    function syncFormToState() {
-
-        const values =
-            readFormValues();
-
-
-        /*
-         * Model diproses terpisah agar state.model
-         * selalu berupa object.
-         */
-
-        syncModelToState();
-
-
-        getState().setSettings({
-
-            detail:
-                values.detail,
-
-            purpose:
-                values.purpose,
-
-            instruction:
-                values.instruction
-
-        });
-
-    }
-
-
-    // =====================================================
-    // FILE INPUT
-    // =====================================================
-
-    async function handleNewImage(
-        file
+    if (
+        typeof error === "string" &&
+        error.trim()
     ) {
+        return error.trim();
+    }
 
-        if (!file) {
+    if (
+        typeof error.message === "string" &&
+        error.message.trim()
+    ) {
+        return error.message.trim();
+    }
 
-            return null;
+    return "Terjadi kesalahan saat memproses gambar.";
 
-        }
-
-
-        const ui =
-            getUI();
-
-
-        try {
-
-            ui.setProcessing(
-                false
-            );
+}
 
 
-            ui.resetResult();
+/* =========================================================
+   REFERENCE IMAGE
+========================================================= */
+
+async function handleNewImage(file) {
+
+    if (!file) {
+        return null;
+    }
+
+    const ui = getUI();
+
+    try {
+
+        ui.setProcessing(false);
+
+        ui.resetResult();
+
+        const fileData =
+            await getUpload().processFile(file);
+
+        getPreview().renderPreview(
+            fileData
+        );
+
+        ui.setStatus(
+            "ready",
+            "Image siap dianalisis."
+        );
+
+        return fileData;
+
+    } catch (error) {
+
+        const message =
+            normalizeError(error);
+
+        getState().setProcessError(
+            message
+        );
+
+        ui.setStatus(
+            "error",
+            message
+        );
+
+        return null;
+    }
+
+}
 
 
-            const fileData =
-                await getUpload().processFile(
+/* =========================================================
+   REPLACEMENT CHARACTER
+========================================================= */
+
+async function handleNewReplacementCharacter(file) {
+
+    if (!file) {
+        return null;
+    }
+
+    const ui = getUI();
+
+    try {
+
+        const fileData =
+            await getUpload()
+                .processReplacementCharacter(
                     file
                 );
 
-
-            getPreview().renderPreview(
+        getPreview()
+            .renderCharacterPreview(
                 fileData
             );
 
+        /*
+         * Jangan reset hasil analysis/prompt di sini.
+         *
+         * Reference Image tetap merupakan sumber
+         * analisis utama. Character image adalah input
+         * tambahan untuk proses replacement.
+         */
 
-            ui.setStatus(
-                "ready",
-                "Image siap dianalisis."
-            );
-
-
-            return fileData;
-
-        } catch (error) {
-
-            const message =
-                normalizeError(
-                    error
-                );
-
-
-            getState().setProcessError(
-                message
-            );
-
-
-            ui.setStatus(
-                "error",
-                message
-            );
-
-
-            return null;
-
-        }
-
-    }
-
-
-    // =====================================================
-    // FILE INPUT CHANGE
-    // =====================================================
-
-    async function handleFileInput(
-        event
-    ) {
-
-        const input =
-            event?.target;
-
-
-        const files =
-            Array.from(
-                input?.files || []
-            );
-
-
-        if (
-            files.length === 0
-        ) {
-
-            return;
-
-        }
-
-
-        await handleNewImage(
-            files[0]
+        ui.setStatus(
+            "ready",
+            "Replacement character siap digunakan."
         );
 
+        return fileData;
+
+    } catch (error) {
+
+        const message =
+            normalizeError(error);
+
+        getState().setProcessError(
+            message
+        );
+
+        ui.setStatus(
+            "error",
+            message
+        );
+
+        return null;
     }
 
+}
 
-    // =====================================================
-    // DROP
-    // =====================================================
 
-    async function handleDrop(
-        event
-    ) {
+/* =========================================================
+   REFERENCE FILE INPUT
+========================================================= */
 
+async function handleFileInput(event) {
+
+    const input = event?.target;
+
+    const files =
+        Array.from(
+            input?.files || []
+        );
+
+    if (files.length === 0) {
+        return;
+    }
+
+    await handleNewImage(
+        files[0]
+    );
+
+}
+
+
+/* =========================================================
+   REPLACEMENT CHARACTER FILE INPUT
+========================================================= */
+
+async function handleReplacementCharacterInput(event) {
+
+    const input = event?.target;
+
+    const files =
+        Array.from(
+            input?.files || []
+        );
+
+    if (files.length === 0) {
+        return;
+    }
+
+    await handleNewReplacementCharacter(
+        files[0]
+    );
+
+}
+
+
+/* =========================================================
+   REFERENCE DROP
+========================================================= */
+
+async function handleDrop(event) {
+
+    if (event) {
         event.preventDefault();
-
         event.stopPropagation();
-
-
-        getPreview().setDropzoneActive(
-            false
-        );
-
-
-        const files =
-            Array.from(
-                event
-                    ?.dataTransfer
-                    ?.files || []
-            );
-
-
-        if (
-            files.length === 0
-        ) {
-
-            return;
-
-        }
-
-
-        await handleNewImage(
-            files[0]
-        );
-
     }
 
+    const files =
+        Array.from(
+            event?.dataTransfer?.files || []
+        );
 
-    // =====================================================
-    // DRAG OVER
-    // =====================================================
+    if (files.length === 0) {
+        return;
+    }
 
-    function handleDragOver(
-        event
-    ) {
+    await handleNewImage(
+        files[0]
+    );
 
+}
+
+
+/* =========================================================
+   REPLACEMENT CHARACTER DROP
+========================================================= */
+
+async function handleReplacementCharacterDrop(event) {
+
+    if (event) {
         event.preventDefault();
-
         event.stopPropagation();
-
-
-        getPreview().setDropzoneActive(
-            true
-        );
-
     }
 
+    const files =
+        Array.from(
+            event?.dataTransfer?.files || []
+        );
 
-    // =====================================================
-    // DRAG LEAVE
-    // =====================================================
+    if (files.length === 0) {
+        return;
+    }
 
-    function handleDragLeave(
-        event
-    ) {
+    await handleNewReplacementCharacter(
+        files[0]
+    );
 
+}
+
+
+/* =========================================================
+   DRAG OVER
+========================================================= */
+
+function handleDragOver(event) {
+
+    if (event) {
         event.preventDefault();
-
         event.stopPropagation();
+    }
 
+    const dropzone =
+        event?.currentTarget;
 
-        getPreview().setDropzoneActive(
-            false
+    if (dropzone) {
+
+        dropzone.classList.add(
+            "is-dragover"
         );
-
     }
 
-
-    // =====================================================
-    // DROPZONE CLICK
-    // =====================================================
-
-    function handleDropzoneClick(
-        event
-    ) {
-
-        const dom =
-            getDOM();
+}
 
 
-        if (
-            event.target ===
-            dom.fileInput
-        ) {
+/* =========================================================
+   DRAG LEAVE
+========================================================= */
 
-            return;
+function handleDragLeave(event) {
 
-        }
-
-
-        if (
-            event.target ===
-            dom.browseButton ||
-            dom.browseButton?.contains(
-                event.target
-            )
-        ) {
-
-            return;
-
-        }
-
-
-        if (
-            event.target ===
-            dom.removeButton ||
-            dom.removeButton?.contains(
-                event.target
-            )
-        ) {
-
-            return;
-
-        }
-
-
-        getUpload().openFilePicker();
-
-    }
-
-
-    // =====================================================
-    // BROWSE BUTTON
-    // =====================================================
-
-    function handleBrowseClick(
-        event
-    ) {
-
-        event.stopPropagation();
-
-    }
-
-
-    // =====================================================
-    // REMOVE IMAGE
-    // =====================================================
-
-    function handleRemoveImage(
-        event
-    ) {
-
+    if (event) {
         event.preventDefault();
-
         event.stopPropagation();
-
-
-        try {
-
-            getPreview().clearPreview(
-                true
-            );
-
-
-            getState().clearAnalysis();
-
-            getState().clearPrompt();
-
-            getUI().resetResult();
-
-
-            getUI().setStatus(
-                "ready",
-                "Reference image dihapus."
-            );
-
-        } catch (error) {
-
-            const message =
-                normalizeError(
-                    error
-                );
-
-
-            getUI().setStatus(
-                "error",
-                message
-            );
-
-        }
-
     }
 
+    const dropzone =
+        event?.currentTarget;
 
-    // =====================================================
-    // FORM EVENTS
-    // =====================================================
+    if (dropzone) {
 
-    function handleModelChange() {
-
-        syncModelToState();
-
+        dropzone.classList.remove(
+            "is-dragover"
+        );
     }
 
+}
 
-    function handleDetailChange() {
 
-        syncFormToState();
+/* =========================================================
+   DROP WRAPPER
+========================================================= */
 
+async function handleReferenceDrop(event) {
+
+    const dropzone =
+        event?.currentTarget;
+
+    if (dropzone) {
+
+        dropzone.classList.remove(
+            "is-dragover"
+        );
     }
 
-
-    function handlePurposeChange() {
-
-        syncFormToState();
-
-    }
-
-
-    function handleInstructionInput() {
-
-        syncFormToState();
-
-    }
-
-
-    // =====================================================
-    // COPY PROMPT
-    // =====================================================
-
-    async function handleCopyPrompt(
+    await handleDrop(
         event
-    ) {
+    );
 
-        event.preventDefault();
-
-        event.stopPropagation();
+}
 
 
-        try {
+async function handleCharacterDrop(event) {
 
-            const prompt =
-                getPrompt().getPrompt();
+    const dropzone =
+        event?.currentTarget;
 
+    if (dropzone) {
 
-            if (!prompt) {
-
-                return;
-
-            }
-
-
-            await getPrompt().copyPrompt();
-
-
-            getUI().setCopyState(
-                true
-            );
-
-
-            window.setTimeout(
-                () => {
-
-                    getUI().setCopyState(
-                        false
-                    );
-
-                },
-                1800
-            );
-
-        } catch (error) {
-
-            getUI().setStatus(
-                "error",
-                normalizeError(
-                    error
-                )
-            );
-
-        }
-
+        dropzone.classList.remove(
+            "is-dragover"
+        );
     }
 
-
-    // =====================================================
-    // VALIDATE READY
-    // =====================================================
-
-    function validateReady() {
-
-        const state =
-            getState().getState();
-
-
-        if (
-            !state.file ||
-            !state.file.original ||
-            !state.file.dataUrl
-        ) {
-
-            throw new Error(
-                "Silakan upload reference image terlebih dahulu."
-            );
-
-        }
-
-
-        return true;
-
-    }
-
-
-    // =====================================================
-    // VISION PROCESS
-    // =====================================================
-
-    async function startVisionProcess() {
-
-        const currentState =
-            getState().getState();
-
-
-        if (
-            currentState
-                ?.process
-                ?.processing === true
-        ) {
-
-            return;
-
-        }
-
-
-        let creditWasDeducted =
-            false;
-
-
-        try {
-
-            // =============================================
-            // VALIDATE
-            // =============================================
-
-            validateReady();
-
-
-            syncFormToState();
-
-
-            const state =
-                getState().getState();
-
-
-            // =============================================
-            // CREDIT CHECK
-            // =============================================
-
-            getUI().setStatus(
-                "checking",
-                "Memeriksa credit..."
-            );
-
-
-            const credit =
-                await getCredit().checkCredit(
-                    CREDIT_COST
-                );
-
-
-            if (
-                !credit ||
-                credit.allowed !== true
-            ) {
-
-                throw new Error(
-                    credit?.message ||
-                    "Credit tidak mencukupi."
-                );
-
-            }
-
-
-            // =============================================
-            // RESET RESULT
-            // =============================================
-
-            getUI().resetResult();
-
-
-            getUI().setProcessing(
-                true
-            );
-
-
-            getUI().setStatus(
-                "processing",
-                "Memulai Vision Engine..."
-            );
-
-
-            getState().setProcessing(
-                true
-            );
-
-
-            getState().setProgress(
-                5
-            );
-
-
-            // =============================================
-            // DEDUCT CREDIT
-            // =============================================
-
-            await getCredit().deductCredit(
-                CREDIT_COST
-            );
-
-
-            creditWasDeducted =
-                true;
-
-
-            getState().markCreditDeducted();
-
-
-            getUI().updateCredit();
-
-
-            // =============================================
-            // ANALYSIS
-            // =============================================
-
-            getUI().setStatus(
-                "processing",
-                "Menganalisis gambar..."
-            );
-
-
-            getState().setProgress(
-                25
-            );
-
-
-            const analysisResponse =
-                await getAPI().analyzeImage({
-
-                    model:
-                        state.model,
-
-                    settings:
-                        state.settings
-
-                });
-
-
-            /*
-             * analyzeImage() dapat memilih model aktual
-             * dari katalog OpenKey.
-             *
-             * Karena object model dikembalikan oleh API,
-             * sinkronkan kembali state agar history dan
-             * prompt generation menggunakan model aktual.
-             */
-
-            if (
-                analysisResponse?.model &&
-                typeof analysisResponse.model ===
-                    "object"
-            ) {
-
-                getState().setModel(
-                    analysisResponse.model
-                );
-
-            }
-
-
-            getState().setProgress(
-                50
-            );
-
-
-            // =============================================
-            // NORMALIZE ANALYSIS
-            // =============================================
-
-            const normalizedAnalysis =
-                getAnalysis().normalizeAnalysis(
-                    analysisResponse
-                );
-
-
-            getState().setAnalysis(
-                normalizedAnalysis
-            );
-
-
-            getUI().showAnalysis(
-                normalizedAnalysis
-            );
-
-
-            // =============================================
-            // PROMPT GENERATION
-            // =============================================
-
-            getUI().setStatus(
-                "processing",
-                "Membangun ultra detailed prompt..."
-            );
-
-
-            getState().setProgress(
-                70
-            );
-
-
-            const promptResponse =
-                await getAPI().generatePrompt(
-
-                    normalizedAnalysis,
-
-                    {
-
-                        model:
-                            getState().get(
-                                "model",
-                                state.model
-                            ),
-
-                        settings:
-                            state.settings
-
-                    }
-
-                );
-
-
-            // =============================================
-            // NORMALIZE PROMPT
-            // =============================================
-
-            const prompt =
-                getPrompt().normalizePrompt(
-                    promptResponse
-                );
-
-
-            if (!prompt) {
-
-                throw new Error(
-                    "Vision Engine tidak menghasilkan prompt."
-                );
-
-            }
-
-
-            getState().setPrompt(
-                prompt
-            );
-
-
-            getState().setProgress(
-                88
-            );
-
-
-            // =============================================
-            // SAVE HISTORY
-            // =============================================
-
-            getUI().setStatus(
-                "processing",
-                "Menyimpan riwayat..."
-            );
-
-
-            try {
-
-                const finalState =
-                    getState().getState();
-
-
-                await getHistory().saveSuccess({
-
-                    taskId:
-                        finalState
-                            .process
-                            .taskId,
-
-                    modelId:
-                        finalState
-                            .model
-                            .id,
-
-                    modelName:
-                        finalState
-                            .model
-                            .name,
-
-                    prompt,
-
-                    analysis:
-                        normalizedAnalysis,
-
-                    creditCost:
-                        CREDIT_COST
-
-                });
-
-            } catch (historyError) {
-
-                console.warn(
-                    "[GEN-Z.AI Vision] History save gagal:",
-                    historyError
-                );
-
-            }
-
-
-            // =============================================
-            // COMPLETE
-            // =============================================
-
-            getState().setProgress(
-                100
-            );
-
-
-            getState().setProcessStatus(
-                "completed",
-                "READY",
-                100
-            );
-
-
-            getState().setProcessing(
-                false
-            );
-
-
-            getUI().setProcessing(
-                false
-            );
-
-
-            getUI().showPrompt(
-                prompt
-            );
-
-
-            getUI().setStatus(
-                "success",
-                "Vision analysis selesai."
-            );
-
-
-            getUI().updateCredit();
-
-
-        } catch (error) {
-
-            const message =
-                normalizeError(
-                    error
-                );
-
-
-            console.error(
-                "[GEN-Z.AI Vision]",
-                error
-            );
-
-
-            const state =
-                getState().getState();
-
-
-            // =============================================
-            // REFUND
-            // =============================================
-
-            if (
-                creditWasDeducted === true &&
-                state.credit?.refunded !== true
-            ) {
-
-                try {
-
-                    await getCredit().refundCredit(
-                        CREDIT_COST
-                    );
-
-
-                    getState().markCreditRefunded();
-
-
-                    getUI().updateCredit();
-
-                } catch (refundError) {
-
-                    console.error(
-                        "[GEN-Z.AI Vision] Refund gagal:",
-                        refundError
-                    );
-
-                }
-
-            }
-
-
-            // =============================================
-            // FAILED HISTORY
-            // =============================================
-
-            try {
-
-                await getHistory().saveFailed({
-
-                    taskId:
-                        state
-                            .process
-                            .taskId,
-
-                    modelId:
-                        state
-                            .model
-                            .id,
-
-                    modelName:
-                        state
-                            .model
-                            .name,
-
-                    error:
-                        message,
-
-                    creditCost:
-                        CREDIT_COST
-
-                });
-
-            } catch (historyError) {
-
-                console.warn(
-                    "[GEN-Z.AI Vision] Failed history save gagal:",
-                    historyError
-                );
-
-            }
-
-
-            // =============================================
-            // ERROR STATE
-            // =============================================
-
-            getState().setProcessError(
-                message
-            );
-
-
-            getState().setProcessing(
-                false
-            );
-
-
-            getUI().setProcessing(
-                false
-            );
-
-
-            getUI().setStatus(
-                "error",
-                message
-            );
-
-        }
-
-    }
-
-
-    // =====================================================
-    // GENERATE BUTTON
-    // =====================================================
-
-    function handleGenerateClick(
+    await handleReplacementCharacterDrop(
         event
-    ) {
+    );
 
-        event.preventDefault();
-
-        event.stopPropagation();
+}
 
 
-        startVisionProcess();
+/* =========================================================
+   REMOVE REFERENCE IMAGE
+========================================================= */
 
+function removeFile() {
+
+    try {
+
+        getUpload().removeFile();
+
+    } catch (error) {
+
+        /*
+         * Fallback agar state tetap bersih apabila
+         * implementasi upload berubah.
+         */
+
+        getState().clearFile();
     }
 
+    getPreview()
+        .clearPreview();
 
-    // =====================================================
-    // EVENT HELPER
-    // =====================================================
+    getUI().resetResult();
 
-    function bindEvent(
-        element,
-        eventName,
-        handler
-    ) {
+    getUI().setStatus(
+        "idle",
+        "Upload reference image."
+    );
 
-        if (!element) {
-
-            return;
-
-        }
+}
 
 
-        element.addEventListener(
-            eventName,
-            handler
-        );
+/* =========================================================
+   REMOVE REPLACEMENT CHARACTER
+========================================================= */
 
+function removeReplacementCharacter() {
+
+    try {
+
+        getUpload()
+            .removeReplacementCharacter();
+
+    } catch (error) {
+
+        getState()
+            .clearReplacementCharacter();
     }
 
+    getPreview()
+        .clearCharacterPreview();
 
-    // =====================================================
-    // BIND EVENTS
-    // =====================================================
+    /*
+     * Jangan menghapus hasil analysis reference image.
+     * Character image adalah input tambahan.
+     */
 
-    function bindEvents() {
+    getUI().setStatus(
+        "ready",
+        "Replacement character dihapus."
+    );
 
-        const dom =
-            getDOM();
+}
 
 
-        // ================================================
-        // FILE INPUT
-        // ================================================
+/* =========================================================
+   FORM → STATE
+========================================================= */
 
-        bindEvent(
-            dom.fileInput,
-            "change",
-            handleFileInput
-        );
+function syncFormToState() {
 
+    const dom = getDOM();
+    const state = getState();
 
-        // ================================================
-        // BROWSE LABEL
-        // ================================================
+    if (dom.model) {
 
-        bindEvent(
-            dom.browseButton,
-            "click",
-            handleBrowseClick
-        );
-
-
-        // ================================================
-        // DROPZONE
-        // ================================================
-
-        bindEvent(
-            dom.dropzone,
-            "click",
-            handleDropzoneClick
-        );
-
-
-        bindEvent(
-            dom.dropzone,
-            "dragover",
-            handleDragOver
-        );
-
-
-        bindEvent(
-            dom.dropzone,
-            "dragleave",
-            handleDragLeave
-        );
-
-
-        bindEvent(
-            dom.dropzone,
-            "drop",
-            handleDrop
-        );
-
-
-        // ================================================
-        // REMOVE
-        // ================================================
-
-        bindEvent(
-            dom.removeButton,
-            "click",
-            handleRemoveImage
-        );
-
-
-        // ================================================
-        // FORM
-        // ================================================
-
-        bindEvent(
-            dom.model,
-            "change",
-            handleModelChange
-        );
-
-
-        bindEvent(
-            dom.detail,
-            "change",
-            handleDetailChange
-        );
-
-
-        bindEvent(
-            dom.purpose,
-            "change",
-            handlePurposeChange
-        );
-
-
-        bindEvent(
-            dom.instruction,
-            "input",
-            handleInstructionInput
-        );
-
-
-        // ================================================
-        // GENERATE
-        // ================================================
-
-        bindEvent(
-            dom.generateButton,
-            "click",
-            handleGenerateClick
-        );
-
-
-        // ================================================
-        // COPY
-        // ================================================
-
-        bindEvent(
-            dom.copyButton,
-            "click",
-            handleCopyPrompt
-        );
-
-    }
-
-
-    // =====================================================
-    // INITIALIZE
-    // =====================================================
-
-    function initialize() {
-
-        const dom =
-            getDOM();
-
-
-        if (!dom.fileInput) {
-
-            throw new Error(
-                "visionFileInput tidak ditemukan."
-            );
-
-        }
-
-
-        if (!dom.dropzone) {
-
-            throw new Error(
-                "visionDropzone tidak ditemukan."
-            );
-
-        }
-
-
-        if (
-            typeof window.GENZVisionDOM.validateDOM ===
-            "function"
-        ) {
-
-            const validation =
-                window.GENZVisionDOM.validateDOM({
-                    log: true
-                });
-
-
-            if (!validation.valid) {
-
-                throw new Error(
-                    "Vision DOM tidak lengkap."
-                );
-
-            }
-
-        }
-
-
-        // =============================================
-        // BIND EVENTS
-        // =============================================
-
-        bindEvents();
-
-
-        // =============================================
-        // SYNC FORM
-        // =============================================
-
-        syncFormToState();
-
-
-        // =============================================
-        // RESTORE PREVIEW
-        // =============================================
-
-        getPreview().renderFromState();
-
-
-        return true;
-
-    }
-
-
-    // =====================================================
-    // PUBLIC API
-    // =====================================================
-
-    const GENZVisionEvents =
-        Object.freeze({
-
-            initialize,
-
-            bindEvents,
-
-            syncFormToState,
-
-            handleNewImage,
-
-            handleFileInput,
-
-            handleDrop,
-
-            handleDragOver,
-
-            handleDragLeave,
-
-            handleDropzoneClick,
-
-            handleBrowseClick,
-
-            handleRemoveImage,
-
-            startVisionProcess,
-
-            handleGenerateClick,
-
-            handleCopyPrompt
-
+        state.setModel({
+            id: dom.model.value || ""
         });
 
+    }
 
-    // =====================================================
-    // GLOBAL EXPORT
-    // =====================================================
+    if (dom.detail) {
+
+        state.setSettings({
+            detail: dom.detail.value || ""
+        });
+
+    }
+
+    if (dom.purpose) {
+
+        state.setSettings({
+            purpose: dom.purpose.value || ""
+        });
+
+    }
+
+    if (dom.instruction) {
+
+        state.setSettings({
+            instruction:
+                dom.instruction.value || ""
+        });
+
+    }
+
+}
+
+
+/* =========================================================
+   FORM FIELD EVENTS
+========================================================= */
+
+function handleModelChange(event) {
+
+    const state = getState();
+
+    state.setModel({
+        id: event?.target?.value || ""
+    });
+
+}
+
+
+function handleDetailChange(event) {
+
+    const state = getState();
+
+    state.setSettings({
+        detail:
+            event?.target?.value || ""
+    });
+
+}
+
+
+function handlePurposeChange(event) {
+
+    const state = getState();
+
+    state.setSettings({
+        purpose:
+            event?.target?.value || ""
+    });
+
+}
+
+
+function handleInstructionInput(event) {
+
+    const state = getState();
+
+    state.setSettings({
+        instruction:
+            event?.target?.value || ""
+    });
+
+}
+
+
+/* =========================================================
+   SAFE EVENT BINDING
+========================================================= */
+
+function bindEvent(
+    element,
+    eventName,
+    handler
+) {
+
+    if (!element) {
+        return false;
+    }
+
+    element.addEventListener(
+        eventName,
+        handler
+    );
+
+    return true;
+
+}
+
+
+/* =========================================================
+   BIND EVENTS
+========================================================= */
+
+function bindEvents() {
+
+    const dom = getDOM();
+
+
+    /* -----------------------------------------------------
+       REFERENCE IMAGE
+    ----------------------------------------------------- */
+
+    bindEvent(
+        dom.fileInput,
+        "change",
+        handleFileInput
+    );
+
+    bindEvent(
+        dom.dropzone,
+        "dragover",
+        handleDragOver
+    );
+
+    bindEvent(
+        dom.dropzone,
+        "dragleave",
+        handleDragLeave
+    );
+
+    bindEvent(
+        dom.dropzone,
+        "drop",
+        handleReferenceDrop
+    );
+
+    bindEvent(
+        dom.browseButton,
+        "click",
+        () => {
+
+            if (dom.fileInput) {
+
+                dom.fileInput.click();
+
+            }
+
+        }
+    );
+
+    bindEvent(
+        dom.removeButton,
+        "click",
+        removeFile
+    );
+
+
+    /* -----------------------------------------------------
+       REPLACEMENT CHARACTER
+    ----------------------------------------------------- */
+
+    bindEvent(
+        dom.characterFileInput,
+        "change",
+        handleReplacementCharacterInput
+    );
+
+    bindEvent(
+        dom.characterDropzone,
+        "dragover",
+        handleDragOver
+    );
+
+    bindEvent(
+        dom.characterDropzone,
+        "dragleave",
+        handleDragLeave
+    );
+
+    bindEvent(
+        dom.characterDropzone,
+        "drop",
+        handleCharacterDrop
+    );
+
+    bindEvent(
+        dom.characterBrowseButton,
+        "click",
+        () => {
+
+            if (
+                dom.characterFileInput
+            ) {
+
+                dom.characterFileInput.click();
+
+            }
+
+        }
+    );
+
+    bindEvent(
+        dom.characterRemoveButton,
+        "click",
+        removeReplacementCharacter
+    );
+
+
+    /* -----------------------------------------------------
+       SETTINGS
+    ----------------------------------------------------- */
+
+    bindEvent(
+        dom.model,
+        "change",
+        handleModelChange
+    );
+
+    bindEvent(
+        dom.detail,
+        "change",
+        handleDetailChange
+    );
+
+    bindEvent(
+        dom.purpose,
+        "change",
+        handlePurposeChange
+    );
+
+    bindEvent(
+        dom.instruction,
+        "input",
+        handleInstructionInput
+    );
+
+}
+
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+function initialize() {
+
+    bindEvents();
+
+    syncFormToState();
+
+    getPreview()
+        .renderFromState();
+
+}
+
+
+/* =========================================================
+   PUBLIC API
+========================================================= */
+
+const GENZVisionEvents = {
+
+    handleNewImage,
+    handleNewReplacementCharacter,
+
+    handleFileInput,
+    handleReplacementCharacterInput,
+
+    handleDrop,
+    handleReplacementCharacterDrop,
+
+    handleDragOver,
+    handleDragLeave,
+
+    handleReferenceDrop,
+    handleCharacterDrop,
+
+    removeFile,
+    removeReplacementCharacter,
+
+    syncFormToState,
+    bindEvents,
+    initialize
+
+};
+
+
+export {
+
+    handleNewImage,
+    handleNewReplacementCharacter,
+
+    handleFileInput,
+    handleReplacementCharacterInput,
+
+    handleDrop,
+    handleReplacementCharacterDrop,
+
+    handleDragOver,
+    handleDragLeave,
+
+    handleReferenceDrop,
+    handleCharacterDrop,
+
+    removeFile,
+    removeReplacementCharacter,
+
+    syncFormToState,
+    bindEvents,
+    initialize
+
+};
+
+
+if (
+    typeof window !== "undefined"
+) {
 
     window.GENZVisionEvents =
         GENZVisionEvents;
 
-
-})();
+}
