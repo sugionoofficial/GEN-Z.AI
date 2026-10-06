@@ -9,6 +9,7 @@
    - Memuat seluruh module secara berurutan
    - Memastikan dependency tersedia
    - Menjalankan initialization
+   - Memuat credit module
    - Menangani initialization error
    - Tidak berisi logic upload / API / analysis
 ========================================================= */
@@ -46,6 +47,10 @@
 
         modules: [
 
+            /* -------------------------------------------------
+               STATE
+            ------------------------------------------------- */
+
             {
                 name:
                     "state",
@@ -56,6 +61,11 @@
                 ready:
                     "GENZVisionVideoStateReady"
             },
+
+
+            /* -------------------------------------------------
+               DOM
+            ------------------------------------------------- */
 
             {
                 name:
@@ -68,6 +78,30 @@
                     "GENZVisionVideoDOMReady"
             },
 
+
+            /* -------------------------------------------------
+               CREDIT
+               -------------------------------------------------
+               Harus setelah State + DOM karena credit module
+               membutuhkan keduanya.
+            ------------------------------------------------- */
+
+            {
+                name:
+                    "credit",
+
+                path:
+                    "./assets/js/vision-video-credit.js",
+
+                ready:
+                    "GENZVisionVideoCreditReady"
+            },
+
+
+            /* -------------------------------------------------
+               UPLOAD
+            ------------------------------------------------- */
+
             {
                 name:
                     "upload",
@@ -78,6 +112,11 @@
                 ready:
                     "GENZVisionVideoUploadReady"
             },
+
+
+            /* -------------------------------------------------
+               PREVIEW
+            ------------------------------------------------- */
 
             {
                 name:
@@ -90,6 +129,11 @@
                     "GENZVisionVideoPreviewReady"
             },
 
+
+            /* -------------------------------------------------
+               FRAMES
+            ------------------------------------------------- */
+
             {
                 name:
                     "frames",
@@ -100,6 +144,11 @@
                 ready:
                     "GENZVisionVideoFramesReady"
             },
+
+
+            /* -------------------------------------------------
+               ANALYSIS
+            ------------------------------------------------- */
 
             {
                 name:
@@ -112,6 +161,11 @@
                     "GENZVisionVideoAnalysisReady"
             },
 
+
+            /* -------------------------------------------------
+               API
+            ------------------------------------------------- */
+
             {
                 name:
                     "api",
@@ -123,6 +177,11 @@
                     "GENZVisionVideoAPIReady"
             },
 
+
+            /* -------------------------------------------------
+               UI
+            ------------------------------------------------- */
+
             {
                 name:
                     "ui",
@@ -133,6 +192,11 @@
                 ready:
                     "GENZVisionVideoUIReady"
             },
+
+
+            /* -------------------------------------------------
+               EVENTS
+            ------------------------------------------------- */
 
             {
                 name:
@@ -170,6 +234,7 @@
                 Array.from(arguments)
             )
         );
+
     }
 
 
@@ -183,6 +248,7 @@
                 Array.from(arguments)
             )
         );
+
     }
 
 
@@ -196,6 +262,7 @@
                 Array.from(arguments)
             )
         );
+
     }
 
 
@@ -219,14 +286,18 @@
                 )
             );
 
-        } catch (err) {
+        } catch (
+            err
+        ) {
 
             warn(
                 "Event dispatch failed:",
                 name,
                 err
             );
+
         }
+
     }
 
 
@@ -251,6 +322,7 @@
                 path,
                 currentScript.src
             ).href;
+
         }
 
 
@@ -258,6 +330,7 @@
             path,
             window.location.href
         ).href;
+
     }
 
 
@@ -276,7 +349,8 @@
 
 
         for (
-            const script of scripts
+            const script
+            of scripts
         ) {
 
             try {
@@ -289,23 +363,30 @@
 
 
                 if (
-                    existing === url
+                    existing ===
+                    url
                 ) {
 
                     return true;
+
                 }
 
-            } catch (err) {
+            } catch (
+                err
+            ) {
 
                 /*
                  * Abaikan script URL yang
                  * tidak dapat diparse.
                  */
+
             }
+
         }
 
 
         return false;
+
     }
 
 
@@ -330,8 +411,10 @@
 
 
                 /*
-                 * Jika module sudah memiliki
-                 * ready flag, tidak perlu inject ulang.
+                 * -------------------------------------------------
+                 * Jika ready flag sudah tersedia,
+                 * module sudah siap.
+                 * -------------------------------------------------
                  */
 
                 if (
@@ -343,12 +426,15 @@
                     );
 
                     return;
+
                 }
 
 
                 /*
-                 * Jika script sudah ada di DOM
-                 * tetapi belum ready, tunggu ready flag.
+                 * -------------------------------------------------
+                 * Jika script sudah ada di DOM tetapi
+                 * belum memberikan ready flag, tunggu.
+                 * -------------------------------------------------
                  */
 
                 if (
@@ -374,8 +460,15 @@
                         );
 
                     return;
+
                 }
 
+
+                /*
+                 * -------------------------------------------------
+                 * Inject script
+                 * -------------------------------------------------
+                 */
 
                 const script =
                     document.createElement(
@@ -409,7 +502,9 @@
                         if (
                             settled
                         ) {
+
                             return;
+
                         }
 
 
@@ -432,6 +527,7 @@
                             .catch(
                                 reject
                             );
+
                     };
 
 
@@ -441,7 +537,9 @@
                         if (
                             settled
                         ) {
+
                             return;
+
                         }
 
 
@@ -454,14 +552,17 @@
                                 `Gagal memuat module ${module.name}: ${module.path}`
                             )
                         );
+
                     };
 
 
                 document.head.appendChild(
                     script
                 );
+
             }
         );
+
     }
 
 
@@ -494,6 +595,7 @@
                         );
 
                         return;
+
                     }
 
 
@@ -510,6 +612,7 @@
                         );
 
                         return;
+
                     }
 
 
@@ -517,12 +620,15 @@
                         check,
                         CONFIG.pollInterval
                     );
+
                 }
 
 
                 check();
+
             }
         );
+
     }
 
 
@@ -537,7 +643,8 @@
 
 
         for (
-            const module of CONFIG.modules
+            const module
+            of CONFIG.modules
         ) {
 
             log(
@@ -558,10 +665,12 @@
             log(
                 `Module ready: ${module.name}`
             );
+
         }
 
 
         return loaded;
+
     }
 
 
@@ -587,6 +696,14 @@
 
                 value:
                     window.GENZVisionVideoDOM
+            },
+
+            {
+                name:
+                    "Credit",
+
+                value:
+                    window.GENZVisionVideoCredit
             },
 
             {
@@ -650,16 +767,24 @@
 
         const missing =
             requiredGlobals
-                .filter(function (item) {
+                .filter(
+                    function (
+                        item
+                    ) {
 
-                    return !item.value;
+                        return !item.value;
 
-                })
-                .map(function (item) {
+                    }
+                )
+                .map(
+                    function (
+                        item
+                    ) {
 
-                    return item.name;
+                        return item.name;
 
-                });
+                    }
+                );
 
 
         if (
@@ -668,12 +793,121 @@
 
             throw new Error(
                 "Dependency Vision Video tidak lengkap: " +
-                missing.join(", ")
+                missing.join(
+                    ", "
+                )
             );
+
         }
 
 
         return true;
+
+    }
+
+
+    /* =====================================================
+       INITIAL CREDIT
+    ===================================================== */
+
+    async function initializeCredit() {
+
+        const credit =
+            window.GENZVisionVideoCredit;
+
+
+        const state =
+            window.GENZVisionVideoState;
+
+
+        if (
+            !credit ||
+            !state
+        ) {
+
+            throw new Error(
+                "Vision Video Credit module belum tersedia."
+            );
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * Tetapkan biaya satu generate.
+         * -------------------------------------------------
+         */
+
+        if (
+            typeof state.setCreditRequired ===
+                "function"
+        ) {
+
+            state.setCreditRequired(
+                credit.getCost()
+            );
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * Reset status operasi credit.
+         *
+         * Tidak mengubah saldo.
+         * -------------------------------------------------
+         */
+
+        credit.resetOperationState();
+
+
+        /*
+         * -------------------------------------------------
+         * Ambil saldo aktual dari server.
+         *
+         * Ini yang membuat badge tidak lagi
+         * menampilkan 0 hanya karena state awal null.
+         * -------------------------------------------------
+         */
+
+        try {
+
+            await credit.checkCredit();
+
+            log(
+                "Credit synchronized:",
+                credit.getCurrentCredit()
+            );
+
+        } catch (
+            err
+        ) {
+
+            /*
+             * -------------------------------------------------
+             * Credit check gagal.
+             *
+             * Jangan menghentikan seluruh engine.
+             * UI tetap dapat dibuka, tetapi saldo tidak
+             * dianggap valid sampai check berikutnya.
+             * -------------------------------------------------
+             */
+
+            state.setCreditError(
+                err
+            );
+
+
+            credit.refreshDisplay();
+
+
+            warn(
+                "Initial credit check gagal:",
+                err
+            );
+
+        }
+
     }
 
 
@@ -697,6 +931,7 @@
         ) {
 
             return;
+
         }
 
 
@@ -706,16 +941,26 @@
             );
 
 
-        if (page) {
+        if (
+            page
+        ) {
 
             page.dataset.visionVideoReady =
                 "true";
+
         }
 
 
+        /*
+         * Render state setelah credit
+         * berhasil/gagal disinkronkan.
+         */
+
         ui.sync();
 
+
         ui.updateAnalyzeButton();
+
     }
 
 
@@ -729,8 +974,12 @@
             window.GENZVisionVideoState;
 
 
-        if (!state) {
+        if (
+            !state
+        ) {
+
             return;
+
         }
 
 
@@ -742,16 +991,40 @@
 
         state.setProcess({
 
-            status:
-                "idle",
+            running:
+                false,
 
             progress:
                 0,
 
+            stage:
+                "idle",
+
             message:
-                ""
+                "",
+
+            error:
+                null
 
         });
+
+
+        /*
+         * Pastikan UI analysis tidak dianggap
+         * sedang berjalan setelah reload.
+         */
+
+        state.set(
+            "ui.analyzing",
+            false
+        );
+
+
+        state.set(
+            "ui.resultReady",
+            false
+        );
+
     }
 
 
@@ -774,10 +1047,12 @@
             throw new Error(
                 "Vision Video Events module tidak memiliki bind()."
             );
+
         }
 
 
         events.bind();
+
     }
 
 
@@ -801,17 +1076,23 @@
             );
 
 
-        if (page) {
+        if (
+            page
+        ) {
 
             page.dataset.initialized =
                 "true";
+
         }
 
 
         dispatch(
             "genz:vision-video:ready",
             {
-                ready: true
+
+                ready:
+                    true
+
             }
         );
 
@@ -819,6 +1100,7 @@
         log(
             "Vision Video Engine ready."
         );
+
     }
 
 
@@ -842,7 +1124,9 @@
             err &&
             err.message
                 ? err.message
-                : String(err);
+                : String(
+                    err
+                );
 
 
         const page =
@@ -851,13 +1135,17 @@
             );
 
 
-        if (page) {
+        if (
+            page
+        ) {
 
             page.dataset.initialized =
                 "false";
 
+
             page.dataset.error =
                 "true";
+
         }
 
 
@@ -876,6 +1164,7 @@
             "Initialization failed:",
             err
         );
+
     }
 
 
@@ -894,6 +1183,7 @@
         ) {
 
             return;
+
         }
 
 
@@ -909,7 +1199,9 @@
 
 
             /*
+             * -------------------------------------------------
              * Pastikan DOM halaman sudah siap.
+             * -------------------------------------------------
              */
 
             if (
@@ -918,23 +1210,29 @@
             ) {
 
                 await new Promise(
-                    function (resolve) {
+                    function (
+                        resolve
+                    ) {
 
                         document.addEventListener(
                             "DOMContentLoaded",
                             resolve,
                             {
-                                once: true
+                                once:
+                                    true
                             }
                         );
 
                     }
                 );
+
             }
 
 
             /*
+             * -------------------------------------------------
              * Load module berdasarkan dependency order.
+             * -------------------------------------------------
              */
 
             const loaded =
@@ -948,46 +1246,68 @@
 
 
             /*
-             * Validasi semua global.
+             * -------------------------------------------------
+             * Validasi seluruh global.
+             * -------------------------------------------------
              */
 
             validateDependencies();
 
 
             /*
+             * -------------------------------------------------
              * State awal.
+             * -------------------------------------------------
              */
 
             initializeState();
 
 
             /*
-             * Events harus di-bind setelah
-             * seluruh dependency tersedia.
+             * -------------------------------------------------
+             * Credit harus disinkronkan sebelum UI pertama
+             * kali dirender.
+             * -------------------------------------------------
+             */
+
+            await initializeCredit();
+
+
+            /*
+             * -------------------------------------------------
+             * Events setelah semua dependency siap.
+             * -------------------------------------------------
              */
 
             initializeEvents();
 
 
             /*
+             * -------------------------------------------------
              * UI terakhir.
+             * -------------------------------------------------
              */
 
             initializeUI();
 
 
             /*
-             * Tandai engine siap.
-             */
+             * -------------------------------------------------
+             * Engine siap.
+             * ------------------------------------------------- */
 
             markReady();
 
-        } catch (err) {
+        } catch (
+            err
+        ) {
 
             markError(
                 err
             );
+
         }
+
     }
 
 
@@ -1006,6 +1326,8 @@
 
         validateDependencies,
 
+        initializeCredit,
+
         isReady:
             function () {
 
@@ -1018,9 +1340,9 @@
     };
 
 
-    /*
-     * Jalankan otomatis.
-     */
+    /* =====================================================
+       AUTO INITIALIZE
+    ===================================================== */
 
     initialize();
 
