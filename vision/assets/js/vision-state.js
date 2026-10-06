@@ -19,7 +19,7 @@
    - History state
    - UI state
    - Backward compatibility aliases
-========================================================= */
+   ========================================================= */
 
 (function () {
 
@@ -338,6 +338,192 @@
 
 
     /* =====================================================
+       LEGACY STATE COMPATIBILITY
+       -----------------------------------------------------
+       Beberapa modul Vision yang lebih lama masih memakai:
+
+       - state.get("path")
+       - state.set("path", value)
+
+       API utama tetap menggunakan getter/setter spesifik.
+
+       Compatibility layer ini hanya menjembatani modul lama
+       tanpa mengubah struktur STATE.
+    ===================================================== */
+
+    function get(
+        path,
+        fallback = undefined
+    ) {
+
+        if (
+            typeof path !== "string" ||
+            !path.trim()
+        ) {
+
+            return fallback;
+
+        }
+
+        const parts =
+            path
+                .split(".")
+                .filter(Boolean);
+
+        let current =
+            STATE;
+
+        for (
+            const key
+            of parts
+        ) {
+
+            if (
+                current === null ||
+                current === undefined ||
+                !Object.prototype.hasOwnProperty.call(
+                    Object(current),
+                    key
+                )
+            ) {
+
+                return fallback;
+
+            }
+
+            current =
+                current[key];
+
+        }
+
+        return current === undefined
+            ? fallback
+            : current;
+
+    }
+
+
+    function set(
+        path,
+        value
+    ) {
+
+        if (
+            typeof path !== "string" ||
+            !path.trim()
+        ) {
+
+            return value;
+
+        }
+
+        const parts =
+            path
+                .split(".")
+                .filter(Boolean);
+
+        if (
+            !parts.length
+        ) {
+
+            return value;
+
+        }
+
+        let current =
+            STATE;
+
+        for (
+            let index = 0;
+            index < parts.length - 1;
+            index++
+        ) {
+
+            const key =
+                parts[index];
+
+            if (
+                !current[key] ||
+                typeof current[key] !== "object"
+            ) {
+
+                current[key] = {};
+
+            }
+
+            current =
+                current[key];
+
+        }
+
+        current[
+            parts[
+                parts.length - 1
+            ]
+        ] =
+            value;
+
+        return value;
+
+    }
+
+
+    /* =====================================================
+       LEGACY PROCESS COMPATIBILITY
+    ===================================================== */
+
+    function setProcessing(
+        processing
+    ) {
+
+        return setLoading(
+            processing
+        );
+
+    }
+
+
+    /* =====================================================
+       LEGACY CREDIT COMPATIBILITY
+    ===================================================== */
+
+    function markCreditDeducted() {
+
+        return setCredit({
+
+            deducted:
+                true
+
+        });
+
+    }
+
+
+    function markCreditReserved() {
+
+        return setCredit({
+
+            reserved:
+                true
+
+        });
+
+    }
+
+
+    function markCreditRefunded() {
+
+        return setCredit({
+
+            refunded:
+                true
+
+        });
+
+    }
+
+
+    /* =====================================================
        AUTH
     ===================================================== */
 
@@ -516,6 +702,7 @@
        BACKWARD COMPATIBILITY ALIASES
        -----------------------------------------------------
        Beberapa modul lama masih menggunakan:
+
        - setFile()
        - getFile()
        - clearFile()
@@ -1777,6 +1964,23 @@
         getSnapshot,
 
         debugState,
+
+
+        /* -----------------------------------------
+           LEGACY STATE COMPATIBILITY
+        ----------------------------------------- */
+
+        get,
+
+        set,
+
+        setProcessing,
+
+        markCreditDeducted,
+
+        markCreditReserved,
+
+        markCreditRefunded,
 
 
         /* -----------------------------------------
