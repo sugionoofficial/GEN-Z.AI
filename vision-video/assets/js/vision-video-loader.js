@@ -10,8 +10,14 @@
    - Memastikan dependency tersedia
    - Menjalankan initialization
    - Memuat credit module
+   - Memuat history module
    - Menangani initialization error
    - Tidak berisi logic upload / API / analysis
+
+   CATATAN:
+   - Tidak menyentuh Vision Image
+   - Credit Vision Video = 1 per generate
+   - History menggunakan vision-video-history.js
 ========================================================= */
 
 (function () {
@@ -47,9 +53,9 @@
 
         modules: [
 
-            /* -------------------------------------------------
+            /* =================================================
                STATE
-            ------------------------------------------------- */
+            ================================================= */
 
             {
                 name:
@@ -63,9 +69,9 @@
             },
 
 
-            /* -------------------------------------------------
+            /* =================================================
                DOM
-            ------------------------------------------------- */
+            ================================================= */
 
             {
                 name:
@@ -79,12 +85,11 @@
             },
 
 
-            /* -------------------------------------------------
+            /* =================================================
                CREDIT
                -------------------------------------------------
-               Harus setelah State + DOM karena credit module
-               membutuhkan keduanya.
-            ------------------------------------------------- */
+               Credit membutuhkan State + DOM.
+            ================================================= */
 
             {
                 name:
@@ -98,9 +103,29 @@
             },
 
 
-            /* -------------------------------------------------
+            /* =================================================
+               HISTORY
+               -------------------------------------------------
+               History membutuhkan State.
+               Harus dimuat sebelum Events karena Events
+               membuat dan menyimpan history.
+            ================================================= */
+
+            {
+                name:
+                    "history",
+
+                path:
+                    "./assets/js/vision-video-history.js",
+
+                ready:
+                    "GENZVisionVideoHistoryReady"
+            },
+
+
+            /* =================================================
                UPLOAD
-            ------------------------------------------------- */
+            ================================================= */
 
             {
                 name:
@@ -114,9 +139,9 @@
             },
 
 
-            /* -------------------------------------------------
+            /* =================================================
                PREVIEW
-            ------------------------------------------------- */
+            ================================================= */
 
             {
                 name:
@@ -130,9 +155,9 @@
             },
 
 
-            /* -------------------------------------------------
+            /* =================================================
                FRAMES
-            ------------------------------------------------- */
+            ================================================= */
 
             {
                 name:
@@ -146,9 +171,9 @@
             },
 
 
-            /* -------------------------------------------------
+            /* =================================================
                ANALYSIS
-            ------------------------------------------------- */
+            ================================================= */
 
             {
                 name:
@@ -162,9 +187,9 @@
             },
 
 
-            /* -------------------------------------------------
+            /* =================================================
                API
-            ------------------------------------------------- */
+            ================================================= */
 
             {
                 name:
@@ -178,9 +203,9 @@
             },
 
 
-            /* -------------------------------------------------
+            /* =================================================
                UI
-            ------------------------------------------------- */
+            ================================================= */
 
             {
                 name:
@@ -194,9 +219,12 @@
             },
 
 
-            /* -------------------------------------------------
+            /* =================================================
                EVENTS
-            ------------------------------------------------- */
+               -------------------------------------------------
+               Events HARUS paling akhir karena bergantung
+               pada semua module di atas.
+            ================================================= */
 
             {
                 name:
@@ -376,8 +404,8 @@
             ) {
 
                 /*
-                 * Abaikan script URL yang
-                 * tidak dapat diparse.
+                 * URL tidak valid.
+                 * Abaikan.
                  */
 
             }
@@ -432,8 +460,8 @@
 
                 /*
                  * -------------------------------------------------
-                 * Jika script sudah ada di DOM tetapi
-                 * belum memberikan ready flag, tunggu.
+                 * Jika script sudah ada di DOM tetapi ready flag
+                 * belum tersedia, tunggu sampai siap.
                  * -------------------------------------------------
                  */
 
@@ -466,7 +494,7 @@
 
                 /*
                  * -------------------------------------------------
-                 * Inject script
+                 * Inject script.
                  * -------------------------------------------------
                  */
 
@@ -483,6 +511,11 @@
                 script.type =
                     "text/javascript";
 
+
+                /*
+                 * Jangan membuat loading module paralel.
+                 * Dependency harus tetap berurutan.
+                 */
 
                 script.async =
                     false;
@@ -708,6 +741,14 @@
 
             {
                 name:
+                    "History",
+
+                value:
+                    window.GENZVisionVideoHistory
+            },
+
+            {
+                name:
                     "Upload",
 
                 value:
@@ -854,7 +895,7 @@
          * -------------------------------------------------
          * Reset status operasi credit.
          *
-         * Tidak mengubah saldo.
+         * Tidak mengubah saldo server.
          * -------------------------------------------------
          */
 
@@ -865,19 +906,32 @@
          * -------------------------------------------------
          * Ambil saldo aktual dari server.
          *
-         * Ini yang membuat badge tidak lagi
-         * menampilkan 0 hanya karena state awal null.
+         * Ini memastikan badge menggunakan saldo
+         * profiles.credits yang terbaru.
          * -------------------------------------------------
          */
 
         try {
 
-            await credit.checkCredit();
+            const result =
+                await credit.checkCredit();
+
 
             log(
                 "Credit synchronized:",
                 credit.getCurrentCredit()
             );
+
+
+            /*
+             * Pastikan badge diperbarui walaupun response
+             * server tidak mengandung field tambahan.
+             */
+
+            credit.refreshDisplay();
+
+
+            return result;
 
         } catch (
             err
@@ -887,15 +941,38 @@
              * -------------------------------------------------
              * Credit check gagal.
              *
-             * Jangan menghentikan seluruh engine.
-             * UI tetap dapat dibuka, tetapi saldo tidak
-             * dianggap valid sampai check berikutnya.
-             * -------------------------------------------------
-             */
+             * Engine tetap dapat dibuka.
+             * Generate nantinya akan melakukan CHECK ulang
+             * sebelum DEDUCT.
+             * ------------------------------------------------- */
 
-            state.setCreditError(
-                err
-            );
+            if (
+                typeof state.setCreditError ===
+                    "function"
+            ) {
+
+                state.setCreditError(
+                    err
+                );
+
+            } else {
+
+                /*
+                 * Fallback aman apabila implementasi state
+                 * berubah di masa depan.
+                 */
+
+                state.set(
+                    "credit.error",
+                    err &&
+                    err.message
+                        ? err.message
+                        : String(
+                            err
+                        )
+                );
+
+            }
 
 
             credit.refreshDisplay();
@@ -905,6 +982,9 @@
                 "Initial credit check gagal:",
                 err
             );
+
+
+            return null;
 
         }
 
@@ -952,14 +1032,25 @@
 
 
         /*
-         * Render state setelah credit
-         * berhasil/gagal disinkronkan.
+         * UI dirender setelah credit selesai
+         * disinkronkan.
          */
 
         ui.sync();
 
 
         ui.updateAnalyzeButton();
+
+
+        /*
+         * Pastikan credit badge selalu mengambil
+         * nilai terbaru dari state.
+         */
+
+        ui.renderCreditFromState();
+
+
+        ui.renderCreditNotice();
 
     }
 
@@ -984,9 +1075,8 @@
 
 
         /*
-         * Pastikan state process kembali
-         * ke kondisi idle apabila halaman
-         * baru dibuka.
+         * Pastikan process kembali idle ketika
+         * halaman baru dibuka.
          */
 
         state.setProcess({
@@ -1010,8 +1100,7 @@
 
 
         /*
-         * Pastikan UI analysis tidak dianggap
-         * sedang berjalan setelah reload.
+         * UI state juga harus bersih.
          */
 
         state.set(
@@ -1022,6 +1111,12 @@
 
         state.set(
             "ui.resultReady",
+            false
+        );
+
+
+        state.set(
+            "ui.copyReady",
             false
         );
 
@@ -1082,6 +1177,10 @@
 
             page.dataset.initialized =
                 "true";
+
+
+            page.dataset.error =
+                "false";
 
         }
 
@@ -1146,6 +1245,10 @@
             page.dataset.error =
                 "true";
 
+
+            page.dataset.errorMessage =
+                message;
+
         }
 
 
@@ -1198,11 +1301,9 @@
             );
 
 
-            /*
-             * -------------------------------------------------
-             * Pastikan DOM halaman sudah siap.
-             * -------------------------------------------------
-             */
+            /* =================================================
+               WAIT DOM
+            ================================================= */
 
             if (
                 document.readyState ===
@@ -1229,11 +1330,9 @@
             }
 
 
-            /*
-             * -------------------------------------------------
-             * Load module berdasarkan dependency order.
-             * -------------------------------------------------
-             */
+            /* =================================================
+               LOAD MODULES
+            ================================================= */
 
             const loaded =
                 await loadModules();
@@ -1245,56 +1344,47 @@
             );
 
 
-            /*
-             * -------------------------------------------------
-             * Validasi seluruh global.
-             * -------------------------------------------------
-             */
+            /* =================================================
+               VALIDATE DEPENDENCIES
+            ================================================= */
 
             validateDependencies();
 
 
-            /*
-             * -------------------------------------------------
-             * State awal.
-             * -------------------------------------------------
-             */
+            /* =================================================
+               INITIAL STATE
+            ================================================= */
 
             initializeState();
 
 
-            /*
-             * -------------------------------------------------
-             * Credit harus disinkronkan sebelum UI pertama
-             * kali dirender.
-             * -------------------------------------------------
-             */
+            /* =================================================
+               INITIAL CREDIT
+               -------------------------------------------------
+               Harus sebelum UI agar badge tidak pertama kali
+               menampilkan 0 akibat state.balance === null.
+            ================================================= */
 
             await initializeCredit();
 
 
-            /*
-             * -------------------------------------------------
-             * Events setelah semua dependency siap.
-             * -------------------------------------------------
-             */
+            /* =================================================
+               EVENTS
+            ================================================= */
 
             initializeEvents();
 
 
-            /*
-             * -------------------------------------------------
-             * UI terakhir.
-             * -------------------------------------------------
-             */
+            /* =================================================
+               UI
+            ================================================= */
 
             initializeUI();
 
 
-            /*
-             * -------------------------------------------------
-             * Engine siap.
-             * ------------------------------------------------- */
+            /* =================================================
+               READY
+            ================================================= */
 
             markReady();
 
