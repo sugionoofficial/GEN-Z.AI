@@ -10,24 +10,27 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>GEN-Z.AI Vision Video</title>
-
-    <meta
-        name="description"
-        content="GEN-Z.AI Vision Video Engine - Video to Ultra Detailed Prompt"
-    >
+    <title>
+        GEN-Z.AI Vision Video
+    </title>
 
     <!-- =====================================================
          SUPABASE
     ====================================================== -->
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
+
 
     <!-- =====================================================
          GLOBAL CONFIG
     ====================================================== -->
 
-    <script src="../assets/js/config.js"></script>
+    <script
+        src="../assets/js/config.js"
+    ></script>
+
 
     <!-- =====================================================
          GLOBAL PREMIUM CSS
@@ -37,6 +40,7 @@
         rel="stylesheet"
         href="../assets/css/genz-premium.css"
     >
+
 
     <!-- =====================================================
          VISION VIDEO CSS
@@ -60,7 +64,7 @@
 
 
     <!-- =====================================================
-         MAIN PAGE
+         VISION VIDEO PAGE
     ====================================================== -->
 
     <main
@@ -68,66 +72,97 @@
         class="vision-video-page"
     >
 
+
         <!-- =================================================
              HERO
         ================================================== -->
 
-        <section class="vision-video-hero">
-
-            <div class="vision-video-hero-content">
-
-                <div class="vision-video-eyebrow">
-                    GEN-Z.AI / VISION VIDEO ENGINE
-                </div>
-
-                <h1>
-                    VIDEO → ULTRA DETAILED PROMPT
-                </h1>
-
-                <p>
-                    Analisis video untuk memahami scene, gerakan,
-                    karakter, kamera, lighting, environment,
-                    product interaction, dan struktur visual
-                    secara temporal.
-                </p>
-
-            </div>
-
-
-            <!-- =============================================
-                 CREDIT
-            ============================================== -->
+        <section
+            class="vision-video-hero"
+        >
 
             <div
-                id="visionVideoCreditBadge"
-                class="vision-video-credit-badge"
+                class="vision-video-hero-inner"
             >
 
-                <span>
-                    CREDIT
-                </span>
+                <div
+                    class="vision-video-hero-content"
+                >
 
-                <strong id="visionVideoCreditValue">
-                    --
-                </strong>
+                    <div
+                        class="vision-video-eyebrow"
+                    >
+                        GEN-Z.AI
+                    </div>
+
+
+                    <h1>
+                        VISION VIDEO ENGINE
+                    </h1>
+
+
+                    <p>
+                        VIDEO → ULTRA DETAILED PROMPT
+                    </p>
+
+
+                    <span
+                        class="vision-video-hero-description"
+                    >
+                        Analisis video menggunakan AI Vision untuk
+                        memahami scene, subject, camera movement,
+                        lighting, environment, dan struktur temporal.
+                    </span>
+
+                </div>
+
+
+                <!-- =========================================
+                     CREDIT BADGE
+                ========================================== -->
+
+                <div
+                    id="visionVideoCreditBadge"
+                    class="vision-video-credit-badge"
+                >
+
+                    <span
+                        class="vision-video-credit-label"
+                    >
+                        CREDIT
+                    </span>
+
+
+                    <strong
+                        id="visionVideoCreditValue"
+                    >
+                        --
+                    </strong>
+
+                </div>
 
             </div>
 
         </section>
 
 
+
         <!-- =================================================
              MAIN GRID
         ================================================== -->
 
-        <section class="vision-video-main-grid">
+        <div
+            class="vision-video-main-grid"
+        >
 
 
             <!-- =================================================
                  LEFT COLUMN
             ================================================== -->
 
-            <div class="vision-video-left-column">
+            <div
+                class="vision-video-left-column"
+            >
 
 
                 <!-- =============================================
@@ -139,17 +174,23 @@
                     id="visionVideoSourceCard"
                 >
 
-                    <div class="vision-video-card-header">
+                    <div
+                        class="vision-video-card-header"
+                    >
 
                         <div>
 
-                            <div class="vision-video-card-eyebrow">
+                            <div
+                                class="vision-video-card-eyebrow"
+                            >
                                 VIDEO SOURCE
                             </div>
+
 
                             <h2>
                                 Reference Video
                             </h2>
+
 
                             <p>
                                 Upload video yang ingin dianalisis.
@@ -159,10 +200,6 @@
 
                     </div>
 
-
-                    <!-- =========================================
-                         DROPZONE
-                    ========================================== -->
 
                     <div
                         id="visionVideoDropzone"
@@ -186,17 +223,22 @@
                             class="vision-video-upload-state"
                         >
 
-                            <div class="vision-video-upload-icon">
+                            <div
+                                class="vision-video-upload-icon"
+                            >
                                 🎥
                             </div>
+
 
                             <h3>
                                 Drop video di sini
                             </h3>
 
+
                             <p>
                                 atau pilih file video dari perangkat
                             </p>
+
 
                             <button
                                 type="button"
@@ -206,6 +248,7 @@
                                 Pilih Video
                             </button>
 
+
                             <small>
                                 MP4, MOV, WebM dan format video browser
                             </small>
@@ -213,8 +256,9 @@
                         </div>
 
 
+
                         <!-- =====================================
-                             PREVIEW STATE
+                             VIDEO PREVIEW STATE
                         ====================================== -->
 
                         <div
@@ -223,7 +267,9 @@
                             hidden
                         >
 
-                            <div class="vision-video-player-wrapper">
+                            <div
+                                class="vision-video-player-wrapper"
+                            >
 
                                 <video
                                     id="visionVideoPreview"
@@ -231,75 +277,6 @@
                                     playsinline
                                     preload="metadata"
                                 ></video>
-
-                            </div>
-
-
-                            <div class="vision-video-file-info">
-
-                                <div>
-
-                                    <span>
-                                        File
-                                    </span>
-
-                                    <strong id="visionVideoFileName">
-                                        --
-                                    </strong>
-
-                                </div>
-
-
-                                <div>
-
-                                    <span>
-                                        Size
-                                    </span>
-
-                                    <strong id="visionVideoFileSize">
-                                        --
-                                    </strong>
-
-                                </div>
-
-
-                                <div>
-
-                                    <span>
-                                        Duration
-                                    </span>
-
-                                    <strong id="visionVideoDuration">
-                                        --
-                                    </strong>
-
-                                </div>
-
-
-                                <div>
-
-                                    <span>
-                                        Resolution
-                                    </span>
-
-                                    <strong id="visionVideoResolution">
-                                        --
-                                    </strong>
-
-                                </div>
-
-
-                                <div>
-
-                                    <span>
-                                        FPS
-                                    </span>
-
-                                    <strong id="visionVideoFPS">
-                                        --
-                                    </strong>
-
-                                </div>
 
                             </div>
 
@@ -319,6 +296,7 @@
                 </section>
 
 
+
                 <!-- =============================================
                      REPLACEMENT CHARACTER
                 ============================================== -->
@@ -328,22 +306,27 @@
                     id="visionVideoCharacterCard"
                 >
 
-                    <div class="vision-video-card-header">
+                    <div
+                        class="vision-video-card-header"
+                    >
 
                         <div>
 
-                            <div class="vision-video-card-eyebrow">
-                                REPLACEMENT CHARACTER
+                            <div
+                                class="vision-video-card-eyebrow"
+                            >
+                                CHARACTER REFERENCE
                             </div>
 
+
                             <h2>
-                                Character Reference
+                                Replacement Character
                             </h2>
 
+
                             <p>
-                                Upload karakter yang akan digunakan
-                                sebagai referensi identitas dalam
-                                analisis video.
+                                Gunakan foto karakter untuk mengganti
+                                karakter utama dalam analisis visual.
                             </p>
 
                         </div>
@@ -351,9 +334,6 @@
                     </div>
 
 
-                    <!-- =========================================
-                         CHARACTER DROPZONE
-                    ========================================== -->
 
                     <div
                         id="visionVideoCharacterDropzone"
@@ -377,31 +357,38 @@
                             class="vision-video-upload-state"
                         >
 
-                            <div class="vision-video-upload-icon">
-                                👤
+                            <div
+                                class="vision-video-upload-icon"
+                            >
+                                🧑
                             </div>
 
+
                             <h3>
-                                Drop character image di sini
+                                Drop foto karakter di sini
                             </h3>
 
+
                             <p>
-                                atau pilih gambar karakter dari perangkat
+                                atau pilih foto dari perangkat
                             </p>
+
 
                             <button
                                 type="button"
                                 id="visionVideoCharacterBrowseButton"
                                 class="vision-video-secondary-button"
                             >
-                                Pilih Character
+                                Pilih Foto
                             </button>
 
+
                             <small>
-                                JPG, PNG, WebP dan format gambar browser
+                                JPG, JPEG, PNG atau WEBP
                             </small>
 
                         </div>
+
 
 
                         <!-- =====================================
@@ -414,18 +401,21 @@
                             hidden
                         >
 
-                            <div class="vision-video-character-preview-wrapper">
+                            <div
+                                class="vision-video-character-preview-wrapper"
+                            >
 
                                 <img
                                     id="visionVideoCharacterPreviewImage"
-                                    src=""
-                                    alt="Character Reference Preview"
+                                    alt="Character Preview"
                                 >
 
                             </div>
 
 
-                            <div class="vision-video-file-info">
+                            <div
+                                class="vision-video-file-info"
+                            >
 
                                 <div>
 
@@ -433,8 +423,10 @@
                                         File
                                     </span>
 
-                                    <strong id="visionVideoCharacterFileName">
-                                        --
+                                    <strong
+                                        id="visionVideoCharacterFileName"
+                                    >
+                                        -
                                     </strong>
 
                                 </div>
@@ -446,8 +438,10 @@
                                         Size
                                     </span>
 
-                                    <strong id="visionVideoCharacterFileSize">
-                                        --
+                                    <strong
+                                        id="visionVideoCharacterFileSize"
+                                    >
+                                        -
                                     </strong>
 
                                 </div>
@@ -468,22 +462,21 @@
                     </div>
 
 
+
                     <!-- =========================================
-                         CHARACTER AUTHORITY
+                         CHARACTER NOTICE
                     ========================================== -->
 
                     <div
                         id="visionVideoCharacterNotice"
-                        class="vision-video-credit-notice"
+                        class="vision-video-character-notice"
                     >
-                        Character Reference hanya digunakan untuk
-                        identitas, wajah, rambut, tubuh, dan
-                        karakteristik fisik. Scene, pose, kamera,
-                        lighting, environment, dan komposisi tetap
-                        mengikuti Reference Video.
+                        Character reference digunakan sebagai
+                        referensi visual tambahan untuk analisis.
                     </div>
 
                 </section>
+
 
 
                 <!-- =============================================
@@ -495,21 +488,27 @@
                     id="visionVideoSettingsCard"
                 >
 
-                    <div class="vision-video-card-header">
+                    <div
+                        class="vision-video-card-header"
+                    >
 
                         <div>
 
-                            <div class="vision-video-card-eyebrow">
+                            <div
+                                class="vision-video-card-eyebrow"
+                            >
                                 ANALYSIS SETTINGS
                             </div>
 
+
                             <h2>
-                                Video Analysis
+                                Vision Configuration
                             </h2>
 
+
                             <p>
-                                Tentukan tingkat analisis temporal
-                                dan tujuan prompt.
+                                Tentukan bagaimana video dianalisis
+                                oleh Vision Engine.
                             </p>
 
                         </div>
@@ -517,161 +516,196 @@
                     </div>
 
 
-                    <div class="vision-video-form-grid">
+
+                    <!-- =========================================
+                         MODEL
+                    ========================================== -->
+
+                    <div
+                        class="vision-video-form-group"
+                    >
+
+                        <label
+                            for="visionVideoModel"
+                        >
+                            Vision Model
+                        </label>
 
 
-                        <!-- =====================================
-                             MODEL
-                        ====================================== -->
+                        <select
+                            id="visionVideoModel"
+                        >
 
-                        <div class="vision-video-field">
+                            <option value="">
+                                Loading models...
+                            </option>
 
-                            <label for="visionVideoModel">
-                                Model
-                            </label>
+                        </select>
 
-                            <select id="visionVideoModel">
-
-                                <option value="">
-                                    Loading model...
-                                </option>
-
-                            </select>
-
-                        </div>
+                    </div>
 
 
-                        <!-- =====================================
-                             DETAIL
-                        ====================================== -->
 
-                        <div class="vision-video-field">
+                    <!-- =========================================
+                         DETAIL
+                    ========================================== -->
 
-                            <label for="visionVideoDetail">
-                                Detail Level
-                            </label>
+                    <div
+                        class="vision-video-form-group"
+                    >
 
-                            <select id="visionVideoDetail">
-
-                                <option value="standard">
-                                    Standard
-                                </option>
-
-                                <option value="high">
-                                    High
-                                </option>
-
-                                <option
-                                    value="ultra"
-                                    selected
-                                >
-                                    Ultra Detailed
-                                </option>
-
-                            </select>
-
-                        </div>
+                        <label
+                            for="visionVideoDetail"
+                        >
+                            Analysis Detail
+                        </label>
 
 
-                        <!-- =====================================
-                             FRAME ANALYSIS
-                        ====================================== -->
+                        <select
+                            id="visionVideoDetail"
+                        >
 
-                        <div class="vision-video-field">
-
-                            <label for="visionVideoFrameMode">
-                                Frame Analysis
-                            </label>
-
-                            <select id="visionVideoFrameMode">
-
-                                <option
-                                    value="auto"
-                                    selected
-                                >
-                                    Automatic
-                                </option>
-
-                                <option value="keyframes">
-                                    Keyframes
-                                </option>
-
-                                <option value="uniform">
-                                    Uniform Sampling
-                                </option>
-
-                                <option value="dense">
-                                    Dense Analysis
-                                </option>
-
-                            </select>
-
-                        </div>
+                            <option value="standard">
+                                Standard
+                            </option>
 
 
-                        <!-- =====================================
-                             PURPOSE
-                        ====================================== -->
-
-                        <div class="vision-video-field">
-
-                            <label for="visionVideoPurpose">
-                                Purpose
-                            </label>
-
-                            <select id="visionVideoPurpose">
-
-                                <option value="general">
-                                    General Video Prompt
-                                </option>
-
-                                <option value="tiktok_affiliate">
-                                    TikTok Affiliate
-                                </option>
-
-                                <option value="product_video">
-                                    Product Video
-                                </option>
-
-                                <option value="cinematic">
-                                    Cinematic Recreation
-                                </option>
-
-                                <option value="advertising">
-                                    Advertising
-                                </option>
-
-                                <option value="ai_video">
-                                    AI Video Generation
-                                </option>
-
-                            </select>
-
-                        </div>
+                            <option value="high">
+                                High
+                            </option>
 
 
-                        <!-- =====================================
-                             INSTRUCTION
-                        ====================================== -->
+                            <option value="ultra"
+                                    selected>
+                                Ultra
+                            </option>
 
-                        <div class="vision-video-field vision-video-field-full">
+                        </select>
 
-                            <label for="visionVideoInstruction">
-                                Additional Instruction
-                            </label>
+                    </div>
 
-                            <textarea
-                                id="visionVideoInstruction"
-                                rows="5"
-                                maxlength="30000"
-                                placeholder="Tambahkan instruksi khusus untuk analisis video..."
-                            ></textarea>
 
-                        </div>
+
+                    <!-- =========================================
+                         FRAME MODE
+                    ========================================== -->
+
+                    <div
+                        class="vision-video-form-group"
+                    >
+
+                        <label
+                            for="visionVideoFrameMode"
+                        >
+                            Frame Sampling
+                        </label>
+
+
+                        <select
+                            id="visionVideoFrameMode"
+                        >
+
+                            <option value="auto"
+                                    selected>
+                                Automatic
+                            </option>
+
+
+                            <option value="dense">
+                                Dense
+                            </option>
+
+
+                            <option value="balanced">
+                                Balanced
+                            </option>
+
+
+                            <option value="sparse">
+                                Sparse
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+
+                    <!-- =========================================
+                         PURPOSE
+                    ========================================== -->
+
+                    <div
+                        class="vision-video-form-group"
+                    >
+
+                        <label
+                            for="visionVideoPurpose"
+                        >
+                            Analysis Purpose
+                        </label>
+
+
+                        <select
+                            id="visionVideoPurpose"
+                        >
+
+                            <option value="general"
+                                    selected>
+                                General Video Analysis
+                            </option>
+
+
+                            <option value="cinematic">
+                                Cinematic Analysis
+                            </option>
+
+
+                            <option value="advertising">
+                                Advertising / Commercial
+                            </option>
+
+
+                            <option value="social">
+                                Social Media Content
+                            </option>
+
+
+                            <option value="prompt">
+                                Prompt Reconstruction
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+
+                    <!-- =========================================
+                         EXTRA INSTRUCTION
+                    ========================================== -->
+
+                    <div
+                        class="vision-video-form-group"
+                    >
+
+                        <label
+                            for="visionVideoInstruction"
+                        >
+                            Additional Instruction
+                        </label>
+
+
+                        <textarea
+                            id="visionVideoInstruction"
+                            rows="5"
+                            placeholder="Tambahkan instruksi khusus untuk Vision Engine..."
+                        ></textarea>
 
                     </div>
 
                 </section>
+
 
 
                 <!-- =============================================
@@ -679,7 +713,7 @@
                 ============================================== -->
 
                 <section
-                    class="vision-video-card vision-video-action-card"
+                    class="vision-video-card"
                     id="visionVideoActionCard"
                 >
 
@@ -687,8 +721,7 @@
                         id="visionVideoCreditNotice"
                         class="vision-video-credit-notice"
                     >
-                        Credit akan dihitung berdasarkan proses
-                        analisis video.
+                        Analisis membutuhkan 1 credit.
                     </div>
 
 
@@ -696,12 +729,14 @@
                         type="button"
                         id="visionVideoAnalyzeButton"
                         class="vision-video-primary-button"
-                        disabled
                     >
 
-                        <span id="visionVideoAnalyzeButtonText">
+                        <span
+                            id="visionVideoAnalyzeButtonText"
+                        >
                             Analyze Video
                         </span>
+
 
                         <span
                             id="visionVideoAnalyzeSpinner"
@@ -710,6 +745,7 @@
                         ></span>
 
                     </button>
+
 
 
                     <!-- =========================================
@@ -722,21 +758,27 @@
                         hidden
                     >
 
-                        <div class="vision-video-status-header">
+                        <div
+                            class="vision-video-status-header"
+                        >
 
                             <span
                                 id="visionVideoStatusIndicator"
-                                class="vision-video-status-indicator"
                             ></span>
 
-                            <span id="visionVideoStatusText">
+
+                            <span
+                                id="visionVideoStatusText"
+                            >
                                 Preparing...
                             </span>
 
                         </div>
 
 
-                        <div class="vision-video-progress">
+                        <div
+                            class="vision-video-progress"
+                        >
 
                             <div
                                 id="visionVideoProgressBar"
@@ -761,11 +803,14 @@
             </div>
 
 
+
             <!-- =================================================
                  RIGHT COLUMN
             ================================================== -->
 
-            <div class="vision-video-right-column">
+            <div
+                class="vision-video-right-column"
+            >
 
 
                 <!-- =============================================
@@ -773,20 +818,32 @@
                 ============================================== -->
 
                 <section
-                    class="vision-video-card vision-video-result-card"
+                    class="vision-video-card"
+                    id="visionVideoPromptCard"
                 >
 
-                    <div class="vision-video-card-header">
+                    <div
+                        class="vision-video-card-header"
+                    >
 
                         <div>
 
-                            <div class="vision-video-card-eyebrow">
+                            <div
+                                class="vision-video-card-eyebrow"
+                            >
                                 GENERATED PROMPT
                             </div>
+
 
                             <h2>
                                 Ultra Detailed Prompt
                             </h2>
+
+
+                            <p>
+                                Prompt hasil rekonstruksi dari
+                                analisis visual video.
+                            </p>
 
                         </div>
 
@@ -794,8 +851,8 @@
                         <button
                             type="button"
                             id="visionVideoCopyButton"
-                            class="vision-video-copy-button"
-                            disabled
+                            class="vision-video-secondary-button"
+                            hidden
                         >
                             Copy
                         </button>
@@ -803,41 +860,23 @@
                     </div>
 
 
+
                     <div
-                        id="visionVideoPromptContainer"
-                        class="vision-video-prompt-container"
+                        id="visionVideoPromptResult"
+                        class="vision-video-prompt-result"
                     >
 
                         <div
-                            id="visionVideoPromptPlaceholder"
-                            class="vision-video-prompt-placeholder"
+                            class="vision-video-placeholder"
                         >
-
-                            <div class="vision-video-placeholder-icon">
-                                ✦
-                            </div>
-
-                            <h3>
-                                Prompt belum tersedia
-                            </h3>
-
-                            <p>
-                                Upload video kemudian jalankan
-                                analisis untuk menghasilkan prompt.
-                            </p>
-
+                            Hasil prompt akan muncul di sini
+                            setelah video selesai dianalisis.
                         </div>
-
-
-                        <pre
-                            id="visionVideoPromptResult"
-                            class="vision-video-prompt-result"
-                            hidden
-                        ></pre>
 
                     </div>
 
                 </section>
+
 
 
                 <!-- =============================================
@@ -849,17 +888,28 @@
                     id="visionVideoAnalysisCard"
                 >
 
-                    <div class="vision-video-card-header">
+                    <div
+                        class="vision-video-card-header"
+                    >
 
                         <div>
 
-                            <div class="vision-video-card-eyebrow">
+                            <div
+                                class="vision-video-card-eyebrow"
+                            >
                                 TEMPORAL ANALYSIS
                             </div>
+
 
                             <h2>
                                 Video Analysis
                             </h2>
+
+
+                            <p>
+                                Ringkasan perubahan scene dan
+                                pergerakan visual sepanjang video.
+                            </p>
 
                         </div>
 
@@ -872,20 +922,16 @@
                     >
 
                         <div
-                            id="visionVideoAnalysisPlaceholder"
-                            class="vision-video-analysis-placeholder"
+                            class="vision-video-placeholder"
                         >
-
-                            <span>
-                                Analysis data akan muncul
-                                setelah video diproses.
-                            </span>
-
+                            Temporal analysis akan muncul
+                            setelah proses analisis selesai.
                         </div>
 
                     </div>
 
                 </section>
+
 
 
                 <!-- =============================================
@@ -897,101 +943,172 @@
                     id="visionVideoStructureCard"
                 >
 
-                    <div class="vision-video-card-header">
+                    <div
+                        class="vision-video-card-header"
+                    >
 
                         <div>
 
-                            <div class="vision-video-card-eyebrow">
+                            <div
+                                class="vision-video-card-eyebrow"
+                            >
                                 DETECTED STRUCTURE
                             </div>
 
+
                             <h2>
-                                Scene Structure
+                                Visual Structure
                             </h2>
+
+
+                            <p>
+                                Elemen utama yang terdeteksi
+                                dari video.
+                            </p>
 
                         </div>
 
                     </div>
 
 
+
                     <div
-                        id="visionVideoSceneStructure"
-                        class="vision-video-scene-structure"
+                        class="vision-video-structure-grid"
                     >
 
-                        <div class="vision-video-structure-item">
+
+                        <!-- =====================================
+                             SCENE COUNT
+                        ====================================== -->
+
+                        <div
+                            class="vision-video-structure-item"
+                        >
 
                             <span>
-                                Scenes
+                                Scene Count
                             </span>
 
-                            <strong id="visionVideoSceneCount">
-                                --
+
+                            <strong
+                                id="visionVideoSceneCount"
+                            >
+                                -
                             </strong>
 
                         </div>
 
 
-                        <div class="vision-video-structure-item">
+
+                        <!-- =====================================
+                             SUBJECT
+                        ====================================== -->
+
+                        <div
+                            class="vision-video-structure-item"
+                        >
 
                             <span>
                                 Subject
                             </span>
 
-                            <strong id="visionVideoSubject">
-                                --
+
+                            <strong
+                                id="visionVideoSubject"
+                            >
+                                -
                             </strong>
 
                         </div>
 
 
-                        <div class="vision-video-structure-item">
+
+                        <!-- =====================================
+                             CAMERA
+                        ====================================== -->
+
+                        <div
+                            class="vision-video-structure-item"
+                        >
 
                             <span>
                                 Camera
                             </span>
 
-                            <strong id="visionVideoCamera">
-                                --
+
+                            <strong
+                                id="visionVideoCamera"
+                            >
+                                -
                             </strong>
 
                         </div>
 
 
-                        <div class="vision-video-structure-item">
+
+                        <!-- =====================================
+                             MOTION
+                        ====================================== -->
+
+                        <div
+                            class="vision-video-structure-item"
+                        >
 
                             <span>
                                 Motion
                             </span>
 
-                            <strong id="visionVideoMotion">
-                                --
+
+                            <strong
+                                id="visionVideoMotion"
+                            >
+                                -
                             </strong>
 
                         </div>
 
 
-                        <div class="vision-video-structure-item">
+
+                        <!-- =====================================
+                             ENVIRONMENT
+                        ====================================== -->
+
+                        <div
+                            class="vision-video-structure-item"
+                        >
 
                             <span>
                                 Environment
                             </span>
 
-                            <strong id="visionVideoEnvironment">
-                                --
+
+                            <strong
+                                id="visionVideoEnvironment"
+                            >
+                                -
                             </strong>
 
                         </div>
 
 
-                        <div class="vision-video-structure-item">
+
+                        <!-- =====================================
+                             LIGHTING
+                        ====================================== -->
+
+                        <div
+                            class="vision-video-structure-item"
+                        >
 
                             <span>
                                 Lighting
                             </span>
 
-                            <strong id="visionVideoLighting">
-                                --
+
+                            <strong
+                                id="visionVideoLighting"
+                            >
+                                -
                             </strong>
 
                         </div>
@@ -999,6 +1116,7 @@
                     </div>
 
                 </section>
+
 
 
                 <!-- =============================================
@@ -1006,96 +1124,87 @@
                 ============================================== -->
 
                 <section
-                    class="vision-video-info-grid"
+                    class="vision-video-information-grid"
                 >
 
-                    <div class="vision-video-info-card">
 
-                        <span class="vision-video-info-icon">
-                            🎬
+                    <!-- =========================================
+                         INFO CARD 1
+                    ========================================== -->
+
+                    <div
+                        class="vision-video-info-card"
+                    >
+
+                        <span>
+                            VIDEO ANALYSIS
                         </span>
 
-                        <div>
 
-                            <strong>
-                                Temporal Understanding
-                            </strong>
+                        <strong>
+                            Temporal Vision
+                        </strong>
 
-                            <p>
-                                Menganalisis perubahan scene,
-                                gerakan subjek, kamera, dan
-                                transisi sepanjang video.
-                            </p>
 
-                        </div>
+                        <p>
+                            Vision Engine menganalisis sejumlah
+                            frame video untuk memahami perubahan
+                            scene, subject, kamera, dan lingkungan.
+                        </p>
 
                     </div>
 
 
-                    <div class="vision-video-info-card">
 
-                        <span class="vision-video-info-icon">
-                            🔍
+                    <!-- =========================================
+                         INFO CARD 2
+                    ========================================== -->
+
+                    <div
+                        class="vision-video-info-card"
+                    >
+
+                        <span>
+                            PROMPT ENGINE
                         </span>
 
-                        <div>
 
-                            <strong>
-                                Frame Sampling
-                            </strong>
+                        <strong>
+                            Prompt Reconstruction
+                        </strong>
 
-                            <p>
-                                Video dianalisis melalui frame
-                                yang dipilih berdasarkan mode
-                                sampling.
-                            </p>
 
-                        </div>
+                        <p>
+                            Hasil analisis diterjemahkan menjadi
+                            prompt visual dengan detail tinggi.
+                        </p>
 
                     </div>
 
 
-                    <div class="vision-video-info-card">
 
-                        <span class="vision-video-info-icon">
-                            ✨
+                    <!-- =========================================
+                         INFO CARD 3
+                    ========================================== -->
+
+                    <div
+                        class="vision-video-info-card"
+                    >
+
+                        <span>
+                            CHARACTER
                         </span>
 
-                        <div>
 
-                            <strong>
-                                Prompt Generation
-                            </strong>
-
-                            <p>
-                                Hasil analisis temporal disusun
-                                menjadi prompt yang dapat digunakan
-                                untuk workflow AI video.
-                            </p>
-
-                        </div>
-
-                    </div>
+                        <strong>
+                            Character Reference
+                        </strong>
 
 
-                    <div class="vision-video-info-card">
-
-                        <span class="vision-video-info-icon">
-                            🔒
-                        </span>
-
-                        <div>
-
-                            <strong>
-                                Original Video
-                            </strong>
-
-                            <p>
-                                File video asli tidak dimodifikasi
-                                oleh proses analisis.
-                            </p>
-
-                        </div>
+                        <p>
+                            Foto karakter dapat digunakan sebagai
+                            referensi tambahan dalam proses analisis.
+                        </p>
 
                     </div>
 
@@ -1103,28 +1212,31 @@
 
             </div>
 
-        </section>
+        </div>
 
     </main>
+
 
 
     <!-- =====================================================
          NAVIGATION
     ====================================================== -->
 
-    <script src="/navigation/navigation.js"></script>
+    <script
+        src="/navigation/navigation.js"
+    ></script>
+
 
 
     <!-- =====================================================
-         VISION VIDEO CHARACTER UPLOAD
-         -----------------------------------------------------
-         Character upload berdiri sendiri agar tombol
-         "Pilih Character" dapat langsung membuka file picker.
+         CHARACTER UPLOAD
+         Harus dimuat sebelum Vision Video Loader
     ====================================================== -->
 
     <script
         src="./assets/js/vision-video-character-upload.js"
     ></script>
+
 
 
     <!-- =====================================================
