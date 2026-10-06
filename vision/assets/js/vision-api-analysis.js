@@ -11,6 +11,8 @@
    - Reference scene authority
    - Character identity authority
    - FIELD-LEVEL SOURCE AUTHORITY
+   - IMAGE 1 SCENE PLATE LOCK
+   - IMAGE 2 CHARACTER PLATE LOCK
    - Multimodal reference + character analysis
    - JSON extraction
    - Quality validation
@@ -284,76 +286,154 @@ function buildAnalysisOutfitRules(
 
         return `
 =========================================================
-VISUAL SOURCE HIERARCHY
+VISUAL SOURCE ARCHITECTURE
 OUTFIT SOURCE: REPLACEMENT CHARACTER
 =========================================================
 
-TWO IMAGE ROLES ARE STRICTLY SEPARATE.
+THERE ARE TWO DIFFERENT VISUAL PLATES.
 
-IMAGE 1 = REFERENCE IMAGE
-IMAGE 2 = REPLACEMENT CHARACTER
+IMAGE 1 = REFERENCE SCENE PLATE
+IMAGE 2 = REPLACEMENT CHARACTER PLATE
 
-IMAGE 1 is authoritative for the REFERENCE SCENE.
-
-IMAGE 2 is authoritative for REPLACEMENT CHARACTER
-IDENTITY and FINAL OUTFIT.
+THESE IMAGES MUST NEVER BE TREATED AS TWO EQUAL
+SCENE REFERENCES.
 
 =========================================================
-FIELD-LEVEL SOURCE AUTHORITY
+MANDATORY TWO-STAGE ANALYSIS
 =========================================================
 
-THIS IS A FIELD-LEVEL RULE.
+STAGE 1:
+ANALYZE IMAGE 1 AS A SCENE PLATE.
 
-DO NOT decide source authority globally.
+FREEZE AND PRESERVE:
 
-Each visual field has its own authoritative image.
-
----------------------------------------------------------
-IMAGE 1 — SCENE AUTHORITY
----------------------------------------------------------
-
-IMAGE 1 is the ONLY authoritative source for:
-
-- overall scene
 - location
 - environment
 - background
 - architecture
 - surfaces
-- objects in scene
+- objects
+- product
+- product placement
 - composition
 - framing
 - crop
 - subject placement
-- body positioning in scene
 - pose
-- hand positioning
+- body position in the scene
+- hand position
+- head position in the scene
+- gaze direction in the scene
 - camera perspective
-- apparent lens characteristics
+- lens characteristics
 - depth of field
-- focus placement
+- focus
 - lighting
-- light direction
-- light softness
 - shadows
-- contrast
-- scene color palette
 - spatial relationships
-- product
-- product placement
-- scene-specific styling
+- scene color palette
+- scene visual style
 
-These fields MUST NOT be copied from IMAGE 2.
+AFTER THESE FACTS ARE IDENTIFIED,
+THE IMAGE 1 SCENE IS LOCKED.
 
----------------------------------------------------------
-IMAGE 2 — CHARACTER IDENTITY AUTHORITY
----------------------------------------------------------
+STAGE 2:
+ANALYZE IMAGE 2 AS A CHARACTER PLATE.
 
-IMAGE 2 is the ONLY authoritative source for:
+USE IMAGE 2 ONLY FOR:
 
-- character identity
-- face shape
+- identity
+- face
 - facial structure
+- eyes
+- eyebrows
+- nose
+- lips
+- skin appearance
+- physical characteristics
+- hair
+- head covering
+- clothing
+- final outfit
+- outfit-specific accessories
+
+IMAGE 2 IS NOT A SCENE REFERENCE.
+
+=========================================================
+IMAGE 1 SCENE PLATE LOCK
+=========================================================
+
+IMAGE 1 IS THE ONLY SOURCE FOR:
+
+SCENE:
+- location
+- environment
+- background
+- architecture
+- surfaces
+- scene objects
+
+COMPOSITION:
+- framing
+- crop
+- orientation
+- subject placement
+- composition
+- negative space
+
+POSE:
+- body position
+- hand position
+- head position in the scene
+- gaze direction in the scene
+- interaction with objects
+- interaction with environment
+
+CAMERA:
+- camera perspective
+- apparent lens
+- depth of field
+- focus
+- camera distance
+
+LIGHTING:
+- light direction
+- light quality
+- softness
+- highlights
+- contrast
+- ambient illumination
+- color temperature
+
+SHADOWS:
+- shadow direction
+- shadow softness
+- shadow placement
+- contact shadows
+
+PRODUCT:
+- product identity
+- product appearance
+- product placement
+- product orientation
+- product relationship to subject
+
+SPATIAL RELATIONSHIPS:
+- subject relative to background
+- subject relative to product
+- subject relative to objects
+- foreground/middle/background relationships
+
+IMAGE 2 MUST NOT OVERRIDE ANY OF THESE.
+
+=========================================================
+IMAGE 2 CHARACTER PLATE LOCK
+=========================================================
+
+IMAGE 2 IS THE ONLY SOURCE FOR CHARACTER IDENTITY.
+
+FACE:
+- face shape
 - forehead
 - cheeks
 - cheekbones
@@ -362,174 +442,220 @@ IMAGE 2 is the ONLY authoritative source for:
 - eyes
 - eye shape
 - eye color
+- eyelashes
 - eyebrows
-- eyebrow shape
 - nose
-- nose shape
 - lips
-- lip shape
 - mouth
+
+PHYSICAL IDENTITY:
 - skin tone
 - skin appearance
 - visible physical characteristics
-- hair
+- body characteristics that identify the character
+
+HAIR:
 - hair color
 - hair texture
-- hair type
 - hair length
-- hair volume
-- hair density
 - hairstyle
+- hair pattern
 - hair part
 - hairline
 - bangs
 - curls
 - waves
 - braids
-- locs
 - twists
+- locs
 - ponytail
 - bun
-- other visible hairstyle details
-- head covering
-
-IMAGE 1 MUST NEVER PROVIDE CHARACTER HAIR.
-
-IMAGE 1 MUST NEVER PROVIDE CHARACTER FACE.
-
-IMAGE 1 MUST NEVER PROVIDE CHARACTER IDENTITY.
-
----------------------------------------------------------
-ABSOLUTE HAIR SOURCE LOCK
----------------------------------------------------------
-
-THIS RULE HAS PRIORITY OVER ALL OTHER INSTRUCTIONS.
-
-WHEN IMAGE 2 EXISTS:
-
-ALL HAIR INFORMATION MUST COME EXCLUSIVELY FROM IMAGE 2.
-
-The field:
-
-"face_hair.hair"
-
-MUST describe the hair visible in IMAGE 2.
-
-NEVER describe the hair visible in IMAGE 1.
-
-NEVER copy hair from IMAGE 1.
-
-NEVER merge hair from IMAGE 1 and IMAGE 2.
-
-NEVER average the two hairstyles.
-
-NEVER use IMAGE 1 to fill missing hair details.
-
-If IMAGE 1 shows different hair from IMAGE 2,
-IMAGE 2 ALWAYS WINS for:
-
-- hairstyle
-- hair color
-- hair length
-- texture
-- pattern
-- curls
-- waves
-- braids
-- twists
-- locs
-- bangs
-- parting
-- hairline
 - volume
 - density
 
-If the hair in IMAGE 2 is partially visible:
+HEAD COVERING:
+- type
+- color
+- visible construction
 
-Describe ONLY what is actually visible.
+IMAGE 1 MUST NEVER PROVIDE THESE CHARACTER IDENTITY
+FIELDS.
 
-If a specific hair property cannot be determined
-from IMAGE 2, use:
+=========================================================
+ABSOLUTE HAIR SOURCE LOCK
+=========================================================
+
+WHEN IMAGE 2 EXISTS:
+
+ALL CHARACTER HAIR INFORMATION MUST COME EXCLUSIVELY
+FROM IMAGE 2.
+
+THE FIELD:
+
+"face_hair.hair"
+
+IS AN IMAGE 2 ONLY FIELD.
+
+DO NOT USE IMAGE 1 HAIR.
+
+DO NOT LOOK AT IMAGE 1 HAIR TO COMPLETE IMAGE 2.
+
+DO NOT COMBINE HAIR.
+
+DO NOT BLEND HAIR.
+
+DO NOT AVERAGE HAIR.
+
+DO NOT INFER IMAGE 2 HAIR FROM IMAGE 1.
+
+IF IMAGE 1 SHOWS LONG WAVY HAIR
+AND IMAGE 2 SHOWS SHORT BRAIDED HAIR:
+
+THE RESULT MUST BE SHORT BRAIDED HAIR.
+
+NOT:
+
+- long hair
+- wavy hair
+- long wavy hair
+- long wavy braided hair
+
+ONLY THE IMAGE 2 HAIR IS VALID.
+
+IF A HAIR PROPERTY IS NOT CLEARLY VISIBLE
+IN IMAGE 2:
+
+USE:
 
 "unknown"
 
-or:
+OR:
 
 "not clearly visible in IMAGE 2"
 
-DO NOT substitute information from IMAGE 1.
+NEVER FALL BACK TO IMAGE 1.
 
-Example of INVALID behavior:
+=========================================================
+ABSOLUTE SCENE LOCATION LOCK
+=========================================================
 
-IMAGE 1:
-long wavy hair
+WHEN TWO IMAGES ARE PRESENT:
 
-IMAGE 2:
-short braided hair
+"environment"
+AND
+"background"
 
-INVALID:
-"Long dark wavy braided hair."
+MUST DESCRIBE IMAGE 1.
 
-The model MUST NOT combine the two.
+THE LOCATION MUST COME FROM IMAGE 1.
 
-Correct result:
+THE ENVIRONMENT MUST COME FROM IMAGE 1.
 
-"Short braided hair as visible in IMAGE 2."
+THE BACKGROUND MUST COME FROM IMAGE 1.
 
----------------------------------------------------------
-FACE SOURCE LOCK
----------------------------------------------------------
+IF IMAGE 1 SHOWS:
 
-When IMAGE 2 exists:
+- a room
+- a studio
+- a street
+- a beach
+- a forest
+- an office
+- a kitchen
+- a bedroom
+- a store
+- a building
+- architecture
+- outdoor scenery
+- indoor scenery
 
-ALL facial characteristics MUST come exclusively
-from IMAGE 2.
+THAT INFORMATION MUST REMAIN IN THE FINAL ANALYSIS.
 
-This includes:
+DO NOT REPLACE IT WITH THE LOCATION OF IMAGE 2.
 
-- face structure
-- face shape
-- eyes
-- eyebrows
-- nose
-- lips
-- skin appearance
-- facial features
+IF IMAGE 2 IS OUTDOORS AND IMAGE 1 IS INDOORS:
 
-IMAGE 1 facial appearance MUST NOT override IMAGE 2.
+THE FINAL ENVIRONMENT MUST BE INDOORS.
 
----------------------------------------------------------
-PHYSICAL CHARACTER SOURCE LOCK
----------------------------------------------------------
+IF IMAGE 2 IS INDOORS AND IMAGE 1 IS OUTDOORS:
 
-When IMAGE 2 exists:
+THE FINAL ENVIRONMENT MUST BE OUTDOORS.
 
-Character-specific physical characteristics MUST
-come from IMAGE 2.
+IMAGE 2 LOCATION IS NEVER A FALLBACK.
 
-Do NOT use IMAGE 1 to determine:
+=========================================================
+ABSOLUTE COMPOSITION LOCK
+=========================================================
 
-- skin tone
-- skin texture
-- facial proportions
-- hair
-- body characteristics
-- identity characteristics
+"composition"
 
-IMAGE 1 remains authoritative only for the character's
-POSITION and RELATIONSHIP to the reference scene.
+MUST DESCRIBE IMAGE 1.
 
----------------------------------------------------------
-OUTFIT SOURCE LOCK
----------------------------------------------------------
+IMAGE 2 COMPOSITION MUST BE IGNORED.
 
-Because REPLACEMENT CHARACTER is selected:
+If IMAGE 2 is a close-up portrait but IMAGE 1 is
+a full-body scene:
 
-FINAL CLOTHING = IMAGE 2.
+THE FINAL COMPOSITION MUST REMAIN THE IMAGE 1
+FULL-BODY SCENE.
+
+Do not convert IMAGE 1 into IMAGE 2 framing.
+
+=========================================================
+ABSOLUTE POSE LOCK
+=========================================================
+
+"pose"
+
+MUST DESCRIBE THE SUBJECT'S POSE IN IMAGE 1.
+
+IMAGE 2 MAY PROVIDE PHYSICAL CHARACTER INFORMATION,
+BUT IMAGE 2 POSE MUST NOT replace IMAGE 1 pose.
+
+If IMAGE 2 looks directly at the camera but IMAGE 1
+shows the character looking sideways:
+
+THE SCENE GAZE MUST FOLLOW IMAGE 1.
+
+=========================================================
+ABSOLUTE CAMERA LOCK
+=========================================================
+
+"camera"
+
+MUST DESCRIBE IMAGE 1.
+
+Never derive camera information from IMAGE 2.
+
+If IMAGE 2 is a portrait selfie and IMAGE 1 is
+a cinematic wide scene:
+
+THE FINAL CAMERA DESCRIPTION MUST FOLLOW IMAGE 1.
+
+=========================================================
+ABSOLUTE LIGHTING LOCK
+=========================================================
+
+"lighting"
+
+MUST DESCRIBE IMAGE 1.
+
+"shadows"
+
+MUST DESCRIBE IMAGE 1.
+
+Never transfer lighting or shadows from IMAGE 2.
+
+=========================================================
+ABSOLUTE OUTFIT LOCK
+=========================================================
+
+OUTFIT SOURCE = IMAGE 2.
+
+FINAL CLOTHING MUST COME FROM IMAGE 2.
 
 Use IMAGE 2 for:
 
-- clothing
 - garment type
 - garment colors
 - garment materials
@@ -539,127 +665,111 @@ Use IMAGE 2 for:
 - outfit layers
 - outfit-specific accessories
 
-IMAGE 1 MUST NOT contribute clothing.
+IMAGE 1 CLOTHING MUST BE IGNORED.
 
-If clothing is visible in IMAGE 1 but differs from IMAGE 2,
-ignore IMAGE 1 clothing.
+DO NOT MERGE OUTFITS.
 
-Do NOT merge the outfits.
+=========================================================
+FINAL TRANSFORMATION
+=========================================================
 
-Do NOT describe IMAGE 1 clothing as final clothing.
-
----------------------------------------------------------
-POSE SOURCE LOCK
----------------------------------------------------------
-
-Pose belongs to IMAGE 1.
-
-Use IMAGE 1 for:
-
-- pose
-- body position
-- hand position
-- head position
-- gaze direction in the scene
-- interaction with objects
-- interaction with environment
-
-Do NOT replace IMAGE 1 pose with IMAGE 2 pose.
-
-IMAGE 2 may describe physical identity,
-but NOT the reference scene pose.
-
----------------------------------------------------------
-FINAL TRANSFORMATION LOGIC
----------------------------------------------------------
-
-Think of the final result as:
+The intended transformation is:
 
 IMAGE 1
 =
-SCENE + POSE + COMPOSITION + CAMERA + LIGHTING
-+ BACKGROUND + ENVIRONMENT + PRODUCT
-
-PLUS
+SCENE PLATE
 
 IMAGE 2
 =
-CHARACTER IDENTITY + FACE + HAIR + PHYSICAL FEATURES
-+ FINAL OUTFIT
+CHARACTER PLATE
 
-Therefore:
+FINAL:
 
 IMAGE 1 SCENE
 +
-IMAGE 2 CHARACTER
-=
-FINAL VISUAL DESCRIPTION
+IMAGE 2 CHARACTER IDENTITY
++
+IMAGE 2 OUTFIT
 
-Preserve IMAGE 1 as the visual foundation.
+The final result MUST look conceptually like:
 
-Replace the character identity with IMAGE 2.
+"the IMAGE 2 character placed into IMAGE 1 scene
+while preserving IMAGE 1 composition, pose, camera,
+lighting, environment, background, location and product."
 
-Use IMAGE 2 hair.
+NOT:
 
-Use IMAGE 2 face.
-
-Use IMAGE 2 physical characteristics.
-
-Use IMAGE 2 outfit.
-
-Do NOT create a new scene from IMAGE 2.
-
-Do NOT blend scene information from IMAGE 2.
+"IMAGE 2 character portrait with some elements
+from IMAGE 1."
 
 =========================================================
 CONFLICT RESOLUTION
 =========================================================
 
-If IMAGE 1 and IMAGE 2 conflict:
+SCENE
+-> IMAGE 1
 
-SCENE CONFLICT
--> IMAGE 1 wins.
+LOCATION
+-> IMAGE 1
 
-POSE CONFLICT
--> IMAGE 1 wins.
+ENVIRONMENT
+-> IMAGE 1
 
-COMPOSITION CONFLICT
--> IMAGE 1 wins.
+BACKGROUND
+-> IMAGE 1
 
-CAMERA CONFLICT
--> IMAGE 1 wins.
+ARCHITECTURE
+-> IMAGE 1
 
-LIGHTING CONFLICT
--> IMAGE 1 wins.
+COMPOSITION
+-> IMAGE 1
 
-BACKGROUND CONFLICT
--> IMAGE 1 wins.
+FRAMING
+-> IMAGE 1
 
-ENVIRONMENT CONFLICT
--> IMAGE 1 wins.
+CROP
+-> IMAGE 1
 
-PRODUCT CONFLICT
--> IMAGE 1 wins.
+POSE
+-> IMAGE 1
 
-FACE CONFLICT
--> IMAGE 2 wins.
+CAMERA
+-> IMAGE 1
 
-HAIR CONFLICT
--> IMAGE 2 wins.
+LIGHTING
+-> IMAGE 1
 
-IDENTITY CONFLICT
--> IMAGE 2 wins.
+SHADOWS
+-> IMAGE 1
 
-SKIN / PHYSICAL CHARACTER CONFLICT
--> IMAGE 2 wins.
+PRODUCT
+-> IMAGE 1
 
-CLOTHING CONFLICT
--> IMAGE 2 wins.
+SPATIAL RELATIONSHIPS
+-> IMAGE 1
 
-OUTFIT ACCESSORY CONFLICT
--> IMAGE 2 wins.
+FACE
+-> IMAGE 2
 
-NEVER resolve conflicts by blending both images.
+HAIR
+-> IMAGE 2
+
+IDENTITY
+-> IMAGE 2
+
+SKIN
+-> IMAGE 2
+
+PHYSICAL CHARACTERISTICS
+-> IMAGE 2
+
+CLOTHING
+-> IMAGE 2
+
+OUTFIT ACCESSORIES
+-> IMAGE 2
+
+NEVER RESOLVE A CONFLICT BY BLENDING.
 
 =========================================================
 `.trim();
@@ -669,25 +779,64 @@ NEVER resolve conflicts by blending both images.
 
     return `
 =========================================================
-VISUAL SOURCE HIERARCHY
+VISUAL SOURCE ARCHITECTURE
 OUTFIT SOURCE: REFERENCE IMAGE
 =========================================================
 
-TWO IMAGE ROLES ARE STRICTLY SEPARATE.
+IMAGE 1 = REFERENCE SCENE PLATE
+IMAGE 2 = REPLACEMENT CHARACTER PLATE
 
-IMAGE 1 = REFERENCE IMAGE
-IMAGE 2 = REPLACEMENT CHARACTER
+IMAGE 1 controls the scene and final outfit.
 
-IMAGE 1 is authoritative for the REFERENCE SCENE
-and FINAL OUTFIT.
-
-IMAGE 2 is authoritative only for CHARACTER IDENTITY.
+IMAGE 2 controls replacement character identity.
 
 =========================================================
-FIELD-LEVEL SOURCE AUTHORITY
+TWO-STAGE ANALYSIS
 =========================================================
 
-IMAGE 1 is authoritative for:
+STAGE 1:
+Analyze IMAGE 1 as the complete scene plate.
+
+Freeze:
+
+- location
+- environment
+- background
+- composition
+- framing
+- crop
+- pose
+- camera
+- lighting
+- shadows
+- product
+- spatial relationships
+- clothing
+- final outfit
+
+STAGE 2:
+Analyze IMAGE 2 only as character identity.
+
+Use IMAGE 2 for:
+
+- face
+- facial structure
+- eyes
+- eyebrows
+- nose
+- lips
+- skin
+- physical characteristics
+- hair
+- head covering
+
+IMAGE 2 MUST NOT replace the IMAGE 1 scene.
+
+=========================================================
+IMAGE 1 ONLY
+=========================================================
+
+IMAGE 1 is the ONLY source for:
 
 - scene
 - location
@@ -697,7 +846,6 @@ IMAGE 1 is authoritative for:
 - framing
 - crop
 - pose
-- body positioning
 - camera
 - lighting
 - shadows
@@ -707,7 +855,11 @@ IMAGE 1 is authoritative for:
 - final outfit
 - outfit-specific accessories
 
-IMAGE 2 is authoritative ONLY for:
+=========================================================
+IMAGE 2 ONLY
+=========================================================
+
+When IMAGE 2 exists, IMAGE 2 is the ONLY source for:
 
 - character identity
 - face
@@ -722,95 +874,39 @@ IMAGE 2 is authoritative ONLY for:
 - head covering
 
 =========================================================
-ABSOLUTE HAIR SOURCE LOCK
+ABSOLUTE HAIR LOCK
 =========================================================
 
-WHEN IMAGE 2 EXISTS:
-
-ALL CHARACTER HAIR INFORMATION MUST COME
-EXCLUSIVELY FROM IMAGE 2.
-
-The field:
+ALL CHARACTER HAIR MUST COME EXCLUSIVELY FROM IMAGE 2.
 
 "face_hair.hair"
+=
+IMAGE 2 ONLY.
 
-MUST describe IMAGE 2 hair.
+Never use IMAGE 1 hair.
 
-NEVER use IMAGE 1 hair.
+Never blend hair.
 
-NEVER merge IMAGE 1 hair with IMAGE 2 hair.
-
-If IMAGE 2 hair is unclear, report:
-
-"unknown"
-
-or:
-
-"not clearly visible in IMAGE 2"
-
-Do NOT fill missing hair information from IMAGE 1.
-
-If IMAGE 1 and IMAGE 2 show different hairstyles,
-IMAGE 2 ALWAYS WINS for the replacement character.
+Never use IMAGE 1 as a fallback.
 
 =========================================================
-FACE SOURCE LOCK
+SCENE LOCK
 =========================================================
 
-When IMAGE 2 exists:
+IMAGE 1 remains the scene foundation.
 
-ALL facial identity information comes exclusively
-from IMAGE 2.
+IMAGE 2 cannot replace:
 
-IMAGE 1 MUST NOT override:
-
-- face shape
-- eyes
-- eyebrows
-- nose
-- lips
-- skin
-- facial characteristics
-
-=========================================================
-OUTFIT RULE
-=========================================================
-
-Because REFERENCE IMAGE is selected:
-
-FINAL CLOTHING = IMAGE 1.
-
-Use IMAGE 1 for:
-
-- garment type
-- colors
-- materials
-- patterns
-- textures
-- construction
-- accessories
-- final outfit
-
-IMAGE 2 MUST NOT contribute clothing.
-
-=========================================================
-SCENE RULE
-=========================================================
-
-IMAGE 1 controls:
-
-- scene
+- location
+- environment
+- background
 - composition
-- pose
 - framing
+- pose
 - camera
 - lighting
-- background
-- environment
+- shadows
 - product
-- spatial relationships
-
-IMAGE 2 MUST NOT replace these elements.
 
 =========================================================
 CONFLICT RESOLUTION
@@ -819,10 +915,19 @@ CONFLICT RESOLUTION
 SCENE
 -> IMAGE 1
 
-POSE
+LOCATION
+-> IMAGE 1
+
+ENVIRONMENT
+-> IMAGE 1
+
+BACKGROUND
 -> IMAGE 1
 
 COMPOSITION
+-> IMAGE 1
+
+POSE
 -> IMAGE 1
 
 CAMERA
@@ -831,10 +936,7 @@ CAMERA
 LIGHTING
 -> IMAGE 1
 
-BACKGROUND
--> IMAGE 1
-
-ENVIRONMENT
+SHADOWS
 -> IMAGE 1
 
 PRODUCT
@@ -855,7 +957,7 @@ IDENTITY
 PHYSICAL CHARACTERISTICS
 -> IMAGE 2
 
-NEVER blend conflicting details.
+NEVER blend conflicting information.
 
 =========================================================
 `.trim();
@@ -886,57 +988,249 @@ function buildAnalysisSystemPrompt(
     return `
 You are the visual analysis engine of GEN-Z.AI Vision.
 
-Your task is to analyze the supplied image source(s) with
-extremely high visual accuracy and completeness.
+Your task is to perform an extremely accurate,
+source-separated analysis of the supplied image source(s).
 
-Do NOT generate a creative prompt yet.
+DO NOT generate a creative prompt yet.
 
-Extract observable visual information into structured JSON.
+DO NOT describe the two images as equal references.
+
+The images have fixed roles.
 
 ${outfitRules}
 
 =========================================================
-CRITICAL IMAGE PRIORITY
+MASTER SOURCE MATRIX
 =========================================================
 
-When TWO images are supplied:
+THIS MATRIX IS ABSOLUTE.
 
-IMAGE 1 = REFERENCE IMAGE
-IMAGE 2 = REPLACEMENT CHARACTER
+SCENE FIELDS
+-> IMAGE 1 ONLY
 
-They are NOT equal references.
+IDENTITY FIELDS
+-> IMAGE 2 ONLY WHEN IMAGE 2 EXISTS
 
-IMAGE 1 controls the reference SCENE.
-
-IMAGE 2 controls the replacement CHARACTER IDENTITY.
-
-The selected outfit source controls CLOTHING.
+CLOTHING
+-> SELECTED OUTFIT SOURCE
 
 =========================================================
-FIELD-LEVEL AUTHORITY MATRIX
+SCENE FIELDS = IMAGE 1 ONLY
 =========================================================
 
-The following rules are absolute.
+The following JSON categories MUST be based on IMAGE 1:
 
----------------------------------------------------------
-IMAGE 1 ONLY
----------------------------------------------------------
+"subject"
+for scene placement and relationship
 
-The following MUST come from IMAGE 1:
+"pose"
 
-- scene
+"product"
+
+"composition"
+
+"camera"
+
+"lighting"
+
+"shadows"
+
+"environment"
+
+"background"
+
+"spatial_relationships"
+
+Scene-related parts of:
+
+"visual_style"
+
+"color_palette"
+
+"text_branding"
+
+IMAGE 2 MUST NOT provide scene information for these.
+
+=========================================================
+IDENTITY FIELDS = IMAGE 2 ONLY
+=========================================================
+
+When IMAGE 2 exists, the following MUST come exclusively
+from IMAGE 2:
+
+"appearance" identity fields
+
+"face_hair"
+
+identity-related physical characteristics
+
+This includes:
+
+- face shape
+- forehead
+- cheeks
+- cheekbones
+- jaw
+- chin
+- eyes
+- eyebrows
+- nose
+- lips
+- mouth
+- skin tone
+- skin appearance
+- hair
+- hairstyle
+- hair color
+- hair texture
+- hair length
+- hair pattern
+- hair part
+- hairline
+- bangs
+- curls
+- waves
+- braids
+- twists
+- locs
+- ponytail
+- bun
+- volume
+- density
+- head covering
+
+IMAGE 1 MUST NOT be used as fallback for any of these.
+
+=========================================================
+CLOTHING AUTHORITY
+=========================================================
+
+${outfitSource === "character"
+    ? `
+OUTFIT SOURCE = IMAGE 2.
+
+"clothing" MUST describe IMAGE 2 clothing.
+
+IMAGE 1 clothing MUST NOT be used.
+
+Outfit-specific accessories MUST come from IMAGE 2.
+`
+    : `
+OUTFIT SOURCE = IMAGE 1.
+
+"clothing" MUST describe IMAGE 1 clothing.
+
+IMAGE 2 clothing MUST NOT be used.
+
+Outfit-specific accessories MUST come from IMAGE 1.
+`
+}
+
+=========================================================
+MANDATORY ANALYSIS PROCEDURE
+=========================================================
+
+FOLLOW THIS PROCEDURE INTERNALLY BEFORE WRITING JSON.
+
+STEP 1:
+Look at IMAGE 1 ONLY.
+
+Identify and lock:
+
 - location
 - environment
 - background
 - architecture
-- surfaces
+- objects
+- product
 - composition
 - framing
 - crop
 - subject placement
 - pose
-- body positioning in scene
-- hand positioning
+- hand position
+- body position
+- camera
+- lens
+- depth of field
+- focus
+- lighting
+- shadows
+- spatial relationships
+
+DO NOT LOOK TO IMAGE 2 TO COMPLETE THESE FIELDS.
+
+STEP 2:
+Look at IMAGE 2 ONLY.
+
+Identify and lock:
+
+- character identity
+- face
+- facial structure
+- eyes
+- eyebrows
+- nose
+- lips
+- skin
+- hair
+- head covering
+- physical characteristics
+
+When outfit source is CHARACTER, also identify:
+
+- clothing
+- garment type
+- colors
+- materials
+- patterns
+- textures
+- construction
+- outfit layers
+- outfit-specific accessories
+
+STEP 3:
+Combine the two source plates conceptually.
+
+PLACE:
+
+IMAGE 2 CHARACTER
+
+INTO:
+
+IMAGE 1 SCENE.
+
+DO NOT PLACE IMAGE 1 SCENE INTO IMAGE 2.
+
+STEP 4:
+Write each JSON category only from its authoritative source.
+
+STEP 5:
+Perform the FINAL SOURCE AUDIT before returning JSON.
+
+=========================================================
+IMAGE 1 SCENE PLATE
+=========================================================
+
+IMAGE 1 IS THE SCENE PLATE.
+
+The following MUST describe IMAGE 1:
+
+- location
+- environment
+- background
+- architecture
+- surfaces
+- scene objects
+- composition
+- framing
+- crop
+- subject placement
+- pose
+- hand position
+- body position in scene
+- head position in scene
+- gaze direction in scene
 - camera
 - lens characteristics
 - depth of field
@@ -946,30 +1240,43 @@ The following MUST come from IMAGE 1:
 - product
 - product placement
 - spatial relationships
-- scene visual style
 
----------------------------------------------------------
-IMAGE 2 ONLY
----------------------------------------------------------
+If IMAGE 1 visibly shows a location,
+DO NOT return "unknown" merely because IMAGE 2
+shows a different location.
 
-When IMAGE 2 exists, the following MUST come
-exclusively from IMAGE 2:
+If IMAGE 1 is indoors and IMAGE 2 is outdoors:
 
-- character identity
+environment = IMAGE 1 indoor environment.
+
+If IMAGE 1 is outdoors and IMAGE 2 is indoors:
+
+environment = IMAGE 1 outdoor environment.
+
+The location of IMAGE 2 MUST NEVER replace
+the location of IMAGE 1.
+
+=========================================================
+IMAGE 2 CHARACTER PLATE
+=========================================================
+
+IMAGE 2 IS THE CHARACTER PLATE.
+
+The following MUST describe IMAGE 2:
+
 - face
 - facial structure
-- face shape
 - eyes
 - eyebrows
 - nose
 - lips
 - skin appearance
-- visible physical characteristics
+- physical identity
 - hair
+- hairstyle
 - hair color
 - hair texture
 - hair length
-- hairstyle
 - hair pattern
 - hair part
 - hairline
@@ -983,507 +1290,463 @@ exclusively from IMAGE 2:
 - bun
 - head covering
 
----------------------------------------------------------
-CLOTHING
----------------------------------------------------------
-
-When OUTFIT SOURCE = REFERENCE:
-
-CLOTHING = IMAGE 1.
-
-When OUTFIT SOURCE = CHARACTER:
-
-CLOTHING = IMAGE 2.
-
-No exceptions.
-
 =========================================================
-ABSOLUTE HAIR RULE
+HAIR SOURCE LOCK
 =========================================================
 
-THIS RULE OVERRIDES GENERIC IMAGE DESCRIPTION.
+THIS IS AN EXCLUSIVE FIELD RULE.
 
 When IMAGE 2 exists:
 
 "face_hair.hair"
-MUST be derived exclusively from IMAGE 2.
 
-Do NOT derive this field from IMAGE 1.
+MUST be derived from IMAGE 2 ONLY.
 
-Do NOT compare the hairstyles and combine them.
+IMAGE 1 HAIR IS INVALID FOR THIS FIELD.
 
-Do NOT write a hybrid hairstyle.
+Never:
 
-Do NOT use IMAGE 1 to complete missing IMAGE 2 details.
+- copy IMAGE 1 hair
+- merge IMAGE 1 hair
+- blend hairstyles
+- average hairstyles
+- borrow missing attributes
+- use IMAGE 1 as fallback
 
-If IMAGE 2 clearly shows braided hair,
-the output MUST describe braided hair.
+If IMAGE 2 clearly shows braids,
+"face_hair.hair" must describe braids.
 
 If IMAGE 2 clearly shows short hair,
-the output MUST NOT describe long hair from IMAGE 1.
+"face_hair.hair" must describe short hair.
 
-If IMAGE 2 clearly shows straight hair,
-the output MUST NOT describe wavy hair from IMAGE 1.
+If IMAGE 2 clearly shows long hair,
+"face_hair.hair" must describe long hair.
 
-If IMAGE 2 clearly shows curly hair,
-the output MUST NOT describe straight or wavy hair
-from IMAGE 1.
-
-If IMAGE 2 hair is partially visible,
-describe only the visible portion.
-
-If IMAGE 2 hair cannot be determined,
-write:
-
-"not clearly visible in IMAGE 2"
-
-Do NOT fall back to IMAGE 1.
-
-=========================================================
-ABSOLUTE FACE RULE
-=========================================================
-
-When IMAGE 2 exists:
-
-The following fields MUST be derived exclusively
-from IMAGE 2:
-
-- face_structure
-- eyes
-- eyebrows
-- nose
-- lips
-- hair
-- head_covering
-
-If a field is not visible in IMAGE 2:
-
+If IMAGE 2 hair is unclear,
 use:
 
-"unknown"
-
-or:
-
 "not clearly visible in IMAGE 2"
 
-Do NOT use IMAGE 1 as fallback.
+Do NOT use IMAGE 1 to fill the gap.
 
 =========================================================
-ABSOLUTE PHYSICAL IDENTITY RULE
+FACE SOURCE LOCK
 =========================================================
 
 When IMAGE 2 exists:
 
-Character-specific physical characteristics
-must be derived from IMAGE 2.
+"face_hair.face_structure"
+-> IMAGE 2 ONLY
+
+"face_hair.eyes"
+-> IMAGE 2 ONLY
+
+"face_hair.eyebrows"
+-> IMAGE 2 ONLY
+
+"face_hair.nose"
+-> IMAGE 2 ONLY
+
+"face_hair.lips"
+-> IMAGE 2 ONLY
+
+"face_hair.head_covering"
+-> IMAGE 2 ONLY
+
+Never use IMAGE 1 as fallback.
+
+=========================================================
+APPEARANCE SOURCE LOCK
+=========================================================
+
+When IMAGE 2 exists:
+
+Character identity information in "appearance"
+must come from IMAGE 2.
 
 This includes:
 
 - skin tone
 - skin appearance
-- visible facial characteristics
-- visible body characteristics
-- hair
-- identity-defining physical features
+- visible physical characteristics
+- body characteristics
+- identity-defining details
 
-IMAGE 1 can establish where the character is,
-but cannot redefine who the character is.
+IMAGE 1 may establish where the character stands,
+but cannot determine who the character is.
 
 =========================================================
-SCENE PRESERVATION RULE
+POSE SOURCE LOCK
 =========================================================
 
-IMAGE 1 is the visual foundation.
+"pose" describes the character's placement and action
+IN IMAGE 1.
 
-Do NOT describe IMAGE 2 as though it were the
-main scene.
+Use IMAGE 1.
 
-Do NOT transfer IMAGE 2:
+Do NOT copy the pose of IMAGE 2.
 
-- background
-- environment
-- room
-- architecture
-- composition
+If IMAGE 2 is standing and IMAGE 1 is sitting:
+
+The final pose must be sitting.
+
+If IMAGE 2 faces the camera and IMAGE 1 faces sideways:
+
+The final scene gaze must follow IMAGE 1.
+
+=========================================================
+COMPOSITION SOURCE LOCK
+=========================================================
+
+"composition" describes IMAGE 1 ONLY.
+
+Use IMAGE 1 for:
+
 - framing
-- camera
-- lighting
-- shadows
-- spatial arrangement
-
-into IMAGE 1.
-
-The character from IMAGE 2 is inserted into
-the scene of IMAGE 1.
-
-=========================================================
-CONFLICT RESOLUTION
-=========================================================
-
-If two images contain conflicting information,
-DO NOT blend the information.
-
-Apply this exact priority:
-
-SCENE
-IMAGE 1
-
-LOCATION
-IMAGE 1
-
-BACKGROUND
-IMAGE 1
-
-ENVIRONMENT
-IMAGE 1
-
-COMPOSITION
-IMAGE 1
-
-POSE
-IMAGE 1
-
-CAMERA
-IMAGE 1
-
-LIGHTING
-IMAGE 1
-
-SHADOWS
-IMAGE 1
-
-PRODUCT
-IMAGE 1
-
-SPATIAL RELATIONSHIPS
-IMAGE 1
-
-CLOTHING
-selected outfit source
-
-FACE
-IMAGE 2
-
-HAIR
-IMAGE 2
-
-IDENTITY
-IMAGE 2
-
-PHYSICAL CHARACTERISTICS
-IMAGE 2
-
-If the lower-priority image contains conflicting
-information, IGNORE that information.
-
-=========================================================
-=========================================================
-
-IMAGE SOURCE RULES:
-
-- Inspect every attached image carefully.
-- IMAGE 1 is always the main reference image.
-- IMAGE 2 is always the replacement character.
-- Never confuse IMAGE 1 and IMAGE 2.
-- Never invent information.
-- Never assume clothing from one image belongs to another.
-- Follow field-level authority exactly.
-- Do not use one image as fallback for another image's
-  authoritative field.
-
-Analyze:
-
-1. subject
-2. appearance
-3. face and hair
-4. pose and body position
-5. clothing
-6. accessories
-7. product
-8. composition
-9. framing
-10. camera perspective
-11. lens characteristics
-12. depth of field
-13. lighting
-14. shadows
-15. environment
-16. background
-17. color palette
-18. visual style
-19. text and branding
-20. image quality
-21. important visual details
-22. spatial relationships
-23. uncertainty
-
-Rules:
-
-- Inspect the actual attached image source(s).
-- The actual image content MUST be used as the visual source.
-- Describe observable details specifically.
-- Extract concrete colors, shapes, textures, patterns,
-  positions and spatial relationships.
-- Describe facial characteristics individually when visible.
-- Describe clothing pieces individually.
-- Describe patterns and textures when visible.
-- Describe background details specifically.
-- Describe lighting direction and quality when observable.
-- Describe camera perspective when visually inferable.
-- Describe composition and subject placement precisely.
-- Describe accessories individually.
-- Identify products and visible branding carefully.
-- Never invent hidden details.
-- Use null or "unknown" when something cannot be determined.
-- Preserve spatial relationships.
-- Separate visible facts from uncertainty.
-- Never claim a person's real-world identity.
-
-=========================================================
-CATEGORY SOURCE CONTROL
-=========================================================
-
-THE "subject" CATEGORY:
-
-Use IMAGE 1 to establish:
-
-- subject role
+- crop
 - subject placement
-- subject relationship to scene
+- orientation
+- negative space
+- balance
+- foreground
+- middle ground
+- background
+- spatial composition
 
-Use IMAGE 2 only for replacement character identity.
+IMAGE 2 composition MUST NOT be copied.
 
----------------------------------------------------------
-THE "appearance" CATEGORY
----------------------------------------------------------
+=========================================================
+CAMERA SOURCE LOCK
+=========================================================
 
-When IMAGE 2 exists:
+"camera" describes IMAGE 1 ONLY.
 
-Character appearance MUST come from IMAGE 2.
+Use IMAGE 1 for:
 
-This includes:
+- perspective
+- apparent lens
+- camera distance
+- depth of field
+- focus
+- focus placement
 
-- skin
-- face
-- hair
-- physical characteristics
+Never infer the final camera from IMAGE 2.
 
-Do NOT copy character appearance from IMAGE 1.
+=========================================================
+LIGHTING SOURCE LOCK
+=========================================================
 
----------------------------------------------------------
-THE "face_hair" CATEGORY
----------------------------------------------------------
+"lighting" describes IMAGE 1 ONLY.
 
-When IMAGE 2 exists:
+"shadows" describes IMAGE 1 ONLY.
 
-ALL identity fields MUST come from IMAGE 2.
+Never import:
 
-Specifically:
+- light direction
+- light softness
+- highlights
+- contrast
+- ambient illumination
+- color temperature
+- shadows
 
-"face_structure"
--> IMAGE 2 ONLY
+from IMAGE 2.
 
-"eyes"
--> IMAGE 2 ONLY
+=========================================================
+ENVIRONMENT SOURCE LOCK
+=========================================================
 
-"eyebrows"
--> IMAGE 2 ONLY
+"environment" describes IMAGE 1 ONLY.
 
-"nose"
--> IMAGE 2 ONLY
+Inspect IMAGE 1 carefully for:
 
-"lips"
--> IMAGE 2 ONLY
+- indoor/outdoor setting
+- location type
+- architecture
+- walls
+- floor
+- ceiling
+- furniture
+- vegetation
+- street
+- landscape
+- structures
+- surfaces
+- environmental objects
+- depth
 
-"hair"
--> IMAGE 2 ONLY
+Do NOT use IMAGE 2 environment.
 
-"head_covering"
--> IMAGE 2 ONLY
+=========================================================
+BACKGROUND SOURCE LOCK
+=========================================================
 
-The "hair" field is NEVER allowed to use IMAGE 1.
+"background" describes IMAGE 1 ONLY.
 
----------------------------------------------------------
-THE "pose" CATEGORY
----------------------------------------------------------
+Inspect:
 
-ALWAYS comes from IMAGE 1.
+- background structures
+- scenery
+- objects
+- colors
+- textures
+- depth
+- blur
+- environmental context
 
----------------------------------------------------------
-THE "clothing" CATEGORY
----------------------------------------------------------
+If IMAGE 2 has a completely different background,
+IGNORE IT.
 
-OUTFIT SOURCE = REFERENCE:
--> IMAGE 1 ONLY
+=========================================================
+PRODUCT SOURCE LOCK
+=========================================================
 
-OUTFIT SOURCE = CHARACTER:
--> IMAGE 2 ONLY
+"product" describes IMAGE 1 ONLY.
 
-Never merge clothing.
+Never invent a product from IMAGE 2.
 
----------------------------------------------------------
-THE "accessories" CATEGORY
----------------------------------------------------------
+Inspect IMAGE 1 for:
 
-Scene/product-related accessories:
+- product type
+- shape
+- material
+- color
+- branding
+- labels
+- orientation
+- placement
+- interaction with subject
+
+=========================================================
+ACCESSORIES SOURCE LOCK
+=========================================================
+
+Scene-related accessories:
+-> IMAGE 1
+
+Product-related accessories:
 -> IMAGE 1
 
 Outfit-specific accessories:
 -> selected outfit source
 
----------------------------------------------------------
-THE "product" CATEGORY
----------------------------------------------------------
+When OUTFIT SOURCE = CHARACTER:
+-> outfit accessories IMAGE 2
 
-ALWAYS IMAGE 1.
+When OUTFIT SOURCE = REFERENCE:
+-> outfit accessories IMAGE 1
 
----------------------------------------------------------
-THE "composition" CATEGORY
----------------------------------------------------------
+=========================================================
+COLOR SOURCE LOCK
+=========================================================
 
-ALWAYS IMAGE 1.
-
----------------------------------------------------------
-THE "camera" CATEGORY
----------------------------------------------------------
-
-ALWAYS IMAGE 1.
-
----------------------------------------------------------
-THE "lighting" CATEGORY
----------------------------------------------------------
-
-ALWAYS IMAGE 1.
-
----------------------------------------------------------
-THE "shadows" CATEGORY
----------------------------------------------------------
-
-ALWAYS IMAGE 1.
-
----------------------------------------------------------
-THE "environment" CATEGORY
----------------------------------------------------------
-
-ALWAYS IMAGE 1.
-
----------------------------------------------------------
-THE "background" CATEGORY
----------------------------------------------------------
-
-ALWAYS IMAGE 1.
-
----------------------------------------------------------
-THE "color_palette" CATEGORY
----------------------------------------------------------
-
-Overall scene palette:
+Scene color palette:
 -> IMAGE 1
 
-Clothing palette:
+Environment colors:
+-> IMAGE 1
+
+Background colors:
+-> IMAGE 1
+
+Lighting color:
+-> IMAGE 1
+
+Product colors:
+-> IMAGE 1
+
+Character skin:
+-> IMAGE 2
+
+Character hair:
+-> IMAGE 2
+
+Character clothing:
 -> selected outfit source
 
-Character hair color:
--> IMAGE 2
-
-Character skin appearance:
--> IMAGE 2
-
-Do not allow scene palette to overwrite character
-identity attributes.
-
----------------------------------------------------------
-THE "visual_style" CATEGORY
----------------------------------------------------------
-
-ALWAYS prioritize IMAGE 1.
-
----------------------------------------------------------
-THE "text_branding" CATEGORY
----------------------------------------------------------
-
-Prioritize IMAGE 1.
-
-Do not import branding from IMAGE 2.
-
----------------------------------------------------------
-THE "spatial_relationships" CATEGORY
----------------------------------------------------------
-
-ALWAYS IMAGE 1.
+Do not allow IMAGE 2 scene colors to replace
+IMAGE 1 scene colors.
 
 =========================================================
-FINAL ANALYSIS PRINCIPLE
+VISUAL STYLE SOURCE LOCK
 =========================================================
 
-When two images are supplied, do NOT simply describe
-both images independently.
+The overall visual style MUST follow IMAGE 1.
 
-Instead determine:
+Use IMAGE 1 for:
 
-1. What belongs to IMAGE 1 scene.
-2. What belongs to IMAGE 2 character identity.
-3. What belongs to the selected outfit source.
+- photographic/cinematic character
+- realism
+- sharpness
+- background separation
+- scene aesthetic
+- contrast
+- image treatment
 
-Then produce ONE structured analysis representing
-the intended final transformation.
+Do not use IMAGE 2's portrait style
+to redefine IMAGE 1.
 
-The analysis must preserve:
+=========================================================
+TEXT AND BRANDING SOURCE LOCK
+=========================================================
 
-IMAGE 1
-=
-SCENE AUTHORITY
+Visible scene text and branding:
+-> IMAGE 1
 
-IMAGE 2
-=
-CHARACTER IDENTITY AUTHORITY
+Product text:
+-> IMAGE 1
 
+Do not import unrelated branding from IMAGE 2.
+
+=========================================================
+FINAL TRANSFORMATION RULE
+=========================================================
+
+The final analysis represents:
+
+IMAGE 1 SCENE
++
+IMAGE 2 CHARACTER
++
 SELECTED OUTFIT SOURCE
-=
-CLOTHING AUTHORITY
+
+For CHARACTER outfit mode:
+
+IMAGE 1:
+scene + location + environment + background
++ composition + pose + camera + lighting
++ shadows + product + spatial relationships
+
+IMAGE 2:
+identity + face + hair + physical characteristics
++ clothing + outfit
+
+For REFERENCE outfit mode:
+
+IMAGE 1:
+scene + location + environment + background
++ composition + pose + camera + lighting
++ shadows + product + spatial relationships
++ clothing + outfit
+
+IMAGE 2:
+identity + face + hair + physical characteristics
+
+=========================================================
+FINAL SOURCE AUDIT
+=========================================================
+
+BEFORE RETURNING JSON, CHECK EVERY CATEGORY.
+
+CHECK 1:
+Does "environment" describe IMAGE 1?
+
+CHECK 2:
+Does "background" describe IMAGE 1?
+
+CHECK 3:
+Does "composition" describe IMAGE 1?
+
+CHECK 4:
+Does "pose" describe IMAGE 1?
+
+CHECK 5:
+Does "camera" describe IMAGE 1?
+
+CHECK 6:
+Does "lighting" describe IMAGE 1?
+
+CHECK 7:
+Does "shadows" describe IMAGE 1?
+
+CHECK 8:
+Does "product" describe IMAGE 1?
+
+CHECK 9:
+Does "spatial_relationships" describe IMAGE 1?
+
+CHECK 10:
+Does "face_hair" describe IMAGE 2?
+
+CHECK 11:
+Does "face_hair.hair" describe ONLY IMAGE 2?
+
+CHECK 12:
+Does "appearance" identity information describe IMAGE 2?
+
+CHECK 13:
+Does "clothing" use the selected outfit source?
+
+CHECK 14:
+Did any IMAGE 2 location/background/environment
+leak into IMAGE 1 scene fields?
+
+CHECK 15:
+Did any IMAGE 1 hair/face/identity leak into
+IMAGE 2 character fields?
+
+If any answer is wrong:
+
+CORRECT THE JSON BEFORE RETURNING IT.
+
+=========================================================
+CRITICAL FAILURE CONDITIONS
+=========================================================
+
+The analysis is INVALID if:
+
+- IMAGE 2 becomes the main scene
+- IMAGE 2 background replaces IMAGE 1 background
+- IMAGE 2 environment replaces IMAGE 1 environment
+- IMAGE 2 location replaces IMAGE 1 location
+- IMAGE 2 composition replaces IMAGE 1 composition
+- IMAGE 2 pose replaces IMAGE 1 pose
+- IMAGE 2 camera replaces IMAGE 1 camera
+- IMAGE 2 lighting replaces IMAGE 1 lighting
+- IMAGE 1 hair replaces IMAGE 2 hair
+- clothing comes from the wrong outfit source
+- the two scenes are blended
 
 =========================================================
 JSON REQUIREMENTS
 =========================================================
 
-The returned JSON MUST contain actual observable information.
+Return actual observable visual information.
 
 Do NOT return an empty schema.
 
-If a category is genuinely not applicable, use:
+Use null or "unknown" only when a detail is genuinely
+not visible or cannot be determined from its authoritative
+image.
 
-{
-  "present": false
-}
+IMPORTANT:
 
-or:
+"unknown" does NOT mean:
+"use the other image".
 
-{
-  "value": null
-}
+If IMAGE 2 hair is unclear:
 
-But all categories that are visibly applicable MUST contain
-concrete observations.
+"not clearly visible in IMAGE 2"
 
-COMPLETENESS REQUIREMENT:
+If IMAGE 1 location is unclear:
 
-The JSON MUST be completely finished.
+"not clearly identifiable in IMAGE 1"
 
-Do NOT stop in the middle of a property name.
+Never use the other image as fallback.
+
+The returned JSON MUST be complete.
+
+Do NOT stop in the middle of a property.
 
 Do NOT stop in the middle of a string.
 
-Do NOT stop before all applicable categories are completed.
-
-Do NOT stop before the final closing braces and brackets.
-
-The response is INVALID if the JSON is incomplete.
+Do NOT stop before closing braces or arrays.
 
 Return valid JSON only.
 
 Do not use Markdown fences.
 
-Do not add explanations before or after the JSON.
+Do not add explanations.
 
 Use this structure:
 
@@ -1553,155 +1816,63 @@ function buildAnalysisUserPrompt(
         outfitSource === "character"
 
             ? `
-OUTFIT SOURCE SELECTED:
-Replacement Character Outfit.
-
-IMAGE 1 = REFERENCE SCENE.
-IMAGE 2 = REPLACEMENT CHARACTER.
+OUTFIT SOURCE:
+${outfitLabel}
 
 =========================================================
-SOURCE AUTHORITY
+MANDATORY VISUAL TRANSFORMATION
 =========================================================
 
-IMAGE 1 controls ONLY the scene:
+IMAGE 1 = SCENE PLATE
+IMAGE 2 = CHARACTER PLATE
+
+The final visual concept is:
+
+IMAGE 2 CHARACTER
+placed inside
+IMAGE 1 SCENE.
+
+IMAGE 1 remains the visual foundation.
+
+IMAGE 2 does NOT become the scene.
+
+=========================================================
+IMAGE 1 MUST PROVIDE
+=========================================================
+
+Use IMAGE 1 ONLY for:
 
 - location
 - environment
 - background
 - architecture
+- surfaces
+- scene objects
 - composition
-- pose
 - framing
+- crop
+- subject placement
+- pose
+- body position in scene
+- hand position
+- head position in scene
+- gaze direction in scene
 - camera
+- lens
+- depth of field
+- focus
 - lighting
 - shadows
 - product
+- product placement
 - spatial relationships
-
-IMAGE 2 controls CHARACTER IDENTITY:
-
-- face
-- facial structure
-- eyes
-- eyebrows
-- nose
-- lips
-- skin appearance
-- visible physical characteristics
-- hair
-- hairstyle
-- hair color
-- hair texture
-- hair length
-- braids
-- curls
-- waves
-- twists
-- locs
-- bangs
-- hairline
-- head covering
-
-IMAGE 2 also controls FINAL CLOTHING:
-
-- clothing
-- garment type
-- colors
-- materials
-- patterns
-- textures
-- construction
-- outfit-specific accessories
+- scene visual style
 
 =========================================================
-HAIR LOCK
+IMAGE 2 MUST PROVIDE
 =========================================================
 
-The replacement character hair MUST come exclusively
-from IMAGE 2.
-
-Do NOT use IMAGE 1 hair.
-
-Do NOT combine IMAGE 1 hair with IMAGE 2 hair.
-
-If IMAGE 1 shows a different hairstyle,
-IGNORE IMAGE 1 hairstyle completely.
-
-If IMAGE 2 hair is unclear,
-write "not clearly visible in IMAGE 2".
-
-NEVER use IMAGE 1 as a fallback for hair.
-
-=========================================================
-FACE LOCK
-=========================================================
-
-The replacement character face MUST come exclusively
-from IMAGE 2.
-
-Do NOT copy facial characteristics from IMAGE 1.
-
-=========================================================
-SCENE LOCK
-=========================================================
-
-Do NOT use IMAGE 2 as the scene reference.
-
-Do NOT transfer IMAGE 2:
-
-- background
-- environment
-- composition
-- camera
-- lighting
-- shadows
-- location
-- spatial arrangement
-
-The final scene MUST remain based on IMAGE 1.
-
-=========================================================
-OUTFIT LOCK
-=========================================================
-
-Do NOT use clothing from IMAGE 1.
-
-The final outfit MUST come from IMAGE 2.
-
-Do NOT merge clothing from the two images.
-`
-
-            : `
-OUTFIT SOURCE SELECTED:
-Reference Image Outfit.
-
-IMAGE 1 = PRIMARY VISUAL REFERENCE.
-
-=========================================================
-SOURCE AUTHORITY
-=========================================================
-
-IMAGE 1 controls:
-
-- scene
-- location
-- environment
-- background
-- composition
-- pose
-- framing
-- camera
-- lighting
-- shadows
-- product
-- spatial relationships
-- clothing
-- final outfit
-- outfit-specific accessories
-
-IMAGE 2 = REPLACEMENT CHARACTER.
-
-IMAGE 2 controls ONLY:
+Use IMAGE 2 ONLY for:
 
 - character identity
 - face
@@ -1710,13 +1881,277 @@ IMAGE 2 controls ONLY:
 - eyebrows
 - nose
 - lips
-- skin appearance
-- visible physical characteristics
+- skin
+- physical characteristics
 - hair
 - hairstyle
 - hair color
 - hair texture
 - hair length
+- hair pattern
+- braids
+- curls
+- waves
+- twists
+- locs
+- bangs
+- hairline
+- head covering
+
+AND:
+
+- clothing
+- garment type
+- garment colors
+- garment materials
+- garment patterns
+- garment textures
+- garment construction
+- outfit layers
+- outfit-specific accessories
+
+=========================================================
+DO NOT COPY IMAGE 2 SCENE
+=========================================================
+
+Ignore IMAGE 2:
+
+- location
+- environment
+- background
+- architecture
+- room
+- outdoor setting
+- landscape
+- composition
+- framing
+- crop
+- camera
+- lens
+- lighting
+- shadows
+- spatial arrangement
+- scene style
+
+These MUST come from IMAGE 1.
+
+=========================================================
+DO NOT COPY IMAGE 1 CHARACTER IDENTITY
+=========================================================
+
+Do not use IMAGE 1 to determine:
+
+- face
+- facial structure
+- skin identity
+- hair
+- hairstyle
+- hair color
+- hair texture
+- hair length
+- identity-defining physical characteristics
+
+These MUST come from IMAGE 2.
+
+=========================================================
+ABSOLUTE HAIR RULE
+=========================================================
+
+"face_hair.hair"
+=
+IMAGE 2 ONLY.
+
+Never use IMAGE 1 hair.
+
+Never combine the two hairstyles.
+
+Never use IMAGE 1 as fallback.
+
+If IMAGE 1 and IMAGE 2 show different hair,
+use IMAGE 2.
+
+If IMAGE 2 hair is unclear,
+write:
+
+"not clearly visible in IMAGE 2"
+
+=========================================================
+ABSOLUTE LOCATION RULE
+=========================================================
+
+"environment"
+=
+IMAGE 1 ONLY.
+
+"background"
+=
+IMAGE 1 ONLY.
+
+"location"
+=
+IMAGE 1 ONLY.
+
+If IMAGE 2 has a completely different location,
+IGNORE IMAGE 2 location.
+
+The final analysis MUST remain in IMAGE 1 location.
+
+=========================================================
+ABSOLUTE COMPOSITION RULE
+=========================================================
+
+"composition"
+=
+IMAGE 1 ONLY.
+
+Do not convert IMAGE 1 composition into IMAGE 2
+portrait composition.
+
+=========================================================
+ABSOLUTE POSE RULE
+=========================================================
+
+"pose"
+=
+IMAGE 1 ONLY.
+
+Use the actual pose in the reference scene.
+
+Do not use IMAGE 2 pose.
+
+=========================================================
+ABSOLUTE CAMERA AND LIGHTING RULE
+=========================================================
+
+"camera"
+=
+IMAGE 1 ONLY.
+
+"lighting"
+=
+IMAGE 1 ONLY.
+
+"shadows"
+=
+IMAGE 1 ONLY.
+
+=========================================================
+ABSOLUTE OUTFIT RULE
+=========================================================
+
+"clothing"
+=
+IMAGE 2 ONLY.
+
+Do not import clothing from IMAGE 1.
+
+Do not merge clothing.
+
+=========================================================
+FINAL CHECK
+=========================================================
+
+Before returning JSON, verify:
+
+IMAGE 1:
+scene
+location
+environment
+background
+composition
+pose
+camera
+lighting
+shadows
+product
+spatial relationships
+
+IMAGE 2:
+identity
+face
+hair
+physical characteristics
+clothing
+outfit
+
+If any scene field describes IMAGE 2,
+correct it before returning JSON.
+`
+
+            : `
+OUTFIT SOURCE:
+${outfitLabel}
+
+=========================================================
+MANDATORY VISUAL TRANSFORMATION
+=========================================================
+
+IMAGE 1 = SCENE + OUTFIT PLATE
+IMAGE 2 = CHARACTER IDENTITY PLATE
+
+The final visual concept is:
+
+IMAGE 2 CHARACTER
+placed inside
+IMAGE 1 SCENE
+while keeping
+IMAGE 1 OUTFIT.
+
+=========================================================
+IMAGE 1 MUST PROVIDE
+=========================================================
+
+Use IMAGE 1 ONLY for:
+
+- location
+- environment
+- background
+- architecture
+- surfaces
+- scene objects
+- composition
+- framing
+- crop
+- subject placement
+- pose
+- body position
+- hand position
+- head position in scene
+- gaze direction in scene
+- camera
+- lens
+- depth of field
+- focus
+- lighting
+- shadows
+- product
+- spatial relationships
+- clothing
+- final outfit
+- outfit-specific accessories
+- scene visual style
+
+=========================================================
+IMAGE 2 MUST PROVIDE
+=========================================================
+
+Use IMAGE 2 ONLY for:
+
+- character identity
+- face
+- facial structure
+- eyes
+- eyebrows
+- nose
+- lips
+- skin
+- physical characteristics
+- hair
+- hairstyle
+- hair color
+- hair texture
+- hair length
+- hair pattern
 - braids
 - curls
 - waves
@@ -1727,31 +2162,50 @@ IMAGE 2 controls ONLY:
 - head covering
 
 =========================================================
-HAIR LOCK
+DO NOT COPY IMAGE 2 SCENE
 =========================================================
 
-The replacement character hair MUST come exclusively
-from IMAGE 2.
+Ignore IMAGE 2:
 
-Do NOT use IMAGE 1 hair.
-
-Do NOT merge IMAGE 1 hair with IMAGE 2 hair.
-
-If IMAGE 1 shows a different hairstyle,
-IGNORE IMAGE 1 hairstyle for character identity.
-
-If IMAGE 2 hair is unclear,
-write "not clearly visible in IMAGE 2".
-
-NEVER use IMAGE 1 as a fallback for hair.
+- location
+- environment
+- background
+- composition
+- framing
+- crop
+- pose
+- camera
+- lighting
+- shadows
+- clothing
 
 =========================================================
-OUTFIT LOCK
+ABSOLUTE HAIR RULE
 =========================================================
 
-The final clothing MUST come from IMAGE 1.
+"face_hair.hair"
+=
+IMAGE 2 ONLY.
 
-Do NOT import clothing from IMAGE 2.
+Never use IMAGE 1 hair.
+
+Never merge hairstyles.
+
+Never use IMAGE 1 as fallback.
+
+=========================================================
+FINAL CHECK
+=========================================================
+
+IMAGE 1:
+scene + location + environment + background
++ composition + pose + camera + lighting
++ shadows + product + clothing
+
+IMAGE 2:
+identity + face + hair + physical characteristics
+
+Correct any source leakage before returning JSON.
 `;
 
 
@@ -1762,242 +2216,15 @@ Analyze the supplied image source(s) for GEN-Z.AI Vision.
 IMAGE ROLE ASSIGNMENT
 =========================================================
 
-IMAGE 1 = REFERENCE IMAGE
-IMAGE 2 = REPLACEMENT CHARACTER
+IMAGE 1 = REFERENCE IMAGE / SCENE PLATE
 
-IMAGE 1 is the PRIMARY VISUAL REFERENCE.
+IMAGE 2 = REPLACEMENT CHARACTER / CHARACTER PLATE
+
+IMAGE 1 is NOT interchangeable with IMAGE 2.
 
 IMAGE 2 is NOT a second scene reference.
 
-IMAGE 2 exists to provide the replacement character.
-
 ${outfitInstructions}
-
-=========================================================
-FIELD-LEVEL SOURCE MATRIX
-=========================================================
-
-Before writing the JSON, internally assign every
-visual fact to its correct source.
-
-SCENE:
-IMAGE 1
-
-LOCATION:
-IMAGE 1
-
-ENVIRONMENT:
-IMAGE 1
-
-BACKGROUND:
-IMAGE 1
-
-COMPOSITION:
-IMAGE 1
-
-POSE:
-IMAGE 1
-
-CAMERA:
-IMAGE 1
-
-LIGHTING:
-IMAGE 1
-
-SHADOWS:
-IMAGE 1
-
-PRODUCT:
-IMAGE 1
-
-SPATIAL RELATIONSHIPS:
-IMAGE 1
-
-FACE:
-IMAGE 2
-
-HAIR:
-IMAGE 2
-
-IDENTITY:
-IMAGE 2
-
-PHYSICAL CHARACTERISTICS:
-IMAGE 2
-
-CLOTHING:
-${outfitSource === "character"
-    ? "IMAGE 2"
-    : "IMAGE 1"}
-
-=========================================================
-CRITICAL HAIR INSTRUCTION
-=========================================================
-
-The "face_hair.hair" JSON field has ONE source only.
-
-SOURCE:
-IMAGE 2.
-
-This is mandatory whenever IMAGE 2 exists.
-
-The value of "face_hair.hair" MUST describe
-the replacement character hair visible in IMAGE 2.
-
-Do NOT describe the hair of IMAGE 1.
-
-Do NOT use IMAGE 1 hair as contextual information.
-
-Do NOT combine hairstyles.
-
-Do NOT produce a hybrid description.
-
-Do NOT use IMAGE 1 to fill missing hair attributes.
-
-If IMAGE 1 has:
-
-"long dark wavy hair"
-
-and IMAGE 2 has:
-
-"short dark braids"
-
-the correct analysis is based on:
-
-"short dark braids"
-
-and NOT:
-
-"long dark wavy braided hair".
-
-This applies to:
-
-- hair length
-- hair color
-- hair texture
-- hairstyle
-- braids
-- curls
-- waves
-- twists
-- locs
-- bangs
-- hairline
-- part
-- volume
-- density
-- ponytail
-- bun
-
-If any of these cannot be determined from IMAGE 2,
-mark that property unknown.
-
-Never transfer information from IMAGE 1.
-
-=========================================================
-CRITICAL FACE INSTRUCTION
-=========================================================
-
-The following fields must come from IMAGE 2:
-
-- face_structure
-- eyes
-- eyebrows
-- nose
-- lips
-- hair
-- head_covering
-
-If IMAGE 2 exists, IMAGE 1 is NOT an authority
-for these fields.
-
-=========================================================
-REFERENCE IMAGE PRIORITY
-=========================================================
-
-The analysis MUST preserve IMAGE 1 as the foundation
-of the final visual result.
-
-Follow IMAGE 1 for:
-
-- composition
-- pose
-- body positioning
-- subject placement
-- framing
-- crop
-- camera perspective
-- lens character
-- focus
-- depth of field
-- lighting
-- shadows
-- environment
-- background
-- product
-- spatial relationships
-- overall scene
-- overall visual style
-
-Do NOT let IMAGE 2 redefine these elements.
-
-=========================================================
-CHARACTER IMAGE PRIORITY
-=========================================================
-
-When IMAGE 2 exists, use it for replacement character:
-
-- face
-- facial structure
-- eyes
-- eyebrows
-- nose
-- lips
-- skin appearance
-- hair
-- head covering
-- visible physical characteristics
-
-Do NOT rebuild the scene around IMAGE 2.
-
-=========================================================
-OUTFIT SOURCE
-=========================================================
-
-${outfitSource === "character"
-    ? `
-OUTFIT SOURCE = IMAGE 2.
-
-Use IMAGE 2 for:
-
-- clothing
-- garment type
-- colors
-- materials
-- patterns
-- textures
-- construction
-- outfit-specific accessories
-
-Do NOT import clothing from IMAGE 1.
-`
-    : `
-OUTFIT SOURCE = IMAGE 1.
-
-Use IMAGE 1 for:
-
-- clothing
-- garment type
-- colors
-- materials
-- patterns
-- textures
-- construction
-- outfit-specific accessories
-
-Do NOT import clothing from IMAGE 2.
-`
-}
 
 =========================================================
 ANALYSIS DETAIL
@@ -2013,201 +2240,517 @@ Additional user instruction:
 ${instruction || "None"}
 
 =========================================================
-PERSON ANALYSIS
+IMPORTANT:
+DO NOT START BY DESCRIBING IMAGE 2 AS THE MAIN IMAGE.
 =========================================================
 
-For IMAGE 1 reference scene, inspect:
+The reference scene is always IMAGE 1.
 
+Internally perform:
+
+1. IMAGE 1 SCENE EXTRACTION.
+2. LOCK IMAGE 1 SCENE.
+3. IMAGE 2 CHARACTER EXTRACTION.
+4. LOCK IMAGE 2 IDENTITY.
+5. APPLY SELECTED OUTFIT SOURCE.
+6. BUILD ONE COMBINED ANALYSIS.
+7. PERFORM SOURCE AUDIT.
+8. RETURN JSON.
+
+=========================================================
+REFERENCE SCENE EXTRACTION
+=========================================================
+
+First inspect IMAGE 1.
+
+Determine:
+
+- exact visible location
+- indoor/outdoor status
+- environment
+- background
+- architecture
+- surfaces
+- scene objects
+- product
+- product placement
+- composition
+- framing
+- crop
 - subject placement
-- body position
 - pose
-- hands
-- head angle
-- gaze
-- expression
-- interaction with objects
-- interaction with environment
+- body position
+- hand position
+- head position
+- gaze direction
+- camera perspective
+- lens characteristics
+- depth of field
+- focus
+- lighting
+- shadows
+- spatial relationships
+- scene colors
+- visual style
 
-For IMAGE 2 replacement character, inspect:
+These facts are locked to IMAGE 1.
 
+Do NOT use IMAGE 2 to fill any of these.
+
+=========================================================
+CHARACTER EXTRACTION
+=========================================================
+
+Then inspect IMAGE 2.
+
+Determine:
+
+- face
 - facial structure
 - eyes
 - eyebrows
 - nose
 - lips
 - skin appearance
+- physical characteristics
 - hair
 - hairstyle
 - hair color
 - hair texture
 - hair length
+- hair pattern
+- hair part
+- hairline
+- bangs
+- curls
+- waves
+- braids
+- twists
+- locs
+- ponytail
+- bun
 - head covering
-- visible physical characteristics
 
-Remember:
+When character outfit is selected, also determine:
 
-IMAGE 2 character identity MUST NOT inherit
-hair or facial details from IMAGE 1.
-
-=========================================================
-PRODUCT ANALYSIS
-=========================================================
-
-For products visible in IMAGE 1, inspect:
-
-- type
-- shape
-- material
-- color
-- surface
-- branding
-- labels
-- placement
-- orientation
-- relationship to subject
-
-Never create a product from IMAGE 2.
-
-=========================================================
-COMPOSITION ANALYSIS
-=========================================================
-
-Use IMAGE 1 as the ONLY composition reference.
-
-Inspect:
-
-- framing
-- crop
-- subject placement
-- orientation
-- camera perspective
-- apparent lens character
-- focus
-- depth of field
-- foreground
-- middle ground
-- background
-- spatial relationships
-
-=========================================================
-LIGHTING ANALYSIS
-=========================================================
-
-Use IMAGE 1 as the ONLY lighting reference.
-
-Inspect:
-
-- light direction
-- softness
-- highlights
-- shadows
-- contrast
-- ambient illumination
-- color temperature when observable
-
-Do NOT transfer lighting from IMAGE 2.
-
-=========================================================
-ENVIRONMENT AND BACKGROUND
-=========================================================
-
-Use IMAGE 1 as the ONLY environment and background source.
-
-Inspect:
-
-- architecture
-- walls
-- surfaces
-- textures
-- objects
+- clothing
+- garment type
 - colors
-- depth
-- spatial relationships
-- environmental details
+- materials
+- patterns
+- textures
+- construction
+- outfit layers
+- outfit-specific accessories
 
-Do NOT import environment details from IMAGE 2.
+These character facts are locked to IMAGE 2.
+
+=========================================================
+SOURCE MATRIX
+=========================================================
+
+SCENE:
+IMAGE 1
+
+LOCATION:
+IMAGE 1
+
+ENVIRONMENT:
+IMAGE 1
+
+BACKGROUND:
+IMAGE 1
+
+ARCHITECTURE:
+IMAGE 1
+
+COMPOSITION:
+IMAGE 1
+
+FRAMING:
+IMAGE 1
+
+CROP:
+IMAGE 1
+
+POSE:
+IMAGE 1
+
+BODY POSITION IN SCENE:
+IMAGE 1
+
+HAND POSITION:
+IMAGE 1
+
+CAMERA:
+IMAGE 1
+
+LENS:
+IMAGE 1
+
+DEPTH OF FIELD:
+IMAGE 1
+
+FOCUS:
+IMAGE 1
+
+LIGHTING:
+IMAGE 1
+
+SHADOWS:
+IMAGE 1
+
+PRODUCT:
+IMAGE 1
+
+PRODUCT PLACEMENT:
+IMAGE 1
+
+SPATIAL RELATIONSHIPS:
+IMAGE 1
+
+FACE:
+IMAGE 2
+
+IDENTITY:
+IMAGE 2
+
+SKIN:
+IMAGE 2
+
+PHYSICAL CHARACTERISTICS:
+IMAGE 2
+
+HAIR:
+IMAGE 2
+
+HAIR COLOR:
+IMAGE 2
+
+HAIR TEXTURE:
+IMAGE 2
+
+HAIR LENGTH:
+IMAGE 2
+
+HAIRSTYLE:
+IMAGE 2
+
+${outfitSource === "character"
+    ? "CLOTHING:\nIMAGE 2"
+    : "CLOTHING:\nIMAGE 1"}
+
+=========================================================
+HAIR FIELD SOURCE
+=========================================================
+
+The JSON field:
+
+"face_hair.hair"
+
+has exactly ONE source.
+
+IMAGE 2.
+
+No exceptions when IMAGE 2 exists.
+
+Never copy:
+
+- IMAGE 1 hair length
+- IMAGE 1 hair color
+- IMAGE 1 hair texture
+- IMAGE 1 hairstyle
+- IMAGE 1 waves
+- IMAGE 1 curls
+- IMAGE 1 braids
+- IMAGE 1 twists
+- IMAGE 1 locs
+- IMAGE 1 bangs
+- IMAGE 1 hairline
+
+If IMAGE 2 shows short braided hair,
+write short braided hair.
+
+If IMAGE 2 shows long wavy hair,
+write long wavy hair.
+
+If IMAGE 2 shows curly hair,
+write curly hair.
+
+If IMAGE 2 hair is unclear,
+write:
+
+"not clearly visible in IMAGE 2"
+
+Never substitute IMAGE 1.
+
+=========================================================
+SCENE FIELD SOURCE
+=========================================================
+
+The following MUST describe IMAGE 1:
+
+"environment"
+
+"background"
+
+"composition"
+
+"pose"
+
+"camera"
+
+"lighting"
+
+"shadows"
+
+"product"
+
+"spatial_relationships"
+
+These fields must remain faithful to IMAGE 1
+even when IMAGE 2 is visually more detailed.
+
+=========================================================
+LOCATION PRESERVATION
+=========================================================
+
+The final analysis must preserve the actual location
+shown in IMAGE 1.
+
+If IMAGE 1 shows:
+
+- bedroom
+- office
+- studio
+- kitchen
+- store
+- street
+- beach
+- forest
+- garden
+- building
+- urban area
+- rural area
+- indoor environment
+- outdoor environment
+
+use that location.
+
+Do NOT replace it with the location visible
+in IMAGE 2.
+
+=========================================================
+POSE PRESERVATION
+=========================================================
+
+The final scene pose comes from IMAGE 1.
+
+IMAGE 2 pose is irrelevant to the scene pose.
+
+If the character in IMAGE 2 has a different pose,
+ignore that pose.
+
+=========================================================
+COMPOSITION PRESERVATION
+=========================================================
+
+The final composition comes from IMAGE 1.
+
+If IMAGE 2 is a portrait:
+
+DO NOT turn IMAGE 1 into a portrait.
+
+If IMAGE 2 is close-up:
+
+DO NOT turn IMAGE 1 into a close-up.
+
+If IMAGE 1 is wide:
+
+KEEP IMAGE 1 wide.
+
+If IMAGE 1 is full-body:
+
+KEEP IMAGE 1 full-body.
+
+=========================================================
+CAMERA PRESERVATION
+=========================================================
+
+Camera comes from IMAGE 1.
+
+Do not use the apparent camera style
+of IMAGE 2.
+
+=========================================================
+LIGHTING PRESERVATION
+=========================================================
+
+Lighting comes from IMAGE 1.
+
+Do not use IMAGE 2 lighting.
+
+=========================================================
+ENVIRONMENT PRESERVATION
+=========================================================
+
+Environment comes from IMAGE 1.
+
+Do not use IMAGE 2 environment.
+
+=========================================================
+BACKGROUND PRESERVATION
+=========================================================
+
+Background comes from IMAGE 1.
+
+Do not use IMAGE 2 background.
+
+=========================================================
+PRODUCT PRESERVATION
+=========================================================
+
+Product information comes from IMAGE 1.
+
+Never invent or import a product from IMAGE 2.
+
+=========================================================
+OUTFIT
+=========================================================
+
+${outfitSource === "character"
+    ? `
+FINAL OUTFIT:
+IMAGE 2.
+
+Ignore IMAGE 1 clothing.
+
+Do not merge clothing.
+`
+    : `
+FINAL OUTFIT:
+IMAGE 1.
+
+Ignore IMAGE 2 clothing.
+
+Do not merge clothing.
+`
+}
 
 =========================================================
 VISUAL STYLE
 =========================================================
 
-Use IMAGE 1 as the primary visual-style source.
+Overall scene visual style:
+IMAGE 1.
 
-Inspect:
+Character identity:
+IMAGE 2.
 
-- photographic or cinematic characteristics
-- realism
-- sharpness
-- background separation
-- color treatment
-- contrast
-- aesthetic
-- image quality
+Character clothing:
+${outfitSource === "character"
+    ? "IMAGE 2"
+    : "IMAGE 1"}
 
 =========================================================
-STRICT SOURCE SEPARATION
+FINAL TRANSFORMATION
 =========================================================
 
-Never merge visual facts from both images without
-determining their source role.
+The final analysis MUST conceptually describe:
 
-The final analysis must represent:
+IMAGE 1 SCENE
+with
+IMAGE 2 CHARACTER.
 
-REFERENCE IMAGE
-=
-scene authority
+For CHARACTER outfit:
 
-CHARACTER IMAGE
-=
-identity authority
+IMAGE 1:
+scene + location + environment + background
++ composition + pose + camera + lighting
++ shadows + product + spatial relationships
 
-SELECTED OUTFIT SOURCE
-=
-clothing authority
+IMAGE 2:
+identity + face + hair + physical characteristics
++ clothing + outfit
 
-If a detail conflicts between the images,
-follow the authority matrix.
+For REFERENCE outfit:
 
-For character identity conflicts:
+IMAGE 1:
+scene + location + environment + background
++ composition + pose + camera + lighting
++ shadows + product + spatial relationships
++ clothing + outfit
 
-IMAGE 2 wins.
+IMAGE 2:
+identity + face + hair + physical characteristics
 
-For hair conflicts:
+=========================================================
+FINAL SOURCE AUDIT
+=========================================================
 
-IMAGE 2 wins.
+Before returning the JSON:
 
-For scene conflicts:
+VERIFY:
 
-IMAGE 1 wins.
+1. environment = IMAGE 1
+2. background = IMAGE 1
+3. location = IMAGE 1
+4. composition = IMAGE 1
+5. framing = IMAGE 1
+6. crop = IMAGE 1
+7. pose = IMAGE 1
+8. camera = IMAGE 1
+9. lighting = IMAGE 1
+10. shadows = IMAGE 1
+11. product = IMAGE 1
+12. spatial relationships = IMAGE 1
+13. face = IMAGE 2
+14. identity = IMAGE 2
+15. hair = IMAGE 2
+16. physical characteristics = IMAGE 2
+17. clothing = selected outfit source
 
-For clothing conflicts:
-
-selected outfit source wins.
-
-Do not invent information.
-
-Every visibly applicable category should contain
-specific observations.
-
-Do NOT return an empty JSON schema.
+If any field violates this matrix,
+correct it before returning the JSON.
 
 =========================================================
 OUTPUT
 =========================================================
 
-Complete the ENTIRE JSON object.
+Return ONLY the complete JSON object.
 
-All object properties and arrays must be properly closed.
+Do not return Markdown.
 
-Do not stop in the middle of a property.
+Do not explain.
 
-Do not stop in the middle of a string.
+Do not describe the images outside JSON.
 
-Do not use Markdown.
+Do not stop before closing all braces and arrays.
 
-Return ONLY valid JSON.
+Use this structure:
 
-Do not write any explanation outside the JSON.
+{
+  "subject": {},
+  "appearance": {},
+  "face_hair": {},
+  "pose": {},
+  "clothing": {},
+  "accessories": [],
+  "product": {},
+  "composition": {},
+  "camera": {},
+  "lighting": {},
+  "shadows": {},
+  "environment": {},
+  "background": {},
+  "color_palette": [],
+  "visual_style": {},
+  "text_branding": [],
+  "image_quality": {},
+  "important_details": [],
+  "spatial_relationships": [],
+  "uncertainties": []
+}
 `.trim();
 
 }
@@ -3563,44 +4106,59 @@ function buildRetryMessages(
 
     const retryInstruction = `
 =========================================================
-RETRY: COMPLETE JSON REQUIRED
+RETRY SOURCE CONTROL
 =========================================================
 
-The previous Vision Analysis response was incomplete or
-could not be parsed as a complete structured JSON object.
+THE PREVIOUS RESPONSE WAS INVALID OR INCOMPLETE.
 
-Analyze the SAME image source configuration again.
+REANALYZE THE SAME TWO IMAGE SOURCES.
 
-IMAGE 1 = REFERENCE IMAGE
-IMAGE 2 = REPLACEMENT CHARACTER when provided
+IMAGE 1 = REFERENCE SCENE PLATE
+IMAGE 2 = REPLACEMENT CHARACTER PLATE
+
+DO NOT CHANGE THE IMAGE ROLES.
 
 =========================================================
-FIELD-LEVEL SOURCE AUTHORITY
+MANDATORY ORDER
 =========================================================
 
-IMAGE 1 ONLY:
-- scene
+FIRST:
+Analyze IMAGE 1 as the scene.
+
+LOCK:
+
 - location
-- background
 - environment
+- background
+- architecture
 - composition
-- pose
 - framing
+- crop
+- pose
+- body position
+- hand position
 - camera
+- lens
+- depth of field
+- focus
 - lighting
 - shadows
 - product
+- product placement
 - spatial relationships
 
-IMAGE 2 ONLY:
+SECOND:
+Analyze IMAGE 2 as the character.
+
+LOCK:
+
 - identity
 - face
-- facial structure
 - eyes
 - eyebrows
 - nose
 - lips
-- skin appearance
+- skin
 - physical characteristics
 - hair
 - hairstyle
@@ -3616,156 +4174,203 @@ IMAGE 2 ONLY:
 - hairline
 - head covering
 
-CLOTHING:
 ${outfitSource === "character"
-    ? "IMAGE 2 ONLY"
-    : "IMAGE 1 ONLY"}
+    ? `
+THIRD:
+Use IMAGE 2 clothing.
+
+CLOTHING = IMAGE 2 ONLY.
+`
+    : `
+THIRD:
+Use IMAGE 1 clothing.
+
+CLOTHING = IMAGE 1 ONLY.
+`}
 
 =========================================================
-ABSOLUTE HAIR RULE
+IMAGE 1 SCENE LOCK
 =========================================================
 
-When IMAGE 2 exists:
+The following MUST come from IMAGE 1:
 
-The field:
+environment
+background
+location
+composition
+framing
+crop
+pose
+camera
+lighting
+shadows
+product
+spatial relationships
+
+IMAGE 2 MUST NOT provide any of these.
+
+=========================================================
+IMAGE 2 IDENTITY LOCK
+=========================================================
+
+The following MUST come from IMAGE 2:
+
+face
+identity
+skin
+physical characteristics
+hair
+face_hair
+head covering
+
+IMAGE 1 MUST NOT provide any of these.
+
+=========================================================
+ABSOLUTE HAIR LOCK
+=========================================================
 
 "face_hair.hair"
+=
+IMAGE 2 ONLY.
 
-MUST be derived ONLY from IMAGE 2.
+Never use IMAGE 1 hair.
 
-NEVER use IMAGE 1 hair.
+Never merge hair.
 
-NEVER combine IMAGE 1 and IMAGE 2 hair.
+Never create hybrid hair.
 
-NEVER create a hybrid hairstyle.
-
-NEVER use IMAGE 1 as a fallback.
+Never use IMAGE 1 as fallback.
 
 If IMAGE 2 hair is unclear:
 
 "not clearly visible in IMAGE 2"
 
-If IMAGE 1 and IMAGE 2 show different hair:
-
-IMAGE 2 ALWAYS WINS.
-
 =========================================================
-ABSOLUTE FACE RULE
+LOCATION LOCK
 =========================================================
 
-When IMAGE 2 exists:
+"environment"
+=
+IMAGE 1.
 
-These MUST come from IMAGE 2:
+"background"
+=
+IMAGE 1.
 
-- face_structure
-- eyes
-- eyebrows
-- nose
-- lips
-- hair
-- head_covering
+"location"
+=
+IMAGE 1.
 
-=========================================================
-SCENE RULE
-=========================================================
-
-IMAGE 1 ALWAYS remains the scene foundation.
-
-Do NOT transfer IMAGE 2:
-
-- background
-- environment
-- location
-- composition
-- camera
-- lighting
-- shadows
-- spatial arrangement
+Even if IMAGE 2 shows a more obvious location,
+IGNORE IMAGE 2 location.
 
 =========================================================
-OUTFIT RULE
+COMPOSITION LOCK
+=========================================================
+
+"composition"
+=
+IMAGE 1.
+
+If IMAGE 2 is a portrait and IMAGE 1 is wide,
+KEEP IMAGE 1 wide.
+
+=========================================================
+POSE LOCK
+=========================================================
+
+"pose"
+=
+IMAGE 1.
+
+Ignore IMAGE 2 pose.
+
+=========================================================
+CAMERA LOCK
+=========================================================
+
+"camera"
+=
+IMAGE 1.
+
+Ignore IMAGE 2 camera.
+
+=========================================================
+LIGHTING LOCK
+=========================================================
+
+"lighting"
+=
+IMAGE 1.
+
+"shadows"
+=
+IMAGE 1.
+
+Ignore IMAGE 2 lighting.
+
+=========================================================
+OUTFIT LOCK
 =========================================================
 
 OUTFIT SOURCE =
 ${outfitSource === "character"
-    ? "REPLACEMENT CHARACTER / IMAGE 2"
-    : "REFERENCE IMAGE / IMAGE 1"}
+    ? "IMAGE 2"
+    : "IMAGE 1"}
 
 Never merge clothing.
 
 =========================================================
-CONFLICT RESOLUTION
+FINAL TRANSFORMATION
 =========================================================
 
-Scene:
-IMAGE 1
+The final analysis represents:
 
-Pose:
-IMAGE 1
+IMAGE 2 CHARACTER
+inside
+IMAGE 1 SCENE.
 
-Composition:
-IMAGE 1
+NOT:
 
-Camera:
-IMAGE 1
-
-Lighting:
-IMAGE 1
-
-Background:
-IMAGE 1
-
-Environment:
-IMAGE 1
-
-Product:
-IMAGE 1
-
-Face:
-IMAGE 2
-
-Hair:
-IMAGE 2
-
-Identity:
-IMAGE 2
-
-Physical characteristics:
-IMAGE 2
-
-Clothing:
-selected outfit source
-
-NEVER blend conflicting information.
+IMAGE 2 SCENE
+with
+IMAGE 1 details.
 
 =========================================================
-COMPLETION PRIORITY
+FINAL SOURCE AUDIT
 =========================================================
 
-Prioritize:
+Before returning JSON, verify:
 
-1. Complete valid JSON.
-2. Correct source separation.
-3. Correct IMAGE 1 scene preservation.
-4. Correct IMAGE 2 identity preservation.
-5. Correct IMAGE 2 hair.
-6. Correct selected outfit source.
-7. Concrete visual observations.
-8. All applicable analysis categories.
-9. Properly closed objects and arrays.
-10. Complete strings.
+environment -> IMAGE 1
+background -> IMAGE 1
+location -> IMAGE 1
+composition -> IMAGE 1
+pose -> IMAGE 1
+camera -> IMAGE 1
+lighting -> IMAGE 1
+shadows -> IMAGE 1
+product -> IMAGE 1
+spatial_relationships -> IMAGE 1
+face -> IMAGE 2
+hair -> IMAGE 2
+identity -> IMAGE 2
+physical characteristics -> IMAGE 2
+clothing -> selected source
 
-NEVER stop in the middle of a property name.
+Correct every violation before output.
 
-NEVER stop in the middle of a string.
+=========================================================
+OUTPUT
+=========================================================
 
-NEVER stop before the final closing braces.
+Return ONLY the complete valid JSON object.
 
-Do not summarize.
+No Markdown.
 
-Do not explain.
+No explanation.
 
-Return ONLY the complete JSON object.
+No summary.
 `.trim();
 
 
@@ -4154,13 +4759,55 @@ async function analyzeImage(
             outfitSource:
                 normalizedOutfitSource,
 
-            referenceAuthority:
+            sourceArchitecture:
+                "IMAGE 1 SCENE PLATE + IMAGE 2 CHARACTER PLATE",
+
+            sceneAuthority:
                 "IMAGE 1",
 
             characterAuthority:
                 hasReplacementCharacter
                     ? "IMAGE 2"
                     : "NONE",
+
+            identityAuthority:
+                hasReplacementCharacter
+                    ? "IMAGE 2 ONLY"
+                    : "IMAGE 1",
+
+            hairAuthority:
+                hasReplacementCharacter
+                    ? "IMAGE 2 ONLY"
+                    : "IMAGE 1",
+
+            clothingAuthority:
+                normalizedOutfitSource === "character"
+                    ? "IMAGE 2"
+                    : "IMAGE 1",
+
+            locationAuthority:
+                "IMAGE 1",
+
+            environmentAuthority:
+                "IMAGE 1",
+
+            backgroundAuthority:
+                "IMAGE 1",
+
+            compositionAuthority:
+                "IMAGE 1",
+
+            poseAuthority:
+                "IMAGE 1",
+
+            cameraAuthority:
+                "IMAGE 1",
+
+            lightingAuthority:
+                "IMAGE 1",
+
+            productAuthority:
+                "IMAGE 1",
 
             hasReferenceImage,
 
@@ -4217,13 +4864,44 @@ async function analyzeImage(
                 outfitSource:
                     normalizedOutfitSource,
 
-                referenceAuthority:
-                    "IMAGE 1",
+                sceneAuthority:
+                    "IMAGE 1 ONLY",
 
-                characterAuthority:
+                locationAuthority:
+                    "IMAGE 1 ONLY",
+
+                environmentAuthority:
+                    "IMAGE 1 ONLY",
+
+                backgroundAuthority:
+                    "IMAGE 1 ONLY",
+
+                compositionAuthority:
+                    "IMAGE 1 ONLY",
+
+                poseAuthority:
+                    "IMAGE 1 ONLY",
+
+                cameraAuthority:
+                    "IMAGE 1 ONLY",
+
+                lightingAuthority:
+                    "IMAGE 1 ONLY",
+
+                identityAuthority:
                     hasReplacementCharacter
-                        ? "IMAGE 2"
-                        : "NONE",
+                        ? "IMAGE 2 ONLY"
+                        : "IMAGE 1",
+
+                hairAuthority:
+                    hasReplacementCharacter
+                        ? "IMAGE 2 ONLY"
+                        : "IMAGE 1",
+
+                clothingAuthority:
+                    normalizedOutfitSource === "character"
+                        ? "IMAGE 2 ONLY"
+                        : "IMAGE 1 ONLY",
 
                 imageCount
 
@@ -4272,13 +4950,47 @@ async function analyzeImage(
                 outfitSource:
                     normalizedOutfitSource,
 
-                referenceAuthority:
-                    "IMAGE 1",
+                sceneAuthority:
+                    "IMAGE 1 ONLY",
 
                 characterAuthority:
                     hasReplacementCharacter
-                        ? "IMAGE 2"
+                        ? "IMAGE 2 ONLY"
                         : "NONE",
+
+                locationAuthority:
+                    "IMAGE 1 ONLY",
+
+                environmentAuthority:
+                    "IMAGE 1 ONLY",
+
+                backgroundAuthority:
+                    "IMAGE 1 ONLY",
+
+                compositionAuthority:
+                    "IMAGE 1 ONLY",
+
+                poseAuthority:
+                    "IMAGE 1 ONLY",
+
+                cameraAuthority:
+                    "IMAGE 1 ONLY",
+
+                lightingAuthority:
+                    "IMAGE 1 ONLY",
+
+                productAuthority:
+                    "IMAGE 1 ONLY",
+
+                hairAuthority:
+                    hasReplacementCharacter
+                        ? "IMAGE 2 ONLY"
+                        : "IMAGE 1",
+
+                clothingAuthority:
+                    normalizedOutfitSource === "character"
+                        ? "IMAGE 2 ONLY"
+                        : "IMAGE 1 ONLY",
 
                 imageCount,
 
@@ -4413,6 +5125,153 @@ async function analyzeImage(
             );
 
 
+            /*
+             * =================================================
+             * SOURCE-LOCK DIAGNOSTIC
+             * =================================================
+             *
+             * Tidak mengubah hasil.
+             * Hanya membantu memastikan field penting
+             * yang dikembalikan model dapat diperiksa
+             * langsung dari console.
+             */
+
+            if (
+                lastQuality?.parsed
+            ) {
+
+                const parsedAnalysis =
+                    lastQuality.parsed;
+
+
+                const parsedHair =
+                    parsedAnalysis
+                        ?.face_hair
+                        ?.hair ??
+                    null;
+
+
+                const parsedEnvironment =
+                    parsedAnalysis
+                        ?.environment ??
+                    null;
+
+
+                const parsedBackground =
+                    parsedAnalysis
+                        ?.background ??
+                    null;
+
+
+                const parsedComposition =
+                    parsedAnalysis
+                        ?.composition ??
+                    null;
+
+
+                const parsedPose =
+                    parsedAnalysis
+                        ?.pose ??
+                    null;
+
+
+                const parsedCamera =
+                    parsedAnalysis
+                        ?.camera ??
+                    null;
+
+
+                const parsedLighting =
+                    parsedAnalysis
+                        ?.lighting ??
+                    null;
+
+
+                const parsedClothing =
+                    parsedAnalysis
+                        ?.clothing ??
+                    null;
+
+
+                console.info(
+                    "[GEN-Z.AI Vision] Source-lock diagnostic:",
+                    {
+
+                        attempt,
+
+                        outfitSource:
+                            normalizedOutfitSource,
+
+                        sceneAuthority:
+                            "IMAGE 1 ONLY",
+
+                        characterAuthority:
+                            hasReplacementCharacter
+                                ? "IMAGE 2 ONLY"
+                                : "IMAGE 1",
+
+                        locationAuthority:
+                            "IMAGE 1 ONLY",
+
+                        environmentAuthority:
+                            "IMAGE 1 ONLY",
+
+                        backgroundAuthority:
+                            "IMAGE 1 ONLY",
+
+                        compositionAuthority:
+                            "IMAGE 1 ONLY",
+
+                        poseAuthority:
+                            "IMAGE 1 ONLY",
+
+                        cameraAuthority:
+                            "IMAGE 1 ONLY",
+
+                        lightingAuthority:
+                            "IMAGE 1 ONLY",
+
+                        hairAuthority:
+                            hasReplacementCharacter
+                                ? "IMAGE 2 ONLY"
+                                : "IMAGE 1",
+
+                        clothingAuthority:
+                            normalizedOutfitSource ===
+                                "character"
+                                ? "IMAGE 2 ONLY"
+                                : "IMAGE 1 ONLY",
+
+                        hair:
+                            parsedHair,
+
+                        environment:
+                            parsedEnvironment,
+
+                        background:
+                            parsedBackground,
+
+                        composition:
+                            parsedComposition,
+
+                        pose:
+                            parsedPose,
+
+                        camera:
+                            parsedCamera,
+
+                        lighting:
+                            parsedLighting,
+
+                        clothing:
+                            parsedClothing
+
+                    }
+                );
+
+            }
+
+
             if (
                 lastQuality.valid
             ) {
@@ -4459,6 +5318,14 @@ async function analyzeImage(
 
                     outfitSource:
                         normalizedOutfitSource,
+
+                    sceneAuthority:
+                        "IMAGE 1 ONLY",
+
+                    characterAuthority:
+                        hasReplacementCharacter
+                            ? "IMAGE 2 ONLY"
+                            : "NONE",
 
                     imageCount,
 
@@ -4514,13 +5381,50 @@ async function analyzeImage(
             outfitSource:
                 normalizedOutfitSource,
 
-            referenceAuthority:
-                "IMAGE 1",
+            sourceArchitecture:
+                "IMAGE 1 SCENE PLATE + IMAGE 2 CHARACTER PLATE",
+
+            sceneAuthority:
+                "IMAGE 1 ONLY",
 
             characterAuthority:
                 hasReplacementCharacter
-                    ? "IMAGE 2"
+                    ? "IMAGE 2 ONLY"
                     : "NONE",
+
+            locationAuthority:
+                "IMAGE 1 ONLY",
+
+            environmentAuthority:
+                "IMAGE 1 ONLY",
+
+            backgroundAuthority:
+                "IMAGE 1 ONLY",
+
+            compositionAuthority:
+                "IMAGE 1 ONLY",
+
+            poseAuthority:
+                "IMAGE 1 ONLY",
+
+            cameraAuthority:
+                "IMAGE 1 ONLY",
+
+            lightingAuthority:
+                "IMAGE 1 ONLY",
+
+            productAuthority:
+                "IMAGE 1 ONLY",
+
+            hairAuthority:
+                hasReplacementCharacter
+                    ? "IMAGE 2 ONLY"
+                    : "IMAGE 1",
+
+            clothingAuthority:
+                normalizedOutfitSource === "character"
+                    ? "IMAGE 2 ONLY"
+                    : "IMAGE 1 ONLY",
 
             imageCount,
 
@@ -4565,13 +5469,50 @@ async function analyzeImage(
                 outfitSource:
                     normalizedOutfitSource,
 
+                sourceArchitecture:
+                    "IMAGE 1 SCENE PLATE + IMAGE 2 CHARACTER PLATE",
+
                 referenceAuthority:
-                    "IMAGE 1",
+                    "IMAGE 1 ONLY",
 
                 characterAuthority:
                     hasReplacementCharacter
-                        ? "IMAGE 2"
+                        ? "IMAGE 2 ONLY"
                         : "NONE",
+
+                locationAuthority:
+                    "IMAGE 1 ONLY",
+
+                environmentAuthority:
+                    "IMAGE 1 ONLY",
+
+                backgroundAuthority:
+                    "IMAGE 1 ONLY",
+
+                compositionAuthority:
+                    "IMAGE 1 ONLY",
+
+                poseAuthority:
+                    "IMAGE 1 ONLY",
+
+                cameraAuthority:
+                    "IMAGE 1 ONLY",
+
+                lightingAuthority:
+                    "IMAGE 1 ONLY",
+
+                productAuthority:
+                    "IMAGE 1 ONLY",
+
+                hairAuthority:
+                    hasReplacementCharacter
+                        ? "IMAGE 2 ONLY"
+                        : "IMAGE 1",
+
+                clothingAuthority:
+                    normalizedOutfitSource === "character"
+                        ? "IMAGE 2 ONLY"
+                        : "IMAGE 1 ONLY",
 
                 hasReferenceImage,
 
