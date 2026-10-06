@@ -377,18 +377,6 @@
 
     /* =====================================================
        VALIDATE VIDEO
-       -----------------------------------------------------
-       FIX:
-       State aktual menyimpan metadata langsung:
-       video.duration
-       video.width
-       video.height
-       video.fps
-
-       BUKAN:
-       video.metadata.duration
-       video.metadata.width
-       dst.
     ===================================================== */
 
     function validateVideo() {
@@ -916,10 +904,6 @@
 
     function getCreditMetadata() {
 
-        const state =
-            getState();
-
-
         const settings =
             getCurrentSettings();
 
@@ -951,13 +935,6 @@
         const credit =
             getCredit();
 
-
-        /*
-         * Server adalah authority.
-         *
-         * Jangan hanya mengandalkan saldo lokal,
-         * karena saldo dapat berubah dari tab/proses lain.
-         */
 
         const result =
             await credit.checkCredit();
@@ -1001,27 +978,11 @@
             getCreditMetadata();
 
 
-        /*
-         * Pastikan state operasi credit bersih
-         * untuk generate baru.
-         */
-
         credit.resetOperationState();
 
 
-        /*
-         * CHECK lagi di server sebelum deduction.
-         *
-         * Ini sengaja tidak mengandalkan CHECK
-         * yang dilakukan saat page initialization.
-         */
-
         await checkCredit();
 
-
-        /*
-         * DEDUCT tepat satu kali.
-         */
 
         const result =
             await credit.deductCredit(
@@ -1355,7 +1316,12 @@
                 creditResult.alreadyDeducted === true;
 
 
-            ui.updateCredit();
+            /*
+             * UI module tidak menyediakan updateCredit().
+             * Fungsi yang benar adalah renderCreditFromState().
+             */
+
+            ui.renderCreditFromState();
 
 
             setProgress(
@@ -1507,11 +1473,6 @@
 
             /* =============================================
                SAVE HISTORY
-               ---------------------------------------------
-               History gagal TIDAK membatalkan prompt
-               yang sudah berhasil dibuat.
-               Credit tetap terpotong karena generate
-               berhasil.
             ============================================= */
 
             try {
@@ -1586,7 +1547,7 @@
             );
 
 
-            ui.updateCredit();
+            ui.renderCreditFromState();
 
 
             dispatch(
@@ -1628,9 +1589,6 @@
 
             /* =============================================
                REFUND
-               ---------------------------------------------
-               Hanya jika credit benar-benar sudah
-               dideduct.
             ============================================= */
 
             if (
@@ -1647,7 +1605,7 @@
                     await refundCredit();
 
 
-                    ui.updateCredit();
+                    ui.renderCreditFromState();
 
                 } catch (refundError) {
 
@@ -1704,7 +1662,7 @@
             );
 
 
-            ui.updateCredit();
+            ui.renderCreditFromState();
 
 
             dispatch(
@@ -1826,13 +1784,6 @@
 
         }
 
-
-        /*
-         * Reset credit operation state hanya
-         * untuk status lokal operasi berikutnya.
-         *
-         * Tidak mengembalikan credit.
-         */
 
         try {
 
@@ -2021,10 +1972,6 @@
         }
 
 
-        /* =================================================
-           SETTINGS
-        ================================================= */
-
         [
             "model",
             "detail",
@@ -2065,10 +2012,6 @@
         );
 
 
-        /* =================================================
-           FILE LIFECYCLE
-        ================================================= */
-
         document.addEventListener(
             CONFIG.events.fileSelected,
             handleFileSelected
@@ -2080,10 +2023,6 @@
             handleFileRemoved
         );
 
-
-        /* =================================================
-           METADATA READY
-        ================================================= */
 
         document.addEventListener(
             CONFIG.events.metadataReady,
@@ -2097,10 +2036,6 @@
             }
         );
 
-
-        /* =================================================
-           API START
-        ================================================= */
 
         document.addEventListener(
             CONFIG.events.apiStart,
@@ -2120,10 +2055,6 @@
         );
 
 
-        /* =================================================
-           API COMPLETION
-        ================================================= */
-
         document.addEventListener(
             CONFIG.events.apiComplete,
             function (event) {
@@ -2142,23 +2073,9 @@
 
                 }
 
-
-                /*
-                 * Hasil final sebenarnya diproses
-                 * oleh analyzeVideo().
-                 *
-                 * Di sini hanya memastikan UI
-                 * menerima hasil API jika event
-                 * dipicu oleh API module.
-                 */
-
             }
         );
 
-
-        /* =================================================
-           API ERROR
-        ================================================= */
 
         document.addEventListener(
             CONFIG.events.apiError,
@@ -2183,10 +2100,6 @@
         );
 
 
-        /* =================================================
-           ANALYSIS PREPARATION ERROR
-        ================================================= */
-
         document.addEventListener(
             CONFIG.events.analysisError,
             function (event) {
@@ -2209,10 +2122,6 @@
             }
         );
 
-
-        /* =================================================
-           ESCAPE
-        ================================================= */
 
         document.addEventListener(
             "keydown",
