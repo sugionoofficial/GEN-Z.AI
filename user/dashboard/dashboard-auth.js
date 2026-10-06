@@ -1,4 +1,4 @@
-//dashboard-auth?v=1.1
+//dashboard-auth?v=1.2
 /* =========================================================
    GEN-Z.AI
    USER DASHBOARD AUTH MODULE
