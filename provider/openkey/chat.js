@@ -1,3 +1,4 @@
+//provider/openkey/chat.js?v=1.1
 /* =========================================================
    GEN-Z.AI
    OPENKEY CHAT MODULE
