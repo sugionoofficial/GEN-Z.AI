@@ -7,6 +7,7 @@
    Fungsi:
    - Event coordinator Vision Video
    - Analyze button
+   - Premium loading overlay
    - Sinkronisasi form ke state
    - Validasi video
    - CHECK credit
@@ -75,6 +76,19 @@
 
             processComplete:
                 "genz:vision-video:process-complete"
+
+        },
+
+        premiumLoading: {
+
+            id:
+                "genzVisionVideoPremiumLoading",
+
+            title:
+                "GEN-Z.AI Vision",
+
+            subtitle:
+                "Video Analysis Engine"
 
         }
 
@@ -187,6 +201,916 @@
         }
 
         return window.GENZVisionVideoHistory;
+    }
+
+
+    /* =====================================================
+       PREMIUM LOADING
+    ===================================================== */
+
+    let premiumLoadingElement =
+        null;
+
+
+    let premiumLoadingVisible =
+        false;
+
+
+    function injectPremiumLoadingStyles() {
+
+        const styleId =
+            "genz-vision-video-premium-loading-style";
+
+
+        if (
+            document.getElementById(
+                styleId
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        const style =
+            document.createElement(
+                "style"
+            );
+
+
+        style.id =
+            styleId;
+
+
+        style.textContent = `
+
+            #genzVisionVideoPremiumLoading {
+
+                position: fixed;
+
+                inset: 0;
+
+                z-index: 2147483000;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content: center;
+
+                padding: 24px;
+
+                background:
+                    radial-gradient(
+                        circle at center,
+                        rgba(40, 0, 0, 0.38),
+                        rgba(3, 3, 7, 0.96) 58%,
+                        rgba(0, 0, 0, 0.99)
+                    );
+
+                backdrop-filter:
+                    blur(14px);
+
+                -webkit-backdrop-filter:
+                    blur(14px);
+
+                opacity: 0;
+
+                visibility: hidden;
+
+                pointer-events: none;
+
+                transition:
+                    opacity 0.25s ease,
+                    visibility 0.25s ease;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading.is-visible {
+
+                opacity: 1;
+
+                visibility: visible;
+
+                pointer-events: auto;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-card {
+
+                position: relative;
+
+                width: min(
+                    430px,
+                    calc(100vw - 40px)
+                );
+
+                padding: 34px 30px 30px;
+
+                border:
+                    1px solid
+                    rgba(255, 40, 40, 0.42);
+
+                border-radius: 24px;
+
+                background:
+                    linear-gradient(
+                        145deg,
+                        rgba(25, 7, 10, 0.96),
+                        rgba(7, 7, 12, 0.98)
+                    );
+
+                box-shadow:
+                    0 0 0 1px
+                    rgba(255, 0, 0, 0.06),
+                    0 0 28px
+                    rgba(255, 0, 0, 0.18),
+                    0 0 80px
+                    rgba(255, 0, 0, 0.08),
+                    inset 0 1px 0
+                    rgba(255, 255, 255, 0.06);
+
+                overflow: hidden;
+
+                transform:
+                    translateY(10px)
+                    scale(0.98);
+
+                transition:
+                    transform 0.3s ease;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading.is-visible
+            .genz-vv-loading-card {
+
+                transform:
+                    translateY(0)
+                    scale(1);
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-card::before {
+
+                content: "";
+
+                position: absolute;
+
+                top: -90px;
+
+                left: 50%;
+
+                width: 240px;
+
+                height: 180px;
+
+                transform:
+                    translateX(-50%);
+
+                background:
+                    radial-gradient(
+                        circle,
+                        rgba(255, 25, 25, 0.18),
+                        transparent 70%
+                    );
+
+                pointer-events: none;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-card::after {
+
+                content: "";
+
+                position: absolute;
+
+                inset: 0;
+
+                border-radius: inherit;
+
+                pointer-events: none;
+
+                box-shadow:
+                    inset 0 0 40px
+                    rgba(255, 0, 0, 0.035);
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-brand {
+
+                position: relative;
+
+                z-index: 2;
+
+                text-align: center;
+
+                margin-bottom: 24px;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-brand-name {
+
+                font-size: 17px;
+
+                font-weight: 800;
+
+                letter-spacing: 0.18em;
+
+                color: #ffffff;
+
+                text-transform: uppercase;
+
+                text-shadow:
+                    0 0 12px
+                    rgba(255, 40, 40, 0.55);
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-brand-subtitle {
+
+                margin-top: 6px;
+
+                font-size: 10px;
+
+                font-weight: 600;
+
+                letter-spacing: 0.2em;
+
+                text-transform: uppercase;
+
+                color:
+                    rgba(255, 150, 150, 0.7);
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-orbit {
+
+                position: relative;
+
+                z-index: 2;
+
+                width: 112px;
+
+                height: 112px;
+
+                margin: 0 auto 25px;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content: center;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-ring {
+
+                position: absolute;
+
+                inset: 0;
+
+                border-radius: 50%;
+
+                border:
+                    2px solid
+                    rgba(255, 255, 255, 0.06);
+
+                border-top-color:
+                    rgba(255, 40, 40, 0.95);
+
+                border-right-color:
+                    rgba(255, 70, 70, 0.45);
+
+                animation:
+                    genzVisionSpin
+                    1.15s linear infinite;
+
+                box-shadow:
+                    0 0 14px
+                    rgba(255, 0, 0, 0.22);
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-ring-secondary {
+
+                position: absolute;
+
+                inset: 10px;
+
+                border-radius: 50%;
+
+                border:
+                    1px dashed
+                    rgba(255, 100, 100, 0.28);
+
+                animation:
+                    genzVisionSpinReverse
+                    2.4s linear infinite;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-core {
+
+                width: 52px;
+
+                height: 52px;
+
+                border-radius: 16px;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content: center;
+
+                background:
+                    radial-gradient(
+                        circle at 35% 30%,
+                        rgba(255, 100, 100, 0.32),
+                        rgba(80, 0, 0, 0.32)
+                    );
+
+                border:
+                    1px solid
+                    rgba(255, 80, 80, 0.35);
+
+                box-shadow:
+                    0 0 20px
+                    rgba(255, 0, 0, 0.18),
+                    inset 0 0 18px
+                    rgba(255, 0, 0, 0.08);
+
+                animation:
+                    genzVisionPulse
+                    1.8s ease-in-out infinite;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-core::before {
+
+                content: "";
+
+                width: 12px;
+
+                height: 12px;
+
+                border-radius: 50%;
+
+                background:
+                    #ff3b3b;
+
+                box-shadow:
+                    0 0 8px
+                    #ff2020,
+                    0 0 22px
+                    rgba(255, 20, 20, 0.8);
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-status {
+
+                position: relative;
+
+                z-index: 2;
+
+                min-height: 24px;
+
+                text-align: center;
+
+                color: #ffffff;
+
+                font-size: 14px;
+
+                font-weight: 700;
+
+                letter-spacing: 0.01em;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-detail {
+
+                position: relative;
+
+                z-index: 2;
+
+                margin-top: 7px;
+
+                min-height: 18px;
+
+                text-align: center;
+
+                color:
+                    rgba(255, 255, 255, 0.48);
+
+                font-size: 11px;
+
+                font-weight: 500;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-progress {
+
+                position: relative;
+
+                z-index: 2;
+
+                height: 4px;
+
+                margin-top: 22px;
+
+                overflow: hidden;
+
+                border-radius: 999px;
+
+                background:
+                    rgba(255, 255, 255, 0.07);
+
+                box-shadow:
+                    inset 0 0 5px
+                    rgba(0, 0, 0, 0.5);
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-progress-bar {
+
+                width: 0%;
+
+                height: 100%;
+
+                border-radius: inherit;
+
+                background:
+                    linear-gradient(
+                        90deg,
+                        #ff1515,
+                        #ff5757,
+                        #ff1515
+                    );
+
+                box-shadow:
+                    0 0 10px
+                    rgba(255, 30, 30, 0.7);
+
+                transition:
+                    width 0.35s ease;
+
+            }
+
+
+            #genzVisionVideoPremiumLoading
+            .genz-vv-loading-percent {
+
+                position: relative;
+
+                z-index: 2;
+
+                margin-top: 9px;
+
+                text-align: right;
+
+                color:
+                    rgba(255, 100, 100, 0.8);
+
+                font-size: 10px;
+
+                font-weight: 700;
+
+                letter-spacing: 0.08em;
+
+            }
+
+
+            @keyframes genzVisionSpin {
+
+                from {
+                    transform: rotate(0deg);
+                }
+
+                to {
+                    transform: rotate(360deg);
+                }
+
+            }
+
+
+            @keyframes genzVisionSpinReverse {
+
+                from {
+                    transform: rotate(360deg);
+                }
+
+                to {
+                    transform: rotate(0deg);
+                }
+
+            }
+
+
+            @keyframes genzVisionPulse {
+
+                0%,
+                100% {
+                    transform: scale(0.94);
+                    opacity: 0.82;
+                }
+
+                50% {
+                    transform: scale(1.04);
+                    opacity: 1;
+                }
+
+            }
+
+
+            @media (max-width: 600px) {
+
+                #genzVisionVideoPremiumLoading {
+
+                    padding:
+                        18px;
+
+                }
+
+
+                #genzVisionVideoPremiumLoading
+                .genz-vv-loading-card {
+
+                    width:
+                        calc(100vw - 32px);
+
+                    padding:
+                        28px 22px 24px;
+
+                    border-radius:
+                        20px;
+
+                }
+
+
+                #genzVisionVideoPremiumLoading
+                .genz-vv-loading-orbit {
+
+                    width:
+                        96px;
+
+                    height:
+                        96px;
+
+                }
+
+            }
+
+        `;
+
+
+        document.head.appendChild(
+            style
+        );
+
+    }
+
+
+    function createPremiumLoading() {
+
+        if (
+            premiumLoadingElement &&
+            document.body.contains(
+                premiumLoadingElement
+            )
+        ) {
+
+            return premiumLoadingElement;
+
+        }
+
+
+        injectPremiumLoadingStyles();
+
+
+        let existing =
+            document.getElementById(
+                CONFIG.premiumLoading.id
+            );
+
+
+        if (existing) {
+
+            premiumLoadingElement =
+                existing;
+
+            return existing;
+
+        }
+
+
+        const overlay =
+            document.createElement(
+                "div"
+            );
+
+
+        overlay.id =
+            CONFIG.premiumLoading.id;
+
+
+        overlay.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+
+        overlay.innerHTML = `
+
+            <div
+                class="genz-vv-loading-card"
+                role="status"
+                aria-live="polite"
+            >
+
+                <div class="genz-vv-loading-brand">
+
+                    <div class="genz-vv-loading-brand-name">
+                        ${CONFIG.premiumLoading.title}
+                    </div>
+
+                    <div class="genz-vv-loading-brand-subtitle">
+                        ${CONFIG.premiumLoading.subtitle}
+                    </div>
+
+                </div>
+
+
+                <div class="genz-vv-loading-orbit">
+
+                    <div
+                        class="genz-vv-loading-ring"
+                    ></div>
+
+                    <div
+                        class="genz-vv-loading-ring-secondary"
+                    ></div>
+
+                    <div
+                        class="genz-vv-loading-core"
+                    ></div>
+
+                </div>
+
+
+                <div
+                    class="genz-vv-loading-status"
+                    data-genz-vv-loading-status
+                >
+                    Menyiapkan analisis video...
+                </div>
+
+
+                <div
+                    class="genz-vv-loading-detail"
+                    data-genz-vv-loading-detail
+                >
+                    Vision Engine sedang bekerja
+                </div>
+
+
+                <div
+                    class="genz-vv-loading-progress"
+                >
+
+                    <div
+                        class="genz-vv-loading-progress-bar"
+                        data-genz-vv-loading-progress
+                    ></div>
+
+                </div>
+
+
+                <div
+                    class="genz-vv-loading-percent"
+                    data-genz-vv-loading-percent
+                >
+                    0%
+                </div>
+
+            </div>
+
+        `;
+
+
+        document.body.appendChild(
+            overlay
+        );
+
+
+        premiumLoadingElement =
+            overlay;
+
+
+        return overlay;
+
+    }
+
+
+    function setPremiumLoading(
+        visible,
+        message,
+        progress,
+        detail
+    ) {
+
+        try {
+
+            const overlay =
+                createPremiumLoading();
+
+
+            if (!overlay) {
+
+                return;
+
+            }
+
+
+            if (!visible) {
+
+                overlay.classList.remove(
+                    "is-visible"
+                );
+
+
+                overlay.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+
+
+                premiumLoadingVisible =
+                    false;
+
+
+                return;
+
+            }
+
+
+            const safeProgress =
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        Number(progress) || 0
+                    )
+                );
+
+
+            const status =
+                overlay.querySelector(
+                    "[data-genz-vv-loading-status]"
+                );
+
+
+            const detailElement =
+                overlay.querySelector(
+                    "[data-genz-vv-loading-detail]"
+                );
+
+
+            const progressBar =
+                overlay.querySelector(
+                    "[data-genz-vv-loading-progress]"
+                );
+
+
+            const percent =
+                overlay.querySelector(
+                    "[data-genz-vv-loading-percent]"
+                );
+
+
+            if (status) {
+
+                status.textContent =
+                    message ||
+                    "Memproses video...";
+
+            }
+
+
+            if (detailElement) {
+
+                detailElement.textContent =
+                    detail ||
+                    "Vision Engine sedang bekerja";
+
+            }
+
+
+            if (progressBar) {
+
+                progressBar.style.width =
+                    `${safeProgress}%`;
+
+            }
+
+
+            if (percent) {
+
+                percent.textContent =
+                    `${Math.round(safeProgress)}%`;
+
+            }
+
+
+            overlay.classList.add(
+                "is-visible"
+            );
+
+
+            overlay.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+
+
+            premiumLoadingVisible =
+                true;
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video] Premium loading warning:",
+                error
+            );
+
+        }
+
+    }
+
+
+    function hidePremiumLoading() {
+
+        setPremiumLoading(
+            false
+        );
+
+    }
+
+
+    function updatePremiumLoading(
+        message,
+        progress,
+        detail
+    ) {
+
+        if (
+            !premiumLoadingVisible
+        ) {
+
+            return;
+
+        }
+
+
+        setPremiumLoading(
+            true,
+            message,
+            progress,
+            detail
+        );
+
     }
 
 
@@ -648,6 +1572,12 @@
         });
 
 
+        updatePremiumLoading(
+            message,
+            value
+        );
+
+
         dispatch(
             CONFIG.events.processProgress,
             {
@@ -689,6 +1619,7 @@
             value,
             "Menyiapkan frame video..."
         );
+
     }
 
 
@@ -1224,6 +2155,19 @@
             "";
 
 
+        /*
+         * Premium loading dimulai sedini mungkin
+         * setelah validasi berhasil.
+         */
+
+        setPremiumLoading(
+            true,
+            "Menyiapkan analisis video...",
+            2,
+            "GEN-Z.AI Vision Engine"
+        );
+
+
         try {
 
             /* =============================================
@@ -1296,6 +2240,13 @@
             );
 
 
+            updatePremiumLoading(
+                "Memeriksa credit...",
+                5,
+                "Memverifikasi saldo akun"
+            );
+
+
             /* =============================================
                TASK ID
             ============================================= */
@@ -1330,6 +2281,13 @@
             );
 
 
+            updatePremiumLoading(
+                "Credit terverifikasi.",
+                12,
+                "Menyiapkan video untuk Vision Engine"
+            );
+
+
             /* =============================================
                PREPARATION
             ============================================= */
@@ -1342,6 +2300,13 @@
 
             ui.renderProcessingStatus(
                 "Menyiapkan frame video..."
+            );
+
+
+            updatePremiumLoading(
+                "Menyiapkan frame video...",
+                15,
+                "Mengekstrak informasi visual"
             );
 
 
@@ -1393,6 +2358,13 @@
 
             ui.renderProcessingStatus(
                 "Menganalisis frame video..."
+            );
+
+
+            updatePremiumLoading(
+                "Menganalisis frame video...",
+                55,
+                "Vision Engine sedang membaca urutan visual"
             );
 
 
@@ -1471,6 +2443,13 @@
             );
 
 
+            updatePremiumLoading(
+                "Menyimpan hasil analisis...",
+                94,
+                "Menyelesaikan proses dan mencatat history"
+            );
+
+
             /* =============================================
                SAVE HISTORY
             ============================================= */
@@ -1498,6 +2477,13 @@
             setProgress(
                 100,
                 "Analisis video selesai."
+            );
+
+
+            updatePremiumLoading(
+                "Analisis video selesai.",
+                100,
+                "Hasil analisis siap digunakan"
             );
 
 
@@ -1570,6 +2556,21 @@
             );
 
 
+            /*
+             * Beri sedikit waktu agar status
+             * 100% terlihat sebelum overlay ditutup.
+             */
+
+            window.setTimeout(
+                function () {
+
+                    hidePremiumLoading();
+
+                },
+                450
+            );
+
+
             return result;
 
         } catch (error) {
@@ -1599,6 +2600,13 @@
 
                     ui.renderProcessingStatus(
                         "Mengembalikan credit..."
+                    );
+
+
+                    updatePremiumLoading(
+                        "Mengembalikan credit...",
+                        96,
+                        "Proses analysis gagal, credit sedang dikembalikan"
                     );
 
 
@@ -1674,6 +2682,13 @@
 
                 }
             );
+
+
+            /*
+             * Error harus menutup premium loading.
+             */
+
+            hidePremiumLoading();
 
 
             return null;
@@ -1752,6 +2767,9 @@
         );
 
 
+        hidePremiumLoading();
+
+
         analysisRunning =
             false;
 
@@ -1804,6 +2822,9 @@
 
         analysisRunning =
             false;
+
+
+        hidePremiumLoading();
 
 
         const ui =
@@ -1892,6 +2913,9 @@
     function handleFileRemoved() {
 
         try {
+
+            hidePremiumLoading();
+
 
             getUI().resetResults();
 
@@ -2051,6 +3075,13 @@
                     "Mengirim frame video ke Vision Engine..."
                 );
 
+
+                updatePremiumLoading(
+                    "Mengirim frame video ke Vision Engine...",
+                    60,
+                    "Vision Engine menerima data visual"
+                );
+
             }
         );
 
@@ -2094,6 +3125,9 @@
                         error
                     );
 
+
+                    hidePremiumLoading();
+
                 }
 
             }
@@ -2116,6 +3150,9 @@
                     getUI().renderErrorStatus(
                         error
                     );
+
+
+                    hidePremiumLoading();
 
                 }
 
@@ -2210,6 +3247,12 @@
         reset,
 
         bind,
+
+        setPremiumLoading,
+
+        hidePremiumLoading,
+
+        updatePremiumLoading,
 
         isRunning:
             function () {
