@@ -56,7 +56,7 @@
 
 
     /* =====================================================
-       DOM
+       DOM HELPER
     ===================================================== */
 
     function get(id) {
@@ -70,22 +70,32 @@
        ELEMENTS
     ===================================================== */
 
-    function getElements() {
+    function getElements(forceRefresh = false) {
 
         if (
-            elementsCache &&
-            elementsCache.dropzone &&
-            elementsCache.fileInput &&
-            elementsCache.uploadState &&
-            elementsCache.browseButton &&
-            elementsCache.previewState &&
-            elementsCache.previewImage &&
-            elementsCache.fileName &&
-            elementsCache.fileSize &&
-            elementsCache.removeButton
+            !forceRefresh &&
+            elementsCache
         ) {
 
-            return elementsCache;
+            /*
+             * Pastikan element utama masih
+             * berada di document.
+             */
+
+            if (
+                elementsCache.dropzone &&
+                document.contains(
+                    elementsCache.dropzone
+                ) &&
+                elementsCache.fileInput &&
+                document.contains(
+                    elementsCache.fileInput
+                )
+            ) {
+
+                return elementsCache;
+
+            }
 
         }
 
@@ -177,10 +187,18 @@
             getState();
 
 
+        /*
+         * State boleh saja belum tersedia
+         * ketika upload module pertama kali
+         * dijalankan.
+         *
+         * Upload UI tetap boleh bekerja.
+         */
+
         if (!state) {
 
             console.warn(
-                "[GEN-Z.AI Vision Video Character] Vision Video State belum tersedia."
+                "[GEN-Z.AI Vision Video Character] Vision Video State belum tersedia. Character tetap diproses secara lokal."
             );
 
             return false;
@@ -188,36 +206,45 @@
         }
 
 
-        if (
-            typeof state.set ===
-            "function"
-        ) {
+        try {
 
-            state.set(
-                key,
-                value
+            if (
+                typeof state.set ===
+                "function"
+            ) {
+
+                state.set(
+                    key,
+                    value
+                );
+
+                return true;
+
+            }
+
+
+            if (
+                typeof state.update ===
+                "function"
+            ) {
+
+                state.update(
+                    key,
+                    value
+                );
+
+                return true;
+
+            }
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video Character] Gagal menyimpan character ke State.",
+                error
             );
 
-            return true;
-
-        }
-
-
-        /*
-         * Compatibility fallback.
-         */
-
-        if (
-            typeof state.update ===
-            "function"
-        ) {
-
-            state.update(
-                key,
-                value
-            );
-
-            return true;
+            return false;
 
         }
 
@@ -236,33 +263,40 @@
        CHARACTER STATE
     ===================================================== */
 
-    function setCharacterState(file) {
+    function createCharacterState(file) {
 
-        const character = {
+        return {
 
-            file: file,
+            file:
+                file || null,
 
             objectUrl:
-                characterObjectURL,
+                characterObjectURL || null,
 
             name:
-                file.name,
+                file?.name || "",
 
             size:
-                file.size,
+                Number(
+                    file?.size || 0
+                ),
 
             type:
-                file.type,
+                file?.type || "",
 
             ready:
-                true
+                Boolean(file)
 
         };
 
+    }
+
+
+    function setCharacterState(file) {
 
         return setStateValue(
             "character",
-            character
+            createCharacterState(file)
         );
 
     }
@@ -270,26 +304,9 @@
 
     function clearCharacterState() {
 
-        const character = {
-
-            file: null,
-
-            objectUrl: null,
-
-            name: "",
-
-            size: 0,
-
-            type: "",
-
-            ready: false
-
-        };
-
-
         return setStateValue(
             "character",
-            character
+            createCharacterState(null)
         );
 
     }
@@ -344,11 +361,11 @@
 
 
         /*
-         * Browser kadang tidak mengisi
-         * file.type secara konsisten.
+         * Browser dapat memberikan
+         * file.type kosong.
          *
-         * Karena itu extension tetap
-         * menjadi fallback.
+         * Extension tetap menjadi
+         * fallback.
          */
 
         if (
@@ -462,23 +479,10 @@
     function showError(message) {
 
         const elements =
-            getElements();
+            getElements(
+                true
+            );
 
-
-        /*
-         * Jangan pernah mengganti
-         * innerHTML/textContent uploadState.
-         *
-         * Upload state berisi:
-         * - icon
-         * - heading
-         * - description
-         * - browse button
-         * - format info
-         *
-         * Jika diganti textContent,
-         * seluruh kontrol upload hilang.
-         */
 
         if (
             elements.uploadState
@@ -506,7 +510,8 @@
 
 
         showNotice(
-            message
+            message ||
+            "Character tidak dapat diproses."
         );
 
     }
@@ -519,7 +524,9 @@
     function showUploadState() {
 
         const elements =
-            getElements();
+            getElements(
+                true
+            );
 
 
         if (
@@ -551,7 +558,9 @@
     function showPreviewState() {
 
         const elements =
-            getElements();
+            getElements(
+                true
+            );
 
 
         if (
@@ -583,28 +592,32 @@
     function revokeCharacterObjectURL() {
 
         if (
-            characterObjectURL
+            !characterObjectURL
         ) {
 
-            try {
-
-                URL.revokeObjectURL(
-                    characterObjectURL
-                );
-
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI Vision Video Character] Failed to revoke object URL.",
-                    error
-                );
-
-            }
-
-            characterObjectURL =
-                null;
+            return;
 
         }
+
+
+        try {
+
+            URL.revokeObjectURL(
+                characterObjectURL
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video Character] Failed to revoke object URL.",
+                error
+            );
+
+        }
+
+
+        characterObjectURL =
+            null;
 
     }
 
@@ -617,29 +630,52 @@
 
         try {
 
+            const elements =
+                getElements(
+                    true
+                );
+
+
             /*
-             * Pastikan DOM sudah tersedia.
+             * Element minimum yang benar-benar
+             * dibutuhkan untuk upload.
              */
 
-            const elements =
-                getElements();
+            if (
+                !elements.fileInput
+            ) {
+
+                throw new Error(
+                    "Input file character belum tersedia."
+                );
+
+            }
 
 
             if (
-                !elements.fileInput ||
-                !elements.previewImage ||
+                !elements.previewImage
+            ) {
+
+                throw new Error(
+                    "Preview character belum tersedia."
+                );
+
+            }
+
+
+            if (
                 !elements.previewState
             ) {
 
                 throw new Error(
-                    "Character upload interface belum siap."
+                    "Preview state character belum tersedia."
                 );
 
             }
 
 
             /*
-             * Validasi file.
+             * Validasi.
              */
 
             validateFile(
@@ -655,7 +691,7 @@
 
 
             /*
-             * Hapus object URL lama.
+             * Bersihkan object URL sebelumnya.
              */
 
             revokeCharacterObjectURL();
@@ -672,7 +708,10 @@
 
 
             /*
-             * Simpan ke state.
+             * Simpan state.
+             *
+             * Kegagalan state tidak boleh
+             * membatalkan preview lokal.
              */
 
             setCharacterState(
@@ -680,9 +719,9 @@
             );
 
 
-            /*
-             * Preview image.
-             */
+            /* =================================================
+               PREVIEW
+            ================================================= */
 
             elements.previewImage.src =
                 characterObjectURL;
@@ -694,7 +733,7 @@
 
 
             /*
-             * File name.
+             * Nama file.
              */
 
             if (
@@ -709,7 +748,7 @@
 
 
             /*
-             * File size.
+             * Ukuran file.
              */
 
             if (
@@ -725,14 +764,14 @@
 
 
             /*
-             * UI.
+             * Tampilkan preview.
              */
 
             showPreviewState();
 
 
             /*
-             * Active state.
+             * Update class.
              */
 
             if (
@@ -755,18 +794,7 @@
 
 
             /*
-             * Pastikan input tetap
-             * memiliki file yang dipilih.
-             */
-
-            /*
-             * Jangan mengubah input.value.
-             * Browser mengontrol nilainya.
-             */
-
-
-            /*
-             * Dispatch event.
+             * Event.
              */
 
             document.dispatchEvent(
@@ -775,7 +803,8 @@
                     {
                         detail: {
 
-                            file: file,
+                            file:
+                                file,
 
                             objectUrl:
                                 characterObjectURL
@@ -822,39 +851,52 @@
     function removeCharacter() {
 
         const elements =
-            getElements();
+            getElements(
+                true
+            );
 
 
         /*
-         * Hapus object URL.
+         * Object URL.
          */
 
         revokeCharacterObjectURL();
 
 
         /*
-         * Reset state.
+         * State.
          */
 
         clearCharacterState();
 
 
         /*
-         * Reset file input.
+         * Input.
          */
 
         if (
             elements.fileInput
         ) {
 
-            elements.fileInput.value =
-                "";
+            try {
+
+                elements.fileInput.value =
+                    "";
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision Video Character] Tidak dapat reset file input.",
+                    error
+                );
+
+            }
 
         }
 
 
         /*
-         * Reset preview.
+         * Preview.
          */
 
         if (
@@ -872,7 +914,7 @@
 
 
         /*
-         * Reset file name.
+         * File name.
          */
 
         if (
@@ -886,7 +928,7 @@
 
 
         /*
-         * Reset file size.
+         * File size.
          */
 
         if (
@@ -900,14 +942,14 @@
 
 
         /*
-         * Reset UI.
+         * UI.
          */
 
         showUploadState();
 
 
         /*
-         * Reset classes.
+         * Class.
          */
 
         if (
@@ -930,14 +972,14 @@
 
 
         /*
-         * Reset notice.
+         * Notice.
          */
 
         clearNotice();
 
 
         /*
-         * Dispatch event.
+         * Event.
          */
 
         document.dispatchEvent(
@@ -961,11 +1003,22 @@
     function handleFileInput(event) {
 
         const input =
-            event.currentTarget;
+            event.currentTarget ||
+            event.target;
+
+
+        if (
+            !input
+        ) {
+
+            return;
+
+        }
 
 
         const file =
-            input?.files?.[0];
+            input.files?.[0] ||
+            null;
 
 
         if (!file) {
@@ -983,7 +1036,7 @@
 
 
     /* =====================================================
-       BROWSE
+       OPEN FILE PICKER
     ===================================================== */
 
     function openFilePicker(event) {
@@ -998,33 +1051,97 @@
 
 
         const elements =
-            getElements();
+            getElements(
+                true
+            );
 
 
         const fileInput =
             elements.fileInput;
 
 
-        if (!fileInput) {
+        if (
+            !fileInput
+        ) {
 
             showError(
                 "Input file character tidak ditemukan."
             );
 
-            return;
+            return false;
+
+        }
+
+
+        clearNotice();
+
+
+        /*
+         * Pastikan input aktif.
+         */
+
+        try {
+
+            fileInput.removeAttribute(
+                "disabled"
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video Character] Tidak dapat memastikan input aktif.",
+                error
+            );
 
         }
 
 
         /*
-         * Pastikan error sebelumnya
-         * tidak mengunci tampilan.
+         * Browser file picker.
          */
 
-        clearNotice();
+        try {
+
+            fileInput.click();
+
+            return true;
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI Vision Video Character] File picker gagal dibuka.",
+                error
+            );
 
 
-        fileInput.click();
+            showError(
+                "File picker character tidak dapat dibuka."
+            );
+
+
+            return false;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       BROWSE BUTTON
+    ===================================================== */
+
+    function handleBrowseButtonClick(event) {
+
+        if (event) {
+
+            event.preventDefault();
+
+            event.stopPropagation();
+
+        }
+
+
+        openFilePicker();
 
     }
 
@@ -1049,8 +1166,8 @@
 
 
         /*
-         * Remove button ditangani
-         * oleh handler khusus.
+         * Jangan trigger picker dari
+         * Remove button.
          */
 
         if (
@@ -1065,8 +1182,8 @@
 
 
         /*
-         * Browse button juga memiliki
-         * handler sendiri.
+         * Browse button punya handler
+         * tersendiri.
          */
 
         if (
@@ -1080,14 +1197,29 @@
         }
 
 
-        /*
-         * Klik area dropzone membuka
-         * file picker.
-         */
-
         openFilePicker(
             event
         );
+
+    }
+
+
+    /* =====================================================
+       REMOVE BUTTON
+    ===================================================== */
+
+    function handleRemoveButtonClick(event) {
+
+        if (event) {
+
+            event.preventDefault();
+
+            event.stopPropagation();
+
+        }
+
+
+        removeCharacter();
 
     }
 
@@ -1110,7 +1242,7 @@
 
         /*
          * Jangan menangkap keyboard
-         * ketika fokus berada di button.
+         * dari button.
          */
 
         if (
@@ -1126,10 +1258,10 @@
 
         event.preventDefault();
 
+        event.stopPropagation();
 
-        openFilePicker(
-            event
-        );
+
+        openFilePicker();
 
     }
 
@@ -1240,16 +1372,8 @@
         }
 
 
-        /*
-         * Ambil file pertama.
-         */
-
-        const file =
-            files[0];
-
-
         loadCharacter(
-            file
+            files[0]
         );
 
     }
@@ -1262,7 +1386,9 @@
     function bind() {
 
         const elements =
-            getElements();
+            getElements(
+                true
+            );
 
 
         if (
@@ -1281,7 +1407,10 @@
 
 
         /*
-         * File input.
+         * Hindari binding ganda.
+         *
+         * Semua listener utama dipasang
+         * hanya sekali oleh initialize().
          */
 
         if (
@@ -1290,15 +1419,12 @@
 
             elements.fileInput.addEventListener(
                 "change",
-                handleFileInput
+                handleFileInput,
+                false
             );
 
         }
 
-
-        /*
-         * Browse button.
-         */
 
         if (
             elements.browseButton
@@ -1306,15 +1432,12 @@
 
             elements.browseButton.addEventListener(
                 "click",
-                openFilePicker
+                handleBrowseButtonClick,
+                false
             );
 
         }
 
-
-        /*
-         * Remove button.
-         */
 
         if (
             elements.removeButton
@@ -1322,24 +1445,12 @@
 
             elements.removeButton.addEventListener(
                 "click",
-                function(event) {
-
-                    event.preventDefault();
-
-                    event.stopPropagation();
-
-
-                    removeCharacter();
-
-                }
+                handleRemoveButtonClick,
+                false
             );
 
         }
 
-
-        /*
-         * Dropzone.
-         */
 
         if (
             elements.dropzone
@@ -1347,31 +1458,36 @@
 
             elements.dropzone.addEventListener(
                 "click",
-                handleDropzoneClick
+                handleDropzoneClick,
+                false
             );
 
 
             elements.dropzone.addEventListener(
                 "keydown",
-                handleDropzoneKeydown
+                handleDropzoneKeydown,
+                false
             );
 
 
             elements.dropzone.addEventListener(
                 "dragover",
-                handleDragOver
+                handleDragOver,
+                false
             );
 
 
             elements.dropzone.addEventListener(
                 "dragleave",
-                handleDragLeave
+                handleDragLeave,
+                false
             );
 
 
             elements.dropzone.addEventListener(
                 "drop",
-                handleDrop
+                handleDrop,
+                false
             );
 
         }
@@ -1389,7 +1505,7 @@
     function initialize() {
 
         /*
-         * Jangan initialize dua kali.
+         * Jangan double initialize.
          */
 
         if (
@@ -1402,26 +1518,34 @@
 
 
         /*
-         * Pastikan DOM sudah tersedia.
+         * Refresh DOM.
          */
 
         const elements =
-            getElements();
+            getElements(
+                true
+            );
 
+
+        /*
+         * Kalau DOM belum tersedia,
+         * jangan mengunci initialized.
+         */
 
         if (
             !elements.dropzone &&
             !elements.fileInput
         ) {
 
+            console.warn(
+                "[GEN-Z.AI Vision Video Character] Character upload DOM belum tersedia."
+            );
+
+
             return false;
 
         }
 
-
-        /*
-         * Pastikan element penting tersedia.
-         */
 
         if (
             !elements.fileInput
@@ -1485,6 +1609,72 @@
 
 
     /* =====================================================
+       RETRY INITIALIZATION
+    ===================================================== */
+
+    function scheduleInitialization() {
+
+        /*
+         * Attempt pertama.
+         */
+
+        initialize();
+
+
+        /*
+         * Jika module lain membangun/
+         * mengganti DOM setelahnya,
+         * lakukan retry tanpa duplicate
+         * karena initialize() memiliki
+         * guard initialized.
+         */
+
+        if (
+            !initialized
+        ) {
+
+            requestAnimationFrame(
+                () => {
+
+                    if (
+                        !initialized
+                    ) {
+
+                        initialize();
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        if (
+            !initialized
+        ) {
+
+            setTimeout(
+                () => {
+
+                    if (
+                        !initialized
+                    ) {
+
+                        initialize();
+
+                    }
+
+                },
+                300
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
        PUBLIC API
     ===================================================== */
 
@@ -1527,16 +1717,27 @@
                 "function"
             ) {
 
-                const character =
-                    state.get(
-                        "character"
+                try {
+
+                    const character =
+                        state.get(
+                            "character"
+                        );
+
+
+                    return (
+                        character?.file ||
+                        null
                     );
 
+                } catch (error) {
 
-                return (
-                    character?.file ||
-                    null
-                );
+                    console.warn(
+                        "[GEN-Z.AI Vision Video Character] Gagal membaca character state.",
+                        error
+                    );
+
+                }
 
             }
 
@@ -1582,20 +1783,37 @@
                 "function"
             ) {
 
-                const character =
-                    state.get(
-                        "character"
+                try {
+
+                    const character =
+                        state.get(
+                            "character"
+                        );
+
+
+                    return Boolean(
+                        character?.ready
                     );
 
+                } catch (error) {
 
-                return Boolean(
-                    character?.ready
-                );
+                    console.warn(
+                        "[GEN-Z.AI Vision Video Character] Gagal membaca character readiness.",
+                        error
+                    );
+
+                }
 
             }
 
 
-            return false;
+            /*
+             * Fallback lokal.
+             */
+
+            return Boolean(
+                characterObjectURL
+            );
 
         }
 
@@ -1609,8 +1827,7 @@
     function autoInitialize() {
 
         /*
-         * Jika DOM belum selesai,
-         * tunggu DOMContentLoaded.
+         * DOM masih loading.
          */
 
         if (
@@ -1620,7 +1837,7 @@
 
             document.addEventListener(
                 "DOMContentLoaded",
-                initialize,
+                scheduleInitialization,
                 {
                     once: true
                 }
@@ -1636,10 +1853,88 @@
          * DOM sudah tersedia.
          */
 
-        initialize();
+        scheduleInitialization();
 
     }
 
+
+    /* =====================================================
+       GLOBAL DOM READY FALLBACK
+    ===================================================== */
+
+    /*
+     * Ini sengaja memakai event delegation
+     * tambahan untuk kasus ekstrem ketika
+     * element dibuat ulang setelah module
+     * initialize.
+     *
+     * Listener hanya aktif untuk target
+     * Character Upload.
+     */
+
+    document.addEventListener(
+        "click",
+        function(event) {
+
+            const browseButton =
+                event.target?.closest(
+                    "#visionVideoCharacterBrowseButton"
+                );
+
+
+            if (
+                browseButton
+            ) {
+
+                /*
+                 * Kalau sudah ada handler
+                 * langsung, jangan melakukan
+                 * picker kedua kali.
+                 */
+
+                if (
+                    initialized
+                ) {
+
+                    return;
+
+                }
+
+
+                handleBrowseButtonClick(
+                    event
+                );
+
+                return;
+
+            }
+
+
+            const removeButton =
+                event.target?.closest(
+                    "#visionVideoCharacterRemoveButton"
+                );
+
+
+            if (
+                removeButton &&
+                !initialized
+            ) {
+
+                handleRemoveButtonClick(
+                    event
+                );
+
+            }
+
+        },
+        true
+    );
+
+
+    /* =====================================================
+       START
+    ===================================================== */
 
     autoInitialize();
 
