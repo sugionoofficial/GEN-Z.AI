@@ -10,6 +10,7 @@
    - Memastikan dependency tersedia
    - Menjalankan initialization
    - Memuat credit module
+   - Memuat model catalog Vision Video
    - Memuat history module
    - Menangani initialization error
    - Tidak berisi logic upload / API / analysis
@@ -18,6 +19,7 @@
    - Tidak menyentuh Vision Image
    - Credit Vision Video = 1 per generate
    - History menggunakan vision-video-history.js
+   - Model menggunakan vision-video-models.js
    - Character Upload dimuat langsung dari index.html
 ========================================================= */
 
@@ -199,6 +201,26 @@
 
                 ready:
                     "GENZVisionVideoAPIReady"
+            },
+
+
+            /* =================================================
+               MODELS
+               -------------------------------------------------
+               Model catalog membutuhkan State + DOM + API.
+               Module ini mengambil daftar model Vision Video
+               melalui operation openkey_models.
+            ================================================= */
+
+            {
+                name:
+                    "models",
+
+                path:
+                    "./assets/js/vision-video-models.js",
+
+                ready:
+                    "GENZVisionVideoModelsReady"
             },
 
 
@@ -993,6 +1015,14 @@
 
             {
                 name:
+                    "Models",
+
+                value:
+                    window.GENZVisionVideoModels
+            },
+
+            {
+                name:
                     "UI",
 
                 value:
@@ -1167,6 +1197,80 @@
 
 
             return null;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       INITIAL MODELS
+       -----------------------------------------------------
+       Memuat catalog model Vision Video dari:
+
+           vision-video-models.js
+
+       Module Models sendiri menangani:
+       - request openkey_models
+       - filtering model vision
+       - populate dropdown
+       - menyimpan model terpilih ke state
+       - error state model
+    ===================================================== */
+
+    async function initializeModels() {
+
+        const models =
+            window.GENZVisionVideoModels;
+
+
+        if (
+            !models
+        ) {
+
+            throw new Error(
+                "Vision Video Models module belum tersedia."
+            );
+
+        }
+
+
+        if (
+            typeof models.loadModels !==
+                "function"
+        ) {
+
+            throw new Error(
+                "Vision Video Models module tidak memiliki loadModels()."
+            );
+
+        }
+
+
+        try {
+
+            const result =
+                await models.loadModels();
+
+
+            log(
+                "Vision Video models synchronized."
+            );
+
+
+            return result;
+
+        } catch (
+            err
+        ) {
+
+            warn(
+                "Initial model catalog gagal:",
+                err
+            );
+
+
+            throw err;
 
         }
 
@@ -1537,6 +1641,16 @@
 
 
             /* =================================================
+               INITIAL MODELS
+               -------------------------------------------------
+               HARUS dijalankan sebelum Events/UI final
+               agar settings.model sudah tersedia.
+            ================================================= */
+
+            await initializeModels();
+
+
+            /* =================================================
                EVENTS
             ================================================= */
 
@@ -1585,6 +1699,8 @@
         validateDependencies,
 
         initializeCredit,
+
+        initializeModels,
 
         isReady:
             function () {
