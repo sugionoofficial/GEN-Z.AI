@@ -7,6 +7,8 @@
 
    TANGGUNG JAWAB:
    - Mengambil daftar model dari OpenKey
+   - Mengambil metadata public catalog OpenKey
+   - Merge model authenticated + public metadata
    - Normalisasi response /v1/models
    - Lookup model berdasarkan ID
    - Filtering model
@@ -16,19 +18,24 @@
    - Tidak berhubungan dengan generation history
    - Tidak membuat registry model statis
 
-   OPENKEY SOURCE:
-   https://open.api-github.com/v1/models
+   OPENKEY SOURCES:
+
+   Authenticated:
+   GET /v1/models
+
+   Public catalog:
+   GET /api/public/v1/models
 
    CATATAN:
-   - API key harus diberikan oleh caller.
-   - Decryption credential dilakukan di server/API layer.
-   - Module ini hanya menangani katalog model OpenKey.
-
-   CAPABILITY POLICY:
-   - Tidak mengarang capability model.
-   - Tidak membuat registry vision statis.
-   - Semua metadata provider dipertahankan.
-   - Field capability yang belum dikenal tetap diteruskan.
+   - /v1/models hanya memberikan katalog minimal:
+       id
+       object
+       owned_by
+   - /api/public/v1/models memberikan metadata model
+     yang lebih kaya.
+   - API key hanya digunakan untuk /v1/models.
+   - Public catalog TIDAK menerima API key.
+   - Tidak ada capability model yang dibuat secara artificial.
 ========================================================= */
 
 
@@ -45,7 +52,26 @@ import openKeyClient
 ========================================================= */
 
 const OPENKEY_MODELS_VERSION =
-    "2026-10-05-openkey-models-preserve-v3";
+    "2026-10-06-openkey-models-public-catalog-v1";
+
+
+/* =========================================================
+   PUBLIC CATALOG CONFIGURATION
+========================================================= */
+
+/*
+ * OpenKey public catalog menggunakan host API utama,
+ * bukan endpoint /v1 yang dipakai client OpenAI-compatible.
+ *
+ * Tidak membutuhkan API key.
+ */
+
+const DEFAULT_PUBLIC_CATALOG_BASE_URL =
+    "https://api.openkey.ai";
+
+
+const PUBLIC_CATALOG_MODELS_PATH =
+    "/api/public/v1/models";
 
 
 /* =========================================================
@@ -191,6 +217,28 @@ function extractModelRows(
     }
 
 
+    if (
+        Array.isArray(
+            response?.results
+        )
+    ) {
+
+        return response.results.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
+            response?.items
+        )
+    ) {
+
+        return response.items.slice();
+
+    }
+
+
     return [];
 
 }
@@ -221,6 +269,8 @@ function getModelId(
         model.model_id ??
 
         model.modelId ??
+
+        model.slug ??
 
         ""
 
@@ -255,6 +305,12 @@ function getModelName(
 
         model.modelName ??
 
+        model.display_name ??
+
+        model.displayName ??
+
+        model.title ??
+
         model.id ??
 
         ""
@@ -266,15 +322,6 @@ function getModelName(
 
 /* =========================================================
    CAPABILITY FIELD PRESERVER
-   ---------------------------------------------------------
-   Tidak menentukan apakah model vision atau bukan.
-
-   Fungsi ini hanya mengambil metadata capability yang
-   memang dikirim provider.
-
-   Tujuannya:
-   - Tidak membuang field OpenKey yang belum dikenal.
-   - Menyediakan bentuk canonical untuk API layer.
 ========================================================= */
 
 function getCapabilityField(
@@ -293,7 +340,8 @@ function getCapabilityField(
 
 
     for (
-        const key of keys
+        const key
+        of keys
     ) {
 
         if (
@@ -311,6 +359,461 @@ function getCapabilityField(
 
 
     return null;
+
+}
+
+
+/* =========================================================
+   PUBLIC CATALOG URL
+========================================================= */
+
+function getPublicCatalogBaseUrl() {
+
+    const configured =
+        String(
+
+            process.env.OPENKEY_PUBLIC_CATALOG_BASE_URL ||
+
+            process.env.OPENKEY_PUBLIC_BASE_URL ||
+
+            ""
+
+        )
+            .trim();
+
+
+    if (
+        configured
+    ) {
+
+        return configured.replace(
+            /\/+$/,
+            ""
+        );
+
+    }
+
+
+    return DEFAULT_PUBLIC_CATALOG_BASE_URL;
+
+}
+
+
+/* =========================================================
+   BUILD PUBLIC CATALOG URL
+========================================================= */
+
+function buildPublicCatalogUrl() {
+
+    return (
+
+        getPublicCatalogBaseUrl() +
+
+        PUBLIC_CATALOG_MODELS_PATH
+
+    );
+
+}
+
+
+/* =========================================================
+   FETCH PUBLIC CATALOG
+   ---------------------------------------------------------
+   IMPORTANT:
+   - Tidak menggunakan API key.
+   - Public catalog memang unauthenticated.
+========================================================= */
+
+async function fetchPublicCatalog() {
+
+    const url =
+        buildPublicCatalogUrl();
+
+
+    let response;
+
+
+    try {
+
+        response =
+            await fetch(
+
+                url,
+
+                {
+
+                    method:
+                        "GET",
+
+                    headers: {
+
+                        Accept:
+                            "application/json"
+
+                    }
+
+                }
+
+            );
+
+    }
+    catch (
+        error
+    ) {
+
+        const catalogError =
+            new Error(
+
+                `Gagal terhubung ke OpenKey public catalog: ${error.message}`
+
+            );
+
+
+        catalogError.code =
+            "OPENKEY_PUBLIC_CATALOG_NETWORK_ERROR";
+
+
+        catalogError.cause =
+            error;
+
+
+        throw catalogError;
+
+    }
+
+
+    const contentType =
+        String(
+
+            response.headers.get(
+                "content-type"
+            ) || ""
+
+        )
+            .toLowerCase();
+
+
+    let data = null;
+
+
+    try {
+
+        if (
+            contentType.includes(
+                "application/json"
+            )
+        ) {
+
+            data =
+                await response.json();
+
+        }
+        else {
+
+            const text =
+                await response.text();
+
+
+            if (
+                text
+            ) {
+
+                try {
+
+                    data =
+                        JSON.parse(
+                            text
+                        );
+
+                }
+                catch {
+
+                    data = {
+
+                        raw:
+                            text
+
+                    };
+
+                }
+
+            }
+
+        }
+
+    }
+    catch (
+        error
+    ) {
+
+        const parseError =
+            new Error(
+                "Response OpenKey public catalog tidak dapat diparse sebagai JSON."
+            );
+
+
+        parseError.code =
+            "OPENKEY_PUBLIC_CATALOG_JSON_ERROR";
+
+
+        parseError.cause =
+            error;
+
+
+        throw parseError;
+
+    }
+
+
+    if (
+        !response.ok
+    ) {
+
+        const message =
+
+            data?.message ||
+
+            data?.error?.message ||
+
+            data?.error ||
+
+            `OpenKey public catalog gagal (${response.status}).`;
+
+
+        const catalogError =
+            new Error(
+                String(
+                    message
+                )
+            );
+
+
+        catalogError.code =
+            "OPENKEY_PUBLIC_CATALOG_HTTP_ERROR";
+
+
+        catalogError.status =
+            response.status;
+
+
+        catalogError.response =
+            data;
+
+
+        throw catalogError;
+
+    }
+
+
+    return data;
+
+}
+
+
+/* =========================================================
+   EXTRACT PUBLIC CATALOG MODELS
+========================================================= */
+
+function extractPublicCatalogRows(
+    response
+) {
+
+    if (
+        Array.isArray(
+            response
+        )
+    ) {
+
+        return response.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
+            response?.models
+        )
+    ) {
+
+        return response.models.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
+            response?.data
+        )
+    ) {
+
+        return response.data.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
+            response?.results
+        )
+    ) {
+
+        return response.results.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
+            response?.items
+        )
+    ) {
+
+        return response.items.slice();
+
+    }
+
+
+    return [];
+
+}
+
+
+/* =========================================================
+   PUBLIC CATALOG MODEL INDEX
+========================================================= */
+
+function createPublicCatalogIndex(
+    rows
+) {
+
+    const index =
+        new Map();
+
+
+    const source =
+        Array.isArray(
+            rows
+        )
+            ? rows
+            : [];
+
+
+    for (
+        const model
+        of source
+    ) {
+
+        if (
+            !model ||
+            typeof model !==
+                "object"
+        ) {
+
+            continue;
+
+        }
+
+
+        const id =
+            getModelId(
+                model
+            );
+
+
+        if (
+            !id
+        ) {
+
+            continue;
+
+        }
+
+
+        index.set(
+
+            id.toLowerCase(),
+
+            model
+
+        );
+
+    }
+
+
+    return index;
+
+}
+
+
+/* =========================================================
+   MODEL METADATA MERGE
+   ---------------------------------------------------------
+   Authenticated model tetap menjadi sumber kebenaran
+   untuk availability.
+
+   Public catalog hanya memperkaya metadata.
+========================================================= */
+
+function mergeModelMetadata(
+    authenticatedModel,
+    publicModel = null
+) {
+
+    if (
+        !authenticatedModel ||
+        typeof authenticatedModel !==
+            "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const authenticated =
+        authenticatedModel;
+
+
+    const publicMetadata =
+        publicModel &&
+        typeof publicModel ===
+            "object"
+
+            ? publicModel
+            : {};
+
+
+    /*
+     * Public metadata hanya enrichment.
+     *
+     * Jika field authenticated sudah tersedia,
+     * jangan membiarkan public catalog mengganti
+     * identifier model.
+     */
+
+    const merged = {
+
+        ...publicMetadata,
+
+        ...authenticated
+
+    };
+
+
+    /*
+     * Preserve nested provider metadata
+     * secara eksplisit.
+     */
+
+    merged.public_catalog =
+        publicMetadata;
+
+
+    merged.authenticated_catalog =
+        authenticated;
+
+
+    return merged;
 
 }
 
@@ -355,28 +858,9 @@ function normalizeModel(
 
 
     /*
-     * =====================================================
-     * IMPORTANT
-     * =====================================================
-     *
      * Mulai dari seluruh field asli provider.
      *
-     * Sebelumnya normalizer hanya memilih field tertentu.
-     * Akibatnya field capability baru dari OpenKey dapat
-     * hilang dari object normalized.
-     *
-     * Dengan spread ini:
-     *
-     * - capabilities tetap ada
-     * - modalities tetap ada
-     * - architecture tetap ada
-     * - vision tetap ada
-     * - image tetap ada
-     * - supports_* tetap ada
-     * - field baru dari OpenKey tetap ada
-     *
-     * Tidak ada field capability yang dibuat secara
-     * artificial.
+     * Tidak membuang field capability yang belum dikenal.
      */
 
     const normalized = {
@@ -411,10 +895,8 @@ function normalizeModel(
         ================================================= */
 
         object:
-            normalizeText(
-                model.object,
-                "model"
-            ),
+            model.object ??
+            "model",
 
 
         created:
@@ -425,9 +907,17 @@ function normalizeModel(
 
         owned_by:
             normalizeText(
+
                 model.owned_by ??
+
                 model.ownedBy ??
+
+                model.provider ??
+
+                model.provider_name ??
+
                 ""
+
             ),
 
 
@@ -439,20 +929,26 @@ function normalizeModel(
 
         root:
             normalizeText(
+
                 model.root ??
+
                 ""
+
             ),
 
 
         parent:
             normalizeText(
+
                 model.parent ??
+
                 ""
+
             ),
 
 
         /* =================================================
-           PROVIDER PRICING
+           PROVIDER / PUBLIC PRICING
         ================================================= */
 
         pricing:
@@ -526,6 +1022,16 @@ function normalizeModel(
                 model,
 
                 "capabilities",
+
+                "capability"
+
+            ),
+
+
+        capability:
+            getCapabilityField(
+
+                model,
 
                 "capability"
 
@@ -668,6 +1174,7 @@ function normalizeModel(
             normalizeNumber(
 
                 model.context_length ??
+
                 model.contextLength
 
             ),
@@ -677,6 +1184,7 @@ function normalizeModel(
             normalizeNumber(
 
                 model.max_output_tokens ??
+
                 model.maxOutputTokens
 
             ),
@@ -684,10 +1192,7 @@ function normalizeModel(
 
         /* =================================================
            RAW PROVIDER MODEL
-        =================================================
-         *
-         * Seluruh object asli tetap tersedia.
-         */
+        ================================================= */
 
         raw:
             {
@@ -717,12 +1222,92 @@ function normalizeModels(
 
 
     return rows
+
         .map(
             normalizeModel
         )
+
         .filter(
             Boolean
         );
+
+}
+
+
+/* =========================================================
+   ENRICH AUTHENTICATED MODELS
+========================================================= */
+
+function enrichModelsWithPublicCatalog(
+    authenticatedModels,
+    publicResponse
+) {
+
+    const authenticated =
+        Array.isArray(
+            authenticatedModels
+        )
+            ? authenticatedModels
+            : [];
+
+
+    const publicRows =
+        extractPublicCatalogRows(
+            publicResponse
+        );
+
+
+    const publicIndex =
+        createPublicCatalogIndex(
+            publicRows
+        );
+
+
+    return authenticated.map(
+
+        model => {
+
+            const id =
+                getModelId(
+                    model
+                );
+
+
+            if (
+                !id
+            ) {
+
+                return model;
+
+            }
+
+
+            const publicModel =
+                publicIndex.get(
+                    id.toLowerCase()
+                );
+
+
+            if (
+                !publicModel
+            ) {
+
+                return model;
+
+            }
+
+
+            return mergeModelMetadata(
+
+                model,
+
+                publicModel
+
+            );
+
+        }
+
+    );
 
 }
 
@@ -736,7 +1321,9 @@ function sortModels(
 ) {
 
     const source =
-        Array.isArray(models)
+        Array.isArray(
+            models
+        )
             ? models.slice()
             : [];
 
@@ -784,16 +1371,19 @@ function debugRawModelsResponse(
     try {
 
         console.info(
+
             "[GEN-Z.AI][OpenKey][RAW MODELS RESPONSE]",
+
             response
+
         );
 
     }
     catch {
 
         /*
-         * Logging tidak boleh menyebabkan proses
-         * katalog model gagal.
+         * Logging tidak boleh menyebabkan
+         * katalog gagal.
          */
 
     }
@@ -806,8 +1396,11 @@ function debugRawModelsResponse(
 
 
     console.info(
+
         "[GEN-Z.AI][OpenKey][RAW MODELS COUNT]",
+
         rows.length
+
     );
 
 
@@ -820,7 +1413,8 @@ function debugRawModelsResponse(
 
             if (
                 !model ||
-                typeof model !== "object"
+                typeof model !==
+                    "object"
             ) {
 
                 return;
@@ -951,21 +1545,130 @@ function debugRawModelsResponse(
 
 
 /* =========================================================
-   DEBUG NORMALIZED MODELS
+   DEBUG PUBLIC CATALOG
 ========================================================= */
 
-function debugNormalizedModels(
+function debugPublicCatalog(
+    response
+) {
+
+    const rows =
+        extractPublicCatalogRows(
+            response
+        );
+
+
+    console.info(
+
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG COUNT]",
+
+        rows.length
+
+    );
+
+
+    rows.slice(
+        0,
+        10
+    ).forEach(
+
+        (
+            model,
+            index
+        ) => {
+
+            console.info(
+
+                `[GEN-Z.AI][OpenKey][PUBLIC MODEL ${index + 1}]`,
+
+                {
+
+                    id:
+                        getModelId(
+                            model
+                        ),
+
+                    name:
+                        getModelName(
+                            model
+                        ),
+
+                    input_modalities:
+                        model?.input_modalities ??
+                        model?.inputModalities ??
+                        null,
+
+                    output_modalities:
+                        model?.output_modalities ??
+                        model?.outputModalities ??
+                        null,
+
+                    capabilities:
+                        model?.capabilities ??
+                        null,
+
+                    modalities:
+                        model?.modalities ??
+                        null,
+
+                    modality:
+                        model?.modality ??
+                        null,
+
+                    architecture:
+                        model?.architecture ??
+                        null,
+
+                    input:
+                        model?.input ??
+                        null,
+
+                    output:
+                        model?.output ??
+                        null,
+
+                    vision:
+                        model?.vision ??
+                        null,
+
+                    image:
+                        model?.image ??
+                        null,
+
+                    images:
+                        model?.images ??
+                        null
+
+                }
+
+            );
+
+        }
+
+    );
+
+}
+
+
+/* =========================================================
+   DEBUG MERGED MODELS
+========================================================= */
+
+function debugMergedModels(
     models
 ) {
 
     const source =
-        Array.isArray(models)
+        Array.isArray(
+            models
+        )
             ? models
             : [];
 
 
     console.info(
-        "[GEN-Z.AI][OpenKey][NORMALIZED MODELS]",
+
+        "[GEN-Z.AI][OpenKey][MERGED MODELS]",
 
         source.map(
 
@@ -995,28 +1698,12 @@ function debugNormalizedModels(
                     model?.capabilities ??
                     null,
 
-                capability:
-                    model?.capability ??
-                    null,
-
                 modalities:
                     model?.modalities ??
                     null,
 
                 modality:
                     model?.modality ??
-                    null,
-
-                architecture:
-                    model?.architecture ??
-                    null,
-
-                input:
-                    model?.input ??
-                    null,
-
-                output:
-                    model?.output ??
                     null,
 
                 vision:
@@ -1047,9 +1734,10 @@ function debugNormalizedModels(
                     model?.supports_multimodal ??
                     null,
 
-                raw:
-                    model?.raw ??
-                    null
+                public_catalog:
+                    Boolean(
+                        model?.public_catalog
+                    )
 
             })
 
@@ -1101,54 +1789,165 @@ async function loadModels(
     ) {
 
         return (
+
             await modelsLoadingPromise
+
         ).slice();
 
     }
 
 
     modelsLoadingPromise =
+
         (async function () {
 
             try {
 
-                const response =
+                /*
+                 * =================================================
+                 * STEP 1
+                 * =================================================
+                 *
+                 * Ambil daftar model yang benar-benar
+                 * tersedia untuk API key.
+                 */
+
+                const authenticatedResponse =
                     await openKeyClient
                         .listModels(
                             apiKey
                         );
 
 
-                /*
-                 * RAW RESPONSE
-                 */
-
                 debugRawModelsResponse(
-                    response
+                    authenticatedResponse
                 );
 
 
-                /*
-                 * NORMALIZE
-                 */
-
-                const models =
+                let authenticatedModels =
                     normalizeModels(
-                        response
+                        authenticatedResponse
                     );
 
 
-                /*
-                 * NORMALIZED DEBUG
-                 */
+                console.info(
 
-                debugNormalizedModels(
-                    models
+                    "[GEN-Z.AI][OpenKey] Authenticated models:",
+
+                    authenticatedModels.length
+
                 );
 
 
+                if (
+                    !authenticatedModels.length
+                ) {
+
+                    throw new Error(
+
+                        "OpenKey tidak mengembalikan daftar model yang tersedia untuk credential ini."
+
+                    );
+
+                }
+
+
                 /*
-                 * SORT
+                 * =================================================
+                 * STEP 2
+                 * =================================================
+                 *
+                 * Public catalog tidak memakai API key.
+                 *
+                 * Jika gagal, jangan menghapus model
+                 * authenticated.
+                 */
+
+                let publicCatalogResponse =
+                    null;
+
+
+                try {
+
+                    publicCatalogResponse =
+                        await fetchPublicCatalog();
+
+
+                    debugPublicCatalog(
+                        publicCatalogResponse
+                    );
+
+                }
+                catch (
+                    publicCatalogError
+                ) {
+
+                    console.warn(
+
+                        "[GEN-Z.AI][OpenKey] Public catalog gagal dimuat. Model authenticated tetap digunakan:",
+
+                        publicCatalogError
+
+                    );
+
+                }
+
+
+                /*
+                 * =================================================
+                 * STEP 3
+                 * =================================================
+                 *
+                 * Merge:
+                 *
+                 * authenticated availability
+                 * +
+                 * public metadata
+                 */
+
+                if (
+                    publicCatalogResponse
+                ) {
+
+                    authenticatedModels =
+
+                        enrichModelsWithPublicCatalog(
+
+                            authenticatedModels,
+
+                            publicCatalogResponse
+
+                        );
+
+                }
+
+
+                /*
+                 * =================================================
+                 * STEP 4
+                 * =================================================
+                 *
+                 * Normalize ulang setelah merge.
+                 */
+
+                const models =
+                    authenticatedModels
+
+                        .map(
+                            normalizeModel
+                        )
+
+                        .filter(
+                            Boolean
+                        );
+
+
+                /*
+                 * =================================================
+                 * STEP 5
+                 * =================================================
+                 *
+                 * Sort.
                  */
 
                 modelCache =
@@ -1159,6 +1958,11 @@ async function loadModels(
 
                 modelsLoaded =
                     true;
+
+
+                debugMergedModels(
+                    modelCache
+                );
 
 
                 console.info(
@@ -1235,8 +2039,8 @@ async function loadModels(
 
 
                 /*
-                 * Jangan menghapus cache lama ketika
-                 * refresh gagal.
+                 * Jangan menghapus cache lama
+                 * ketika refresh gagal.
                  */
 
                 if (
@@ -1262,7 +2066,9 @@ async function loadModels(
 
 
     return (
+
         await modelsLoadingPromise
+
     ).slice();
 
 }
@@ -1419,7 +2225,9 @@ function filterModels(
 ) {
 
     const source =
-        Array.isArray(models)
+        Array.isArray(
+            models
+        )
             ? models
             : [];
 
@@ -1665,6 +2473,10 @@ const OpenKeyModels = {
 
     OPENKEY_MODELS_VERSION,
 
+    DEFAULT_PUBLIC_CATALOG_BASE_URL,
+
+    PUBLIC_CATALOG_MODELS_PATH,
+
 
     normalizeArray,
 
@@ -1675,6 +2487,9 @@ const OpenKeyModels = {
 
     extractModelRows,
 
+    extractPublicCatalogRows,
+
+
     getModelId,
 
     getModelName,
@@ -1682,16 +2497,32 @@ const OpenKeyModels = {
     getCapabilityField,
 
 
+    getPublicCatalogBaseUrl,
+
+    buildPublicCatalogUrl,
+
+    fetchPublicCatalog,
+
+
+    createPublicCatalogIndex,
+
+    mergeModelMetadata,
+
+
     normalizeModel,
 
     normalizeModels,
+
+    enrichModelsWithPublicCatalog,
 
     sortModels,
 
 
     debugRawModelsResponse,
 
-    debugNormalizedModels,
+    debugPublicCatalog,
+
+    debugMergedModels,
 
 
     loadModels,
@@ -1727,6 +2558,10 @@ export {
 
     OPENKEY_MODELS_VERSION,
 
+    DEFAULT_PUBLIC_CATALOG_BASE_URL,
+
+    PUBLIC_CATALOG_MODELS_PATH,
+
 
     normalizeArray,
 
@@ -1737,6 +2572,9 @@ export {
 
     extractModelRows,
 
+    extractPublicCatalogRows,
+
+
     getModelId,
 
     getModelName,
@@ -1744,16 +2582,32 @@ export {
     getCapabilityField,
 
 
+    getPublicCatalogBaseUrl,
+
+    buildPublicCatalogUrl,
+
+    fetchPublicCatalog,
+
+
+    createPublicCatalogIndex,
+
+    mergeModelMetadata,
+
+
     normalizeModel,
 
     normalizeModels,
+
+    enrichModelsWithPublicCatalog,
 
     sortModels,
 
 
     debugRawModelsResponse,
 
-    debugNormalizedModels,
+    debugPublicCatalog,
+
+    debugMergedModels,
 
 
     loadModels,
