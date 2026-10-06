@@ -632,34 +632,41 @@ function getCurrentCredit() {
         getState();
 
 
-    const stateCredits =
-        state.get(
-            "auth.credits",
-            null
-        );
-
+    /*
+     * -----------------------------------------------------
+     * PRIMARY SOURCE
+     * vision-state.js
+     * -----------------------------------------------------
+     */
 
     if (
-        stateCredits !== null &&
-        stateCredits !== undefined
+        typeof state.getCreditBalance ===
+        "function"
     ) {
 
         return normalizeCredit(
-            stateCredits
+            state.getCreditBalance()
         );
 
     }
 
 
-    const profileCredits =
-        state.get(
-            "auth.profile.credits",
-            null
-        );
+    /*
+     * -----------------------------------------------------
+     * FALLBACK
+     * Profile credit
+     * -----------------------------------------------------
+     */
+
+    const profile =
+        typeof state.getProfile ===
+        "function"
+            ? state.getProfile()
+            : null;
 
 
     return normalizeCredit(
-        profileCredits
+        profile?.credits
     );
 
 }
@@ -689,21 +696,63 @@ function setCredit(
      * -----------------------------------------------------
      */
 
-    state.set(
-        "auth.credits",
-        normalized
-    );
+    if (
+        typeof state.setCreditBalance ===
+        "function"
+    ) {
 
+        state.setCreditBalance(
+            normalized
+        );
 
-    state.merge(
-        "auth.profile",
-        {
+    } else if (
+        typeof state.setCredit ===
+        "function"
+    ) {
 
-            credits:
+        state.setCredit({
+
+            balance:
                 normalized
 
+        });
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * SYNC PROFILE
+     * -----------------------------------------------------
+     */
+
+    if (
+        typeof state.getProfile ===
+            "function" &&
+        typeof state.setProfile ===
+            "function"
+    ) {
+
+        const profile =
+            state.getProfile();
+
+
+        if (
+            profile
+        ) {
+
+            state.setProfile({
+
+                ...profile,
+
+                credits:
+                    normalized
+
+            });
+
         }
-    );
+
+    }
 
 
     /*
@@ -1057,14 +1106,24 @@ async function checkCredit() {
         getState();
 
 
-    state.set(
-        "credit.checked",
-        false
-    );
+    /*
+     * Reset status check.
+     * Tidak menggunakan state.set()
+     * karena API tersebut memang tidak ada.
+     */
+
+    state.setCredit({
+
+        checked:
+            false
+
+    });
 
 
     /*
-     * Server adalah sumber saldo utama.
+     * -----------------------------------------------------
+     * SERVER ADALAH SUMBER SALDO UTAMA
+     * -----------------------------------------------------
      */
 
     const response =
@@ -1089,6 +1148,12 @@ async function checkCredit() {
             : getCurrentCredit();
 
 
+    /*
+     * -----------------------------------------------------
+     * FALLBACK DISPLAY
+     * -----------------------------------------------------
+     */
+
     if (
         serverCredits === null
     ) {
@@ -1106,11 +1171,25 @@ async function checkCredit() {
         );
 
 
-    state.set(
-        "credit.checked",
-        true
-    );
+    /*
+     * -----------------------------------------------------
+     * CHECK SELESAI
+     * -----------------------------------------------------
+     */
 
+    state.setCredit({
+
+        checked:
+            true
+
+    });
+
+
+    /*
+     * -----------------------------------------------------
+     * CREDIT TIDAK CUKUP
+     * -----------------------------------------------------
+     */
 
     if (
         !sufficient
@@ -1176,15 +1255,27 @@ async function deductCredit(
 
 
     /*
-     * Jangan pernah melakukan deduction
-     * kedua dalam satu proses.
+     * -----------------------------------------------------
+     * AMBIL STATE OPERASI CREDIT
+     * -----------------------------------------------------
+     */
+
+    const creditState =
+        typeof state.getCredit ===
+        "function"
+            ? state.getCredit()
+            : {};
+
+
+    /*
+     * -----------------------------------------------------
+     * JANGAN DEDUCT DUA KALI
+     * -----------------------------------------------------
      */
 
     if (
-        state.get(
-            "credit.deducted",
-            false
-        )
+        creditState.deducted ===
+        true
     ) {
 
         updateCreditBadge(
@@ -1212,12 +1303,20 @@ async function deductCredit(
 
 
     /*
-     * Fast-fail lokal.
+     * -----------------------------------------------------
+     * FAST FAIL LOKAL
      * Server tetap authority.
+     * -----------------------------------------------------
      */
 
     assertEnoughCredit();
 
+
+    /*
+     * -----------------------------------------------------
+     * REQUEST DEDUCT KE SERVER
+     * -----------------------------------------------------
+     */
 
     const response =
         await requestServer(
@@ -1243,6 +1342,12 @@ async function deductCredit(
         );
 
 
+    /*
+     * -----------------------------------------------------
+     * AMBIL SALDO DARI RESPONSE SERVER
+     * -----------------------------------------------------
+     */
+
     const serverCredits =
         extractBalance(
             response
@@ -1260,8 +1365,10 @@ async function deductCredit(
     } else {
 
         /*
-         * Hanya fallback lokal jika
-         * server tidak mengirim saldo.
+         * -------------------------------------------------
+         * FALLBACK LOKAL
+         * Hanya digunakan jika server tidak mengirim saldo.
+         * -------------------------------------------------
          */
 
         const current =
@@ -1279,10 +1386,21 @@ async function deductCredit(
     }
 
 
-    state.markCreditDeducted();
+    /*
+     * -----------------------------------------------------
+     * SIMPAN STATUS OPERASI
+     * -----------------------------------------------------
+     */
 
+    state.setCredit({
 
-    state.markCreditReserved();
+        deducted:
+            true,
+
+        reserved:
+            true
+
+    });
 
 
     const remaining =
@@ -1324,19 +1442,34 @@ async function refundCredit(
         getState();
 
 
+    /*
+     * -----------------------------------------------------
+     * AMBIL STATUS OPERASI
+     * -----------------------------------------------------
+     */
+
+    const creditState =
+        typeof state.getCredit ===
+        "function"
+            ? state.getCredit()
+            : {};
+
+
     const deducted =
-        state.get(
-            "credit.deducted",
-            false
-        );
+        creditState.deducted ===
+        true;
 
 
     const refunded =
-        state.get(
-            "credit.refunded",
-            false
-        );
+        creditState.refunded ===
+        true;
 
+
+    /*
+     * -----------------------------------------------------
+     * BELUM PERNAH DEDUCT
+     * -----------------------------------------------------
+     */
 
     if (
         !deducted
@@ -1366,6 +1499,12 @@ async function refundCredit(
     }
 
 
+    /*
+     * -----------------------------------------------------
+     * SUDAH PERNAH REFUND
+     * -----------------------------------------------------
+     */
+
     if (
         refunded
     ) {
@@ -1394,6 +1533,12 @@ async function refundCredit(
     }
 
 
+    /*
+     * -----------------------------------------------------
+     * REQUEST REFUND KE SERVER
+     * -----------------------------------------------------
+     */
+
     const response =
         await requestServer(
             VISION_CREDIT_CONFIG
@@ -1418,6 +1563,12 @@ async function refundCredit(
         );
 
 
+    /*
+     * -----------------------------------------------------
+     * AMBIL SALDO SERVER
+     * -----------------------------------------------------
+     */
+
     const serverCredits =
         extractBalance(
             response
@@ -1434,6 +1585,12 @@ async function refundCredit(
 
     } else {
 
+        /*
+         * -------------------------------------------------
+         * FALLBACK LOKAL
+         * -------------------------------------------------
+         */
+
         const current =
             getCurrentCredit();
 
@@ -1446,7 +1603,18 @@ async function refundCredit(
     }
 
 
-    state.markCreditRefunded();
+    /*
+     * -----------------------------------------------------
+     * TANDAI SUDAH REFUND
+     * -----------------------------------------------------
+     */
+
+    state.setCredit({
+
+        refunded:
+            true
+
+    });
 
 
     const remaining =
@@ -1486,7 +1654,12 @@ function reserveCredit() {
         getState();
 
 
-    state.markCreditReserved();
+    state.setCredit({
+
+        reserved:
+            true
+
+    });
 
 
     updateCreditBadge(
@@ -1517,28 +1690,29 @@ function resetOperationState() {
         getState();
 
 
-    state.set(
-        "credit.checked",
-        false
-    );
+    /*
+     * -----------------------------------------------------
+     * HANYA RESET STATUS OPERASI
+     *
+     * Saldo tidak disentuh.
+     * -----------------------------------------------------
+     */
 
+    state.setCredit({
 
-    state.set(
-        "credit.reserved",
-        false
-    );
+        checked:
+            false,
 
+        reserved:
+            false,
 
-    state.set(
-        "credit.deducted",
-        false
-    );
+        deducted:
+            false,
 
+        refunded:
+            false
 
-    state.set(
-        "credit.refunded",
-        false
-    );
+    });
 
 
     /*
@@ -1570,6 +1744,13 @@ function getCreditState() {
         getCurrentCredit();
 
 
+    const credit =
+        typeof state.getCredit ===
+        "function"
+            ? state.getCredit()
+            : {};
+
+
     return {
 
         cost:
@@ -1579,34 +1760,22 @@ function getCreditState() {
 
         checked:
             Boolean(
-                state.get(
-                    "credit.checked",
-                    false
-                )
+                credit.checked
             ),
 
         reserved:
             Boolean(
-                state.get(
-                    "credit.reserved",
-                    false
-                )
+                credit.reserved
             ),
 
         deducted:
             Boolean(
-                state.get(
-                    "credit.deducted",
-                    false
-                )
+                credit.deducted
             ),
 
         refunded:
             Boolean(
-                state.get(
-                    "credit.refunded",
-                    false
-                )
+                credit.refunded
             )
 
     };
