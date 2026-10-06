@@ -11,6 +11,7 @@
    - Menjalankan initialization
    - Memuat credit module
    - Memuat history module
+   - Memastikan Character Upload siap setelah State
    - Menangani initialization error
    - Tidak berisi logic upload / API / analysis
 
@@ -38,6 +39,7 @@
         );
 
         return;
+
     }
 
 
@@ -86,6 +88,31 @@
 
 
             /* =================================================
+               CHARACTER UPLOAD
+               -------------------------------------------------
+               Character Upload bergantung pada:
+               - DOM halaman
+               - State
+
+               File ini sudah dimuat dari index.html.
+
+               Loader hanya memastikan module tersebut
+               benar-benar ready setelah State tersedia.
+            ================================================= */
+
+            {
+                name:
+                    "character-upload",
+
+                path:
+                    "./assets/js/vision-video-character-upload.js",
+
+                ready:
+                    "GENZVisionVideoCharacterUploadReady"
+            },
+
+
+            /* =================================================
                CREDIT
                -------------------------------------------------
                Credit membutuhkan State + DOM.
@@ -107,8 +134,7 @@
                HISTORY
                -------------------------------------------------
                History membutuhkan State.
-               Harus dimuat sebelum Events karena Events
-               membuat dan menyimpan history.
+               Harus dimuat sebelum Events.
             ================================================= */
 
             {
@@ -222,8 +248,7 @@
             /* =================================================
                EVENTS
                -------------------------------------------------
-               Events HARUS paling akhir karena bergantung
-               pada semua module di atas.
+               Events HARUS paling akhir.
             ================================================= */
 
             {
@@ -337,18 +362,29 @@
         path
     ) {
 
-        const currentScript =
-            document.currentScript;
+        /*
+         * Karena loader sendiri dimuat dari:
+         *
+         * vision-video/assets/js/
+         *
+         * maka relative path module harus
+         * dihitung dari lokasi loader.
+         */
+
+        const loaderScript =
+            document.querySelector(
+                'script[src*="vision-video-loader.js"]'
+            );
 
 
         if (
-            currentScript &&
-            currentScript.src
+            loaderScript &&
+            loaderScript.src
         ) {
 
             return new URL(
                 path,
-                currentScript.src
+                loaderScript.src
             ).href;
 
         }
@@ -404,8 +440,7 @@
             ) {
 
                 /*
-                 * URL tidak valid.
-                 * Abaikan.
+                 * Abaikan URL yang invalid.
                  */
 
             }
@@ -440,8 +475,7 @@
 
                 /*
                  * -------------------------------------------------
-                 * Jika ready flag sudah tersedia,
-                 * module sudah siap.
+                 * Module sudah ready.
                  * -------------------------------------------------
                  */
 
@@ -460,8 +494,11 @@
 
                 /*
                  * -------------------------------------------------
-                 * Jika script sudah ada di DOM tetapi ready flag
-                 * belum tersedia, tunggu sampai siap.
+                 * Script sudah ada di DOM tetapi belum ready.
+                 *
+                 * Ini penting untuk Character Upload karena
+                 * index.html memang sudah memuat file tersebut
+                 * sebelum loader.
                  * -------------------------------------------------
                  */
 
@@ -513,8 +550,7 @@
 
 
                 /*
-                 * Jangan membuat loading module paralel.
-                 * Dependency harus tetap berurutan.
+                 * Dependency harus tetap sequential.
                  */
 
                 script.async =
@@ -708,6 +744,92 @@
 
 
     /* =====================================================
+       CHARACTER UPLOAD VALIDATION
+    ===================================================== */
+
+    function validateCharacterUpload() {
+
+        const uploader =
+            window.GENZVisionVideoCharacterUpload;
+
+
+        const state =
+            window.GENZVisionVideoState;
+
+
+        if (
+            !uploader
+        ) {
+
+            throw new Error(
+                "Vision Video Character Upload module tidak tersedia."
+            );
+
+        }
+
+
+        if (
+            typeof uploader.initialize !==
+            "function"
+        ) {
+
+            throw new Error(
+                "Vision Video Character Upload tidak memiliki initialize()."
+            );
+
+        }
+
+
+        if (
+            !state
+        ) {
+
+            throw new Error(
+                "Vision Video State belum tersedia untuk Character Upload."
+            );
+
+        }
+
+
+        /*
+         * Pastikan uploader diinisialisasi
+         * setelah State sudah tersedia.
+         */
+
+        const initialized =
+            uploader.initialize();
+
+
+        if (
+            initialized === false
+        ) {
+
+            throw new Error(
+                "Vision Video Character Upload gagal diinisialisasi."
+            );
+
+        }
+
+
+        /*
+         * Pastikan ready flag tersedia.
+         */
+
+        window.GENZVisionVideoCharacterUploadReady =
+            true;
+
+
+        log(
+            "Character Upload ready."
+        );
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
        DEPENDENCY VALIDATION
     ===================================================== */
 
@@ -723,6 +845,7 @@
                     window.GENZVisionVideoState
             },
 
+
             {
                 name:
                     "DOM",
@@ -730,6 +853,16 @@
                 value:
                     window.GENZVisionVideoDOM
             },
+
+
+            {
+                name:
+                    "Character Upload",
+
+                value:
+                    window.GENZVisionVideoCharacterUpload
+            },
+
 
             {
                 name:
@@ -739,6 +872,7 @@
                     window.GENZVisionVideoCredit
             },
 
+
             {
                 name:
                     "History",
@@ -746,6 +880,7 @@
                 value:
                     window.GENZVisionVideoHistory
             },
+
 
             {
                 name:
@@ -755,6 +890,7 @@
                     window.GENZVisionVideoUpload
             },
 
+
             {
                 name:
                     "Preview",
@@ -762,6 +898,7 @@
                 value:
                     window.GENZVisionVideoPreview
             },
+
 
             {
                 name:
@@ -771,6 +908,7 @@
                     window.GENZVisionVideoFrames
             },
 
+
             {
                 name:
                     "Analysis",
@@ -778,6 +916,7 @@
                 value:
                     window.GENZVisionVideoAnalysis
             },
+
 
             {
                 name:
@@ -787,6 +926,7 @@
                     window.GENZVisionVideoAPI
             },
 
+
             {
                 name:
                     "UI",
@@ -794,6 +934,7 @@
                 value:
                     window.GENZVisionVideoUI
             },
+
 
             {
                 name:
@@ -874,14 +1015,12 @@
 
 
         /*
-         * -------------------------------------------------
          * Tetapkan biaya satu generate.
-         * -------------------------------------------------
          */
 
         if (
             typeof state.setCreditRequired ===
-                "function"
+            "function"
         ) {
 
             state.setCreditRequired(
@@ -892,23 +1031,14 @@
 
 
         /*
-         * -------------------------------------------------
          * Reset status operasi credit.
-         *
-         * Tidak mengubah saldo server.
-         * -------------------------------------------------
          */
 
         credit.resetOperationState();
 
 
         /*
-         * -------------------------------------------------
-         * Ambil saldo aktual dari server.
-         *
-         * Ini memastikan badge menggunakan saldo
-         * profiles.credits yang terbaru.
-         * -------------------------------------------------
+         * Ambil saldo aktual.
          */
 
         try {
@@ -923,11 +1053,6 @@
             );
 
 
-            /*
-             * Pastikan badge diperbarui walaupun response
-             * server tidak mengandung field tambahan.
-             */
-
             credit.refreshDisplay();
 
 
@@ -937,18 +1062,9 @@
             err
         ) {
 
-            /*
-             * -------------------------------------------------
-             * Credit check gagal.
-             *
-             * Engine tetap dapat dibuka.
-             * Generate nantinya akan melakukan CHECK ulang
-             * sebelum DEDUCT.
-             * ------------------------------------------------- */
-
             if (
                 typeof state.setCreditError ===
-                    "function"
+                "function"
             ) {
 
                 state.setCreditError(
@@ -956,11 +1072,6 @@
                 );
 
             } else {
-
-                /*
-                 * Fallback aman apabila implementasi state
-                 * berubah di masa depan.
-                 */
 
                 state.set(
                     "credit.error",
@@ -1031,21 +1142,11 @@
         }
 
 
-        /*
-         * UI dirender setelah credit selesai
-         * disinkronkan.
-         */
-
         ui.sync();
 
 
         ui.updateAnalyzeButton();
 
-
-        /*
-         * Pastikan credit badge selalu mengambil
-         * nilai terbaru dari state.
-         */
 
         ui.renderCreditFromState();
 
@@ -1075,8 +1176,7 @@
 
 
         /*
-         * Pastikan process kembali idle ketika
-         * halaman baru dibuka.
+         * Process baru dimulai dari idle.
          */
 
         state.setProcess({
@@ -1100,7 +1200,7 @@
 
 
         /*
-         * UI state juga harus bersih.
+         * UI state bersih.
          */
 
         state.set(
@@ -1136,7 +1236,7 @@
         if (
             !events ||
             typeof events.bind !==
-                "function"
+            "function"
         ) {
 
             throw new Error(
@@ -1359,10 +1459,17 @@
 
 
             /* =================================================
-               INITIAL CREDIT
+               CHARACTER UPLOAD
                -------------------------------------------------
-               Harus sebelum UI agar badge tidak pertama kali
-               menampilkan 0 akibat state.balance === null.
+               Pastikan Character Upload menggunakan State
+               yang sudah benar-benar tersedia.
+            ================================================= */
+
+            validateCharacterUpload();
+
+
+            /* =================================================
+               INITIAL CREDIT
             ================================================= */
 
             await initializeCredit();
@@ -1415,6 +1522,8 @@
         loadModules,
 
         validateDependencies,
+
+        validateCharacterUpload,
 
         initializeCredit,
 
