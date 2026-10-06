@@ -48,15 +48,27 @@ import openKeyClient
 ========================================================= */
 
 const OPENKEY_MODELS_VERSION =
-    "2026-10-06-openkey-models-public-catalog-v2";
+    "2026-10-06-openkey-models-public-catalog-v3";
 
 
 /* =========================================================
    PUBLIC CATALOG CONFIGURATION
+   ---------------------------------------------------------
+   Default mengikuti host OpenKey API client.
+
+   Jika client menggunakan:
+
+       https://open.api-github.com/v1
+
+   maka public catalog menjadi:
+
+       https://open.api-github.com/api/public/v1/models
+
+   Environment variable tetap memiliki prioritas.
 ========================================================= */
 
 const DEFAULT_PUBLIC_CATALOG_BASE_URL =
-    "https://api.openkey.ai";
+    "https://open.api-github.com";
 
 
 const PUBLIC_CATALOG_MODELS_PATH =
@@ -420,16 +432,29 @@ function getCapabilityField(
 
 /* =========================================================
    PUBLIC CATALOG BASE URL
+   ---------------------------------------------------------
+   PRIORITAS:
+
+   1. OPENKEY_PUBLIC_CATALOG_BASE_URL
+   2. OPENKEY_PUBLIC_BASE_URL
+   3. Host dari openKeyClient.getBaseUrl()
+   4. DEFAULT_PUBLIC_CATALOG_BASE_URL
+
+   Contoh client base:
+
+       https://open.api-github.com/v1
+
+   Menjadi:
+
+       https://open.api-github.com
 ========================================================= */
 
 function getPublicCatalogBaseUrl() {
 
     /*
-     * process hanya digunakan di server.
-     *
-     * Guard tetap dipasang supaya modul tidak error
-     * apabila suatu saat di-import oleh environment
-     * yang tidak menyediakan process.
+     * =====================================================
+     * ENVIRONMENT CONFIGURATION
+     * =====================================================
      */
 
     const configured =
@@ -466,6 +491,92 @@ function getPublicCatalogBaseUrl() {
     }
 
 
+    /*
+     * =====================================================
+     * DERIVE FROM OPENKEY CLIENT
+     * =====================================================
+     *
+     * Jangan membuat host berbeda dari client tanpa alasan.
+     *
+     * Jika client:
+     *
+     *     https://open.api-github.com/v1
+     *
+     * maka public catalog:
+     *
+     *     https://open.api-github.com/api/public/v1/models
+     */
+
+    try {
+
+        if (
+            typeof openKeyClient
+                ?.getBaseUrl ===
+            "function"
+        ) {
+
+            const clientBaseUrl =
+                String(
+
+                    openKeyClient
+                        .getBaseUrl() ||
+
+                    ""
+
+                ).trim();
+
+
+            if (
+                clientBaseUrl
+            ) {
+
+                const derivedBaseUrl =
+                    clientBaseUrl
+
+                        .replace(
+                            /\/v1\/?$/i,
+                            ""
+                        )
+
+                        .replace(
+                            /\/+$/,
+                            ""
+                        );
+
+
+                if (
+                    derivedBaseUrl
+                ) {
+
+                    return derivedBaseUrl;
+
+                }
+
+            }
+
+        }
+
+    }
+    catch (
+        error
+    ) {
+
+        console.warn(
+
+            "[GEN-Z.AI][OpenKey] Gagal menurunkan public catalog base URL dari OpenKey client:",
+
+            error
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * FINAL DEFAULT
+     * ===================================================== */
+
     return DEFAULT_PUBLIC_CATALOG_BASE_URL;
 
 }
@@ -500,6 +611,15 @@ async function fetchPublicCatalog() {
 
     const url =
         buildPublicCatalogUrl();
+
+
+    console.info(
+
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG URL]",
+
+        url
+
+    );
 
 
     let response;
@@ -545,13 +665,42 @@ async function fetchPublicCatalog() {
             "OPENKEY_PUBLIC_CATALOG_NETWORK_ERROR";
 
 
+        catalogError.url =
+            url;
+
+
         catalogError.cause =
             error;
+
+
+        console.error(
+
+            "[GEN-Z.AI][OpenKey][PUBLIC CATALOG NETWORK ERROR]",
+
+            {
+
+                url,
+
+                message:
+                    error?.message || String(error)
+
+            }
+
+        );
 
 
         throw catalogError;
 
     }
+
+
+    console.info(
+
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG HTTP STATUS]",
+
+        response.status
+
+    );
 
 
     const contentType =
@@ -629,6 +778,14 @@ async function fetchPublicCatalog() {
             "OPENKEY_PUBLIC_CATALOG_JSON_ERROR";
 
 
+        parseError.url =
+            url;
+
+
+        parseError.status =
+            response.status;
+
+
         parseError.cause =
             error;
 
@@ -669,13 +826,54 @@ async function fetchPublicCatalog() {
             response.status;
 
 
+        catalogError.url =
+            url;
+
+
         catalogError.response =
             data;
+
+
+        console.error(
+
+            "[GEN-Z.AI][OpenKey][PUBLIC CATALOG HTTP ERROR]",
+
+            {
+
+                url,
+
+                status:
+                    response.status,
+
+                message:
+                    String(message)
+
+            }
+
+        );
 
 
         throw catalogError;
 
     }
+
+
+    console.info(
+
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG HTTP OK]",
+
+        {
+
+            url,
+
+            status:
+                response.status,
+
+            contentType
+
+        }
+
+    );
 
 
     return data;
@@ -821,8 +1019,6 @@ function createPublicCatalogIndex(
 /* =========================================================
    MODEL METADATA MERGE
    ---------------------------------------------------------
-   PENTING:
-
    authenticated:
    - sumber availability
    - model yang benar-benar tersedia
@@ -835,22 +1031,7 @@ function createPublicCatalogIndex(
    - vision/image metadata
    - metadata model lainnya
 
-   BUG SEBELUMNYA:
-
-       ...publicMetadata,
-       ...authenticated
-
-   menyebabkan:
-
-       input_modalities: []
-
-   dari authenticated menimpa:
-
-       input_modalities: ["text", "image"]
-
-   dari public catalog.
-
-   SEKARANG:
+   MERGE:
 
        ...authenticated,
        ...publicMetadata
@@ -892,13 +1073,6 @@ function mergeModelMetadata(
      * =====================================================
      * MERGE ORDER
      * =====================================================
-     *
-     * AUTHENTICATED terlebih dahulu.
-     *
-     * PUBLIC METADATA terakhir.
-     *
-     * Dengan demikian metadata capability public
-     * tidak hilang karena field kosong dari /v1/models.
      */
 
     const merged = {
@@ -914,10 +1088,6 @@ function mergeModelMetadata(
      * =====================================================
      * LOCK IDENTIFIER
      * =====================================================
-     *
-     * Identifier tetap berasal dari authenticated
-     * catalog supaya public catalog tidak mengubah
-     * model yang benar-benar tersedia.
      */
 
     if (
@@ -961,8 +1131,9 @@ function mergeModelMetadata(
 
 
     /*
-     * owned_by hanya dikunci jika authenticated
-     * memang memberikan nilai yang valid.
+     * =====================================================
+     * LOCK OWNED BY
+     * =====================================================
      */
 
     if (
@@ -1456,51 +1627,229 @@ function enrichModelsWithPublicCatalog(
         );
 
 
-    return authenticated.map(
+    let matchedCount = 0;
 
-        model => {
 
-            const id =
-                getModelId(
-                    model
+    const enriched =
+
+        authenticated.map(
+
+            model => {
+
+                const id =
+                    getModelId(
+                        model
+                    );
+
+
+                if (
+                    !id
+                ) {
+
+                    return model;
+
+                }
+
+
+                const publicModel =
+                    publicIndex.get(
+                        id.toLowerCase()
+                    );
+
+
+                if (
+                    !publicModel
+                ) {
+
+                    return model;
+
+                }
+
+
+                matchedCount += 1;
+
+
+                return mergeModelMetadata(
+
+                    model,
+
+                    publicModel
+
                 );
-
-
-            if (
-                !id
-            ) {
-
-                return model;
 
             }
 
-
-            const publicModel =
-                publicIndex.get(
-                    id.toLowerCase()
-                );
+        );
 
 
-            if (
-                !publicModel
-            ) {
+    /*
+     * =====================================================
+     * MATCH DIAGNOSTIC
+     * =====================================================
+     */
 
-                return model;
+    console.info(
 
-            }
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG MATCHED]",
 
-
-            return mergeModelMetadata(
-
-                model,
-
-                publicModel
-
-            );
-
-        }
+        matchedCount
 
     );
+
+
+    console.info(
+
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG UNMATCHED]",
+
+        Math.max(
+            authenticated.length -
+            matchedCount,
+            0
+        )
+
+    );
+
+
+    /*
+     * =====================================================
+     * CAPABILITY DIAGNOSTIC
+     * =====================================================
+     *
+     * Tidak membuat capability.
+     *
+     * Hanya menghitung capability yang memang datang
+     * dari metadata public.
+     */
+
+    const capabilityCount =
+        enriched.filter(
+
+            model => {
+
+                const inputModalities =
+                    normalizeArray(
+
+                        model?.input_modalities
+
+                    )
+
+                        .map(
+
+                            value =>
+
+                                normalizeText(
+                                    value
+                                )
+                                    .toLowerCase()
+
+                        );
+
+
+                const outputModalities =
+                    normalizeArray(
+
+                        model?.output_modalities
+
+                    )
+
+                        .map(
+
+                            value =>
+
+                                normalizeText(
+                                    value
+                                )
+                                    .toLowerCase()
+
+                        );
+
+
+                const capabilityText =
+
+                    [
+
+                        model?.capabilities,
+
+                        model?.capability,
+
+                        model?.modalities,
+
+                        model?.modality,
+
+                        model?.architecture,
+
+                        model?.input,
+
+                        model?.output,
+
+                        model?.vision,
+
+                        model?.image,
+
+                        model?.images
+
+                    ]
+
+                        .filter(
+                            value =>
+                                value !==
+                                    null &&
+                                value !==
+                                    undefined
+                        )
+
+                        .join(" ")
+
+                        .toLowerCase();
+
+
+                return (
+
+                    inputModalities.includes(
+                        "image"
+                    ) ||
+
+                    inputModalities.includes(
+                        "vision"
+                    ) ||
+
+                    inputModalities.includes(
+                        "visual"
+                    ) ||
+
+                    outputModalities.includes(
+                        "image"
+                    ) ||
+
+                    outputModalities.includes(
+                        "vision"
+                    ) ||
+
+                    capabilityText.includes(
+                        "image"
+                    ) ||
+
+                    capabilityText.includes(
+                        "vision"
+                    )
+
+                );
+
+            }
+
+        ).length;
+
+
+    console.info(
+
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG VISION CAPABLE]",
+
+        capabilityCount
+
+    );
+
+
+    return enriched;
 
 }
 
@@ -1800,6 +2149,10 @@ function debugPublicCatalog(
                         model?.capabilities ??
                         null,
 
+                    capability:
+                        model?.capability ??
+                        null,
+
                     modalities:
                         model?.modalities ??
                         null,
@@ -1891,12 +2244,28 @@ function debugMergedModels(
                     model?.capabilities ??
                     null,
 
+                capability:
+                    model?.capability ??
+                    null,
+
                 modalities:
                     model?.modalities ??
                     null,
 
                 modality:
                     model?.modality ??
+                    null,
+
+                architecture:
+                    model?.architecture ??
+                    null,
+
+                input:
+                    model?.input ??
+                    null,
+
+                output:
+                    model?.output ??
                     null,
 
                 vision:
@@ -2096,6 +2465,15 @@ async function loadModels(
                         );
 
                 }
+                else {
+
+                    console.warn(
+
+                        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG] Metadata public tidak tersedia. Tidak ada capability yang dibuat secara artificial."
+
+                    );
+
+                }
 
 
                 /* =========================================
@@ -2161,17 +2539,32 @@ async function loadModels(
                             capabilities:
                                 model.capabilities,
 
+                            capability:
+                                model.capability,
+
                             modalities:
                                 model.modalities,
 
                             modality:
                                 model.modality,
 
+                            architecture:
+                                model.architecture,
+
+                            input:
+                                model.input,
+
+                            output:
+                                model.output,
+
                             vision:
                                 model.vision,
 
                             image:
                                 model.image,
+
+                            images:
+                                model.images,
 
                             supports_vision:
                                 model.supports_vision,
