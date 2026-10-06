@@ -24,7 +24,7 @@
    GET /v1/models
 
    Public catalog:
-   GET /api/public/v1/models
+   GET https://api.openkey.ai/api/public/v1/models
 
    CATATAN:
    - /v1/models digunakan untuk mengetahui model yang
@@ -48,27 +48,26 @@ import openKeyClient
 ========================================================= */
 
 const OPENKEY_MODELS_VERSION =
-    "2026-10-06-openkey-models-public-catalog-v3";
+    "2026-10-06-openkey-models-public-catalog-v4";
 
 
 /* =========================================================
    PUBLIC CATALOG CONFIGURATION
    ---------------------------------------------------------
-   Default mengikuti host OpenKey API client.
+   OpenKey public catalog resmi:
 
-   Jika client menggunakan:
-
-       https://open.api-github.com/v1
-
-   maka public catalog menjadi:
-
-       https://open.api-github.com/api/public/v1/models
+       https://api.openkey.ai/api/public/v1/models
 
    Environment variable tetap memiliki prioritas.
+
+   Jangan otomatis menurunkan public catalog dari
+   OPENKEY_API_ENDPOINT karena endpoint authenticated
+   dapat berupa gateway / compatibility endpoint yang
+   tidak menyediakan public catalog.
 ========================================================= */
 
 const DEFAULT_PUBLIC_CATALOG_BASE_URL =
-    "https://open.api-github.com";
+    "https://api.openkey.ai";
 
 
 const PUBLIC_CATALOG_MODELS_PATH =
@@ -132,6 +131,15 @@ function normalizeText(
     if (
         value === null ||
         value === undefined
+    ) {
+
+        return fallback;
+
+    }
+
+
+    if (
+        typeof value === "object"
     ) {
 
         return fallback;
@@ -437,25 +445,17 @@ function getCapabilityField(
 
    1. OPENKEY_PUBLIC_CATALOG_BASE_URL
    2. OPENKEY_PUBLIC_BASE_URL
-   3. Host dari openKeyClient.getBaseUrl()
-   4. DEFAULT_PUBLIC_CATALOG_BASE_URL
+   3. DEFAULT_PUBLIC_CATALOG_BASE_URL
 
-   Contoh client base:
+   IMPORTANT:
+   Tidak lagi menurunkan URL dari openKeyClient.getBaseUrl().
 
-       https://open.api-github.com/v1
-
-   Menjadi:
-
-       https://open.api-github.com
+   Alasannya:
+   authenticated endpoint dapat menggunakan gateway
+   berbeda dari public catalog.
 ========================================================= */
 
 function getPublicCatalogBaseUrl() {
-
-    /*
-     * =====================================================
-     * ENVIRONMENT CONFIGURATION
-     * =====================================================
-     */
 
     const configured =
 
@@ -490,92 +490,6 @@ function getPublicCatalogBaseUrl() {
 
     }
 
-
-    /*
-     * =====================================================
-     * DERIVE FROM OPENKEY CLIENT
-     * =====================================================
-     *
-     * Jangan membuat host berbeda dari client tanpa alasan.
-     *
-     * Jika client:
-     *
-     *     https://open.api-github.com/v1
-     *
-     * maka public catalog:
-     *
-     *     https://open.api-github.com/api/public/v1/models
-     */
-
-    try {
-
-        if (
-            typeof openKeyClient
-                ?.getBaseUrl ===
-            "function"
-        ) {
-
-            const clientBaseUrl =
-                String(
-
-                    openKeyClient
-                        .getBaseUrl() ||
-
-                    ""
-
-                ).trim();
-
-
-            if (
-                clientBaseUrl
-            ) {
-
-                const derivedBaseUrl =
-                    clientBaseUrl
-
-                        .replace(
-                            /\/v1\/?$/i,
-                            ""
-                        )
-
-                        .replace(
-                            /\/+$/,
-                            ""
-                        );
-
-
-                if (
-                    derivedBaseUrl
-                ) {
-
-                    return derivedBaseUrl;
-
-                }
-
-            }
-
-        }
-
-    }
-    catch (
-        error
-    ) {
-
-        console.warn(
-
-            "[GEN-Z.AI][OpenKey] Gagal menurunkan public catalog base URL dari OpenKey client:",
-
-            error
-
-        );
-
-    }
-
-
-    /*
-     * =====================================================
-     * FINAL DEFAULT
-     * ===================================================== */
 
     return DEFAULT_PUBLIC_CATALOG_BASE_URL;
 
@@ -682,7 +596,8 @@ async function fetchPublicCatalog() {
                 url,
 
                 message:
-                    error?.message || String(error)
+                    error?.message ||
+                    String(error)
 
             }
 
@@ -1017,27 +932,629 @@ function createPublicCatalogIndex(
 
 
 /* =========================================================
-   MODEL METADATA MERGE
+   RECURSIVE MODALITY COLLECTOR
    ---------------------------------------------------------
-   authenticated:
-   - sumber availability
-   - model yang benar-benar tersedia
-   - id / object / owned_by
+   Hanya membaca metadata yang benar-benar datang dari
+   OpenKey public catalog.
 
-   public:
-   - sumber capability
-   - modalities
-   - architecture
-   - vision/image metadata
-   - metadata model lainnya
+   Tidak membuat capability baru.
 
-   MERGE:
+   Contoh metadata yang bisa dibaca:
 
-       ...authenticated,
-       ...publicMetadata
+       {
+           architecture: {
+               modality: "text+image->text"
+           }
+       }
 
-   sehingga metadata public tidak tertimpa oleh
-   field capability kosong dari /v1/models.
+   atau:
+
+       {
+           architecture: {
+               input_modalities: ["text", "image"]
+           }
+       }
+
+   atau:
+
+       {
+           modalities: {
+               input: ["text", "image"]
+           }
+       }
+========================================================= */
+
+function collectModalityValues(
+    value,
+    output = [],
+    depth = 0
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return output;
+
+    }
+
+
+    /*
+     * Hindari recursion terlalu dalam.
+     */
+
+    if (
+        depth > 8
+    ) {
+
+        return output;
+
+    }
+
+
+    if (
+        typeof value === "string" ||
+        typeof value === "number"
+    ) {
+
+        const text =
+            String(
+                value
+            ).trim();
+
+
+        if (
+            text
+        ) {
+
+            output.push(
+                text
+            );
+
+        }
+
+
+        return output;
+
+    }
+
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+
+        for (
+            const item
+            of value
+        ) {
+
+            collectModalityValues(
+
+                item,
+
+                output,
+
+                depth + 1
+
+            );
+
+        }
+
+
+        return output;
+
+    }
+
+
+    if (
+        typeof value !== "object"
+    ) {
+
+        return output;
+
+    }
+
+
+    const preferredKeys = [
+
+        "input_modalities",
+
+        "inputModalities",
+
+        "output_modalities",
+
+        "outputModalities",
+
+        "input_types",
+
+        "inputTypes",
+
+        "output_types",
+
+        "outputTypes",
+
+        "supported_inputs",
+
+        "supportedInputs",
+
+        "supported_outputs",
+
+        "supportedOutputs",
+
+        "modalities",
+
+        "modality",
+
+        "input",
+
+        "output"
+
+    ];
+
+
+    /*
+     * Baca key capability secara eksplisit.
+     */
+
+    for (
+        const key
+        of preferredKeys
+    ) {
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                value,
+                key
+            )
+        ) {
+
+            collectModalityValues(
+
+                value[key],
+
+                output,
+
+                depth + 1
+
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Fallback membaca nested metadata.
+     *
+     * Ini penting untuk architecture.modality,
+     * tetapi tetap hanya membaca data asli.
+     */
+
+    for (
+        const [
+            key,
+            nestedValue
+        ]
+        of Object.entries(
+            value
+        )
+    ) {
+
+        if (
+            preferredKeys.includes(
+                key
+            )
+        ) {
+
+            continue;
+
+        }
+
+
+        if (
+            nestedValue &&
+            typeof nestedValue ===
+                "object"
+        ) {
+
+            collectModalityValues(
+
+                nestedValue,
+
+                output,
+
+                depth + 1
+
+            );
+
+        }
+
+    }
+
+
+    return output;
+
+}
+
+
+/* =========================================================
+   UNIQUE TEXT ARRAY
+========================================================= */
+
+function uniqueNormalizedTexts(
+    values
+) {
+
+    const result = [];
+
+    const seen =
+        new Set();
+
+
+    for (
+        const value
+        of normalizeArray(
+            values
+        )
+    ) {
+
+        const text =
+            normalizeText(
+                value
+            );
+
+
+        if (
+            !text
+        ) {
+
+            continue;
+
+        }
+
+
+        const key =
+            text.toLowerCase();
+
+
+        if (
+            seen.has(
+                key
+            )
+        ) {
+
+            continue;
+
+        }
+
+
+        seen.add(
+            key
+        );
+
+
+        result.push(
+            text
+        );
+
+    }
+
+
+    return result;
+
+}
+
+
+/* =========================================================
+   EXTRACT ACTUAL INPUT MODALITIES
+   ---------------------------------------------------------
+   Tidak mengarang capability.
+
+   Semua sumber berasal dari model public catalog.
+========================================================= */
+
+function extractInputModalities(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !== "object"
+    ) {
+
+        return [];
+
+    }
+
+
+    const values = [];
+
+
+    const directKeys = [
+
+        "input_modalities",
+
+        "inputModalities",
+
+        "input_types",
+
+        "inputTypes",
+
+        "supported_inputs",
+
+        "supportedInputs",
+
+        "supported_input_types",
+
+        "supportedInputTypes"
+
+    ];
+
+
+    for (
+        const key
+        of directKeys
+    ) {
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                model,
+                key
+            )
+        ) {
+
+            values.push(
+                ...normalizeArray(
+                    model[key]
+                )
+            );
+
+        }
+
+    }
+
+
+    /*
+     * architecture / modalities / capability metadata.
+     */
+
+    const nestedSources = [
+
+        model.architecture,
+
+        model.modalities,
+
+        model.modality,
+
+        model.capabilities,
+
+        model.capability,
+
+        model.input,
+
+        model.details,
+
+        model.metadata,
+
+        model.meta
+
+    ];
+
+
+    for (
+        const source
+        of nestedSources
+    ) {
+
+        values.push(
+
+            ...collectModalityValues(
+                source
+            )
+
+        );
+
+    }
+
+
+    return uniqueNormalizedTexts(
+        values
+    );
+
+}
+
+
+/* =========================================================
+   EXTRACT ACTUAL OUTPUT MODALITIES
+========================================================= */
+
+function extractOutputModalities(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !== "object"
+    ) {
+
+        return [];
+
+    }
+
+
+    const values = [];
+
+
+    const directKeys = [
+
+        "output_modalities",
+
+        "outputModalities",
+
+        "output_types",
+
+        "outputTypes",
+
+        "supported_outputs",
+
+        "supportedOutputs",
+
+        "supported_output_types",
+
+        "supportedOutputTypes"
+
+    ];
+
+
+    for (
+        const key
+        of directKeys
+    ) {
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                model,
+                key
+            )
+        ) {
+
+            values.push(
+                ...normalizeArray(
+                    model[key]
+                )
+            );
+
+        }
+
+    }
+
+
+    const nestedSources = [
+
+        model.architecture,
+
+        model.modalities,
+
+        model.modality,
+
+        model.capabilities,
+
+        model.capability,
+
+        model.output,
+
+        model.details,
+
+        model.metadata,
+
+        model.meta
+
+    ];
+
+
+    for (
+        const source
+        of nestedSources
+    ) {
+
+        values.push(
+
+            ...collectModalityValues(
+                source
+            )
+
+        );
+
+    }
+
+
+    return uniqueNormalizedTexts(
+        values
+    );
+
+}
+
+
+/* =========================================================
+   VISION INPUT DETECTOR
+   ---------------------------------------------------------
+   Hanya mendeteksi dari metadata nyata.
+
+   "text+image->text" akan mengandung image.
+
+   Tidak menebak berdasarkan nama model.
+========================================================= */
+
+function metadataContainsVisionInput(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !== "object"
+    ) {
+
+        return false;
+
+    }
+
+
+    const inputValues =
+        extractInputModalities(
+            model
+        );
+
+
+    const text =
+        inputValues
+
+            .map(
+                value =>
+                    normalizeText(
+                        value
+                    )
+                        .toLowerCase()
+            )
+
+            .join(" ");
+
+
+    return (
+
+        text.includes(
+            "image"
+        ) ||
+
+        text.includes(
+            "vision"
+        ) ||
+
+        text.includes(
+            "visual"
+        ) ||
+
+        text.includes(
+            "picture"
+        ) ||
+
+        text.includes(
+            "photo"
+        ) ||
+
+        text.includes(
+            "frame"
+        )
+
+    );
+
+}
+
+
+/* =========================================================
+   MODEL METADATA MERGE
 ========================================================= */
 
 function mergeModelMetadata(
@@ -1070,9 +1587,9 @@ function mergeModelMetadata(
 
 
     /*
-     * =====================================================
-     * MERGE ORDER
-     * =====================================================
+     * Public metadata harus berada di atas metadata
+     * authenticated supaya field capability tidak
+     * tertimpa null / kosong.
      */
 
     const merged = {
@@ -1085,9 +1602,7 @@ function mergeModelMetadata(
 
 
     /*
-     * =====================================================
      * LOCK IDENTIFIER
-     * =====================================================
      */
 
     if (
@@ -1131,9 +1646,7 @@ function mergeModelMetadata(
 
 
     /*
-     * =====================================================
      * LOCK OWNED BY
-     * =====================================================
      */
 
     if (
@@ -1155,9 +1668,7 @@ function mergeModelMetadata(
 
 
     /*
-     * =====================================================
      * PRESERVE ORIGINAL SOURCES
-     * =====================================================
      */
 
     merged.public_catalog =
@@ -1213,11 +1724,24 @@ function normalizeModel(
 
 
     /*
-     * Mulai dari seluruh field asli provider.
+     * =====================================================
+     * CAPABILITY METADATA
+     * =====================================================
      *
-     * Tidak membuang field capability yang belum
-     * dikenal oleh GEN-Z.AI.
+     * Semua nilai berasal dari model.
      */
+
+    const inputModalities =
+        extractInputModalities(
+            model
+        );
+
+
+    const outputModalities =
+        extractOutputModalities(
+            model
+        );
+
 
     const normalized = {
 
@@ -1317,31 +1841,7 @@ function normalizeModel(
         ================================================= */
 
         input_modalities:
-            normalizeArray(
-
-                getCapabilityField(
-
-                    model,
-
-                    "input_modalities",
-
-                    "inputModalities",
-
-                    "input_types",
-
-                    "inputTypes",
-
-                    "supported_inputs",
-
-                    "supportedInputs",
-
-                    "supported_input_types",
-
-                    "supportedInputTypes"
-
-                )
-
-            ),
+            inputModalities,
 
 
         /* =================================================
@@ -1349,31 +1849,7 @@ function normalizeModel(
         ================================================= */
 
         output_modalities:
-            normalizeArray(
-
-                getCapabilityField(
-
-                    model,
-
-                    "output_modalities",
-
-                    "outputModalities",
-
-                    "output_types",
-
-                    "outputTypes",
-
-                    "supported_outputs",
-
-                    "supportedOutputs",
-
-                    "supported_output_types",
-
-                    "supportedOutputTypes"
-
-                )
-
-            ),
+            outputModalities,
 
 
         /* =================================================
@@ -1685,8 +2161,7 @@ function enrichModelsWithPublicCatalog(
     /*
      * =====================================================
      * MATCH DIAGNOSTIC
-     * =====================================================
-     */
+     * ===================================================== */
 
     console.info(
 
@@ -1713,129 +2188,15 @@ function enrichModelsWithPublicCatalog(
     /*
      * =====================================================
      * CAPABILITY DIAGNOSTIC
-     * =====================================================
-     *
-     * Tidak membuat capability.
-     *
-     * Hanya menghitung capability yang memang datang
-     * dari metadata public.
-     */
+     * ===================================================== */
 
     const capabilityCount =
         enriched.filter(
 
-            model => {
-
-                const inputModalities =
-                    normalizeArray(
-
-                        model?.input_modalities
-
-                    )
-
-                        .map(
-
-                            value =>
-
-                                normalizeText(
-                                    value
-                                )
-                                    .toLowerCase()
-
-                        );
-
-
-                const outputModalities =
-                    normalizeArray(
-
-                        model?.output_modalities
-
-                    )
-
-                        .map(
-
-                            value =>
-
-                                normalizeText(
-                                    value
-                                )
-                                    .toLowerCase()
-
-                        );
-
-
-                const capabilityText =
-
-                    [
-
-                        model?.capabilities,
-
-                        model?.capability,
-
-                        model?.modalities,
-
-                        model?.modality,
-
-                        model?.architecture,
-
-                        model?.input,
-
-                        model?.output,
-
-                        model?.vision,
-
-                        model?.image,
-
-                        model?.images
-
-                    ]
-
-                        .filter(
-                            value =>
-                                value !==
-                                    null &&
-                                value !==
-                                    undefined
-                        )
-
-                        .join(" ")
-
-                        .toLowerCase();
-
-
-                return (
-
-                    inputModalities.includes(
-                        "image"
-                    ) ||
-
-                    inputModalities.includes(
-                        "vision"
-                    ) ||
-
-                    inputModalities.includes(
-                        "visual"
-                    ) ||
-
-                    outputModalities.includes(
-                        "image"
-                    ) ||
-
-                    outputModalities.includes(
-                        "vision"
-                    ) ||
-
-                    capabilityText.includes(
-                        "image"
-                    ) ||
-
-                    capabilityText.includes(
-                        "vision"
-                    )
-
-                );
-
-            }
+            model =>
+                metadataContainsVisionInput(
+                    model
+                )
 
         ).length;
 
@@ -1845,6 +2206,57 @@ function enrichModelsWithPublicCatalog(
         "[GEN-Z.AI][OpenKey][PUBLIC CATALOG VISION CAPABLE]",
 
         capabilityCount
+
+    );
+
+
+    /*
+     * =====================================================
+     * CAPABILITY SAMPLE
+     * ===================================================== */
+
+    const visionModels =
+        enriched
+
+            .filter(
+                metadataContainsVisionInput
+            )
+
+            .slice(
+                0,
+                10
+            )
+
+            .map(
+
+                model => ({
+
+                    id:
+                        model?.model_id ??
+                        null,
+
+                    name:
+                        model?.model_name ??
+                        null,
+
+                    input_modalities:
+                        model?.input_modalities ??
+                        [],
+
+                    architecture:
+                        model?.architecture ??
+                        null
+
+                })
+
+            );
+
+
+    console.info(
+
+        "[GEN-Z.AI][OpenKey][VISION MODEL SAMPLE]",
+
+        visionModels
 
     );
 
@@ -2130,60 +2542,85 @@ function debugPublicCatalog(
                             model
                         ),
 
+
                     name:
                         getModelName(
                             model
                         ),
+
 
                     input_modalities:
                         model?.input_modalities ??
                         model?.inputModalities ??
                         null,
 
+
                     output_modalities:
                         model?.output_modalities ??
                         model?.outputModalities ??
                         null,
 
+
                     capabilities:
                         model?.capabilities ??
                         null,
+
 
                     capability:
                         model?.capability ??
                         null,
 
+
                     modalities:
                         model?.modalities ??
                         null,
+
 
                     modality:
                         model?.modality ??
                         null,
 
+
                     architecture:
                         model?.architecture ??
                         null,
+
 
                     input:
                         model?.input ??
                         null,
 
+
                     output:
                         model?.output ??
                         null,
+
 
                     vision:
                         model?.vision ??
                         null,
 
+
                     image:
                         model?.image ??
                         null,
 
+
                     images:
                         model?.images ??
-                        null
+                        null,
+
+
+                    extracted_input_modalities:
+                        extractInputModalities(
+                            model
+                        ),
+
+
+                    extracted_output_modalities:
+                        extractOutputModalities(
+                            model
+                        )
 
                 }
 
@@ -2224,77 +2661,96 @@ function debugMergedModels(
                     model?.model_id ??
                     null,
 
+
                 name:
                     model?.model_name ??
                     null,
+
 
                 owned_by:
                     model?.owned_by ??
                     null,
 
+
                 input_modalities:
                     model?.input_modalities ??
                     [],
+
 
                 output_modalities:
                     model?.output_modalities ??
                     [],
 
+
                 capabilities:
                     model?.capabilities ??
                     null,
+
 
                 capability:
                     model?.capability ??
                     null,
 
+
                 modalities:
                     model?.modalities ??
                     null,
+
 
                 modality:
                     model?.modality ??
                     null,
 
+
                 architecture:
                     model?.architecture ??
                     null,
+
 
                 input:
                     model?.input ??
                     null,
 
+
                 output:
                     model?.output ??
                     null,
+
 
                 vision:
                     model?.vision ??
                     null,
 
+
                 image:
                     model?.image ??
                     null,
+
 
                 images:
                     model?.images ??
                     null,
 
+
                 supports_vision:
                     model?.supports_vision ??
                     null,
+
 
                 supports_image:
                     model?.supports_image ??
                     null,
 
+
                 supports_images:
                     model?.supports_images ??
                     null,
 
+
                 supports_multimodal:
                     model?.supports_multimodal ??
                     null,
+
 
                 public_catalog:
                     Boolean(
@@ -2926,10 +3382,8 @@ function filterModels(
             ) {
 
                 const modalities =
-                    normalizeArray(
-
-                        model?.input_modalities
-
+                    extractInputModalities(
+                        model
                     )
 
                         .map(
@@ -2966,10 +3420,8 @@ function filterModels(
             ) {
 
                 const modalities =
-                    normalizeArray(
-
-                        model?.output_modalities
-
+                    extractOutputModalities(
+                        model
                     )
 
                         .map(
@@ -3072,6 +3524,15 @@ const OpenKeyModels = {
     mergeModelMetadata,
 
 
+    collectModalityValues,
+
+    extractInputModalities,
+
+    extractOutputModalities,
+
+    metadataContainsVisionInput,
+
+
     normalizeModel,
 
     normalizeModels,
@@ -3155,6 +3616,15 @@ export {
     createPublicCatalogIndex,
 
     mergeModelMetadata,
+
+
+    collectModalityValues,
+
+    extractInputModalities,
+
+    extractOutputModalities,
+
+    metadataContainsVisionInput,
 
 
     normalizeModel,
