@@ -10,6 +10,7 @@
    - Authentication Supabase
    - Request ke /api/openkey-chat
    - Mengirim frame video sebagai image input
+   - Mengirim replacement character reference sebagai image input
    - Menyusun multimodal analysis request
    - Normalisasi response API
    - Menyimpan hasil analysis ke state
@@ -70,6 +71,29 @@
             0.55,
 
         /*
+         * =================================================
+         * CHARACTER REFERENCE
+         * =================================================
+         *
+         * Character reference diproses terpisah dari
+         * frame video karena detail wajah dan identitas
+         * lebih penting daripada ukuran frame timeline.
+         */
+
+        characterMaxImageDimension:
+            1024,
+
+        characterImageQuality:
+            0.78,
+
+        /*
+         * Jika character image sudah cukup kecil,
+         * tidak perlu dikompresi ulang.
+         */
+        characterKeepOriginalBelowBytes:
+            180000,
+
+        /*
          * Target maksimum payload JSON.
          *
          * Base64 memiliki overhead sekitar 33%.
@@ -87,13 +111,52 @@
          * Analisis dan prompt akhir diminta dalam
          * Bahasa Indonesia.
          *
-         * Tidak dilakukan translation request kedua.
+         * Character reference adalah sumber identitas
+         * utama apabila replacement character tersedia.
          */
         systemInstruction: [
             "You are GEN-Z.AI Vision Video Engine.",
             "Analyze the supplied video frames as a chronological sequence.",
             "Treat frame order and timestamps as important temporal evidence.",
-            "Do not invent visual details that are not supported by the frames.",
+            "Do not invent visual details that are not supported by the supplied images.",
+
+            /*
+             * =================================================
+             * CHARACTER IDENTITY PRIORITY
+             * =================================================
+             */
+
+            "When a CHARACTER REFERENCE image is supplied, it is the authoritative source",
+            "for the replacement character's identity and visible appearance.",
+            "Use the character reference as the primary source for facial identity.",
+            "Preserve the visible facial structure, facial features, hairstyle, hair color,",
+            "skin tone, visible body characteristics, and other identity-defining details",
+            "that are actually visible in the character reference.",
+            "Do not use the identity of the person appearing in the source video.",
+            "Do not copy, merge, blend, or substitute the source video's person's face",
+            "with the replacement character.",
+            "Do not allow the source video's person's identity to override the character reference.",
+            "If the character reference and video show different people, the character reference",
+            "must remain the authoritative identity for the replacement character.",
+            "Do not invent character details that are not visible in the character reference.",
+
+            /*
+             * =================================================
+             * VIDEO ROLE
+             * =================================================
+             */
+
+            "Use the video frames primarily as evidence for pose, action, movement,",
+            "camera behavior, camera movement, framing, composition, environment,",
+            "lighting, timing, transitions, and visual continuity.",
+            "Preserve the temporal behavior and scene structure supported by the video.",
+
+            /*
+             * =================================================
+             * GENERAL ANALYSIS
+             * =================================================
+             */
+
             "Describe subjects, actions, camera behavior, composition,",
             "environment, lighting, motion, transitions, and visual continuity.",
             "Identify changes between frames when supported by the evidence.",
@@ -126,16 +189,38 @@
 
             "The final video generation prompt must be directly usable",
             "for reconstructing the visual appearance and motion of the source video.",
-            "Preserve the observed subject appearance and identity.",
+            "When a replacement character reference is supplied, explicitly preserve",
+            "the replacement character's identity consistently throughout the prompt.",
             "Preserve clothing, colors, objects, environment, composition,",
             "camera behavior, camera movement, framing, lighting,",
             "motion, transitions, timing, and visual continuity.",
             "Describe temporal changes only when supported by the supplied frames.",
-            "Do not add creative details that are not supported by the video.",
+            "Do not add creative details that are not supported by the video",
+            "or the character reference.",
             "Do not hallucinate subjects, objects, locations, actions,",
-            "camera movements, lighting conditions, or visual effects."
+            "camera movements, lighting conditions, visual effects,",
+            "or character attributes."
         ].join(" ")
     });
+
+
+    /* =====================================================
+       CHARACTER REFERENCE INSTRUCTION
+       ===================================================== */
+
+    const CHARACTER_REFERENCE_INSTRUCTION = [
+        "CHARACTER REFERENCE:",
+        "The following image is the authoritative replacement character reference.",
+        "Use this image as the primary source for the character's identity and visible appearance.",
+        "Match the visible facial structure, facial features, hairstyle, hair color, skin tone,",
+        "visible body characteristics, and other identity-defining details shown in the reference.",
+        "Do not use the identity of the person appearing in the source video.",
+        "Do not mix the source video's person's face or identity with the replacement character.",
+        "The video frames are used for pose, action, movement, camera behavior, framing,",
+        "lighting, environment, timing, transitions, and scene continuity.",
+        "Do not invent unsupported character details.",
+        "Keep the replacement character visually consistent throughout the reconstructed prompt."
+    ].join(" ");
 
 
     /* =====================================================
@@ -542,7 +627,7 @@
                 throw new Error(
                     "Payload Vision Video terlalu besar (" +
                     formatBytes(payloadBytes) +
-                    "). Frame telah dibatasi dan dikompresi."
+                    "). Frame dan character reference telah dibatasi serta dikompresi."
                 );
             }
 
@@ -1040,7 +1125,7 @@
 
     /* =====================================================
        LOAD IMAGE
-    ===================================================== */
+       ===================================================== */
 
     function loadImage(
         dataURL
@@ -1315,6 +1400,544 @@
 
 
     /* =====================================================
+       FILE / BLOB -> DATA URL
+       -----------------------------------------------------
+       Digunakan khusus untuk replacement character.
+    ===================================================== */
+
+    function fileToDataURL(
+        file
+    ) {
+
+        return new Promise(
+            function (
+                resolve,
+                reject
+            ) {
+
+                if (
+                    !file ||
+                    typeof file !== "object"
+                ) {
+
+                    reject(
+                        new Error(
+                            "File character reference tidak tersedia."
+                        )
+                    );
+
+                    return;
+                }
+
+
+                if (
+                    typeof FileReader === "undefined"
+                ) {
+
+                    reject(
+                        new Error(
+                            "Browser tidak mendukung FileReader."
+                        )
+                    );
+
+                    return;
+                }
+
+
+                const reader =
+                    new FileReader();
+
+
+                reader.onload =
+                    function () {
+
+                        const result =
+                            reader.result;
+
+
+                        if (
+                            typeof result !== "string" ||
+                            !result
+                        ) {
+
+                            reject(
+                                new Error(
+                                    "Character reference gagal dibaca."
+                                )
+                            );
+
+                            return;
+                        }
+
+
+                        resolve(
+                            result
+                        );
+                    };
+
+
+                reader.onerror =
+                    function () {
+
+                        reject(
+                            new Error(
+                                "Character reference gagal dibaca dari file."
+                            )
+                        );
+                    };
+
+
+                reader.onabort =
+                    function () {
+
+                        reject(
+                            new Error(
+                                "Pembacaan character reference dibatalkan."
+                            )
+                        );
+                    };
+
+
+                try {
+
+                    reader.readAsDataURL(
+                        file
+                    );
+
+                } catch (error) {
+
+                    reject(
+                        error
+                    );
+                }
+            }
+        );
+    }
+
+
+    /* =====================================================
+       CHARACTER FILE ACCESS
+       ===================================================== */
+
+    function getCharacterFile() {
+
+        /*
+         * Prioritas utama:
+         *
+         * 1. Character upload module
+         * 2. State langsung
+         *
+         * Character upload module sudah menyimpan File
+         * ke state. Kita tidak membuat file baru.
+         */
+
+        try {
+
+            const characterUpload =
+                window.GENZVisionVideoCharacterUpload;
+
+
+            if (
+                characterUpload &&
+                typeof characterUpload.getFile === "function"
+            ) {
+
+                const file =
+                    characterUpload.getFile();
+
+
+                if (file) {
+
+                    return file;
+                }
+            }
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video] Gagal membaca character melalui upload module:",
+                error
+            );
+        }
+
+
+        try {
+
+            const state =
+                getState();
+
+
+            const file =
+                state.getValue(
+                    "character.file",
+                    null
+                );
+
+
+            if (file) {
+
+                return file;
+            }
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video] Gagal membaca character dari state:",
+                error
+            );
+        }
+
+
+        return null;
+    }
+
+
+    /* =====================================================
+       CHARACTER REFERENCE COMPRESSION
+       -----------------------------------------------------
+       Character reference menggunakan ukuran dan kualitas
+       berbeda dari frame video supaya detail wajah tetap
+       lebih terjaga.
+    ===================================================== */
+
+    async function compressCharacterDataURL(
+        original
+    ) {
+
+        if (
+            typeof original !== "string" ||
+            !original
+        ) {
+
+            throw new Error(
+                "Character reference tidak memiliki dataURL."
+            );
+        }
+
+
+        const originalBytes =
+            estimateDataURLBytes(
+                original
+            );
+
+
+        /*
+         * Jika sudah cukup kecil, gunakan langsung.
+         * Tidak perlu merusak detail wajah dengan kompresi
+         * tambahan.
+         */
+
+        if (
+            originalBytes > 0 &&
+            originalBytes <=
+                CONFIG.characterKeepOriginalBelowBytes
+        ) {
+
+            return original;
+        }
+
+
+        const image =
+            await loadImage(
+                original
+            );
+
+
+        const sourceWidth =
+            Number(
+                image.naturalWidth ||
+                image.width
+            ) || 0;
+
+
+        const sourceHeight =
+            Number(
+                image.naturalHeight ||
+                image.height
+            ) || 0;
+
+
+        if (
+            !sourceWidth ||
+            !sourceHeight
+        ) {
+
+            throw new Error(
+                "Ukuran character reference tidak valid."
+            );
+        }
+
+
+        const maxDimension =
+            CONFIG.characterMaxImageDimension;
+
+
+        let targetWidth =
+            sourceWidth;
+
+
+        let targetHeight =
+            sourceHeight;
+
+
+        if (
+            sourceWidth >
+                maxDimension ||
+            sourceHeight >
+                maxDimension
+        ) {
+
+            const scale =
+                Math.min(
+                    maxDimension /
+                        sourceWidth,
+
+                    maxDimension /
+                        sourceHeight
+                );
+
+
+            targetWidth =
+                Math.max(
+                    1,
+                    Math.round(
+                        sourceWidth *
+                        scale
+                    )
+                );
+
+
+            targetHeight =
+                Math.max(
+                    1,
+                    Math.round(
+                        sourceHeight *
+                        scale
+                    )
+                );
+        }
+
+
+        const canvas =
+            document.createElement(
+                "canvas"
+            );
+
+
+        canvas.width =
+            targetWidth;
+
+
+        canvas.height =
+            targetHeight;
+
+
+        const context =
+            canvas.getContext(
+                "2d",
+                {
+                    alpha:
+                        false
+                }
+            );
+
+
+        if (!context) {
+
+            throw new Error(
+                "Canvas 2D tidak tersedia untuk character reference."
+            );
+        }
+
+
+        try {
+
+            context.imageSmoothingEnabled =
+                true;
+
+            context.imageSmoothingQuality =
+                "high";
+
+        } catch (error) {
+            /*
+             * Browser lama dapat mengabaikan
+             * property ini.
+             */
+        }
+
+
+        context.drawImage(
+            image,
+            0,
+            0,
+            targetWidth,
+            targetHeight
+        );
+
+
+        let compressed;
+
+
+        try {
+
+            compressed =
+                canvas.toDataURL(
+                    "image/jpeg",
+                    CONFIG.characterImageQuality
+                );
+
+        } catch (error) {
+
+            throw new Error(
+                "Character reference gagal dikompresi menjadi JPEG."
+            );
+        }
+
+
+        if (
+            typeof compressed !== "string" ||
+            !compressed ||
+            compressed === "data:,"
+        ) {
+
+            throw new Error(
+                "Hasil kompresi character reference tidak valid."
+            );
+        }
+
+
+        canvas.width = 1;
+        canvas.height = 1;
+
+
+        return compressed;
+    }
+
+
+    /* =====================================================
+       PREPARE CHARACTER REFERENCE
+       -----------------------------------------------------
+       Mengambil file character dari state/upload module,
+       mengubahnya menjadi dataURL, lalu membuat salinan
+       terkompresi khusus untuk request API.
+
+       File asli tidak pernah diubah.
+    ===================================================== */
+
+    async function prepareCharacterReference() {
+
+        const file =
+            getCharacterFile();
+
+
+        if (!file) {
+
+            return null;
+        }
+
+
+        /*
+         * Pastikan yang dikirim memang image.
+         */
+
+        const fileType =
+            typeof file.type === "string"
+                ? file.type.toLowerCase()
+                : "";
+
+
+        if (
+            fileType &&
+            !fileType.startsWith("image/")
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video] Character reference bukan file image:",
+                fileType
+            );
+
+            return null;
+        }
+
+
+        let originalDataURL;
+
+
+        try {
+
+            originalDataURL =
+                await fileToDataURL(
+                    file
+                );
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video] Gagal mengubah character reference menjadi dataURL:",
+                error
+            );
+
+            return null;
+        }
+
+
+        let dataURL =
+            originalDataURL;
+
+
+        try {
+
+            dataURL =
+                await compressCharacterDataURL(
+                    originalDataURL
+                );
+
+        } catch (error) {
+
+            /*
+             * Jika kompresi gagal, gunakan image asli
+             * sebagai fallback.
+             */
+
+            console.warn(
+                "[GEN-Z.AI Vision Video] Character compression gagal, menggunakan image asli:",
+                error
+            );
+        }
+
+
+        return {
+
+            dataURL,
+
+            originalBytes:
+                estimateDataURLBytes(
+                    originalDataURL
+                ),
+
+            requestBytes:
+                estimateDataURLBytes(
+                    dataURL
+                ),
+
+            name:
+                typeof file.name === "string"
+                    ? file.name
+                    : "",
+
+            type:
+                fileType,
+
+            size:
+                Number(
+                    file.size
+                ) || 0
+
+        };
+    }
+
+
+    /* =====================================================
        PREPARE FRAMES FOR API
        -----------------------------------------------------
        Menghasilkan frame khusus request API.
@@ -1572,6 +2195,8 @@
 
             "Focus on visual information useful for recreating the video.",
 
+            "If a CHARACTER REFERENCE image is supplied, treat it as the authoritative identity reference.",
+
             "Return the analysis and reconstruction prompt in Bahasa Indonesia."
 
         ].join(
@@ -1582,7 +2207,7 @@
 
     /* =====================================================
        MESSAGE BUILDER
-    ===================================================== */
+       ===================================================== */
 
     async function buildMessages(
         payload,
@@ -1606,6 +2231,21 @@
 
 
         /*
+         * =================================================
+         * CHARACTER REFERENCE
+         * =================================================
+         *
+         * Ini bagian penting yang sebelumnya tidak ada.
+         *
+         * Character reference sekarang benar-benar masuk
+         * ke multimodal request sebagai image_url.
+         */
+
+        const character =
+            await prepareCharacterReference();
+
+
+        /*
          * Safety guard tambahan.
          */
 
@@ -1615,12 +2255,37 @@
             );
 
 
+        const characterBytes =
+            character
+                ? Number(
+                    character.requestBytes
+                ) || 0
+                : 0;
+
+
+        const estimatedImageBytes =
+            frameBytes +
+            characterBytes;
+
+
         console.log(
             "[GEN-Z.AI Vision Video] API frames:",
             frames.length,
-            "| estimated image bytes:",
+            "| frame image bytes:",
             formatBytes(
                 frameBytes
+            ),
+            "| character reference:",
+            character
+                ? "enabled"
+                : "not available",
+            "| character image bytes:",
+            formatBytes(
+                characterBytes
+            ),
+            "| estimated image bytes:",
+            formatBytes(
+                estimatedImageBytes
             )
         );
 
@@ -1641,6 +2306,57 @@
 
         ];
 
+
+        /*
+         * =================================================
+         * CHARACTER IMAGE
+         * =================================================
+         *
+         * Letakkan character reference sebelum frame video
+         * supaya perannya jelas bagi model multimodal.
+         */
+
+        if (character) {
+
+            content.push({
+
+                type:
+                    "text",
+
+                text:
+                    CHARACTER_REFERENCE_INSTRUCTION
+
+            });
+
+
+            content.push({
+
+                type:
+                    "image_url",
+
+                image_url: {
+
+                    url:
+                        character.dataURL,
+
+                    /*
+                     * Wajah/identity membutuhkan detail tinggi.
+                     */
+                    detail:
+                        "high"
+
+                }
+
+            });
+
+        }
+
+
+        /*
+         * =================================================
+         * VIDEO FRAMES
+         * =================================================
+         */
 
         frames.forEach(
             function (
@@ -2086,7 +2802,8 @@
 
         /*
          * buildRequestBody sekarang async karena
-         * frame perlu dikompresi terlebih dahulu.
+         * frame dan character reference perlu
+         * diproses terlebih dahulu.
          */
 
         const requestBody =
@@ -2247,6 +2964,15 @@
 
             imageQuality:
                 CONFIG.imageQuality,
+
+            characterMaxImageDimension:
+                CONFIG.characterMaxImageDimension,
+
+            characterImageQuality:
+                CONFIG.characterImageQuality,
+
+            characterKeepOriginalBelowBytes:
+                CONFIG.characterKeepOriginalBelowBytes,
 
             maxRequestPayloadBytes:
                 CONFIG.maxRequestPayloadBytes,
