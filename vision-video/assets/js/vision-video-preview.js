@@ -61,7 +61,9 @@
     ===================================================== */
 
     let bound = false;
+
     let metadataLoadToken = 0;
+
     let frameRateDetectionActive = false;
 
 
@@ -268,9 +270,6 @@
 
         }
 
-        /*
-         * Hindari angka absurd akibat precision.
-         */
         if (value >= 100) {
 
             return `${Math.round(value)} FPS`;
@@ -283,17 +282,14 @@
 
 
     /* =====================================================
-       GET CURRENT VIDEO URL
+       GET VIDEO STATE
     ===================================================== */
 
-    function getVideoURL() {
+    function getVideoState() {
 
         const state =
             getState();
 
-        /*
-         * Ambil dari public state terlebih dahulu.
-         */
         if (
             typeof state.getValue === "function"
         ) {
@@ -301,32 +297,14 @@
             const video =
                 state.getValue("video");
 
-            if (
-                video &&
-                typeof video.objectURL === "string" &&
-                video.objectURL
-            ) {
+            if (video) {
 
-                return video.objectURL;
-
-            }
-
-            if (
-                video &&
-                typeof video.url === "string" &&
-                video.url
-            ) {
-
-                return video.url;
+                return video;
 
             }
 
         }
 
-        /*
-         * Fallback untuk implementasi state yang
-         * mengekspos get().
-         */
         if (
             typeof state.get === "function"
         ) {
@@ -334,25 +312,91 @@
             const video =
                 state.get("video");
 
-            if (
-                video &&
-                typeof video.objectURL === "string" &&
-                video.objectURL
-            ) {
+            if (video) {
 
-                return video.objectURL;
+                return video;
 
             }
 
-            if (
-                video &&
-                typeof video.url === "string" &&
-                video.url
-            ) {
+        }
 
-                return video.url;
+        return null;
 
-            }
+    }
+
+
+    /* =====================================================
+       GET CURRENT VIDEO URL
+       -----------------------------------------------------
+       IMPORTANT:
+       State menggunakan objectUrl, bukan objectURL.
+       Tetap dukung objectURL sebagai compatibility fallback.
+    ===================================================== */
+
+    function getVideoURL() {
+
+        const video =
+            getVideoState();
+
+        if (!video) {
+
+            return "";
+
+        }
+
+
+        /*
+         * Primary property.
+         *
+         * vision-video-state.js:
+         * video.objectUrl
+         */
+        if (
+            typeof video.objectUrl === "string" &&
+            video.objectUrl
+        ) {
+
+            return video.objectUrl;
+
+        }
+
+
+        /*
+         * Compatibility fallback.
+         */
+        if (
+            typeof video.objectURL === "string" &&
+            video.objectURL
+        ) {
+
+            return video.objectURL;
+
+        }
+
+
+        /*
+         * Compatibility fallback lainnya.
+         */
+        if (
+            typeof video.url === "string" &&
+            video.url
+        ) {
+
+            return video.url;
+
+        }
+
+
+        /*
+         * Beberapa implementasi mungkin menyimpan
+         * source langsung sebagai src.
+         */
+        if (
+            typeof video.src === "string" &&
+            video.src
+        ) {
+
+            return video.src;
 
         }
 
@@ -367,46 +411,68 @@
 
     function getCurrentFile() {
 
-        const state =
-            getState();
+        const video =
+            getVideoState();
 
-        if (
-            typeof state.getValue === "function"
-        ) {
+        if (!video) {
 
-            const video =
-                state.getValue("video");
-
-            if (
-                video &&
-                video.file instanceof File
-            ) {
-
-                return video.file;
-
-            }
+            return null;
 
         }
 
         if (
-            typeof state.get === "function"
+            video.file instanceof File
         ) {
 
-            const video =
-                state.get("video");
-
-            if (
-                video &&
-                video.file instanceof File
-            ) {
-
-                return video.file;
-
-            }
+            return video.file;
 
         }
 
         return null;
+
+    }
+
+
+    /* =====================================================
+       RESOLVE VIDEO URL
+       -----------------------------------------------------
+       Jika State belum memiliki objectUrl tetapi file
+       sudah tersedia, buat Object URL sebagai fallback.
+    ===================================================== */
+
+    function resolveVideoURL(file) {
+
+        const stateURL =
+            getVideoURL();
+
+        if (stateURL) {
+
+            return stateURL;
+
+        }
+
+        if (
+            file instanceof File
+        ) {
+
+            try {
+
+                return URL.createObjectURL(
+                    file
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI Vision Video] Gagal membuat Object URL:",
+                    error
+                );
+
+            }
+
+        }
+
+        return "";
 
     }
 
@@ -473,7 +539,8 @@
 
         dom.text(
             "duration",
-            Number.isFinite(duration)
+            Number.isFinite(duration) &&
+            duration > 0
                 ? formatDuration(duration)
                 : "Unknown"
         );
@@ -553,14 +620,38 @@
 
         }
 
+        if (!url) {
+
+            return false;
+
+        }
+
+
         /*
-         * Hindari reload source yang sama.
+         * Normalisasi source.
+         *
+         * video.src dapat menjadi absolute URL.
+         * Karena itu jangan hanya membandingkan
+         * video.src dengan string mentah secara buta.
          */
+        const currentSource =
+            video.getAttribute("src") || "";
+
+
         if (
+            currentSource !== url &&
             video.src !== url
         ) {
 
-            video.pause();
+            try {
+
+                video.pause();
+
+            } catch (error) {
+
+                /* no-op */
+
+            }
 
             video.removeAttribute(
                 "src"
@@ -568,20 +659,45 @@
 
             video.load();
 
-            if (url) {
+            video.src =
+                url;
 
-                video.src = url;
+        }
+
+
+        /*
+         * Preview tidak autoplay.
+         */
+        video.autoplay =
+            false;
+
+        video.controls =
+            true;
+
+        video.preload =
+            "metadata";
+
+        /*
+         * Pastikan browser memuat source.
+         */
+        if (
+            video.readyState === 0
+        ) {
+
+            try {
+
+                video.load();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision Video] video.load() gagal:",
+                    error
+                );
 
             }
 
         }
-
-        /*
-         * Preview tidak boleh autoplay.
-         */
-        video.autoplay = false;
-        video.controls = true;
-        video.preload = "metadata";
 
         return true;
 
@@ -603,15 +719,20 @@
 
         }
 
-        video.pause();
+        try {
+
+            video.pause();
+
+        } catch (error) {
+
+            /* no-op */
+
+        }
 
         video.removeAttribute(
             "src"
         );
 
-        /*
-         * Lepaskan resource media element.
-         */
         video.load();
 
     }
@@ -637,10 +758,14 @@
         }
 
         const token =
-            ++metadataLoadToken;
+            metadataLoadToken;
 
         return new Promise(
             function (resolve, reject) {
+
+                let finished =
+                    false;
+
 
                 function cleanup() {
 
@@ -657,7 +782,15 @@
                 }
 
 
-                function onLoadedMetadata() {
+                function finish(
+                    callback
+                ) {
+
+                    if (finished) {
+
+                        return;
+
+                    }
 
                     if (
                         token !== metadataLoadToken
@@ -665,45 +798,67 @@
 
                         cleanup();
 
+                        finished =
+                            true;
+
                         return;
 
                     }
 
-                    const duration =
-                        Number(video.duration);
-
-                    const width =
-                        Number(video.videoWidth);
-
-                    const height =
-                        Number(video.videoHeight);
+                    finished =
+                        true;
 
                     cleanup();
 
-                    const metadata = {
+                    callback();
 
-                        duration:
-                            Number.isFinite(duration)
-                                ? duration
-                                : 0,
+                }
 
-                        width:
-                            Number.isFinite(width)
-                                ? width
-                                : 0,
 
-                        height:
-                            Number.isFinite(height)
-                                ? height
-                                : 0,
+                function onLoadedMetadata() {
 
-                        fps:
-                            0
+                    finish(
+                        function () {
 
-                    };
+                            const duration =
+                                Number(
+                                    video.duration
+                                );
 
-                    resolve(
-                        metadata
+                            const width =
+                                Number(
+                                    video.videoWidth
+                                );
+
+                            const height =
+                                Number(
+                                    video.videoHeight
+                                );
+
+
+                            resolve({
+
+                                duration:
+                                    Number.isFinite(duration)
+                                        ? duration
+                                        : 0,
+
+                                width:
+                                    Number.isFinite(width)
+                                        ? width
+                                        : 0,
+
+                                height:
+                                    Number.isFinite(height)
+                                        ? height
+                                        : 0,
+
+                                fps:
+                                    0
+
+                            });
+
+                        }
                     );
 
                 }
@@ -711,22 +866,16 @@
 
                 function onError() {
 
-                    if (
-                        token !== metadataLoadToken
-                    ) {
+                    finish(
+                        function () {
 
-                        cleanup();
+                            reject(
+                                new Error(
+                                    "Metadata video tidak dapat dibaca."
+                                )
+                            );
 
-                        return;
-
-                    }
-
-                    cleanup();
-
-                    reject(
-                        new Error(
-                            "Metadata video tidak dapat dibaca."
-                        )
+                        }
                     );
 
                 }
@@ -744,7 +893,7 @@
 
 
                 /*
-                 * Jika metadata sudah tersedia sebelum
+                 * Metadata mungkin sudah tersedia sebelum
                  * listener dipasang.
                  */
                 if (
@@ -766,9 +915,8 @@
     /* =====================================================
        FPS DETECTION
        -----------------------------------------------------
-       Menggunakan requestVideoFrameCallback jika browser
-       mendukungnya. Ini bukan API analysis dan tidak
-       melakukan decoding seluruh video.
+       Browser-side estimation only.
+       Kegagalan FPS tidak menggagalkan preview.
     ===================================================== */
 
     async function detectFPS() {
@@ -782,9 +930,6 @@
 
         }
 
-        /*
-         * API modern.
-         */
         if (
             typeof video.requestVideoFrameCallback !==
             "function"
@@ -807,9 +952,6 @@
 
         try {
 
-            /*
-             * Pastikan video memiliki metadata.
-             */
             if (
                 video.readyState < 1
             ) {
@@ -818,30 +960,24 @@
 
             }
 
-            /*
-             * Jangan mengubah posisi playback pengguna
-             * secara permanen.
-             */
             const originalTime =
                 Number(video.currentTime) || 0;
 
             const wasPaused =
                 video.paused;
 
-            /*
-             * Ambil beberapa frame saat playback berjalan.
-             * Tidak semua browser memberi metadata frame rate
-             * secara langsung, sehingga FPS dihitung dari
-             * media time antara callback frame.
-             */
             const samples = [];
 
             let resolveSample;
+
             let rejectSample;
 
             const samplePromise =
                 new Promise(
-                    function (resolve, reject) {
+                    function (
+                        resolve,
+                        reject
+                    ) {
 
                         resolveSample =
                             resolve;
@@ -852,11 +988,9 @@
                     }
                 );
 
-            let callbackCount = 0;
-            let firstMediaTime = null;
-            let lastMediaTime = null;
-            let firstWallTime = null;
-            let lastWallTime = null;
+            let callbackCount =
+                0;
+
 
             function callback(
                 now,
@@ -865,46 +999,27 @@
 
                 callbackCount++;
 
+
                 const mediaTime =
                     Number(
                         metadata.mediaTime
                     );
+
 
                 if (
                     Number.isFinite(mediaTime)
                 ) {
 
                     samples.push({
+
                         now,
+
                         mediaTime
+
                     });
 
                 }
 
-                if (
-                    firstMediaTime === null &&
-                    Number.isFinite(mediaTime)
-                ) {
-
-                    firstMediaTime =
-                        mediaTime;
-
-                    firstWallTime =
-                        now;
-
-                }
-
-                if (
-                    Number.isFinite(mediaTime)
-                ) {
-
-                    lastMediaTime =
-                        mediaTime;
-
-                    lastWallTime =
-                        now;
-
-                }
 
                 if (
                     samples.length >= 8
@@ -918,6 +1033,7 @@
 
                 }
 
+
                 if (
                     callbackCount >= 12
                 ) {
@@ -929,6 +1045,7 @@
                     return;
 
                 }
+
 
                 try {
 
@@ -946,15 +1063,27 @@
 
             }
 
-            video.requestVideoFrameCallback(
-                callback
-            );
+
+            try {
+
+                video.requestVideoFrameCallback(
+                    callback
+                );
+
+            } catch (error) {
+
+                return 0;
+
+            }
+
 
             /*
-             * Jika video paused, kita perlu menjalankannya
-             * sebentar untuk memperoleh frame callbacks.
+             * Untuk memperoleh frame callback,
+             * video perlu berjalan sebentar.
              */
-            if (video.paused) {
+            if (
+                video.paused
+            ) {
 
                 try {
 
@@ -973,18 +1102,16 @@
 
                 } catch (error) {
 
-                    /*
-                     * Autoplay policy dapat menolak play().
-                     * Dalam kondisi ini FPS tidak dipaksakan.
-                     */
-
                     return 0;
 
                 }
 
             }
 
-            let resultSamples = [];
+
+            let resultSamples =
+                [];
+
 
             try {
 
@@ -994,15 +1121,19 @@
                         samplePromise,
 
                         new Promise(
-                            function (resolve) {
+                            function (
+                                resolve
+                            ) {
 
                                 setTimeout(
                                     function () {
 
-                                        resolve([]);
+                                        resolve(
+                                            []
+                                        );
 
                                     },
-                                    1800
+                                    1500
                                 );
 
                             }
@@ -1012,9 +1143,11 @@
 
             } catch (error) {
 
-                resultSamples = [];
+                resultSamples =
+                    [];
 
             }
+
 
             /*
              * Kembalikan posisi video.
@@ -1030,13 +1163,23 @@
 
             }
 
+
             if (
                 wasPaused
             ) {
 
-                video.pause();
+                try {
+
+                    video.pause();
+
+                } catch (error) {
+
+                    /* no-op */
+
+                }
 
             }
+
 
             if (
                 !Array.isArray(resultSamples) ||
@@ -1047,12 +1190,10 @@
 
             }
 
-            /*
-             * Hitung FPS berdasarkan media time.
-             * Karena callback dapat melewati frame tertentu,
-             * gunakan beberapa interval dan median.
-             */
-            const fpsValues = [];
+
+            const fpsValues =
+                [];
+
 
             for (
                 let i = 1;
@@ -1066,6 +1207,7 @@
                 const current =
                     resultSamples[i];
 
+
                 const mediaDelta =
                     Number(
                         current.mediaTime
@@ -1074,75 +1216,34 @@
                         previous.mediaTime
                     );
 
-                const wallDelta =
-                    (
-                        Number(current.now) -
-                        Number(previous.now)
-                    ) / 1000;
 
                 if (
-                    mediaDelta > 0 &&
-                    wallDelta > 0
+                    mediaDelta <= 0
                 ) {
 
-                    const fps =
-                        1 / mediaDelta;
+                    continue;
 
-                    if (
-                        Number.isFinite(fps) &&
-                        fps >= 1 &&
-                        fps <= 240
-                    ) {
+                }
 
-                        fpsValues.push(
-                            fps
-                        );
 
-                    }
+                const fps =
+                    1 / mediaDelta;
+
+
+                if (
+                    Number.isFinite(fps) &&
+                    fps >= 1 &&
+                    fps <= 240
+                ) {
+
+                    fpsValues.push(
+                        fps
+                    );
 
                 }
 
             }
 
-            /*
-             * requestVideoFrameCallback bukan jaminan setiap
-             * frame dipanggil satu per satu. Karena itu nilai
-             * langsung dari media delta bisa tidak stabil.
-             *
-             * Gunakan duration antara sampel yang terkumpul
-             * bila memungkinkan.
-             */
-            if (
-                firstMediaTime !== null &&
-                lastMediaTime !== null &&
-                firstWallTime !== null &&
-                lastWallTime !== null
-            ) {
-
-                const mediaDuration =
-                    lastMediaTime -
-                    firstMediaTime;
-
-                const wallDuration =
-                    (
-                        lastWallTime -
-                        firstWallTime
-                    ) / 1000;
-
-                if (
-                    mediaDuration > 0 &&
-                    wallDuration > 0
-                ) {
-
-                    /*
-                     * Ini hanya fallback estimasi playback rate,
-                     * bukan FPS asli. Jangan gunakan sebagai FPS
-                     * jika hasilnya jelas tidak masuk akal.
-                     */
-
-                }
-
-            }
 
             if (
                 fpsValues.length === 0
@@ -1152,16 +1253,24 @@
 
             }
 
+
             fpsValues.sort(
-                function (a, b) {
+                function (
+                    a,
+                    b
+                ) {
+
                     return a - b;
+
                 }
             );
+
 
             const middle =
                 Math.floor(
                     fpsValues.length / 2
                 );
+
 
             if (
                 fpsValues.length % 2 === 0
@@ -1174,12 +1283,77 @@
 
             }
 
+
             return fpsValues[middle];
 
         } finally {
 
             frameRateDetectionActive =
                 false;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       SAVE METADATA TO STATE
+    ===================================================== */
+
+    function saveMetadataToState(
+        metadata
+    ) {
+
+        const state =
+            getState();
+
+
+        /*
+         * Primary state API.
+         */
+        if (
+            typeof state.setVisionVideoMetadata ===
+            "function"
+        ) {
+
+            state.setVisionVideoMetadata(
+                metadata
+            );
+
+            return;
+
+        }
+
+
+        /*
+         * Compatibility API.
+         */
+        if (
+            typeof state.setMetadata ===
+            "function"
+        ) {
+
+            state.setMetadata(
+                metadata
+            );
+
+            return;
+
+        }
+
+
+        /*
+         * Generic setter fallback.
+         */
+        if (
+            typeof state.set ===
+            "function"
+        ) {
+
+            state.set(
+                "video.metadata",
+                metadata
+            );
 
         }
 
@@ -1200,10 +1374,24 @@
 
         }
 
+
+        /*
+         * Resolve URL dari State.
+         *
+         * FIX UTAMA:
+         * state menggunakan objectUrl.
+         */
         const url =
-            getVideoURL();
+            resolveVideoURL(
+                file
+            );
+
 
         if (!url) {
+
+            console.error(
+                "[GEN-Z.AI Vision Video] Object URL video tidak tersedia."
+            );
 
             clear();
 
@@ -1211,27 +1399,84 @@
 
         }
 
+
+        /*
+         * Token baru untuk video baru.
+         */
         const token =
             ++metadataLoadToken;
 
+
+        /*
+         * File information harus tampil
+         * sebelum proses metadata.
+         */
         renderFileInformation(
             file
         );
 
-        setVideoSource(
-            url
-        );
 
+        /*
+         * Pasang video terlebih dahulu.
+         */
+        const sourceReady =
+            setVideoSource(
+                url
+            );
+
+
+        if (!sourceReady) {
+
+            console.error(
+                "[GEN-Z.AI Vision Video] Source video gagal dipasang."
+            );
+
+            return false;
+
+        }
+
+
+        /*
+         * PENTING:
+         * Preview langsung ditampilkan.
+         *
+         * Tidak menunggu metadata.
+         * Tidak menunggu FPS.
+         * Tidak menunggu AI.
+         */
         showPreview();
+
+
+        /*
+         * Beri browser kesempatan memproses
+         * source video.
+         */
+        const video =
+            getVideoElement();
+
+        if (video) {
+
+            try {
+
+                video.load();
+
+            } catch (error) {
+
+                /* no-op */
+
+            }
+
+        }
+
 
         try {
 
             const metadata =
                 await readMetadata();
 
+
             /*
-             * Jangan menerapkan hasil lama apabila user
-             * sudah memilih video baru.
+             * Video sudah diganti sebelum metadata selesai.
              */
             if (
                 token !== metadataLoadToken
@@ -1241,12 +1486,43 @@
 
             }
 
-            let fps = 0;
 
             /*
-             * FPS hanya estimasi browser-side bila tersedia.
-             * Kegagalan FPS tidak boleh menggagalkan preview.
+             * Render metadata dasar terlebih dahulu.
              */
+            renderMetadata(
+                metadata
+            );
+
+
+            /*
+             * Simpan metadata dasar ke state.
+             */
+            try {
+
+                saveMetadataToState(
+                    metadata
+                );
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision Video] Metadata state tidak dapat diperbarui:",
+                    error
+                );
+
+            }
+
+
+            /*
+             * FPS hanya tambahan.
+             *
+             * Preview sudah tampil sebelum bagian ini.
+             */
+            let fps =
+                0;
+
+
             try {
 
                 fps =
@@ -1254,9 +1530,11 @@
 
             } catch (error) {
 
-                fps = 0;
+                fps =
+                    0;
 
             }
+
 
             if (
                 token !== metadataLoadToken
@@ -1266,39 +1544,56 @@
 
             }
 
+
             metadata.fps =
                 Number.isFinite(fps)
                     ? fps
                     : 0;
 
-            const state =
-                getState();
 
-            if (
-                typeof state.setMetadata === "function"
-            ) {
+            /*
+             * Update state dengan FPS.
+             */
+            try {
 
-                state.setMetadata(
+                saveMetadataToState(
                     metadata
+                );
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision Video] FPS state tidak dapat diperbarui:",
+                    error
                 );
 
             }
 
+
+            /*
+             * Update tampilan FPS.
+             */
             renderMetadata(
                 metadata
             );
+
 
             document.dispatchEvent(
                 new CustomEvent(
                     "genz:vision-video:metadata-ready",
                     {
                         detail: {
+
                             file,
+
                             metadata
+
                         }
+
                     }
                 )
             );
+
 
             return true;
 
@@ -1309,33 +1604,46 @@
                 error
             );
 
+
             /*
-             * Preview tetap ditampilkan walaupun metadata
-             * gagal. Jangan menghukum user hanya karena
-             * browser sedang berulah.
+             * Preview tetap hidup walaupun metadata
+             * gagal dibaca.
              */
             renderMetadata({
 
                 duration: 0,
+
                 width: 0,
+
                 height: 0,
+
                 fps: 0
 
             });
+
 
             document.dispatchEvent(
                 new CustomEvent(
                     "genz:vision-video:metadata-error",
                     {
                         detail: {
+
                             file,
+
                             error
+
                         }
+
                     }
                 )
             );
 
-            return false;
+
+            /*
+             * Ini bukan kegagalan preview.
+             * Video sudah berhasil dipasang.
+             */
+            return true;
 
         }
 
@@ -1350,37 +1658,46 @@
 
         metadataLoadToken++;
 
+
         clearVideoSource();
+
 
         const dom =
             getDOM();
+
 
         dom.text(
             "fileName",
             "-"
         );
 
+
         dom.text(
             "fileSize",
             "-"
         );
+
 
         dom.text(
             "duration",
             "-"
         );
 
+
         dom.text(
             "resolution",
             "-"
         );
+
 
         dom.text(
             "fps",
             "-"
         );
 
+
         showUploadState();
+
 
         document.dispatchEvent(
             new CustomEvent(
@@ -1400,6 +1717,7 @@
         const file =
             getCurrentFile();
 
+
         if (!file) {
 
             clear();
@@ -1407,6 +1725,7 @@
             return false;
 
         }
+
 
         return loadVideo(
             file
@@ -1419,7 +1738,9 @@
        EVENT HANDLERS
     ===================================================== */
 
-    function handleFileSelected(event) {
+    function handleFileSelected(
+        event
+    ) {
 
         const file =
             event &&
@@ -1427,11 +1748,29 @@
                 ? event.detail.file
                 : null;
 
+
         if (!(file instanceof File)) {
+
+            /*
+             * Compatibility:
+             * beberapa uploader mungkin mengirim
+             * file langsung sebagai detail.
+             */
+            if (
+                event &&
+                event.detail instanceof File
+            ) {
+
+                loadVideo(
+                    event.detail
+                );
+
+            }
 
             return;
 
         }
+
 
         loadVideo(
             file
@@ -1459,17 +1798,22 @@
 
         }
 
+
         document.addEventListener(
             "genz:vision-video:file-selected",
             handleFileSelected
         );
+
 
         document.addEventListener(
             "genz:vision-video:file-removed",
             handleFileRemoved
         );
 
-        bound = true;
+
+        bound =
+            true;
+
 
         console.log(
             "[GEN-Z.AI Vision Video] Preview module ready."
@@ -1532,43 +1876,46 @@
     window.GENZVisionVideoPreview =
         API;
 
+
     window.GENZVisionVideoPreviewReady =
         true;
 
-    /*
-     * Bind otomatis hanya jika dependency sudah tersedia.
-     * Loader tetap menjadi pengatur utama lifecycle.
-     */
+
+    /* =====================================================
+       AUTO BIND
+    ===================================================== */
+
+    function autoBind() {
+
+        if (
+            window.GENZVisionVideoState &&
+            window.GENZVisionVideoDOM
+        ) {
+
+            bind();
+
+        }
+
+    }
+
+
     if (
         document.readyState === "loading"
     ) {
 
         document.addEventListener(
             "DOMContentLoaded",
-            function () {
-
-                if (
-                    window.GENZVisionVideoState &&
-                    window.GENZVisionVideoDOM
-                ) {
-
-                    bind();
-
-                }
-
-            },
+            autoBind,
             {
                 once: true
             }
         );
 
-    } else if (
-        window.GENZVisionVideoState &&
-        window.GENZVisionVideoDOM
-    ) {
+    } else {
 
-        bind();
+        autoBind();
 
     }
+
 
 })();
