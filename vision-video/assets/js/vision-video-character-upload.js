@@ -77,11 +77,6 @@
             elementsCache
         ) {
 
-            /*
-             * Pastikan element utama masih
-             * berada di document.
-             */
-
             if (
                 elementsCache.dropzone &&
                 document.contains(
@@ -186,14 +181,6 @@
         const state =
             getState();
 
-
-        /*
-         * State boleh saja belum tersedia
-         * ketika upload module pertama kali
-         * dijalankan.
-         *
-         * Upload UI tetap boleh bekerja.
-         */
 
         if (!state) {
 
@@ -359,14 +346,6 @@
                     )
             );
 
-
-        /*
-         * Browser dapat memberikan
-         * file.type kosong.
-         *
-         * Extension tetap menjadi
-         * fallback.
-         */
 
         if (
             !validType &&
@@ -635,11 +614,6 @@
                     true
                 );
 
-
-            /*
-             * Element minimum yang benar-benar
-             * dibutuhkan untuk upload.
-             */
 
             if (
                 !elements.fileInput
@@ -1166,6 +1140,42 @@
 
 
         /*
+         * PENTING:
+         *
+         * fileInput.click() menghasilkan
+         * synthetic click event pada input.
+         *
+         * Event tersebut dapat bubble kembali
+         * ke dropzone.
+         *
+         * Jika tidak diabaikan, dropzone akan
+         * memanggil fileInput.click() sekali lagi.
+         *
+         * Akibatnya:
+         *
+         * input.click()
+         *      ↓
+         * synthetic input click
+         *      ↓
+         * dropzone click
+         *      ↓
+         * input.click() lagi
+         *
+         * Ini adalah sumber double invocation
+         * sebelumnya.
+         */
+
+        if (
+            event.target ===
+            elements.fileInput
+        ) {
+
+            return;
+
+        }
+
+
+        /*
          * Jangan trigger picker dari
          * Remove button.
          */
@@ -1407,10 +1417,7 @@
 
 
         /*
-         * Hindari binding ganda.
-         *
-         * Semua listener utama dipasang
-         * hanya sekali oleh initialize().
+         * File input.
          */
 
         if (
@@ -1426,6 +1433,10 @@
         }
 
 
+        /*
+         * Browse button.
+         */
+
         if (
             elements.browseButton
         ) {
@@ -1439,6 +1450,10 @@
         }
 
 
+        /*
+         * Remove button.
+         */
+
         if (
             elements.removeButton
         ) {
@@ -1451,6 +1466,10 @@
 
         }
 
+
+        /*
+         * Dropzone.
+         */
 
         if (
             elements.dropzone
@@ -1622,11 +1641,8 @@
 
 
         /*
-         * Jika module lain membangun/
-         * mengganti DOM setelahnya,
-         * lakukan retry tanpa duplicate
-         * karena initialize() memiliki
-         * guard initialized.
+         * Jika DOM belum tersedia,
+         * lakukan retry.
          */
 
         if (
@@ -1856,80 +1872,6 @@
         scheduleInitialization();
 
     }
-
-
-    /* =====================================================
-       GLOBAL DOM READY FALLBACK
-    ===================================================== */
-
-    /*
-     * Ini sengaja memakai event delegation
-     * tambahan untuk kasus ekstrem ketika
-     * element dibuat ulang setelah module
-     * initialize.
-     *
-     * Listener hanya aktif untuk target
-     * Character Upload.
-     */
-
-    document.addEventListener(
-        "click",
-        function(event) {
-
-            const browseButton =
-                event.target?.closest(
-                    "#visionVideoCharacterBrowseButton"
-                );
-
-
-            if (
-                browseButton
-            ) {
-
-                /*
-                 * Kalau sudah ada handler
-                 * langsung, jangan melakukan
-                 * picker kedua kali.
-                 */
-
-                if (
-                    initialized
-                ) {
-
-                    return;
-
-                }
-
-
-                handleBrowseButtonClick(
-                    event
-                );
-
-                return;
-
-            }
-
-
-            const removeButton =
-                event.target?.closest(
-                    "#visionVideoCharacterRemoveButton"
-                );
-
-
-            if (
-                removeButton &&
-                !initialized
-            ) {
-
-                handleRemoveButtonClick(
-                    event
-                );
-
-            }
-
-        },
-        true
-    );
 
 
     /* =====================================================
