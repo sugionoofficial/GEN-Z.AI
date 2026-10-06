@@ -813,12 +813,16 @@
         // =================================================
         // REFERENCE IMAGE
         // =================================================
+        //
+        // vision-state.js menggunakan:
+        // getReferenceFile()
+        //
+        // BUKAN:
+        // state.get("file", null)
+        // =================================================
 
         const file =
-            state.get(
-                "file",
-                null
-            );
+            state.getReferenceFile();
 
 
         if (
@@ -844,12 +848,16 @@
         // =================================================
         // REPLACEMENT CHARACTER
         // =================================================
+        //
+        // vision-state.js menggunakan:
+        // getReplacementCharacter()
+        //
+        // BUKAN:
+        // state.get("replacementCharacter", null)
+        // =================================================
 
         const replacementCharacter =
-            state.get(
-                "replacementCharacter",
-                null
-            );
+            state.getReplacementCharacter();
 
 
         if (
