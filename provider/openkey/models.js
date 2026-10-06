@@ -48,22 +48,11 @@ import openKeyClient
 ========================================================= */
 
 const OPENKEY_MODELS_VERSION =
-    "2026-10-06-openkey-models-public-catalog-v4";
+    "2026-10-06-openkey-models-public-catalog-v5";
 
 
 /* =========================================================
    PUBLIC CATALOG CONFIGURATION
-   ---------------------------------------------------------
-   OpenKey public catalog resmi:
-
-       https://api.openkey.ai/api/public/v1/models
-
-   Environment variable tetap memiliki prioritas.
-
-   Jangan otomatis menurunkan public catalog dari
-   OPENKEY_API_ENDPOINT karena endpoint authenticated
-   dapat berupa gateway / compatibility endpoint yang
-   tidak menyediakan public catalog.
 ========================================================= */
 
 const DEFAULT_PUBLIC_CATALOG_BASE_URL =
@@ -440,19 +429,6 @@ function getCapabilityField(
 
 /* =========================================================
    PUBLIC CATALOG BASE URL
-   ---------------------------------------------------------
-   PRIORITAS:
-
-   1. OPENKEY_PUBLIC_CATALOG_BASE_URL
-   2. OPENKEY_PUBLIC_BASE_URL
-   3. DEFAULT_PUBLIC_CATALOG_BASE_URL
-
-   IMPORTANT:
-   Tidak lagi menurunkan URL dari openKeyClient.getBaseUrl().
-
-   Alasannya:
-   authenticated endpoint dapat menggunakan gateway
-   berbeda dari public catalog.
 ========================================================= */
 
 function getPublicCatalogBaseUrl() {
@@ -515,10 +491,6 @@ function buildPublicCatalogUrl() {
 
 /* =========================================================
    FETCH PUBLIC CATALOG
-   ---------------------------------------------------------
-   IMPORTANT:
-   - Tidak menggunakan API key.
-   - Public catalog unauthenticated.
 ========================================================= */
 
 async function fetchPublicCatalog() {
@@ -865,7 +837,614 @@ function extractPublicCatalogRows(
 
 
 /* =========================================================
+   MODEL MATCHING TEXT
+   ---------------------------------------------------------
+   Tujuan:
+   Membuat bentuk identifier yang konsisten untuk
+   authenticated catalog dan public catalog.
+
+   CONTOH:
+
+   openai/gpt-4o
+   OpenAI/GPT-4O
+   openai:gpt-4o
+
+   akan dapat dibandingkan tanpa mengubah nilai
+   model aslinya.
+
+   Catatan:
+   Ini hanya normalisasi identifier.
+   Tidak menentukan capability.
+========================================================= */
+
+function normalizeModelIdentifier(
+    value
+) {
+
+    const text =
+        normalizeText(
+            value
+        );
+
+
+    if (
+        !text
+    ) {
+
+        return "";
+
+    }
+
+
+    return text
+
+        .trim()
+
+        .toLowerCase()
+
+        .replace(
+            /\\/g,
+            "/"
+        )
+
+        .replace(
+            /\s+/g,
+            ""
+        )
+
+        .replace(
+            /:+/g,
+            "/"
+        )
+
+        .replace(
+            /\/+/g,
+            "/"
+        )
+
+        .replace(
+            /^\/|\/$/g,
+            ""
+        );
+
+}
+
+
+/* =========================================================
+   IDENTIFIER PARTS
+   ---------------------------------------------------------
+   Memisahkan:
+
+       provider/model
+
+   menjadi:
+
+       provider
+       model
+
+   tanpa mengubah identifier asli.
+========================================================= */
+
+function splitModelIdentifier(
+    value
+) {
+
+    const normalized =
+        normalizeModelIdentifier(
+            value
+        );
+
+
+    if (
+        !normalized
+    ) {
+
+        return {
+
+            provider: "",
+
+            model: ""
+
+        };
+
+    }
+
+
+    const parts =
+        normalized.split(
+            "/"
+        );
+
+
+    if (
+        parts.length < 2
+    ) {
+
+        return {
+
+            provider: "",
+
+            model:
+                normalized
+
+        };
+
+    }
+
+
+    return {
+
+        provider:
+            parts
+                .slice(
+                    0,
+                    -1
+                )
+                .join("/"),
+
+        model:
+            parts[
+                parts.length - 1
+            ]
+
+    };
+
+}
+
+
+/* =========================================================
+   EXTRACT PROVIDER
+   ---------------------------------------------------------
+   Hanya membaca field yang memang diberikan model.
+
+   Tidak menggunakan nama model untuk menebak provider.
+========================================================= */
+
+function getModelProvider(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !== "object"
+    ) {
+
+        return "";
+
+    }
+
+
+    const directProvider = [
+
+        model.provider,
+
+        model.provider_id,
+
+        model.providerId,
+
+        model.provider_name,
+
+        model.providerName,
+
+        model.owned_by,
+
+        model.ownedBy,
+
+        model.namespace,
+
+        model.organization,
+
+        model.organization_name,
+
+        model.organizationName
+
+    ];
+
+
+    for (
+        const value
+        of directProvider
+    ) {
+
+        const text =
+            normalizeText(
+                value
+            );
+
+
+        if (
+            text
+        ) {
+
+            return text;
+
+        }
+
+    }
+
+
+    /*
+     * Fallback dari identifier lengkap.
+     *
+     * Ini bukan tebakan capability.
+     * Hanya mengambil bagian provider dari
+     * identifier yang memang sudah diberikan.
+     */
+
+    const id =
+        getModelId(
+            model
+        );
+
+
+    const parts =
+        splitModelIdentifier(
+            id
+        );
+
+
+    return parts.provider;
+
+}
+
+
+/* =========================================================
+   EXTRACT MODEL COMPONENT
+========================================================= */
+
+function getModelComponent(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !== "object"
+    ) {
+
+        return "";
+
+    }
+
+
+    const directModel = [
+
+        model.model,
+
+        model.model_name,
+
+        model.modelName,
+
+        model.model_id,
+
+        model.modelId,
+
+        model.name,
+
+        model.slug
+
+    ];
+
+
+    for (
+        const value
+        of directModel
+    ) {
+
+        const text =
+            normalizeText(
+                value
+            );
+
+
+        if (
+            text
+        ) {
+
+            const parts =
+                splitModelIdentifier(
+                    text
+                );
+
+
+            /*
+             * Jika field sendiri berisi
+             * provider/model, gunakan bagian
+             * model terakhir.
+             */
+
+            if (
+                parts.model &&
+                parts.provider
+            ) {
+
+                return parts.model;
+
+            }
+
+
+            return text
+                .toLowerCase();
+
+        }
+
+    }
+
+
+    const id =
+        getModelId(
+            model
+        );
+
+
+    const parts =
+        splitModelIdentifier(
+            id
+        );
+
+
+    return (
+        parts.model ||
+        ""
+    );
+
+}
+
+
+/* =========================================================
+   BUILD MODEL MATCH KEYS
+   ---------------------------------------------------------
+   Menghasilkan beberapa identifier untuk SATU model.
+
+   Tidak semua key harus ada.
+
+   Exact ID selalu diprioritaskan oleh index karena
+   dimasukkan terlebih dahulu.
+========================================================= */
+
+function getModelMatchKeys(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !== "object"
+    ) {
+
+        return [];
+
+    }
+
+
+    const keys = [];
+
+    const seen =
+        new Set();
+
+
+    function addKey(
+        value
+    ) {
+
+        const normalized =
+            normalizeModelIdentifier(
+                value
+            );
+
+
+        if (
+            !normalized
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            seen.has(
+                normalized
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        seen.add(
+            normalized
+        );
+
+
+        keys.push(
+            normalized
+        );
+
+    }
+
+
+    const id =
+        getModelId(
+            model
+        );
+
+
+    const name =
+        getModelName(
+            model
+        );
+
+
+    const provider =
+        getModelProvider(
+            model
+        );
+
+
+    const component =
+        getModelComponent(
+            model
+        );
+
+
+    /*
+     * =====================================================
+     * 1. EXACT IDENTIFIERS
+     * =====================================================
+     */
+
+    addKey(
+        id
+    );
+
+
+    addKey(
+        model.model_id
+    );
+
+
+    addKey(
+        model.modelId
+    );
+
+
+    addKey(
+        model.slug
+    );
+
+
+    /*
+     * =====================================================
+     * 2. PROVIDER / MODEL
+     * =====================================================
+     */
+
+    if (
+        provider &&
+        component
+    ) {
+
+        addKey(
+
+            `${provider}/${component}`
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * 3. PROVIDER : MODEL
+     * =====================================================
+     */
+
+    if (
+        provider &&
+        component
+    ) {
+
+        addKey(
+
+            `${provider}:${component}`
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * 4. PROVIDER + RAW MODEL NAME
+     * =====================================================
+     */
+
+    if (
+        provider &&
+        name
+    ) {
+
+        addKey(
+
+            `${provider}/${name}`
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * 5. NAMESPACE + MODEL
+     * =====================================================
+     */
+
+    const namespace =
+        normalizeText(
+            model.namespace
+        );
+
+
+    if (
+        namespace &&
+        component
+    ) {
+
+        addKey(
+
+            `${namespace}/${component}`
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * 6. PROVIDER + MODEL_ID
+     * =====================================================
+     */
+
+    if (
+        provider &&
+        model.model_id
+    ) {
+
+        addKey(
+
+            `${provider}/${model.model_id}`
+
+        );
+
+    }
+
+
+    return keys;
+
+}
+
+
+/* =========================================================
    PUBLIC CATALOG MODEL INDEX
+   ---------------------------------------------------------
+   PERBAIKAN UTAMA.
+
+   Sebelumnya index hanya:
+
+       id -> model
+
+   Sekarang satu public model dapat memiliki
+   beberapa alias identifier.
+
+   Contoh:
+
+       openai/gpt-4o
+       openai:gpt-4o
+       provider=openai + model=gpt-4o
+
+   semuanya menunjuk ke object public catalog yang sama.
+
+   Tidak ada capability yang dibuat di sini.
 ========================================================= */
 
 function createPublicCatalogIndex(
@@ -884,6 +1463,11 @@ function createPublicCatalogIndex(
             : [];
 
 
+    let indexedModels = 0;
+
+    let indexedKeys = 0;
+
+
     for (
         const model
         of source
@@ -900,14 +1484,14 @@ function createPublicCatalogIndex(
         }
 
 
-        const id =
-            getModelId(
+        const keys =
+            getModelMatchKeys(
                 model
             );
 
 
         if (
-            !id
+            !keys.length
         ) {
 
             continue;
@@ -915,15 +1499,61 @@ function createPublicCatalogIndex(
         }
 
 
-        index.set(
+        indexedModels += 1;
 
-            id.toLowerCase(),
 
-            model
+        for (
+            const key
+            of keys
+        ) {
 
-        );
+            /*
+             * Jangan menimpa model yang sudah
+             * mempunyai exact identifier.
+             *
+             * Ini mencegah alias dari model lain
+             * merusak exact match.
+             */
+
+            if (
+                index.has(
+                    key
+                )
+            ) {
+
+                continue;
+
+            }
+
+
+            index.set(
+                key,
+                model
+            );
+
+
+            indexedKeys += 1;
+
+        }
 
     }
+
+
+    console.info(
+
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG INDEX]",
+
+        {
+
+            models:
+                indexedModels,
+
+            keys:
+                indexedKeys
+
+        }
+
+    );
 
 
     return index;
@@ -932,36 +1562,76 @@ function createPublicCatalogIndex(
 
 
 /* =========================================================
-   RECURSIVE MODALITY COLLECTOR
+   FIND PUBLIC MODEL
    ---------------------------------------------------------
-   Hanya membaca metadata yang benar-benar datang dari
-   OpenKey public catalog.
+   Menggunakan key yang sama dengan index.
 
-   Tidak membuat capability baru.
-
-   Contoh metadata yang bisa dibaca:
+   Return:
 
        {
-           architecture: {
-               modality: "text+image->text"
-           }
+           model,
+           key
        }
 
-   atau:
+   atau null.
+========================================================= */
 
-       {
-           architecture: {
-               input_modalities: ["text", "image"]
-           }
-       }
+function findPublicCatalogModel(
+    authenticatedModel,
+    publicIndex
+) {
 
-   atau:
+    if (
+        !authenticatedModel ||
+        !publicIndex
+    ) {
 
-       {
-           modalities: {
-               input: ["text", "image"]
-           }
-       }
+        return null;
+
+    }
+
+
+    const keys =
+        getModelMatchKeys(
+            authenticatedModel
+        );
+
+
+    for (
+        const key
+        of keys
+    ) {
+
+        const model =
+            publicIndex.get(
+                key
+            );
+
+
+        if (
+            model
+        ) {
+
+            return {
+
+                model,
+
+                key
+
+            };
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   RECURSIVE MODALITY COLLECTOR
 ========================================================= */
 
 function collectModalityValues(
@@ -979,10 +1649,6 @@ function collectModalityValues(
 
     }
 
-
-    /*
-     * Hindari recursion terlalu dalam.
-     */
 
     if (
         depth > 8
@@ -1084,6 +1750,14 @@ function collectModalityValues(
 
         "supportedOutputs",
 
+        "supported_input_types",
+
+        "supportedInputTypes",
+
+        "supported_output_types",
+
+        "supportedOutputTypes",
+
         "modalities",
 
         "modality",
@@ -1094,10 +1768,6 @@ function collectModalityValues(
 
     ];
 
-
-    /*
-     * Baca key capability secara eksplisit.
-     */
 
     for (
         const key
@@ -1125,13 +1795,6 @@ function collectModalityValues(
 
     }
 
-
-    /*
-     * Fallback membaca nested metadata.
-     *
-     * Ini penting untuk architecture.modality,
-     * tetapi tetap hanya membaca data asli.
-     */
 
     for (
         const [
@@ -1250,10 +1913,6 @@ function uniqueNormalizedTexts(
 
 /* =========================================================
    EXTRACT ACTUAL INPUT MODALITIES
-   ---------------------------------------------------------
-   Tidak mengarang capability.
-
-   Semua sumber berasal dari model public catalog.
 ========================================================= */
 
 function extractInputModalities(
@@ -1316,10 +1975,6 @@ function extractInputModalities(
 
     }
 
-
-    /*
-     * architecture / modalities / capability metadata.
-     */
 
     const nestedSources = [
 
@@ -1480,12 +2135,6 @@ function extractOutputModalities(
 
 /* =========================================================
    VISION INPUT DETECTOR
-   ---------------------------------------------------------
-   Hanya mendeteksi dari metadata nyata.
-
-   "text+image->text" akan mengandung image.
-
-   Tidak menebak berdasarkan nama model.
 ========================================================= */
 
 function metadataContainsVisionInput(
@@ -1585,12 +2234,6 @@ function mergeModelMetadata(
             ? publicModel
             : {};
 
-
-    /*
-     * Public metadata harus berada di atas metadata
-     * authenticated supaya field capability tidak
-     * tertimpa null / kosong.
-     */
 
     const merged = {
 
@@ -1723,14 +2366,6 @@ function normalizeModel(
         );
 
 
-    /*
-     * =====================================================
-     * CAPABILITY METADATA
-     * =====================================================
-     *
-     * Semua nilai berasal dari model.
-     */
-
     const inputModalities =
         extractInputModalities(
             model
@@ -1748,10 +2383,6 @@ function normalizeModel(
         ...model,
 
 
-        /* =================================================
-           CANONICAL ID
-        ================================================= */
-
         id:
             modelId,
 
@@ -1759,20 +2390,12 @@ function normalizeModel(
             modelId,
 
 
-        /* =================================================
-           CANONICAL NAME
-        ================================================= */
-
         name:
             modelName,
 
         model_name:
             modelName,
 
-
-        /* =================================================
-           STANDARD OPENAI METADATA
-        ================================================= */
 
         object:
             model.object ??
@@ -1827,34 +2450,18 @@ function normalizeModel(
             ),
 
 
-        /* =================================================
-           PROVIDER / PUBLIC PRICING
-        ================================================= */
-
         pricing:
             model.pricing ??
             null,
 
 
-        /* =================================================
-           INPUT MODALITIES
-        ================================================= */
-
         input_modalities:
             inputModalities,
 
 
-        /* =================================================
-           OUTPUT MODALITIES
-        ================================================= */
-
         output_modalities:
             outputModalities,
 
-
-        /* =================================================
-           CAPABILITY METADATA
-        ================================================= */
 
         capabilities:
             getCapabilityField(
@@ -2006,10 +2613,6 @@ function normalizeModel(
             ),
 
 
-        /* =================================================
-           CONTEXT
-        ================================================= */
-
         context_length:
             normalizeNumber(
 
@@ -2029,10 +2632,6 @@ function normalizeModel(
 
             ),
 
-
-        /* =================================================
-           RAW PROVIDER MODEL
-        ================================================= */
 
         raw:
             {
@@ -2076,6 +2675,20 @@ function normalizeModels(
 
 /* =========================================================
    ENRICH AUTHENTICATED MODELS
+   ---------------------------------------------------------
+   PERBAIKAN UTAMA:
+
+   Sebelumnya:
+
+       publicIndex.get(id.toLowerCase())
+
+   Sekarang:
+
+       findPublicCatalogModel()
+
+   sehingga authenticated model dapat ditemukan
+   melalui beberapa identifier yang sah dari
+   public catalog.
 ========================================================= */
 
 function enrichModelsWithPublicCatalog(
@@ -2105,6 +2718,13 @@ function enrichModelsWithPublicCatalog(
 
     let matchedCount = 0;
 
+    let exactCount = 0;
+
+    let aliasCount = 0;
+
+
+    const unmatchedModels = [];
+
 
     const enriched =
 
@@ -2122,20 +2742,63 @@ function enrichModelsWithPublicCatalog(
                     !id
                 ) {
 
+                    unmatchedModels.push({
+
+                        id: null,
+
+                        name:
+                            getModelName(
+                                model
+                            )
+
+                    });
+
+
                     return model;
 
                 }
 
 
-                const publicModel =
-                    publicIndex.get(
-                        id.toLowerCase()
+                const match =
+                    findPublicCatalogModel(
+
+                        model,
+
+                        publicIndex
+
                     );
 
 
                 if (
-                    !publicModel
+                    !match
                 ) {
+
+                    unmatchedModels.push({
+
+                        id,
+
+                        name:
+                            getModelName(
+                                model
+                            ),
+
+                        provider:
+                            getModelProvider(
+                                model
+                            ),
+
+                        component:
+                            getModelComponent(
+                                model
+                            ),
+
+                        keys:
+                            getModelMatchKeys(
+                                model
+                            )
+
+                    });
+
 
                     return model;
 
@@ -2145,13 +2808,58 @@ function enrichModelsWithPublicCatalog(
                 matchedCount += 1;
 
 
-                return mergeModelMetadata(
+                const exactKey =
+                    normalizeModelIdentifier(
+                        id
+                    );
 
-                    model,
 
-                    publicModel
+                if (
+                    match.key ===
+                    exactKey
+                ) {
 
-                );
+                    exactCount += 1;
+
+                }
+                else {
+
+                    aliasCount += 1;
+
+                }
+
+
+                const merged =
+                    mergeModelMetadata(
+
+                        model,
+
+                        match.model
+
+                    );
+
+
+                /*
+                 * Simpan diagnostic matching tanpa
+                 * membuat capability baru.
+                 */
+
+                merged.public_catalog_match = {
+
+                    matched:
+                        true,
+
+                    key:
+                        match.key,
+
+                    exact:
+                        match.key ===
+                        exactKey
+
+                };
+
+
+                return merged;
 
             }
 
@@ -2174,12 +2882,50 @@ function enrichModelsWithPublicCatalog(
 
     console.info(
 
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG EXACT MATCHED]",
+
+        exactCount
+
+    );
+
+
+    console.info(
+
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG ALIAS MATCHED]",
+
+        aliasCount
+
+    );
+
+
+    console.info(
+
         "[GEN-Z.AI][OpenKey][PUBLIC CATALOG UNMATCHED]",
 
         Math.max(
+
             authenticated.length -
             matchedCount,
+
             0
+
+        )
+
+    );
+
+
+    /*
+     * =====================================================
+     * UNMATCHED SAMPLE
+     * ===================================================== */
+
+    console.info(
+
+        "[GEN-Z.AI][OpenKey][PUBLIC CATALOG UNMATCHED SAMPLE]",
+
+        unmatchedModels.slice(
+            0,
+            10
         )
 
     );
@@ -2245,6 +2991,10 @@ function enrichModelsWithPublicCatalog(
 
                     architecture:
                         model?.architecture ??
+                        null,
+
+                    public_catalog_match:
+                        model?.public_catalog_match ??
                         null
 
                 })
@@ -2549,6 +3299,24 @@ function debugPublicCatalog(
                         ),
 
 
+                    provider:
+                        getModelProvider(
+                            model
+                        ),
+
+
+                    model_component:
+                        getModelComponent(
+                            model
+                        ),
+
+
+                    match_keys:
+                        getModelMatchKeys(
+                            model
+                        ),
+
+
                     input_modalities:
                         model?.input_modalities ??
                         model?.inputModalities ??
@@ -2755,7 +3523,12 @@ function debugMergedModels(
                 public_catalog:
                     Boolean(
                         model?.public_catalog
-                    )
+                    ),
+
+
+                public_catalog_match:
+                    model?.public_catalog_match ??
+                    null
 
             })
 
@@ -3519,7 +4292,19 @@ const OpenKeyModels = {
     fetchPublicCatalog,
 
 
+    normalizeModelIdentifier,
+
+    splitModelIdentifier,
+
+    getModelProvider,
+
+    getModelComponent,
+
+    getModelMatchKeys,
+
     createPublicCatalogIndex,
+
+    findPublicCatalogModel,
 
     mergeModelMetadata,
 
@@ -3613,7 +4398,19 @@ export {
     fetchPublicCatalog,
 
 
+    normalizeModelIdentifier,
+
+    splitModelIdentifier,
+
+    getModelProvider,
+
+    getModelComponent,
+
+    getModelMatchKeys,
+
     createPublicCatalogIndex,
+
+    findPublicCatalogModel,
 
     mergeModelMetadata,
 
