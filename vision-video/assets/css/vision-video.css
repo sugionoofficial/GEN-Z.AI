@@ -453,10 +453,10 @@
 /* =========================================================
    CREDIT BADGE
    ---------------------------------------------------------
-   Compact version:
-   - Tidak terlalu lebar
-   - Tetap terlihat premium
-   - Tidak memakan ruang hero
+   Compact:
+   - Tidak menggunakan min-width besar
+   - Lebar mengikuti isi
+   - Padding lebih rapat
 ========================================================= */
 
 .vision-video-credit-badge {
@@ -466,7 +466,11 @@
     flex:
         0 0 auto;
 
-    min-width: 118px;
+    width: fit-content;
+
+    min-width: 108px;
+
+    max-width: 150px;
 
     padding:
         9px
@@ -478,7 +482,7 @@
         1px solid
         rgba(0, 155, 255, 0.52);
 
-    border-radius: 10px;
+    border-radius: 11px;
 
     background:
         #050607;
@@ -491,7 +495,7 @@
         rgba(0, 120, 210, 0.035),
 
         0 0 18px
-        rgba(0, 140, 255, 0.065);
+        rgba(0, 140, 255, 0.075);
 
     text-align: right;
 
@@ -506,8 +510,8 @@
 
     top: 0;
 
-    left: 12px;
-    right: 12px;
+    left: 14px;
+    right: 14px;
 
     height: 1px;
 
@@ -520,8 +524,8 @@
         );
 
     box-shadow:
-        0 0 8px
-        rgba(0, 160, 255, 0.38);
+        0 0 10px
+        rgba(0, 160, 255, 0.42);
 
 }
 
@@ -558,9 +562,11 @@
 
     font-weight: 800;
 
+    white-space: nowrap;
+
     text-shadow:
-        0 0 15px
-        rgba(0, 165, 255, 0.26);
+        0 0 18px
+        rgba(0, 165, 255, 0.28);
 
 }
 
@@ -1269,9 +1275,6 @@
 
 /* =========================================================
    LEGACY FORM GRID
-   ---------------------------------------------------------
-   Dipertahankan karena dapat digunakan komponen lain.
-   Analysis Settings tidak bergantung pada blok ini.
 ========================================================= */
 
 .vision-video-form-grid {
@@ -1404,17 +1407,6 @@
 
 /* =========================================================
    ANALYSIS SETTINGS
-   ---------------------------------------------------------
-   HTML:
-   .vision-video-form-group
-
-   Prinsip:
-   - Compact
-   - Clean
-   - Premium dark
-   - Blue neon accent
-   - Tidak menggunakan .vision-video-field
-   - Tidak menggunakan selector :has()
 ========================================================= */
 
 #visionVideoSettingsCard {
@@ -1760,21 +1752,26 @@
 
 /* =========================================================
    CREDIT NOTICE
+   ---------------------------------------------------------
+   Compact:
+   - Lebih tipis
+   - Padding lebih kecil
+   - Tidak mengubah struktur
 ========================================================= */
 
 .vision-video-credit-notice {
 
-    margin-bottom: 13px;
+    margin-bottom: 10px;
 
     padding:
-        10px
-        12px;
+        7px
+        10px;
 
     border:
         1px solid
         rgba(0, 145, 255, 0.30);
 
-    border-radius: 9px;
+    border-radius: 8px;
 
     background:
         #030506;
@@ -1782,9 +1779,9 @@
     color:
         rgba(160, 210, 235, 0.62);
 
-    font-size: 9px;
+    font-size: 8px;
 
-    line-height: 1.55;
+    line-height: 1.45;
 
 }
 
@@ -2531,26 +2528,26 @@
 
 
     /* -----------------------------------------------------
-       COMPACT CREDIT
-       ----------------------------------------------------- */
+       COMPACT CREDIT MOBILE
+    ----------------------------------------------------- */
 
     .vision-video-credit-badge {
 
-        width: auto;
+        width: fit-content;
 
-        max-width: max-content;
+        min-width: 108px;
 
-        min-width: 112px;
+        max-width: 150px;
+
+        align-self: flex-end;
+
+        box-sizing: border-box;
 
         padding:
             8px
             11px;
 
-        box-sizing: border-box;
-
-        text-align: left;
-
-        align-self: flex-start;
+        text-align: right;
 
     }
 
@@ -2794,6 +2791,25 @@
 
     }
 
+
+    /* -----------------------------------------------------
+       CREDIT NOTICE MOBILE
+    ----------------------------------------------------- */
+
+    .vision-video-credit-notice {
+
+        margin-bottom: 9px;
+
+        padding:
+            7px
+            9px;
+
+        font-size: 8px;
+
+        line-height: 1.4;
+
+    }
+
 }
 
 
@@ -2844,12 +2860,14 @@
 
 
     /* -----------------------------------------------------
-       EXTRA COMPACT CREDIT
+       CREDIT EXTRA COMPACT
     ----------------------------------------------------- */
 
     .vision-video-credit-badge {
 
-        min-width: 104px;
+        min-width: 96px;
+
+        max-width: 135px;
 
         padding:
             7px
@@ -2862,9 +2880,9 @@
 
     .vision-video-credit-badge span {
 
-        font-size: 6.5px;
+        font-size: 6px;
 
-        margin-bottom: 2px;
+        letter-spacing: 0.14em;
 
     }
 
@@ -2980,6 +2998,25 @@
             10px;
 
         font-size: 10px;
+
+    }
+
+
+    /* -----------------------------------------------------
+       CREDIT NOTICE SMALL MOBILE
+    ----------------------------------------------------- */
+
+    .vision-video-credit-notice {
+
+        margin-bottom: 8px;
+
+        padding:
+            6px
+            8px;
+
+        font-size: 7.5px;
+
+        line-height: 1.4;
 
     }
 
