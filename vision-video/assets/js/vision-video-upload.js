@@ -20,6 +20,7 @@
 
     "use strict";
 
+
     /* =====================================================
        CONFIG
     ===================================================== */
@@ -72,6 +73,70 @@
     ===================================================== */
 
     let bound = false;
+
+
+    /* =====================================================
+       LOGGING
+    ===================================================== */
+
+    function log() {
+
+        console.log.apply(
+            console,
+            [
+                "[GEN-Z.AI Vision Video Upload]"
+            ].concat(
+                Array.from(arguments)
+            )
+        );
+
+    }
+
+
+    function warn() {
+
+        console.warn.apply(
+            console,
+            [
+                "[GEN-Z.AI Vision Video Upload]"
+            ].concat(
+                Array.from(arguments)
+            )
+        );
+
+    }
+
+
+    function logFile(file) {
+
+        if (!file) {
+
+            log(
+                "File: <none>"
+            );
+
+            return;
+
+        }
+
+        log(
+            "File:",
+            {
+                name:
+                    file.name || "",
+
+                type:
+                    file.type || "",
+
+                size:
+                    file.size || 0,
+
+                lastModified:
+                    file.lastModified || 0
+            }
+        );
+
+    }
 
 
     /* =====================================================
@@ -188,6 +253,11 @@
 
         if (!(file instanceof File)) {
 
+            warn(
+                "isSupportedVideoFile(): object bukan File.",
+                file
+            );
+
             return false;
 
         }
@@ -196,6 +266,7 @@
             String(file.type || "")
                 .trim()
                 .toLowerCase();
+
 
         /*
          * MIME video/* langsung diterima.
@@ -206,9 +277,15 @@
             )
         ) {
 
+            log(
+                "Video diterima berdasarkan MIME:",
+                mimeType
+            );
+
             return true;
 
         }
+
 
         /*
          * Fallback berdasarkan extension.
@@ -216,9 +293,23 @@
         const extension =
             getFileExtension(file);
 
-        return CONFIG.allowedExtensions.includes(
-            extension
+
+        const supported =
+            CONFIG.allowedExtensions.includes(
+                extension
+            );
+
+
+        log(
+            "Video MIME tidak cocok, fallback extension:",
+            {
+                extension,
+                supported
+            }
         );
+
+
+        return supported;
 
     }
 
@@ -229,7 +320,18 @@
 
     function validateFile(file) {
 
+        log(
+            "Memulai validasi file."
+        );
+
+        logFile(file);
+
+
         if (!(file instanceof File)) {
+
+            warn(
+                "Validasi gagal: object bukan File."
+            );
 
             return {
 
@@ -242,7 +344,12 @@
 
         }
 
+
         if (file.size <= 0) {
+
+            warn(
+                "Validasi gagal: ukuran file 0 byte."
+            );
 
             return {
 
@@ -255,7 +362,22 @@
 
         }
 
+
         if (!isSupportedVideoFile(file)) {
+
+            warn(
+                "Validasi gagal: format video tidak didukung.",
+                {
+                    name:
+                        file.name,
+
+                    type:
+                        file.type,
+
+                    extension:
+                        getFileExtension(file)
+                }
+            );
 
             return {
 
@@ -267,6 +389,12 @@
             };
 
         }
+
+
+        log(
+            "Validasi file berhasil."
+        );
+
 
         return {
 
@@ -285,10 +413,17 @@
 
     function showUploadError(message) {
 
+        warn(
+            "Upload error:",
+            message
+        );
+
+
         const dom = getDOM();
 
         const state =
             window.GENZVisionVideoState;
+
 
         /*
          * Reset error process tanpa mengganggu state
@@ -313,6 +448,7 @@
 
         }
 
+
         /*
          * Status utama.
          */
@@ -324,6 +460,7 @@
             dom.show(status);
 
         }
+
 
         const indicator =
             dom.get("statusIndicator");
@@ -341,15 +478,18 @@
 
         }
 
+
         dom.text(
             "statusText",
             String(message || "Upload gagal.")
         );
 
+
         dom.text(
             "progressText",
             ""
         );
+
 
         const progressBar =
             dom.get("progressBar");
@@ -369,8 +509,14 @@
 
     function clearUploadError() {
 
+        log(
+            "Membersihkan upload error state."
+        );
+
+
         const state =
             window.GENZVisionVideoState;
+
 
         if (
             state &&
@@ -400,23 +546,54 @@
 
     function handleFile(file) {
 
+        log(
+            "========================================"
+        );
+
+        log(
+            "handleFile() dipanggil."
+        );
+
+        logFile(file);
+
+
         const validation =
             validateFile(file);
 
+
         if (!validation.valid) {
+
+            warn(
+                "handleFile(): validasi gagal.",
+                validation.message
+            );
+
 
             showUploadError(
                 validation.message
             );
 
+
             return false;
 
         }
+
+
+        log(
+            "handleFile(): validasi berhasil."
+        );
+
 
         try {
 
             const state =
                 getState();
+
+
+            log(
+                "State module ditemukan."
+            );
+
 
             /*
              * State menjadi satu-satunya pemilik object URL.
@@ -426,13 +603,33 @@
                 typeof state.setVideo === "function"
             ) {
 
+                log(
+                    "Menyimpan video menggunakan state.setVideo()."
+                );
+
+
                 state.setVideo(file);
+
+
+                log(
+                    "state.setVideo() berhasil."
+                );
 
             } else if (
                 typeof state.setVisionVideoFile === "function"
             ) {
 
+                log(
+                    "Menyimpan video menggunakan state.setVisionVideoFile()."
+                );
+
+
                 state.setVisionVideoFile(file);
+
+
+                log(
+                    "state.setVisionVideoFile() berhasil."
+                );
 
             } else {
 
@@ -442,7 +639,9 @@
 
             }
 
+
             clearUploadError();
+
 
             /*
              * Reset input value agar file yang sama dapat
@@ -451,16 +650,34 @@
             const input =
                 getInput();
 
+
             if (input) {
 
                 input.value = "";
 
+
+                log(
+                    "File input value berhasil di-reset."
+                );
+
+            } else {
+
+                warn(
+                    "File input tidak ditemukan saat reset value."
+                );
+
             }
+
 
             /*
              * Preview module akan mengambil video dari state
              * dan menangani metadata / object URL.
              */
+            log(
+                "Dispatch event: genz:vision-video:file-selected"
+            );
+
+
             document.dispatchEvent(
                 new CustomEvent(
                     "genz:vision-video:file-selected",
@@ -472,6 +689,22 @@
                 )
             );
 
+
+            log(
+                "Event file-selected berhasil di-dispatch."
+            );
+
+
+            log(
+                "handleFile(): SELESAI."
+            );
+
+
+            log(
+                "========================================"
+            );
+
+
             return true;
 
         } catch (error) {
@@ -481,10 +714,12 @@
                 error
             );
 
+
             showUploadError(
                 error.message ||
                 "Video gagal diproses."
             );
+
 
             return false;
 
@@ -499,29 +734,59 @@
 
     function handleInputChange(event) {
 
+        log(
+            "INPUT CHANGE terdeteksi."
+        );
+
+
         const input =
             event &&
             event.target
                 ? event.target
                 : getInput();
 
+
         if (!input) {
+
+            warn(
+                "handleInputChange(): file input tidak ditemukan."
+            );
 
             return;
 
         }
 
+
         const files =
             input.files;
+
+
+        log(
+            "Jumlah file dari input:",
+            files
+                ? files.length
+                : 0
+        );
+
 
         if (
             !files ||
             files.length === 0
         ) {
 
+            warn(
+                "INPUT CHANGE terjadi tetapi tidak ada file."
+            );
+
             return;
 
         }
+
+
+        logFile(
+            files[0]
+        );
+
 
         handleFile(
             files[0]
@@ -536,14 +801,21 @@
 
     function openFilePicker(event) {
 
+        log(
+            "openFilePicker() dipanggil."
+        );
+
+
         if (event) {
 
             event.preventDefault();
 
         }
 
+
         const input =
             getInput();
+
 
         if (!input) {
 
@@ -554,6 +826,12 @@
             return;
 
         }
+
+
+        log(
+            "Membuka native file picker."
+        );
+
 
         input.click();
 
@@ -569,8 +847,15 @@
         event.preventDefault();
         event.stopPropagation();
 
+
+        log(
+            "DRAG ENTER."
+        );
+
+
         const dropzone =
             getDropzone();
+
 
         if (dropzone) {
 
@@ -592,9 +877,7 @@
         event.preventDefault();
         event.stopPropagation();
 
-        /*
-         * Penting agar browser mengizinkan drop.
-         */
+
         if (
             event.dataTransfer
         ) {
@@ -604,8 +887,10 @@
 
         }
 
+
         const dropzone =
             getDropzone();
+
 
         if (dropzone) {
 
@@ -627,14 +912,22 @@
         event.preventDefault();
         event.stopPropagation();
 
+
+        log(
+            "DRAG LEAVE."
+        );
+
+
         const dropzone =
             getDropzone();
+
 
         if (!dropzone) {
 
             return;
 
         }
+
 
         /*
          * relatedTarget digunakan supaya class tidak
@@ -652,6 +945,7 @@
 
         }
 
+
         dropzone.classList.remove(
             "is-dragover"
         );
@@ -668,8 +962,15 @@
         event.preventDefault();
         event.stopPropagation();
 
+
+        log(
+            "DROP terdeteksi."
+        );
+
+
         const dropzone =
             getDropzone();
+
 
         if (dropzone) {
 
@@ -679,8 +980,10 @@
 
         }
 
+
         const dataTransfer =
             event.dataTransfer;
+
 
         if (
             !dataTransfer ||
@@ -688,9 +991,25 @@
             dataTransfer.files.length === 0
         ) {
 
+            warn(
+                "DROP terjadi tetapi tidak ada file."
+            );
+
             return;
 
         }
+
+
+        log(
+            "Jumlah file hasil DROP:",
+            dataTransfer.files.length
+        );
+
+
+        logFile(
+            dataTransfer.files[0]
+        );
+
 
         handleFile(
             dataTransfer.files[0]
@@ -705,6 +1024,11 @@
 
     function removeVideo(event) {
 
+        log(
+            "removeVideo() dipanggil."
+        );
+
+
         if (event) {
 
             event.preventDefault();
@@ -712,14 +1036,21 @@
 
         }
 
+
         try {
 
             const state =
                 getState();
 
+
             if (
                 typeof state.resetVideo === "function"
             ) {
+
+                log(
+                    "Mereset video menggunakan state.resetVideo()."
+                );
+
 
                 state.resetVideo();
 
@@ -733,14 +1064,21 @@
                     typeof state.reset === "function"
                 ) {
 
+                    log(
+                        "Mereset state menggunakan state.reset()."
+                    );
+
+
                     state.reset();
 
                 }
 
             }
 
+
             const input =
                 getInput();
+
 
             if (input) {
 
@@ -748,8 +1086,10 @@
 
             }
 
+
             const dropzone =
                 getDropzone();
+
 
             if (dropzone) {
 
@@ -759,11 +1099,18 @@
 
             }
 
+
             document.dispatchEvent(
                 new CustomEvent(
                     "genz:vision-video:file-removed"
                 )
             );
+
+
+            log(
+                "Video berhasil dihapus."
+            );
+
 
         } catch (error) {
 
@@ -789,12 +1136,20 @@
 
         }
 
+
         if (
             event.key === "Enter" ||
             event.key === " "
         ) {
 
+            log(
+                "Dropzone keyboard activation:",
+                event.key
+            );
+
+
             event.preventDefault();
+
 
             openFilePicker(event);
 
@@ -811,21 +1166,52 @@
 
         if (bound) {
 
+            log(
+                "bind() dilewati karena module sudah bound."
+            );
+
             return;
 
         }
 
+
+        log(
+            "Memulai binding upload events..."
+        );
+
+
         const input =
             getInput();
+
 
         const dropzone =
             getDropzone();
 
+
         const browseButton =
             getBrowseButton();
 
+
         const removeButton =
             getRemoveButton();
+
+
+        log(
+            "DOM upload elements:",
+            {
+                input:
+                    Boolean(input),
+
+                dropzone:
+                    Boolean(dropzone),
+
+                browseButton:
+                    Boolean(browseButton),
+
+                removeButton:
+                    Boolean(removeButton)
+            }
+        );
 
 
         /* -------------------------------------------------
@@ -837,6 +1223,17 @@
             input.addEventListener(
                 "change",
                 handleInputChange
+            );
+
+
+            log(
+                "File input event berhasil di-bind."
+            );
+
+        } else {
+
+            warn(
+                `Element #${CONFIG.inputId} tidak ditemukan.`
             );
 
         }
@@ -851,6 +1248,17 @@
             browseButton.addEventListener(
                 "click",
                 openFilePicker
+            );
+
+
+            log(
+                "Browse button event berhasil di-bind."
+            );
+
+        } else {
+
+            warn(
+                `Element #${CONFIG.browseButtonId} tidak ditemukan.`
             );
 
         }
@@ -880,34 +1288,51 @@
 
                     }
 
+
                     openFilePicker(event);
 
                 }
             );
+
 
             dropzone.addEventListener(
                 "keydown",
                 handleDropzoneKeydown
             );
 
+
             dropzone.addEventListener(
                 "dragenter",
                 handleDragEnter
             );
+
 
             dropzone.addEventListener(
                 "dragover",
                 handleDragOver
             );
 
+
             dropzone.addEventListener(
                 "dragleave",
                 handleDragLeave
             );
 
+
             dropzone.addEventListener(
                 "drop",
                 handleDrop
+            );
+
+
+            log(
+                "Dropzone events berhasil di-bind."
+            );
+
+        } else {
+
+            warn(
+                `Element #${CONFIG.dropzoneId} tidak ditemukan.`
             );
 
         }
@@ -924,13 +1349,25 @@
                 removeVideo
             );
 
+
+            log(
+                "Remove button event berhasil di-bind."
+            );
+
+        } else {
+
+            warn(
+                `Element #${CONFIG.removeButtonId} tidak ditemukan.`
+            );
+
         }
 
 
         bound = true;
 
-        console.log(
-            "[GEN-Z.AI Vision Video] Upload module ready."
+
+        log(
+            "Upload module READY."
         );
 
     }
@@ -973,6 +1410,7 @@
 
     window.GENZVisionVideoUpload =
         API;
+
 
     window.GENZVisionVideoUploadReady =
         true;
@@ -1019,5 +1457,6 @@
         bind();
 
     }
+
 
 })();
