@@ -6,8 +6,8 @@
 
    Fungsi:
    - Premium Vision Video interface
-   - Dark glass / holographic visual
-   - Red neon accent
+   - Black block interface
+   - Blue neon accent
    - Video upload / preview
    - Analysis settings
    - Progress
@@ -43,13 +43,16 @@
 
     color: #ffffff;
 
+    background:
+        #030507;
+
     overflow: hidden;
 
 }
 
 
 /* =========================================================
-   PREMIUM AMBIENT BACKGROUND
+   PREMIUM BLUE AMBIENT BACKGROUND
 ========================================================= */
 
 .vision-video-page::before {
@@ -70,9 +73,9 @@
     background:
         radial-gradient(
             ellipse,
-            rgba(255, 25, 50, 0.095)
+            rgba(0, 145, 255, 0.10)
             0%,
-            rgba(255, 25, 50, 0.035)
+            rgba(0, 115, 255, 0.035)
             38%,
             transparent
             72%
@@ -101,15 +104,15 @@
         linear-gradient(
             90deg,
             transparent,
-            rgba(255, 45, 65, 0.48),
-            rgba(255, 100, 115, 0.72),
-            rgba(255, 45, 65, 0.48),
+            rgba(0, 145, 255, 0.50),
+            rgba(55, 180, 255, 0.82),
+            rgba(0, 145, 255, 0.50),
             transparent
         );
 
     box-shadow:
         0 0 18px
-        rgba(255, 35, 55, 0.25);
+        rgba(0, 145, 255, 0.32);
 
     pointer-events: none;
 
@@ -169,14 +172,14 @@
     background:
         linear-gradient(
             90deg,
-            rgba(255, 45, 65, 0.58),
-            rgba(255, 45, 65, 0.16) 28%,
+            rgba(0, 145, 255, 0.72),
+            rgba(0, 145, 255, 0.18) 28%,
             transparent 72%
         );
 
     box-shadow:
         0 0 12px
-        rgba(255, 30, 50, 0.12);
+        rgba(0, 145, 255, 0.24);
 
 }
 
@@ -194,6 +197,10 @@
 }
 
 
+/* =========================================================
+   HERO EYEBROW
+========================================================= */
+
 .vision-video-eyebrow {
 
     display: inline-flex;
@@ -208,25 +215,21 @@
 
     border:
         1px solid
-        rgba(255, 50, 70, 0.42);
+        rgba(0, 150, 255, 0.48);
 
     border-radius: 999px;
 
     background:
-        linear-gradient(
-            135deg,
-            rgba(255, 35, 55, 0.095),
-            rgba(255, 255, 255, 0.018)
-        );
+        #050a10;
 
     box-shadow:
         inset 0 0 16px
-        rgba(255, 30, 50, 0.035),
+        rgba(0, 120, 255, 0.045),
         0 0 20px
-        rgba(255, 25, 45, 0.035);
+        rgba(0, 130, 255, 0.06);
 
     color:
-        rgba(255, 120, 135, 0.98);
+        rgba(85, 190, 255, 0.98);
 
     font-size: 10px;
 
@@ -238,6 +241,10 @@
 
 }
 
+
+/* =========================================================
+   HERO TITLE
+========================================================= */
 
 .vision-video-hero h1 {
 
@@ -281,13 +288,13 @@
     background:
         linear-gradient(
             90deg,
-            rgba(255, 45, 65, 0.9),
+            rgba(0, 165, 255, 0.95),
             transparent
         );
 
     box-shadow:
         0 0 12px
-        rgba(255, 35, 55, 0.34);
+        rgba(0, 145, 255, 0.42);
 
 }
 
@@ -328,24 +335,20 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.10);
+        rgba(0, 150, 255, 0.42);
 
     border-radius: 14px;
 
     background:
-        linear-gradient(
-            145deg,
-            rgba(255, 255, 255, 0.065),
-            rgba(255, 255, 255, 0.018)
-        );
+        #05080c;
 
     box-shadow:
         inset 0 1px 0
         rgba(255, 255, 255, 0.035),
         0 14px 38px
-        rgba(0, 0, 0, 0.30),
+        rgba(0, 0, 0, 0.42),
         0 0 25px
-        rgba(255, 25, 45, 0.035);
+        rgba(0, 130, 255, 0.055);
 
     backdrop-filter:
         blur(18px);
@@ -374,9 +377,13 @@
         linear-gradient(
             90deg,
             transparent,
-            rgba(255, 65, 80, 0.62),
+            rgba(0, 170, 255, 0.78),
             transparent
         );
+
+    box-shadow:
+        0 0 8px
+        rgba(0, 150, 255, 0.45);
 
 }
 
@@ -388,7 +395,7 @@
     margin-bottom: 5px;
 
     color:
-        rgba(255, 255, 255, 0.38);
+        rgba(120, 190, 225, 0.52);
 
     font-size: 8px;
 
@@ -415,7 +422,7 @@
 
     text-shadow:
         0 0 18px
-        rgba(255, 255, 255, 0.08);
+        rgba(0, 155, 255, 0.20);
 
 }
 
@@ -464,7 +471,7 @@
 
 
 /* =========================================================
-   CARD
+   ALL MAIN BLOCKS
 ========================================================= */
 
 .vision-video-card {
@@ -477,24 +484,20 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.075);
+        rgba(0, 150, 255, 0.38);
 
     border-radius: 17px;
 
     background:
-        linear-gradient(
-            145deg,
-            rgba(255, 255, 255, 0.055),
-            rgba(255, 255, 255, 0.014)
-        );
+        #050608;
 
     box-shadow:
         inset 0 1px 0
         rgba(255, 255, 255, 0.025),
         0 20px 55px
-        rgba(0, 0, 0, 0.27),
-        0 0 35px
-        rgba(255, 25, 45, 0.018);
+        rgba(0, 0, 0, 0.48),
+        0 0 32px
+        rgba(0, 120, 255, 0.035);
 
     backdrop-filter:
         blur(20px);
@@ -521,14 +524,22 @@
         linear-gradient(
             90deg,
             transparent,
-            rgba(255, 50, 70, 0.52),
+            rgba(0, 165, 255, 0.72),
             transparent
         );
+
+    box-shadow:
+        0 0 9px
+        rgba(0, 150, 255, 0.32);
 
     pointer-events: none;
 
 }
 
+
+/* =========================================================
+   CARD HEADER
+========================================================= */
 
 .vision-video-card-header {
 
@@ -549,7 +560,7 @@
     margin-bottom: 6px;
 
     color:
-        rgba(255, 95, 110, 0.88);
+        rgba(70, 180, 255, 0.92);
 
     font-size: 8px;
 
@@ -617,20 +628,16 @@
 
     border:
         1px dashed
-        rgba(255, 255, 255, 0.14);
+        rgba(0, 155, 255, 0.55);
 
     border-radius: 14px;
 
     background:
-        linear-gradient(
-            145deg,
-            rgba(0, 0, 0, 0.18),
-            rgba(255, 255, 255, 0.012)
-        );
+        #020406;
 
     box-shadow:
         inset 0 0 40px
-        rgba(0, 0, 0, 0.12);
+        rgba(0, 110, 220, 0.035);
 
     transition:
         border-color 0.2s ease,
@@ -644,20 +651,16 @@
 .vision-video-dropzone:hover {
 
     border-color:
-        rgba(255, 55, 75, 0.42);
+        rgba(0, 175, 255, 0.82);
 
     background:
-        linear-gradient(
-            145deg,
-            rgba(255, 25, 45, 0.035),
-            rgba(255, 255, 255, 0.012)
-        );
+        #03080d;
 
     box-shadow:
         inset 0 0 40px
-        rgba(255, 30, 50, 0.035),
+        rgba(0, 120, 255, 0.055),
         0 0 25px
-        rgba(255, 30, 50, 0.035);
+        rgba(0, 130, 255, 0.07);
 
 }
 
@@ -665,16 +668,16 @@
 .vision-video-dropzone.is-dragover {
 
     border-color:
-        rgba(255, 55, 75, 0.78);
+        rgba(45, 190, 255, 0.98);
 
     background:
-        rgba(255, 30, 50, 0.07);
+        rgba(0, 120, 255, 0.055);
 
     box-shadow:
         inset 0 0 40px
-        rgba(255, 30, 50, 0.07),
+        rgba(0, 130, 255, 0.09),
         0 0 30px
-        rgba(255, 30, 50, 0.10);
+        rgba(0, 140, 255, 0.14);
 
 }
 
@@ -714,25 +717,21 @@
 
     border:
         1px solid
-        rgba(255, 55, 75, 0.28);
+        rgba(0, 160, 255, 0.46);
 
     border-radius: 19px;
 
     background:
-        linear-gradient(
-            145deg,
-            rgba(255, 30, 50, 0.075),
-            rgba(255, 255, 255, 0.018)
-        );
+        #050b12;
 
     color:
-        rgba(255, 100, 115, 0.9);
+        rgba(75, 190, 255, 0.94);
 
     font-size: 28px;
 
     box-shadow:
         0 0 28px
-        rgba(255, 30, 50, 0.07);
+        rgba(0, 140, 255, 0.09);
 
 }
 
@@ -775,7 +774,7 @@
     margin-top: 12px;
 
     color:
-        rgba(255, 255, 255, 0.27);
+        rgba(110, 175, 215, 0.42);
 
     font-size: 9px;
 
@@ -809,6 +808,10 @@
 }
 
 
+/* =========================================================
+   SECONDARY BUTTON
+========================================================= */
+
 .vision-video-secondary-button {
 
     min-height: 39px;
@@ -819,12 +822,12 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.11);
+        rgba(0, 155, 255, 0.46);
 
     border-radius: 10px;
 
     background:
-        rgba(255, 255, 255, 0.045);
+        #05090e;
 
     color: #ffffff;
 
@@ -838,17 +841,21 @@
 .vision-video-secondary-button:hover {
 
     border-color:
-        rgba(255, 55, 75, 0.44);
+        rgba(35, 185, 255, 0.82);
 
     background:
-        rgba(255, 30, 50, 0.07);
+        #06101a;
 
     box-shadow:
         0 0 18px
-        rgba(255, 30, 50, 0.04);
+        rgba(0, 140, 255, 0.09);
 
 }
 
+
+/* =========================================================
+   PRIMARY BUTTON
+========================================================= */
 
 .vision-video-primary-button {
 
@@ -869,15 +876,15 @@
 
     border:
         1px solid
-        rgba(255, 55, 75, 0.58);
+        rgba(0, 175, 255, 0.76);
 
     border-radius: 11px;
 
     background:
         linear-gradient(
             135deg,
-            rgba(255, 45, 65, 0.95),
-            rgba(172, 12, 34, 0.95)
+            #008cff,
+            #0054bd
         );
 
     color: #ffffff;
@@ -888,11 +895,11 @@
 
     box-shadow:
         inset 0 1px 0
-        rgba(255, 255, 255, 0.12),
+        rgba(255, 255, 255, 0.18),
         0 10px 30px
-        rgba(220, 20, 40, 0.17),
+        rgba(0, 105, 235, 0.20),
         0 0 24px
-        rgba(255, 25, 45, 0.055);
+        rgba(0, 145, 255, 0.10);
 
 }
 
@@ -903,15 +910,15 @@
         translateY(-1px);
 
     border-color:
-        rgba(255, 90, 105, 0.78);
+        rgba(80, 205, 255, 0.96);
 
     box-shadow:
         inset 0 1px 0
-        rgba(255, 255, 255, 0.14),
+        rgba(255, 255, 255, 0.20),
         0 14px 38px
-        rgba(220, 20, 40, 0.25),
+        rgba(0, 105, 235, 0.28),
         0 0 28px
-        rgba(255, 25, 45, 0.09);
+        rgba(0, 150, 255, 0.16);
 
 }
 
@@ -927,6 +934,10 @@
 }
 
 
+/* =========================================================
+   REMOVE BUTTON
+========================================================= */
+
 .vision-video-remove-button {
 
     width: 100%;
@@ -937,15 +948,15 @@
 
     border:
         1px solid
-        rgba(255, 80, 95, 0.17);
+        rgba(0, 155, 255, 0.30);
 
     border-radius: 10px;
 
     background:
-        rgba(255, 30, 50, 0.028);
+        #05080c;
 
     color:
-        rgba(255, 120, 130, 0.82);
+        rgba(85, 185, 245, 0.84);
 
     font-size: 10px;
 
@@ -957,10 +968,10 @@
 .vision-video-remove-button:hover {
 
     border-color:
-        rgba(255, 80, 95, 0.42);
+        rgba(0, 175, 255, 0.68);
 
     background:
-        rgba(255, 30, 50, 0.065);
+        #06101a;
 
 }
 
@@ -984,7 +995,7 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.10);
+        rgba(0, 155, 255, 0.45);
 
     border-radius: 13px;
 
@@ -992,7 +1003,9 @@
 
     box-shadow:
         0 14px 35px
-        rgba(0, 0, 0, 0.24);
+        rgba(0, 0, 0, 0.48),
+        0 0 20px
+        rgba(0, 120, 255, 0.035);
 
 }
 
@@ -1040,12 +1053,12 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.06);
+        rgba(0, 145, 255, 0.30);
 
     border-radius: 9px;
 
     background:
-        rgba(255, 255, 255, 0.022);
+        #03070b;
 
 }
 
@@ -1057,7 +1070,7 @@
     margin-bottom: 4px;
 
     color:
-        rgba(255, 255, 255, 0.32);
+        rgba(100, 175, 220, 0.50);
 
     font-size: 8px;
 
@@ -1077,7 +1090,7 @@
     overflow: hidden;
 
     color:
-        rgba(255, 255, 255, 0.86);
+        rgba(255, 255, 255, 0.88);
 
     font-size: 10px;
 
@@ -1128,7 +1141,7 @@
     margin-bottom: 6px;
 
     color:
-        rgba(255, 255, 255, 0.65);
+        rgba(175, 215, 240, 0.78);
 
     font-size: 10px;
 
@@ -1146,14 +1159,14 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.095);
+        rgba(0, 150, 255, 0.38);
 
     border-radius: 10px;
 
     outline: none;
 
     background:
-        rgba(0, 0, 0, 0.22);
+        #020507;
 
     color: #ffffff;
 
@@ -1198,23 +1211,23 @@
 .vision-video-field textarea:focus {
 
     border-color:
-        rgba(255, 55, 75, 0.50);
+        rgba(0, 180, 255, 0.86);
 
     background:
-        rgba(255, 25, 45, 0.018);
+        #03090f;
 
     box-shadow:
         0 0 0 3px
-        rgba(255, 35, 55, 0.055),
+        rgba(0, 140, 255, 0.075),
         0 0 18px
-        rgba(255, 30, 50, 0.035);
+        rgba(0, 145, 255, 0.07);
 
 }
 
 
 .vision-video-field select option {
 
-    background: #151515;
+    background: #05080c;
 
     color: #ffffff;
 
@@ -1235,19 +1248,15 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.065);
+        rgba(0, 150, 255, 0.34);
 
     border-radius: 9px;
 
     background:
-        linear-gradient(
-            135deg,
-            rgba(255, 255, 255, 0.028),
-            rgba(255, 255, 255, 0.012)
-        );
+        #03080d;
 
     color:
-        rgba(255, 255, 255, 0.43);
+        rgba(150, 205, 235, 0.62);
 
     font-size: 9px;
 
@@ -1275,7 +1284,7 @@
         #ffffff;
 
     border-right-color:
-        rgba(255, 95, 110, 0.90);
+        rgba(65, 190, 255, 0.96);
 
     border-radius: 50%;
 
@@ -1310,12 +1319,12 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.075);
+        rgba(0, 150, 255, 0.34);
 
     border-radius: 10px;
 
     background:
-        rgba(255, 255, 255, 0.022);
+        #03070b;
 
 }
 
@@ -1344,11 +1353,11 @@
     border-radius: 50%;
 
     background:
-        rgba(255, 190, 70, 0.9);
+        rgba(50, 190, 255, 0.96);
 
     box-shadow:
         0 0 10px
-        rgba(255, 180, 50, 0.45);
+        rgba(0, 165, 255, 0.65);
 
 }
 
@@ -1356,7 +1365,7 @@
 .vision-video-status-text {
 
     color:
-        rgba(255, 255, 255, 0.64);
+        rgba(185, 220, 240, 0.74);
 
     font-size: 10px;
 
@@ -1374,7 +1383,7 @@
     border-radius: 999px;
 
     background:
-        rgba(255, 255, 255, 0.07);
+        rgba(0, 100, 180, 0.16);
 
 }
 
@@ -1388,13 +1397,13 @@
     background:
         linear-gradient(
             90deg,
-            rgba(255, 35, 55, 0.72),
-            rgba(255, 90, 105, 0.98)
+            rgba(0, 125, 255, 0.82),
+            rgba(55, 195, 255, 1)
         );
 
     box-shadow:
         0 0 10px
-        rgba(255, 40, 60, 0.24);
+        rgba(0, 155, 255, 0.48);
 
     transition:
         width 0.25s ease;
@@ -1407,7 +1416,7 @@
     margin-top: 6px;
 
     color:
-        rgba(255, 255, 255, 0.33);
+        rgba(105, 170, 215, 0.50);
 
     font-size: 8px;
 
@@ -1435,15 +1444,15 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.09);
+        rgba(0, 150, 255, 0.40);
 
     border-radius: 9px;
 
     background:
-        rgba(255, 255, 255, 0.035);
+        #04080d;
 
     color:
-        rgba(255, 255, 255, 0.70);
+        rgba(155, 210, 240, 0.78);
 
     font-size: 9px;
 
@@ -1455,16 +1464,16 @@
 .vision-video-copy-button:hover:not(:disabled) {
 
     border-color:
-        rgba(255, 55, 75, 0.40);
+        rgba(0, 180, 255, 0.78);
 
     background:
-        rgba(255, 30, 50, 0.06);
+        #06101a;
 
     color: #ffffff;
 
     box-shadow:
         0 0 18px
-        rgba(255, 30, 50, 0.045);
+        rgba(0, 145, 255, 0.09);
 
 }
 
@@ -1490,20 +1499,16 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.065);
+        rgba(0, 150, 255, 0.38);
 
     border-radius: 13px;
 
     background:
-        linear-gradient(
-            145deg,
-            rgba(0, 0, 0, 0.22),
-            rgba(255, 255, 255, 0.012)
-        );
+        #020507;
 
     box-shadow:
         inset 0 0 35px
-        rgba(0, 0, 0, 0.13);
+        rgba(0, 100, 180, 0.035);
 
 }
 
@@ -1542,21 +1547,21 @@
 
     border:
         1px solid
-        rgba(255, 55, 75, 0.22);
+        rgba(0, 155, 255, 0.40);
 
     border-radius: 16px;
 
     background:
-        rgba(255, 30, 50, 0.045);
+        #050b12;
 
     color:
-        rgba(255, 100, 115, 0.78);
+        rgba(65, 190, 255, 0.88);
 
     font-size: 23px;
 
     box-shadow:
         0 0 22px
-        rgba(255, 30, 50, 0.04);
+        rgba(0, 140, 255, 0.07);
 
 }
 
@@ -1580,7 +1585,7 @@
     margin: 0;
 
     color:
-        rgba(255, 255, 255, 0.35);
+        rgba(150, 195, 220, 0.48);
 
     font-size: 10px;
 
@@ -1604,7 +1609,7 @@
     overflow: auto;
 
     color:
-        rgba(255, 255, 255, 0.84);
+        rgba(220, 240, 250, 0.88);
 
     font-family:
         "SFMono-Regular",
@@ -1637,12 +1642,12 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.06);
+        rgba(0, 150, 255, 0.34);
 
     border-radius: 11px;
 
     background:
-        rgba(0, 0, 0, 0.16);
+        #020609;
 
 }
 
@@ -1659,7 +1664,7 @@
     padding: 20px;
 
     color:
-        rgba(255, 255, 255, 0.31);
+        rgba(125, 180, 215, 0.46);
 
     font-size: 10px;
 
@@ -1686,6 +1691,10 @@
 }
 
 
+/* =========================================================
+   STRUCTURE LIST ITEM
+========================================================= */
+
 .vision-video-structure-item {
 
     min-width: 0;
@@ -1695,12 +1704,36 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.06);
+        rgba(0, 150, 255, 0.40);
 
     border-radius: 9px;
 
     background:
-        rgba(255, 255, 255, 0.019);
+        #03080d;
+
+    box-shadow:
+        inset 0 0 16px
+        rgba(0, 110, 210, 0.025);
+
+    transition:
+        border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        transform 0.18s ease;
+
+}
+
+
+.vision-video-structure-item:hover {
+
+    border-color:
+        rgba(0, 180, 255, 0.70);
+
+    box-shadow:
+        0 0 16px
+        rgba(0, 140, 255, 0.07);
+
+    transform:
+        translateY(-1px);
 
 }
 
@@ -1712,7 +1745,7 @@
     margin-bottom: 5px;
 
     color:
-        rgba(255, 255, 255, 0.32);
+        rgba(70, 185, 255, 0.78);
 
     font-size: 8px;
 
@@ -1732,7 +1765,7 @@
     overflow: hidden;
 
     color:
-        rgba(255, 255, 255, 0.77);
+        rgba(235, 248, 255, 0.88);
 
     font-size: 10px;
 
@@ -1761,6 +1794,10 @@
 }
 
 
+/* =========================================================
+   INFORMATION LIST CARD
+========================================================= */
+
 .vision-video-info-card {
 
     display: flex;
@@ -1776,12 +1813,32 @@
 
     border:
         1px solid
-        rgba(255, 255, 255, 0.06);
+        rgba(0, 150, 255, 0.38);
 
     border-radius: 12px;
 
     background:
-        rgba(255, 255, 255, 0.022);
+        #03080d;
+
+    box-shadow:
+        inset 0 0 18px
+        rgba(0, 110, 210, 0.025);
+
+    transition:
+        border-color 0.18s ease,
+        box-shadow 0.18s ease;
+
+}
+
+
+.vision-video-info-card:hover {
+
+    border-color:
+        rgba(0, 180, 255, 0.66);
+
+    box-shadow:
+        0 0 18px
+        rgba(0, 140, 255, 0.065);
 
 }
 
@@ -1801,17 +1858,21 @@
 
     border:
         1px solid
-        rgba(255, 55, 75, 0.17);
+        rgba(0, 160, 255, 0.42);
 
     border-radius: 9px;
 
     background:
-        rgba(255, 30, 50, 0.035);
+        #050c13;
 
     color:
-        rgba(255, 100, 115, 0.80);
+        rgba(65, 190, 255, 0.88);
 
     font-size: 14px;
+
+    box-shadow:
+        0 0 12px
+        rgba(0, 140, 255, 0.06);
 
 }
 
@@ -1823,7 +1884,7 @@
     margin-bottom: 4px;
 
     color:
-        rgba(255, 255, 255, 0.74);
+        rgba(225, 244, 255, 0.82);
 
     font-size: 10px;
 
@@ -1837,11 +1898,76 @@
     margin: 0;
 
     color:
-        rgba(255, 255, 255, 0.33);
+        rgba(135, 185, 215, 0.50);
 
     font-size: 9px;
 
     line-height: 1.55;
+
+}
+
+
+/* =========================================================
+   GENERIC INNER BLOCKS
+========================================================= */
+
+.vision-video-card > div:not(
+    .vision-video-card-header
+) {
+
+    scrollbar-color:
+        rgba(0, 145, 255, 0.45)
+        #020507;
+
+}
+
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+.vision-video-page * {
+
+    scrollbar-width: thin;
+
+    scrollbar-color:
+        rgba(0, 150, 255, 0.42)
+        #020507;
+
+}
+
+
+.vision-video-page *::-webkit-scrollbar {
+
+    width: 6px;
+    height: 6px;
+
+}
+
+
+.vision-video-page *::-webkit-scrollbar-track {
+
+    background:
+        #020507;
+
+}
+
+
+.vision-video-page *::-webkit-scrollbar-thumb {
+
+    background:
+        rgba(0, 145, 255, 0.42);
+
+    border-radius:
+        999px;
+
+}
+
+
+.vision-video-page *::-webkit-scrollbar-thumb:hover {
+
+    background:
+        rgba(0, 180, 255, 0.68);
 
 }
 
@@ -1870,7 +1996,7 @@
 
     outline:
         2px solid
-        rgba(255, 70, 90, 0.65);
+        rgba(0, 175, 255, 0.78);
 
     outline-offset: 2px;
 
