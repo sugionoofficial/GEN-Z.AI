@@ -1,3 +1,4 @@
+````javascript
 /* =========================================================
    GEN-Z.AI VISION
    ---------------------------------------------------------
@@ -35,6 +36,197 @@ function promptModels() {
 function promptResponse() {
 
     return window.GENZVisionResponse;
+
+}
+
+
+/* =========================================================
+   STATE ACCESS COMPATIBILITY
+   ---------------------------------------------------------
+   Mendukung beberapa bentuk state:
+
+   1. window.GENZVisionState.get("settings")
+   2. core.getState().get("settings")
+   3. core.getState().settings
+   4. window.GENZVisionState.getState().settings
+
+   Jangan mengasumsikan hasil core.getState() selalu
+   memiliki method .get().
+========================================================= */
+
+function getPromptSettings(
+    core,
+    options = {}
+) {
+
+    /*
+     * Explicit options selalu menjadi prioritas.
+     */
+
+    if (
+        options &&
+        options.settings &&
+        typeof options.settings === "object"
+    ) {
+
+        return options.settings;
+
+    }
+
+
+    /*
+     * GENZVisionState API.
+     */
+
+    const visionState =
+        window.GENZVisionState;
+
+
+    if (
+        visionState &&
+        typeof visionState.get === "function"
+    ) {
+
+        try {
+
+            const settings =
+                visionState.get(
+                    "settings",
+                    null
+                );
+
+
+            if (
+                settings &&
+                typeof settings === "object"
+            ) {
+
+                return settings;
+
+            }
+
+        }
+        catch (error) {
+
+            console.debug(
+                "[GEN-Z.AI Vision] GENZVisionState.get(settings) fallback:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Core state.
+     */
+
+    if (
+        core &&
+        typeof core.getState === "function"
+    ) {
+
+        try {
+
+            const state =
+                core.getState();
+
+
+            /*
+             * Legacy state API.
+             */
+
+            if (
+                state &&
+                typeof state.get === "function"
+            ) {
+
+                const settings =
+                    state.get(
+                        "settings",
+                        null
+                    );
+
+
+                if (
+                    settings &&
+                    typeof settings === "object"
+                ) {
+
+                    return settings;
+
+                }
+
+            }
+
+
+            /*
+             * Current plain state object.
+             */
+
+            if (
+                state &&
+                state.settings &&
+                typeof state.settings === "object"
+            ) {
+
+                return state.settings;
+
+            }
+
+        }
+        catch (error) {
+
+            console.debug(
+                "[GEN-Z.AI Vision] core.getState() settings fallback:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+     * GENZVisionState.getState() fallback.
+     */
+
+    if (
+        visionState &&
+        typeof visionState.getState === "function"
+    ) {
+
+        try {
+
+            const state =
+                visionState.getState();
+
+
+            if (
+                state &&
+                state.settings &&
+                typeof state.settings === "object"
+            ) {
+
+                return state.settings;
+
+            }
+
+        }
+        catch (error) {
+
+            console.debug(
+                "[GEN-Z.AI Vision] GENZVisionState.getState() fallback:",
+                error
+            );
+
+        }
+
+    }
+
+
+    return {};
 
 }
 
@@ -2385,6 +2577,39 @@ async function generatePrompt(
         promptResponse();
 
 
+    if (
+        !core
+    ) {
+
+        throw new Error(
+            "GENZVisionCore tidak tersedia."
+        );
+
+    }
+
+
+    if (
+        !models
+    ) {
+
+        throw new Error(
+            "GENZVisionModels tidak tersedia."
+        );
+
+    }
+
+
+    if (
+        !responseAPI
+    ) {
+
+        throw new Error(
+            "GENZVisionResponse tidak tersedia."
+        );
+
+    }
+
+
     /* -----------------------------------------------------
        NORMALISASI
     ----------------------------------------------------- */
@@ -2513,9 +2738,11 @@ async function generatePrompt(
     }
 
 
-    const state =
-        core.getState();
-
+    /*
+     * ----------------------------------------------------
+     * MODEL
+     * ----------------------------------------------------
+     */
 
     const requestedModel =
         options.model ||
@@ -2529,11 +2756,25 @@ async function generatePrompt(
         );
 
 
+    /*
+     * ----------------------------------------------------
+     * SETTINGS
+     * ----------------------------------------------------
+     *
+     * PERBAIKAN:
+     *
+     * Jangan lagi melakukan:
+     *
+     *     core.getState().get(...)
+     *
+     * karena core.getState() dapat mengembalikan plain
+     * STATE object tanpa method .get().
+     */
+
     const settings =
-        options.settings ||
-        state.get(
-            "settings",
-            {}
+        getPromptSettings(
+            core,
+            options
         );
 
 
@@ -2786,6 +3027,37 @@ async function generatePrompt(
     }
 
 
+    /*
+     * ----------------------------------------------------
+     * SUCCESS
+     * ----------------------------------------------------
+     *
+     * Jangan menulis ke state di sini.
+     *
+     * generatePrompt() adalah API/module layer.
+     * Caller bertanggung jawab menentukan bagaimana hasil
+     * prompt disimpan atau dirender.
+     */
+
+    console.info(
+        "[GEN-Z.AI Vision] Prompt Engineering completed successfully:",
+        {
+
+            model:
+                model.id,
+
+            promptLength:
+                cleaned.length,
+
+            factCount:
+                facts.length,
+
+            outfitSource
+
+        }
+    );
+
+
     return {
 
         text:
@@ -2860,3 +3132,4 @@ else {
         GENZVisionPromptAPI;
 
 }
+````
