@@ -1,4 +1,5 @@
-//vision-video/assets/js/vision-video-loader.js?v=2.0
+// vision-video/assets/js/vision-video-loader.js?v=20261006-7
+
 /* =========================================================
    GEN-Z.AI VISION VIDEO
    ---------------------------------------------------------
@@ -54,6 +55,19 @@
     ===================================================== */
 
     const CONFIG = Object.freeze({
+
+        /*
+         * -------------------------------------------------
+         * Cache bust seluruh module Vision Video.
+         *
+         * Penting karena module dimuat secara dinamis
+         * oleh loader dan bukan langsung dari index.html.
+         * -------------------------------------------------
+         */
+
+        cacheBust:
+            "20261006-7",
+
 
         modules: [
 
@@ -551,10 +565,68 @@
             );
 
 
-        return new URL(
-            normalizedPath,
-            visionVideoRoot
-        ).href;
+        const url =
+            new URL(
+                normalizedPath,
+                visionVideoRoot
+            );
+
+
+        /* =================================================
+           CACHE BUST
+        ================================================== */
+
+        if (
+            CONFIG.cacheBust
+        ) {
+
+            url.searchParams.set(
+                "v",
+                CONFIG.cacheBust
+            );
+
+        }
+
+
+        return url.href;
+
+    }
+
+
+    /* =====================================================
+       SCRIPT URL WITHOUT CACHE PARAMETER
+       -----------------------------------------------------
+       Digunakan hanya untuk membandingkan script yang
+       sudah berada di DOM secara normal.
+    ===================================================== */
+
+    function normalizeScriptURL(
+        url
+    ) {
+
+        try {
+
+            const normalized =
+                new URL(
+                    url,
+                    window.location.href
+                );
+
+
+            normalized.search = "";
+
+
+            return normalized.href;
+
+        } catch (
+            err
+        ) {
+
+            return String(
+                url || ""
+            );
+
+        }
 
     }
 
@@ -570,6 +642,12 @@
         const scripts =
             document.querySelectorAll(
                 "script[src]"
+            );
+
+
+        const target =
+            normalizeScriptURL(
+                url
             );
 
 
@@ -596,15 +674,14 @@
 
 
                 const existing =
-                    new URL(
-                        src,
-                        window.location.href
-                    ).href;
+                    normalizeScriptURL(
+                        src
+                    );
 
 
                 if (
                     existing ===
-                    url
+                    target
                 ) {
 
                     return true;
