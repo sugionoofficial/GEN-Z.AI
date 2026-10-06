@@ -8,6 +8,8 @@
    - Vision Analysis system prompt
    - Vision Analysis user prompt
    - Reference / Character outfit source
+   - Reference scene authority
+   - Character identity authority
    - Multimodal reference + character analysis
    - JSON extraction
    - Quality validation
@@ -58,7 +60,8 @@ function getAnalysisOutfitSource(
 ) {
 
     /*
-     * State getter menjadi sumber utama.
+     * State getter menjadi sumber utama
+     * apabila tersedia.
      */
 
     if (
@@ -75,12 +78,157 @@ function getAnalysisOutfitSource(
 
 
     /*
+     * Compatibility fallback:
+     * state.get("outfitSource")
+     */
+
+    if (
+        state &&
+        typeof state.get ===
+            "function"
+    ) {
+
+        try {
+
+            return normalizeAnalysisOutfitSource(
+                state.get(
+                    "outfitSource",
+                    settings?.outfitSource ||
+                    "reference"
+                )
+            );
+
+        }
+        catch {
+
+            /* Continue */
+
+        }
+
+    }
+
+
+    /*
+     * Snapshot state:
+     * state.outfitSource
+     */
+
+    if (
+        state &&
+        state.outfitSource
+    ) {
+
+        return normalizeAnalysisOutfitSource(
+            state.outfitSource
+        );
+
+    }
+
+
+    /*
      * Fallback ke settings.
      */
 
     return normalizeAnalysisOutfitSource(
         settings?.outfitSource
     );
+
+}
+
+
+/* =========================================================
+   GET REFERENCE FILE
+========================================================= */
+
+function getAnalysisReferenceFile(
+    state
+) {
+
+    if (
+        state &&
+        typeof state.getReferenceImage ===
+            "function"
+    ) {
+
+        return state.getReferenceImage();
+
+    }
+
+
+    if (
+        state &&
+        typeof state.getFile ===
+            "function"
+    ) {
+
+        return state.getFile();
+
+    }
+
+
+    /*
+     * Compatibility fallback untuk state
+     * yang menyediakan get(key).
+     */
+
+    if (
+        state &&
+        typeof state.get ===
+            "function"
+    ) {
+
+        try {
+
+            const file =
+                state.get(
+                    "file",
+                    null
+                );
+
+
+            if (
+                file
+            ) {
+
+                return file;
+
+            }
+
+        }
+        catch {
+
+            /* Continue */
+
+        }
+
+    }
+
+
+    /*
+     * Snapshot state.
+     */
+
+    if (
+        state &&
+        state.file
+    ) {
+
+        return state.file;
+
+    }
+
+
+    if (
+        state &&
+        state.referenceImage
+    ) {
+
+        return state.referenceImage;
+
+    }
+
+
+    return null;
 
 }
 
@@ -115,10 +263,33 @@ function getAnalysisCharacterFile(
             "function"
     ) {
 
-        return state.get(
-            "replacementCharacter",
-            null
-        );
+        try {
+
+            return state.get(
+                "replacementCharacter",
+                null
+            );
+
+        }
+        catch {
+
+            /* Continue */
+
+        }
+
+    }
+
+
+    /*
+     * Snapshot state.
+     */
+
+    if (
+        state &&
+        state.replacementCharacter
+    ) {
+
+        return state.replacementCharacter;
 
     }
 
@@ -149,78 +320,130 @@ function buildAnalysisOutfitRules(
 
         return `
 =========================================================
+VISUAL SOURCE HIERARCHY
 OUTFIT SOURCE: REPLACEMENT CHARACTER
 =========================================================
 
-Two images may be attached:
+TWO IMAGE ROLES ARE STRICTLY SEPARATE.
 
 IMAGE 1 = REFERENCE IMAGE
 IMAGE 2 = REPLACEMENT CHARACTER
 
-IMAGE 2 is the authoritative source for:
+IMAGE 1 is the authoritative source for the SCENE.
 
-- final clothing
-- outfit design
-- garment type
-- garment colors
-- garment materials
-- garment patterns
-- garment textures
-- garment construction
-- clothing accessories
-- outfit-specific details
+IMAGE 2 is the authoritative source only for the
+CHARACTER IDENTITY and FINAL OUTFIT.
 
-IMAGE 1 MUST NOT contribute clothing or outfit details.
+---------------------------------------------------------
+IMAGE 1 — REFERENCE SCENE AUTHORITY
+---------------------------------------------------------
 
-Use IMAGE 1 for:
+Use IMAGE 1 as the authoritative source for:
 
+- overall scene
 - composition
 - pose
 - body positioning
-- scene structure
-- environment
-- background
-- product placement
-- camera perspective
+- hand positioning
+- subject placement
 - framing
-- lighting
-- shadows
+- crop
+- camera perspective
+- apparent lens characteristics
+- depth of field
+- focus placement
+- background
+- environment
+- architecture
+- surfaces
+- objects
+- product placement
 - spatial relationships
+- lighting
+- light direction
+- light softness
+- shadows
+- contrast
+- color palette
+- visual atmosphere
+- scene-specific styling
 
-Use IMAGE 2 for:
+The visual structure of the final prompt MUST remain
+based on IMAGE 1.
+
+---------------------------------------------------------
+IMAGE 2 — CHARACTER AUTHORITY
+---------------------------------------------------------
+
+Use IMAGE 2 as the authoritative source for:
 
 - character identity
-- face
+- facial structure
+- eyes
+- eyebrows
+- nose
+- lips
+- skin appearance
 - hair
-- visible body characteristics
+- head covering
+- visible physical characteristics
 - final clothing
 - final outfit
+- outfit-specific accessories
 
-IMPORTANT:
+IMAGE 2 MUST NOT replace the scene of IMAGE 1.
 
-Do NOT mix clothing between IMAGE 1 and IMAGE 2.
+Do NOT import from IMAGE 2:
 
-Do NOT transfer the reference image's:
+- its background
+- its environment
+- its composition
+- its framing
+- its camera angle
+- its lighting
+- its shadows
+- its scene
+- its spatial arrangement
+- its pose unless explicitly needed as character identity
+  information
 
-- shirt
-- blouse
-- jacket
-- dress
-- pants
-- skirt
-- shoes
-- clothing colors
-- clothing patterns
-- clothing textures
-- clothing accessories
+---------------------------------------------------------
+OUTFIT RULE
+---------------------------------------------------------
 
-into the final outfit when IMAGE 2 is the selected outfit source.
+Because REPLACEMENT CHARACTER is selected:
+
+The final clothing must come from IMAGE 2.
+
+Do NOT merge clothing from IMAGE 1.
 
 If a clothing detail is visible only in IMAGE 1,
-do NOT report it as the replacement character's final outfit.
+do NOT report it as the final clothing.
 
-The replacement character's outfit must be derived
+The final outfit must be derived from IMAGE 2.
+
+---------------------------------------------------------
+FINAL TRANSFORMATION LOGIC
+---------------------------------------------------------
+
+Think of the operation as:
+
+IMAGE 1 SCENE
++
+IMAGE 2 CHARACTER
+=
+FINAL VISUAL DESCRIPTION
+
+Preserve the scene of IMAGE 1.
+
+Replace the person in IMAGE 1 with the character identity
 from IMAGE 2.
+
+Use the clothing from IMAGE 2.
+
+Do NOT create a new scene based on IMAGE 2.
+
+Do NOT blend the two scenes.
 
 =========================================================
 `.trim();
@@ -230,14 +453,42 @@ from IMAGE 2.
 
     return `
 =========================================================
+VISUAL SOURCE HIERARCHY
 OUTFIT SOURCE: REFERENCE IMAGE
 =========================================================
 
+TWO IMAGE ROLES ARE STRICTLY SEPARATE.
+
 IMAGE 1 = REFERENCE IMAGE
+IMAGE 2 = REPLACEMENT CHARACTER
 
-IMAGE 1 is the authoritative source for:
+IMAGE 1 is the authoritative source for the SCENE
+AND FINAL OUTFIT.
 
-- final clothing
+IMAGE 2 is the authoritative source only for the
+CHARACTER IDENTITY.
+
+---------------------------------------------------------
+IMAGE 1 — PRIMARY VISUAL AUTHORITY
+---------------------------------------------------------
+
+IMAGE 1 MUST CONTROL THE FINAL VISUAL DESCRIPTION.
+
+Use IMAGE 1 as the authoritative source for:
+
+- overall scene
+- composition
+- pose
+- body positioning
+- hand positioning
+- subject placement
+- framing
+- crop
+- camera perspective
+- apparent lens characteristics
+- depth of field
+- focus placement
+- clothing
 - outfit design
 - garment type
 - garment colors
@@ -247,40 +498,102 @@ IMAGE 1 is the authoritative source for:
 - garment construction
 - clothing accessories
 - outfit-specific details
+- background
+- environment
+- architecture
+- surfaces
+- objects
+- product placement
+- spatial relationships
+- lighting
+- light direction
+- light softness
+- shadows
+- contrast
+- color palette
+- visual atmosphere
+- scene-specific styling
 
-If IMAGE 2 is attached, IMAGE 2 is the
-REPLACEMENT CHARACTER image.
+The final prompt MUST follow the visual scene of IMAGE 1.
 
-IMAGE 2 may be used for:
+---------------------------------------------------------
+IMAGE 2 — CHARACTER IDENTITY ONLY
+---------------------------------------------------------
+
+If IMAGE 2 is attached, use it ONLY to identify
+the replacement character.
+
+Use IMAGE 2 for:
 
 - character identity
-- face
+- facial structure
+- eyes
+- eyebrows
+- nose
+- lips
+- skin appearance
 - hair
-- visible body characteristics
+- head covering
+- visible physical characteristics
 
-IMAGE 2 MUST NOT contribute clothing or outfit details.
+IMAGE 2 MUST NOT contribute scene information.
 
-IMPORTANT:
+Do NOT import from IMAGE 2:
 
-Do NOT mix clothing between IMAGE 1 and IMAGE 2.
+- clothing
+- outfit
+- background
+- environment
+- composition
+- pose
+- framing
+- camera angle
+- lighting
+- shadows
+- color palette
+- spatial arrangement
 
-Do NOT transfer the replacement character's:
+---------------------------------------------------------
+OUTFIT RULE
+---------------------------------------------------------
 
-- shirt
-- blouse
-- jacket
-- dress
-- pants
-- skirt
-- shoes
-- clothing colors
-- clothing patterns
-- clothing textures
-- clothing accessories
+Because REFERENCE IMAGE is selected:
 
-into the final outfit when IMAGE 1 is the selected outfit source.
+The final clothing MUST come from IMAGE 1.
+
+Do NOT merge clothing from IMAGE 2.
+
+If a clothing detail is visible only in IMAGE 2,
+do NOT report it as the final clothing.
 
 The final outfit must be derived from IMAGE 1.
+
+---------------------------------------------------------
+FINAL TRANSFORMATION LOGIC
+---------------------------------------------------------
+
+Think of the operation as:
+
+IMAGE 1 SCENE + OUTFIT
++
+IMAGE 2 CHARACTER IDENTITY
+=
+FINAL VISUAL DESCRIPTION
+
+Preserve IMAGE 1 as the visual foundation.
+
+Replace only the character identity with the identity
+from IMAGE 2.
+
+Do NOT replace the scene.
+
+Do NOT replace the composition.
+
+Do NOT replace the outfit.
+
+Do NOT create a new scene based on IMAGE 2.
+
+Do NOT blend the two scenes.
 
 =========================================================
 `.trim();
@@ -319,6 +632,104 @@ Do NOT generate a creative prompt yet.
 Extract observable visual information into structured JSON.
 
 ${outfitRules}
+
+=========================================================
+CRITICAL IMAGE PRIORITY
+=========================================================
+
+When TWO images are supplied, they have DIFFERENT ROLES.
+
+IMAGE 1 is ALWAYS the REFERENCE IMAGE.
+
+IMAGE 2 is ALWAYS the REPLACEMENT CHARACTER.
+
+Never treat the two images as equal visual references.
+
+The selected source hierarchy MUST be preserved in
+every category of the analysis.
+
+When OUTFIT SOURCE = REFERENCE:
+
+IMAGE 1 controls:
+- scene
+- pose
+- composition
+- framing
+- camera
+- lighting
+- background
+- environment
+- clothing
+- product
+- spatial relationships
+- visual style
+
+IMAGE 2 controls ONLY:
+- character identity
+- face
+- hair
+- head covering
+- visible physical characteristics
+
+When OUTFIT SOURCE = CHARACTER:
+
+IMAGE 1 controls:
+- scene
+- pose
+- composition
+- framing
+- camera
+- lighting
+- background
+- environment
+- product
+- spatial relationships
+- scene visual style
+
+IMAGE 2 controls:
+- character identity
+- face
+- hair
+- head covering
+- visible physical characteristics
+- clothing
+- final outfit
+
+NEVER let IMAGE 2 replace the scene of IMAGE 1.
+
+NEVER let IMAGE 1 provide clothing when
+OUTFIT SOURCE = CHARACTER.
+
+NEVER let IMAGE 2 provide clothing when
+OUTFIT SOURCE = REFERENCE.
+
+=========================================================
+SCENE PRESERVATION RULE
+=========================================================
+
+The final analysis must describe IMAGE 1 as the
+visual foundation whenever IMAGE 1 is present.
+
+Do NOT describe IMAGE 2 as though it were the main scene.
+
+Do NOT transfer IMAGE 2's:
+
+- background
+- room
+- environment
+- composition
+- camera
+- lighting
+- framing
+- pose
+
+into the reference scene.
+
+IMAGE 2 exists to identify the replacement character,
+not to redefine the reference scene.
+
+=========================================================
+=========================================================
 
 IMAGE SOURCE RULES:
 
@@ -378,18 +789,120 @@ Rules:
 - Separate visible facts from uncertainty.
 - Never claim a person's real-world identity.
 
-IMPORTANT:
+=========================================================
+CATEGORY SOURCE CONTROL
+=========================================================
 
-The "clothing" category MUST follow the selected
-OUTFIT SOURCE.
+The "subject" category:
 
-When OUTFIT SOURCE is REFERENCE IMAGE:
-- clothing must come from IMAGE 1.
+- Use IMAGE 1 to establish the subject's role and placement
+  in the reference scene.
+- Use IMAGE 2 only to describe replacement identity when
+  a character image exists.
 
-When OUTFIT SOURCE is REPLACEMENT CHARACTER:
-- clothing must come from IMAGE 2.
+The "appearance" category:
 
-Do not merge clothing information from both images.
+- Character physical appearance may come from IMAGE 2.
+- Scene-related appearance must remain based on IMAGE 1.
+
+The "face_hair" category:
+
+- When IMAGE 2 exists, use IMAGE 2 as the primary source
+  for replacement character facial and hair characteristics.
+- Do NOT allow IMAGE 2 to introduce a different scene.
+
+The "pose" category:
+
+- ALWAYS prioritize IMAGE 1.
+- Do NOT replace the reference pose with the pose of IMAGE 2.
+
+The "clothing" category:
+
+When OUTFIT SOURCE = REFERENCE:
+- clothing MUST come from IMAGE 1.
+- IMAGE 2 MUST NOT contribute clothing.
+
+When OUTFIT SOURCE = CHARACTER:
+- clothing MUST come from IMAGE 2.
+- IMAGE 1 MUST NOT contribute clothing.
+
+The "accessories" category:
+
+- Scene accessories and product-related accessories follow
+  IMAGE 1.
+- Outfit-specific accessories follow the selected outfit source.
+
+The "product" category:
+
+- ALWAYS prioritize IMAGE 1.
+- Never invent a product from IMAGE 2.
+
+The "composition" category:
+
+- ALWAYS comes from IMAGE 1.
+
+The "camera" category:
+
+- ALWAYS comes from IMAGE 1.
+
+The "lighting" category:
+
+- ALWAYS comes from IMAGE 1.
+
+The "shadows" category:
+
+- ALWAYS comes from IMAGE 1.
+
+The "environment" category:
+
+- ALWAYS comes from IMAGE 1.
+
+The "background" category:
+
+- ALWAYS comes from IMAGE 1.
+
+The "color_palette" category:
+
+- Prioritize the overall scene palette of IMAGE 1.
+- Clothing colors follow the selected outfit source.
+
+The "visual_style" category:
+
+- ALWAYS prioritize the visual style of IMAGE 1.
+
+The "text_branding" category:
+
+- Prioritize visible text and branding from IMAGE 1.
+- Do not import branding from IMAGE 2.
+
+The "spatial_relationships" category:
+
+- ALWAYS comes from IMAGE 1.
+
+=========================================================
+FINAL ANALYSIS PRINCIPLE
+=========================================================
+
+When two images are supplied, do NOT write an analysis that
+simply describes both images independently.
+
+Instead, determine:
+
+1. What belongs to the REFERENCE SCENE.
+2. What belongs to the REPLACEMENT CHARACTER.
+3. What belongs to the selected OUTFIT SOURCE.
+
+The final structured analysis must preserve this hierarchy.
+
+The reference image is the scene authority.
+
+The character image is the identity authority.
+
+Only the selected outfit source controls clothing.
+
+=========================================================
+JSON REQUIREMENTS
+=========================================================
 
 The returned JSON MUST contain actual observable information.
 
@@ -503,35 +1016,181 @@ function buildAnalysisUserPrompt(
 OUTFIT SOURCE SELECTED:
 Replacement Character Outfit.
 
-IMAGE 2 is the authoritative source for
-the final clothing and outfit.
+IMAGE 1 = REFERENCE SCENE.
+IMAGE 2 = REPLACEMENT CHARACTER.
+
+IMAGE 1 controls the scene:
+- composition
+- pose
+- framing
+- camera
+- lighting
+- background
+- environment
+- spatial relationships
+- product
+
+IMAGE 2 controls:
+- character identity
+- face
+- hair
+- visible physical characteristics
+- final clothing
+- final outfit
+
+IMPORTANT:
+Do NOT use IMAGE 2 as the scene reference.
+Do NOT transfer IMAGE 2's background, composition,
+camera, lighting, or environment.
 
 Do NOT use clothing from IMAGE 1.
 `
-
+            
             : `
 OUTFIT SOURCE SELECTED:
 Reference Image Outfit.
 
-IMAGE 1 is the authoritative source for
-the final clothing and outfit.
+IMAGE 1 = PRIMARY VISUAL REFERENCE.
 
-Do NOT use clothing from IMAGE 2.
+IMAGE 1 controls:
+- scene
+- composition
+- pose
+- framing
+- camera
+- lighting
+- background
+- environment
+- product
+- spatial relationships
+- clothing
+- final outfit
+
+IMAGE 2 = REPLACEMENT CHARACTER.
+
+IMAGE 2 controls ONLY:
+- character identity
+- face
+- hair
+- visible physical characteristics
+
+IMPORTANT:
+Do NOT use IMAGE 2 as the scene reference.
+Do NOT transfer IMAGE 2's background, composition,
+camera, lighting, environment, pose, or clothing.
+
+The final scene MUST follow IMAGE 1.
 `;
 
 
     return `
 Analyze the supplied image source(s) for GEN-Z.AI Vision.
 
-IMAGE 1 is the main reference image.
+=========================================================
+IMAGE ROLE ASSIGNMENT
+=========================================================
 
-If IMAGE 2 is attached, IMAGE 2 is the replacement
-character image.
+IMAGE 1 = REFERENCE IMAGE
+IMAGE 2 = REPLACEMENT CHARACTER
 
-Selected outfit source:
-${outfitLabel}
+IMAGE 1 is the PRIMARY VISUAL REFERENCE.
+
+If IMAGE 2 exists, it is NOT a second scene reference.
+It is only the replacement character source.
 
 ${outfitInstructions}
+
+=========================================================
+REFERENCE IMAGE PRIORITY
+=========================================================
+
+The analysis MUST preserve IMAGE 1 as the foundation
+of the final visual result.
+
+Follow IMAGE 1 for:
+
+- composition
+- pose
+- body positioning
+- subject placement
+- framing
+- crop
+- camera perspective
+- lens character
+- focus
+- depth of field
+- lighting
+- shadows
+- environment
+- background
+- product
+- spatial relationships
+- overall scene
+- overall visual style
+
+Do NOT let IMAGE 2 redefine these elements.
+
+=========================================================
+CHARACTER IMAGE PRIORITY
+=========================================================
+
+When IMAGE 2 exists, use it only for:
+
+- face
+- facial structure
+- eyes
+- eyebrows
+- nose
+- lips
+- skin appearance
+- hair
+- head covering
+- visible physical characteristics
+
+The character must be inserted into the scene of IMAGE 1.
+
+Do NOT rebuild the scene around IMAGE 2.
+
+=========================================================
+OUTFIT SOURCE
+=========================================================
+
+${outfitSource === "character"
+    ? `
+OUTFIT SOURCE = IMAGE 2.
+
+Use IMAGE 2 for:
+- clothing
+- garment type
+- colors
+- materials
+- patterns
+- textures
+- construction
+- outfit-specific accessories
+
+Do NOT import clothing from IMAGE 1.
+`
+    : `
+OUTFIT SOURCE = IMAGE 1.
+
+Use IMAGE 1 for:
+- clothing
+- garment type
+- colors
+- materials
+- patterns
+- textures
+- construction
+- outfit-specific accessories
+
+Do NOT import clothing from IMAGE 2.
+`
+}
+
+=========================================================
+ANALYSIS DETAIL
+=========================================================
 
 Analysis detail level:
 ${detail}
@@ -542,44 +1201,40 @@ ${purpose}
 Additional user instruction:
 ${instruction || "None"}
 
-Inspect the actual attached image source(s) carefully
-before producing the result.
+=========================================================
+PERSON ANALYSIS
+=========================================================
 
-For a person, inspect:
+For the reference scene, inspect:
 
-- visible facial structure
+- subject placement
+- body position
+- pose
+- hands
+- head angle
+- gaze
+- expression
+- interaction with objects
+- interaction with environment
+
+For the replacement character, when IMAGE 2 exists,
+inspect:
+
+- facial structure
 - eyes
 - eyebrows
 - nose
 - lips
-- makeup
 - skin appearance
-- hair or head covering
-- expression
-- gaze
-- head angle
-- body position
-- clothing
-- colors
-- fabrics
-- patterns
-- folds
-- accessories
+- hair
+- head covering
+- visible physical characteristics
 
-IMPORTANT CLOTHING RULE:
+=========================================================
+PRODUCT ANALYSIS
+=========================================================
 
-Only describe final outfit details from the selected
-OUTFIT SOURCE.
-
-If the selected source is REFERENCE IMAGE:
-- clothing comes from IMAGE 1
-- IMAGE 2 must not contribute clothing
-
-If the selected source is REPLACEMENT CHARACTER:
-- clothing comes from IMAGE 2
-- IMAGE 1 must not contribute clothing
-
-For products, inspect:
+For products visible in IMAGE 1, inspect:
 
 - type
 - shape
@@ -589,27 +1244,57 @@ For products, inspect:
 - branding
 - labels
 - placement
+- orientation
+- relationship to subject
 
-For composition, inspect:
+Never create a product from IMAGE 2.
+
+=========================================================
+COMPOSITION ANALYSIS
+=========================================================
+
+Use IMAGE 1 as the ONLY composition reference.
+
+Inspect:
 
 - framing
+- crop
 - subject placement
 - orientation
 - camera perspective
 - apparent lens character
 - focus
 - depth of field
+- foreground
+- middle ground
+- background
+- spatial relationships
 
-For lighting, inspect:
+=========================================================
+LIGHTING ANALYSIS
+=========================================================
 
-- direction
+Use IMAGE 1 as the ONLY lighting reference.
+
+Inspect:
+
+- light direction
 - softness
 - highlights
 - shadows
 - contrast
+- ambient illumination
 - color temperature when observable
 
-For environment and background, inspect:
+Do NOT transfer lighting from IMAGE 2.
+
+=========================================================
+ENVIRONMENT AND BACKGROUND
+=========================================================
+
+Use IMAGE 1 as the ONLY environment and background source.
+
+Inspect:
 
 - architecture
 - walls
@@ -617,18 +1302,52 @@ For environment and background, inspect:
 - textures
 - objects
 - colors
+- depth
 - spatial relationships
+- environmental details
 
-For visual style, inspect:
+Do NOT import environment details from IMAGE 2.
+
+=========================================================
+VISUAL STYLE
+=========================================================
+
+Use IMAGE 1 as the primary visual-style source.
+
+Inspect:
 
 - photographic or cinematic characteristics
 - realism
 - sharpness
 - background separation
 - color treatment
+- contrast
 - aesthetic
+- image quality
 
-Do not summarize too aggressively.
+=========================================================
+STRICT SOURCE SEPARATION
+=========================================================
+
+Never merge visual facts from both images without
+determining their source role.
+
+The final analysis must conceptually represent:
+
+REFERENCE IMAGE
+=
+scene authority
+
+CHARACTER IMAGE
+=
+identity authority
+
+SELECTED OUTFIT SOURCE
+=
+clothing authority
+
+If a detail conflicts between the images,
+follow the authority defined above.
 
 Do not invent information.
 
@@ -637,7 +1356,9 @@ specific observations.
 
 Do NOT return an empty JSON schema.
 
-IMPORTANT:
+=========================================================
+OUTPUT
+=========================================================
 
 Complete the ENTIRE JSON object.
 
@@ -2017,33 +2738,76 @@ could not be parsed as a complete structured JSON object.
 
 Analyze the SAME image source configuration again.
 
-The image source configuration is:
-
 IMAGE 1 = REFERENCE IMAGE
 IMAGE 2 = REPLACEMENT CHARACTER when provided
+
+CRITICAL:
+
+IMAGE 1 is the scene authority.
+
+IMAGE 2 is the character identity authority.
+
+Only the selected outfit source controls clothing.
 
 OUTFIT SOURCE =
 ${outfitSource === "character"
     ? "REPLACEMENT CHARACTER"
     : "REFERENCE IMAGE"}
 
+When OUTFIT SOURCE = REFERENCE IMAGE:
+
+- clothing comes from IMAGE 1
+- scene comes from IMAGE 1
+- pose comes from IMAGE 1
+- composition comes from IMAGE 1
+- camera comes from IMAGE 1
+- lighting comes from IMAGE 1
+- background comes from IMAGE 1
+- environment comes from IMAGE 1
+- IMAGE 2 provides identity only
+
+When OUTFIT SOURCE = REPLACEMENT CHARACTER:
+
+- scene comes from IMAGE 1
+- pose comes from IMAGE 1
+- composition comes from IMAGE 1
+- camera comes from IMAGE 1
+- lighting comes from IMAGE 1
+- background comes from IMAGE 1
+- environment comes from IMAGE 1
+- clothing comes from IMAGE 2
+- identity comes from IMAGE 2
+
+NEVER use IMAGE 2 as the scene reference.
+
+NEVER import IMAGE 2 background.
+
+NEVER import IMAGE 2 composition.
+
+NEVER import IMAGE 2 camera.
+
+NEVER import IMAGE 2 lighting.
+
+NEVER import IMAGE 2 environment.
+
+NEVER mix clothing between the selected outfit source
+and the non-selected image.
+
 Prioritize:
 
 1. Complete valid JSON.
 2. Concrete visual observations.
 3. All applicable analysis categories.
-4. Properly closed objects and arrays.
-5. Complete strings.
-6. Correct outfit-source separation.
+4. Correct source separation.
+5. Correct reference-scene preservation.
+6. Properly closed objects and arrays.
+7. Complete strings.
 
 NEVER stop in the middle of a property name.
 
 NEVER stop in the middle of a string.
 
 NEVER stop before the final closing braces.
-
-NEVER mix clothing between the selected outfit source
-and the non-selected image.
 
 Do not summarize.
 
@@ -2139,10 +2903,15 @@ async function analyzeImage(
         core.getState();
 
 
+    /*
+     * IMPORTANT:
+     * getState() dapat mengembalikan snapshot object.
+     * Jangan menganggap selalu memiliki state.get().
+     */
+
     const file =
-        state.get(
-            "file",
-            null
+        getAnalysisReferenceFile(
+            state
         );
 
 
@@ -2181,19 +2950,18 @@ async function analyzeImage(
     ===================================================== */
 
     const requestedOutfitSource =
-        (
-            typeof state.getOutfitSource ===
-                "function"
+        getAnalysisOutfitSource(
+            state,
+            {
 
-                ? state.getOutfitSource()
+                ...(options.settings || {}),
 
-                : (
+                outfitSource:
                     options?.outfitSource ||
-
                     options?.settings?.outfitSource ||
+                    undefined
 
-                    "reference"
-                )
+            }
         );
 
 
@@ -2264,16 +3032,50 @@ async function analyzeImage(
        SETTINGS
     ===================================================== */
 
+    let stateSettings = {};
+
+
+    if (
+        state &&
+        typeof state.get ===
+            "function"
+    ) {
+
+        try {
+
+            stateSettings =
+                state.get(
+                    "settings",
+                    {}
+                ) || {};
+
+        }
+        catch {
+
+            stateSettings =
+                {};
+
+        }
+
+    }
+    else if (
+        state &&
+        state.settings &&
+        typeof state.settings ===
+            "object"
+    ) {
+
+        stateSettings =
+            state.settings;
+
+    }
+
+
     const settings = {
 
-        ...(
-            options.settings ||
-            state.get(
-                "settings",
-                {}
-            ) ||
-            {}
-        ),
+        ...stateSettings,
+
+        ...(options.settings || {}),
 
         outfitSource:
             normalizedOutfitSource
@@ -2297,12 +3099,14 @@ async function analyzeImage(
         );
 
 
+    /*
+     * imageCount describes actual visual sources
+     * being sent, not the selected outfit mode.
+     */
+
     const imageCount =
-        normalizedOutfitSource ===
-            "character"
-
+        hasReplacementCharacter
             ? 2
-
             : 1;
 
 
@@ -2342,11 +3146,8 @@ async function analyzeImage(
                             file.dataUrl,
 
                         characterImage:
-                            normalizedOutfitSource ===
-                                "character"
-
+                            hasReplacementCharacter
                                 ? characterFile.dataUrl
-
                                 : null,
 
                         outfitSource:
@@ -2407,6 +3208,14 @@ async function analyzeImage(
 
             outfitSource:
                 normalizedOutfitSource,
+
+            referenceAuthority:
+                "IMAGE 1",
+
+            characterAuthority:
+                hasReplacementCharacter
+                    ? "IMAGE 2"
+                    : "NONE",
 
             hasReferenceImage,
 
@@ -2470,6 +3279,14 @@ async function analyzeImage(
                 outfitSource:
                     normalizedOutfitSource,
 
+                referenceAuthority:
+                    "IMAGE 1",
+
+                characterAuthority:
+                    hasReplacementCharacter
+                        ? "IMAGE 2"
+                        : "NONE",
+
                 imageCount
 
             }
@@ -2516,6 +3333,14 @@ async function analyzeImage(
 
                 outfitSource:
                     normalizedOutfitSource,
+
+                referenceAuthority:
+                    "IMAGE 1",
+
+                characterAuthority:
+                    hasReplacementCharacter
+                        ? "IMAGE 2"
+                        : "NONE",
 
                 imageCount,
 
@@ -2751,6 +3576,14 @@ async function analyzeImage(
             outfitSource:
                 normalizedOutfitSource,
 
+            referenceAuthority:
+                "IMAGE 1",
+
+            characterAuthority:
+                hasReplacementCharacter
+                    ? "IMAGE 2"
+                    : "NONE",
+
             imageCount,
 
             hasReferenceImage,
@@ -2794,6 +3627,14 @@ async function analyzeImage(
                 outfitSource:
                     normalizedOutfitSource,
 
+                referenceAuthority:
+                    "IMAGE 1",
+
+                characterAuthority:
+                    hasReplacementCharacter
+                        ? "IMAGE 2"
+                        : "NONE",
+
                 hasReferenceImage,
 
                 hasReplacementCharacter,
@@ -2815,6 +3656,16 @@ async function analyzeImage(
 
 const GENZVisionAnalysisAPI =
     Object.freeze({
+
+        normalizeAnalysisOutfitSource,
+
+        getAnalysisOutfitSource,
+
+        getAnalysisReferenceFile,
+
+        getAnalysisCharacterFile,
+
+        buildAnalysisOutfitRules,
 
         buildAnalysisSystemPrompt,
 
