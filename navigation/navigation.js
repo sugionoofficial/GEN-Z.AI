@@ -647,18 +647,216 @@
         role
     ) {
 
+        /* =================================================
+           NAVIGATION ICONS
+           -------------------------------------------------
+           - Inline SVG
+           - Tidak menggunakan warna hardcoded
+           - Mengikuti warna dari .genz-nav-item
+           - Ikon disesuaikan dengan nama fitur
+           ================================================= */
+
+        const ICONS = Object.freeze({
+
+            dashboard: `
+                <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                    <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                    <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                </svg>
+            `,
+
+            generate: `
+                <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M15.5 4.5l4 4"></path>
+                    <path d="M13.8 6.2L4 16l-1 4 4-1 9.8-9.8"></path>
+                    <path d="M18.5 2.5v4"></path>
+                    <path d="M20.5 4.5h-4"></path>
+                </svg>
+            `,
+
+            visionImage: `
+                <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path>
+                    <circle cx="12" cy="12" r="2.7"></circle>
+                </svg>
+            `,
+
+            visionVideo: `
+                <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <rect x="3" y="5" width="13" height="14" rx="2"></rect>
+                    <path d="M16 10l5-3v10l-5-3z"></path>
+                </svg>
+            `,
+
+            viddra: `
+                <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                    <path d="M10 9l5 3-5 3z"></path>
+                    <path d="M7 2l2 2"></path>
+                    <path d="M17 2l-2 2"></path>
+                </svg>
+            `,
+
+            history: `
+                <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"></path>
+                    <path d="M3.5 4.5v5h5"></path>
+                    <path d="M12 7.5v5l3.5 2"></path>
+                </svg>
+            `,
+
+            metadataCleaner: `
+                <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M5 3h9l5 5v13H5z"></path>
+                    <path d="M14 3v5h5"></path>
+                    <path d="M8.5 15l2.2 2.2 4.8-5"></path>
+                </svg>
+            `,
+
+            topUp: `
+                <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                    <path d="M3 9h18"></path>
+                    <path d="M12 12v5"></path>
+                    <path d="M9.5 14.5h5"></path>
+                </svg>
+            `,
+
+            hubAdmin: `
+                <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M4 21V9l8-5 8 5v12"></path>
+                    <path d="M2 21h20"></path>
+                    <path d="M8 21v-6h8v6"></path>
+                    <path d="M8 10h.01"></path>
+                    <path d="M12 10h.01"></path>
+                    <path d="M16 10h.01"></path>
+                </svg>
+            `,
+
+            adminPanel: `
+                <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M12 3l8 3v5c0 5.2-3.4 8.7-8 10-4.6-1.3-8-4.8-8-10V6z"></path>
+                    <path d="M8.5 12l2.2 2.2 4.8-4.8"></path>
+                </svg>
+            `
+
+        });
+
+
         const commonUserItems = [
 
             {
                 label: "Dashboard",
                 href: "/user/dashboard.html",
-                icon: "♻️ "
+                icon: ICONS.dashboard
             },
 
             {
                 label: "Generate",
                 href: "/generate/index.html",
-                icon: "♻️ "
+                icon: ICONS.generate
             },
 
             /*
@@ -670,7 +868,7 @@
             {
                 label: "Vision Image",
                 href: "/vision/index.html",
-                icon: "👁️ "
+                icon: ICONS.visionImage
             },
 
             /*
@@ -682,37 +880,37 @@
             {
                 label: "Vision Video",
                 href: "/vision-video/index.html",
-                icon: "🎥 "
+                icon: ICONS.visionVideo
             },
 
             {
                 label: "VidDra FREE",
                 href: "/viddra/index.html",
-                icon: "🎬 "
+                icon: ICONS.viddra
             },
 
             {
                 label: "History",
                 href: "/history/index.html",
-                icon: "♻️ "
+                icon: ICONS.history
             },
 
             {
                 label: "AI Metadata Cleaner",
                 href: "/metadata-cleaner/index.html",
-                icon: "🛡️ "
+                icon: ICONS.metadataCleaner
             },
 
             {
                 label: "Top Up",
                 href: "/user/topup.html",
-                icon: "♻️ "
+                icon: ICONS.topUp
             },
 
             {
                 label: "Hub Admin",
                 href: "/user/hub-admin.html",
-                icon: "♻️ "
+                icon: ICONS.hubAdmin
             }
 
         ];
@@ -723,13 +921,13 @@
             {
                 label: "Dashboard",
                 href: "/admin/dashboard/index.html",
-                icon: "♻️ "
+                icon: ICONS.dashboard
             },
 
             {
                 label: "Generate",
                 href: "/generate/index.html",
-                icon: "♻️ "
+                icon: ICONS.generate
             },
 
             /*
@@ -741,7 +939,7 @@
             {
                 label: "Vision Image",
                 href: "/vision/index.html",
-                icon: "👁️ "
+                icon: ICONS.visionImage
             },
 
             /*
@@ -753,31 +951,31 @@
             {
                 label: "Vision Video",
                 href: "/vision-video/index.html",
-                icon: "🎥 "
+                icon: ICONS.visionVideo
             },
 
             {
                 label: "VidDra FREE",
                 href: "/viddra/index.html",
-                icon: "🎬 "
+                icon: ICONS.viddra
             },
 
             {
                 label: "History",
                 href: "/history/index.html",
-                icon: "♻️ "
+                icon: ICONS.history
             },
 
             {
                 label: "AI Metadata Cleaner",
                 href: "/metadata-cleaner/index.html",
-                icon: "🛡️ "
+                icon: ICONS.metadataCleaner
             },
 
             {
                 label: "Admin Panel",
                 href: "/admin-control/admin-panel.html",
-                icon: "♻️ "
+                icon: ICONS.adminPanel
             }
 
         ];
@@ -1915,7 +2113,7 @@
 
 
     /* =====================================================
-       INJECT SHARED CSS
+       STYLE INJECTION
     ===================================================== */
 
     function injectStyles() {
@@ -1943,73 +2141,76 @@
 
         style.textContent = `
 
-            /* =================================================
-               GLOBAL
-               ================================================= */
-
             :root {
 
                 --genz-sidebar-width:
-                    260px;
+                    248px;
 
                 --genz-red:
-                    #ff2424;
+                    #ff3030;
 
                 --genz-red-bright:
-                    #ff3b3b;
-
-                --genz-red-dark:
-                    #760000;
+                    #ff4a4a;
 
                 --genz-bg:
-                    #0f1117;
+                    #08090d;
 
-                --genz-bg-soft:
-                    #141720;
+                --genz-panel:
+                    #0c0e13;
 
                 --genz-border:
                     rgba(
                         255,
-                        50,
-                        50,
-                        .18
+                        255,
+                        255,
+                        .06
                     );
 
             }
 
 
-            /* =================================================
-               SIDEBAR
-               ================================================= */
+            * {
+                box-sizing:
+                    border-box;
+            }
+
 
             .genz-sidebar {
 
-                position: fixed;
+                position:
+                    fixed;
 
-                top: 0;
+                top:
+                    0;
 
-                left: 0;
+                left:
+                    0;
 
-                bottom: 0;
+                bottom:
+                    0;
 
                 width:
                     var(
                         --genz-sidebar-width
                     );
 
-                z-index: 9999;
+                z-index:
+                    10000;
 
-                display: flex;
+                display:
+                    flex;
 
-                flex-direction: column;
+                flex-direction:
+                    column;
 
-                box-sizing: border-box;
+                overflow:
+                    hidden;
 
                 background:
                     linear-gradient(
                         180deg,
-                        #101218 0%,
-                        #0b0d12 100%
+                        #090a0f 0%,
+                        #07080b 100%
                     );
 
                 border-right:
@@ -2018,7 +2219,7 @@
                         255,
                         40,
                         40,
-                        .16
+                        .12
                     );
 
                 box-shadow:
@@ -2027,353 +2228,221 @@
                         0,
                         0,
                         0,
-                        .35
+                        .32
                     );
 
-                overflow-x: hidden;
+                color:
+                    #ffffff;
 
-                overflow-y: auto;
-
-                scrollbar-width: thin;
-
-                scrollbar-color:
-                    rgba(
-                        255,
-                        40,
-                        40,
-                        .35
-                    )
-                    transparent;
+                font-family:
+                    Inter,
+                    ui-sans-serif,
+                    system-ui,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    sans-serif;
 
             }
 
 
-            /* =================================================
-               SIDEBAR HEADER
-               ================================================= */
-
             .genz-sidebar-header {
 
-                position: sticky;
+                min-height:
+                    82px;
 
-                top: 0;
+                display:
+                    flex;
 
-                z-index: 20;
+                align-items:
+                    center;
 
-                flex: 0 0 auto;
-
-                display: flex;
-
-                align-items: center;
-
-                justify-content: space-between;
-
-                min-height: 76px;
+                justify-content:
+                    space-between;
 
                 padding:
-                    15px 14px;
-
-                box-sizing: border-box;
-
-                background:
-                    linear-gradient(
-                        180deg,
-                        rgba(
-                            15,
-                            17,
-                            23,
-                            .99
-                        ),
-                        rgba(
-                            15,
-                            17,
-                            23,
-                            .96
-                        )
-                    );
+                    15px 13px;
 
                 border-bottom:
                     1px solid
                     rgba(
                         255,
-                        40,
-                        40,
-                        .14
+                        255,
+                        255,
+                        .05
                     );
-
-                backdrop-filter:
-                    blur(12px);
 
             }
 
-
-            /* =================================================
-               BRAND
-               ================================================= */
 
             .genz-brand {
 
-                min-width: 0;
-
-                display: flex;
-
-                flex-direction: column;
-
-                align-items: flex-start;
-
-                gap: 6px;
+                min-width:
+                    0;
 
             }
 
 
-            /* =================================================
-               GEN-Z.AI LOGO
-               ================================================= */
-
             .genz-logo {
 
-                position: relative;
+                display:
+                    inline-flex;
 
-                display: inline-flex;
+                align-items:
+                    center;
 
-                align-items: center;
+                gap:
+                    9px;
 
-                gap: 9px;
-
-                min-height: 42px;
-
-                max-width: 100%;
+                min-height:
+                    43px;
 
                 padding:
-                    6px 11px 6px 7px;
-
-                box-sizing: border-box;
+                    6px 10px 6px 6px;
 
                 border:
                     1px solid
                     rgba(
                         255,
-                        55,
-                        55,
-                        .68
+                        50,
+                        50,
+                        .24
                     );
 
-                border-radius: 12px;
+                border-radius:
+                    11px;
 
                 background:
-                    linear-gradient(
-                        135deg,
-                        rgba(
-                            255,
-                            0,
-                            0,
-                            .14
-                        ),
-                        rgba(
-                            0,
-                            0,
-                            0,
-                            .78
-                        )
+                    rgba(
+                        255,
+                        255,
+                        255,
+                        .025
                     );
 
                 box-shadow:
-                    0 0 8px
+                    inset 0 0 18px
                     rgba(
                         255,
                         0,
                         0,
-                        .25
+                        .025
                     ),
-                    inset 0 0 14px
+                    0 0 16px
                     rgba(
                         255,
                         0,
                         0,
-                        .08
+                        .06
                     );
-
-                overflow: hidden;
-
-                isolation: isolate;
-
-            }
-
-
-            .genz-logo::before {
-
-                content: "";
-
-                position: absolute;
-
-                left: -30%;
-
-                right: -30%;
-
-                top: 0;
-
-                height: 1px;
-
-                background:
-                    linear-gradient(
-                        90deg,
-                        transparent,
-                        rgba(
-                            255,
-                            80,
-                            80,
-                            .95
-                        ),
-                        transparent
-                    );
-
-                opacity: .8;
-
-                animation:
-                    genzLogoScan
-                    3.2s
-                    linear
-                    infinite;
-
-                pointer-events: none;
-
-                z-index: 1;
-
-            }
-
-
-            @keyframes genzLogoScan {
-
-                0% {
-
-                    transform:
-                        translateY(0);
-
-                    opacity: 0;
-
-                }
-
-                15% {
-
-                    opacity: .8;
-
-                }
-
-                70% {
-
-                    opacity: .8;
-
-                }
-
-                100% {
-
-                    transform:
-                        translateY(42px);
-
-                    opacity: 0;
-
-                }
 
             }
 
 
             .genz-logo-mark {
 
-                position: relative;
+                width:
+                    34px;
 
-                z-index: 2;
+                height:
+                    34px;
 
-                width: 34px;
+                flex:
+                    0 0 34px;
 
-                height: 34px;
+                display:
+                    flex;
 
-                flex: 0 0 34px;
+                align-items:
+                    center;
 
-                display: flex;
-
-                align-items: center;
-
-                justify-content: center;
-
-                box-sizing: border-box;
+                justify-content:
+                    center;
 
                 border:
                     1px solid
                     rgba(
                         255,
-                        255,
-                        255,
-                        .18
+                        70,
+                        70,
+                        .4
                     );
 
-                border-radius: 9px;
+                border-radius:
+                    9px;
+
+                color:
+                    #ffffff;
 
                 background:
-                    linear-gradient(
-                        135deg,
-                        #ff2525,
-                        #760000
+                    radial-gradient(
+                        circle at 35% 30%,
+                        rgba(
+                            255,
+                            70,
+                            70,
+                            .25
+                        ),
+                        rgba(
+                            255,
+                            0,
+                            0,
+                            .05
+                        ) 60%,
+                        rgba(
+                            0,
+                            0,
+                            0,
+                            .1
+                        )
                     );
 
-                color: #ffffff;
-
-                font-size: 12px;
-
-                line-height: 1;
-
-                font-weight: 900;
-
-                letter-spacing: .5px;
-
                 box-shadow:
-                    0 0 12px
+                    0 0 14px
                     rgba(
                         255,
                         0,
                         0,
-                        .45
+                        .16
                     );
+
+                font-size:
+                    11px;
+
+                line-height:
+                    1;
+
+                font-weight:
+                    900;
+
+                letter-spacing:
+                    .5px;
 
             }
 
 
             .genz-logo-text {
 
-                position: relative;
+                display:
+                    flex;
 
-                z-index: 2;
+                align-items:
+                    baseline;
 
-                display: flex;
+                color:
+                    #ffffff;
 
-                align-items: baseline;
+                font-size:
+                    18px;
 
-                min-width: 0;
+                line-height:
+                    1;
 
-                white-space: nowrap;
+                font-weight:
+                    800;
 
-                font-size: 18px;
-
-                line-height: 1;
-
-                font-weight: 900;
-
-                letter-spacing: .3px;
-
-            }
-
-
-            .genz-logo-main {
-
-                color: #ffffff;
-
-                text-shadow:
-                    0 0 8px
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .16
-                    );
+                letter-spacing:
+                    .4px;
 
             }
 
@@ -2381,12 +2450,10 @@
             .genz-logo-main strong {
 
                 color:
-                    var(
-                        --genz-red-bright
-                    );
+                    #ff3d3d;
 
                 text-shadow:
-                    0 0 10px
+                    0 0 9px
                     rgba(
                         255,
                         0,
@@ -2399,7 +2466,8 @@
 
             .genz-logo-ai {
 
-                margin-left: 1px;
+                margin-left:
+                    1px;
 
                 color:
                     #ff4a4a;
@@ -2418,7 +2486,8 @@
 
             .genz-brand-subtitle {
 
-                padding-left: 4px;
+                padding-left:
+                    4px;
 
                 color:
                     rgba(
@@ -2428,11 +2497,14 @@
                         .45
                     );
 
-                font-size: 10px;
+                font-size:
+                    10px;
 
-                line-height: 1;
+                line-height:
+                    1;
 
-                font-weight: 600;
+                font-weight:
+                    600;
 
                 letter-spacing:
                     1.2px;
@@ -2449,17 +2521,23 @@
 
             .genz-mobile-close {
 
-                display: none;
+                display:
+                    none;
 
-                width: 36px;
+                width:
+                    36px;
 
-                height: 36px;
+                height:
+                    36px;
 
-                padding: 0;
+                padding:
+                    0;
 
-                border: 0;
+                border:
+                    0;
 
-                border-radius: 10px;
+                border-radius:
+                    10px;
 
                 background:
                     rgba(
@@ -2469,13 +2547,17 @@
                         .05
                     );
 
-                color: #ffffff;
+                color:
+                    #ffffff;
 
-                font-size: 25px;
+                font-size:
+                    25px;
 
-                line-height: 1;
+                line-height:
+                    1;
 
-                cursor: pointer;
+                cursor:
+                    pointer;
 
             }
 
@@ -2504,42 +2586,53 @@
 
             .genz-nav {
 
-                display: flex;
+                display:
+                    flex;
 
-                flex-direction: column;
+                flex-direction:
+                    column;
 
-                gap: 4px;
+                gap:
+                    4px;
 
                 padding:
                     8px 10px 16px;
 
-                box-sizing: border-box;
+                box-sizing:
+                    border-box;
 
             }
 
 
             .genz-nav-item {
 
-                position: relative;
+                position:
+                    relative;
 
-                display: flex;
+                display:
+                    flex;
 
-                align-items: center;
+                align-items:
+                    center;
 
-                gap: 10px;
+                gap:
+                    10px;
 
-                min-height: 44px;
+                min-height:
+                    44px;
 
                 padding:
                     9px 11px;
 
-                box-sizing: border-box;
+                box-sizing:
+                    border-box;
 
                 border:
                     1px solid
                     transparent;
 
-                border-radius: 10px;
+                border-radius:
+                    10px;
 
                 color:
                     rgba(
@@ -2552,7 +2645,8 @@
                 background:
                     transparent;
 
-                text-decoration: none;
+                text-decoration:
+                    none;
 
                 transition:
                     background .18s ease,
@@ -2566,7 +2660,8 @@
 
             .genz-nav-item:hover {
 
-                color: #ffffff;
+                color:
+                    #ffffff;
 
                 background:
                     rgba(
@@ -2592,7 +2687,8 @@
 
             .genz-nav-item.active {
 
-                color: #ffffff;
+                color:
+                    #ffffff;
 
                 background:
                     linear-gradient(
@@ -2637,32 +2733,66 @@
 
             .genz-nav-icon {
 
-                width: 23px;
+                width:
+                    23px;
 
-                flex: 0 0 23px;
+                flex:
+                    0 0 23px;
 
-                display: flex;
+                display:
+                    flex;
 
-                align-items: center;
+                align-items:
+                    center;
 
-                justify-content: center;
+                justify-content:
+                    center;
 
-                font-size: 15px;
+                font-size:
+                    15px;
 
-                line-height: 1;
+                line-height:
+                    1;
+
+                color:
+                    currentColor;
+
+            }
+
+
+            .genz-nav-icon svg {
+
+                display:
+                    block;
+
+                width:
+                    19px;
+
+                height:
+                    19px;
+
+                flex:
+                    0 0 19px;
+
+                color:
+                    currentColor;
 
             }
 
 
             .genz-nav-label {
 
-                min-width: 0;
+                min-width:
+                    0;
 
-                font-size: 12px;
+                font-size:
+                    12px;
 
-                font-weight: 600;
+                font-weight:
+                    600;
 
-                line-height: 1.3;
+                line-height:
+                    1.3;
 
             }
 
@@ -2673,12 +2803,14 @@
 
             .genz-sidebar-footer {
 
-                margin-top: auto;
+                margin-top:
+                    auto;
 
                 padding:
                     10px 10px 14px;
 
-                box-sizing: border-box;
+                box-sizing:
+                    border-box;
 
                 border-top:
                     1px solid
@@ -2694,7 +2826,8 @@
 
             .genz-account-box {
 
-                width: 100%;
+                width:
+                    100%;
 
                 margin:
                     0 0 10px;
@@ -2702,7 +2835,8 @@
                 padding:
                     10px 11px;
 
-                box-sizing: border-box;
+                box-sizing:
+                    border-box;
 
                 border:
                     1px solid
@@ -2713,7 +2847,8 @@
                         .18
                     );
 
-                border-radius: 10px;
+                border-radius:
+                    10px;
 
                 background:
                     rgba(
@@ -2728,7 +2863,8 @@
 
             .genz-account-label {
 
-                margin-bottom: 5px;
+                margin-bottom:
+                    5px;
 
                 color:
                     rgba(
@@ -2738,11 +2874,14 @@
                         .45
                     );
 
-                font-size: 9px;
+                font-size:
+                    9px;
 
-                line-height: 1.2;
+                line-height:
+                    1.2;
 
-                font-weight: 800;
+                font-weight:
+                    800;
 
                 letter-spacing:
                     1.2px;
@@ -2752,7 +2891,8 @@
 
             .genz-account-email {
 
-                overflow: hidden;
+                overflow:
+                    hidden;
 
                 color:
                     rgba(
@@ -2762,24 +2902,31 @@
                         .72
                     );
 
-                font-size: 10px;
+                font-size:
+                    10px;
 
-                line-height: 1.35;
+                line-height:
+                    1.35;
 
-                font-weight: 600;
+                font-weight:
+                    600;
 
-                text-overflow: ellipsis;
+                text-overflow:
+                    ellipsis;
 
-                white-space: nowrap;
+                white-space:
+                    nowrap;
 
             }
 
 
             .genz-account-role {
 
-                display: inline-block;
+                display:
+                    inline-block;
 
-                margin-top: 5px;
+                margin-top:
+                    5px;
 
                 padding:
                     2px 6px;
@@ -2793,7 +2940,8 @@
                         .28
                     );
 
-                border-radius: 5px;
+                border-radius:
+                    5px;
 
                 color:
                     #ff6565;
@@ -2806,11 +2954,14 @@
                         .06
                     );
 
-                font-size: 8px;
+                font-size:
+                    8px;
 
-                line-height: 1.3;
+                line-height:
+                    1.3;
 
-                font-weight: 800;
+                font-weight:
+                    800;
 
                 letter-spacing:
                     .8px;
@@ -2820,20 +2971,26 @@
 
             .genz-logout-button {
 
-                width: 100%;
+                width:
+                    100%;
 
-                min-height: 42px;
+                min-height:
+                    42px;
 
-                display: flex;
+                display:
+                    flex;
 
-                align-items: center;
+                align-items:
+                    center;
 
-                justify-content: center;
+                justify-content:
+                    center;
 
                 padding:
                     9px 11px;
 
-                box-sizing: border-box;
+                box-sizing:
+                    border-box;
 
                 border:
                     1px solid
@@ -2844,7 +3001,8 @@
                         .25
                     );
 
-                border-radius: 10px;
+                border-radius:
+                    10px;
 
                 color:
                     #ff3b3b;
@@ -2857,16 +3015,20 @@
                         .025
                     );
 
-                font: inherit;
+                font:
+                    inherit;
 
-                font-size: 12px;
+                font-size:
+                    12px;
 
-                font-weight: 800;
+                font-weight:
+                    800;
 
                 letter-spacing:
                     .8px;
 
-                cursor: pointer;
+                cursor:
+                    pointer;
 
                 transition:
                     background .18s ease,
@@ -2916,31 +3078,44 @@
 
             .genz-mobile-toggle {
 
-                display: none;
+                display:
+                    none;
 
-                position: fixed;
+                position:
+                    fixed;
 
-                top: 12px;
+                top:
+                    12px;
 
-                left: 12px;
+                left:
+                    12px;
 
-                z-index: 10001;
+                z-index:
+                    10001;
 
-                width: 44px;
+                width:
+                    44px;
 
-                height: 44px;
+                height:
+                    44px;
 
-                padding: 9px;
+                padding:
+                    9px;
 
-                box-sizing: border-box;
+                box-sizing:
+                    border-box;
 
-                flex-direction: column;
+                flex-direction:
+                    column;
 
-                align-items: center;
+                align-items:
+                    center;
 
-                justify-content: center;
+                justify-content:
+                    center;
 
-                gap: 5px;
+                gap:
+                    5px;
 
                 border:
                     1px solid
@@ -2951,7 +3126,8 @@
                         .32
                     );
 
-                border-radius: 11px;
+                border-radius:
+                    11px;
 
                 background:
                     rgba(
@@ -2970,7 +3146,8 @@
                         .12
                     );
 
-                cursor: pointer;
+                cursor:
+                    pointer;
 
                 backdrop-filter:
                     blur(12px);
@@ -2980,13 +3157,17 @@
 
             .genz-mobile-toggle span {
 
-                display: block;
+                display:
+                    block;
 
-                width: 20px;
+                width:
+                    20px;
 
-                height: 2px;
+                height:
+                    2px;
 
-                border-radius: 2px;
+                border-radius:
+                    2px;
 
                 background:
                     #ffffff;
@@ -3000,13 +3181,17 @@
 
             .genz-sidebar-overlay {
 
-                display: none;
+                display:
+                    none;
 
-                position: fixed;
+                position:
+                    fixed;
 
-                inset: 0;
+                inset:
+                    0;
 
-                z-index: 9998;
+                z-index:
+                    9998;
 
                 background:
                     rgba(
@@ -3024,7 +3209,8 @@
 
             .genz-sidebar-overlay.active {
 
-                display: block;
+                display:
+                    block;
 
             }
 
@@ -3072,7 +3258,8 @@
                         transform .22s
                         ease;
 
-                    z-index: 10000;
+                    z-index:
+                        10000;
 
                 }
 
@@ -3087,39 +3274,46 @@
 
                 .genz-sidebar-header {
 
-                    min-height: 72px;
+                    min-height:
+                        72px;
 
                 }
 
 
                 .genz-mobile-close {
 
-                    display: flex;
+                    display:
+                        flex;
 
-                    align-items: center;
+                    align-items:
+                        center;
 
-                    justify-content: center;
+                    justify-content:
+                        center;
 
                 }
 
 
                 .genz-mobile-toggle {
 
-                    display: flex;
+                    display:
+                        flex;
 
                 }
 
 
                 body {
 
-                    padding-left: 0 !important;
+                    padding-left:
+                        0 !important;
 
                 }
 
 
                 body.genz-nav-open {
 
-                    overflow: hidden;
+                    overflow:
+                        hidden;
 
                 }
 
@@ -3144,9 +3338,11 @@
 
                 .genz-logo {
 
-                    gap: 8px;
+                    gap:
+                        8px;
 
-                    min-height: 40px;
+                    min-height:
+                        40px;
 
                     padding:
                         5px 9px 5px 6px;
@@ -3156,22 +3352,28 @@
 
                 .genz-logo-mark {
 
-                    width: 32px;
+                    width:
+                        32px;
 
-                    height: 32px;
+                    height:
+                        32px;
 
-                    flex-basis: 32px;
+                    flex-basis:
+                        32px;
 
-                    border-radius: 8px;
+                    border-radius:
+                        8px;
 
-                    font-size: 11px;
+                    font-size:
+                        11px;
 
                 }
 
 
                 .genz-logo-text {
 
-                    font-size: 17px;
+                    font-size:
+                        17px;
 
                 }
 
