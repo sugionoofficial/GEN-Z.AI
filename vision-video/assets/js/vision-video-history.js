@@ -158,10 +158,6 @@
 
     async function getSession() {
 
-        /*
-         * Prioritas sama seperti module Vision lainnya.
-         */
-
         if (
             window.GENZVisionVideoSupabase
         ) {
@@ -310,12 +306,33 @@
             );
 
 
-        const duration =
+        const rawDuration =
             Number(
                 options.duration ??
                 video.duration ??
                 0
             );
+
+
+        /*
+         * generation_history.duration bertipe INTEGER.
+         *
+         * Metadata video dapat menghasilkan nilai desimal,
+         * contoh:
+         *
+         *     5.875
+         *
+         * Nilai tersebut tidak boleh dikirim langsung
+         * ke kolom INTEGER PostgreSQL.
+         *
+         * Dibulatkan ke detik terdekat.
+         */
+
+        const duration =
+            Number.isFinite(rawDuration) &&
+            rawDuration > 0
+                ? Math.round(rawDuration)
+                : 0;
 
 
         const width =
@@ -386,7 +403,6 @@
                 null,
 
             duration:
-                Number.isFinite(duration) &&
                 duration > 0
                     ? duration
                     : null,
