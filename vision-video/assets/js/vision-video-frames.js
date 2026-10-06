@@ -63,7 +63,10 @@
     ===================================================== */
 
     let extractionToken = 0;
+
     let activeVideo = null;
+
+    let eventsBound = false;
 
 
     /* =====================================================
@@ -268,8 +271,6 @@
          * AUTO
          *
          * Menyesuaikan jumlah frame dengan panjang video.
-         * Tujuannya bukan mengambil setiap frame, karena
-         * manusia sudah cukup lama membuat file video besar.
          */
         if (
             normalizedMode === "auto"
@@ -319,8 +320,9 @@
         /*
          * KEYFRAMES
          *
-         * Lebih sedikit tetapi tersebar pada titik perubahan
-         * struktur video.
+         * Ini bukan codec I-frame.
+         * Yang diambil adalah titik sampling temporal
+         * yang diprioritaskan untuk perubahan struktur video.
          */
         if (
             normalizedMode === "keyframes"
@@ -342,8 +344,6 @@
 
         /*
          * UNIFORM
-         *
-         * Sampel reguler sepanjang timeline.
          */
         if (
             normalizedMode === "uniform"
@@ -365,9 +365,6 @@
 
         /*
          * DENSE
-         *
-         * Sampel lebih rapat untuk video dengan gerakan/
-         * perubahan scene lebih banyak.
          */
         if (
             normalizedMode === "dense"
@@ -432,10 +429,9 @@
 
         }
 
+
         /*
-         * Hindari frame tepat pada timestamp 0 karena
-         * sebagian codec membutuhkan sedikit waktu sebelum
-         * frame pertama siap.
+         * Hindari frame tepat pada timestamp 0.
          */
         const safeStart =
             Math.min(
@@ -446,7 +442,8 @@
         const safeEnd =
             Math.max(
                 safeStart,
-                seconds - Math.min(
+                seconds -
+                Math.min(
                     0.05,
                     seconds * 0.05
                 )
@@ -501,10 +498,8 @@
 
         const points = [];
 
-        /*
-         * Prioritaskan awal, transisi tengah, dan akhir.
-         */
         const anchors = [
+
             0.03,
             0.10,
             0.25,
@@ -514,7 +509,9 @@
             0.75,
             0.90,
             0.97
+
         ];
+
 
         anchors.forEach(
             function (ratio) {
@@ -541,9 +538,6 @@
             );
 
 
-        /*
-         * Tambahkan titik uniform jika anchor belum cukup.
-         */
         if (
             points.length < target
         ) {
@@ -567,9 +561,6 @@
         }
 
 
-        /*
-         * Sort + dedupe.
-         */
         return normalizeTimeline(
             points,
             seconds
@@ -640,8 +631,10 @@
         const safeEnd =
             Math.max(
                 safeStart,
-                seconds - safeMargin
+                seconds -
+                safeMargin
             );
+
 
         const values =
             timestamps
@@ -684,7 +677,9 @@
                     }
                 );
 
+
         const result = [];
+
 
         values.forEach(
             function (value) {
@@ -701,10 +696,12 @@
 
                 }
 
+
                 const previous =
                     result[
                         result.length - 1
                     ];
+
 
                 /*
                  * Dedupe timestamp yang terlalu dekat.
@@ -723,6 +720,7 @@
 
             }
         );
+
 
         return result;
 
@@ -753,6 +751,7 @@
             return [];
 
         }
+
 
         const count =
             requestedCount !== null &&
@@ -815,14 +814,15 @@
             default:
 
                 /*
-                 * AUTO menggunakan kombinasi keyframe
-                 * sederhana dan uniform sampling.
+                 * AUTO menggunakan kombinasi anchor
+                 * temporal dan uniform sampling.
                  */
                 timeline =
                     generateKeyframeTimeline(
                         seconds,
                         count
                     );
+
 
                 if (
                     timeline.length < count
@@ -872,6 +872,7 @@
 
         }
 
+
         if (
             token !== extractionToken
         ) {
@@ -885,8 +886,10 @@
 
         }
 
+
         const target =
             Number(timestamp);
+
 
         if (
             !Number.isFinite(target)
@@ -899,6 +902,7 @@
             );
 
         }
+
 
         return new Promise(
             function (resolve, reject) {
@@ -922,6 +926,7 @@
                         onError
                     );
 
+
                     if (
                         timeoutId !== null
                     ) {
@@ -940,7 +945,9 @@
                     value
                 ) {
 
-                    if (finished) {
+                    if (
+                        finished
+                    ) {
 
                         return;
 
@@ -974,6 +981,7 @@
                         return;
 
                     }
+
 
                     finish(
                         resolve,
@@ -1024,11 +1032,6 @@
 
                 try {
 
-                    /*
-                     * Jika timestamp hampir sama dengan posisi
-                     * sekarang, tetap lakukan seek supaya browser
-                     * menghasilkan frame yang benar.
-                     */
                     video.currentTime =
                         target;
 
@@ -1061,17 +1064,20 @@
                 "canvas"
             );
 
+
         canvas.width =
             Math.max(
                 1,
                 Math.round(width)
             );
 
+
         canvas.height =
             Math.max(
                 1,
                 Math.round(height)
             );
+
 
         return canvas;
 
@@ -1102,6 +1108,7 @@
 
         }
 
+
         return waitForSeek(
             video,
             timestamp,
@@ -1121,15 +1128,18 @@
 
                     }
 
+
                     const width =
                         Number(
                             video.videoWidth
                         );
 
+
                     const height =
                         Number(
                             video.videoHeight
                         );
+
 
                     if (
                         !width ||
@@ -1142,11 +1152,13 @@
 
                     }
 
+
                     const canvas =
                         createCanvas(
                             width,
                             height
                         );
+
 
                     const context =
                         canvas.getContext(
@@ -1156,6 +1168,7 @@
                             }
                         );
 
+
                     if (!context) {
 
                         throw new Error(
@@ -1164,6 +1177,7 @@
 
                     }
 
+
                     context.drawImage(
                         video,
                         0,
@@ -1171,6 +1185,7 @@
                         width,
                         height
                     );
+
 
                     return new Promise(
                         function (
@@ -1193,12 +1208,12 @@
 
                                     }
 
+
                                     resolve({
 
                                         index,
 
                                         timestamp:
-
                                             Number(
                                                 timestamp
                                             ),
@@ -1210,7 +1225,6 @@
                                         blob,
 
                                         url:
-
                                             URL.createObjectURL(
                                                 blob
                                             )
@@ -1346,8 +1360,10 @@
                 videoElement.currentTime
             ) || 0;
 
+
         const wasPaused =
             videoElement.paused;
+
 
         const frames = [];
 
@@ -1355,8 +1371,8 @@
         try {
 
             /*
-             * Pause agar extraction tidak berjalan melawan
-             * playback video.
+             * Pause agar extraction tidak berjalan
+             * melawan playback video.
              */
             videoElement.pause();
 
@@ -1440,6 +1456,7 @@
                 const state =
                     getState();
 
+
                 if (
                     typeof state.setFrames ===
                     "function"
@@ -1491,7 +1508,7 @@
 
             /*
              * Jika extraction gagal, jangan meninggalkan
-             * frame blob URL yang sudah dibuat.
+             * frame object URL yang sudah dibuat.
              */
             revokeFrameURLs(
                 frames
@@ -1527,13 +1544,14 @@
                 } catch (error) {
 
                     /*
-                     * Autoplay/playback policy tidak boleh
-                     * menggagalkan hasil extraction.
+                     * Playback policy tidak boleh
+                     * menggagalkan extraction.
                      */
 
                 }
 
             }
+
 
             activeVideo =
                 null;
@@ -1558,6 +1576,7 @@
             return;
 
         }
+
 
         frames.forEach(
             function (frame) {
@@ -1597,8 +1616,10 @@
 
         extractionToken++;
 
+
         const state =
             getState();
+
 
         let frames = null;
 
@@ -1612,6 +1633,7 @@
                 state.getValue(
                     "frames"
                 );
+
 
             if (
                 frameState
@@ -1669,6 +1691,7 @@
 
         extractionToken++;
 
+
         if (
             activeVideo
         ) {
@@ -1685,6 +1708,7 @@
 
         }
 
+
         activeVideo =
             null;
 
@@ -1693,15 +1717,13 @@
 
     /* =====================================================
        FRAME DATA FOR API
-       -----------------------------------------------------
-       API analysis module dapat menggunakan Blob/frame
-       tanpa harus mengetahui detail extraction.
     ===================================================== */
 
     function getFrames() {
 
         const state =
             getState();
+
 
         if (
             typeof state.getValue ===
@@ -1713,6 +1735,7 @@
                     "frames"
                 );
 
+
             if (
                 frameState
             ) {
@@ -1726,6 +1749,7 @@
             }
 
         }
+
 
         if (
             typeof state.get ===
@@ -1737,6 +1761,7 @@
                     "frames"
                 );
 
+
             if (
                 frameState
             ) {
@@ -1750,6 +1775,7 @@
             }
 
         }
+
 
         return [];
 
@@ -1765,6 +1791,7 @@
         const state =
             getState();
 
+
         if (
             typeof state.getValue ===
             "function"
@@ -1774,6 +1801,7 @@
                 state.getValue(
                     "frames"
                 );
+
 
             if (
                 frameState &&
@@ -1790,6 +1818,7 @@
 
         }
 
+
         return [];
 
     }
@@ -1804,8 +1833,8 @@
     ) {
 
         /*
-         * Hanya membersihkan frame lama.
-         * Extraction baru dilakukan oleh analysis workflow.
+         * Metadata baru berarti frame lama
+         * tidak lagi dapat dianggap valid.
          */
         clearFrames();
 
@@ -1825,25 +1854,55 @@
 
     function bind() {
 
-        if (window.GENZVisionVideoFramesReady) {
+        /*
+         * Jangan menggunakan
+         * GENZVisionVideoFramesReady sebagai guard.
+         *
+         * Ready berarti API module sudah tersedia,
+         * bukan berarti event listener sudah dipasang.
+         */
+        if (
+            eventsBound
+        ) {
 
-            return;
+            return true;
 
         }
+
+
+        if (
+            !window.GENZVisionVideoState ||
+            !window.GENZVisionVideoDOM ||
+            !window.GENZVisionVideoPreview
+        ) {
+
+            return false;
+
+        }
+
 
         document.addEventListener(
             "genz:vision-video:metadata-ready",
             handleMetadataReady
         );
 
+
         document.addEventListener(
             "genz:vision-video:preview-cleared",
             handlePreviewCleared
         );
 
+
+        eventsBound =
+            true;
+
+
         console.log(
             "[GEN-Z.AI Vision Video] Frames module ready."
         );
+
+
+        return true;
 
     }
 
@@ -1894,13 +1953,28 @@
     window.GENZVisionVideoFrames =
         API;
 
+
+    /*
+     * Bind status dan API availability dipisahkan.
+     *
+     * Loader membutuhkan ready flag agar dapat melanjutkan,
+     * sedangkan bind membutuhkan dependency yang sudah tersedia.
+     */
     window.GENZVisionVideoFramesReady =
         true;
 
 
-    /*
-     * Bind setelah DOM siap.
-     */
+    /* =====================================================
+       INITIAL BIND
+    ===================================================== */
+
+    function initializeBinding() {
+
+        bind();
+
+    }
+
+
     if (
         document.readyState ===
         "loading"
@@ -1908,32 +1982,17 @@
 
         document.addEventListener(
             "DOMContentLoaded",
-            function () {
-
-                if (
-                    window.GENZVisionVideoState &&
-                    window.GENZVisionVideoDOM &&
-                    window.GENZVisionVideoPreview
-                ) {
-
-                    bind();
-
-                }
-
-            },
+            initializeBinding,
             {
                 once: true
             }
         );
 
-    } else if (
-        window.GENZVisionVideoState &&
-        window.GENZVisionVideoDOM &&
-        window.GENZVisionVideoPreview
-    ) {
+    } else {
 
-        bind();
+        initializeBinding();
 
     }
+
 
 })();
