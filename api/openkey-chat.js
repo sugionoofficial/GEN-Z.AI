@@ -2976,6 +2976,45 @@ async function saveVisionHistory(
     }
 
 
+    /* =====================================================
+       NORMALIZE DURATION
+       -----------------------------------------------------
+       generation_history.duration bertipe INTEGER.
+
+       Browser/video metadata dapat mengirim durasi desimal,
+       contoh:
+           5.875
+
+       PostgreSQL INTEGER tidak menerima nilai tersebut.
+       Durasi dibulatkan ke integer sebelum INSERT.
+
+       Contoh:
+           5.875 -> 6
+           5.4   -> 5
+           6     -> 6
+
+       Nilai null / undefined / invalid menjadi null.
+    ===================================================== */
+
+    const rawDuration =
+        Number(
+            record.duration
+        );
+
+
+    const normalizedDuration =
+        Number.isFinite(
+            rawDuration
+        ) &&
+        rawDuration >= 0
+
+            ? Math.round(
+                rawDuration
+            )
+
+            : null;
+
+
     /*
      * Provider dan credit TIDAK dipercayakan
      * kepada browser.
@@ -3020,8 +3059,7 @@ async function saveVisionHistory(
             ) || null,
 
         duration:
-            record.duration ??
-            null,
+            normalizedDuration,
 
         resolution:
             normalizeVisionHistoryString(
