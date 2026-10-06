@@ -20,7 +20,8 @@
    - Hanya untuk Vision Video
    - Tidak mengubah CSS Vision Image
    - Tidak mengubah JavaScript
-   - Header/hero dinaikkan agar dekat dengan navigasi
+   - Header/hero dekat dengan navigasi
+   - Analysis Settings menggunakan .vision-video-form-group
 ========================================================= */
 
 
@@ -36,12 +37,6 @@
 
     min-height: 100vh;
 
-    /*
-     * HEADER DINAIKKAN
-     * -----------------------------------------------------
-     * Sebelumnya 48px.
-     * Dibuat tipis agar hero berada dekat dengan navigasi.
-     */
     padding:
         8px
         24px
@@ -51,13 +46,6 @@
 
     color: #ffffff;
 
-    /*
-     * BACKGROUND
-     * -----------------------------------------------------
-     * Abu muda
-     * -> abu gelap
-     * -> hitam
-     */
     background:
         linear-gradient(
             180deg,
@@ -98,9 +86,6 @@
 
     background:
 
-        /*
-         * Soft upper highlight
-         */
         radial-gradient(
             ellipse 900px 500px at 50% -80px,
             rgba(255, 255, 255, 0.18)
@@ -113,9 +98,6 @@
             78%
         ),
 
-        /*
-         * Blue neon atmosphere
-         */
         radial-gradient(
             ellipse 850px 480px at 50% 0%,
             rgba(0, 145, 255, 0.12)
@@ -126,9 +108,6 @@
             72%
         ),
 
-        /*
-         * Dark lower atmosphere
-         */
         linear-gradient(
             180deg,
             rgba(255, 255, 255, 0.035) 0%,
@@ -192,8 +171,6 @@
 
 /* =========================================================
    HERO
-   ---------------------------------------------------------
-   SELURUH HEADER MENJADI 1 BLOK HITAM
 ========================================================= */
 
 .vision-video-hero {
@@ -219,13 +196,11 @@
     display: flex;
 
     align-items: center;
+
     justify-content: space-between;
 
     gap: 30px;
 
-    /*
-     * SOLID BLACK BLOCK
-     */
     background:
         #030405;
 
@@ -262,6 +237,7 @@
     position: absolute;
 
     top: 0;
+
     left: 24px;
     right: 24px;
 
@@ -427,9 +403,11 @@
     position: absolute;
 
     left: 2px;
+
     bottom: -8px;
 
     width: 70px;
+
     height: 2px;
 
     background:
@@ -455,8 +433,7 @@
 
     max-width: 780px;
 
-    margin:
-        0;
+    margin: 0;
 
     color:
         rgba(255, 255, 255, 0.68);
@@ -474,8 +451,6 @@
 
 /* =========================================================
    CREDIT BADGE
-   ---------------------------------------------------------
-   MASIH DI DALAM HERO BLOCK
 ========================================================= */
 
 .vision-video-credit-badge {
@@ -522,6 +497,7 @@
     position: absolute;
 
     top: 0;
+
     left: 18px;
     right: 18px;
 
@@ -626,8 +602,6 @@
 
 /* =========================================================
    CARD
-   ---------------------------------------------------------
-   SEMUA BLOK UTAMA HITAM
 ========================================================= */
 
 .vision-video-card {
@@ -644,9 +618,6 @@
 
     border-radius: 17px;
 
-    /*
-     * SOLID BLACK
-     */
     background:
         #030405;
 
@@ -677,6 +648,7 @@
     position: absolute;
 
     top: 0;
+
     left: 21px;
     right: 21px;
 
@@ -708,6 +680,7 @@
     display: flex;
 
     align-items: flex-start;
+
     justify-content: space-between;
 
     gap: 20px;
@@ -782,6 +755,7 @@
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     padding: 20px;
@@ -878,6 +852,7 @@
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     margin-bottom: 16px;
@@ -1037,6 +1012,7 @@
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     gap: 10px;
@@ -1203,8 +1179,6 @@
 
 /* =========================================================
    FILE INFO
-   ---------------------------------------------------------
-   LIST ITEM = HITAM + BLUE NEON BORDER
 ========================================================= */
 
 .vision-video-file-info {
@@ -1286,7 +1260,10 @@
 
 
 /* =========================================================
-   FORM GRID
+   LEGACY FORM GRID
+   ---------------------------------------------------------
+   Dipertahankan karena dapat digunakan komponen lain.
+   Analysis Settings tidak bergantung pada blok ini.
 ========================================================= */
 
 .vision-video-form-grid {
@@ -1413,6 +1390,362 @@
     background: #050607;
 
     color: #ffffff;
+
+}
+
+
+/* =========================================================
+   ANALYSIS SETTINGS
+   ---------------------------------------------------------
+   HTML:
+   .vision-video-form-group
+
+   Prinsip:
+   - Compact
+   - Clean
+   - Premium dark
+   - Blue neon accent
+   - Tidak menggunakan .vision-video-field
+   - Tidak menggunakan selector :has()
+========================================================= */
+
+#visionVideoSettingsCard {
+
+    padding: 21px;
+
+}
+
+
+#visionVideoSettingsCard
+.vision-video-card-header {
+
+    margin-bottom: 16px;
+
+}
+
+
+/* =========================================================
+   SETTINGS GROUP
+========================================================= */
+
+#visionVideoSettingsCard
+.vision-video-form-group {
+
+    display: grid;
+
+    grid-template-columns:
+        150px
+        minmax(0, 1fr);
+
+    align-items: center;
+
+    gap: 14px;
+
+    min-width: 0;
+
+    margin: 0;
+
+    padding:
+        9px
+        0;
+
+    border-bottom:
+        1px solid
+        rgba(0, 145, 255, 0.075);
+
+}
+
+
+#visionVideoSettingsCard
+.vision-video-form-group:last-child {
+
+    align-items: start;
+
+    padding-bottom: 0;
+
+    border-bottom: none;
+
+}
+
+
+/* =========================================================
+   SETTINGS LABEL
+========================================================= */
+
+#visionVideoSettingsCard
+.vision-video-form-group > label {
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    min-height: 39px;
+
+    margin: 0;
+
+    padding-left: 10px;
+
+    color:
+        rgba(255, 255, 255, 0.64);
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    letter-spacing: 0.015em;
+
+}
+
+
+#visionVideoSettingsCard
+.vision-video-form-group > label::before {
+
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+
+    top: 50%;
+
+    width: 2px;
+
+    height: 15px;
+
+    transform:
+        translateY(-50%);
+
+    border-radius: 999px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(55, 195, 255, 0.95),
+            rgba(0, 145, 255, 0.22)
+        );
+
+    box-shadow:
+        0 0 8px
+        rgba(0, 165, 255, 0.35);
+
+}
+
+
+/* =========================================================
+   SETTINGS SELECT
+========================================================= */
+
+#visionVideoSettingsCard
+.vision-video-form-group select {
+
+    width: 100%;
+
+    height: 39px;
+
+    min-width: 0;
+
+    box-sizing: border-box;
+
+    padding:
+        0
+        36px
+        0
+        12px;
+
+    appearance: none;
+
+    -webkit-appearance: none;
+
+    border:
+        1px solid
+        rgba(0, 145, 255, 0.28);
+
+    border-radius: 8px;
+
+    outline: none;
+
+    background-color:
+        #050709;
+
+    background-image:
+        linear-gradient(
+            45deg,
+            transparent 50%,
+            rgba(70, 190, 255, 0.82) 50%
+        ),
+        linear-gradient(
+            135deg,
+            rgba(70, 190, 255, 0.82) 50%,
+            transparent 50%
+        );
+
+    background-position:
+        calc(100% - 15px) 16px,
+        calc(100% - 10px) 16px;
+
+    background-size:
+        5px 5px,
+        5px 5px;
+
+    background-repeat: no-repeat;
+
+    color:
+        rgba(255, 255, 255, 0.88);
+
+    font-family: inherit;
+
+    font-size: 10px;
+
+    font-weight: 600;
+
+    cursor: pointer;
+
+    box-shadow:
+        inset 0 0 16px
+        rgba(0, 100, 180, 0.025);
+
+    transition:
+        border-color 0.18s ease,
+        background-color 0.18s ease,
+        box-shadow 0.18s ease;
+
+}
+
+
+#visionVideoSettingsCard
+.vision-video-form-group select:hover {
+
+    border-color:
+        rgba(0, 170, 255, 0.50);
+
+    background-color:
+        #060a0e;
+
+}
+
+
+#visionVideoSettingsCard
+.vision-video-form-group select:focus {
+
+    border-color:
+        rgba(0, 180, 255, 0.72);
+
+    background-color:
+        #060b10;
+
+    box-shadow:
+        0 0 0 2px
+        rgba(0, 145, 255, 0.045),
+
+        0 0 16px
+        rgba(0, 145, 255, 0.07);
+
+}
+
+
+#visionVideoSettingsCard
+.vision-video-form-group select option {
+
+    background:
+        #050607;
+
+    color:
+        #ffffff;
+
+}
+
+
+/* =========================================================
+   SETTINGS TEXTAREA
+========================================================= */
+
+#visionVideoSettingsCard
+.vision-video-form-group textarea {
+
+    width: 100%;
+
+    min-width: 0;
+
+    min-height: 92px;
+
+    box-sizing: border-box;
+
+    padding:
+        10px
+        12px;
+
+    resize: vertical;
+
+    border:
+        1px solid
+        rgba(0, 145, 255, 0.28);
+
+    border-radius: 8px;
+
+    outline: none;
+
+    background:
+        #050709;
+
+    color:
+        rgba(255, 255, 255, 0.88);
+
+    font-family: inherit;
+
+    font-size: 10px;
+
+    line-height: 1.55;
+
+    box-shadow:
+        inset 0 0 16px
+        rgba(0, 100, 180, 0.025);
+
+    transition:
+        border-color 0.18s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease;
+
+}
+
+
+#visionVideoSettingsCard
+.vision-video-form-group textarea::placeholder {
+
+    color:
+        rgba(255, 255, 255, 0.24);
+
+}
+
+
+#visionVideoSettingsCard
+.vision-video-form-group textarea:hover {
+
+    border-color:
+        rgba(0, 170, 255, 0.48);
+
+}
+
+
+#visionVideoSettingsCard
+.vision-video-form-group textarea:focus {
+
+    border-color:
+        rgba(0, 180, 255, 0.72);
+
+    background:
+        #060b10;
+
+    box-shadow:
+        0 0 0 2px
+        rgba(0, 145, 255, 0.045),
+
+        0 0 16px
+        rgba(0, 145, 255, 0.07),
+
+        inset 0 0 18px
+        rgba(0, 110, 190, 0.025);
 
 }
 
@@ -1712,6 +2045,7 @@
     flex-direction: column;
 
     align-items: center;
+
     justify-content: center;
 
     padding: 30px;
@@ -1731,6 +2065,7 @@
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     margin-bottom: 14px;
@@ -1853,6 +2188,7 @@
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     padding: 20px;
@@ -1884,12 +2220,6 @@
 
 }
 
-
-/* =========================================================
-   STRUCTURE ITEM
-   ---------------------------------------------------------
-   LIST = BLACK + BLUE NEON
-========================================================= */
 
 .vision-video-structure-item {
 
@@ -1972,8 +2302,6 @@
 
 /* =========================================================
    INFO CARD
-   ---------------------------------------------------------
-   LIST / CARD = BLACK + BLUE NEON
 ========================================================= */
 
 .vision-video-info-card {
@@ -2016,6 +2344,7 @@
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     border:
@@ -2089,7 +2418,11 @@
 .vision-video-remove-button:focus-visible,
 .vision-video-copy-button:focus-visible,
 .vision-video-field select:focus-visible,
-.vision-video-field textarea:focus-visible {
+.vision-video-field textarea:focus-visible,
+#visionVideoSettingsCard
+.vision-video-form-group select:focus-visible,
+#visionVideoSettingsCard
+.vision-video-form-group textarea:focus-visible {
 
     outline:
         2px solid
@@ -2108,10 +2441,6 @@
 
     .vision-video-page {
 
-        /*
-         * Tetap dekat dengan navigasi.
-         * Sebelumnya 40px.
-         */
         padding:
             8px
             18px
@@ -2145,9 +2474,6 @@
 
     .vision-video-page {
 
-        /*
-         * Jangan menurunkan hero pada mobile.
-         */
         padding:
             6px
             14px
@@ -2156,9 +2482,10 @@
     }
 
 
-    /*
-     * HERO TETAP SATU BLOK HITAM
-     */
+    /* -----------------------------------------------------
+       HERO
+    ----------------------------------------------------- */
+
     .vision-video-hero {
 
         flex-direction: column;
@@ -2222,6 +2549,10 @@
     }
 
 
+    /* -----------------------------------------------------
+       CARD
+    ----------------------------------------------------- */
+
     .vision-video-card {
 
         padding: 15px;
@@ -2238,6 +2569,10 @@
     }
 
 
+    /* -----------------------------------------------------
+       DROPZONE
+    ----------------------------------------------------- */
+
     .vision-video-dropzone {
 
         min-height: 310px;
@@ -2246,6 +2581,10 @@
 
     }
 
+
+    /* -----------------------------------------------------
+       LEGACY FORM
+    ----------------------------------------------------- */
 
     .vision-video-form-grid {
 
@@ -2262,6 +2601,10 @@
     }
 
 
+    /* -----------------------------------------------------
+       FILE INFO
+    ----------------------------------------------------- */
+
     .vision-video-file-info {
 
         grid-template-columns:
@@ -2269,6 +2612,10 @@
 
     }
 
+
+    /* -----------------------------------------------------
+       STRUCTURE
+    ----------------------------------------------------- */
 
     .vision-video-scene-structure {
 
@@ -2278,6 +2625,10 @@
     }
 
 
+    /* -----------------------------------------------------
+       INFO
+    ----------------------------------------------------- */
+
     .vision-video-info-grid {
 
         grid-template-columns:
@@ -2286,11 +2637,122 @@
     }
 
 
+    /* -----------------------------------------------------
+       PROMPT
+    ----------------------------------------------------- */
+
     .vision-video-prompt-container,
     .vision-video-prompt-placeholder,
     .vision-video-prompt-result {
 
         min-height: 350px;
+
+    }
+
+
+    /* -----------------------------------------------------
+       ANALYSIS SETTINGS
+    ----------------------------------------------------- */
+
+    #visionVideoSettingsCard {
+
+        padding: 15px;
+
+    }
+
+
+    #visionVideoSettingsCard
+    .vision-video-card-header {
+
+        margin-bottom: 13px;
+
+    }
+
+
+    #visionVideoSettingsCard
+    .vision-video-form-group {
+
+        display: flex;
+
+        flex-direction: column;
+
+        align-items: stretch;
+
+        gap: 6px;
+
+        padding:
+            10px
+            0;
+
+    }
+
+
+    #visionVideoSettingsCard
+    .vision-video-form-group:last-child {
+
+        display: flex;
+
+        flex-direction: column;
+
+        align-items: stretch;
+
+        gap: 6px;
+
+        padding-bottom: 0;
+
+    }
+
+
+    #visionVideoSettingsCard
+    .vision-video-form-group > label {
+
+        min-height: 20px;
+
+        padding-left: 9px;
+
+        font-size: 9px;
+
+    }
+
+
+    #visionVideoSettingsCard
+    .vision-video-form-group > label::before {
+
+        height: 13px;
+
+    }
+
+
+    #visionVideoSettingsCard
+    .vision-video-form-group select {
+
+        height: 40px;
+
+        padding:
+            0
+            34px
+            0
+            11px;
+
+        background-position:
+            calc(100% - 14px) 16px,
+            calc(100% - 9px) 16px;
+
+        font-size: 10px;
+
+    }
+
+
+    #visionVideoSettingsCard
+    .vision-video-form-group textarea {
+
+        min-height: 105px;
+
+        padding:
+            10px
+            11px;
+
+        font-size: 10px;
 
     }
 
@@ -2305,10 +2767,6 @@
 
     .vision-video-page {
 
-        /*
-         * Tetap sangat dekat dengan navigasi.
-         * Sebelumnya 30px.
-         */
         padding:
             4px
             10px
@@ -2398,434 +2856,14 @@
 
     }
 
-}
 
-/* =========================================================
-   ANALYSIS SETTINGS
-   ---------------------------------------------------------
-   FIX:
-   HTML menggunakan .vision-video-form-group
-   Bukan .vision-video-field.
-
-   Target:
-   - Form lebih compact
-   - Label rapi
-   - Select premium dark
-   - Textarea full width
-   - Blue neon accent
-   - Tidak mengubah fungsi JS
-========================================================= */
-
-
-/* =========================================================
-   SETTINGS CARD
-========================================================= */
-
-#visionVideoSettingsCard {
-
-    padding: 21px;
-
-}
-
-
-/* =========================================================
-   SETTINGS HEADER
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-card-header {
-
-    margin-bottom: 22px;
-
-}
-
-
-/* =========================================================
-   FORM GROUP
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group {
-
-    display: grid;
-
-    grid-template-columns:
-        175px
-        minmax(0, 1fr);
-
-    align-items: center;
-
-    gap: 16px;
-
-    min-width: 0;
-
-    margin: 0;
-
-    padding:
-        13px
-        0;
-
-    border-bottom:
-        1px solid
-        rgba(0, 145, 255, 0.10);
-
-}
-
-
-/* =========================================================
-   REMOVE BORDER FROM LAST FIELD
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group:last-child {
-
-    align-items: start;
-
-    padding-bottom: 0;
-
-    border-bottom: none;
-
-}
-
-
-/* =========================================================
-   LABEL
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group > label {
-
-    display: flex;
-
-    align-items: center;
-
-    min-height: 42px;
-
-    margin: 0;
-
-    color:
-        rgba(255, 255, 255, 0.72);
-
-    font-size: 10px;
-
-    font-weight: 750;
-
-    letter-spacing: 0.025em;
-
-}
-
-
-/* =========================================================
-   LABEL ACCENT
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group > label::before {
-
-    content: "";
-
-    width: 3px;
-
-    height: 17px;
-
-    flex: 0 0 auto;
-
-    margin-right: 9px;
-
-    border-radius: 999px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #35c5ff,
-            rgba(0, 145, 255, 0.25)
-        );
-
-    box-shadow:
-        0 0 9px
-        rgba(0, 165, 255, 0.42);
-
-}
-
-
-/* =========================================================
-   SELECT
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group
-select {
-
-    width: 100%;
-
-    height: 43px;
-
-    min-width: 0;
-
-    box-sizing: border-box;
-
-    padding:
-        0
-        40px
-        0
-        13px;
-
-    appearance: none;
-
-    -webkit-appearance: none;
-
-    border:
-        1px solid
-        rgba(0, 145, 255, 0.34);
-
-    border-radius: 10px;
-
-    outline: none;
-
-    background-color:
-        #050709;
-
-    background-image:
-        linear-gradient(45deg, transparent 50%, rgba(70, 190, 255, 0.90) 50%),
-        linear-gradient(135deg, rgba(70, 190, 255, 0.90) 50%, transparent 50%);
-
-    background-position:
-        calc(100% - 17px) 18px,
-        calc(100% - 12px) 18px;
-
-    background-size:
-        5px 5px,
-        5px 5px;
-
-    background-repeat: no-repeat;
-
-    color:
-        rgba(255, 255, 255, 0.92);
-
-    font-family: inherit;
-
-    font-size: 11px;
-
-    font-weight: 600;
-
-    cursor: pointer;
-
-    box-shadow:
-        inset 0 0 18px
-        rgba(0, 100, 180, 0.025);
-
-    transition:
-        border-color 0.18s ease,
-        background-color 0.18s ease,
-        box-shadow 0.18s ease,
-        transform 0.18s ease;
-
-}
-
-
-/* =========================================================
-   SELECT HOVER
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group
-select:hover {
-
-    border-color:
-        rgba(0, 170, 255, 0.58);
-
-    background-color:
-        #060a0e;
-
-}
-
-
-/* =========================================================
-   SELECT FOCUS
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group
-select:focus {
-
-    border-color:
-        rgba(0, 180, 255, 0.82);
-
-    background-color:
-        #060b10;
-
-    box-shadow:
-        0 0 0 3px
-        rgba(0, 145, 255, 0.055),
-
-        0 0 20px
-        rgba(0, 145, 255, 0.08);
-
-}
-
-
-/* =========================================================
-   SELECT OPTIONS
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group
-select option {
-
-    background:
-        #050607;
-
-    color:
-        #ffffff;
-
-}
-
-
-/* =========================================================
-   TEXTAREA GROUP
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group:last-child {
-
-    grid-template-columns:
-        175px
-        minmax(0, 1fr);
-
-}
-
-
-/* =========================================================
-   TEXTAREA
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group
-textarea {
-
-    width: 100%;
-
-    min-width: 0;
-
-    min-height: 112px;
-
-    box-sizing: border-box;
-
-    padding:
-        12px
-        13px;
-
-    resize: vertical;
-
-    border:
-        1px solid
-        rgba(0, 145, 255, 0.34);
-
-    border-radius: 10px;
-
-    outline: none;
-
-    background:
-        #050709;
-
-    color:
-        rgba(255, 255, 255, 0.90);
-
-    font-family: inherit;
-
-    font-size: 11px;
-
-    line-height: 1.6;
-
-    box-shadow:
-        inset 0 0 20px
-        rgba(0, 100, 180, 0.025);
-
-    transition:
-        border-color 0.18s ease,
-        background 0.18s ease,
-        box-shadow 0.18s ease;
-
-}
-
-
-/* =========================================================
-   TEXTAREA PLACEHOLDER
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group
-textarea::placeholder {
-
-    color:
-        rgba(255, 255, 255, 0.28);
-
-}
-
-
-/* =========================================================
-   TEXTAREA HOVER
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group
-textarea:hover {
-
-    border-color:
-        rgba(0, 170, 255, 0.54);
-
-}
-
-
-/* =========================================================
-   TEXTAREA FOCUS
-========================================================= */
-
-#visionVideoSettingsCard
-.vision-video-form-group
-textarea:focus {
-
-    border-color:
-        rgba(0, 180, 255, 0.82);
-
-    background:
-        #060b10;
-
-    box-shadow:
-        0 0 0 3px
-        rgba(0, 145, 255, 0.055),
-
-        0 0 20px
-        rgba(0, 145, 255, 0.08),
-
-        inset 0 0 20px
-        rgba(0, 110, 190, 0.035);
-
-}
-
-
-/* =========================================================
-   MODEL LOADING STATE
-========================================================= */
-
-#visionVideoModel:has(option[value=""]:checked) {
-
-    color:
-        rgba(150, 205, 235, 0.55);
-
-}
-
-
-/* =========================================================
-   SETTINGS RESPONSIVE
-========================================================= */
-
-@media (max-width: 700px) {
+    /* -----------------------------------------------------
+       ANALYSIS SETTINGS
+    ----------------------------------------------------- */
 
     #visionVideoSettingsCard {
 
-        padding:
-            15px;
+        padding: 12px;
 
     }
 
@@ -2833,86 +2871,10 @@ textarea:focus {
     #visionVideoSettingsCard
     .vision-video-form-group {
 
-        display: flex;
-
-        flex-direction: column;
-
-        align-items: stretch;
-
-        gap: 7px;
+        gap: 5px;
 
         padding:
-            13px
-            0;
-
-    }
-
-
-    #visionVideoSettingsCard
-    .vision-video-form-group:last-child {
-
-        display: flex;
-
-        flex-direction: column;
-
-        align-items: stretch;
-
-        gap: 7px;
-
-        padding-bottom: 0;
-
-    }
-
-
-    #visionVideoSettingsCard
-    .vision-video-form-group > label {
-
-        min-height: auto;
-
-    }
-
-
-    #visionVideoSettingsCard
-    .vision-video-form-group
-    select {
-
-        height: 44px;
-
-    }
-
-
-    #visionVideoSettingsCard
-    .vision-video-form-group
-    textarea {
-
-        min-height: 125px;
-
-    }
-
-}
-
-
-/* =========================================================
-   SMALL MOBILE
-========================================================= */
-
-@media (max-width: 430px) {
-
-    #visionVideoSettingsCard {
-
-        padding:
-            12px;
-
-    }
-
-
-    #visionVideoSettingsCard
-    .vision-video-form-group {
-
-        gap: 6px;
-
-        padding:
-            11px
+            9px
             0;
 
     }
@@ -2927,12 +2889,11 @@ textarea:focus {
 
 
     #visionVideoSettingsCard
-    .vision-video-form-group
-    select {
+    .vision-video-form-group select {
 
-        height: 42px;
+        height: 39px;
 
-        padding-left: 11px;
+        padding-left: 10px;
 
         font-size: 10px;
 
@@ -2940,13 +2901,12 @@ textarea:focus {
 
 
     #visionVideoSettingsCard
-    .vision-video-form-group
-    textarea {
+    .vision-video-form-group textarea {
 
-        min-height: 120px;
+        min-height: 100px;
 
         padding:
-            11px;
+            10px;
 
         font-size: 10px;
 
