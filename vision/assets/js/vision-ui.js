@@ -1122,10 +1122,7 @@ function setProcessing(
         try {
 
             const process =
-                getState().get(
-                    "process",
-                    {}
-                );
+                getState().getProcess();
 
 
             const stateProgress =
@@ -2075,11 +2072,19 @@ function syncFromState() {
         getState();
 
 
+    /*
+     * -----------------------------------------------------
+     * PROCESS STATE
+     * -----------------------------------------------------
+     *
+     * vision-state.js tidak menyediakan state.get().
+     *
+     * Gunakan API resmi getProcess() agar UI tetap
+     * terhubung dengan struktur state yang sebenarnya.
+     */
+
     const process =
-        state.get(
-            "process",
-            {}
-        );
+        state.getProcess();
 
 
     const status =
