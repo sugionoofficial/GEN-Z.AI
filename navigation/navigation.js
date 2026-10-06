@@ -1,4 +1,4 @@
-//navigation.js?v=1.6
+//navigation.js?v=1.7
 /* =========================================================
    GEN-Z.AI
    SHARED NAVIGATION
@@ -21,6 +21,10 @@
    - Logout
    - Mobile navigation
    - Active menu
+
+   Vision:
+   - Vision Image
+   - Vision Video
    ========================================================= */
 
 (() => {
@@ -657,17 +661,35 @@
                 icon: "♻️ "
             },
 
-           {
-    label: "Vision",
-    href: "/vision/index.html",
-    icon: "👁️ "
-},
-           
-           {
-              label: "VidDra FREE",
-              href: "/viddra/index.html",
-              icon: "🎬 "
-           },
+            /*
+             * =================================================
+             * VISION IMAGE
+             * =================================================
+             */
+
+            {
+                label: "Vision Image",
+                href: "/vision/index.html",
+                icon: "👁️ "
+            },
+
+            /*
+             * =================================================
+             * VISION VIDEO
+             * =================================================
+             */
+
+            {
+                label: "Vision Video",
+                href: "/vision-video/index.html",
+                icon: "🎥 "
+            },
+
+            {
+                label: "VidDra FREE",
+                href: "/viddra/index.html",
+                icon: "🎬 "
+            },
 
             {
                 label: "History",
@@ -710,17 +732,35 @@
                 icon: "♻️ "
             },
 
-           {
-    label: "Vision",
-    href: "/vision/index.html",
-    icon: "👁️ "
-},
-           
-           {
-              label: "VidDra FREE",
-              href: "/viddra/index.html",
-              icon: "🎬 "
-           },
+            /*
+             * =================================================
+             * VISION IMAGE
+             * =================================================
+             */
+
+            {
+                label: "Vision Image",
+                href: "/vision/index.html",
+                icon: "👁️ "
+            },
+
+            /*
+             * =================================================
+             * VISION VIDEO
+             * =================================================
+             */
+
+            {
+                label: "Vision Video",
+                href: "/vision-video/index.html",
+                icon: "🎥 "
+            },
+
+            {
+                label: "VidDra FREE",
+                href: "/viddra/index.html",
+                icon: "🎬 "
+            },
 
             {
                 label: "History",
@@ -1552,7 +1592,7 @@
 
     /* =====================================================
        AUTH STATE
-       ===================================================== */
+    ===================================================== */
 
     function setupAuthListener() {
 
