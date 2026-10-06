@@ -483,8 +483,10 @@
             String(
 
                 model.model_id ||
+                model.modelId ||
                 model.id ||
                 model.slug ||
+                model.model ||
                 ""
 
             ).trim();
@@ -494,7 +496,10 @@
             String(
 
                 model.model_name ||
+                model.modelName ||
                 model.name ||
+                model.display_name ||
+                model.displayName ||
                 id ||
                 ""
 
@@ -523,11 +528,121 @@
 
                     model.provider ||
                     model.provider_name ||
+                    model.providerName ||
                     "openkey"
 
                 ).trim()
 
         };
+
+    }
+
+
+    /* =====================================================
+       MODEL ARRAY EXTRACTION
+    ===================================================== */
+
+    function findModelArray(
+        source
+    ) {
+
+        if (
+            !source
+        ) {
+
+            return [];
+
+        }
+
+
+        if (
+            Array.isArray(source)
+        ) {
+
+            return source;
+
+        }
+
+
+        if (
+            typeof source !==
+            "object"
+        ) {
+
+            return [];
+
+        }
+
+
+        const directKeys = [
+
+            "models",
+            "model_list",
+            "modelList",
+            "model_catalog",
+            "modelCatalog",
+            "available_models",
+            "availableModels",
+            "data",
+            "results",
+            "items"
+
+        ];
+
+
+        for (
+            const key
+            of directKeys
+        ) {
+
+            if (
+                Array.isArray(
+                    source[key]
+                )
+            ) {
+
+                return source[key];
+
+            }
+
+        }
+
+
+        for (
+            const key
+            of directKeys
+        ) {
+
+            const nested =
+                source[key];
+
+
+            if (
+                nested &&
+                typeof nested ===
+                    "object"
+            ) {
+
+                const result =
+                    findModelArray(
+                        nested
+                    );
+
+
+                if (
+                    result.length
+                ) {
+
+                    return result;
+
+                }
+
+            }
+
+        }
+
+
+        return [];
 
     }
 
@@ -552,83 +667,245 @@
         const values = [];
 
 
-        collectValues(
-            model.input_modalities,
-            values
+        /*
+         * -------------------------------------------------
+         * Direct modality / input fields
+         * -------------------------------------------------
+         */
+
+        const modalityFields = [
+
+            "input",
+            "inputs",
+            "input_type",
+            "input_types",
+            "inputType",
+            "inputTypes",
+            "input_modalities",
+            "inputModalities",
+
+            "supported_input",
+            "supported_inputs",
+            "supportedInput",
+            "supportedInputs",
+            "supported_input_types",
+            "supportedInputTypes",
+
+            "supported_modalities",
+            "supportedModalities",
+
+            "modalities",
+            "modality",
+
+            "capabilities",
+            "architecture",
+
+            "media",
+            "media_types",
+            "mediaTypes",
+
+            "accepts",
+            "accepted_inputs",
+            "acceptedInputs"
+
+        ];
+
+
+        modalityFields.forEach(
+            key => {
+
+                if (
+                    Object.prototype.hasOwnProperty.call(
+                        model,
+                        key
+                    )
+                ) {
+
+                    collectValues(
+                        model[key],
+                        values
+                    );
+
+                }
+
+            }
         );
 
 
-        collectValues(
-            model.inputModalities,
-            values
-        );
-
-
-        collectValues(
-            model.modalities,
-            values
-        );
-
-
-        collectValues(
-            model.modality,
-            values
-        );
-
-
-        collectValues(
-            model.capabilities,
-            values
-        );
-
-
-        collectValues(
-            model.architecture,
-            values
-        );
-
+        /* -------------------------------------------------
+           Raw provider object
+        ------------------------------------------------- */
 
         if (
-            model.raw
+            model.raw &&
+            typeof model.raw ===
+                "object"
         ) {
 
-            collectValues(
-                model.raw.input_modalities,
-                values
-            );
+            modalityFields.forEach(
+                key => {
 
+                    if (
+                        Object.prototype.hasOwnProperty.call(
+                            model.raw,
+                            key
+                        )
+                    ) {
 
-            collectValues(
-                model.raw.inputModalities,
-                values
-            );
+                        collectValues(
+                            model.raw[key],
+                            values
+                        );
 
+                    }
 
-            collectValues(
-                model.raw.modalities,
-                values
-            );
-
-
-            collectValues(
-                model.raw.modality,
-                values
-            );
-
-
-            collectValues(
-                model.raw.capabilities,
-                values
-            );
-
-
-            collectValues(
-                model.raw.architecture,
-                values
+                }
             );
 
         }
 
+
+        /* -------------------------------------------------
+           Nested metadata / config / specification
+        ------------------------------------------------- */
+
+        const nestedFields = [
+
+            "metadata",
+            "meta",
+            "config",
+            "configuration",
+            "spec",
+            "specification",
+            "details",
+            "features"
+
+        ];
+
+
+        nestedFields.forEach(
+            key => {
+
+                if (
+                    model[key] !==
+                    undefined
+                ) {
+
+                    collectValues(
+                        model[key],
+                        values
+                    );
+
+                }
+
+            }
+        );
+
+
+        if (
+            model.raw &&
+            typeof model.raw ===
+                "object"
+        ) {
+
+            nestedFields.forEach(
+                key => {
+
+                    if (
+                        model.raw[key] !==
+                        undefined
+                    ) {
+
+                        collectValues(
+                            model.raw[key],
+                            values
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        /* =================================================
+           EXPLICIT BOOLEAN CAPABILITIES
+        ================================================= */
+
+        const positiveFlags = [
+
+            "supports_image",
+            "supports_images",
+            "supportsImage",
+            "supportsImages",
+
+            "supports_vision",
+            "supportsVision",
+
+            "supports_video",
+            "supports_videos",
+            "supportsVideo",
+            "supportsVideos",
+
+            "image_input",
+            "imageInput",
+            "image_inputs",
+            "imageInputs",
+
+            "vision_input",
+            "visionInput",
+
+            "video_input",
+            "videoInput",
+
+            "accepts_image",
+            "acceptsImage",
+
+            "accepts_video",
+            "acceptsVideo",
+
+            "image_supported",
+            "imageSupported",
+
+            "vision_supported",
+            "visionSupported",
+
+            "video_supported",
+            "videoSupported"
+
+        ];
+
+
+        for (
+            const key
+            of positiveFlags
+        ) {
+
+            if (
+                model[key] === true
+            ) {
+
+                return true;
+
+            }
+
+
+            if (
+                model.raw &&
+                model.raw[key] === true
+            ) {
+
+                return true;
+
+            }
+
+        }
+
+
+        /* =================================================
+           NORMALIZED VALUES
+        ================================================= */
 
         const uniqueValues =
             [
@@ -653,36 +930,123 @@
             );
 
 
+        /* =================================================
+           IMAGE DETECTION
+        ================================================= */
+
         const hasImage =
             uniqueValues.some(
-                value =>
-                    value === "image" ||
-                    value === "images" ||
-                    value === "vision" ||
-                    value === "multimodal" ||
-                    value.includes("image") ||
-                    value.includes("vision")
+                value => {
+
+                    return (
+
+                        value ===
+                            "image" ||
+
+                        value ===
+                            "images" ||
+
+                        value ===
+                            "img" ||
+
+                        value ===
+                            "vision" ||
+
+                        value ===
+                            "multimodal" ||
+
+                        value.includes(
+                            "image"
+                        ) ||
+
+                        value.includes(
+                            "vision"
+                        ) ||
+
+                        value.includes(
+                            "visual"
+                        )
+
+                    );
+
+                }
             );
 
 
+        /* =================================================
+           VIDEO DETECTION
+        ================================================= */
+
         const hasVideo =
             uniqueValues.some(
-                value =>
-                    value === "video" ||
-                    value === "videos" ||
-                    value.includes("video")
+                value => {
+
+                    return (
+
+                        value ===
+                            "video" ||
+
+                        value ===
+                            "videos" ||
+
+                        value.includes(
+                            "video"
+                        )
+
+                    );
+
+                }
+            );
+
+
+        /* =================================================
+           FRAME DETECTION
+        ================================================= */
+
+        const hasFrame =
+            uniqueValues.some(
+                value => {
+
+                    return (
+
+                        value ===
+                            "frame" ||
+
+                        value ===
+                            "frames" ||
+
+                        value.includes(
+                            "frame"
+                        ) ||
+
+                        value.includes(
+                            "first_frame"
+                        ) ||
+
+                        value.includes(
+                            "last_frame"
+                        )
+
+                    );
+
+                }
             );
 
 
         if (
             hasImage ||
-            hasVideo
+            hasVideo ||
+            hasFrame
         ) {
 
             return true;
 
         }
 
+
+        /* =================================================
+           SERIALIZED FALLBACK
+        ================================================= */
 
         return (
 
@@ -699,7 +1063,15 @@
             ) ||
 
             serialized.includes(
+                "visual"
+            ) ||
+
+            serialized.includes(
                 "video"
+            ) ||
+
+            serialized.includes(
+                "frame"
             )
 
         );
@@ -714,6 +1086,17 @@
     function filterVisionModels(
         models
     ) {
+
+        if (
+            !Array.isArray(
+                models
+            )
+        ) {
+
+            return [];
+
+        }
+
 
         const normalized =
             models
@@ -975,24 +1358,14 @@
                 await requestCatalog();
 
 
+            /* =================================================
+               EXTRACT RAW MODEL LIST
+            ================================================= */
+
             const rawModels =
-                Array.isArray(
-                    response?.models
-                )
-
-                    ? response.models
-
-                    : (
-
-                        Array.isArray(
-                            response?.data
-                        )
-
-                            ? response.data
-
-                            : []
-
-                    );
+                findModelArray(
+                    response
+                );
 
 
             if (
@@ -1006,22 +1379,51 @@
             }
 
 
+            console.info(
+                "[GEN-Z.AI Vision Video] OpenKey catalog:",
+                rawModels.length,
+                "model"
+            );
+
+
+            /* =================================================
+               FILTER VISION MODELS
+            ================================================= */
+
             const models =
                 filterVisionModels(
                     rawModels
                 );
 
 
+            console.info(
+                "[GEN-Z.AI Vision Video] Vision-compatible models:",
+                models.length
+            );
+
+
             if (
                 !models.length
             ) {
 
+                /*
+                 * Jangan membuat model statis.
+                 *
+                 * Jika katalog memang dikembalikan tetapi
+                 * metadata capability tidak dikenali,
+                 * tampilkan error yang lebih informatif.
+                 */
+
                 throw new Error(
-                    "OpenKey tidak menyediakan model yang mendukung input image/frame."
+                    "OpenKey mengembalikan model, tetapi tidak ada model yang terdeteksi mendukung input image/frame."
                 );
 
             }
 
+
+            /* =================================================
+               SAVE TO STATE
+            ================================================= */
 
             if (
                 typeof state.setModels ===
@@ -1035,11 +1437,19 @@
             }
 
 
+            /* =================================================
+               POPULATE DROPDOWN
+            ================================================= */
+
             const selected =
                 populate(
                     models
                 );
 
+
+            /* =================================================
+               READY EVENT
+            ================================================= */
 
             document.dispatchEvent(
                 new CustomEvent(
@@ -1058,6 +1468,10 @@
                 )
             );
 
+
+            /* =================================================
+               LOG
+            ================================================= */
 
             console.info(
                 "[GEN-Z.AI Vision Video] Models loaded:",
@@ -1105,6 +1519,19 @@
 
 
             throw error;
+
+        } finally {
+
+            if (
+                typeof state.setModelsLoading ===
+                "function"
+            ) {
+
+                state.setModelsLoading(
+                    false
+                );
+
+            }
 
         }
 
