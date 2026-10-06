@@ -8,12 +8,23 @@
    - Event coordinator Vision Video
    - Analyze button
    - Sinkronisasi form ke state
+   - Validasi video
+   - CHECK credit
+   - DEDUCT 1 credit
    - Menjalankan analysis preparation
    - Menjalankan API analysis
+   - Menyimpan hasil ke generation_history
+   - REFUND credit jika proses analysis gagal
    - Reset / cancel process
-   - Tidak menangani rendering UI secara langsung
-   - Tidak menangani upload secara langsung
-   - Tidak menangani frame extraction secara langsung
+
+   ATURAN:
+   - 1 generate prompt = 1 credit
+   - Credit hanya dideduct satu kali
+   - Credit tidak dideduct jika validasi gagal
+   - Credit direfund jika proses setelah deduction gagal
+   - History success disimpan setelah prompt berhasil
+   - History failure disimpan ketika proses gagal
+   - Tidak menyentuh Vision Image
 ========================================================= */
 
 (function () {
@@ -26,6 +37,9 @@
     ===================================================== */
 
     const CONFIG = Object.freeze({
+
+        creditCost:
+            1,
 
         events: {
 
@@ -146,6 +160,36 @@
     }
 
 
+    function getCredit() {
+
+        if (
+            !window.GENZVisionVideoCredit
+        ) {
+
+            throw new Error(
+                "GEN-Z.AI Vision Video Credit belum tersedia."
+            );
+        }
+
+        return window.GENZVisionVideoCredit;
+    }
+
+
+    function getHistory() {
+
+        if (
+            !window.GENZVisionVideoHistory
+        ) {
+
+            throw new Error(
+                "GEN-Z.AI Vision Video History belum tersedia."
+            );
+        }
+
+        return window.GENZVisionVideoHistory;
+    }
+
+
     /* =====================================================
        EVENT DISPATCH
     ===================================================== */
@@ -194,7 +238,9 @@
 
 
         if (!element) {
+
             return "";
+
         }
 
 
@@ -222,7 +268,9 @@
 
 
         if (!element) {
+
             return false;
+
         }
 
 
@@ -298,7 +346,7 @@
             state.getValue(
                 "settings",
                 {}
-            );
+            ) || {};
 
 
         return {
@@ -329,6 +377,18 @@
 
     /* =====================================================
        VALIDATE VIDEO
+       -----------------------------------------------------
+       FIX:
+       State aktual menyimpan metadata langsung:
+       video.duration
+       video.width
+       video.height
+       video.fps
+
+       BUKAN:
+       video.metadata.duration
+       video.metadata.width
+       dst.
     ===================================================== */
 
     function validateVideo() {
@@ -348,7 +408,8 @@
 
             return {
 
-                valid: false,
+                valid:
+                    false,
 
                 message:
                     "Silakan upload video terlebih dahulu."
@@ -357,16 +418,12 @@
         }
 
 
-        const metadata =
-            state.getValue(
-                "video.metadata",
-                {}
-            );
-
-
         const duration =
             Number(
-                metadata.duration
+                state.getValue(
+                    "video.duration",
+                    0
+                )
             );
 
 
@@ -377,7 +434,8 @@
 
             return {
 
-                valid: false,
+                valid:
+                    false,
 
                 message:
                     "Metadata video belum siap."
@@ -388,24 +446,33 @@
 
         const width =
             Number(
-                metadata.width
+                state.getValue(
+                    "video.width",
+                    0
+                )
             );
 
 
         const height =
             Number(
-                metadata.height
+                state.getValue(
+                    "video.height",
+                    0
+                )
             );
 
 
         if (
+            !Number.isFinite(width) ||
+            !Number.isFinite(height) ||
             width <= 0 ||
             height <= 0
         ) {
 
             return {
 
-                valid: false,
+                valid:
+                    false,
 
                 message:
                     "Resolusi video belum dapat dibaca."
@@ -416,9 +483,11 @@
 
         return {
 
-            valid: true,
+            valid:
+                true,
 
-            message: ""
+            message:
+                ""
 
         };
     }
@@ -438,7 +507,8 @@
 
             return {
 
-                valid: false,
+                valid:
+                    false,
 
                 message:
                     "Model Vision Video belum dipilih."
@@ -449,11 +519,69 @@
 
         return {
 
-            valid: true,
+            valid:
+                true,
 
-            message: ""
+            message:
+                ""
 
         };
+    }
+
+
+    /* =====================================================
+       VALIDATE CREDIT
+    ===================================================== */
+
+    function validateCreditLocal() {
+
+        const credit =
+            getCredit();
+
+
+        const required =
+            typeof credit.getCost ===
+                "function"
+                ? credit.getCost()
+                : CONFIG.creditCost;
+
+
+        const current =
+            typeof credit.getCurrentCredit ===
+                "function"
+                ? credit.getCurrentCredit()
+                : 0;
+
+
+        if (
+            current <
+            required
+        ) {
+
+            const error =
+                new Error(
+                    `Credit tidak mencukupi. Diperlukan ${required} credit, saldo saat ini ${current} credit.`
+                );
+
+
+            error.code =
+                "INSUFFICIENT_CREDITS";
+
+
+            error.currentCredits =
+                current;
+
+
+            error.requiredCredits =
+                required;
+
+
+            throw error;
+
+        }
+
+
+        return true;
     }
 
 
@@ -470,6 +598,7 @@
         if (!video.valid) {
 
             return video;
+
         }
 
 
@@ -480,14 +609,17 @@
         if (!settings.valid) {
 
             return settings;
+
         }
 
 
         return {
 
-            valid: true,
+            valid:
+                true,
 
-            message: ""
+            message:
+                ""
 
         };
     }
@@ -561,6 +693,7 @@
         ) {
 
             return;
+
         }
 
 
@@ -581,19 +714,20 @@
             getAnalysis();
 
 
+        const settings =
+            getCurrentSettings();
+
+
         return analysis.prepareAnalysis({
 
             mode:
-                getCurrentSettings()
-                    .frameMode,
+                settings.frameMode,
 
             detail:
-                getCurrentSettings()
-                    .detail,
+                settings.detail,
 
             purpose:
-                getCurrentSettings()
-                    .purpose,
+                settings.purpose,
 
             includeDataURL:
                 true,
@@ -654,8 +788,8 @@
 
 
         setProgress(
-            100,
-            "Analisis video selesai."
+            90,
+            "Menyusun hasil analysis..."
         );
 
 
@@ -672,28 +806,25 @@
     ) {
 
         if (!result) {
+
             return "";
+
         }
 
 
         const content =
-            typeof result.content === "string"
+            typeof result.content ===
+                "string"
                 ? result.content.trim()
                 : "";
 
 
         if (!content) {
+
             return "";
+
         }
 
-
-        /*
-         * API analysis pada tahap ini adalah
-         * sumber hasil analisis.
-         *
-         * Prompt final tidak dibuat dengan
-         * menambahkan klaim visual baru.
-         */
 
         return content;
     }
@@ -718,7 +849,9 @@
 
 
         if (!prompt) {
+
             return "";
+
         }
 
 
@@ -728,6 +861,352 @@
 
 
         return prompt;
+    }
+
+
+    /* =====================================================
+       CREATE PROCESS TASK ID
+    ===================================================== */
+
+    function ensureTaskId() {
+
+        const state =
+            getState();
+
+
+        const existing =
+            String(
+                state.getValue(
+                    "process.taskId",
+                    ""
+                ) ||
+                ""
+            ).trim();
+
+
+        if (existing) {
+
+            return existing;
+
+        }
+
+
+        const history =
+            getHistory();
+
+
+        const taskId =
+            history.createTaskId();
+
+
+        state.setProcess({
+
+            taskId
+
+        });
+
+
+        return taskId;
+    }
+
+
+    /* =====================================================
+       CREDIT METADATA
+    ===================================================== */
+
+    function getCreditMetadata() {
+
+        const state =
+            getState();
+
+
+        const settings =
+            getCurrentSettings();
+
+
+        const taskId =
+            ensureTaskId();
+
+
+        return {
+
+            taskId,
+
+            modelId:
+                settings.model,
+
+            modelName:
+                settings.model
+
+        };
+    }
+
+
+    /* =====================================================
+       CHECK CREDIT
+    ===================================================== */
+
+    async function checkCredit() {
+
+        const credit =
+            getCredit();
+
+
+        /*
+         * Server adalah authority.
+         *
+         * Jangan hanya mengandalkan saldo lokal,
+         * karena saldo dapat berubah dari tab/proses lain.
+         */
+
+        const result =
+            await credit.checkCredit();
+
+
+        if (
+            !result ||
+            result.sufficient !== true
+        ) {
+
+            const error =
+                new Error(
+                    "Credit tidak mencukupi."
+                );
+
+
+            error.code =
+                "INSUFFICIENT_CREDITS";
+
+
+            throw error;
+
+        }
+
+
+        return result;
+    }
+
+
+    /* =====================================================
+       DEDUCT CREDIT
+    ===================================================== */
+
+    async function deductCredit() {
+
+        const credit =
+            getCredit();
+
+
+        const metadata =
+            getCreditMetadata();
+
+
+        /*
+         * Pastikan state operasi credit bersih
+         * untuk generate baru.
+         */
+
+        credit.resetOperationState();
+
+
+        /*
+         * CHECK lagi di server sebelum deduction.
+         *
+         * Ini sengaja tidak mengandalkan CHECK
+         * yang dilakukan saat page initialization.
+         */
+
+        await checkCredit();
+
+
+        /*
+         * DEDUCT tepat satu kali.
+         */
+
+        const result =
+            await credit.deductCredit(
+                metadata
+            );
+
+
+        if (
+            !result ||
+            (
+                result.deducted !== true &&
+                result.alreadyDeducted !== true
+            )
+        ) {
+
+            throw new Error(
+                "Credit gagal dipotong."
+            );
+
+        }
+
+
+        return result;
+    }
+
+
+    /* =====================================================
+       REFUND CREDIT
+    ===================================================== */
+
+    async function refundCredit() {
+
+        const credit =
+            getCredit();
+
+
+        const creditState =
+            credit.getCreditState();
+
+
+        if (
+            !creditState.deducted ||
+            creditState.refunded
+        ) {
+
+            return {
+
+                refunded:
+                    false,
+
+                skipped:
+                    true
+
+            };
+
+        }
+
+
+        const metadata =
+            getCreditMetadata();
+
+
+        return credit.refundCredit(
+            metadata
+        );
+    }
+
+
+    /* =====================================================
+       SAVE SUCCESS HISTORY
+    ===================================================== */
+
+    async function saveSuccessHistory(
+        prompt
+    ) {
+
+        const state =
+            getState();
+
+
+        const history =
+            getHistory();
+
+
+        const settings =
+            getCurrentSettings();
+
+
+        const taskId =
+            ensureTaskId();
+
+
+        const result =
+            await history.saveSuccess({
+
+                taskId,
+
+                model:
+                    settings.model,
+
+                modelName:
+                    settings.model,
+
+                prompt,
+
+                settings,
+
+                file:
+                    state.getValue(
+                        "video",
+                        {}
+                    ),
+
+                creditCost:
+                    CONFIG.creditCost
+
+            });
+
+
+        return result;
+    }
+
+
+    /* =====================================================
+       SAVE FAILED HISTORY
+    ===================================================== */
+
+    async function saveFailedHistory(
+        error
+    ) {
+
+        const state =
+            getState();
+
+
+        const history =
+            getHistory();
+
+
+        const settings =
+            getCurrentSettings();
+
+
+        const taskId =
+            ensureTaskId();
+
+
+        try {
+
+            return await history.saveFailed(
+                error,
+                {
+
+                    taskId,
+
+                    model:
+                        settings.model,
+
+                    modelName:
+                        settings.model,
+
+                    settings,
+
+                    file:
+                        state.getValue(
+                            "video",
+                            {}
+                        ),
+
+                    creditCost:
+                        CONFIG.creditCost
+
+                }
+            );
+
+        } catch (historyError) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video] Failed history save gagal:",
+                historyError
+            );
+
+
+            return null;
+        }
     }
 
 
@@ -743,7 +1222,8 @@
 
         if (analysisRunning) {
 
-            return;
+            return null;
+
         }
 
 
@@ -765,7 +1245,9 @@
                 validation.message
             );
 
-            return;
+
+            return null;
+
         }
 
 
@@ -773,19 +1255,26 @@
             true;
 
 
+        let creditWasDeducted =
+            false;
+
+
+        let prompt =
+            "";
+
+
         try {
 
-            /*
-             * Pastikan form terakhir
-             * masuk ke state.
-             */
+            /* =============================================
+               FORM
+            ============================================= */
 
             syncFormToState();
 
 
-            /*
-             * Bersihkan hasil lama.
-             */
+            /* =============================================
+               RESET RESULT
+            ============================================= */
 
             state.setPrompt(
                 ""
@@ -818,13 +1307,66 @@
                     0,
 
                 message:
-                    "Menyiapkan analisis video..."
+                    "Menyiapkan analisis video...",
+
+                error:
+                    null
 
             });
 
 
             ui.resetResults();
 
+
+            ui.setAnalyzeButtonLoading(
+                true,
+                "Memeriksa credit..."
+            );
+
+
+            ui.renderProcessingStatus(
+                "Memeriksa credit..."
+            );
+
+
+            setProgress(
+                5,
+                "Memeriksa credit..."
+            );
+
+
+            /* =============================================
+               TASK ID
+            ============================================= */
+
+            ensureTaskId();
+
+
+            /* =============================================
+               CREDIT CHECK + DEDUCT
+            ============================================= */
+
+            const creditResult =
+                await deductCredit();
+
+
+            creditWasDeducted =
+                creditResult.deducted === true ||
+                creditResult.alreadyDeducted === true;
+
+
+            ui.updateCredit();
+
+
+            setProgress(
+                12,
+                "Credit terverifikasi. Menyiapkan video..."
+            );
+
+
+            /* =============================================
+               PREPARATION
+            ============================================= */
 
             ui.setAnalyzeButtonLoading(
                 true,
@@ -836,17 +1378,6 @@
                 "Menyiapkan frame video..."
             );
 
-
-            setProgress(
-                5,
-                "Membaca video..."
-            );
-
-
-            /*
-             * Tahap 1:
-             * Extract + prepare frame payload.
-             */
 
             const prepared =
                 await prepareAnalysis();
@@ -860,6 +1391,7 @@
                 throw new Error(
                     "Gagal menyiapkan payload analisis video."
                 );
+
             }
 
 
@@ -869,10 +1401,9 @@
             );
 
 
-            /*
-             * Tahap 2:
-             * API multimodal analysis.
-             */
+            /* =============================================
+               API ANALYSIS
+            ============================================= */
 
             state.setProcess({
 
@@ -888,8 +1419,24 @@
             });
 
 
+            ui.setAnalyzeButtonLoading(
+                true,
+                "Menganalisis..."
+            );
+
+
             ui.renderProcessingStatus(
                 "Menganalisis frame video..."
+            );
+
+
+            dispatch(
+                CONFIG.events.apiStart,
+                {
+
+                    prepared
+
+                }
             );
 
 
@@ -899,12 +1446,32 @@
                 );
 
 
-            /*
-             * Tahap 3:
-             * Simpan hasil analysis.
-             */
+            if (!result) {
 
-            const prompt =
+                throw new Error(
+                    "Vision Engine tidak mengembalikan hasil."
+                );
+
+            }
+
+
+            dispatch(
+                CONFIG.events.apiComplete,
+                {
+
+                    result,
+
+                    prepared
+
+                }
+            );
+
+
+            /* =============================================
+               BUILD PROMPT
+            ============================================= */
+
+            prompt =
                 storePrompt(
                     result
                 );
@@ -913,9 +1480,69 @@
             if (!prompt) {
 
                 throw new Error(
-                    "API tidak menghasilkan konten analysis."
+                    "Vision Engine tidak menghasilkan prompt."
                 );
+
             }
+
+
+            state.setProcess({
+
+                status:
+                    "saving",
+
+                progress:
+                    94,
+
+                message:
+                    "Menyimpan riwayat..."
+
+            });
+
+
+            ui.renderProcessingStatus(
+                "Menyimpan hasil ke history..."
+            );
+
+
+            /* =============================================
+               SAVE HISTORY
+               ---------------------------------------------
+               History gagal TIDAK membatalkan prompt
+               yang sudah berhasil dibuat.
+               Credit tetap terpotong karena generate
+               berhasil.
+            ============================================= */
+
+            try {
+
+                await saveSuccessHistory(
+                    prompt
+                );
+
+            } catch (historyError) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision Video] History save gagal:",
+                    historyError
+                );
+
+            }
+
+
+            /* =============================================
+               COMPLETE
+            ============================================= */
+
+            setProgress(
+                100,
+                "Analisis video selesai."
+            );
+
+
+            state.completeAnalysis(
+                result.content
+            );
 
 
             state.setProcess({
@@ -927,14 +1554,12 @@
                     100,
 
                 message:
-                    "Analisis video selesai."
+                    "Analisis video selesai.",
+
+                error:
+                    null
 
             });
-
-
-            state.completeAnalysis(
-                result.content
-            );
 
 
             ui.renderAnalysis(
@@ -955,6 +1580,15 @@
             ui.completeProgress();
 
 
+            ui.setAnalyzeButtonLoading(
+                false,
+                "Analyze Video"
+            );
+
+
+            ui.updateCredit();
+
+
             dispatch(
                 CONFIG.events.processComplete,
                 {
@@ -963,7 +1597,13 @@
 
                     prompt,
 
-                    prepared
+                    prepared,
+
+                    creditCost:
+                        CONFIG.creditCost,
+
+                    creditDeducted:
+                        creditWasDeducted
 
                 }
             );
@@ -980,6 +1620,60 @@
                     : "Analisis video gagal.";
 
 
+            console.error(
+                "[GEN-Z.AI Vision Video] Analysis error:",
+                error
+            );
+
+
+            /* =============================================
+               REFUND
+               ---------------------------------------------
+               Hanya jika credit benar-benar sudah
+               dideduct.
+            ============================================= */
+
+            if (
+                creditWasDeducted
+            ) {
+
+                try {
+
+                    ui.renderProcessingStatus(
+                        "Mengembalikan credit..."
+                    );
+
+
+                    await refundCredit();
+
+
+                    ui.updateCredit();
+
+                } catch (refundError) {
+
+                    console.error(
+                        "[GEN-Z.AI Vision Video] Refund credit gagal:",
+                        refundError
+                    );
+
+                }
+
+            }
+
+
+            /* =============================================
+               FAILED HISTORY
+            ============================================= */
+
+            await saveFailedHistory(
+                error
+            );
+
+
+            /* =============================================
+               ERROR STATE
+            ============================================= */
+
             state.failAnalysis(
                 message
             );
@@ -991,7 +1685,9 @@
                     "error",
 
                 message:
+                    message,
 
+                error:
                     message
 
             });
@@ -1008,6 +1704,9 @@
             );
 
 
+            ui.updateCredit();
+
+
             dispatch(
                 CONFIG.events.apiError,
                 {
@@ -1016,12 +1715,6 @@
                         message
 
                 }
-            );
-
-
-            console.error(
-                "[GEN-Z.AI Vision Video] Analysis error:",
-                error
             );
 
 
@@ -1034,7 +1727,9 @@
 
 
             ui.updateAnalyzeButton();
+
         }
+
     }
 
 
@@ -1058,6 +1753,7 @@
                 "[GEN-Z.AI Vision Video] Analysis cancel warning:",
                 error
             );
+
         }
 
 
@@ -1103,6 +1799,7 @@
 
 
         ui.updateAnalyzeButton();
+
     }
 
 
@@ -1121,10 +1818,33 @@
             getAnalysis().cancel();
 
         } catch (error) {
+
             /*
-             * Tidak perlu menghentikan reset
-             * hanya karena cancel gagal.
+             * Cancel gagal tidak boleh
+             * menghalangi reset UI/state.
              */
+
+        }
+
+
+        /*
+         * Reset credit operation state hanya
+         * untuk status lokal operasi berikutnya.
+         *
+         * Tidak mengembalikan credit.
+         */
+
+        try {
+
+            getCredit().resetOperationState();
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video] Credit reset warning:",
+                error
+            );
+
         }
 
 
@@ -1141,18 +1861,23 @@
 
         ui.resetResults();
 
+
         ui.renderCreditFromState();
+
 
         ui.renderUploadState(
             false
         );
+
 
         ui.setAnalyzeButtonLoading(
             false,
             "Analyze Video"
         );
 
+
         ui.updateAnalyzeButton();
+
     }
 
 
@@ -1174,7 +1899,9 @@
                 "[GEN-Z.AI Vision Video] Form sync warning:",
                 error
             );
+
         }
+
     }
 
 
@@ -1188,11 +1915,14 @@
 
             syncFormToState();
 
+
             getUI().renderUploadState(
                 true
             );
 
+
             getUI().renderFileInfo();
+
 
             getUI().updateAnalyzeButton();
 
@@ -1202,7 +1932,9 @@
                 "[GEN-Z.AI Vision Video] File selected UI warning:",
                 error
             );
+
         }
+
     }
 
 
@@ -1212,9 +1944,11 @@
 
             getUI().resetResults();
 
+
             getUI().renderUploadState(
                 false
             );
+
 
             getUI().updateAnalyzeButton();
 
@@ -1224,7 +1958,9 @@
                 "[GEN-Z.AI Vision Video] File remove UI warning:",
                 error
             );
+
         }
+
     }
 
 
@@ -1239,7 +1975,9 @@
     function bind() {
 
         if (bound) {
+
             return;
+
         }
 
 
@@ -1265,16 +2003,27 @@
 
                     event.preventDefault();
 
+
+                    if (
+                        analysisRunning
+                    ) {
+
+                        return;
+
+                    }
+
+
                     analyzeVideo();
 
                 }
             );
+
         }
 
 
-        /*
-         * Settings.
-         */
+        /* =================================================
+           SETTINGS
+        ================================================= */
 
         [
             "model",
@@ -1283,34 +2032,42 @@
             "purpose",
             "instruction"
 
-        ].forEach(function (key) {
+        ].forEach(
+            function (
+                key
+            ) {
 
-            const field =
-                dom.get(key);
+                const field =
+                    dom.get(
+                        key
+                    );
 
 
-            if (!field) {
-                return;
+                if (!field) {
+
+                    return;
+
+                }
+
+
+                field.addEventListener(
+                    "change",
+                    handleFormChange
+                );
+
+
+                field.addEventListener(
+                    "input",
+                    handleFormChange
+                );
+
             }
+        );
 
 
-            field.addEventListener(
-                "change",
-                handleFormChange
-            );
-
-
-            field.addEventListener(
-                "input",
-                handleFormChange
-            );
-
-        });
-
-
-        /*
-         * File lifecycle.
-         */
+        /* =================================================
+           FILE LIFECYCLE
+        ================================================= */
 
         document.addEventListener(
             CONFIG.events.fileSelected,
@@ -1324,9 +2081,9 @@
         );
 
 
-        /*
-         * Metadata ready.
-         */
+        /* =================================================
+           METADATA READY
+        ================================================= */
 
         document.addEventListener(
             CONFIG.events.metadataReady,
@@ -1334,15 +2091,16 @@
 
                 getUI().renderVideoMetadata();
 
+
                 getUI().updateAnalyzeButton();
 
             }
         );
 
 
-        /*
-         * API progress.
-         */
+        /* =================================================
+           API START
+        ================================================= */
 
         document.addEventListener(
             CONFIG.events.apiStart,
@@ -1353,6 +2111,7 @@
                     "Menganalisis..."
                 );
 
+
                 getUI().renderProcessingStatus(
                     "Mengirim frame video ke Vision Engine..."
                 );
@@ -1361,9 +2120,9 @@
         );
 
 
-        /*
-         * API completion.
-         */
+        /* =================================================
+           API COMPLETION
+        ================================================= */
 
         document.addEventListener(
             CONFIG.events.apiComplete,
@@ -1378,30 +2137,28 @@
 
 
                 if (!result) {
+
                     return;
+
                 }
 
 
-                const prompt =
-                    storePrompt(
-                        result
-                    );
-
-
-                if (prompt) {
-
-                    getUI().renderPrompt(
-                        prompt
-                    );
-                }
+                /*
+                 * Hasil final sebenarnya diproses
+                 * oleh analyzeVideo().
+                 *
+                 * Di sini hanya memastikan UI
+                 * menerima hasil API jika event
+                 * dipicu oleh API module.
+                 */
 
             }
         );
 
 
-        /*
-         * API error.
-         */
+        /* =================================================
+           API ERROR
+        ================================================= */
 
         document.addEventListener(
             CONFIG.events.apiError,
@@ -1419,15 +2176,16 @@
                     getUI().renderErrorStatus(
                         error
                     );
+
                 }
 
             }
         );
 
 
-        /*
-         * Analysis preparation error.
-         */
+        /* =================================================
+           ANALYSIS PREPARATION ERROR
+        ================================================= */
 
         document.addEventListener(
             CONFIG.events.analysisError,
@@ -1445,25 +2203,28 @@
                     getUI().renderErrorStatus(
                         error
                     );
+
                 }
 
             }
         );
 
 
-        /*
-         * Escape untuk membatalkan proses.
-         */
+        /* =================================================
+           ESCAPE
+        ================================================= */
 
         document.addEventListener(
             "keydown",
             function (event) {
 
                 if (
-                    event.key !== "Escape"
+                    event.key !==
+                    "Escape"
                 ) {
 
                     return;
+
                 }
 
 
@@ -1472,6 +2233,7 @@
                 ) {
 
                     return;
+
                 }
 
 
@@ -1483,7 +2245,9 @@
 
         syncFormToState();
 
+
         getUI().sync();
+
     }
 
 
@@ -1504,6 +2268,8 @@
 
         validateSettings,
 
+        validateCreditLocal,
+
         validateForm,
 
         setProgress,
@@ -1512,7 +2278,21 @@
 
         runAPIAnalysis,
 
+        buildPromptFromAnalysis,
+
         storePrompt,
+
+        ensureTaskId,
+
+        checkCredit,
+
+        deductCredit,
+
+        refundCredit,
+
+        saveSuccessHistory,
+
+        saveFailedHistory,
 
         analyzeVideo,
 
@@ -1532,16 +2312,21 @@
     };
 
 
+    /* =====================================================
+       GLOBAL EXPORT
+    ===================================================== */
+
     window.GENZVisionVideoEvents =
         API;
+
 
     window.GENZVisionVideoEventsReady =
         true;
 
 
-    /*
-     * Event coordinator menunggu DOM.
-     */
+    /* =====================================================
+       AUTO BIND
+    ===================================================== */
 
     if (
         document.readyState ===
@@ -1552,13 +2337,15 @@
             "DOMContentLoaded",
             bind,
             {
-                once: true
+                once:
+                    true
             }
         );
 
     } else {
 
         bind();
+
     }
 
 
