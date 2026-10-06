@@ -968,7 +968,10 @@ function normalizeOpenKeyModelForClient(
     if (
         !model ||
         typeof model !==
-            "object"
+            "object" ||
+        Array.isArray(
+            model
+        )
     ) {
 
         return null;
@@ -1017,9 +1020,9 @@ function normalizeOpenKeyModelForClient(
     }
 
 
-    /*
-     * Preserve known normalized fields.
-     */
+    /* =====================================================
+       BASE MODEL
+    ===================================================== */
 
     const normalized = {
 
@@ -1068,28 +1071,6 @@ function normalizeOpenKeyModelForClient(
             raw?.pricing ??
             null,
 
-        input_modalities:
-            Array.isArray(
-                model?.input_modalities
-            )
-                ? model.input_modalities
-                : Array.isArray(
-                    raw?.input_modalities
-                )
-                    ? raw.input_modalities
-                    : [],
-
-        output_modalities:
-            Array.isArray(
-                model?.output_modalities
-            )
-                ? model.output_modalities
-                : Array.isArray(
-                    raw?.output_modalities
-                )
-                    ? raw.output_modalities
-                    : [],
-
         context_length:
             model?.context_length ??
             raw?.context_length ??
@@ -1104,13 +1085,12 @@ function normalizeOpenKeyModelForClient(
 
 
     /* =====================================================
-       CAPABILITY / MODALITY METADATA
+       CAPABILITY FIELDS
        -----------------------------------------------------
-       Pertahankan field yang mungkin digunakan provider
-       untuk menjelaskan kemampuan image / vision.
+       Jangan hanya meneruskan beberapa field lama.
 
-       Kita tidak mengarang nilainya.
-       Nilai hanya diteruskan jika memang tersedia.
+       OpenKey/public catalog dapat menggunakan struktur
+       metadata berbeda antar model/provider.
     ===================================================== */
 
     const capabilityFields = [
@@ -1127,7 +1107,11 @@ function normalizeOpenKeyModelForClient(
 
         "input",
 
+        "inputs",
+
         "output",
+
+        "outputs",
 
         "vision",
 
@@ -1135,21 +1119,71 @@ function normalizeOpenKeyModelForClient(
 
         "images",
 
+        "video",
+
+        "videos",
+
+        "frame",
+
+        "frames",
+
+        "media",
+
+        "media_types",
+
+        "mediaTypes",
+
+        "input_types",
+
+        "inputTypes",
+
+        "output_types",
+
+        "outputTypes",
+
+        "input_modalities",
+
+        "inputModalities",
+
+        "output_modalities",
+
+        "outputModalities",
+
+        "supported_input",
+
+        "supported_inputs",
+
+        "supportedInput",
+
+        "supportedInputs",
+
+        "supported_input_types",
+
+        "supportedInputTypes",
+
+        "supported_modalities",
+
+        "supportedModalities",
+
+        "accepted_inputs",
+
+        "acceptedInputs",
+
+        "accepts",
+
         "supports_vision",
 
         "supports_image",
 
         "supports_images",
 
+        "supports_video",
+
+        "supports_videos",
+
         "supports_multimodal",
 
-        "input_types",
-
-        "output_types",
-
-        "supported_inputs",
-
-        "supported_outputs"
+        "multimodal"
 
     ];
 
@@ -1174,7 +1208,8 @@ function normalizeOpenKeyModelForClient(
 
 
         if (
-            value !== undefined
+            value !== undefined &&
+            value !== null
         ) {
 
             normalized[field] =
@@ -1186,18 +1221,195 @@ function normalizeOpenKeyModelForClient(
 
 
     /* =====================================================
+       NESTED CAPABILITY CONTAINERS
+       -----------------------------------------------------
+       Pertahankan container metadata yang mungkin berisi
+       informasi capability image / vision.
+    ===================================================== */
+
+    const nestedCapabilityFields = [
+
+        "metadata",
+
+        "meta",
+
+        "config",
+
+        "configuration",
+
+        "details",
+
+        "features",
+
+        "spec",
+
+        "specification"
+
+    ];
+
+
+    for (
+        const field
+        of nestedCapabilityFields
+    ) {
+
+        const modelValue =
+            model?.[field];
+
+
+        const rawValue =
+            raw?.[field];
+
+
+        const value =
+            modelValue !== undefined
+                ? modelValue
+                : rawValue;
+
+
+        if (
+            value !== undefined &&
+            value !== null
+        ) {
+
+            normalized[field] =
+                value;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       INPUT / OUTPUT MODALITIES
+    ===================================================== */
+
+    const inputModalities =
+        Array.isArray(
+            model?.input_modalities
+        )
+
+            ? model.input_modalities
+
+            : Array.isArray(
+                model?.inputModalities
+            )
+
+                ? model.inputModalities
+
+                : Array.isArray(
+                    raw?.input_modalities
+                )
+
+                    ? raw.input_modalities
+
+                    : Array.isArray(
+                        raw?.inputModalities
+                    )
+
+                        ? raw.inputModalities
+
+                        : [];
+
+
+    const outputModalities =
+        Array.isArray(
+            model?.output_modalities
+        )
+
+            ? model.output_modalities
+
+            : Array.isArray(
+                model?.outputModalities
+            )
+
+                ? model.outputModalities
+
+                : Array.isArray(
+                    raw?.output_modalities
+                )
+
+                    ? raw.output_modalities
+
+                    : Array.isArray(
+                        raw?.outputModalities
+                    )
+
+                        ? raw.outputModalities
+
+                        : [];
+
+
+    normalized.input_modalities =
+        inputModalities;
+
+
+    normalized.output_modalities =
+        outputModalities;
+
+
+    /* =====================================================
        RAW MODEL
        -----------------------------------------------------
-       Penting untuk debugging dan capability detection.
-
-       raw berasal dari provider/openkey/models.js,
-       sehingga informasi asli provider tetap tersedia.
-
-       Ini tetap hanya metadata model.
+       Raw berasal dari provider/openkey/models.js dan
+       dipertahankan untuk compatibility dengan detector.
     ===================================================== */
 
     normalized.raw =
         raw;
+
+
+    /* =====================================================
+       CAPABILITY DEBUG SUMMARY
+       -----------------------------------------------------
+       Tidak mengarang kemampuan model.
+    ===================================================== */
+
+    normalized._vision_metadata = {
+
+        input_modalities:
+            normalized.input_modalities,
+
+        output_modalities:
+            normalized.output_modalities,
+
+        has_capabilities:
+            normalized.capabilities !==
+            undefined,
+
+        has_modalities:
+            normalized.modalities !==
+            undefined,
+
+        has_architecture:
+            normalized.architecture !==
+            undefined,
+
+        has_metadata:
+            normalized.metadata !==
+            undefined,
+
+        has_details:
+            normalized.details !==
+            undefined,
+
+        has_features:
+            normalized.features !==
+            undefined,
+
+        has_media:
+            normalized.media !==
+            undefined,
+
+        has_input:
+            normalized.input !==
+            undefined,
+
+        has_output:
+            normalized.output !==
+            undefined
+
+    };
 
 
     return normalized;
@@ -1281,8 +1493,16 @@ async function handleOpenKeyModelsOperation(
                     model.input ??
                     null,
 
+                inputs:
+                    model.inputs ??
+                    null,
+
                 output:
                     model.output ??
+                    null,
+
+                outputs:
+                    model.outputs ??
                     null,
 
                 vision:
@@ -1291,6 +1511,46 @@ async function handleOpenKeyModelsOperation(
 
                 image:
                     model.image ??
+                    null,
+
+                images:
+                    model.images ??
+                    null,
+
+                video:
+                    model.video ??
+                    null,
+
+                media:
+                    model.media ??
+                    null,
+
+                metadata:
+                    model.metadata ??
+                    null,
+
+                details:
+                    model.details ??
+                    null,
+
+                features:
+                    model.features ??
+                    null,
+
+                supports_vision:
+                    model.supports_vision ??
+                    null,
+
+                supports_image:
+                    model.supports_image ??
+                    null,
+
+                supports_images:
+                    model.supports_images ??
+                    null,
+
+                supports_multimodal:
+                    model.supports_multimodal ??
                     null
 
             })
