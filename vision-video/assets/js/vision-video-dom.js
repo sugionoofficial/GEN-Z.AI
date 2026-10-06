@@ -9,6 +9,7 @@
    - Tidak membuat elemen baru
    - Tidak mengubah struktur HTML
    - Semua modul Vision Video menggunakan DOM registry ini
+   - Mendukung registry key maupun CSS selector langsung
 ========================================================= */
 
 const GENZVisionVideoDOM = (() => {
@@ -221,10 +222,30 @@ const GENZVisionVideoDOM = (() => {
 
 
     /* =====================================================
-       GET ELEMENT
+       RESOLVE SELECTOR
+       -----------------------------------------------------
+       Mendukung dua bentuk pemanggilan:
+       
+       1. Registry key:
+          get("model")
+          get("fileInput")
+          get("analyzeButton")
+
+       2. CSS selector:
+          get("#visionVideoModel")
+          get(".some-class")
+          get("[data-test]")
+       
+       Jika string cocok dengan key SELECTORS,
+       gunakan selector dari registry.
+
+       Jika tidak cocok, gunakan string tersebut
+       sebagai CSS selector biasa.
     ===================================================== */
 
-    function get(selector) {
+    function resolveSelector(
+        selector
+    ) {
 
         if (
             typeof selector !== "string" ||
@@ -235,7 +256,50 @@ const GENZVisionVideoDOM = (() => {
 
         }
 
-        return document.querySelector(selector);
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                SELECTORS,
+                selector
+            )
+        ) {
+
+            return SELECTORS[
+                selector
+            ];
+
+        }
+
+
+        return selector;
+
+    }
+
+
+    /* =====================================================
+       GET ELEMENT
+    ===================================================== */
+
+    function get(selector) {
+
+        const resolvedSelector =
+            resolveSelector(
+                selector
+            );
+
+
+        if (
+            !resolvedSelector
+        ) {
+
+            return null;
+
+        }
+
+
+        return document.querySelector(
+            resolvedSelector
+        );
 
     }
 
@@ -253,7 +317,8 @@ const GENZVisionVideoDOM = (() => {
             of Object.entries(SELECTORS)
         ) {
 
-            elements[key] = get(selector);
+            elements[key] =
+                get(selector);
 
         }
 
@@ -296,7 +361,8 @@ const GENZVisionVideoDOM = (() => {
 
     function getRequiredElements() {
 
-        const registry = ensure();
+        const registry =
+            ensure();
 
         const required = {
 
