@@ -12,6 +12,8 @@
    - Retry jika output masih generik
    - Outfit Source Control
    - Reference / Character Source Priority
+   - FIELD-LEVEL SOURCE AUTHORITY
+   - Character appearance / hair isolation
 ========================================================= */
 
 
@@ -64,13 +66,13 @@ function getPromptSettings(
     }
 
 
-    /*
-     * GENZVisionState API.
-     */
-
     const visionState =
         window.GENZVisionState;
 
+
+    /*
+     * GENZVisionState API.
+     */
 
     if (
         visionState &&
@@ -123,10 +125,6 @@ function getPromptSettings(
                 core.getState();
 
 
-            /*
-             * Legacy state API.
-             */
-
             if (
                 state &&
                 typeof state.get === "function"
@@ -150,10 +148,6 @@ function getPromptSettings(
 
             }
 
-
-            /*
-             * Current plain state object.
-             */
 
             if (
                 state &&
@@ -222,6 +216,391 @@ function getPromptSettings(
 
 
 /* =========================================================
+   STATE OUTFIT SOURCE
+========================================================= */
+
+function getPromptStateOutfitSource() {
+
+    const visionState =
+        window.GENZVisionState;
+
+
+    if (
+        !visionState
+    ) {
+
+        return "";
+
+    }
+
+
+    /*
+     * Preferred API.
+     */
+
+    if (
+        typeof visionState.getOutfitSource ===
+        "function"
+    ) {
+
+        try {
+
+            const value =
+                visionState.getOutfitSource();
+
+
+            if (
+                value !== null &&
+                value !== undefined &&
+                String(value).trim()
+            ) {
+
+                return String(
+                    value
+                ).trim();
+
+            }
+
+        }
+        catch (error) {
+
+            console.debug(
+                "[GEN-Z.AI Vision] getOutfitSource() fallback:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Generic state getter.
+     */
+
+    if (
+        typeof visionState.get === "function"
+    ) {
+
+        try {
+
+            const value =
+                visionState.get(
+                    "outfitSource",
+                    ""
+                );
+
+
+            if (
+                value !== null &&
+                value !== undefined &&
+                String(value).trim()
+            ) {
+
+                return String(
+                    value
+                ).trim();
+
+            }
+
+        }
+        catch (error) {
+
+            console.debug(
+                "[GEN-Z.AI Vision] state.get(outfitSource) fallback:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Plain state object.
+     */
+
+    if (
+        visionState.outfitSource
+    ) {
+
+        return String(
+            visionState.outfitSource
+        ).trim();
+
+    }
+
+
+    /*
+     * getState() fallback.
+     */
+
+    if (
+        typeof visionState.getState ===
+        "function"
+    ) {
+
+        try {
+
+            const state =
+                visionState.getState();
+
+
+            if (
+                state &&
+                state.outfitSource
+            ) {
+
+                return String(
+                    state.outfitSource
+                ).trim();
+
+            }
+
+
+            if (
+                state &&
+                state.settings &&
+                state.settings.outfitSource
+            ) {
+
+                return String(
+                    state.settings.outfitSource
+                ).trim();
+
+            }
+
+        }
+        catch (error) {
+
+            console.debug(
+                "[GEN-Z.AI Vision] state.getState() outfitSource fallback:",
+                error
+            );
+
+        }
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
+   STATE CHARACTER AVAILABILITY
+========================================================= */
+
+function hasPromptReplacementCharacter() {
+
+    const visionState =
+        window.GENZVisionState;
+
+
+    if (
+        !visionState
+    ) {
+
+        return false;
+
+    }
+
+
+    /*
+     * Preferred API.
+     */
+
+    if (
+        typeof visionState.getReplacementCharacter ===
+        "function"
+    ) {
+
+        try {
+
+            const character =
+                visionState.getReplacementCharacter();
+
+
+            if (
+                character
+            ) {
+
+                return true;
+
+            }
+
+        }
+        catch (error) {
+
+            console.debug(
+                "[GEN-Z.AI Vision] getReplacementCharacter() fallback:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Generic state getter.
+     */
+
+    if (
+        typeof visionState.get === "function"
+    ) {
+
+        try {
+
+            const character =
+                visionState.get(
+                    "replacementCharacter",
+                    null
+                );
+
+
+            if (
+                character
+            ) {
+
+                return true;
+
+            }
+
+        }
+        catch (error) {
+
+            console.debug(
+                "[GEN-Z.AI Vision] state.get(replacementCharacter) fallback:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Plain state.
+     */
+
+    if (
+        visionState.replacementCharacter
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+     * getState() fallback.
+     */
+
+    if (
+        typeof visionState.getState ===
+        "function"
+    ) {
+
+        try {
+
+            const state =
+                visionState.getState();
+
+
+            if (
+                state &&
+                state.replacementCharacter
+            ) {
+
+                return true;
+
+            }
+
+
+            if (
+                state &&
+                state.file &&
+                state.file.replacementCharacter
+            ) {
+
+                return true;
+
+            }
+
+        }
+        catch (error) {
+
+            console.debug(
+                "[GEN-Z.AI Vision] state.getState() character fallback:",
+                error
+            );
+
+        }
+
+    }
+
+
+    return false;
+
+}
+
+
+/* =========================================================
+   RESOLVE OUTFIT SOURCE
+========================================================= */
+
+function resolvePromptOutfitSource(
+    settings = {}
+) {
+
+    /*
+     * Explicit settings selalu memiliki prioritas.
+     */
+
+    if (
+        settings &&
+        settings.outfitSource !== undefined &&
+        settings.outfitSource !== null &&
+        String(
+            settings.outfitSource
+        ).trim()
+    ) {
+
+        return normalizeOutfitSource(
+            settings.outfitSource
+        );
+
+    }
+
+
+    /*
+     * Jika settings tidak membawa outfitSource,
+     * baca state langsung.
+     */
+
+    const stateValue =
+        getPromptStateOutfitSource();
+
+
+    if (
+        stateValue
+    ) {
+
+        return normalizeOutfitSource(
+            stateValue
+        );
+
+    }
+
+
+    return "reference";
+
+}
+
+
+/* =========================================================
    ANALYSIS STRUCTURE KEYS
 ========================================================= */
 
@@ -261,38 +640,12 @@ const PROMPT_ANALYSIS_KEYS =
 
 /* =========================================================
    SOURCE AUTHORITY CATEGORIES
-   ---------------------------------------------------------
-   Reference image:
-   - scene
-   - pose
-   - composition
-   - framing
-   - camera
-   - lighting
-   - shadows
-   - environment
-   - background
-   - product
-   - spatial relationships
-   - visual style
-   - image quality
-
-   Character image:
-   - identity
-   - face
-   - hair
-   - physical appearance
-
-   Outfit source:
-   - clothing
-   - outfit accessories
 ========================================================= */
 
 const PROMPT_REFERENCE_AUTHORITY_KEYS =
     Object.freeze([
 
         "subject",
-        "appearance",
         "pose",
         "product",
         "composition",
@@ -317,11 +670,76 @@ const PROMPT_REFERENCE_AUTHORITY_KEYS =
     ]);
 
 
+/*
+ * Identity authority.
+ *
+ * PENTING:
+ *
+ * "appearance" sengaja dipindahkan ke sini.
+ *
+ * Alasan:
+ * appearance dapat berisi:
+ * - skin
+ * - body
+ * - physical characteristics
+ * - hair-related physical description
+ *
+ * Ketika replacement character tersedia, data ini
+ * harus mengikuti IMAGE 2.
+ */
+
 const PROMPT_CHARACTER_AUTHORITY_KEYS =
     Object.freeze([
 
+        "appearance",
         "face_hair",
         "faceHair"
+
+    ]);
+
+
+/* =========================================================
+   IDENTITY SUB-FIELD LOCKS
+========================================================= */
+
+const PROMPT_IDENTITY_FIELD_NAMES =
+    Object.freeze([
+
+        "hair",
+        "hair_color",
+        "hairColor",
+        "hair_style",
+        "hairStyle",
+        "hair_length",
+        "hairLength",
+        "hair_texture",
+        "hairTexture",
+        "braids",
+        "braid",
+        "curls",
+        "waves",
+        "wavy",
+        "bangs",
+        "fringe",
+        "hairline",
+        "hair_part",
+        "hairPart",
+        "eyebrows",
+        "eyes",
+        "eye_color",
+        "eyeColor",
+        "nose",
+        "lips",
+        "skin",
+        "skin_tone",
+        "skinTone",
+        "face",
+        "face_shape",
+        "faceShape",
+        "facial_structure",
+        "facialStructure",
+        "physical_characteristics",
+        "visible_physical_characteristics"
 
     ]);
 
@@ -669,10 +1087,6 @@ function extractEmbeddedPromptAnalysisJSON(
     }
 
 
-    /*
-     * Direct JSON.
-     */
-
     try {
 
         return JSON.parse(
@@ -686,10 +1100,6 @@ function extractEmbeddedPromptAnalysisJSON(
 
     }
 
-
-    /*
-     * Balanced object.
-     */
 
     const objectText =
         extractBalancedPromptObject(
@@ -716,10 +1126,6 @@ function extractEmbeddedPromptAnalysisJSON(
 
     }
 
-
-    /*
-     * Balanced array.
-     */
 
     const arrayText =
         extractBalancedPromptArray(
@@ -869,10 +1275,6 @@ function normalizePromptAnalysisInput(
     }
 
 
-    /* -----------------------------------------------------
-       STRING
-    ----------------------------------------------------- */
-
     if (
         typeof input === "string"
     ) {
@@ -889,10 +1291,6 @@ function normalizePromptAnalysisInput(
 
         }
 
-
-        /*
-         * Direct JSON.
-         */
 
         try {
 
@@ -914,10 +1312,6 @@ function normalizePromptAnalysisInput(
         }
 
 
-        /*
-         * Embedded JSON.
-         */
-
         const extracted =
             extractEmbeddedPromptAnalysisJSON(
                 text
@@ -935,10 +1329,6 @@ function normalizePromptAnalysisInput(
         }
 
 
-        /*
-         * Raw text fallback.
-         */
-
         return {
 
             raw_text:
@@ -949,10 +1339,6 @@ function normalizePromptAnalysisInput(
     }
 
 
-    /* -----------------------------------------------------
-       ARRAY
-    ----------------------------------------------------- */
-
     if (
         Array.isArray(input)
     ) {
@@ -962,10 +1348,6 @@ function normalizePromptAnalysisInput(
     }
 
 
-    /* -----------------------------------------------------
-       NON OBJECT
-    ----------------------------------------------------- */
-
     if (
         typeof input !== "object"
     ) {
@@ -974,10 +1356,6 @@ function normalizePromptAnalysisInput(
 
     }
 
-
-    /* -----------------------------------------------------
-       DIRECT ANALYSIS OBJECT
-    ----------------------------------------------------- */
 
     if (
         hasPromptAnalysisStructure(
@@ -989,10 +1367,6 @@ function normalizePromptAnalysisInput(
 
     }
 
-
-    /* -----------------------------------------------------
-       WRAPPED ANALYSIS
-    ----------------------------------------------------- */
 
     const wrapper =
         findPromptAnalysisWrapper(
@@ -1052,10 +1426,6 @@ function normalizePromptAnalysisInput(
 
     }
 
-
-    /* -----------------------------------------------------
-       TEXT / CONTENT / MESSAGE / ANSWER
-    ----------------------------------------------------- */
 
     const textKeys = [
 
@@ -1136,10 +1506,6 @@ function normalizePromptAnalysisInput(
     }
 
 
-    /* -----------------------------------------------------
-       CHOICES FALLBACK
-    ----------------------------------------------------- */
-
     if (
         Array.isArray(
             input.choices
@@ -1208,10 +1574,6 @@ function normalizePromptAnalysisInput(
     }
 
 
-    /* -----------------------------------------------------
-       MESSAGE OBJECT FALLBACK
-    ----------------------------------------------------- */
-
     if (
         input.message &&
         typeof input.message === "object"
@@ -1260,10 +1622,6 @@ function normalizePromptAnalysisInput(
 
     }
 
-
-    /* -----------------------------------------------------
-       FINAL OBJECT
-    ----------------------------------------------------- */
 
     return input;
 
@@ -1530,10 +1888,6 @@ function buildDetailedAnalysisFacts(
         }
 
 
-        /* -------------------------------------------------
-           STRING
-        ------------------------------------------------- */
-
         if (
             typeof value === "string"
         ) {
@@ -1565,10 +1919,6 @@ function buildDetailedAnalysisFacts(
         }
 
 
-        /* -------------------------------------------------
-           NUMBER / BOOLEAN
-        ------------------------------------------------- */
-
         if (
             typeof value === "number" ||
             typeof value === "boolean"
@@ -1591,10 +1941,6 @@ function buildDetailedAnalysisFacts(
 
         }
 
-
-        /* -------------------------------------------------
-           ARRAY
-        ------------------------------------------------- */
 
         if (
             Array.isArray(value)
@@ -1622,10 +1968,6 @@ function buildDetailedAnalysisFacts(
 
         }
 
-
-        /* -------------------------------------------------
-           OBJECT
-        ------------------------------------------------- */
 
         if (
             typeof value === "object"
@@ -1718,16 +2060,86 @@ function getPromptFactRoot(
 
 
 /* =========================================================
+   FACT FIELD
+========================================================= */
+
+function getPromptFactLeaf(
+    fact
+) {
+
+    if (
+        !fact ||
+        typeof fact !== "object"
+    ) {
+
+        return "";
+
+    }
+
+
+    const path =
+        String(
+            fact.path ||
+            ""
+        );
+
+
+    const parts =
+        path
+            .split(".")
+            .filter(
+                Boolean
+            );
+
+
+    if (
+        parts.length === 0
+    ) {
+
+        return "";
+
+    }
+
+
+    const last =
+        parts[
+            parts.length - 1
+        ];
+
+
+    return String(
+        last
+    )
+        .replace(
+            /^\[/,
+            ""
+        )
+        .replace(
+            /\]$/,
+            ""
+        );
+
+}
+
+
+/* =========================================================
    CLASSIFY FACT AUTHORITY
 ========================================================= */
 
 function classifyPromptFactAuthority(
     fact,
-    outfitSource = "reference"
+    outfitSource = "reference",
+    hasCharacter = false
 ) {
 
     const root =
         getPromptFactRoot(
+            fact
+        );
+
+
+    const leaf =
+        getPromptFactLeaf(
             fact
         );
 
@@ -1739,18 +2151,77 @@ function classifyPromptFactAuthority(
 
 
     /*
-     * Face / hair selalu character authority
-     * ketika replacement character tersedia.
+     * =====================================================
+     * CHARACTER IDENTITY
+     * =====================================================
      *
-     * Pada tahap prompt engineering kita tidak tahu
-     * secara eksplisit apakah IMAGE 2 ada atau tidak.
-     * Karena itu aturan ini digunakan sebagai source-role
-     * contract, bukan sebagai pengganti fakta.
+     * Ketika replacement character tersedia:
+     *
+     * appearance + face_hair
+     *
+     * sepenuhnya menjadi IMAGE 2 authority.
      */
 
     if (
+        hasCharacter &&
         PROMPT_CHARACTER_AUTHORITY_KEYS.includes(
             root
+        )
+    ) {
+
+        return "character";
+
+    }
+
+
+    /*
+     * Jika tidak ada replacement character,
+     * appearance tetap berasal dari reference.
+     */
+
+    if (
+        !hasCharacter &&
+        root === "appearance"
+    ) {
+
+        return "reference";
+
+    }
+
+
+    /*
+     * face_hair tanpa character tidak boleh
+     * diberi authority palsu.
+     *
+     * Dalam kondisi ini fakta tetap dipertahankan
+     * sebagai reference.
+     */
+
+    if (
+        root === "face_hair" ||
+        root === "faceHair"
+    ) {
+
+        return hasCharacter
+            ? "character"
+            : "reference";
+
+    }
+
+
+    /*
+     * Extra protection untuk field rambut.
+     *
+     * Jika model analysis meletakkan hair detail
+     * pada category lain yang bukan scene, dan
+     * replacement character tersedia, field tersebut
+     * tetap harus diperlakukan sebagai identity.
+     */
+
+    if (
+        hasCharacter &&
+        PROMPT_IDENTITY_FIELD_NAMES.includes(
+            leaf
         )
     ) {
 
@@ -1777,8 +2248,7 @@ function classifyPromptFactAuthority(
 
 
     /*
-     * Semua elemen scene tetap berasal dari
-     * main reference image.
+     * Semua elemen scene tetap IMAGE 1.
      */
 
     if (
@@ -1795,7 +2265,8 @@ function classifyPromptFactAuthority(
     /*
      * Unknown category.
      *
-     * Jangan memberi authority palsu.
+     * Jangan memberikan character authority
+     * tanpa dasar.
      */
 
     return "reference";
@@ -1809,7 +2280,8 @@ function classifyPromptFactAuthority(
 
 function formatDetailedAnalysisFactsWithAuthority(
     facts,
-    outfitSource = "reference"
+    outfitSource = "reference",
+    hasCharacter = false
 ) {
 
     if (
@@ -1843,7 +2315,8 @@ function formatDetailedAnalysisFactsWithAuthority(
             const authority =
                 classifyPromptFactAuthority(
                     fact,
-                    normalizedOutfitSource
+                    normalizedOutfitSource,
+                    hasCharacter
                 );
 
 
@@ -1872,6 +2345,21 @@ function formatDetailedAnalysisFactsWithAuthority(
                     authority
 
                 });
+
+                return;
+
+            }
+
+
+            if (
+                getPromptFactRoot(
+                    fact
+                ) === "uncertainties"
+            ) {
+
+                uncertainFacts.push(
+                    fact
+                );
 
                 return;
 
@@ -1962,10 +2450,9 @@ ${lines}
 
 
     /*
-     * Reference first.
+     * REFERENCE FIRST.
      *
-     * Ini sengaja diletakkan paling atas agar model
-     * menerima scene authority sebelum identity authority.
+     * Hanya scene authority.
      */
 
     const referenceSection =
@@ -1987,7 +2474,7 @@ ${lines}
 
 
     /*
-     * Outfit section.
+     * OUTFIT.
      */
 
     const outfitLabel =
@@ -2015,10 +2502,10 @@ ${lines}
 
 
     /*
-     * Character identity terakhir.
+     * CHARACTER IDENTITY.
      *
-     * Bukan karena kurang penting, tetapi supaya model
-     * tidak membaca identity image sebagai scene reference.
+     * Appearance sekarang berada di sini jika
+     * replacement character tersedia.
      */
 
     const characterSection =
@@ -2040,21 +2527,12 @@ ${lines}
 
 
     /*
-     * Ketidakpastian tetap dipertahankan.
+     * UNCERTAINTIES.
      */
-
-    const uncertaintyFacts =
-        facts.filter(
-            fact =>
-                getPromptFactRoot(
-                    fact
-                ) === "uncertainties"
-        );
-
 
     const uncertaintySection =
         formatGroup(
-            uncertaintyFacts,
+            uncertainFacts,
             "UNCERTAINTIES - DO NOT TURN INTO CERTAINTY"
         );
 
@@ -2264,6 +2742,7 @@ Replacement character adalah sumber pakaian/outfit.
 MAIN REFERENCE IMAGE tetap menjadi sumber utama untuk:
 
 - scene;
+- lokasi;
 - pose;
 - komposisi;
 - framing;
@@ -2277,37 +2756,105 @@ MAIN REFERENCE IMAGE tetap menjadi sumber utama untuk:
 - spatial relationships;
 - visual style.
 
-REPLACEMENT CHARACTER hanya memberikan:
+REPLACEMENT CHARACTER memberikan:
 
 - identitas;
 - wajah;
 - rambut atau hijab;
 - physical appearance;
-- pakaian/outfit karena OUTFIT SOURCE sedang diset
-  ke CHARACTER.
+- pakaian/outfit;
+- aksesori yang melekat pada outfit jika terlihat.
 
-JANGAN memindahkan:
+=========================================================
+HAIR SOURCE LOCK
+=========================================================
 
-- background character;
-- lighting character;
-- camera character;
-- framing character;
-- composition character;
-- environment character;
-- pose character;
+RAMBUT REPLACEMENT CHARACTER HANYA BOLEH DIAMBIL
+DARI IMAGE 2.
 
-ke final prompt.
+JANGAN mengambil rambut IMAGE 1.
 
-Hanya outfit dan identity yang boleh berasal dari
-replacement character.
+JANGAN menggabungkan rambut IMAGE 1 dan IMAGE 2.
 
-Jika terdapat konflik outfit:
+JANGAN melakukan averaging.
 
-REPLACEMENT CHARACTER MENANG.
+JANGAN melakukan blending.
 
-Jika terdapat konflik scene:
+JANGAN menggunakan IMAGE 1 sebagai fallback apabila
+rambut IMAGE 2 berbeda.
 
-MAIN REFERENCE IMAGE MENANG.
+Jika rambut IMAGE 2 tidak cukup terlihat:
+
+gunakan hanya fakta yang benar-benar terlihat dari
+IMAGE 2.
+
+Jangan mengisi kekosongan tersebut dengan rambut IMAGE 1.
+
+=========================================================
+IDENTITY LOCK
+=========================================================
+
+IDENTITAS FISIK CHARACTER HANYA IMAGE 2.
+
+Termasuk:
+
+- bentuk wajah;
+- mata;
+- alis;
+- hidung;
+- bibir;
+- warna kulit;
+- kondisi kulit;
+- rambut;
+- warna rambut;
+- tekstur rambut;
+- panjang rambut;
+- gaya rambut;
+- braids;
+- curls;
+- waves;
+- bangs;
+- hairline;
+- physical characteristics.
+
+=========================================================
+SCENE LOCK
+=========================================================
+
+IMAGE 2 TIDAK BOLEH mengganti:
+
+- background;
+- environment;
+- scene;
+- pose;
+- composition;
+- framing;
+- camera;
+- lighting;
+- shadows;
+- spatial relationships.
+
+Jika IMAGE 2 mempunyai ruangan atau background yang berbeda,
+abaikan seluruh informasi scene tersebut.
+
+=========================================================
+CONFLICT RULE
+=========================================================
+
+Jika terdapat konflik:
+
+SCENE -> IMAGE 1
+POSE -> IMAGE 1
+COMPOSITION -> IMAGE 1
+CAMERA -> IMAGE 1
+LIGHTING -> IMAGE 1
+BACKGROUND -> IMAGE 1
+ENVIRONMENT -> IMAGE 1
+PRODUCT -> IMAGE 1
+IDENTITY -> IMAGE 2
+FACE -> IMAGE 2
+HAIR -> IMAGE 2
+OUTFIT -> IMAGE 2
 `.trim(),
 
             userInstruction: `
@@ -2321,9 +2868,10 @@ IMAGE 2 = REPLACEMENT CHARACTER
 
 OUTFIT SOURCE = CHARACTER
 
-Gunakan IMAGE 1 untuk:
+IMAGE 1 mengontrol:
 
 - scene;
+- lokasi;
 - pose;
 - komposisi;
 - framing;
@@ -2337,21 +2885,65 @@ Gunakan IMAGE 1 untuk:
 - spatial relationships;
 - visual style.
 
-Gunakan IMAGE 2 untuk:
+IMAGE 2 mengontrol:
 
 - identitas;
 - wajah;
-- rambut atau hijab;
+- rambut;
+- hijab;
 - physical appearance;
-- pakaian/outfit.
+- pakaian;
+- outfit;
+- aksesori outfit.
 
-JANGAN mengambil background, pose, lighting, kamera,
-komposisi atau environment IMAGE 2.
+=========================================================
+ABSOLUTE HAIR RULE
+=========================================================
 
-Jika kedua image bertentangan:
+Rambut final WAJIB berasal dari IMAGE 2.
+
+Jika rambut IMAGE 1 berbeda dengan rambut IMAGE 2,
+BUANG rambut IMAGE 1.
+
+Jangan:
+
+- mencampur rambut;
+- menggabungkan gaya;
+- menggunakan panjang rambut IMAGE 1;
+- menggunakan tekstur rambut IMAGE 1;
+- menggunakan warna rambut IMAGE 1;
+- menggunakan bentuk rambut IMAGE 1;
+- menggunakan braids IMAGE 1;
+- menggunakan waves IMAGE 1;
+- menggunakan curls IMAGE 1.
+
+Jika IMAGE 2 menunjukkan braids, final harus menggunakan
+braids tersebut.
+
+Jika IMAGE 2 menunjukkan rambut pendek, final harus
+menggunakan rambut pendek tersebut.
+
+Jika IMAGE 2 menunjukkan rambut panjang, final harus
+menggunakan rambut panjang tersebut.
+
+IMAGE 1 TIDAK PERNAH MENJADI SUMBER RAMBUT.
+
+=========================================================
+FINAL CONFLICT RULE
+=========================================================
 
 SCENE IMAGE 1 MENANG.
+POSE IMAGE 1 MENANG.
+COMPOSITION IMAGE 1 MENANG.
+CAMERA IMAGE 1 MENANG.
+LIGHTING IMAGE 1 MENANG.
+BACKGROUND IMAGE 1 MENANG.
+ENVIRONMENT IMAGE 1 MENANG.
+PRODUCT IMAGE 1 MENANG.
+
 IDENTITY IMAGE 2 MENANG.
+FACE IMAGE 2 MENANG.
+HAIR IMAGE 2 MENANG.
 OUTFIT IMAGE 2 MENANG.
 `.trim()
 
@@ -2378,6 +2970,7 @@ ATURAN ABSOLUT:
 MAIN REFERENCE IMAGE adalah sumber utama untuk:
 
 - scene;
+- lokasi;
 - pose;
 - komposisi;
 - framing;
@@ -2399,10 +2992,46 @@ REPLACEMENT CHARACTER hanya memberikan:
 - rambut atau hijab;
 - physical appearance.
 
-REPLACEMENT CHARACTER BUKAN scene reference.
+=========================================================
+HAIR SOURCE LOCK
+=========================================================
 
-JANGAN mengambil dari replacement character:
+Jika replacement character tersedia:
 
+RAMBUT FINAL HANYA BOLEH DIAMBIL DARI IMAGE 2.
+
+JANGAN mengambil rambut IMAGE 1 untuk identitas karakter.
+
+JANGAN mencampur rambut IMAGE 1 dengan IMAGE 2.
+
+=========================================================
+IDENTITY LOCK
+=========================================================
+
+IMAGE 2 mengontrol:
+
+- wajah;
+- bentuk wajah;
+- mata;
+- alis;
+- hidung;
+- bibir;
+- warna kulit;
+- physical appearance;
+- rambut;
+- warna rambut;
+- tekstur rambut;
+- panjang rambut;
+- gaya rambut;
+- hijab jika merupakan bagian dari identitas.
+
+=========================================================
+SCENE LOCK
+=========================================================
+
+IMAGE 2 TIDAK BOLEH mengubah:
+
+- scene;
 - background;
 - environment;
 - pose;
@@ -2412,19 +3041,16 @@ JANGAN mengambil dari replacement character:
 - lighting;
 - shadows;
 - spatial relationships;
+- product;
 - outfit.
 
-Jika terdapat konflik outfit:
+Jika terdapat konflik:
 
-MAIN REFERENCE IMAGE MENANG.
-
-Jika terdapat konflik scene:
-
-MAIN REFERENCE IMAGE MENANG.
-
-Jika terdapat konflik identity:
-
-REPLACEMENT CHARACTER MENANG.
+SCENE -> IMAGE 1
+OUTFIT -> IMAGE 1
+IDENTITY -> IMAGE 2
+FACE -> IMAGE 2
+HAIR -> IMAGE 2
 `.trim(),
 
         userInstruction: `
@@ -2438,9 +3064,10 @@ IMAGE 2 = REPLACEMENT CHARACTER
 
 OUTFIT SOURCE = REFERENCE
 
-Gunakan IMAGE 1 sebagai sumber kebenaran utama untuk:
+IMAGE 1 mengontrol:
 
 - scene;
+- lokasi;
 - pose;
 - komposisi;
 - framing;
@@ -2455,30 +3082,39 @@ Gunakan IMAGE 1 sebagai sumber kebenaran utama untuk:
 - visual style;
 - pakaian/outfit.
 
-Gunakan IMAGE 2 HANYA untuk:
+IMAGE 2 HANYA mengontrol:
 
 - identitas;
 - wajah;
-- rambut atau hijab;
+- rambut;
+- hijab;
 - physical appearance.
 
-JANGAN mengambil outfit IMAGE 2.
+=========================================================
+ABSOLUTE HAIR RULE
+=========================================================
 
-JANGAN mengambil background IMAGE 2.
+Rambut karakter final harus berasal dari IMAGE 2.
 
-JANGAN mengambil pose IMAGE 2.
+Jangan mengambil rambut IMAGE 1.
 
-JANGAN mengambil lighting IMAGE 2.
+Jangan menggunakan rambut IMAGE 1 sebagai fallback.
 
-JANGAN mengambil kamera IMAGE 2.
+Jangan mencampur rambut kedua image.
 
-JANGAN mengambil composition IMAGE 2.
+IMAGE 1 hanya mengontrol scene dan outfit.
 
-Jika kedua image bertentangan:
+IMAGE 2 mengontrol identity dan hair.
+
+=========================================================
+FINAL CONFLICT RULE
+=========================================================
 
 SCENE IMAGE 1 MENANG.
 OUTFIT IMAGE 1 MENANG.
 IDENTITY IMAGE 2 MENANG.
+FACE IMAGE 2 MENANG.
+HAIR IMAGE 2 MENANG.
 `.trim()
 
     };
@@ -2514,97 +3150,148 @@ ADA DUA SUMBER VISUAL:
 IMAGE 1 = MAIN REFERENCE IMAGE
 IMAGE 2 = REPLACEMENT CHARACTER
 
-PRIORITAS FINAL:
-
-1. SCENE / COMPOSITION / POSE / CAMERA / LIGHTING /
-   BACKGROUND / ENVIRONMENT / PRODUCT
-   -> IMAGE 1
-
-2. IDENTITY / FACE / HAIR / PHYSICAL APPEARANCE
-   -> IMAGE 2
-
-3. OUTFIT / CLOTHING
-   -> IMAGE 2
-
 =========================================================
-IMAGE 1 IS THE SCENE MASTER
+FIELD-LEVEL AUTHORITY
 =========================================================
 
-Final prompt harus mempertahankan scene IMAGE 1.
+SCENE FIELDS
+-> IMAGE 1
 
-Jangan mengganti:
+IDENTITY FIELDS
+-> IMAGE 2
 
-- lokasi visual;
-- background;
-- environment;
-- komposisi;
-- framing;
-- pose;
-- camera perspective;
-- lighting;
-- shadows;
-- spatial relationship;
-- product placement.
+HAIR
+-> IMAGE 2
 
-dengan detail dari IMAGE 2.
+OUTFIT
+-> IMAGE 2
 
 =========================================================
-IMAGE 2 IS NOT A SCENE REFERENCE
+IMAGE 1 = SCENE MASTER
 =========================================================
 
-IMAGE 2 TIDAK BOLEH digunakan untuk:
+IMAGE 1 mengontrol:
 
-- background;
-- environment;
 - scene;
+- lokasi;
+- environment;
+- background;
 - composition;
 - framing;
+- subject placement;
+- pose;
+- body positioning;
+- hand positioning;
 - camera;
+- perspective;
+- lens jika terlihat;
+- depth of field;
+- focus;
 - lighting;
 - shadows;
-- spatial relationship;
-- pose.
+- product;
+- product placement;
+- spatial relationships;
+- visual style.
 
-IMAGE 2 hanya menyediakan:
+=========================================================
+IMAGE 2 = CHARACTER MASTER
+=========================================================
+
+IMAGE 2 mengontrol:
 
 - identity;
 - face;
-- hair;
+- facial structure;
+- eyes;
+- eyebrows;
+- nose;
+- lips;
+- skin;
 - physical appearance;
-- outfit.
+- hair;
+- hair color;
+- hair texture;
+- hair length;
+- hair style;
+- braids;
+- curls;
+- waves;
+- bangs;
+- hairline;
+- hijab;
+- outfit;
+- clothing;
+- outfit accessories.
+
+=========================================================
+ABSOLUTE HAIR LOCK
+=========================================================
+
+HAIR = IMAGE 2 ONLY.
+
+Tidak ada pengecualian.
+
+Jika IMAGE 1 menunjukkan rambut berbeda,
+rambut IMAGE 1 harus diabaikan.
+
+Jangan:
+
+- copy hair IMAGE 1;
+- merge hair;
+- blend hair;
+- average hair;
+- infer hair from scene;
+- fallback ke IMAGE 1.
+
+Jika IMAGE 2 tidak memperlihatkan rambut dengan jelas,
+gunakan hanya fakta yang benar-benar terlihat.
+
+Jangan mengambil informasi rambut IMAGE 1
+untuk mengisi kekosongan.
+
+=========================================================
+APPEARANCE LOCK
+=========================================================
+
+APPEARANCE = IMAGE 2 ONLY ketika replacement character
+tersedia.
+
+Termasuk physical characteristics.
+
+Jangan memasukkan physical identity IMAGE 2
+ke dalam scene authority IMAGE 1.
 
 =========================================================
 CONFLICT RULE
 =========================================================
 
-Jika IMAGE 1 dan IMAGE 2 berbeda:
-
 SCENE -> IMAGE 1
+LOCATION -> IMAGE 1
+BACKGROUND -> IMAGE 1
+ENVIRONMENT -> IMAGE 1
 POSE -> IMAGE 1
 COMPOSITION -> IMAGE 1
 CAMERA -> IMAGE 1
 LIGHTING -> IMAGE 1
-BACKGROUND -> IMAGE 1
-ENVIRONMENT -> IMAGE 1
 PRODUCT -> IMAGE 1
+SPATIAL RELATIONSHIP -> IMAGE 1
+
 IDENTITY -> IMAGE 2
 FACE -> IMAGE 2
 HAIR -> IMAGE 2
+PHYSICAL APPEARANCE -> IMAGE 2
 OUTFIT -> IMAGE 2
-
-Jangan melakukan visual blending terhadap scene.
 
 =========================================================
 FINAL MENTAL MODEL
 =========================================================
 
-IMAGE 1 = TEMPAT DAN ADEGAN
+IMAGE 1 = TEMPAT + ADEGAN + POSISI
 
-IMAGE 2 = SIAPA YANG DITEMPATKAN KE DALAM ADEGAN
+IMAGE 2 = SIAPA KARAKTERNYA + RAMBUT + PAKAIAN
 
-OUTFIT = IMAGE 2
-
-Jangan membalik hubungan tersebut.
+Gabungkan hanya field yang memang diperbolehkan.
 `.trim();
 
     }
@@ -2615,57 +3302,13 @@ Jangan membalik hubungan tersebut.
 ABSOLUTE IMAGE SOURCE AUTHORITY CONTRACT
 =========================================================
 
-ADA DUA SUMBER VISUAL:
-
 IMAGE 1 = MAIN REFERENCE IMAGE
 IMAGE 2 = REPLACEMENT CHARACTER
 
-PRIORITAS FINAL:
-
-1. SCENE / COMPOSITION / POSE / CAMERA / LIGHTING /
-   BACKGROUND / ENVIRONMENT / PRODUCT / OUTFIT
-   -> IMAGE 1
-
-2. IDENTITY / FACE / HAIR / PHYSICAL APPEARANCE
-   -> IMAGE 2
-
-=========================================================
-IMAGE 1 IS THE MASTER REFERENCE
-=========================================================
-
-Final prompt harus mengikuti IMAGE 1 sebagai sumber
-kebenaran visual utama.
-
-Pertahankan:
+IMAGE 1 mengontrol:
 
 - scene;
-- pose;
-- composition;
-- framing;
-- camera perspective;
-- lighting;
-- shadows;
-- background;
-- environment;
-- product;
-- spatial relationships;
-- outfit;
-- visual style.
-
-=========================================================
-IMAGE 2 IS IDENTITY ONLY
-=========================================================
-
-IMAGE 2 hanya digunakan untuk:
-
-- identity;
-- face;
-- hair;
-- physical appearance.
-
-IMAGE 2 TIDAK BOLEH mengubah:
-
-- scene;
+- lokasi;
 - pose;
 - composition;
 - framing;
@@ -2675,13 +3318,35 @@ IMAGE 2 TIDAK BOLEH mengubah:
 - background;
 - environment;
 - product;
+- spatial relationships;
+- visual style;
 - outfit.
+
+IMAGE 2 mengontrol:
+
+- identity;
+- face;
+- hair;
+- physical appearance.
+
+=========================================================
+ABSOLUTE HAIR LOCK
+=========================================================
+
+Jika IMAGE 2 tersedia:
+
+HAIR = IMAGE 2 ONLY.
+
+Jangan mengambil rambut IMAGE 1.
+
+Jangan menggabungkan rambut IMAGE 1 dan IMAGE 2.
+
+Jika IMAGE 2 tidak jelas, jangan mengarang dan jangan
+mengambil rambut IMAGE 1 sebagai fallback.
 
 =========================================================
 CONFLICT RULE
 =========================================================
-
-Jika IMAGE 1 dan IMAGE 2 berbeda:
 
 SCENE -> IMAGE 1
 POSE -> IMAGE 1
@@ -2692,23 +3357,11 @@ BACKGROUND -> IMAGE 1
 ENVIRONMENT -> IMAGE 1
 PRODUCT -> IMAGE 1
 OUTFIT -> IMAGE 1
+
 IDENTITY -> IMAGE 2
 FACE -> IMAGE 2
 HAIR -> IMAGE 2
-
-Jangan melakukan visual blending terhadap scene.
-
-=========================================================
-FINAL MENTAL MODEL
-=========================================================
-
-IMAGE 1 = ADEGAN YANG HARUS DIPERTAHANKAN
-
-IMAGE 2 = ORANG YANG HARUS DIMASUKKAN KE ADEGAN
-
-IMAGE 2 BUKAN TEMPLATE SCENE.
-
-Jangan membalik hubungan tersebut.
+PHYSICAL APPEARANCE -> IMAGE 2
 `.trim();
 
 }
@@ -2719,7 +3372,8 @@ Jangan membalik hubungan tersebut.
 ========================================================= */
 
 function buildPromptSystemPrompt(
-    outfitSource = "reference"
+    outfitSource = "reference",
+    hasCharacter = false
 ) {
 
     const normalizedOutfitSource =
@@ -2740,6 +3394,37 @@ function buildPromptSystemPrompt(
         );
 
 
+    const characterAvailabilityInstruction =
+        hasCharacter
+            ? `
+=========================================================
+REPLACEMENT CHARACTER AVAILABLE
+=========================================================
+
+IMAGE 2 tersedia.
+
+Karena IMAGE 2 tersedia:
+
+- appearance -> IMAGE 2
+- face_hair -> IMAGE 2
+- hair -> IMAGE 2
+- physical characteristics -> IMAGE 2
+
+JANGAN memasukkan fakta identity IMAGE 2 ke dalam
+REFERENCE IMAGE FACTS sebagai scene information.
+`.trim()
+            : `
+=========================================================
+NO REPLACEMENT CHARACTER
+=========================================================
+
+Tidak ada IMAGE 2.
+
+Semua identity/appearance yang tersedia berasal
+dari IMAGE 1.
+`.trim();
+
+
     return `
 You are the advanced prompt engineering engine of GEN-Z.AI Vision.
 
@@ -2752,35 +3437,143 @@ The analysis is the SOURCE OF TRUTH.
 
 ${sourceAuthority}
 
+${characterAvailabilityInstruction}
+
 ${outfitInstructions.systemInstruction}
 
 =========================================================
-ABSOLUTE RULE: DO NOT FLATTEN IMAGE ROLES
+ABSOLUTE RULE: FIELD-LEVEL SOURCE SEPARATION
 =========================================================
 
-The supplied analysis may contain visual facts that belong
-to different source roles.
+JANGAN menganggap semua fakta analysis berasal
+dari satu gambar.
 
-Do NOT treat every fact as if it came from the same image.
+Setiap fakta harus mengikuti authority field-nya.
 
-The final prompt must obey the SOURCE AUTHORITY CONTRACT.
+Jika replacement character tersedia:
 
-In particular:
+IMAGE 1:
+- scene;
+- location;
+- pose;
+- composition;
+- framing;
+- camera;
+- lighting;
+- shadows;
+- background;
+- environment;
+- product;
+- spatial relationships;
+- visual style.
 
-- scene facts come from IMAGE 1;
-- identity facts come from IMAGE 2;
-- outfit follows OUTFIT SOURCE;
-- IMAGE 2 must never become the scene template.
+IMAGE 2:
+- identity;
+- face;
+- appearance;
+- hair;
+- physical characteristics.
 
-If a character image describes a different background,
-lighting, camera, composition, environment or pose, those
-details MUST NOT replace IMAGE 1.
+OUTFIT:
+${normalizedOutfitSource === "character"
+    ? "IMAGE 2"
+    : "IMAGE 1"}
+
+=========================================================
+ABSOLUTE HAIR RULE
+=========================================================
+
+INI ADALAH FIELD PALING KETAT.
+
+Jika replacement character tersedia:
+
+face_hair.hair
+appearance hair
+physical hair description
+
+HARUS berasal dari IMAGE 2.
+
+JANGAN mengambil rambut IMAGE 1.
+
+JANGAN menggunakan rambut IMAGE 1 sebagai fallback.
+
+JANGAN menggabungkan rambut.
+
+JANGAN membuat hybrid hair.
+
+JANGAN melakukan averaging.
+
+JANGAN mengambil panjang, tekstur, warna, bentuk,
+braids, curls, waves, bangs atau hairline dari IMAGE 1.
+
+Jika IMAGE 1 memiliki rambut panjang bergelombang
+sedangkan IMAGE 2 memiliki braids:
+
+FINAL = BRAIDS IMAGE 2.
+
+Bukan rambut panjang bergelombang.
+
+Jika IMAGE 2 tidak cukup jelas:
+
+gunakan hanya fakta rambut yang benar-benar terlihat
+dari IMAGE 2.
+
+Jangan mengisi kekosongan menggunakan IMAGE 1.
+
+=========================================================
+APPEARANCE RULE
+=========================================================
+
+Jika replacement character tersedia:
+
+appearance = IMAGE 2 identity authority.
+
+Termasuk:
+
+- skin;
+- body;
+- physical characteristics;
+- hair;
+- face-related characteristics.
+
+Jangan memperlakukan appearance IMAGE 2 sebagai
+scene information.
+
+=========================================================
+CONSISTENCY RULE
+=========================================================
+
+Jika:
+
+appearance.visible_physical_characteristics
+
+dan:
+
+face_hair.hair
+
+berisi detail identity yang berhubungan dengan rambut,
+keduanya harus konsisten dengan IMAGE 2.
+
+Contoh:
+
+Jika appearance menyebut:
+
+"rambut dikepang"
+
+maka face_hair.hair tidak boleh menjadi:
+
+"rambut panjang bergelombang"
+
+Jika terdapat konflik internal:
+
+PRIORITASKAN FAKTA RAMBUT YANG KONSISTEN DENGAN
+IMAGE 2.
+
+Jangan mengambil solusi kompromi dari IMAGE 1.
 
 =========================================================
 ABSOLUTE RULE: CONCRETE FACTS
 =========================================================
-
-The biggest failure mode is producing a generic prompt.
 
 NEVER write only:
 
@@ -2790,36 +3583,13 @@ NEVER write only:
 
 "buat video sinematik yang realistis"
 
-Those phrases are NOT sufficient.
-
-Every concrete visual fact supplied in the
-MANDATORY VISUAL FACTS section must be reflected in the
-final prompt when it belongs to the applicable authority.
-
-Do not replace facts with category names.
-
-For example:
-
-BAD:
-"Pertahankan wanita dan pakaiannya."
-
-GOOD:
-"Pertahankan wanita muda dengan kulit cerah, mata cokelat
-gelap berbentuk almond, alis tebal dan terdefinisi,
-eyeliner dan maskara yang terlihat, bibir penuh berwarna
-merah muda, hijab merah muda berbahan halus dengan band
-bertekstur ribbed di dahi, serta scarf bermotif floral dan
-paisley berwarna merah muda, putih, biru, dan cokelat."
-
-The GOOD form is required.
+Semua fakta konkret harus digunakan sesuai authority.
 
 =========================================================
 BAHASA
 =========================================================
 
 FINAL PROMPT WAJIB Bahasa Indonesia.
-
-Jangan menghasilkan paragraf bahasa Inggris.
 
 Istilah teknis seperti:
 
@@ -2857,17 +3627,15 @@ Prioritaskan:
 - spatial relationships;
 - visual style.
 
-Jangan membiarkan detail IMAGE 2 mengganti elemen-elemen
-tersebut.
+Jangan membiarkan IMAGE 2 mengganti elemen scene.
 
 =========================================================
 IDENTITY FIDELITY
 =========================================================
 
-Jika replacement character tersedia, gunakan IMAGE 2 untuk
-identitas karakter.
+Jika replacement character tersedia:
 
-Pertahankan jika tersedia:
+Gunakan IMAGE 2 untuk:
 
 - warna kulit;
 - kondisi kulit;
@@ -2882,12 +3650,17 @@ Pertahankan jika tersedia:
 - makeup;
 - rambut;
 - warna rambut;
-- hijab;
-- karakteristik fisik;
-- ekspresi jika memang bagian dari identity;
-- arah pandangan jika memang terkait identity.
+- tekstur rambut;
+- panjang rambut;
+- gaya rambut;
+- braids;
+- curls;
+- waves;
+- bangs;
+- hairline;
+- physical characteristics.
 
-Namun jangan mengambil scene dari IMAGE 2.
+Jangan mengambil detail tersebut dari IMAGE 1.
 
 =========================================================
 WAJIB DETAIL WAJAH
@@ -2895,22 +3668,25 @@ WAJIB DETAIL WAJAH
 
 Jika tersedia, sebutkan secara eksplisit:
 
-- warna kulit
-- kondisi kulit
-- mata
-- bentuk mata
-- warna mata
-- alis
-- hidung
-- bibir
-- bentuk bibir
-- makeup
-- rambut
-- warna rambut
-- hijab
-- ekspresi
-- arah pandangan
-- posisi kepala
+- warna kulit;
+- kondisi kulit;
+- mata;
+- bentuk mata;
+- warna mata;
+- alis;
+- hidung;
+- bibir;
+- bentuk bibir;
+- makeup;
+- rambut;
+- warna rambut;
+- tekstur rambut;
+- panjang rambut;
+- gaya rambut;
+- hijab;
+- ekspresi;
+- arah pandangan;
+- posisi kepala.
 
 Jangan menggantinya dengan "wajah cantik".
 
@@ -2920,24 +3696,21 @@ WAJIB DETAIL PAKAIAN
 
 Sebutkan setiap pakaian yang terlihat.
 
-Untuk pakaian yang berasal dari OUTFIT SOURCE:
+Untuk pakaian dari OUTFIT SOURCE:
 
-- warna
-- bahan jika tersedia
-- tekstur
-- pola
-- motif
-- lipatan
-- posisi
-- cara dikenakan
-- layering
-- bentuk
-- potongan
+- warna;
+- bahan jika tersedia;
+- tekstur;
+- pola;
+- motif;
+- lipatan;
+- posisi;
+- cara dikenakan;
+- layering;
+- bentuk;
+- potongan.
 
-harus dipertahankan.
-
-Jangan mengambil outfit dari sumber yang tidak
-ditetapkan sebagai OUTFIT SOURCE.
+Jangan mengambil outfit dari sumber lain.
 
 =========================================================
 WAJIB DETAIL AKSESORI
@@ -2945,55 +3718,55 @@ WAJIB DETAIL AKSESORI
 
 Sebutkan:
 
-- jenis
-- warna
-- bentuk
-- posisi
-- material jika terlihat
+- jenis;
+- warna;
+- bentuk;
+- posisi;
+- material jika terlihat.
 
-Tetapi jangan menciptakan aksesori yang tidak terlihat.
+Jangan menciptakan aksesori yang tidak terlihat.
 
 =========================================================
-WAJIB DETAIL BACKGROUND
+BACKGROUND
 =========================================================
 
-Background harus mengikuti IMAGE 1.
+Background HARUS IMAGE 1.
 
-Jangan hanya mengatakan "background".
+Jelaskan berdasarkan fakta aktual:
 
-Jika terdapat dinding bata, jelaskan:
-
-- dinding bata;
+- struktur;
 - warna;
 - tekstur;
-- mortar;
-- posisi relatif terhadap subjek.
+- posisi;
+- hubungan dengan subjek.
 
-Gunakan fakta aktual yang tersedia dari IMAGE 1.
-
-Jangan mengambil background dari IMAGE 2.
+Jangan mengambil background IMAGE 2.
 
 =========================================================
 KAMERA
 =========================================================
 
-Gunakan perspektif yang tersedia dari IMAGE 1.
+Gunakan kamera/perspektif IMAGE 1.
 
-Jangan mengarang kamera atau focal length yang tidak ada.
+Jangan mengarang focal length yang tidak tersedia.
 
-Jangan mengambil kamera dari IMAGE 2.
+Jangan mengambil kamera IMAGE 2.
 
 =========================================================
 LIGHTING
 =========================================================
 
-Gunakan arah, kualitas, softness, shadow dan fill light
-yang tersedia dari IMAGE 1.
+Gunakan:
 
-Jangan mengganti detail tersebut dengan sekadar
-"cinematic lighting".
+- arah cahaya;
+- kualitas;
+- softness;
+- shadow;
+- fill;
 
-Jangan mengambil lighting dari IMAGE 2.
+dari IMAGE 1.
+
+Jangan mengambil lighting IMAGE 2.
 
 =========================================================
 VIDEO
@@ -3003,34 +3776,31 @@ Jika tujuan adalah video:
 
 Pertama-tama jelaskan ulang frame sumber secara rinci.
 
-Frame sumber harus mengikuti IMAGE 1 sebagai scene master
-dan IMAGE 2 hanya sebagai identity/outfit source sesuai
+Frame sumber mengikuti IMAGE 1 sebagai scene master.
+
+IMAGE 2 hanya menyediakan identity dan outfit sesuai
 OUTFIT SOURCE.
 
-Setelah itu tambahkan gerakan natural yang sesuai.
+Setelah itu tambahkan motion natural:
 
-Contoh:
-
-- kedipan alami;
-- pernapasan halus;
+- kedipan;
+- pernapasan;
 - micro-expression;
-- gerakan kepala sangat kecil;
+- gerakan kepala kecil;
 - gerakan kain;
-- gerakan hijab atau scarf;
+- gerakan rambut;
+- gerakan hijab;
 - push-in kamera perlahan.
 
 Jangan mengubah:
 
-- identitas;
-- pakaian;
-- warna;
-- pola;
+- identity;
+- hair;
+- outfit;
 - background;
 - environment;
 - composition;
 - product placement.
-
-Jangan menciptakan aksi besar yang tidak diminta.
 
 =========================================================
 ANTI-INVENTION
@@ -3039,29 +3809,25 @@ ANTI-INVENTION
 Jangan mengarang:
 
 - lokasi;
-- aksesori tersembunyi;
+- aksesori;
 - pakaian tersembunyi;
 - produk;
 - branding;
 - teks;
 - kamera;
 - focal length;
-- identitas seseorang;
-- detail fisik yang tidak terlihat.
+- identitas;
+- detail fisik.
 
-Jika analysis menyatakan uncertainty, jangan mengubahnya
-menjadi fakta pasti.
+Jika analysis menyatakan uncertainty,
+jangan mengubahnya menjadi kepastian.
 
 =========================================================
 SOURCE CONFLICT RESOLUTION
 =========================================================
 
-Jika sebuah fakta dari CHARACTER IMAGE tampak seperti
-scene information, abaikan fakta scene tersebut.
+Jika CHARACTER IMAGE memiliki:
 
-Contoh:
-
-CHARACTER IMAGE memiliki:
 - dinding;
 - sofa;
 - ruangan;
@@ -3069,11 +3835,19 @@ CHARACTER IMAGE memiliki:
 - kamera;
 - pose;
 
-tetapi MAIN REFERENCE IMAGE memiliki scene berbeda.
+tetapi MAIN REFERENCE IMAGE berbeda:
 
-Maka final prompt HARUS menggunakan scene MAIN REFERENCE.
+IMAGE 1 MENANG untuk seluruh scene.
 
-Karakter IMAGE 2 hanya ditempatkan ke dalam scene IMAGE 1.
+Namun:
+
+IMAGE 2 MENANG untuk:
+
+- identity;
+- face;
+- hair;
+- physical appearance;
+- outfit jika OUTFIT SOURCE = CHARACTER.
 
 =========================================================
 OUTFIT SOURCE CONSISTENCY
@@ -3081,8 +3855,44 @@ OUTFIT SOURCE CONSISTENCY
 
 ${outfitInstructions.userInstruction}
 
-Jangan menghasilkan instruksi outfit yang bertentangan
-dengan sumber outfit.
+=========================================================
+FINAL VALIDATION BEFORE OUTPUT
+=========================================================
+
+Sebelum menghasilkan prompt final, periksa:
+
+[1] Scene = IMAGE 1.
+
+[2] Pose = IMAGE 1.
+
+[3] Composition = IMAGE 1.
+
+[4] Camera = IMAGE 1.
+
+[5] Lighting = IMAGE 1.
+
+[6] Background = IMAGE 1.
+
+[7] Environment = IMAGE 1.
+
+[8] Product = IMAGE 1.
+
+[9] Identity = IMAGE 2 jika tersedia.
+
+[10] Face = IMAGE 2 jika tersedia.
+
+[11] Appearance = IMAGE 2 jika tersedia.
+
+[12] Hair = IMAGE 2 jika tersedia.
+
+[13] Outfit = OUTFIT SOURCE.
+
+[14] Tidak ada field yang mengambil fakta dari
+     sumber yang salah.
+
+[15] Tidak ada rambut IMAGE 1 yang masuk ke identity.
+
+[16] Tidak ada scene IMAGE 2 yang masuk ke final prompt.
 
 =========================================================
 OUTPUT
@@ -3092,14 +3902,14 @@ Return ONLY the final generation prompt.
 
 Jangan:
 
-- JSON
-- markdown
-- bullet
-- reasoning
-- explanation
-- disclaimer
-- label "Prompt:"
-- label "Final Prompt:"
+- JSON;
+- markdown;
+- bullet;
+- reasoning;
+- explanation;
+- disclaimer;
+- label "Prompt:";
+- label "Final Prompt:".
 
 Hasil harus berupa prompt natural Bahasa Indonesia yang
 panjang, konkret, rinci dan siap digunakan model generatif.
@@ -3114,7 +3924,8 @@ panjang, konkret, rinci dan siap digunakan model generatif.
 
 function buildPromptUserPrompt(
     analysis,
-    settings = {}
+    settings = {},
+    hasCharacter = false
 ) {
 
     const normalizedAnalysis =
@@ -3136,15 +3947,16 @@ function buildPromptUserPrompt(
 
 
     const outfitSource =
-        normalizeOutfitSource(
-            settings.outfitSource
+        resolvePromptOutfitSource(
+            settings
         );
 
 
     const formattedFacts =
         formatDetailedAnalysisFactsWithAuthority(
             facts,
-            outfitSource
+            outfitSource,
+            hasCharacter
         );
 
 
@@ -3199,20 +4011,9 @@ ATURAN PALING PENTING
 
 JANGAN menghasilkan prompt generik.
 
-JANGAN hanya mengatakan:
-
-"pertahankan semua elemen visual"
-
-"pertahankan subjek"
-
-"buat video sinematik"
-
 Semua fakta konkret pada bagian
 SOURCE-AWARE MANDATORY VISUAL FACTS harus digunakan
-sesuai authority-nya.
-
-Jangan menghilangkan detail hanya karena detail tersebut
-terdapat di nested JSON.
+sesuai authority.
 
 =========================================================
 SOURCE-AWARE MANDATORY VISUAL FACTS
@@ -3221,36 +4022,141 @@ SOURCE-AWARE MANDATORY VISUAL FACTS
 ${formattedFacts || "TIDAK ADA FAKTA YANG TERBACA"}
 
 =========================================================
-CARA MEMBACA FAKTA
+FIELD AUTHORITY
 =========================================================
 
-Bagian:
+Jika replacement character tersedia:
 
-REFERENCE IMAGE FACTS - SCENE AUTHORITY
+REFERENCE IMAGE FACTS
+= scene authority IMAGE 1.
 
-adalah fakta untuk membangun ADEGAN utama.
-
-Bagian:
+CHARACTER IMAGE FACTS
+= identity authority IMAGE 2.
 
 OUTFIT FACTS
-
-adalah fakta pakaian sesuai OUTFIT SOURCE.
-
-Bagian:
-
-CHARACTER IMAGE FACTS - IDENTITY AUTHORITY ONLY
-
-adalah fakta identitas karakter.
-
-JANGAN memindahkan fakta character identity menjadi
-background, scene, camera, lighting, composition,
-environment atau pose.
+= ${outfitSource === "character"
+    ? "IMAGE 2"
+    : "IMAGE 1"}.
 
 =========================================================
-STRUCTURED VISUAL ANALYSIS
+ABSOLUTE HAIR RULE
 =========================================================
 
-${formattedAnalysis}
+Jika IMAGE 2 tersedia:
+
+RAMBUT FINAL = RAMBUT IMAGE 2.
+
+Jangan menggunakan rambut IMAGE 1.
+
+Jangan mencampur rambut.
+
+Jangan membuat hybrid.
+
+Jangan menggunakan rambut IMAGE 1 sebagai fallback.
+
+Jika IMAGE 2 memperlihatkan:
+
+- braids -> gunakan braids;
+- curls -> gunakan curls;
+- waves -> gunakan waves;
+- rambut pendek -> gunakan rambut pendek;
+- rambut panjang -> gunakan rambut panjang;
+- bangs -> pertahankan bangs;
+- hairline tertentu -> pertahankan hairline.
+
+Jangan mengganti fakta tersebut berdasarkan rambut
+yang terlihat di IMAGE 1.
+
+=========================================================
+APPEARANCE LOCK
+=========================================================
+
+Jika replacement character tersedia:
+
+APPEARANCE = IMAGE 2.
+
+Termasuk:
+
+- physical characteristics;
+- skin;
+- body;
+- hair;
+- face-related appearance.
+
+Jangan mengambil physical identity dari IMAGE 1.
+
+=========================================================
+HAIR CONSISTENCY CHECK
+=========================================================
+
+Sebelum output:
+
+Bandingkan fakta:
+
+appearance
+
+dengan:
+
+face_hair
+
+Jika keduanya membahas rambut tetapi bertentangan,
+pilih deskripsi yang konsisten dengan IMAGE 2.
+
+Jangan mengambil deskripsi alternatif dari IMAGE 1.
+
+=========================================================
+SCENE LOCK
+=========================================================
+
+Scene final HARUS IMAGE 1.
+
+Pertahankan secara konkret:
+
+1. subjek dan placement;
+2. pose;
+3. body orientation;
+4. composition;
+5. framing;
+6. camera;
+7. perspective;
+8. product placement;
+9. background;
+10. environment;
+11. lighting;
+12. shadows;
+13. spatial relationships;
+14. visual style.
+
+IMAGE 2 tidak boleh mengganti elemen tersebut.
+
+=========================================================
+IDENTITY LOCK
+=========================================================
+
+Jika IMAGE 2 tersedia:
+
+Gunakan IMAGE 2 untuk:
+
+- wajah;
+- mata;
+- alis;
+- hidung;
+- bibir;
+- kulit;
+- physical appearance;
+- rambut;
+- rambut/hijab;
+- identitas karakter.
+
+=========================================================
+OUTFIT LOCK
+=========================================================
+
+OUTFIT SOURCE:
+
+${outfitInstructions.label}
+
+Jangan menggunakan outfit dari sumber lain.
 
 =========================================================
 FINAL REQUIREMENT
@@ -3287,27 +4193,32 @@ FINAL SOURCE RULE
 =========================================================
 
 SCENE:
-MAIN REFERENCE IMAGE.
+IMAGE 1.
 
 IDENTITY:
-REPLACEMENT CHARACTER jika tersedia.
+${hasCharacter
+    ? "IMAGE 2."
+    : "IMAGE 1."}
+
+HAIR:
+${hasCharacter
+    ? "IMAGE 2 ONLY."
+    : "IMAGE 1."}
 
 OUTFIT:
-${outfitInstructions.label}
+${outfitInstructions.label}.
 
-Jangan mencampurkan scene dari replacement character
-ke dalam main reference.
+Jangan mencampurkan scene IMAGE 2 ke IMAGE 1.
 
-Jangan menggunakan background replacement character.
+Jangan menggunakan background IMAGE 2.
 
-Jangan menggunakan lighting replacement character.
+Jangan menggunakan lighting IMAGE 2.
 
-Jangan menggunakan camera replacement character.
+Jangan menggunakan camera IMAGE 2.
 
-Jangan menggunakan composition replacement character.
+Jangan menggunakan composition IMAGE 2.
 
-Jangan menggunakan pose replacement character jika
-berbeda dari main reference.
+Jangan menggunakan pose IMAGE 2 jika berbeda dari IMAGE 1.
 
 Output hanya prompt final Bahasa Indonesia.
 
@@ -3431,6 +4342,111 @@ function validateGeneratedPrompt(
 
         reason:
             ""
+
+    };
+
+}
+
+
+/* =========================================================
+   SOURCE FACT DIAGNOSTIC
+========================================================= */
+
+function buildPromptSourceDiagnostic(
+    facts,
+    outfitSource,
+    hasCharacter
+) {
+
+    if (
+        !Array.isArray(facts)
+    ) {
+
+        return {
+
+            appearanceAuthority:
+                hasCharacter
+                    ? "IMAGE 2"
+                    : "IMAGE 1",
+
+            hairAuthority:
+                hasCharacter
+                    ? "IMAGE 2"
+                    : "IMAGE 1",
+
+            outfitAuthority:
+                normalizeOutfitSource(
+                    outfitSource
+                ) === "character"
+                    ? "IMAGE 2"
+                    : "IMAGE 1"
+
+        };
+
+    }
+
+
+    const appearanceFacts =
+        facts.filter(
+            fact =>
+                getPromptFactRoot(
+                    fact
+                ) === "appearance"
+        );
+
+
+    const hairFacts =
+        facts.filter(
+            fact => {
+
+                const root =
+                    getPromptFactRoot(
+                        fact
+                    );
+
+
+                const leaf =
+                    getPromptFactLeaf(
+                        fact
+                    );
+
+
+                return (
+                    root === "face_hair" ||
+                    root === "faceHair" ||
+                    PROMPT_IDENTITY_FIELD_NAMES.includes(
+                        leaf
+                    )
+                );
+
+            }
+        );
+
+
+    return {
+
+        appearanceAuthority:
+            hasCharacter
+                ? "IMAGE 2"
+                : "IMAGE 1",
+
+        hairAuthority:
+            hasCharacter
+                ? "IMAGE 2"
+                : "IMAGE 1",
+
+        outfitAuthority:
+            normalizeOutfitSource(
+                outfitSource
+            ) === "character"
+                ? "IMAGE 2"
+                : "IMAGE 1",
+
+        appearanceFactCount:
+            appearanceFacts.length,
+
+        hairRelatedFactCount:
+            hairFacts.length
 
     };
 
@@ -3578,7 +4594,7 @@ async function generatePrompt(
      * ----------------------------------------------------
      */
 
-    const settings =
+    const baseSettings =
         getPromptSettings(
             core,
             options
@@ -3587,19 +4603,36 @@ async function generatePrompt(
 
     /*
      * ----------------------------------------------------
-     * OUTFIT SOURCE
+     * CHARACTER AVAILABILITY
      * ----------------------------------------------------
      */
 
+    const hasCharacter =
+        hasPromptReplacementCharacter();
+
+
+    /*
+     * ----------------------------------------------------
+     * OUTFIT SOURCE
+     * ----------------------------------------------------
+     *
+     * Penting:
+     *
+     * Jangan hanya membaca settings.outfitSource.
+     *
+     * vision-events.js juga menyimpan outfitSource
+     * melalui state.setOutfitSource().
+     */
+
     const outfitSource =
-        normalizeOutfitSource(
-            settings.outfitSource
+        resolvePromptOutfitSource(
+            baseSettings
         );
 
 
     const promptSettings = {
 
-        ...settings,
+        ...baseSettings,
 
         outfitSource
 
@@ -3615,8 +4648,23 @@ async function generatePrompt(
     const sourceAwareFacts =
         formatDetailedAnalysisFactsWithAuthority(
             facts,
-            outfitSource
+            outfitSource,
+            hasCharacter
         );
+
+
+    const sourceDiagnostic =
+        buildPromptSourceDiagnostic(
+            facts,
+            outfitSource,
+            hasCharacter
+        );
+
+
+    console.info(
+        "[GEN-Z.AI Vision] Prompt source authority:",
+        sourceDiagnostic
+    );
 
 
     console.info(
@@ -3644,6 +4692,11 @@ async function generatePrompt(
             sourceAwareFactsLength:
                 sourceAwareFacts.length,
 
+            replacementCharacter:
+                hasCharacter,
+
+            outfitSource,
+
             firstFacts:
                 facts.slice(
                     0,
@@ -3658,6 +4711,56 @@ async function generatePrompt(
         "[GEN-Z.AI Vision] Prompt Engineering normalized analysis:",
         normalizedAnalysis
     );
+
+
+    /*
+     * ----------------------------------------------------
+     * HARD SOURCE CHECK
+     * ----------------------------------------------------
+     */
+
+    if (
+        hasCharacter &&
+        sourceDiagnostic.appearanceAuthority !==
+            "IMAGE 2"
+    ) {
+
+        throw core.createAPIError(
+
+            "Source authority appearance tidak valid.",
+
+            {
+
+                code:
+                    "INVALID_CHARACTER_APPEARANCE_AUTHORITY"
+
+            }
+
+        );
+
+    }
+
+
+    if (
+        hasCharacter &&
+        sourceDiagnostic.hairAuthority !==
+            "IMAGE 2"
+    ) {
+
+        throw core.createAPIError(
+
+            "Source authority rambut tidak valid.",
+
+            {
+
+                code:
+                    "INVALID_CHARACTER_HAIR_AUTHORITY"
+
+            }
+
+        );
+
+    }
 
 
     if (
@@ -3696,7 +4799,8 @@ async function generatePrompt(
 
             content:
                 buildPromptSystemPrompt(
-                    outfitSource
+                    outfitSource,
+                    hasCharacter
                 )
 
         },
@@ -3709,7 +4813,8 @@ async function generatePrompt(
             content:
                 buildPromptUserPrompt(
                     normalizedAnalysis,
-                    promptSettings
+                    promptSettings,
+                    hasCharacter
                 )
 
         }
@@ -3740,16 +4845,23 @@ async function generatePrompt(
                 "id-ID",
 
             detailMode:
-                "source-aware-concrete-visual-expansion",
+                "source-aware-field-level-identity-lock",
 
             analysisSource:
                 "structured-visual-analysis",
 
             referenceAuthority:
-                "scene-master",
+                "IMAGE 1 scene",
 
             characterAuthority:
-                "identity-only",
+                hasCharacter
+                    ? "IMAGE 2 identity"
+                    : "IMAGE 1 identity",
+
+            hairAuthority:
+                hasCharacter
+                    ? "IMAGE 2 ONLY"
+                    : "IMAGE 1",
 
             outfitSource
 
@@ -3874,10 +4986,17 @@ async function generatePrompt(
                 facts.length,
 
             referenceAuthority:
-                "IMAGE 1",
+                "IMAGE 1 scene",
 
             characterAuthority:
-                "IMAGE 2 identity",
+                hasCharacter
+                    ? "IMAGE 2 identity"
+                    : "IMAGE 1 identity",
+
+            hairAuthority:
+                hasCharacter
+                    ? "IMAGE 2 ONLY"
+                    : "IMAGE 1",
 
             outfitSource
 
@@ -3910,7 +5029,9 @@ async function generatePrompt(
                     factCount:
                         facts.length,
 
-                    outfitSource
+                    outfitSource,
+
+                    hasCharacter
 
                 }
 
@@ -3943,10 +5064,17 @@ async function generatePrompt(
                 facts.length,
 
             referenceAuthority:
-                "IMAGE 1",
+                "IMAGE 1 scene",
 
             characterAuthority:
-                "IMAGE 2 identity",
+                hasCharacter
+                    ? "IMAGE 2 identity"
+                    : "IMAGE 1 identity",
+
+            hairAuthority:
+                hasCharacter
+                    ? "IMAGE 2 ONLY"
+                    : "IMAGE 1",
 
             outfitSource
 
