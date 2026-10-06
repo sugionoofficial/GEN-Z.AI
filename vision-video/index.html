@@ -320,6 +320,173 @@
 
 
                 <!-- =============================================
+                     REPLACEMENT CHARACTER
+                ============================================== -->
+
+                <section
+                    class="vision-video-card"
+                    id="visionVideoCharacterCard"
+                >
+
+                    <div class="vision-video-card-header">
+
+                        <div>
+
+                            <div class="vision-video-card-eyebrow">
+                                REPLACEMENT CHARACTER
+                            </div>
+
+                            <h2>
+                                Character Reference
+                            </h2>
+
+                            <p>
+                                Upload karakter yang akan digunakan
+                                sebagai referensi identitas dalam
+                                analisis video.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         CHARACTER DROPZONE
+                    ========================================== -->
+
+                    <div
+                        id="visionVideoCharacterDropzone"
+                        class="vision-video-dropzone vision-video-character-dropzone"
+                    >
+
+                        <input
+                            type="file"
+                            id="visionVideoCharacterFileInput"
+                            accept="image/*"
+                            hidden
+                        >
+
+
+                        <!-- =====================================
+                             CHARACTER UPLOAD STATE
+                        ====================================== -->
+
+                        <div
+                            id="visionVideoCharacterUploadState"
+                            class="vision-video-upload-state"
+                        >
+
+                            <div class="vision-video-upload-icon">
+                                👤
+                            </div>
+
+                            <h3>
+                                Drop character image di sini
+                            </h3>
+
+                            <p>
+                                atau pilih gambar karakter dari perangkat
+                            </p>
+
+                            <button
+                                type="button"
+                                id="visionVideoCharacterBrowseButton"
+                                class="vision-video-secondary-button"
+                            >
+                                Pilih Character
+                            </button>
+
+                            <small>
+                                JPG, PNG, WebP dan format gambar browser
+                            </small>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             CHARACTER PREVIEW STATE
+                        ====================================== -->
+
+                        <div
+                            id="visionVideoCharacterPreviewState"
+                            class="vision-video-preview-state"
+                            hidden
+                        >
+
+                            <div class="vision-video-character-preview-wrapper">
+
+                                <img
+                                    id="visionVideoCharacterPreviewImage"
+                                    src=""
+                                    alt="Character Reference Preview"
+                                >
+
+                            </div>
+
+
+                            <div class="vision-video-file-info">
+
+                                <div>
+
+                                    <span>
+                                        File
+                                    </span>
+
+                                    <strong id="visionVideoCharacterFileName">
+                                        --
+                                    </strong>
+
+                                </div>
+
+
+                                <div>
+
+                                    <span>
+                                        Size
+                                    </span>
+
+                                    <strong id="visionVideoCharacterFileSize">
+                                        --
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+
+                            <button
+                                type="button"
+                                id="visionVideoCharacterRemoveButton"
+                                class="vision-video-remove-button"
+                            >
+                                Remove Character
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         CHARACTER AUTHORITY
+                    ========================================== -->
+
+                    <div
+                        id="visionVideoCharacterNotice"
+                        class="vision-video-credit-notice"
+                    >
+                        Character Reference hanya digunakan untuk
+                        identitas, wajah, rambut, tubuh, dan
+                        karakteristik fisik. Scene, pose, kamera,
+                        lighting, environment, dan komposisi tetap
+                        mengikuti Reference Video.
+                    </div>
+
+                </section>
+
+
+                <!-- =============================================
                      ANALYSIS SETTINGS
                 ============================================== -->
 
@@ -394,7 +561,10 @@
                                     High
                                 </option>
 
-                                <option value="ultra" selected>
+                                <option
+                                    value="ultra"
+                                    selected
+                                >
                                     Ultra Detailed
                                 </option>
 
@@ -415,7 +585,10 @@
 
                             <select id="visionVideoFrameMode">
 
-                                <option value="auto" selected>
+                                <option
+                                    value="auto"
+                                    selected
+                                >
                                     Automatic
                                 </option>
 
@@ -944,7 +1117,6 @@
 
     <!-- =====================================================
          VISION VIDEO ENGINE
-         Loader akan ditambahkan setelah modul engine dibuat.
     ====================================================== -->
 
     <script
