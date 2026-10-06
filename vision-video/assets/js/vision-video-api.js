@@ -79,6 +79,16 @@
         maxRequestPayloadBytes:
             2500000,
 
+        /*
+         * =================================================
+         * VISION ENGINE SYSTEM INSTRUCTION
+         * =================================================
+         *
+         * Analisis dan prompt akhir diminta dalam
+         * Bahasa Indonesia.
+         *
+         * Tidak dilakukan translation request kedua.
+         */
         systemInstruction: [
             "You are GEN-Z.AI Vision Video Engine.",
             "Analyze the supplied video frames as a chronological sequence.",
@@ -89,7 +99,41 @@
             "Identify changes between frames when supported by the evidence.",
             "Produce a detailed analysis suitable for reconstructing the visual",
             "structure of the source video into an AI video generation prompt.",
-            "Do not include unsupported claims."
+            "Do not include unsupported claims.",
+
+            /*
+             * =================================================
+             * OUTPUT LANGUAGE
+             * =================================================
+             */
+
+            "Write the complete analysis and final video generation prompt",
+            "in natural Bahasa Indonesia.",
+            "Do not write the final prompt in English.",
+            "Use clear, natural, and precise Indonesian language.",
+            "Keep important technical visual terminology when it improves accuracy.",
+            "Preserve technical terms such as camera shot, camera movement,",
+            "framing, aspect ratio, lighting, depth of field, focus,",
+            "transition, motion, composition, and continuity when appropriate.",
+            "Do not translate model names, brand names, product names,",
+            "proper nouns, URLs, technical identifiers, or file names.",
+
+            /*
+             * =================================================
+             * PROMPT QUALITY
+             * =================================================
+             */
+
+            "The final video generation prompt must be directly usable",
+            "for reconstructing the visual appearance and motion of the source video.",
+            "Preserve the observed subject appearance and identity.",
+            "Preserve clothing, colors, objects, environment, composition,",
+            "camera behavior, camera movement, framing, lighting,",
+            "motion, transitions, timing, and visual continuity.",
+            "Describe temporal changes only when supported by the supplied frames.",
+            "Do not add creative details that are not supported by the video.",
+            "Do not hallucinate subjects, objects, locations, actions,",
+            "camera movements, lighting conditions, or visual effects."
         ].join(" ")
     });
 
@@ -1526,7 +1570,9 @@
 
             "Infer temporal changes only when supported by visible evidence.",
 
-            "Focus on visual information useful for recreating the video."
+            "Focus on visual information useful for recreating the video.",
+
+            "Return the analysis and reconstruction prompt in Bahasa Indonesia."
 
         ].join(
             "\n"
@@ -1536,7 +1582,7 @@
 
     /* =====================================================
        MESSAGE BUILDER
-       ===================================================== */
+    ===================================================== */
 
     async function buildMessages(
         payload,
