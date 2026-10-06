@@ -1,4 +1,4 @@
-/*vision-video/assets/css/vision-video.css?v=1.1*/
+/*vision-video/assets/css/vision-video.css?v=1.2*/
 /* =========================================================
    GEN-Z.AI VISION VIDEO
    ---------------------------------------------------------
@@ -452,6 +452,11 @@
 
 /* =========================================================
    CREDIT BADGE
+   ---------------------------------------------------------
+   Compact version:
+   - Tidak terlalu lebar
+   - Tetap terlihat premium
+   - Tidak memakan ruang hero
 ========================================================= */
 
 .vision-video-credit-badge {
@@ -461,17 +466,19 @@
     flex:
         0 0 auto;
 
-    min-width: 140px;
+    min-width: 118px;
 
     padding:
-        13px
-        17px;
+        9px
+        12px;
+
+    box-sizing: border-box;
 
     border:
         1px solid
         rgba(0, 155, 255, 0.52);
 
-    border-radius: 14px;
+    border-radius: 10px;
 
     background:
         #050607;
@@ -483,8 +490,8 @@
         inset 0 0 20px
         rgba(0, 120, 210, 0.035),
 
-        0 0 22px
-        rgba(0, 140, 255, 0.075);
+        0 0 18px
+        rgba(0, 140, 255, 0.065);
 
     text-align: right;
 
@@ -499,8 +506,8 @@
 
     top: 0;
 
-    left: 18px;
-    right: 18px;
+    left: 12px;
+    right: 12px;
 
     height: 1px;
 
@@ -513,8 +520,8 @@
         );
 
     box-shadow:
-        0 0 10px
-        rgba(0, 160, 255, 0.42);
+        0 0 8px
+        rgba(0, 160, 255, 0.38);
 
 }
 
@@ -523,16 +530,16 @@
 
     display: block;
 
-    margin-bottom: 5px;
+    margin-bottom: 3px;
 
     color:
         rgba(255, 255, 255, 0.48);
 
-    font-size: 8px;
+    font-size: 7px;
 
     font-weight: 800;
 
-    letter-spacing: 0.18em;
+    letter-spacing: 0.16em;
 
     text-transform: uppercase;
 
@@ -545,15 +552,15 @@
 
     color: #ffffff;
 
-    font-size: 21px;
+    font-size: 18px;
 
     line-height: 1;
 
     font-weight: 800;
 
     text-shadow:
-        0 0 18px
-        rgba(0, 165, 255, 0.28);
+        0 0 15px
+        rgba(0, 165, 255, 0.26);
 
 }
 
@@ -2523,13 +2530,43 @@
     }
 
 
+    /* -----------------------------------------------------
+       COMPACT CREDIT
+       ----------------------------------------------------- */
+
     .vision-video-credit-badge {
 
-        width: 100%;
+        width: auto;
+
+        max-width: max-content;
+
+        min-width: 112px;
+
+        padding:
+            8px
+            11px;
 
         box-sizing: border-box;
 
         text-align: left;
+
+        align-self: flex-start;
+
+    }
+
+
+    .vision-video-credit-badge span {
+
+        font-size: 7px;
+
+        margin-bottom: 3px;
+
+    }
+
+
+    .vision-video-credit-badge strong {
+
+        font-size: 17px;
 
     }
 
@@ -2802,6 +2839,39 @@
 
         width:
             calc(100% - 24px);
+
+    }
+
+
+    /* -----------------------------------------------------
+       EXTRA COMPACT CREDIT
+    ----------------------------------------------------- */
+
+    .vision-video-credit-badge {
+
+        min-width: 104px;
+
+        padding:
+            7px
+            10px;
+
+        border-radius: 9px;
+
+    }
+
+
+    .vision-video-credit-badge span {
+
+        font-size: 6.5px;
+
+        margin-bottom: 2px;
+
+    }
+
+
+    .vision-video-credit-badge strong {
+
+        font-size: 16px;
 
     }
 
