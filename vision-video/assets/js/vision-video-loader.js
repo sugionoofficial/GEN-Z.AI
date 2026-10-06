@@ -11,7 +11,6 @@
    - Menjalankan initialization
    - Memuat credit module
    - Memuat history module
-   - Memastikan Character Upload siap setelah State
    - Menangani initialization error
    - Tidak berisi logic upload / API / analysis
 
@@ -19,6 +18,7 @@
    - Tidak menyentuh Vision Image
    - Credit Vision Video = 1 per generate
    - History menggunakan vision-video-history.js
+   - Character Upload dimuat langsung dari index.html
 ========================================================= */
 
 (function () {
@@ -39,7 +39,6 @@
         );
 
         return;
-
     }
 
 
@@ -88,31 +87,6 @@
 
 
             /* =================================================
-               CHARACTER UPLOAD
-               -------------------------------------------------
-               Character Upload bergantung pada:
-               - DOM halaman
-               - State
-
-               File ini sudah dimuat dari index.html.
-
-               Loader hanya memastikan module tersebut
-               benar-benar ready setelah State tersedia.
-            ================================================= */
-
-            {
-                name:
-                    "character-upload",
-
-                path:
-                    "./assets/js/vision-video-character-upload.js",
-
-                ready:
-                    "GENZVisionVideoCharacterUploadReady"
-            },
-
-
-            /* =================================================
                CREDIT
                -------------------------------------------------
                Credit membutuhkan State + DOM.
@@ -134,7 +108,6 @@
                HISTORY
                -------------------------------------------------
                History membutuhkan State.
-               Harus dimuat sebelum Events.
             ================================================= */
 
             {
@@ -248,7 +221,8 @@
             /* =================================================
                EVENTS
                -------------------------------------------------
-               Events HARUS paling akhir.
+               Events HARUS paling akhir karena bergantung
+               pada semua module di atas.
             ================================================= */
 
             {
@@ -355,6 +329,134 @@
 
 
     /* =====================================================
+       FIND LOADER SCRIPT
+       -----------------------------------------------------
+       Jangan menggunakan document.currentScript di dalam
+       proses asynchronous.
+
+       Loader harus mengetahui lokasi file dirinya sendiri
+       secara stabil.
+    ===================================================== */
+
+    function getLoaderScript() {
+
+        const scripts =
+            document.querySelectorAll(
+                "script[src]"
+            );
+
+
+        /*
+         * Cari script berdasarkan nama file.
+         */
+
+        for (
+            const script
+            of scripts
+        ) {
+
+            const src =
+                script.getAttribute(
+                    "src"
+                );
+
+
+            if (
+                !src
+            ) {
+
+                continue;
+
+            }
+
+
+            try {
+
+                const url =
+                    new URL(
+                        src,
+                        window.location.href
+                    );
+
+
+                const pathname =
+                    url.pathname
+                        .toLowerCase();
+
+
+                if (
+                    pathname.endsWith(
+                        "/vision-video-loader.js"
+                    )
+                ) {
+
+                    return url;
+
+                }
+
+            } catch (
+                err
+            ) {
+
+                /*
+                 * Abaikan script dengan URL invalid.
+                 */
+
+            }
+
+        }
+
+
+        return null;
+
+    }
+
+
+    /* =====================================================
+       MODULE BASE URL
+    ===================================================== */
+
+    function getModuleBaseURL() {
+
+        const loaderURL =
+            getLoaderScript();
+
+
+        if (
+            loaderURL
+        ) {
+
+            return new URL(
+                "./",
+                loaderURL
+            );
+
+        }
+
+
+        /*
+         * Fallback terakhir.
+         *
+         * Karena struktur halaman:
+         *
+         * /vision-video/index.html
+         *
+         * dan module:
+         *
+         * /vision-video/assets/js/...
+         *
+         * maka fallback diarahkan secara eksplisit.
+         */
+
+        return new URL(
+            "/vision-video/assets/js/",
+            window.location.origin
+        );
+
+    }
+
+
+    /* =====================================================
        SCRIPT URL
     ===================================================== */
 
@@ -363,36 +465,49 @@
     ) {
 
         /*
-         * Karena loader sendiri dimuat dari:
+         * path module berbentuk:
          *
-         * vision-video/assets/js/
+         * ./assets/js/file.js
          *
-         * maka relative path module harus
-         * dihitung dari lokasi loader.
+         * sedangkan base loader:
+         *
+         * /vision-video/assets/js/
+         *
+         * Jadi kita harus resolve dari folder halaman
+         * Vision Video, bukan dari folder loader.
          */
 
-        const loaderScript =
-            document.querySelector(
-                'script[src*="vision-video-loader.js"]'
-            );
+        const loaderURL =
+            getLoaderScript();
 
 
         if (
-            loaderScript &&
-            loaderScript.src
+            loaderURL
         ) {
+
+            const pageURL =
+                new URL(
+                    "../../",
+                    loaderURL
+                );
+
 
             return new URL(
                 path,
-                loaderScript.src
+                pageURL
             ).href;
 
         }
 
 
+        /*
+         * Fallback eksplisit.
+         */
+
         return new URL(
             path,
-            window.location.href
+            window.location.origin +
+                "/vision-video/"
         ).href;
 
     }
@@ -419,9 +534,24 @@
 
             try {
 
+                const src =
+                    script.getAttribute(
+                        "src"
+                    );
+
+
+                if (
+                    !src
+                ) {
+
+                    continue;
+
+                }
+
+
                 const existing =
                     new URL(
-                        script.src,
+                        src,
                         window.location.href
                     ).href;
 
@@ -440,7 +570,8 @@
             ) {
 
                 /*
-                 * Abaikan URL yang invalid.
+                 * URL tidak valid.
+                 * Abaikan.
                  */
 
             }
@@ -473,9 +604,16 @@
                     );
 
 
+                log(
+                    `Resolved module URL: ${module.name}`,
+                    url
+                );
+
+
                 /*
                  * -------------------------------------------------
-                 * Module sudah ready.
+                 * Jika ready flag sudah tersedia,
+                 * module sudah siap.
                  * -------------------------------------------------
                  */
 
@@ -494,11 +632,8 @@
 
                 /*
                  * -------------------------------------------------
-                 * Script sudah ada di DOM tetapi belum ready.
-                 *
-                 * Ini penting untuk Character Upload karena
-                 * index.html memang sudah memuat file tersebut
-                 * sebelum loader.
+                 * Jika script sudah ada di DOM tetapi ready flag
+                 * belum tersedia, tunggu sampai siap.
                  * -------------------------------------------------
                  */
 
@@ -507,6 +642,11 @@
                         url
                     )
                 ) {
+
+                    log(
+                        `Module script already exists: ${module.name}`
+                    );
+
 
                     waitForReady(
                         module
@@ -550,7 +690,7 @@
 
 
                 /*
-                 * Dependency harus tetap sequential.
+                 * Dependency harus tetap berurutan.
                  */
 
                 script.async =
@@ -579,6 +719,11 @@
 
                         settled =
                             true;
+
+
+                        log(
+                            `Script loaded: ${module.name}`
+                        );
 
 
                         waitForReady(
@@ -618,7 +763,7 @@
 
                         reject(
                             new Error(
-                                `Gagal memuat module ${module.name}: ${module.path}`
+                                `Gagal memuat module ${module.name}: ${url}`
                             )
                         );
 
@@ -744,92 +889,6 @@
 
 
     /* =====================================================
-       CHARACTER UPLOAD VALIDATION
-    ===================================================== */
-
-    function validateCharacterUpload() {
-
-        const uploader =
-            window.GENZVisionVideoCharacterUpload;
-
-
-        const state =
-            window.GENZVisionVideoState;
-
-
-        if (
-            !uploader
-        ) {
-
-            throw new Error(
-                "Vision Video Character Upload module tidak tersedia."
-            );
-
-        }
-
-
-        if (
-            typeof uploader.initialize !==
-            "function"
-        ) {
-
-            throw new Error(
-                "Vision Video Character Upload tidak memiliki initialize()."
-            );
-
-        }
-
-
-        if (
-            !state
-        ) {
-
-            throw new Error(
-                "Vision Video State belum tersedia untuk Character Upload."
-            );
-
-        }
-
-
-        /*
-         * Pastikan uploader diinisialisasi
-         * setelah State sudah tersedia.
-         */
-
-        const initialized =
-            uploader.initialize();
-
-
-        if (
-            initialized === false
-        ) {
-
-            throw new Error(
-                "Vision Video Character Upload gagal diinisialisasi."
-            );
-
-        }
-
-
-        /*
-         * Pastikan ready flag tersedia.
-         */
-
-        window.GENZVisionVideoCharacterUploadReady =
-            true;
-
-
-        log(
-            "Character Upload ready."
-        );
-
-
-        return true;
-
-    }
-
-
-    /* =====================================================
        DEPENDENCY VALIDATION
     ===================================================== */
 
@@ -845,7 +904,6 @@
                     window.GENZVisionVideoState
             },
 
-
             {
                 name:
                     "DOM",
@@ -853,16 +911,6 @@
                 value:
                     window.GENZVisionVideoDOM
             },
-
-
-            {
-                name:
-                    "Character Upload",
-
-                value:
-                    window.GENZVisionVideoCharacterUpload
-            },
-
 
             {
                 name:
@@ -872,7 +920,6 @@
                     window.GENZVisionVideoCredit
             },
 
-
             {
                 name:
                     "History",
@@ -880,7 +927,6 @@
                 value:
                     window.GENZVisionVideoHistory
             },
-
 
             {
                 name:
@@ -890,7 +936,6 @@
                     window.GENZVisionVideoUpload
             },
 
-
             {
                 name:
                     "Preview",
@@ -898,7 +943,6 @@
                 value:
                     window.GENZVisionVideoPreview
             },
-
 
             {
                 name:
@@ -908,7 +952,6 @@
                     window.GENZVisionVideoFrames
             },
 
-
             {
                 name:
                     "Analysis",
@@ -916,7 +959,6 @@
                 value:
                     window.GENZVisionVideoAnalysis
             },
-
 
             {
                 name:
@@ -926,7 +968,6 @@
                     window.GENZVisionVideoAPI
             },
 
-
             {
                 name:
                     "UI",
@@ -934,7 +975,6 @@
                 value:
                     window.GENZVisionVideoUI
             },
-
 
             {
                 name:
@@ -1015,12 +1055,14 @@
 
 
         /*
+         * -------------------------------------------------
          * Tetapkan biaya satu generate.
+         * -------------------------------------------------
          */
 
         if (
             typeof state.setCreditRequired ===
-            "function"
+                "function"
         ) {
 
             state.setCreditRequired(
@@ -1031,14 +1073,20 @@
 
 
         /*
+         * -------------------------------------------------
          * Reset status operasi credit.
+         *
+         * Tidak mengubah saldo server.
+         * -------------------------------------------------
          */
 
         credit.resetOperationState();
 
 
         /*
-         * Ambil saldo aktual.
+         * -------------------------------------------------
+         * Ambil saldo aktual dari server.
+         * -------------------------------------------------
          */
 
         try {
@@ -1064,7 +1112,7 @@
 
             if (
                 typeof state.setCreditError ===
-                "function"
+                    "function"
             ) {
 
                 state.setCreditError(
@@ -1176,7 +1224,7 @@
 
 
         /*
-         * Process baru dimulai dari idle.
+         * Pastikan process kembali idle.
          */
 
         state.setProcess({
@@ -1200,7 +1248,7 @@
 
 
         /*
-         * UI state bersih.
+         * Bersihkan UI state.
          */
 
         state.set(
@@ -1236,7 +1284,7 @@
         if (
             !events ||
             typeof events.bind !==
-            "function"
+                "function"
         ) {
 
             throw new Error(
@@ -1281,6 +1329,7 @@
 
             page.dataset.error =
                 "false";
+
 
         }
 
@@ -1459,16 +1508,6 @@
 
 
             /* =================================================
-               CHARACTER UPLOAD
-               -------------------------------------------------
-               Pastikan Character Upload menggunakan State
-               yang sudah benar-benar tersedia.
-            ================================================= */
-
-            validateCharacterUpload();
-
-
-            /* =================================================
                INITIAL CREDIT
             ================================================= */
 
@@ -1522,8 +1561,6 @@
         loadModules,
 
         validateDependencies,
-
-        validateCharacterUpload,
 
         initializeCredit,
 
