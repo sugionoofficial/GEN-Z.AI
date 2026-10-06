@@ -20,6 +20,7 @@
    - Hanya untuk Vision Video
    - Tidak mengubah CSS Vision Image
    - Tidak mengubah JavaScript
+   - Header/hero dinaikkan agar dekat dengan navigasi
 ========================================================= */
 
 
@@ -35,8 +36,14 @@
 
     min-height: 100vh;
 
+    /*
+     * HEADER DINAIKKAN
+     * -----------------------------------------------------
+     * Sebelumnya 48px.
+     * Dibuat tipis agar hero berada dekat dengan navigasi.
+     */
     padding:
-        48px
+        8px
         24px
         60px;
 
@@ -2101,8 +2108,12 @@
 
     .vision-video-page {
 
+        /*
+         * Tetap dekat dengan navigasi.
+         * Sebelumnya 40px.
+         */
         padding:
-            40px
+            8px
             18px
             45px;
 
@@ -2134,8 +2145,11 @@
 
     .vision-video-page {
 
+        /*
+         * Jangan menurunkan hero pada mobile.
+         */
         padding:
-            34px
+            6px
             14px
             35px;
 
@@ -2291,8 +2305,12 @@
 
     .vision-video-page {
 
+        /*
+         * Tetap sangat dekat dengan navigasi.
+         * Sebelumnya 30px.
+         */
         padding:
-            30px
+            4px
             10px
             28px;
 
