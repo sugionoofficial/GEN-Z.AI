@@ -12,8 +12,14 @@
    - Menyimpan frame information
    - Menyimpan analysis result
    - Menyimpan generated prompt
+   - Menyimpan credit state
    - Menyimpan UI/progress state
    - Tidak bergantung pada Vision Image
+========================================================= */
+
+
+/* =========================================================
+   DEFAULT STATE
 ========================================================= */
 
 const VISION_VIDEO_DEFAULT_STATE = {
@@ -119,15 +125,58 @@ const VISION_VIDEO_DEFAULT_STATE = {
 
     /* =====================================================
        CREDIT
+       -----------------------------------------------------
+       Credit untuk Vision Video.
+       Tidak melakukan database operation di state.
+       Database operation akan dilakukan oleh module
+       workflow/API yang memang bertanggung jawab.
     ===================================================== */
 
     credit: {
 
+        /* Saldo aktual user dari profiles.credits */
+
         balance: null,
 
-        required: null,
+        /* Credit yang diperlukan untuk satu analysis */
 
-        charged: false
+        required: 1,
+
+        /* Apakah credit sudah berhasil di-charge */
+
+        charged: false,
+
+        /* Apakah proses charging sedang berjalan */
+
+        charging: false,
+
+        /* Apakah credit sedang diproses/refund */
+
+        refunding: false,
+
+        /* Apakah credit berhasil dikembalikan */
+
+        refunded: false,
+
+        /* Pesan error credit */
+
+        error: null,
+
+        /* Timestamp ketika credit berhasil di-charge */
+
+        chargedAt: null,
+
+        /* Timestamp ketika credit berhasil di-refund */
+
+        refundedAt: null,
+
+        /* Optional transaction/reference ID dari backend */
+
+        transactionId: null,
+
+        /* Optional history ID dari backend */
+
+        historyId: null
 
     },
 
@@ -216,9 +265,11 @@ function cloneState(source) {
 
         frames: {
             ...source.frames,
+
             items: [
                 ...(source.frames.items || [])
             ]
+
         },
 
         analysis: {
@@ -243,9 +294,11 @@ function cloneState(source) {
 
         models: {
             ...source.models,
+
             items: [
                 ...(source.models.items || [])
             ]
+
         }
 
     };
@@ -279,9 +332,11 @@ function getVisionVideoStateValue(path) {
 
     }
 
-    const parts = path.split(".");
+    const parts =
+        path.split(".");
 
-    let current = visionVideoState;
+    let current =
+        visionVideoState;
 
     for (const part of parts) {
 
@@ -294,7 +349,8 @@ function getVisionVideoStateValue(path) {
 
         }
 
-        current = current[part];
+        current =
+            current[part];
 
     }
 
@@ -321,9 +377,11 @@ function setVisionVideoStateValue(
 
     }
 
-    const parts = path.split(".");
+    const parts =
+        path.split(".");
 
-    let current = visionVideoState;
+    let current =
+        visionVideoState;
 
     for (
         let index = 0;
@@ -331,7 +389,8 @@ function setVisionVideoStateValue(
         index++
     ) {
 
-        const key = parts[index];
+        const key =
+            parts[index];
 
         if (
             !current[key] ||
@@ -342,7 +401,8 @@ function setVisionVideoStateValue(
 
         }
 
-        current = current[key];
+        current =
+            current[key];
 
     }
 
@@ -406,28 +466,47 @@ function resetVisionVideoVideoState() {
     }
 
     visionVideoState.video = {
+
         ...VISION_VIDEO_DEFAULT_STATE.video
+
     };
 
     visionVideoState.frames = {
+
         ...VISION_VIDEO_DEFAULT_STATE.frames,
+
         items: []
+
     };
 
     visionVideoState.analysis = {
+
         ...VISION_VIDEO_DEFAULT_STATE.analysis
+
     };
 
     visionVideoState.prompt = {
+
         ...VISION_VIDEO_DEFAULT_STATE.prompt
+
+    };
+
+    visionVideoState.credit = {
+
+        ...VISION_VIDEO_DEFAULT_STATE.credit
+
     };
 
     visionVideoState.process = {
+
         ...VISION_VIDEO_DEFAULT_STATE.process
+
     };
 
     visionVideoState.ui = {
+
         ...VISION_VIDEO_DEFAULT_STATE.ui
+
     };
 
     return visionVideoState;
@@ -504,17 +583,22 @@ function setVisionVideoFile(file) {
 
         objectUrl,
 
-        name: file.name || "",
+        name:
+            file.name || "",
 
-        size: Number(file.size) || 0,
+        size:
+            Number(file.size) || 0,
 
-        type: file.type || ""
+        type:
+            file.type || ""
 
     };
 
-    visionVideoState.ui.videoUploaded = true;
+    visionVideoState.ui.videoUploaded =
+        true;
 
-    visionVideoState.ui.previewReady = false;
+    visionVideoState.ui.previewReady =
+        false;
 
     return visionVideoState.video;
 
@@ -551,7 +635,8 @@ function setVisionVideoMetadata(
 
     };
 
-    visionVideoState.ui.previewReady = true;
+    visionVideoState.ui.previewReady =
+        true;
 
     return visionVideoState.video;
 
@@ -596,13 +681,17 @@ function setVisionVideoFrames(
 
         ...visionVideoState.frames,
 
-        items: safeFrames,
+        items:
+            safeFrames,
 
-        count: safeFrames.length,
+        count:
+            safeFrames.length,
 
-        analyzedCount: 0,
+        analyzedCount:
+            0,
 
-        ready: safeFrames.length > 0
+        ready:
+            safeFrames.length > 0
 
     };
 
@@ -623,18 +712,21 @@ function setVisionVideoAnalysisResult(
 
         ...visionVideoState.analysis,
 
-        status: "completed",
+        status:
+            "completed",
 
         result,
 
-        error: null,
+        error:
+            null,
 
         completedAt:
             new Date().toISOString()
 
     };
 
-    visionVideoState.ui.resultReady = true;
+    visionVideoState.ui.resultReady =
+        true;
 
     return visionVideoState.analysis;
 
@@ -656,7 +748,8 @@ function setVisionVideoPrompt(
 
     visionVideoState.prompt = {
 
-        text: promptText,
+        text:
+            promptText,
 
         ready:
             promptText.trim().length > 0
@@ -667,6 +760,276 @@ function setVisionVideoPrompt(
         promptText.trim().length > 0;
 
     return visionVideoState.prompt;
+
+}
+
+
+/* =========================================================
+   CREDIT
+   ---------------------------------------------------------
+   State-only operations.
+   Tidak ada query database di sini.
+========================================================= */
+
+
+/* =========================================================
+   SET CREDIT BALANCE
+========================================================= */
+
+function setVisionVideoCreditBalance(
+    balance
+) {
+
+    const numericBalance =
+        Number(balance);
+
+    visionVideoState.credit.balance =
+        Number.isFinite(numericBalance)
+            ? Math.max(0, numericBalance)
+            : null;
+
+    visionVideoState.credit.error =
+        null;
+
+    return visionVideoState.credit;
+
+}
+
+
+/* =========================================================
+   SET REQUIRED CREDIT
+========================================================= */
+
+function setVisionVideoCreditRequired(
+    required = 1
+) {
+
+    const numericRequired =
+        Number(required);
+
+    visionVideoState.credit.required =
+        Number.isFinite(numericRequired) &&
+        numericRequired > 0
+            ? numericRequired
+            : 1;
+
+    return visionVideoState.credit;
+
+}
+
+
+/* =========================================================
+   SET CREDIT CHARGING
+========================================================= */
+
+function setVisionVideoCreditCharging(
+    charging = true
+) {
+
+    visionVideoState.credit.charging =
+        Boolean(charging);
+
+    if (charging) {
+
+        visionVideoState.credit.error =
+            null;
+
+        visionVideoState.credit.refunded =
+            false;
+
+        visionVideoState.credit.refunding =
+            false;
+
+    }
+
+    return visionVideoState.credit;
+
+}
+
+
+/* =========================================================
+   SET CREDIT CHARGED
+========================================================= */
+
+function setVisionVideoCreditCharged(
+    charged = true,
+    metadata = {}
+) {
+
+    const isCharged =
+        Boolean(charged);
+
+    visionVideoState.credit.charged =
+        isCharged;
+
+    visionVideoState.credit.charging =
+        false;
+
+    if (isCharged) {
+
+        visionVideoState.credit.refunded =
+            false;
+
+        visionVideoState.credit.refunding =
+            false;
+
+        visionVideoState.credit.error =
+            null;
+
+        visionVideoState.credit.chargedAt =
+            new Date().toISOString();
+
+        if (
+            metadata &&
+            typeof metadata === "object"
+        ) {
+
+            if (
+                metadata.transactionId !== undefined
+            ) {
+
+                visionVideoState.credit.transactionId =
+                    metadata.transactionId;
+
+            }
+
+            if (
+                metadata.historyId !== undefined
+            ) {
+
+                visionVideoState.credit.historyId =
+                    metadata.historyId;
+
+            }
+
+        }
+
+    }
+
+    return visionVideoState.credit;
+
+}
+
+
+/* =========================================================
+   SET CREDIT REFUNDING
+========================================================= */
+
+function setVisionVideoCreditRefunding(
+    refunding = true
+) {
+
+    visionVideoState.credit.refunding =
+        Boolean(refunding);
+
+    if (refunding) {
+
+        visionVideoState.credit.error =
+            null;
+
+    }
+
+    return visionVideoState.credit;
+
+}
+
+
+/* =========================================================
+   SET CREDIT REFUNDED
+========================================================= */
+
+function setVisionVideoCreditRefunded(
+    refunded = true
+) {
+
+    const isRefunded =
+        Boolean(refunded);
+
+    visionVideoState.credit.refunded =
+        isRefunded;
+
+    visionVideoState.credit.refunding =
+        false;
+
+    if (isRefunded) {
+
+        visionVideoState.credit.refundedAt =
+            new Date().toISOString();
+
+        visionVideoState.credit.charged =
+            false;
+
+    }
+
+    return visionVideoState.credit;
+
+}
+
+
+/* =========================================================
+   SET CREDIT ERROR
+========================================================= */
+
+function setVisionVideoCreditError(
+    error
+) {
+
+    const message =
+        error instanceof Error
+            ? error.message
+            : String(
+                error ||
+                "Credit operation failed."
+            );
+
+    visionVideoState.credit.error =
+        message;
+
+    visionVideoState.credit.charging =
+        false;
+
+    visionVideoState.credit.refunding =
+        false;
+
+    return visionVideoState.credit;
+
+}
+
+
+/* =========================================================
+   CLEAR CREDIT OPERATION
+========================================================= */
+
+function clearVisionVideoCreditOperation() {
+
+    visionVideoState.credit.charged =
+        false;
+
+    visionVideoState.credit.charging =
+        false;
+
+    visionVideoState.credit.refunding =
+        false;
+
+    visionVideoState.credit.refunded =
+        false;
+
+    visionVideoState.credit.error =
+        null;
+
+    visionVideoState.credit.chargedAt =
+        null;
+
+    visionVideoState.credit.refundedAt =
+        null;
+
+    visionVideoState.credit.transactionId =
+        null;
+
+    visionVideoState.credit.historyId =
+        null;
+
+    return visionVideoState.credit;
 
 }
 
@@ -702,16 +1065,20 @@ function startVisionVideoAnalysis() {
 
         ...visionVideoState.analysis,
 
-        status: "running",
+        status:
+            "running",
 
-        result: null,
+        result:
+            null,
 
-        error: null,
+        error:
+            null,
 
         startedAt:
             new Date().toISOString(),
 
-        completedAt: null
+        completedAt:
+            null
 
     };
 
@@ -719,21 +1086,28 @@ function startVisionVideoAnalysis() {
 
         ...visionVideoState.process,
 
-        running: true,
+        running:
+            true,
 
-        progress: 0,
+        progress:
+            0,
 
-        stage: "initializing",
+        stage:
+            "initializing",
 
-        message: "Preparing video analysis...",
+        message:
+            "Preparing video analysis...",
 
-        error: null
+        error:
+            null
 
     };
 
-    visionVideoState.ui.analyzing = true;
+    visionVideoState.ui.analyzing =
+        true;
 
-    visionVideoState.ui.resultReady = false;
+    visionVideoState.ui.resultReady =
+        false;
 
     return visionVideoState;
 
@@ -751,15 +1125,20 @@ function failVisionVideoAnalysis(
     const message =
         error instanceof Error
             ? error.message
-            : String(error || "Unknown error.");
+            : String(
+                error ||
+                "Unknown error."
+            );
 
     visionVideoState.analysis = {
 
         ...visionVideoState.analysis,
 
-        status: "error",
+        status:
+            "error",
 
-        error: message,
+        error:
+            message,
 
         completedAt:
             new Date().toISOString()
@@ -770,17 +1149,21 @@ function failVisionVideoAnalysis(
 
         ...visionVideoState.process,
 
-        running: false,
+        running:
+            false,
 
-        stage: "error",
+        stage:
+            "error",
 
         message,
 
-        error: message
+        error:
+            message
 
     };
 
-    visionVideoState.ui.analyzing = false;
+    visionVideoState.ui.analyzing =
+        false;
 
     return visionVideoState;
 
@@ -797,7 +1180,8 @@ function completeVisionVideoAnalysis() {
 
         ...visionVideoState.analysis,
 
-        status: "completed",
+        status:
+            "completed",
 
         completedAt:
             new Date().toISOString()
@@ -808,21 +1192,28 @@ function completeVisionVideoAnalysis() {
 
         ...visionVideoState.process,
 
-        running: false,
+        running:
+            false,
 
-        progress: 100,
+        progress:
+            100,
 
-        stage: "completed",
+        stage:
+            "completed",
 
-        message: "Video analysis completed.",
+        message:
+            "Video analysis completed.",
 
-        error: null
+        error:
+            null
 
     };
 
-    visionVideoState.ui.analyzing = false;
+    visionVideoState.ui.analyzing =
+        false;
 
-    visionVideoState.ui.resultReady = true;
+    visionVideoState.ui.resultReady =
+        true;
 
     return visionVideoState;
 
@@ -844,13 +1235,17 @@ function setVisionVideoModels(
 
     visionVideoState.models = {
 
-        items: safeModels,
+        items:
+            safeModels,
 
-        loaded: true,
+        loaded:
+            true,
 
-        loading: false,
+        loading:
+            false,
 
-        error: null
+        error:
+            null
 
     };
 
@@ -893,17 +1288,23 @@ function setVisionVideoModelsError(
     const message =
         error instanceof Error
             ? error.message
-            : String(error || "Model loading failed.");
+            : String(
+                error ||
+                "Model loading failed."
+            );
 
     visionVideoState.models = {
 
         ...visionVideoState.models,
 
-        loading: false,
+        loading:
+            false,
 
-        loaded: false,
+        loaded:
+            false,
 
-        error: message
+        error:
+            message
 
     };
 
@@ -917,6 +1318,10 @@ function setVisionVideoModelsError(
 ========================================================= */
 
 const GENZVisionVideoState = {
+
+    /* -----------------------------------------------------
+       Core state
+    ----------------------------------------------------- */
 
     get:
         getVisionVideoState,
@@ -936,23 +1341,82 @@ const GENZVisionVideoState = {
     resetVideo:
         resetVisionVideoVideoState,
 
+
+    /* -----------------------------------------------------
+       Video
+    ----------------------------------------------------- */
+
     setVideo:
         setVisionVideoFile,
 
     setMetadata:
         setVisionVideoMetadata,
 
+
+    /* -----------------------------------------------------
+       Settings
+    ----------------------------------------------------- */
+
     setSettings:
         setVisionVideoSettings,
+
+
+    /* -----------------------------------------------------
+       Frames
+    ----------------------------------------------------- */
 
     setFrames:
         setVisionVideoFrames,
 
+
+    /* -----------------------------------------------------
+       Analysis
+    ----------------------------------------------------- */
+
     setAnalysis:
         setVisionVideoAnalysisResult,
 
+
+    /* -----------------------------------------------------
+       Prompt
+    ----------------------------------------------------- */
+
     setPrompt:
         setVisionVideoPrompt,
+
+
+    /* -----------------------------------------------------
+       Credit
+    ----------------------------------------------------- */
+
+    setCreditBalance:
+        setVisionVideoCreditBalance,
+
+    setCreditRequired:
+        setVisionVideoCreditRequired,
+
+    setCreditCharging:
+        setVisionVideoCreditCharging,
+
+    setCreditCharged:
+        setVisionVideoCreditCharged,
+
+    setCreditRefunding:
+        setVisionVideoCreditRefunding,
+
+    setCreditRefunded:
+        setVisionVideoCreditRefunded,
+
+    setCreditError:
+        setVisionVideoCreditError,
+
+    clearCreditOperation:
+        clearVisionVideoCreditOperation,
+
+
+    /* -----------------------------------------------------
+       Process
+    ----------------------------------------------------- */
 
     setProcess:
         setVisionVideoProcess,
@@ -965,6 +1429,11 @@ const GENZVisionVideoState = {
 
     completeAnalysis:
         completeVisionVideoAnalysis,
+
+
+    /* -----------------------------------------------------
+       Models
+    ----------------------------------------------------- */
 
     setModels:
         setVisionVideoModels,
