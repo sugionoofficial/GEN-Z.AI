@@ -331,11 +331,10 @@
     /* =====================================================
        FIND LOADER SCRIPT
        -----------------------------------------------------
-       Jangan menggunakan document.currentScript di dalam
-       proses asynchronous.
+       Mencari script loader secara stabil.
 
-       Loader harus mengetahui lokasi file dirinya sendiri
-       secara stabil.
+       Tidak menggunakan document.currentScript karena
+       initialization berjalan asynchronous.
     ===================================================== */
 
     function getLoaderScript() {
@@ -345,10 +344,6 @@
                 "script[src]"
             );
 
-
-        /*
-         * Cari script berdasarkan nama file.
-         */
 
         for (
             const script
@@ -414,6 +409,13 @@
 
     /* =====================================================
        MODULE BASE URL
+       -----------------------------------------------------
+       Base directory module adalah:
+
+       /vision-video/assets/js/
+
+       Fungsi ini dipertahankan untuk kompatibilitas
+       internal loader.
     ===================================================== */
 
     function getModuleBaseURL() {
@@ -434,20 +436,6 @@
         }
 
 
-        /*
-         * Fallback terakhir.
-         *
-         * Karena struktur halaman:
-         *
-         * /vision-video/index.html
-         *
-         * dan module:
-         *
-         * /vision-video/assets/js/...
-         *
-         * maka fallback diarahkan secara eksplisit.
-         */
-
         return new URL(
             "/vision-video/assets/js/",
             window.location.origin
@@ -458,6 +446,27 @@
 
     /* =====================================================
        SCRIPT URL
+       -----------------------------------------------------
+       PENTING:
+       -----------------------------------------------------
+       CONFIG module menggunakan:
+
+           ./assets/js/file.js
+
+       Maka base yang digunakan HARUS:
+
+           /vision-video/
+
+       BUKAN:
+
+           /vision-video/assets/js/
+
+       Jika base salah, browser menghasilkan:
+
+           /vision-video/assets/js/assets/js/file.js
+
+       Resolver ini secara eksplisit menggunakan root
+       Vision Video untuk mencegah duplicate assets/js.
     ===================================================== */
 
     function resolveURL(
@@ -465,49 +474,63 @@
     ) {
 
         /*
-         * path module berbentuk:
+         * -------------------------------------------------
+         * Root resmi Vision Video.
+         *
+         * Struktur:
+         *
+         * /vision-video/
+         * ├── index.html
+         * └── assets/
+         *     └── js/
+         *
+         * CONFIG menggunakan:
          *
          * ./assets/js/file.js
          *
-         * sedangkan base loader:
+         * sehingga base harus:
          *
-         * /vision-video/assets/js/
-         *
-         * Jadi kita harus resolve dari folder halaman
-         * Vision Video, bukan dari folder loader.
+         * /vision-video/
+         * -------------------------------------------------
          */
 
-        const loaderURL =
-            getLoaderScript();
-
-
-        if (
-            loaderURL
-        ) {
-
-            const pageURL =
-                new URL(
-                    "../../",
-                    loaderURL
-                );
-
-
-            return new URL(
-                path,
-                pageURL
-            ).href;
-
-        }
+        const visionVideoRoot =
+            new URL(
+                "/vision-video/",
+                window.location.origin
+            );
 
 
         /*
-         * Fallback eksplisit.
+         * -------------------------------------------------
+         * Normalisasi path.
+         *
+         * Contoh:
+         *
+         * ./assets/js/vision-video-state.js
+         *
+         * tetap menjadi:
+         *
+         * assets/js/vision-video-state.js
+         *
+         * sehingga hasil akhirnya:
+         *
+         * /vision-video/assets/js/vision-video-state.js
+         * -------------------------------------------------
          */
 
+        const normalizedPath =
+            String(
+                path || ""
+            ).replace(
+                /^\.?\//,
+                ""
+            );
+
+
         return new URL(
-            path,
-            window.location.origin +
-                "/vision-video/"
+            normalizedPath,
+            visionVideoRoot
         ).href;
 
     }
@@ -1329,7 +1352,6 @@
 
             page.dataset.error =
                 "false";
-
 
         }
 
