@@ -214,36 +214,109 @@
 
 
                         <!-- =====================================
-     PREVIEW STATE
-====================================== -->
+                             PREVIEW STATE
+                        ====================================== -->
 
-<div
-    id="visionVideoPreviewState"
-    class="vision-video-preview-state"
-    hidden
->
+                        <div
+                            id="visionVideoPreviewState"
+                            class="vision-video-preview-state"
+                            hidden
+                        >
 
-    <div class="vision-video-player-wrapper">
+                            <div class="vision-video-player-wrapper">
 
-        <video
-            id="visionVideoPreview"
-            controls
-            playsinline
-            preload="metadata"
-        ></video>
+                                <video
+                                    id="visionVideoPreview"
+                                    controls
+                                    playsinline
+                                    preload="metadata"
+                                ></video>
 
-    </div>
+                            </div>
 
 
-    <button
-        type="button"
-        id="visionVideoRemoveButton"
-        class="vision-video-remove-button"
-    >
-        Remove Video
-    </button>
+                            <div class="vision-video-file-info">
 
-</div>
+                                <div>
+
+                                    <span>
+                                        File
+                                    </span>
+
+                                    <strong id="visionVideoFileName">
+                                        --
+                                    </strong>
+
+                                </div>
+
+
+                                <div>
+
+                                    <span>
+                                        Size
+                                    </span>
+
+                                    <strong id="visionVideoFileSize">
+                                        --
+                                    </strong>
+
+                                </div>
+
+
+                                <div>
+
+                                    <span>
+                                        Duration
+                                    </span>
+
+                                    <strong id="visionVideoDuration">
+                                        --
+                                    </strong>
+
+                                </div>
+
+
+                                <div>
+
+                                    <span>
+                                        Resolution
+                                    </span>
+
+                                    <strong id="visionVideoResolution">
+                                        --
+                                    </strong>
+
+                                </div>
+
+
+                                <div>
+
+                                    <span>
+                                        FPS
+                                    </span>
+
+                                    <strong id="visionVideoFPS">
+                                        --
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+
+                            <button
+                                type="button"
+                                id="visionVideoRemoveButton"
+                                class="vision-video-remove-button"
+                            >
+                                Remove Video
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </section>
 
 
                 <!-- =============================================
