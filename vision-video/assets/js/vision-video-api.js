@@ -28,13 +28,55 @@
 
     const CONFIG = Object.freeze({
 
-        endpoint: "/api/openkey-chat",
+        endpoint:
+            "/api/openkey-chat",
 
-        timeout: 120000,
+        timeout:
+            120000,
 
-        defaultTemperature: 0.2,
+        defaultTemperature:
+            0.2,
 
-        maxFrames: 32,
+        /*
+         * Jumlah frame hasil extraction yang masih
+         * boleh tersedia di payload.
+         */
+        maxFrames:
+            32,
+
+        /*
+         * Jumlah frame maksimum yang benar-benar
+         * dikirim ke OpenKey.
+         *
+         * Tujuannya mencegah request body terlalu besar.
+         */
+        maxRequestFrames:
+            12,
+
+        /*
+         * Ukuran maksimum sisi frame yang dikirim
+         * ke API.
+         */
+        maxImageDimension:
+            960,
+
+        /*
+         * JPEG quality untuk request API.
+         *
+         * Frame asli tidak pernah diubah.
+         */
+        imageQuality:
+            0.55,
+
+        /*
+         * Target maksimum payload JSON.
+         *
+         * Base64 memiliki overhead sekitar 33%.
+         * Karena itu kita menjaga payload cukup jauh
+         * dari batas server.
+         */
+        maxRequestPayloadBytes:
+            2500000,
 
         systemInstruction: [
             "You are GEN-Z.AI Vision Video Engine.",
@@ -57,13 +99,17 @@
 
     function getState() {
 
-        const state = window.GENZVisionVideoState;
+        const state =
+            window.GENZVisionVideoState;
+
 
         if (!state) {
+
             throw new Error(
                 "GEN-Z.AI Vision Video State belum tersedia."
             );
         }
+
 
         return state;
     }
@@ -73,7 +119,10 @@
        DOM EVENT DISPATCH
     ===================================================== */
 
-    function dispatch(name, detail = {}) {
+    function dispatch(
+        name,
+        detail = {}
+    ) {
 
         try {
 
@@ -133,6 +182,7 @@
                     const result =
                         await client.auth.getSession();
 
+
                     if (
                         result &&
                         result.data &&
@@ -177,11 +227,15 @@
 
     async function getAccessToken() {
 
-        const session = await getSession();
+        const session =
+            await getSession();
+
 
         if (!session) {
+
             return null;
         }
+
 
         return (
             session.access_token ||
@@ -195,10 +249,13 @@
        TIMEOUT
     ===================================================== */
 
-    function createTimeoutController(timeout) {
+    function createTimeoutController(
+        timeout
+    ) {
 
         const controller =
             new AbortController();
+
 
         const timer =
             window.setTimeout(
@@ -210,9 +267,13 @@
                 timeout
             );
 
+
         return {
+
             controller,
+
             timer
+
         };
     }
 
@@ -221,14 +282,22 @@
        ERROR NORMALIZATION
     ===================================================== */
 
-    function normalizeError(error, fallback = "API request gagal.") {
+    function normalizeError(
+        error,
+        fallback = "API request gagal."
+    ) {
 
         if (!error) {
-            return new Error(fallback);
+
+            return new Error(
+                fallback
+            );
         }
 
 
-        if (error.name === "AbortError") {
+        if (
+            error.name === "AbortError"
+        ) {
 
             return new Error(
                 "Request Vision Video timeout."
@@ -236,27 +305,39 @@
         }
 
 
-        if (error instanceof Error) {
+        if (
+            error instanceof Error
+        ) {
 
             return error;
         }
 
 
-        if (typeof error === "string") {
-
-            return new Error(error);
-        }
-
-
-        if (error.message) {
+        if (
+            typeof error === "string"
+        ) {
 
             return new Error(
-                String(error.message)
+                error
             );
         }
 
 
-        return new Error(fallback);
+        if (
+            error.message
+        ) {
+
+            return new Error(
+                String(
+                    error.message
+                )
+            );
+        }
+
+
+        return new Error(
+            fallback
+        );
     }
 
 
@@ -264,14 +345,20 @@
        RESPONSE ERROR
     ===================================================== */
 
-    async function parseResponseBody(response) {
+    async function parseResponseBody(
+        response
+    ) {
 
         const contentType =
-            response.headers.get("content-type") || "";
+            response.headers.get(
+                "content-type"
+            ) || "";
 
 
         if (
-            contentType.includes("application/json")
+            contentType.includes(
+                "application/json"
+            )
         ) {
 
             try {
@@ -290,14 +377,18 @@
             const text =
                 await response.text();
 
+
             if (!text) {
+
                 return null;
             }
 
 
             try {
 
-                return JSON.parse(text);
+                return JSON.parse(
+                    text
+                );
 
             } catch (error) {
 
@@ -317,7 +408,10 @@
        API REQUEST
     ===================================================== */
 
-    async function request(body, options = {}) {
+    async function request(
+        body,
+        options = {}
+    ) {
 
         const endpoint =
             options.endpoint ||
@@ -325,7 +419,9 @@
 
 
         const timeout =
-            Number(options.timeout) ||
+            Number(
+                options.timeout
+            ) ||
             CONFIG.timeout;
 
 
@@ -353,20 +449,70 @@
 
 
         const timeoutState =
-            createTimeoutController(timeout);
+            createTimeoutController(
+                timeout
+            );
 
 
         try {
+
+            /*
+             * =================================================
+             * REQUEST PAYLOAD SIZE GUARD
+             * =================================================
+             *
+             * Jangan menunggu server mengembalikan 413.
+             * Periksa ukuran body sebelum fetch.
+             */
+
+            let serializedBody;
+
+
+            try {
+
+                serializedBody =
+                    JSON.stringify(
+                        body
+                    );
+
+            } catch (error) {
+
+                throw new Error(
+                    "Payload Vision Video gagal diserialisasi."
+                );
+            }
+
+
+            const payloadBytes =
+                new Blob(
+                    [serializedBody]
+                ).size;
+
+
+            if (
+                payloadBytes >
+                CONFIG.maxRequestPayloadBytes
+            ) {
+
+                throw new Error(
+                    "Payload Vision Video terlalu besar (" +
+                    formatBytes(payloadBytes) +
+                    "). Frame telah dibatasi dan dikompresi."
+                );
+            }
+
 
             const response =
                 await fetch(
                     endpoint,
                     {
-                        method: "POST",
+                        method:
+                            "POST",
 
                         headers,
 
-                        body: JSON.stringify(body),
+                        body:
+                            serializedBody,
 
                         signal:
                             timeoutState.controller.signal,
@@ -378,13 +524,17 @@
 
 
             const data =
-                await parseResponseBody(response);
+                await parseResponseBody(
+                    response
+                );
 
 
             if (!response.ok) {
 
                 const serverMessage =
-                    extractErrorMessage(data);
+                    extractErrorMessage(
+                        data
+                    );
 
 
                 throw new Error(
@@ -413,12 +563,67 @@
 
 
     /* =====================================================
+       FORMAT BYTES
+    ===================================================== */
+
+    function formatBytes(
+        bytes
+    ) {
+
+        const value =
+            Number(bytes);
+
+
+        if (
+            !Number.isFinite(value) ||
+            value <= 0
+        ) {
+
+            return "0 B";
+        }
+
+
+        if (
+            value < 1024
+        ) {
+
+            return (
+                Math.round(value) +
+                " B"
+            );
+        }
+
+
+        if (
+            value < 1024 * 1024
+        ) {
+
+            return (
+                (value / 1024)
+                    .toFixed(1) +
+                " KB"
+            );
+        }
+
+
+        return (
+            (value / (1024 * 1024))
+                .toFixed(2) +
+            " MB"
+        );
+    }
+
+
+    /* =====================================================
        ERROR MESSAGE EXTRACTION
     ===================================================== */
 
-    function extractErrorMessage(data) {
+    function extractErrorMessage(
+        data
+    ) {
 
         if (!data) {
+
             return "";
         }
 
@@ -440,7 +645,9 @@
         ];
 
 
-        for (const value of candidates) {
+        for (
+            const value of candidates
+        ) {
 
             if (
                 typeof value === "string" &&
@@ -473,11 +680,16 @@
        MODEL
     ===================================================== */
 
-    function resolveModel(payload, options = {}) {
+    function resolveModel(
+        payload,
+        options = {}
+    ) {
 
         if (
             options.model &&
-            String(options.model).trim()
+            String(
+                options.model
+            ).trim()
         ) {
 
             return String(
@@ -490,7 +702,9 @@
             payload &&
             payload.settings &&
             payload.settings.model &&
-            String(payload.settings.model).trim()
+            String(
+                payload.settings.model
+            ).trim()
         ) {
 
             return String(
@@ -528,7 +742,9 @@
 
         if (
             stateModel &&
-            String(stateModel).trim()
+            String(
+                stateModel
+            ).trim()
         ) {
 
             return String(
@@ -545,63 +761,89 @@
        FRAME NORMALIZATION
     ===================================================== */
 
-    function normalizeFrames(payload) {
+    function normalizeFrames(
+        payload
+    ) {
 
         if (!payload) {
+
             return [];
         }
 
 
         const source =
-            Array.isArray(payload.frames)
+            Array.isArray(
+                payload.frames
+            )
                 ? payload.frames
                 : [];
 
 
         return source
             .filter(Boolean)
-            .map(function (frame, index) {
+            .map(
+                function (
+                    frame,
+                    index
+                ) {
 
-                return {
+                    return {
 
-                    index:
-                        Number.isFinite(
-                            Number(frame.index)
-                        )
-                            ? Number(frame.index)
-                            : index,
+                        index:
+                            Number.isFinite(
+                                Number(
+                                    frame.index
+                                )
+                            )
+                                ? Number(
+                                    frame.index
+                                )
+                                : index,
 
-                    timestamp:
-                        Number.isFinite(
-                            Number(frame.timestamp)
-                        )
-                            ? Number(frame.timestamp)
-                            : 0,
+                        timestamp:
+                            Number.isFinite(
+                                Number(
+                                    frame.timestamp
+                                )
+                            )
+                                ? Number(
+                                    frame.timestamp
+                                )
+                                : 0,
 
-                    width:
-                        Number(frame.width) || 0,
+                        width:
+                            Number(
+                                frame.width
+                            ) || 0,
 
-                    height:
-                        Number(frame.height) || 0,
+                        height:
+                            Number(
+                                frame.height
+                            ) || 0,
 
-                    dataURL:
-                        typeof frame.dataURL === "string"
-                            ? frame.dataURL
-                            : "",
+                        dataURL:
+                            typeof frame.dataURL === "string"
+                                ? frame.dataURL
+                                : "",
 
-                    url:
-                        typeof frame.url === "string"
-                            ? frame.url
-                            : ""
-                };
+                        url:
+                            typeof frame.url === "string"
+                                ? frame.url
+                                : ""
+                    };
 
-            })
-            .filter(function (frame) {
+                }
+            )
+            .filter(
+                function (
+                    frame
+                ) {
 
-                return Boolean(
-                    frame.dataURL
-                );
-            })
+                    return Boolean(
+                        frame.dataURL
+                    );
+                }
+            )
             .slice(
                 0,
                 CONFIG.maxFrames
@@ -610,19 +852,575 @@
 
 
     /* =====================================================
+       FRAME SELECTION
+       -----------------------------------------------------
+       Memilih frame secara merata dari seluruh timeline.
+
+       Contoh:
+       32 frame -> 12 frame
+
+       Tidak hanya mengambil 12 frame pertama.
+       ===================================================== */
+
+    function selectFramesForRequest(
+        frames
+    ) {
+
+        if (
+            !Array.isArray(frames)
+        ) {
+
+            return [];
+        }
+
+
+        if (
+            frames.length <=
+            CONFIG.maxRequestFrames
+        ) {
+
+            return frames.slice();
+        }
+
+
+        const selected = [];
+
+
+        const lastIndex =
+            frames.length - 1;
+
+
+        const slots =
+            CONFIG.maxRequestFrames;
+
+
+        for (
+            let i = 0;
+            i < slots;
+            i++
+        ) {
+
+            const position =
+                slots === 1
+                    ? 0
+                    : Math.round(
+                        (
+                            i *
+                            lastIndex
+                        ) /
+                        (
+                            slots - 1
+                        )
+                    );
+
+
+            const frame =
+                frames[position];
+
+
+            if (
+                frame &&
+                !selected.includes(
+                    frame
+                )
+            ) {
+
+                selected.push(
+                    frame
+                );
+            }
+        }
+
+
+        return selected;
+    }
+
+
+    /* =====================================================
+       DATA URL SIZE
+    ===================================================== */
+
+    function estimateDataURLBytes(
+        dataURL
+    ) {
+
+        if (
+            typeof dataURL !== "string" ||
+            !dataURL
+        ) {
+
+            return 0;
+        }
+
+
+        const commaIndex =
+            dataURL.indexOf(",");
+
+
+        if (
+            commaIndex === -1
+        ) {
+
+            return dataURL.length;
+        }
+
+
+        const base64 =
+            dataURL.slice(
+                commaIndex + 1
+            );
+
+
+        const padding =
+            base64.endsWith("==")
+                ? 2
+                : base64.endsWith("=")
+                    ? 1
+                    : 0;
+
+
+        return Math.max(
+            0,
+            Math.floor(
+                (
+                    base64.length *
+                    3
+                ) /
+                4
+            ) -
+            padding
+        );
+    }
+
+
+    /* =====================================================
+       LOAD IMAGE
+    ===================================================== */
+
+    function loadImage(
+        dataURL
+    ) {
+
+        return new Promise(
+            function (
+                resolve,
+                reject
+            ) {
+
+                const image =
+                    new Image();
+
+
+                image.onload =
+                    function () {
+
+                        resolve(
+                            image
+                        );
+                    };
+
+
+                image.onerror =
+                    function () {
+
+                        reject(
+                            new Error(
+                                "Frame image gagal dimuat."
+                            )
+                        );
+                    };
+
+
+                image.src =
+                    dataURL;
+            }
+        );
+    }
+
+
+    /* =====================================================
+       CANVAS JPEG COMPRESSION
+       -----------------------------------------------------
+       Tidak mengubah frame asli.
+       Hanya membuat salinan JPEG khusus untuk API.
+    ===================================================== */
+
+    async function compressFrameDataURL(
+        frame
+    ) {
+
+        const original =
+            frame.dataURL;
+
+
+        if (
+            typeof original !== "string" ||
+            !original
+        ) {
+
+            throw new Error(
+                "Frame tidak memiliki dataURL."
+            );
+        }
+
+
+        /*
+         * Jika frame sudah kecil, tidak perlu
+         * melakukan recompression agresif.
+         */
+
+        const originalBytes =
+            estimateDataURLBytes(
+                original
+            );
+
+
+        if (
+            originalBytes > 0 &&
+            originalBytes <= 90000
+        ) {
+
+            return original;
+        }
+
+
+        const image =
+            await loadImage(
+                original
+            );
+
+
+        const sourceWidth =
+            Number(
+                image.naturalWidth ||
+                image.width
+            ) || 0;
+
+
+        const sourceHeight =
+            Number(
+                image.naturalHeight ||
+                image.height
+            ) || 0;
+
+
+        if (
+            !sourceWidth ||
+            !sourceHeight
+        ) {
+
+            throw new Error(
+                "Ukuran frame tidak valid."
+            );
+        }
+
+
+        const maxDimension =
+            CONFIG.maxImageDimension;
+
+
+        let targetWidth =
+            sourceWidth;
+
+
+        let targetHeight =
+            sourceHeight;
+
+
+        if (
+            sourceWidth >
+                maxDimension ||
+            sourceHeight >
+                maxDimension
+        ) {
+
+            const scale =
+                Math.min(
+                    maxDimension /
+                        sourceWidth,
+
+                    maxDimension /
+                        sourceHeight
+                );
+
+
+            targetWidth =
+                Math.max(
+                    1,
+                    Math.round(
+                        sourceWidth *
+                        scale
+                    )
+                );
+
+
+            targetHeight =
+                Math.max(
+                    1,
+                    Math.round(
+                        sourceHeight *
+                        scale
+                    )
+                );
+        }
+
+
+        const canvas =
+            document.createElement(
+                "canvas"
+            );
+
+
+        canvas.width =
+            targetWidth;
+
+
+        canvas.height =
+            targetHeight;
+
+
+        const context =
+            canvas.getContext(
+                "2d",
+                {
+                    alpha:
+                        false
+                }
+            );
+
+
+        if (!context) {
+
+            throw new Error(
+                "Canvas 2D tidak tersedia."
+            );
+        }
+
+
+        /*
+         * Kualitas rendering tetap dijaga.
+         */
+
+        try {
+
+            context.imageSmoothingEnabled =
+                true;
+
+            context.imageSmoothingQuality =
+                "high";
+
+        } catch (error) {
+            /*
+             * Browser lama dapat mengabaikan
+             * property ini.
+             */
+        }
+
+
+        context.drawImage(
+            image,
+            0,
+            0,
+            targetWidth,
+            targetHeight
+        );
+
+
+        let compressed;
+
+
+        try {
+
+            compressed =
+                canvas.toDataURL(
+                    "image/jpeg",
+                    CONFIG.imageQuality
+                );
+
+        } catch (error) {
+
+            throw new Error(
+                "Frame gagal dikompresi menjadi JPEG."
+            );
+        }
+
+
+        if (
+            typeof compressed !== "string" ||
+            !compressed ||
+            compressed === "data:,"
+        ) {
+
+            throw new Error(
+                "Hasil kompresi frame tidak valid."
+            );
+        }
+
+
+        /*
+         * Bersihkan resource canvas.
+         */
+
+        canvas.width = 1;
+        canvas.height = 1;
+
+
+        return compressed;
+    }
+
+
+    /* =====================================================
+       PREPARE FRAMES FOR API
+       -----------------------------------------------------
+       Menghasilkan frame khusus request API.
+
+       Frame asli dalam state/payload tidak disentuh.
+    ===================================================== */
+
+    async function prepareFramesForAPI(
+        payload
+    ) {
+
+        const normalizedFrames =
+            normalizeFrames(
+                payload
+            );
+
+
+        if (
+            !normalizedFrames.length
+        ) {
+
+            return [];
+        }
+
+
+        const selectedFrames =
+            selectFramesForRequest(
+                normalizedFrames
+            );
+
+
+        const preparedFrames = [];
+
+
+        for (
+            const frame of selectedFrames
+        ) {
+
+            let dataURL =
+                frame.dataURL;
+
+
+            try {
+
+                dataURL =
+                    await compressFrameDataURL(
+                        frame
+                    );
+
+            } catch (error) {
+
+                /*
+                 * Jangan menggagalkan seluruh analysis
+                 * hanya karena satu frame gagal dikompresi.
+                 *
+                 * Frame asli digunakan sebagai fallback.
+                 */
+
+                console.warn(
+                    "[GEN-Z.AI Vision Video] Frame compression gagal, menggunakan frame asli:",
+                    frame.index,
+                    error
+                );
+            }
+
+
+            preparedFrames.push({
+
+                index:
+                    frame.index,
+
+                timestamp:
+                    frame.timestamp,
+
+                width:
+                    frame.width,
+
+                height:
+                    frame.height,
+
+                dataURL,
+
+                url:
+                    frame.url
+
+            });
+        }
+
+
+        return preparedFrames;
+    }
+
+
+    /* =====================================================
+       REQUEST FRAME PAYLOAD SIZE
+    ===================================================== */
+
+    function estimateFramesPayloadBytes(
+        frames
+    ) {
+
+        if (
+            !Array.isArray(frames)
+        ) {
+
+            return 0;
+        }
+
+
+        return frames.reduce(
+            function (
+                total,
+                frame
+            ) {
+
+                return (
+                    total +
+                    estimateDataURLBytes(
+                        frame.dataURL
+                    )
+                );
+
+            },
+            0
+        );
+    }
+
+
+    /* =====================================================
        FRAME DESCRIPTION
     ===================================================== */
 
-    function buildFrameText(frame) {
+    function buildFrameText(
+        frame
+    ) {
 
         const timestamp =
-            Number(frame.timestamp) || 0;
+            Number(
+                frame.timestamp
+            ) || 0;
 
 
         return [
+
             `Frame ${Number(frame.index) + 1}`,
+
             `timestamp=${timestamp.toFixed(2)}s`
-        ].join(" | ");
+
+        ].join(
+            " | "
+        );
     }
 
 
@@ -630,7 +1428,9 @@
        CONTEXT TEXT
     ===================================================== */
 
-    function buildContextText(payload) {
+    function buildContextText(
+        payload
+    ) {
 
         const context =
             payload &&
@@ -660,16 +1460,24 @@
         const metadata = {
 
             duration:
-                Number(video.duration) || 0,
+                Number(
+                    video.duration
+                ) || 0,
 
             width:
-                Number(video.width) || 0,
+                Number(
+                    video.width
+                ) || 0,
 
             height:
-                Number(video.height) || 0,
+                Number(
+                    video.height
+                ) || 0,
 
             fps:
-                Number(video.fps) || 0,
+                Number(
+                    video.fps
+                ) || 0,
 
             frameMode:
                 settings.frameMode ||
@@ -700,32 +1508,49 @@
 
 
         return [
+
             "VIDEO CONTEXT:",
+
             JSON.stringify(
                 metadata,
                 null,
                 2
             ),
+
             "",
+
             "TASK:",
+
             "Analyze all supplied frames in chronological order.",
+
             "Infer temporal changes only when supported by visible evidence.",
+
             "Focus on visual information useful for recreating the video."
-        ].join("\n");
+
+        ].join(
+            "\n"
+        );
     }
 
 
     /* =====================================================
        MESSAGE BUILDER
-    ===================================================== */
+       ===================================================== */
 
-    function buildMessages(payload, options = {}) {
+    async function buildMessages(
+        payload,
+        options = {}
+    ) {
 
         const frames =
-            normalizeFrames(payload);
+            await prepareFramesForAPI(
+                payload
+            );
 
 
-        if (!frames.length) {
+        if (
+            !frames.length
+        ) {
 
             throw new Error(
                 "Tidak ada frame video yang siap dikirim ke API."
@@ -733,60 +1558,91 @@
         }
 
 
+        /*
+         * Safety guard tambahan.
+         */
+
+        const frameBytes =
+            estimateFramesPayloadBytes(
+                frames
+            );
+
+
+        console.log(
+            "[GEN-Z.AI Vision Video] API frames:",
+            frames.length,
+            "| estimated image bytes:",
+            formatBytes(
+                frameBytes
+            )
+        );
+
+
         const content = [
 
             {
-                type: "text",
+
+                type:
+                    "text",
 
                 text:
                     buildContextText(
                         payload
                     )
+
             }
 
         ];
 
 
-        frames.forEach(function (frame) {
+        frames.forEach(
+            function (
+                frame
+            ) {
 
-            content.push({
+                content.push({
 
-                type: "text",
+                    type:
+                        "text",
 
-                text:
-                    buildFrameText(
-                        frame
-                    )
-
-            });
-
-
-            content.push({
-
-                type: "image_url",
-
-                image_url: {
-
-                    url:
-                        frame.dataURL,
-
-                    detail:
-                        resolveImageDetail(
-                            payload,
-                            options
+                    text:
+                        buildFrameText(
+                            frame
                         )
-                }
 
-            });
+                });
 
-        });
+
+                content.push({
+
+                    type:
+                        "image_url",
+
+                    image_url: {
+
+                        url:
+                            frame.dataURL,
+
+                        detail:
+                            resolveImageDetail(
+                                payload,
+                                options
+                            )
+
+                    }
+
+                });
+
+            }
+        );
 
 
         return [
 
             {
 
-                role: "system",
+                role:
+                    "system",
 
                 content:
                     CONFIG.systemInstruction
@@ -795,7 +1651,8 @@
 
             {
 
-                role: "user",
+                role:
+                    "user",
 
                 content
 
@@ -809,7 +1666,10 @@
        IMAGE DETAIL
     ===================================================== */
 
-    function resolveImageDetail(payload, options) {
+    function resolveImageDetail(
+        payload,
+        options
+    ) {
 
         const detail =
             options.detail ||
@@ -859,7 +1719,10 @@
        REQUEST BODY
     ===================================================== */
 
-    function buildRequestBody(payload, options = {}) {
+    async function buildRequestBody(
+        payload,
+        options = {}
+    ) {
 
         const model =
             resolveModel(
@@ -877,7 +1740,7 @@
 
 
         const messages =
-            buildMessages(
+            await buildMessages(
                 payload,
                 options
             );
@@ -908,9 +1771,12 @@
        RESPONSE CONTENT EXTRACTION
     ===================================================== */
 
-    function extractContent(data) {
+    function extractContent(
+        data
+    ) {
 
         if (!data) {
+
             return "";
         }
 
@@ -920,7 +1786,9 @@
          */
 
         if (
-            Array.isArray(data.choices) &&
+            Array.isArray(
+                data.choices
+            ) &&
             data.choices.length
         ) {
 
@@ -944,6 +1812,7 @@
 
 
                 if (normalized) {
+
                     return normalized;
                 }
             }
@@ -961,6 +1830,7 @@
 
 
                 if (normalized) {
+
                     return normalized;
                 }
             }
@@ -984,7 +1854,9 @@
         ];
 
 
-        for (const candidate of candidates) {
+        for (
+            const candidate of candidates
+        ) {
 
             const normalized =
                 normalizeContent(
@@ -1010,6 +1882,7 @@
 
 
             if (nested) {
+
                 return nested;
             }
         }
@@ -1023,7 +1896,9 @@
        CONTENT NORMALIZATION
     ===================================================== */
 
-    function normalizeContent(content) {
+    function normalizeContent(
+        content
+    ) {
 
         if (
             typeof content === "string"
@@ -1034,32 +1909,38 @@
 
 
         if (
-            Array.isArray(content)
+            Array.isArray(
+                content
+            )
         ) {
 
             return content
-                .map(function (part) {
-
-                    if (
-                        typeof part === "string"
+                .map(
+                    function (
+                        part
                     ) {
 
-                        return part;
+                        if (
+                            typeof part === "string"
+                        ) {
+
+                            return part;
+                        }
+
+
+                        if (
+                            part &&
+                            typeof part.text === "string"
+                        ) {
+
+                            return part.text;
+                        }
+
+
+                        return "";
+
                     }
-
-
-                    if (
-                        part &&
-                        typeof part.text === "string"
-                    ) {
-
-                        return part.text;
-                    }
-
-
-                    return "";
-
-                })
+                )
                 .filter(Boolean)
                 .join("\n")
                 .trim();
@@ -1096,7 +1977,10 @@
        RESPONSE NORMALIZATION
     ===================================================== */
 
-    function normalizeResponse(data, payload) {
+    function normalizeResponse(
+        data,
+        payload
+    ) {
 
         const content =
             extractContent(
@@ -1136,7 +2020,10 @@
        ANALYZE
     ===================================================== */
 
-    async function analyze(payload, options = {}) {
+    async function analyze(
+        payload,
+        options = {}
+    ) {
 
         if (!payload) {
 
@@ -1150,8 +2037,13 @@
             getState();
 
 
+        /*
+         * buildRequestBody sekarang async karena
+         * frame perlu dikompresi terlebih dahulu.
+         */
+
         const requestBody =
-            buildRequestBody(
+            await buildRequestBody(
                 payload,
                 options
             );
@@ -1253,7 +2145,9 @@
        ANALYZE PREPARED PAYLOAD
     ===================================================== */
 
-    async function analyzePrepared(options = {}) {
+    async function analyzePrepared(
+        options = {}
+    ) {
 
         const state =
             getState();
@@ -1298,6 +2192,18 @@
             maxFrames:
                 CONFIG.maxFrames,
 
+            maxRequestFrames:
+                CONFIG.maxRequestFrames,
+
+            maxImageDimension:
+                CONFIG.maxImageDimension,
+
+            imageQuality:
+                CONFIG.imageQuality,
+
+            maxRequestPayloadBytes:
+                CONFIG.maxRequestPayloadBytes,
+
             defaultTemperature:
                 CONFIG.defaultTemperature
 
@@ -1339,6 +2245,7 @@
 
     window.GENZVisionVideoAPI =
         API;
+
 
     window.GENZVisionVideoAPIReady =
         true;
