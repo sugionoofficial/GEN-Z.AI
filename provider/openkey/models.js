@@ -27,14 +27,10 @@
    GET /api/public/v1/models
 
    CATATAN:
-   - /v1/models hanya memberikan katalog minimal:
-       id
-       object
-       owned_by
-   - /api/public/v1/models memberikan metadata model
-     yang lebih kaya.
-   - API key hanya digunakan untuk /v1/models.
-   - Public catalog TIDAK menerima API key.
+   - /v1/models digunakan untuk mengetahui model yang
+     tersedia untuk credential/API key.
+   - Public catalog digunakan untuk metadata capability.
+   - API key TIDAK dikirim ke public catalog.
    - Tidak ada capability model yang dibuat secara artificial.
 ========================================================= */
 
@@ -52,19 +48,12 @@ import openKeyClient
 ========================================================= */
 
 const OPENKEY_MODELS_VERSION =
-    "2026-10-06-openkey-models-public-catalog-v1";
+    "2026-10-06-openkey-models-public-catalog-v2";
 
 
 /* =========================================================
    PUBLIC CATALOG CONFIGURATION
 ========================================================= */
-
-/*
- * OpenKey public catalog menggunakan host API utama,
- * bukan endpoint /v1 yang dipakai client OpenAI-compatible.
- *
- * Tidak membutuhkan API key.
- */
 
 const DEFAULT_PUBLIC_CATALOG_BASE_URL =
     "https://api.openkey.ai";
@@ -219,6 +208,72 @@ function extractModelRows(
 
     if (
         Array.isArray(
+            response?.model_list
+        )
+    ) {
+
+        return response.model_list.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
+            response?.modelList
+        )
+    ) {
+
+        return response.modelList.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
+            response?.model_catalog
+        )
+    ) {
+
+        return response.model_catalog.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
+            response?.modelCatalog
+        )
+    ) {
+
+        return response.modelCatalog.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
+            response?.available_models
+        )
+    ) {
+
+        return response.available_models.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
+            response?.availableModels
+        )
+    ) {
+
+        return response.availableModels.slice();
+
+    }
+
+
+    if (
+        Array.isArray(
             response?.results
         )
     ) {
@@ -364,22 +419,39 @@ function getCapabilityField(
 
 
 /* =========================================================
-   PUBLIC CATALOG URL
+   PUBLIC CATALOG BASE URL
 ========================================================= */
 
 function getPublicCatalogBaseUrl() {
 
+    /*
+     * process hanya digunakan di server.
+     *
+     * Guard tetap dipasang supaya modul tidak error
+     * apabila suatu saat di-import oleh environment
+     * yang tidak menyediakan process.
+     */
+
     const configured =
-        String(
 
-            process.env.OPENKEY_PUBLIC_CATALOG_BASE_URL ||
+        typeof process !==
+            "undefined" &&
 
-            process.env.OPENKEY_PUBLIC_BASE_URL ||
+        process?.env
 
-            ""
+            ? String(
 
-        )
-            .trim();
+                process.env
+                    .OPENKEY_PUBLIC_CATALOG_BASE_URL ||
+
+                process.env
+                    .OPENKEY_PUBLIC_BASE_URL ||
+
+                ""
+
+            ).trim()
+
+            : "";
 
 
     if (
@@ -421,7 +493,7 @@ function buildPublicCatalogUrl() {
    ---------------------------------------------------------
    IMPORTANT:
    - Tidak menggunakan API key.
-   - Public catalog memang unauthenticated.
+   - Public catalog unauthenticated.
 ========================================================= */
 
 async function fetchPublicCatalog() {
@@ -489,8 +561,7 @@ async function fetchPublicCatalog() {
                 "content-type"
             ) || ""
 
-        )
-            .toLowerCase();
+        ).toLowerCase();
 
 
     let data = null;
@@ -548,7 +619,9 @@ async function fetchPublicCatalog() {
 
         const parseError =
             new Error(
+
                 "Response OpenKey public catalog tidak dapat diparse sebagai JSON."
+
             );
 
 
@@ -748,10 +821,42 @@ function createPublicCatalogIndex(
 /* =========================================================
    MODEL METADATA MERGE
    ---------------------------------------------------------
-   Authenticated model tetap menjadi sumber kebenaran
-   untuk availability.
+   PENTING:
 
-   Public catalog hanya memperkaya metadata.
+   authenticated:
+   - sumber availability
+   - model yang benar-benar tersedia
+   - id / object / owned_by
+
+   public:
+   - sumber capability
+   - modalities
+   - architecture
+   - vision/image metadata
+   - metadata model lainnya
+
+   BUG SEBELUMNYA:
+
+       ...publicMetadata,
+       ...authenticated
+
+   menyebabkan:
+
+       input_modalities: []
+
+   dari authenticated menimpa:
+
+       input_modalities: ["text", "image"]
+
+   dari public catalog.
+
+   SEKARANG:
+
+       ...authenticated,
+       ...publicMetadata
+
+   sehingga metadata public tidak tertimpa oleh
+   field capability kosong dari /v1/models.
 ========================================================= */
 
 function mergeModelMetadata(
@@ -784,25 +889,104 @@ function mergeModelMetadata(
 
 
     /*
-     * Public metadata hanya enrichment.
+     * =====================================================
+     * MERGE ORDER
+     * =====================================================
      *
-     * Jika field authenticated sudah tersedia,
-     * jangan membiarkan public catalog mengganti
-     * identifier model.
+     * AUTHENTICATED terlebih dahulu.
+     *
+     * PUBLIC METADATA terakhir.
+     *
+     * Dengan demikian metadata capability public
+     * tidak hilang karena field kosong dari /v1/models.
      */
 
     const merged = {
 
-        ...publicMetadata,
+        ...authenticated,
 
-        ...authenticated
+        ...publicMetadata
 
     };
 
 
     /*
-     * Preserve nested provider metadata
-     * secara eksplisit.
+     * =====================================================
+     * LOCK IDENTIFIER
+     * =====================================================
+     *
+     * Identifier tetap berasal dari authenticated
+     * catalog supaya public catalog tidak mengubah
+     * model yang benar-benar tersedia.
+     */
+
+    if (
+        authenticated.id !== undefined
+    ) {
+
+        merged.id =
+            authenticated.id;
+
+    }
+
+
+    if (
+        authenticated.model_id !== undefined
+    ) {
+
+        merged.model_id =
+            authenticated.model_id;
+
+    }
+
+
+    if (
+        authenticated.modelId !== undefined
+    ) {
+
+        merged.modelId =
+            authenticated.modelId;
+
+    }
+
+
+    if (
+        authenticated.object !== undefined
+    ) {
+
+        merged.object =
+            authenticated.object;
+
+    }
+
+
+    /*
+     * owned_by hanya dikunci jika authenticated
+     * memang memberikan nilai yang valid.
+     */
+
+    if (
+        authenticated.owned_by !==
+            undefined &&
+
+        authenticated.owned_by !==
+            null &&
+
+        String(
+            authenticated.owned_by
+        ).trim()
+    ) {
+
+        merged.owned_by =
+            authenticated.owned_by;
+
+    }
+
+
+    /*
+     * =====================================================
+     * PRESERVE ORIGINAL SOURCES
+     * =====================================================
      */
 
     merged.public_catalog =
@@ -860,7 +1044,8 @@ function normalizeModel(
     /*
      * Mulai dari seluruh field asli provider.
      *
-     * Tidak membuang field capability yang belum dikenal.
+     * Tidak membuang field capability yang belum
+     * dikenal oleh GEN-Z.AI.
      */
 
     const normalized = {
@@ -977,7 +1162,11 @@ function normalizeModel(
 
                     "supported_inputs",
 
-                    "supportedInputs"
+                    "supportedInputs",
+
+                    "supported_input_types",
+
+                    "supportedInputTypes"
 
                 )
 
@@ -1005,7 +1194,11 @@ function normalizeModel(
 
                     "supported_outputs",
 
-                    "supportedOutputs"
+                    "supportedOutputs",
+
+                    "supported_output_types",
+
+                    "supportedOutputTypes"
 
                 )
 
@@ -1765,9 +1958,9 @@ async function loadModels(
     } = options;
 
 
-    /*
-     * CACHE
-     */
+    /* =====================================================
+       CACHE
+    ===================================================== */
 
     if (
         modelsLoaded &&
@@ -1779,9 +1972,9 @@ async function loadModels(
     }
 
 
-    /*
-     * SINGLE FLIGHT
-     */
+    /* =====================================================
+       SINGLE FLIGHT
+    ===================================================== */
 
     if (
         modelsLoadingPromise &&
@@ -1803,14 +1996,10 @@ async function loadModels(
 
             try {
 
-                /*
-                 * =================================================
-                 * STEP 1
-                 * =================================================
-                 *
-                 * Ambil daftar model yang benar-benar
-                 * tersedia untuk API key.
-                 */
+                /* =========================================
+                   STEP 1
+                   AUTHENTICATED MODEL CATALOG
+                ========================================= */
 
                 const authenticatedResponse =
                     await openKeyClient
@@ -1852,16 +2041,10 @@ async function loadModels(
                 }
 
 
-                /*
-                 * =================================================
-                 * STEP 2
-                 * =================================================
-                 *
-                 * Public catalog tidak memakai API key.
-                 *
-                 * Jika gagal, jangan menghapus model
-                 * authenticated.
-                 */
+                /* =========================================
+                   STEP 2
+                   PUBLIC CATALOG
+                ========================================= */
 
                 let publicCatalogResponse =
                     null;
@@ -1893,17 +2076,10 @@ async function loadModels(
                 }
 
 
-                /*
-                 * =================================================
-                 * STEP 3
-                 * =================================================
-                 *
-                 * Merge:
-                 *
-                 * authenticated availability
-                 * +
-                 * public metadata
-                 */
+                /* =========================================
+                   STEP 3
+                   MERGE
+                ========================================= */
 
                 if (
                     publicCatalogResponse
@@ -1922,13 +2098,10 @@ async function loadModels(
                 }
 
 
-                /*
-                 * =================================================
-                 * STEP 4
-                 * =================================================
-                 *
-                 * Normalize ulang setelah merge.
-                 */
+                /* =========================================
+                   STEP 4
+                   NORMALIZE ULANG
+                ========================================= */
 
                 const models =
                     authenticatedModels
@@ -1942,13 +2115,10 @@ async function loadModels(
                         );
 
 
-                /*
-                 * =================================================
-                 * STEP 5
-                 * =================================================
-                 *
-                 * Sort.
-                 */
+                /* =========================================
+                   STEP 5
+                   SORT + CACHE
+                ========================================= */
 
                 modelCache =
                     sortModels(
@@ -2277,9 +2447,9 @@ function filterModels(
 
         model => {
 
-            /*
-             * SEARCH
-             */
+            /* =============================================
+               SEARCH
+            ============================================= */
 
             if (
                 normalizedSearch
@@ -2329,9 +2499,9 @@ function filterModels(
             }
 
 
-            /*
-             * OWNER
-             */
+            /* =============================================
+               OWNER
+            ============================================= */
 
             if (
                 normalizedOwnedBy
@@ -2354,9 +2524,9 @@ function filterModels(
             }
 
 
-            /*
-             * INPUT MODALITY
-             */
+            /* =============================================
+               INPUT MODALITY
+            ============================================= */
 
             if (
                 normalizedInput
@@ -2394,9 +2564,9 @@ function filterModels(
             }
 
 
-            /*
-             * OUTPUT MODALITY
-             */
+            /* =============================================
+               OUTPUT MODALITY
+            ============================================= */
 
             if (
                 normalizedOutput
