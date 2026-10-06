@@ -1594,20 +1594,105 @@
 
     async function copyPrompt() {
 
-        const state =
-            getState();
+        /*
+         * -------------------------------------------------
+         * Ambil prompt langsung dari blok hasil.
+         *
+         * Ini menjadi sumber utama karena teks yang terlihat
+         * di layar adalah teks yang memang ingin disalin.
+         * -------------------------------------------------
+         */
 
-
-        const prompt =
-            state.getValue(
-                "prompt.result",
-                ""
+        const promptElement =
+            element(
+                "promptResult"
             );
 
 
+        let prompt =
+            "";
+
+
+        if (promptElement) {
+
+            prompt =
+                (
+                    promptElement.textContent ||
+                    ""
+                ).trim();
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * FALLBACK KE STATE
+         * -------------------------------------------------
+         */
+
+        if (!prompt) {
+
+            try {
+
+                const state =
+                    getState();
+
+
+                const statePrompt =
+                    state.getValue(
+                        "prompt.result",
+                        ""
+                    );
+
+
+                if (
+                    typeof statePrompt === "string"
+                ) {
+
+                    prompt =
+                        statePrompt.trim();
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision Video] Tidak dapat mengambil prompt dari state:",
+                    error
+                );
+            }
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * VALIDASI PROMPT
+         * -------------------------------------------------
+         */
+
+        if (!prompt) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video] Tidak ada prompt yang dapat disalin."
+            );
+
+            return false;
+        }
+
+
+        const button =
+            element(
+                "copyButton"
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * CEGAH DOUBLE CLICK SAAT PROSES COPY
+         * -------------------------------------------------
+         */
+
         if (
-            !prompt ||
-            typeof prompt !== "string"
+            button &&
+            button.disabled
         ) {
 
             return false;
@@ -1615,6 +1700,12 @@
 
 
         try {
+
+            /*
+             * -------------------------------------------------
+             * MODERN CLIPBOARD API
+             * -------------------------------------------------
+             */
 
             if (
                 navigator.clipboard &&
@@ -1628,6 +1719,12 @@
 
             } else {
 
+                /*
+                 * -------------------------------------------------
+                 * FALLBACK UNTUK BROWSER TANPA CLIPBOARD API
+                 * -------------------------------------------------
+                 */
+
                 const textarea =
                     document.createElement(
                         "textarea"
@@ -1637,44 +1734,125 @@
                 textarea.value =
                     prompt;
 
+
+                textarea.setAttribute(
+                    "readonly",
+                    ""
+                );
+
+
                 textarea.style.position =
                     "fixed";
 
+                textarea.style.top =
+                    "0";
+
+                textarea.style.left =
+                    "-9999px";
+
+                textarea.style.width =
+                    "1px";
+
+                textarea.style.height =
+                    "1px";
+
                 textarea.style.opacity =
                     "0";
+
+                textarea.style.pointerEvents =
+                    "none";
+
 
                 document.body.appendChild(
                     textarea
                 );
 
+
                 textarea.focus();
 
                 textarea.select();
 
-                document.execCommand(
-                    "copy"
+
+                textarea.setSelectionRange(
+                    0,
+                    textarea.value.length
                 );
 
+
+                const copied =
+                    document.execCommand(
+                        "copy"
+                    );
+
+
                 textarea.remove();
+
+
+                if (!copied) {
+
+                    throw new Error(
+                        "Browser menolak operasi copy."
+                    );
+                }
             }
 
 
-            setText(
-                "copyButton",
-                "Copied"
-            );
+            /*
+             * -------------------------------------------------
+             * BERHASIL
+             * -------------------------------------------------
+             */
 
+            if (button) {
+
+                button.textContent =
+                    "✓ Berhasil Disalin";
+
+
+                button.setAttribute(
+                    "data-copy-state",
+                    "success"
+                );
+
+
+                button.disabled =
+                    true;
+            }
+
+
+            /*
+             * -------------------------------------------------
+             * KEMBALIKAN TOMBOL KE KONDISI NORMAL
+             * -------------------------------------------------
+             */
 
             window.setTimeout(
                 function () {
 
-                    setText(
-                        "copyButton",
-                        "Copy Prompt"
+                    if (!button) {
+                        return;
+                    }
+
+
+                    button.textContent =
+                        "Copy";
+
+
+                    button.removeAttribute(
+                        "data-copy-state"
                     );
 
+
+                    button.disabled =
+                        false;
+
                 },
-                1500
+                1800
+            );
+
+
+            console.info(
+                "[GEN-Z.AI Vision Video] Prompt berhasil disalin."
             );
 
 
@@ -1686,6 +1864,28 @@
                 "[GEN-Z.AI Vision Video] Copy failed:",
                 error
             );
+
+
+            /*
+             * -------------------------------------------------
+             * JIKA GAGAL, JANGAN TAMPILKAN STATUS PALSU
+             * -------------------------------------------------
+             */
+
+            if (button) {
+
+                button.textContent =
+                    "Copy";
+
+
+                button.removeAttribute(
+                    "data-copy-state"
+                );
+
+
+                button.disabled =
+                    false;
+            }
 
 
             return false;
