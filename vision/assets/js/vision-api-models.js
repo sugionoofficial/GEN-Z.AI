@@ -12,6 +12,7 @@
    - Single image message
    - Multi image message
    - Reference / Character outfit source
+   - Explicit identity / hair source locking
 ========================================================= */
 
 
@@ -746,18 +747,6 @@ function supportsImageInput(
 
 /* =========================================================
    RESOLVE VISION MODEL
-   ---------------------------------------------------------
-   ATURAN PENTING:
-
-   1. Jika user sudah memilih model:
-      - Cari model tersebut di katalog.
-      - Jika ditemukan dan Vision-capable:
-        gunakan model tersebut.
-      - Jika tidak ditemukan:
-        jangan ganti diam-diam ke model lain.
-
-   2. Fallback ke model Vision pertama hanya
-      jika TIDAK ada requested model.
 ========================================================= */
 
 async function resolveVisionModel(
@@ -849,10 +838,6 @@ async function resolveVisionModel(
             );
 
 
-        /* =================================================
-           MODEL PILIHAN TIDAK ADA DI KATALOG
-        ================================================= */
-
         if (
             !exact
         ) {
@@ -917,10 +902,6 @@ async function resolveVisionModel(
         }
 
 
-        /* =================================================
-           MODEL PILIHAN TIDAK MENDUKUNG IMAGE
-        ================================================= */
-
         if (
             !supportsImageInput(
                 exact
@@ -972,10 +953,6 @@ async function resolveVisionModel(
 
         }
 
-
-        /* =================================================
-           MODEL USER DIPERTAHANKAN
-        ================================================= */
 
         console.info(
             "[GEN-Z.AI Vision] Using requested Vision model:",
@@ -1060,10 +1037,6 @@ async function resolveVisionModel(
 
     }
 
-
-    /* =====================================================
-       FALLBACK HANYA JIKA TIDAK ADA PILIHAN USER
-    ===================================================== */
 
     const selected =
         visionModels[0];
@@ -1243,14 +1216,6 @@ function validateVisionImage(
 
 /* =========================================================
    BUILD IMAGE MESSAGE
-   ---------------------------------------------------------
-   BACKWARD COMPATIBILITY
-
-   Fungsi lama tetap dipertahankan.
-
-   Dipakai untuk:
-   - satu image
-   - reference image saja
 ========================================================= */
 
 function buildImageMessage(
@@ -1301,20 +1266,56 @@ function buildImageMessage(
 /* =========================================================
    BUILD MULTI IMAGE MESSAGE
    ---------------------------------------------------------
-   Digunakan ketika:
+   SOURCE AUTHORITY LOCK
+   ---------------------------------------------------------
 
-   Reference image
-          +
-   Replacement character
+   IMAGE 1 = REFERENCE IMAGE
 
-   tersedia bersamaan.
+   IMAGE 2 = REPLACEMENT CHARACTER
 
-   Urutan image:
-   1. Reference image
-   2. Replacement character
+   Saat outfitSource = character:
 
-   Label dibuat eksplisit supaya model Vision
-   mengetahui fungsi masing-masing gambar.
+   IMAGE 1 AUTHORITY:
+   - scene
+   - location
+   - environment
+   - background
+   - composition
+   - framing
+   - pose
+   - camera
+   - lens
+   - lighting
+   - shadows
+   - spatial relationships
+   - product
+
+   IMAGE 2 AUTHORITY:
+   - identity
+   - face
+   - eyes
+   - eyebrows
+   - nose
+   - lips
+   - skin
+   - hair
+   - hair color
+   - hair texture
+   - hair style
+   - hair length
+   - braids
+   - curls
+   - waves
+   - bangs
+   - hairline
+   - physical characteristics
+   - clothing
+   - outfit
+   - character accessories
+
+   PENTING:
+   IMAGE 1 TIDAK BOLEH menjadi sumber rambut
+   ketika outfitSource = character.
 ========================================================= */
 
 function buildMultiImageMessage(
@@ -1372,11 +1373,6 @@ function buildMultiImageMessage(
     }
 
 
-    /*
-     * Jika outfit source = character,
-     * replacement character WAJIB tersedia.
-     */
-
     if (
         normalizedOutfitSource ===
             "character" &&
@@ -1403,7 +1399,7 @@ function buildMultiImageMessage(
 
 
     /* =====================================================
-       INSTRUCTION TEXT
+       BASE INSTRUCTION
     ===================================================== */
 
     const baseText =
@@ -1431,7 +1427,97 @@ function buildMultiImageMessage(
 
 
     /* =====================================================
-       REFERENCE IMAGE
+       GLOBAL SOURCE AUTHORITY
+    ===================================================== */
+
+    content.push({
+
+        type:
+            "text",
+
+        text:
+            normalizedOutfitSource ===
+                "character"
+
+                ? [
+
+                    "SOURCE AUTHORITY LOCK.",
+
+                    "",
+
+                    "IMAGE 1 = REFERENCE IMAGE.",
+
+                    "IMAGE 2 = REPLACEMENT CHARACTER.",
+
+                    "",
+
+                    "IMAGE 1 adalah satu-satunya sumber untuk scene, lokasi, environment, background, pose, composition, framing, camera, lens, lighting, shadows, spatial relationships, dan product.",
+
+                    "",
+
+                    "IMAGE 2 adalah satu-satunya sumber untuk identitas karakter.",
+
+                    "Identitas karakter mencakup wajah, struktur wajah, mata, alis, hidung, bibir, warna kulit, tekstur kulit, bentuk tubuh yang terlihat, dan seluruh karakteristik fisik.",
+
+                    "",
+
+                    "SANGAT PENTING: RAMBUT HARUS SELALU DIAMBIL DARI IMAGE 2.",
+
+                    "Gunakan IMAGE 2 sebagai satu-satunya authority untuk warna rambut, panjang rambut, tekstur rambut, gaya rambut, bentuk rambut, braids, curls, waves, bangs, hair part, hairline, dan seluruh detail rambut.",
+
+                    "Jangan mengambil rambut dari IMAGE 1.",
+
+                    "Jika rambut IMAGE 1 berbeda dengan rambut IMAGE 2, abaikan rambut IMAGE 1 sepenuhnya dan gunakan rambut IMAGE 2.",
+
+                    "Jangan menggabungkan, mencampur, atau menginterpolasikan rambut dari kedua gambar.",
+
+                    "",
+
+                    "IMAGE 2 juga menjadi sumber outfit/pakaian final karena OUTFIT SOURCE = CHARACTER.",
+
+                    "Jangan mengambil pakaian, warna pakaian, desain pakaian, tekstur pakaian, atau aksesori outfit dari IMAGE 1.",
+
+                    "",
+
+                    "Jangan pernah menggunakan karakteristik identity IMAGE 1 untuk menggantikan identity IMAGE 2."
+
+                ].join("\n")
+
+                : [
+
+                    "SOURCE AUTHORITY LOCK.",
+
+                    "",
+
+                    "IMAGE 1 = REFERENCE IMAGE.",
+
+                    "IMAGE 2 = REPLACEMENT CHARACTER.",
+
+                    "",
+
+                    "IMAGE 1 adalah sumber utama scene, lokasi, environment, background, pose, composition, framing, camera, lens, lighting, shadows, spatial relationships, product, dan outfit/pakaian.",
+
+                    "",
+
+                    "IMAGE 2 hanya menjadi sumber identitas karakter.",
+
+                    "Identitas karakter mencakup wajah, struktur wajah, mata, alis, hidung, bibir, warna kulit, tekstur kulit, bentuk tubuh yang terlihat, dan rambut.",
+
+                    "Rambut harus mengikuti IMAGE 2.",
+
+                    "Jangan mengambil rambut atau outfit dari IMAGE 2 sebagai pengganti sumber reference.",
+
+                    "",
+
+                    "Jangan mencampur outfit kedua gambar."
+
+                ].join("\n")
+
+    });
+
+
+    /* =====================================================
+       REFERENCE IMAGE LABEL
     ===================================================== */
 
     content.push({
@@ -1443,9 +1529,31 @@ function buildMultiImageMessage(
             normalizedOutfitSource ===
                 "reference"
 
-                ? "REFERENCE IMAGE: Gunakan gambar ini sebagai sumber outfit/pakaian utama. Replacement character, jika ada, tidak boleh menyumbangkan outfit."
+                ? [
 
-                : "REFERENCE IMAGE: Gunakan gambar ini untuk komposisi, pose, produk, lingkungan, pencahayaan, kamera, dan elemen visual lainnya. JANGAN mengambil outfit dari gambar ini."
+                    "REFERENCE IMAGE:",
+
+                    "Gunakan gambar berikut sebagai sumber utama scene dan outfit.",
+
+                    "Pertahankan lokasi, lingkungan, background, pose, composition, framing, camera, lighting, product, pakaian, warna pakaian, tekstur pakaian, dan detail outfit dari gambar ini.",
+
+                    "Jangan gunakan reference image untuk menggantikan identitas karakter IMAGE 2."
+
+                ].join("\n")
+
+                : [
+
+                    "REFERENCE IMAGE:",
+
+                    "Gunakan gambar berikut hanya sebagai sumber scene.",
+
+                    "Pertahankan lokasi, lingkungan, background, pose, composition, framing, camera, lens, lighting, shadows, spatial relationships, dan product.",
+
+                    "JANGAN gunakan wajah, rambut, kulit, tubuh, identitas, atau outfit dari gambar ini sebagai sumber replacement character.",
+
+                    "RAMBUT IMAGE 1 HARUS DIABAIKAN untuk identity replacement character."
+
+                ].join("\n")
 
     });
 
@@ -1466,7 +1574,7 @@ function buildMultiImageMessage(
 
 
     /* =====================================================
-       REPLACEMENT CHARACTER
+       CHARACTER IMAGE
     ===================================================== */
 
     if (
@@ -1482,9 +1590,45 @@ function buildMultiImageMessage(
                 normalizedOutfitSource ===
                     "character"
 
-                    ? "REPLACEMENT CHARACTER IMAGE: Gunakan karakter ini sebagai sumber identitas karakter dan outfit/pakaian final. Jangan mengambil outfit dari REFERENCE IMAGE."
+                    ? [
 
-                    : "REPLACEMENT CHARACTER IMAGE: Gunakan gambar ini untuk identitas karakter, wajah, rambut, bentuk tubuh, dan karakteristik orang. JANGAN mengambil outfit/pakaian dari gambar ini."
+                        "REPLACEMENT CHARACTER IMAGE:",
+
+                        "Gambar berikut adalah authority utama dan eksklusif untuk identitas karakter.",
+
+                        "Gunakan wajah, struktur wajah, mata, alis, hidung, bibir, warna kulit, tekstur kulit, bentuk tubuh yang terlihat, dan seluruh karakteristik fisik dari gambar ini.",
+
+                        "",
+
+                        "RAMBUT CHARACTER WAJIB DIAMBIL DARI GAMBAR INI.",
+
+                        "Pertahankan warna rambut, panjang rambut, tekstur rambut, bentuk rambut, gaya rambut, braids, curls, waves, bangs, hair part, hairline, dan detail rambut lain persis berdasarkan karakter yang terlihat pada gambar ini.",
+
+                        "Jangan menggunakan rambut REFERENCE IMAGE.",
+
+                        "Jangan mencampur rambut REFERENCE IMAGE dengan rambut CHARACTER IMAGE.",
+
+                        "",
+
+                        "Karena OUTFIT SOURCE = CHARACTER, gunakan juga pakaian dan outfit dari gambar ini sebagai sumber outfit final.",
+
+                        "Jangan mengambil outfit dari REFERENCE IMAGE."
+
+                    ].join("\n")
+
+                    : [
+
+                        "REPLACEMENT CHARACTER IMAGE:",
+
+                        "Gunakan gambar ini sebagai sumber identitas karakter.",
+
+                        "Pertahankan wajah, struktur wajah, mata, alis, hidung, bibir, warna kulit, bentuk tubuh yang terlihat, dan rambut.",
+
+                        "Jangan mengambil outfit atau pakaian dari gambar ini.",
+
+                        "Outfit tetap berasal dari REFERENCE IMAGE."
+
+                    ].join("\n")
 
         });
 
@@ -1507,6 +1651,52 @@ function buildMultiImageMessage(
 
 
     /* =====================================================
+       FINAL IDENTITY LOCK
+    ===================================================== */
+
+    content.push({
+
+        type:
+            "text",
+
+        text:
+            normalizedOutfitSource ===
+                "character"
+
+                ? [
+
+                    "FINAL IDENTITY LOCK:",
+
+                    "IMAGE 2 adalah identity authority.",
+
+                    "Wajah IMAGE 2 harus dipertahankan.",
+
+                    "Rambut IMAGE 2 harus dipertahankan.",
+
+                    "Jangan mengganti rambut IMAGE 2 dengan rambut IMAGE 1.",
+
+                    "Jangan menggunakan warna, panjang, tekstur, atau gaya rambut IMAGE 1.",
+
+                    "Jika terdapat konflik antara IMAGE 1 dan IMAGE 2 mengenai identity atau rambut, IMAGE 2 selalu menang."
+
+                ].join("\n")
+
+                : [
+
+                    "FINAL IDENTITY LOCK:",
+
+                    "IMAGE 2 adalah sumber identity replacement character.",
+
+                    "IMAGE 2 mengontrol wajah dan rambut karakter.",
+
+                    "IMAGE 1 mengontrol scene dan outfit."
+
+                ].join("\n")
+
+    });
+
+
+    /* =====================================================
        FINAL OUTFIT RULE
     ===================================================== */
 
@@ -1519,9 +1709,25 @@ function buildMultiImageMessage(
             normalizedOutfitSource ===
                 "character"
 
-                ? "OUTFIT SOURCE FINAL: REPLACEMENT CHARACTER. Outfit/pakaian final harus mengikuti replacement character. Jangan mencampur pakaian, warna pakaian, desain pakaian, aksesori pakaian, atau detail outfit dari reference image."
+                ? [
 
-                : "OUTFIT SOURCE FINAL: REFERENCE IMAGE. Outfit/pakaian final harus mengikuti reference image. Replacement character tidak boleh menjadi sumber pakaian atau aksesori outfit."
+                    "OUTFIT SOURCE FINAL: REPLACEMENT CHARACTER.",
+
+                    "Outfit/pakaian final harus mengikuti IMAGE 2.",
+
+                    "Jangan mencampur pakaian, warna pakaian, desain pakaian, tekstur pakaian, atau aksesori outfit dari IMAGE 1."
+
+                ].join("\n")
+
+                : [
+
+                    "OUTFIT SOURCE FINAL: REFERENCE IMAGE.",
+
+                    "Outfit/pakaian final harus mengikuti IMAGE 1.",
+
+                    "Replacement character tidak boleh menjadi sumber pakaian atau aksesori outfit."
+
+                ].join("\n")
 
     });
 
@@ -1533,36 +1739,6 @@ function buildMultiImageMessage(
 
 /* =========================================================
    BUILD VISION IMAGE MESSAGE
-   ---------------------------------------------------------
-   Helper utama untuk pipeline Vision.
-
-   Aturan:
-
-   1. referenceImage TIDAK diberikan secara eksplisit
-      -> ambil dari state.
-
-   2. referenceImage diberikan secara eksplisit
-      -> gunakan nilai tersebut, termasuk null.
-
-   3. characterImage TIDAK diberikan secara eksplisit
-      -> ambil dari state.
-
-   4. characterImage diberikan secara eksplisit
-      -> gunakan nilai tersebut, termasuk null.
-
-   Ini penting agar:
-
-   Reference Outfit:
-      characterImage: null
-
-   benar-benar berarti:
-      JANGAN mengambil character image dari state.
-
-   Character Outfit:
-      characterImage: dataUrl
-
-   berarti:
-      kirim kedua image.
 ========================================================= */
 
 function buildVisionImageMessage(
@@ -1663,12 +1839,6 @@ function buildVisionImageMessage(
 
     /* =====================================================
        SINGLE IMAGE
-       -----------------------------------------------------
-       Digunakan untuk:
-
-       - Reference Outfit
-       - Tidak ada replacement character
-       - Character image secara eksplisit null
     ===================================================== */
 
     if (
@@ -1690,9 +1860,6 @@ function buildVisionImageMessage(
 
     /* =====================================================
        MULTI IMAGE
-       -----------------------------------------------------
-       Digunakan ketika replacement character
-       benar-benar tersedia.
     ===================================================== */
 
     return buildMultiImageMessage({
@@ -1735,11 +1902,23 @@ function buildOutfitSourceInstructions(
 
             "Gunakan replacement character sebagai sumber outfit/pakaian final.",
 
+            "Gunakan replacement character juga sebagai satu-satunya sumber identitas karakter.",
+
+            "Identitas mencakup wajah, kulit, bentuk fisik, dan RAMBUT.",
+
+            "RAMBUT wajib mengikuti replacement character.",
+
+            "Jangan mengambil rambut dari reference image.",
+
+            "Jika rambut reference image berbeda dengan replacement character, abaikan rambut reference image.",
+
+            "Jangan mencampur rambut kedua gambar.",
+
             "Jangan mengambil outfit dari reference image.",
 
             "Jangan mencampur pakaian, warna, desain, aksesori, tekstur, atau detail outfit dari reference image.",
 
-            "Reference image tetap digunakan untuk komposisi, pose, produk, lingkungan, pencahayaan, kamera, dan elemen visual lain yang relevan.",
+            "Reference image tetap digunakan untuk komposisi, pose, produk, lingkungan, pencahayaan, kamera, background, dan elemen visual scene lainnya.",
 
             "Pertahankan identitas replacement character secara konsisten."
 
@@ -1754,11 +1933,15 @@ function buildOutfitSourceInstructions(
 
         "Gunakan reference image sebagai sumber outfit/pakaian final.",
 
+        "Gunakan replacement character sebagai sumber identitas karakter.",
+
+        "Identitas mencakup wajah, kulit, bentuk fisik, dan RAMBUT.",
+
+        "Rambut harus mengikuti replacement character.",
+
         "Jangan mengambil outfit dari replacement character.",
 
-        "Jangan mencampur pakaian, warna, desain, aksesori, tekstur, atau detail outfit dari replacement character.",
-
-        "Replacement character tetap digunakan untuk identitas karakter apabila tersedia."
+        "Jangan mencampur pakaian, warna, desain, aksesori, tekstur, atau detail outfit dari replacement character."
 
     ];
 
@@ -1767,12 +1950,6 @@ function buildOutfitSourceInstructions(
 
 /* =========================================================
    GET SELECTED MODEL
-   ---------------------------------------------------------
-   Kompatibel dengan:
-
-   - GENZVisionState.getModel()
-   - raw state object
-   - legacy state.get()
 ========================================================= */
 
 function getSelectedModel() {
@@ -1839,12 +2016,6 @@ function getSelectedModel() {
 
 /* =========================================================
    DEBUG IMAGE SOURCES
-   ---------------------------------------------------------
-   Menggunakan aturan explicit option yang sama dengan
-   buildVisionImageMessage().
-
-   Jika characterImage: null diberikan secara eksplisit,
-   fungsi TIDAK mengambil character image dari state.
 ========================================================= */
 
 function getVisionImageSources(
