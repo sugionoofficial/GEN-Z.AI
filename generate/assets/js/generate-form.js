@@ -958,6 +958,11 @@ function createImageField(
         status
     );
 
+
+    /* =====================================================
+       URL MODE
+    ===================================================== */
+
     urlButton.addEventListener(
         "click",
         () => {
@@ -975,8 +980,31 @@ function createImageField(
 
             fileInput.style.display =
                 "none";
+
+            /*
+             * URL mode must not accidentally reuse
+             * an old uploaded image.
+             */
+
+            container.setUploadedUrl(
+                ""
+            );
+
+            fileInput.value =
+                "";
+
+            preview.innerHTML =
+                "";
+
+            status.textContent =
+                "";
         }
     );
+
+
+    /* =====================================================
+       UPLOAD MODE
+    ===================================================== */
 
     uploadButton.addEventListener(
         "click",
@@ -996,13 +1024,34 @@ function createImageField(
             fileInput.style.display =
                 "";
 
+            /*
+             * URL mode value must not interfere
+             * with uploaded image mode.
+             */
+
+            urlInput.value =
+                "";
+
             fileInput.click();
         }
     );
 
+
+    /* =====================================================
+       IMAGE FILE CHANGE
+       -----------------------------------------------------
+       IMPORTANT:
+       The previous implementation only displayed the
+       selected file locally.
+
+       Motiongen requires a PUBLIC image URL.
+       Therefore the file is uploaded immediately and
+       the resulting URL is stored in container.dataset.
+    ===================================================== */
+
     fileInput.addEventListener(
         "change",
-        () => {
+        async () => {
 
             const file =
                 fileInput.files?.[0];
@@ -1013,10 +1062,28 @@ function createImageField(
 
             try {
 
+                /* =========================================
+                   VALIDATE IMAGE
+                ========================================= */
+
                 validateImageFile(
                     file,
                     modelArgument
                 );
+
+
+                /* =========================================
+                   CLEAR PREVIOUS UPLOADED URL
+                ========================================= */
+
+                container.setUploadedUrl(
+                    ""
+                );
+
+
+                /* =========================================
+                   LOCAL PREVIEW
+                ========================================= */
 
                 preview.innerHTML =
                     "";
@@ -1026,10 +1093,13 @@ function createImageField(
                         "img"
                     );
 
-                image.src =
+                const objectUrl =
                     URL.createObjectURL(
                         file
                     );
+
+                image.src =
+                    objectUrl;
 
                 image.alt =
                     "Image preview";
@@ -1038,27 +1108,119 @@ function createImageField(
                     image
                 );
 
+
+                /* =========================================
+                   UPLOAD STATUS
+                ========================================= */
+
+                status.textContent =
+                    "Mengunggah gambar...";
+
+
+                /* =========================================
+                   UPLOAD TO SUPABASE
+                ========================================= */
+
+                const publicUrl =
+                    await uploadImageFile(
+                        file,
+                        modelArgument
+                    );
+
+
+                /* =========================================
+                   VERIFY PUBLIC URL
+                ========================================= */
+
+                if (!publicUrl) {
+
+                    throw new Error(
+                        "Public URL gambar tidak berhasil dibuat."
+                    );
+                }
+
+
+                /* =========================================
+                   STORE PUBLIC URL
+                   ------------------------------------------------
+                   getFormParameters() akan mengambil URL
+                   ini dan menghasilkan:
+
+                   image_urls: [
+                       publicUrl
+                   ]
+                ========================================= */
+
+                container.setUploadedUrl(
+                    publicUrl
+                );
+
+
+                /* =========================================
+                   SUCCESS STATUS
+                ========================================= */
+
                 status.textContent =
                     file.name;
 
+
+                /*
+                 * Release browser object URL after the
+                 * preview image has loaded.
+                 */
+
+                image.addEventListener(
+                    "load",
+                    () => {
+
+                        try {
+                            URL.revokeObjectURL(
+                                objectUrl
+                            );
+                        } catch {
+                            /* ignore */
+                        }
+
+                    },
+                    {
+                        once: true
+                    }
+                );
+
+
             } catch (error) {
+
+                /* =========================================
+                   RESET FAILED UPLOAD
+                ========================================= */
 
                 fileInput.value =
                     "";
+
+                container.setUploadedUrl(
+                    ""
+                );
 
                 preview.innerHTML =
                     "";
 
                 status.textContent =
-                    error.message;
+                    error?.message ||
+                    "Upload gambar gagal.";
+
 
                 console.error(
-                    "[GEN-Z.AI Generate] Image validation error:",
+                    "[GEN-Z.AI Generate] Image upload/validation error:",
                     error
                 );
             }
         }
     );
+
+
+    /* =====================================================
+       PUBLIC FIELD METHODS
+    ===================================================== */
 
     container.getInputMode = () => {
 
@@ -1074,15 +1236,19 @@ function createImageField(
         return "url";
     };
 
+
     container.getUrlInput = () =>
         urlInput;
+
 
     container.getFileInput = () =>
         fileInput;
 
+
     container.getUploadedUrl = () =>
         container.dataset.uploadedUrl ||
         "";
+
 
     container.setUploadedUrl = (
         value
@@ -1091,6 +1257,7 @@ function createImageField(
         container.dataset.uploadedUrl =
             value || "";
     };
+
 
     container.clearUploadedFile = () => {
 
@@ -1107,12 +1274,14 @@ function createImageField(
             "";
     };
 
+
     container.getSelectedFiles = () =>
         fileInput.files
             ? Array.from(
                 fileInput.files
             )
             : [];
+
 
     return container;
 }
@@ -2808,6 +2977,18 @@ async function resolveImageParameterValue(
         "upload"
     ) {
 
+        /*
+         * The image upload handler now stores the
+         * public URL immediately.
+
+         * Therefore this branch normally receives:
+         *
+         * rawValue.url = public Supabase URL
+         *
+         * The fallback below remains intact for
+         * compatibility with existing callers.
+         */
+
         if (
             rawValue.url
         ) {
@@ -3122,6 +3303,12 @@ async function getFormParameters(
                 parameters.image_urls
             )
                 ? parameters.image_urls
+                    .filter(Boolean)
+                    .map(
+                        value =>
+                            String(value)
+                                .trim()
+                    )
                     .filter(Boolean)
                 : [];
 
