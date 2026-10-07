@@ -1997,6 +1997,69 @@ function calculateFinalCredit(
    GET MODEL CREDIT FOR CURRENT RESOLUTION
 ========================================================= */
 
+function getModelDefaultResolution(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !==
+        "object"
+    ) {
+
+        return "";
+
+    }
+
+    const candidates = [
+
+        model.parameters?.resolution?.default,
+
+        model.parameters?.resolution?.default_value,
+
+        model.config?.parameters?.resolution?.default,
+
+        model.repository?.parameters?.resolution?.default,
+
+        model.default_resolution,
+
+        model.defaultResolution,
+
+        model.resolution
+
+    ];
+
+    for (
+        const candidate
+        of candidates
+    ) {
+
+        const normalized =
+            normalizeResolution(
+                candidate
+            );
+
+        if (
+            normalized
+        ) {
+
+            return normalized;
+
+        }
+
+    }
+
+    /*
+     * Fallback aman:
+     * 480p adalah resolusi credit terendah
+     * yang selalu tersedia di admin model.
+     */
+
+    return "480p";
+
+}
+
+
 function getModelCredit(
     model,
     explicitResolution = ""
@@ -2015,7 +2078,10 @@ function getModelCredit(
     const resolution =
         normalizeResolution(
             explicitResolution ||
-            getSelectedResolution()
+            getSelectedResolution() ||
+            getModelDefaultResolution(
+                model
+            )
         );
 
     if (
@@ -2121,6 +2187,48 @@ function getModelCredit(
 
     }
 
+    /*
+     * Fallback terakhir:
+     * coba semua resolusi credit yang tersedia
+     * dari setting admin model.
+     */
+
+    const fallbackResolutions = [
+        "480p",
+        "720p",
+        "1080p"
+    ];
+
+    for (
+        const fallbackResolution
+        of fallbackResolutions
+    ) {
+
+        const baseCredit =
+            getModelResolutionBaseCredit(
+                model,
+                fallbackResolution
+            );
+
+        if (
+            baseCredit !==
+                null
+        ) {
+
+            const discount =
+                getModelDiscountPercent(
+                    model
+                );
+
+            return calculateFinalCredit(
+                baseCredit,
+                discount
+            );
+
+        }
+
+    }
+
     return null;
 
 }
@@ -2141,7 +2249,7 @@ function formatCredit(
             undefined
     ) {
 
-        return "-";
+        return "-- Credit";
 
     }
 
@@ -2156,22 +2264,31 @@ function formatCredit(
         )
     ) {
 
-        return "-";
+        return "-- Credit";
 
     }
 
-    return new Intl.NumberFormat(
-        "id-ID",
-        {
-            minimumFractionDigits:
-                0,
+    const formatted =
+        new Intl.NumberFormat(
+            "id-ID",
+            {
+                minimumFractionDigits:
+                    0,
 
-            maximumFractionDigits:
-                2
-        }
-    ).format(
-        number
-    );
+                maximumFractionDigits:
+                    2
+            }
+        ).format(
+            number
+        );
+
+    /*
+     * Tampilkan label "Credit" agar user jelas
+     * bahwa angka ini adalah biaya yang akan
+     * memotong saldo credit per generate.
+     */
+
+    return `${formatted} Credit`;
 
 }
 
@@ -2397,7 +2514,10 @@ function renderModelCredit(
     const selectedResolution =
         normalizeResolution(
             resolution ||
-            getSelectedResolution()
+            getSelectedResolution() ||
+            getModelDefaultResolution(
+                currentModel
+            )
         );
 
     const credit =
@@ -2426,6 +2546,47 @@ function renderModelCredit(
 
         creditElement.textContent =
             formatted;
+
+        /*
+         * Tooltip agar user paham angka ini
+         * adalah biaya yang akan memotong
+         * saldo credit setiap generate.
+         */
+
+        if (
+            credit !==
+                null &&
+            credit !==
+                undefined
+        ) {
+
+            creditElement.title =
+                `Biaya generate: ${formatted}` +
+                (
+                    selectedResolution
+                        ? ` (${selectedResolution})`
+                        : ""
+                ) +
+                ". Nilai diambil dari pengaturan model di halaman admin.";
+
+            creditElement.setAttribute(
+                "aria-label",
+                `Biaya generate ${formatted}`
+            );
+
+        }
+
+        else {
+
+            creditElement.title =
+                "Credit model belum dikonfigurasi di halaman edit model.";
+
+            creditElement.setAttribute(
+                "aria-label",
+                "Credit belum tersedia"
+            );
+
+        }
 
         creditElement.hidden =
             false;
