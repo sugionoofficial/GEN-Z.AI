@@ -6,35 +6,28 @@
    generate/assets/js/generate-form.js
 
    Tanggung jawab:
-   - Orchestrate generate form
+   - Orchestrator utama Generate Form
    - Render parameter model secara dinamis
    - Source parameter dari konfigurasi model
    - Mendukung object / array / JSON Schema
    - Image URL / Upload melalui media module
    - Audio URL / Upload melalui media module
    - Collect parameter melalui generate-form-data.js
+   - Set value field
    - Reset form
    - Form disabled state
-   - Media parameter access
-   - Parameter definition access
    - Tidak membuat parameter model baru
    - Parameter internal tidak ditampilkan
    - Parameter server-controlled tidak dikirim dari client
 
-   Renderer:
-   - generate-form-render.js
-
-   Field factories:
+   Modul yang menangani detail:
+   - generate-form-core.js
    - generate-form-fields.js
-
-   Field value:
-   - generate-form-value.js
-
-   Media:
    - generate-form-media.js
-
-   Data:
+   - generate-form-reader.js
+   - generate-form-render.js
    - generate-form-data.js
+   - generate-form-upload.js
 ========================================================= */
 
 "use strict";
@@ -52,18 +45,16 @@ import {
     isServerControlledParameter,
     isClientForbiddenParameter,
     getOrderedParameterNames,
+    getDefaultValue,
     normalizeArray
 } from "./generate-form-core.js";
 
 
 /* =========================================================
-   FORM RENDERER
+   FORM RENDER
    ---------------------------------------------------------
-   Tanggung jawab:
-   - createField()
-   - appendDescription()
-   - renderParameter()
-   - forceContainerVisible()
+   Detail pembuatan field dan layout sekarang dimiliki oleh:
+   generate-form-render.js
 ========================================================= */
 
 import {
@@ -116,24 +107,11 @@ import {
 
 
 /* =========================================================
-   FORM VALUE
-   ---------------------------------------------------------
-   setFieldValue()
-   sekarang dimiliki oleh:
-   generate-form-value.js
-========================================================= */
-
-import {
-    setFieldValue
-} from "./generate-form-value.js";
-
-
-/* =========================================================
    FORM DATA
    ---------------------------------------------------------
    getFormParameters()
    getFormData()
-   dimiliki oleh:
+   sekarang dimiliki oleh:
    generate-form-data.js
 ========================================================= */
 
@@ -146,37 +124,31 @@ import {
 /* =========================================================
    MEDIA HANDLER REGISTRATION
    ---------------------------------------------------------
-   Register upload / validation handler sebelum field
-   media digunakan oleh form.
+   Registration dilakukan sekali saat module dimuat.
 ========================================================= */
 
 registerImageMediaHandlers({
-
     upload:
         uploadImageFile,
 
     validate:
         validateImageFile
-
 });
 
 
 registerAudioMediaHandlers({
-
     upload:
         uploadAudioFile,
 
     validate:
         validateAudioFile
-
 });
 
 
 /* =========================================================
    FIELD FACTORY REGISTRATION
    ---------------------------------------------------------
-   Field factory image/audio disediakan oleh
-   generate-form-media.js.
+   Field module menggunakan factory registry untuk media.
 ========================================================= */
 
 registerImageFieldFactory(
@@ -235,17 +207,13 @@ export function renderGenerateForm(
     }
 
 
-    /* =====================================================
-       CLEAR FORM LAMA
-    ===================================================== */
+    /*
+     * Bersihkan field lama sebelum render model baru.
+     */
 
     container.innerHTML =
         "";
 
-
-    /* =====================================================
-       GET PARAMETER DEFINITIONS
-    ===================================================== */
 
     const definitions =
         getParameterDefinitions(
@@ -258,10 +226,6 @@ export function renderGenerateForm(
             definitions
         );
 
-
-    /* =====================================================
-       DEBUG
-    ===================================================== */
 
     console.debug(
         "[GEN-Z.AI][Generate Form] MODEL:",
@@ -327,10 +291,14 @@ export function renderGenerateForm(
 
             try {
 
+                const definition =
+                    definitions?.[name];
+
+
                 const field =
                     renderParameter(
                         name,
-                        definitions[name]
+                        definition
                     );
 
 
@@ -365,7 +333,7 @@ export function renderGenerateForm(
 
 
     /* =====================================================
-       FORCE CONTAINER VISIBLE
+       FORCE LAYOUT
     ===================================================== */
 
     forceContainerVisible(
@@ -373,14 +341,9 @@ export function renderGenerateForm(
     );
 
 
-    /* =====================================================
-       DEBUG RENDER RESULT
-    ===================================================== */
-
     console.debug(
         "[GEN-Z.AI][Generate Form] RENDER SELESAI:",
         {
-
             model:
                 model.model_id ||
                 model.id ||
@@ -391,12 +354,311 @@ export function renderGenerateForm(
 
             parameters:
                 names
-
         }
     );
 
 
     return renderedCount > 0;
+
+}
+
+
+/* =========================================================
+   SET FIELD VALUE
+   ---------------------------------------------------------
+   Dipertahankan di orchestrator karena fungsi ini merupakan
+   public API yang digunakan module lain.
+========================================================= */
+
+export function setFieldValue(
+    name,
+    value
+) {
+
+    /* =====================================================
+       SECURITY / PARAMETER FILTER
+    ===================================================== */
+
+    if (
+        isClientForbiddenParameter(
+            name
+        ) ||
+        isInternalParameter(
+            name
+        ) ||
+        isServerControlledParameter(
+            name
+        )
+    ) {
+
+        return false;
+
+    }
+
+
+    const field =
+        findField(
+            name
+        );
+
+
+    if (
+        !field
+    ) {
+
+        return false;
+
+    }
+
+
+    /* =====================================================
+       IMAGE
+    ===================================================== */
+
+    if (
+        name === "image_urls" ||
+        name === "image_url"
+    ) {
+
+        const imageInput =
+            field.querySelector(
+                ".generate-image-input"
+            ) ||
+            (
+                field.classList?.contains(
+                    "generate-image-input"
+                )
+                    ? field
+                    : null
+            );
+
+
+        const images =
+            normalizeArray(
+                value
+            );
+
+
+        const urlInput =
+            imageInput &&
+            typeof imageInput.getUrlInput ===
+                "function"
+
+                ? imageInput.getUrlInput()
+
+                : field.querySelector(
+                    'input[type="url"]'
+                );
+
+
+        if (
+            urlInput
+        ) {
+
+            urlInput.value =
+                images[0] ||
+                "";
+
+        }
+
+
+        /*
+         * URL yang diberikan secara programmatic
+         * bukan hasil upload baru.
+         */
+
+        if (
+            imageInput &&
+            typeof imageInput.setUploadedUrl ===
+                "function"
+        ) {
+
+            imageInput.setUploadedUrl(
+                ""
+            );
+
+        }
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       AUDIO
+    ===================================================== */
+
+    if (
+        name === "audio_url"
+    ) {
+
+        const audioInput =
+            field.querySelector(
+                ".generate-audio-input"
+            ) ||
+            (
+                field.classList?.contains(
+                    "generate-audio-input"
+                )
+                    ? field
+                    : null
+            );
+
+
+        const urlInput =
+            audioInput &&
+            typeof audioInput.getUrlInput ===
+                "function"
+
+                ? audioInput.getUrlInput()
+
+                : field.querySelector(
+                    'input[type="url"]'
+                );
+
+
+        if (
+            urlInput
+        ) {
+
+            urlInput.value =
+                String(
+                    value ||
+                    ""
+                ).trim();
+
+        }
+
+
+        if (
+            audioInput &&
+            typeof audioInput.setUploadedUrl ===
+                "function"
+        ) {
+
+            audioInput.setUploadedUrl(
+                ""
+            );
+
+        }
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       RADIO
+    ===================================================== */
+
+    const radios =
+        field.querySelectorAll(
+            'input[type="radio"]'
+        );
+
+
+    if (
+        radios.length
+    ) {
+
+        let found =
+            false;
+
+
+        radios.forEach(
+            radio => {
+
+                const active =
+                    String(
+                        radio.value
+                    ) ===
+                    String(
+                        value
+                    );
+
+
+                radio.checked =
+                    active;
+
+
+                radio
+                    .nextElementSibling
+                    ?.classList.toggle(
+                        "active",
+                        active
+                    );
+
+
+                if (
+                    active
+                ) {
+
+                    found =
+                        true;
+
+                }
+
+            }
+        );
+
+
+        return found;
+
+    }
+
+
+    /* =====================================================
+       CHECKBOX
+    ===================================================== */
+
+    const checkbox =
+        field.querySelector(
+            'input[type="checkbox"]'
+        );
+
+
+    if (
+        checkbox
+    ) {
+
+        checkbox.checked =
+            Boolean(
+                value
+            );
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       NORMAL INPUT
+    ===================================================== */
+
+    const input =
+        field.querySelector(
+            "input, textarea, select"
+        );
+
+
+    if (
+        !input
+    ) {
+
+        return false;
+
+    }
+
+
+    input.value =
+        value ??
+        "";
+
+
+    return true;
 
 }
 
@@ -425,9 +687,13 @@ export async function resetDynamicFields(
     /* =====================================================
        SEEDANCE
        -----------------------------------------------------
-       Seedance memiliki form khusus yang tidak boleh
-       dirender ulang karena state/layout handler-nya
-       dikelola oleh form khusus tersebut.
+       Seedance memiliki form khusus.
+
+       Jangan render ulang karena render ulang dapat:
+       - menghapus upload state
+       - menghapus preview
+       - menghilangkan event listener khusus
+       - mengubah layout form
     ===================================================== */
 
     const seedanceForm =
@@ -446,7 +712,7 @@ export async function resetDynamicFields(
 
 
         /* =================================================
-           TEXT / NUMBER / RANGE / URL / TEXTAREA
+           TEXT / TEXTAREA
         ================================================= */
 
         seedanceForm
@@ -838,7 +1104,7 @@ export async function resetDynamicFields(
 
 
         /* =================================================
-           KEEP CONTAINER VISIBLE
+           CONTAINER VISIBILITY
         ================================================= */
 
         container.hidden =
@@ -875,9 +1141,9 @@ export async function resetDynamicFields(
 
 
     /* =====================================================
-       NON-SEEDANCE
+       MODEL NON-SEEDANCE
        -----------------------------------------------------
-       Bersihkan upload terlebih dahulu.
+       Upload harus dibersihkan sebelum render ulang.
     ===================================================== */
 
     const uploads =
@@ -918,7 +1184,7 @@ export async function resetDynamicFields(
 
 
     /* =====================================================
-       RENDER ULANG
+       RENDER ULANG MODEL
     ===================================================== */
 
     renderGenerateForm(
@@ -969,6 +1235,8 @@ export function setFormDisabled(
 
 /* =========================================================
    MEDIA PARAMETERS
+   ---------------------------------------------------------
+   Compatibility helper untuk module lain.
 ========================================================= */
 
 export async function getMediaParameters(
@@ -1016,10 +1284,6 @@ export function getParameterDefinition(
     modelArgument = null
 ) {
 
-    /* =====================================================
-       PROTECTED PARAMETERS
-    ===================================================== */
-
     if (
         isClientForbiddenParameter(
             name
@@ -1036,10 +1300,6 @@ export function getParameterDefinition(
 
     }
 
-
-    /* =====================================================
-       DEFINITIONS
-    ===================================================== */
 
     const definitions =
         getParameterDefinitions(
