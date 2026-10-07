@@ -321,6 +321,16 @@ function getParameterDefinitions(
             /*
              * =================================================
              * ACTIVE RESOLUTION OVERRIDE
+             *
+             * IMPORTANT:
+             * - Gunakan supported_resolutions hanya jika
+             *   benar-benar memiliki pilihan.
+             * - Jika kosong, pertahankan enum resolution
+             *   dari parameters.js.
+             *
+             * Ini penting untuk model seperti Motiongen
+             * yang mendefinisikan resolution sendiri sebagai
+             * parameter GEN-Z.AI.
              * =================================================
              */
 
@@ -348,7 +358,14 @@ function getParameterDefinitions(
                         : [];
 
 
+                /*
+                 * =================================================
+                 * HANYA OVERRIDE JIKA ADA VALUE
+                 * =================================================
+                 */
+
                 if (
+                    activeResolutions.length > 0 &&
                     normalized.resolution &&
                     typeof normalized.resolution ===
                         "object"
@@ -364,6 +381,37 @@ function getParameterDefinitions(
                     };
 
                 }
+
+
+                /*
+                 * =================================================
+                 * DEBUG RESOLUTION
+                 * =================================================
+                 */
+
+                console.debug(
+                    "[GEN-Z.AI][Generate Form] Resolution source:",
+                    {
+
+                        model:
+                            model.model_id ||
+                            model.id ||
+                            "-",
+
+                        supported_resolutions:
+                            activeResolutions,
+
+                        parameter_resolution:
+                            normalized.resolution?.enum ||
+                            [],
+
+                        resolution_source:
+                            activeResolutions.length > 0
+                                ? "model.supported_resolutions"
+                                : "model.parameters"
+
+                    }
+                );
 
             }
 
