@@ -51,10 +51,10 @@ const parameters = {
     duration: {
         type: "number",
         required: false,
-        min: 5,
+        min: 6,
         max: 30,
         step: 1,
-        default: 5
+        default: 6
     },
 
     resolution: {
@@ -301,12 +301,12 @@ function validate(input = {}) {
 
         if (
             !Number.isFinite(value) ||
-            value < 5 ||
+            value < 6 ||
             value > 30
         ) {
 
             errors.push(
-                "duration harus antara 5 dan 30 detik."
+                "duration harus antara 6 dan 30 detik."
             );
 
         }
