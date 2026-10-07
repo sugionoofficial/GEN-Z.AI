@@ -16,6 +16,7 @@
    - Parameter ordering
    - Default value
    - Generic array normalization
+   - Parameter value normalization
    - Field ID
 ========================================================= */
 
@@ -1127,6 +1128,166 @@ export function normalizeArray(
                 item.trim()
         )
         .filter(Boolean);
+
+}
+
+
+/* =========================================================
+   PARAMETER VALUE NORMALIZATION
+========================================================= */
+
+export function normalizeParameterValue(
+    value,
+    definition = {}
+) {
+
+    if (
+        value ===
+            undefined ||
+        value ===
+            null
+    ) {
+
+        return value;
+
+    }
+
+
+    const type =
+        String(
+            definition?.type ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    /* -----------------------------------------------------
+       BOOLEAN
+    ----------------------------------------------------- */
+
+    if (
+        type ===
+        "boolean"
+    ) {
+
+        if (
+            typeof value ===
+            "boolean"
+        ) {
+
+            return value;
+
+        }
+
+
+        if (
+            value ===
+                "true" ||
+            value ===
+                "1"
+        ) {
+
+            return true;
+
+        }
+
+
+        if (
+            value ===
+                "false" ||
+            value ===
+                "0"
+        ) {
+
+            return false;
+
+        }
+
+    }
+
+
+    /* -----------------------------------------------------
+       NUMBER / INTEGER
+    ----------------------------------------------------- */
+
+    if (
+        type ===
+            "number" ||
+        type ===
+            "integer"
+    ) {
+
+        if (
+            value ===
+            ""
+        ) {
+
+            return value;
+
+        }
+
+
+        const number =
+            Number(
+                value
+            );
+
+
+        if (
+            Number.isFinite(
+                number
+            )
+        ) {
+
+            return number;
+
+        }
+
+    }
+
+
+    /* -----------------------------------------------------
+       ARRAY
+    ----------------------------------------------------- */
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return value
+            .filter(
+                item =>
+                    item !==
+                        undefined &&
+                    item !==
+                        null &&
+                    String(
+                        item
+                    ).trim() !==
+                        ""
+            );
+
+    }
+
+
+    /* -----------------------------------------------------
+       STRING
+    ----------------------------------------------------- */
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        return value.trim();
+
+    }
+
+
+    return value;
 
 }
 
