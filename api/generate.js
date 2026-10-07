@@ -1002,9 +1002,9 @@ function resolveGenerationCredit(
      * REQUESTED RESOLUTION
      * =====================================================
      *
-     * Ini adalah resolution yang datang dari Generate UI.
+     * Resolution dari Generate UI.
      *
-     * Contoh Motiongen:
+     * Motiongen:
      *
      *   576P
      *   720P HD
@@ -1015,6 +1015,20 @@ function resolveGenerationCredit(
         normalizeGenerationResolution(
             parameters?.resolution
         );
+
+
+    /*
+     * =====================================================
+     * MODEL ID
+     * =====================================================
+     */
+
+    const normalizedModelId =
+        String(
+            modelId || ""
+        )
+            .trim()
+            .toLowerCase();
 
 
     /*
@@ -1037,34 +1051,32 @@ function resolveGenerationCredit(
      * MOTIONGEN RESOLUTION MAPPING
      * =====================================================
      *
-     * Motiongen tidak menggunakan resolution
-     * sebagai parameter provider.
+     * Generate UI:
      *
-     * Resolution hanya digunakan GEN-Z.AI untuk
-     * menentukan credit package.
+     *   576P
+     *   720P HD
      *
-     * Mapping:
+     * Supabase credit:
      *
-     *   576p     -> credit_480p
-     *   720p hd  -> credit_720p
-     *
-     * Jangan menggunakan credit_1080p karena
-     * Motiongen tidak menyediakan 1080p pada UI.
+     *   576P    -> credit_480p
+     *   720P HD -> credit_720p
      *
      */
 
     if (
-        String(
-            modelId || ""
-        )
-            .trim()
-            .toLowerCase() ===
+        normalizedModelId ===
         "digital-human-lipsync-image"
     ) {
 
         switch (
             requestedResolution
         ) {
+
+            /*
+             * 576P
+             * GEN-Z.AI credit:
+             * credit_480p
+             */
 
             case "576p":
             case "576":
@@ -1075,21 +1087,42 @@ function resolveGenerationCredit(
                 break;
 
 
+            /*
+             * 720P HD
+             * GEN-Z.AI credit:
+             * credit_720p
+             */
+
             case "720phd":
-            case "720phd":
-
-                creditResolution =
-                    "720p";
-
-                break;
-
-
             case "720p":
 
                 creditResolution =
                     "720p";
 
                 break;
+
+
+            default:
+
+                throw Object.assign(
+                    new Error(
+                        "Resolution Motiongen tidak valid. Gunakan 576P atau 720P HD."
+                    ),
+                    {
+                        code:
+                            "INVALID_RESOLUTION",
+
+                        model_id:
+                            normalizedModelId,
+
+                        resolution:
+                            requestedResolution,
+
+                        credit_resolution:
+                            creditResolution
+
+                    }
+                );
 
         }
 
@@ -1262,8 +1295,7 @@ function resolveGenerationCredit(
     /*
      * =====================================================
      * FINAL CREDIT
-     * =====================================================
-     */
+     * ===================================================== */
 
     const creditFinal =
         calculateDiscountedCredit(
@@ -1281,8 +1313,7 @@ function resolveGenerationCredit(
      *   resolution asli yang dipilih user.
      *
      * credit_resolution:
-     *   resolution internal yang digunakan untuk
-     *   membaca credit_xxx dari Supabase.
+     *   resolution internal untuk Supabase.
      *
      * credit:
      *   nilai final setelah discount.
@@ -1312,7 +1343,6 @@ function resolveGenerationCredit(
     };
 
 }
-
 
 /* =========================================================
    DEDUCT GENERATION CREDITS
