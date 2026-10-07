@@ -11,28 +11,27 @@
    - URL / Upload mode
    - Preview image
    - Preview audio
-   - File validation
-   - Delegasi upload ke uploader
-   - Tidak menangani state model
-   - Tidak menangani submit
-   - Tidak menangani credit
+   - Delegasi validation
+   - Delegasi upload
+   - Menjaga compatibility dengan generate-form.js lama
 ========================================================= */
 
 "use strict";
 
 
 /* =========================================================
-   FACTORY DEPENDENCIES
+   HANDLERS
 ========================================================= */
 
 let imageUploadHandler = null;
 let audioUploadHandler = null;
+
 let imageValidator = null;
 let audioValidator = null;
 
 
 /* =========================================================
-   REGISTER IMAGE DEPENDENCIES
+   REGISTER IMAGE HANDLERS
 ========================================================= */
 
 export function registerImageMediaHandlers({
@@ -44,9 +43,11 @@ export function registerImageMediaHandlers({
         upload !== null &&
         typeof upload !== "function"
     ) {
+
         throw new TypeError(
             "Image upload handler must be a function"
         );
+
     }
 
 
@@ -54,9 +55,11 @@ export function registerImageMediaHandlers({
         validate !== null &&
         typeof validate !== "function"
     ) {
+
         throw new TypeError(
             "Image validator must be a function"
         );
+
     }
 
 
@@ -70,7 +73,7 @@ export function registerImageMediaHandlers({
 
 
 /* =========================================================
-   REGISTER AUDIO DEPENDENCIES
+   REGISTER AUDIO HANDLERS
 ========================================================= */
 
 export function registerAudioMediaHandlers({
@@ -82,9 +85,11 @@ export function registerAudioMediaHandlers({
         upload !== null &&
         typeof upload !== "function"
     ) {
+
         throw new TypeError(
             "Audio upload handler must be a function"
         );
+
     }
 
 
@@ -92,9 +97,11 @@ export function registerAudioMediaHandlers({
         validate !== null &&
         typeof validate !== "function"
     ) {
+
         throw new TypeError(
             "Audio validator must be a function"
         );
+
     }
 
 
@@ -108,7 +115,7 @@ export function registerAudioMediaHandlers({
 
 
 /* =========================================================
-   INTERNAL IMAGE VALIDATION
+   VALIDATE IMAGE
 ========================================================= */
 
 function validateImage(
@@ -144,7 +151,7 @@ function validateImage(
 
 
 /* =========================================================
-   INTERNAL AUDIO VALIDATION
+   VALIDATE AUDIO
 ========================================================= */
 
 function validateAudio(
@@ -180,7 +187,7 @@ function validateAudio(
 
 
 /* =========================================================
-   IMAGE UPLOAD
+   UPLOAD IMAGE
 ========================================================= */
 
 async function uploadImage(
@@ -204,19 +211,15 @@ async function uploadImage(
     }
 
 
-    const result =
-        await imageUploadHandler(
-            file
-        );
-
-
-    return result;
+    return await imageUploadHandler(
+        file
+    );
 
 }
 
 
 /* =========================================================
-   AUDIO UPLOAD
+   UPLOAD AUDIO
 ========================================================= */
 
 async function uploadAudio(
@@ -240,13 +243,9 @@ async function uploadAudio(
     }
 
 
-    const result =
-        await audioUploadHandler(
-            file
-        );
-
-
-    return result;
+    return await audioUploadHandler(
+        file
+    );
 
 }
 
@@ -276,6 +275,13 @@ function renderImagePreview(
     const selectedFiles =
         Array.from(
             files || []
+        ).filter(
+            file =>
+                file &&
+                file.type &&
+                file.type.startsWith(
+                    "image/"
+                )
         );
 
 
@@ -289,6 +295,16 @@ function renderImagePreview(
         return;
 
     }
+
+
+    preview.style.display =
+        "flex";
+
+    preview.style.flexWrap =
+        "wrap";
+
+    preview.style.gap =
+        "8px";
 
 
     selectedFiles.forEach(
@@ -318,17 +334,34 @@ function renderImagePreview(
                         "Preview gambar";
 
 
-                    image.loading =
-                        "lazy";
+                    image.style.width =
+                        "160px";
+
+                    image.style.height =
+                        "160px";
+
+                    image.style.maxWidth =
+                        "160px";
+
+                    image.style.maxHeight =
+                        "160px";
+
+                    image.style.objectFit =
+                        "cover";
+
+                    image.style.display =
+                        "block";
+
+                    image.style.borderRadius =
+                        "10px";
+
+                    image.style.border =
+                        "1px solid rgba(255,255,255,.12)";
 
 
                     preview.appendChild(
                         image
                     );
-
-
-                    preview.style.display =
-                        "grid";
 
                 };
 
@@ -358,35 +391,9 @@ function renderImagePreview(
    AUDIO PREVIEW
 ========================================================= */
 
-function renderAudioPreview(
-    preview,
-    file
+function createAudioPreview(
+    preview
 ) {
-
-    if (
-        !preview
-    ) {
-
-        return;
-
-    }
-
-
-    preview.innerHTML =
-        "";
-
-
-    if (
-        !file
-    ) {
-
-        preview.style.display =
-            "none";
-
-        return;
-
-    }
-
 
     const audio =
         document.createElement(
@@ -397,41 +404,14 @@ function renderAudioPreview(
     audio.controls =
         true;
 
-
     audio.preload =
         "metadata";
 
+    audio.style.width =
+        "100%";
 
-    const objectUrl =
-        URL.createObjectURL(
-            file
-        );
-
-
-    audio.src =
-        objectUrl;
-
-
-    audio.addEventListener(
-        "ended",
-        () => {
-
-            try {
-
-                URL.revokeObjectURL(
-                    objectUrl
-                );
-
-            } catch {
-                /* ignore */
-            }
-
-        },
-        {
-            once:
-                true
-        }
-    );
+    audio.style.maxWidth =
+        "500px";
 
 
     preview.appendChild(
@@ -439,8 +419,7 @@ function renderAudioPreview(
     );
 
 
-    preview.style.display =
-        "block";
+    return audio;
 
 }
 
@@ -464,8 +443,21 @@ export function createImageField(
         "generate-image-input";
 
 
-    wrapper.dataset.parameter =
-        parameterName;
+    wrapper.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
+
+
+    if (
+        parameterName
+    ) {
+
+        wrapper.dataset.parameter =
+            parameterName;
+
+    }
 
 
     wrapper.dataset.imageMode =
@@ -473,17 +465,27 @@ export function createImageField(
 
 
     /* =====================================================
-       MODE BUTTONS
+       MODE SELECTOR
     ===================================================== */
 
-    const modeWrapper =
+    const modeSelector =
         document.createElement(
             "div"
         );
 
 
-    modeWrapper.className =
-        "generate-media-mode";
+    modeSelector.className =
+        "generate-image-mode-selector";
+
+
+    modeSelector.style.display =
+        "flex";
+
+    modeSelector.style.gap =
+        "8px";
+
+    modeSelector.style.marginBottom =
+        "10px";
 
 
     const urlButton =
@@ -495,13 +497,14 @@ export function createImageField(
     urlButton.type =
         "button";
 
+    urlButton.textContent =
+        "Gunakan URL";
 
     urlButton.className =
-        "generate-media-mode-button active";
+        "generate-image-mode-button active";
 
-
-    urlButton.textContent =
-        "URL";
+    urlButton.style.cursor =
+        "pointer";
 
 
     const uploadButton =
@@ -513,33 +516,38 @@ export function createImageField(
     uploadButton.type =
         "button";
 
+    uploadButton.textContent =
+        "Upload Gambar";
 
     uploadButton.className =
-        "generate-media-mode-button";
+        "generate-image-mode-button";
+
+    uploadButton.style.cursor =
+        "pointer";
 
 
-    uploadButton.textContent =
-        "Upload";
-
-
-    modeWrapper.appendChild(
+    modeSelector.appendChild(
         urlButton
     );
 
-
-    modeWrapper.appendChild(
+    modeSelector.appendChild(
         uploadButton
     );
 
 
-    wrapper.appendChild(
-        modeWrapper
-    );
-
-
     /* =====================================================
-       URL INPUT
+       URL
     ===================================================== */
+
+    const urlContainer =
+        document.createElement(
+            "div"
+        );
+
+
+    urlContainer.className =
+        "generate-image-url-container";
+
 
     const urlInput =
         document.createElement(
@@ -550,18 +558,22 @@ export function createImageField(
     urlInput.type =
         "url";
 
-
     urlInput.className =
-        "form-input generate-image-url";
-
-
-    urlInput.dataset.parameter =
-        parameterName;
-
+        "generate-image-url";
 
     urlInput.placeholder =
         definition.placeholder ||
         "Masukkan URL gambar";
+
+    urlInput.autocomplete =
+        "off";
+
+
+    urlInput.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
 
 
     const defaultValue =
@@ -571,10 +583,8 @@ export function createImageField(
 
 
     if (
-        defaultValue !==
-        undefined &&
-        defaultValue !==
-        null
+        defaultValue !== undefined &&
+        defaultValue !== null
     ) {
 
         if (
@@ -601,14 +611,28 @@ export function createImageField(
     }
 
 
-    wrapper.appendChild(
+    urlContainer.appendChild(
         urlInput
     );
 
 
     /* =====================================================
-       FILE INPUT
+       UPLOAD
     ===================================================== */
+
+    const uploadContainer =
+        document.createElement(
+            "div"
+        );
+
+
+    uploadContainer.className =
+        "generate-image-upload-container";
+
+
+    uploadContainer.style.display =
+        "none";
+
 
     const fileInput =
         document.createElement(
@@ -620,16 +644,12 @@ export function createImageField(
         "file";
 
 
-    fileInput.className =
-        "generate-image-file";
-
-
     fileInput.accept =
         definition.accept ||
         "image/jpeg,image/png,image/webp";
 
 
-    const multiple =
+    fileInput.multiple =
         definition.multiple === true ||
         Number(
             definition.maxItems ??
@@ -637,15 +657,11 @@ export function createImageField(
         ) > 1;
 
 
-    fileInput.multiple =
-        multiple;
+    fileInput.className =
+        "generate-image-file";
 
 
-    fileInput.style.display =
-        "none";
-
-
-    wrapper.appendChild(
+    uploadContainer.appendChild(
         fileInput
     );
 
@@ -667,92 +683,105 @@ export function createImageField(
     preview.style.display =
         "none";
 
+    preview.style.flexWrap =
+        "wrap";
 
-    wrapper.appendChild(
-        preview
-    );
+    preview.style.gap =
+        "8px";
 
+    preview.style.marginTop =
+        "10px";
 
-    /* =====================================================
-       UPLOAD STATE
-    ===================================================== */
-
-    wrapper._imageUploadPromise =
-        null;
-
-
-    wrapper._imageMode =
-        "url";
-
-
-    wrapper._urlInput =
-        urlInput;
-
-
-    wrapper._fileInput =
-        fileInput;
-
-
-    wrapper._preview =
-        preview;
+    preview.style.maxWidth =
+        "360px";
 
 
     /* =====================================================
-       SET MODE
+       MODE
     ===================================================== */
 
     function setMode(
         mode
     ) {
 
-        const nextMode =
-            mode === "upload"
-                ? "upload"
-                : "url";
+        const uploadMode =
+            mode === "upload";
 
 
-        wrapper._imageMode =
-            nextMode;
+        if (
+            uploadMode
+        ) {
+
+            urlContainer.style.display =
+                "none";
+
+            uploadContainer.style.display =
+                "block";
+
+
+            urlButton.classList.remove(
+                "active"
+            );
+
+            uploadButton.classList.add(
+                "active"
+            );
+
+
+            if (
+                fileInput.files &&
+                fileInput.files.length
+            ) {
+
+                renderImagePreview(
+                    preview,
+                    fileInput.files
+                );
+
+            }
+
+        } else {
+
+            urlContainer.style.display =
+                "block";
+
+            uploadContainer.style.display =
+                "none";
+
+
+            preview.style.display =
+                "none";
+
+
+            uploadButton.classList.remove(
+                "active"
+            );
+
+            urlButton.classList.add(
+                "active"
+            );
+
+        }
 
 
         wrapper.dataset.imageMode =
-            nextMode;
-
-
-        const uploadMode =
-            nextMode ===
-            "upload";
-
-
-        urlInput.style.display =
             uploadMode
-                ? "none"
-                : "";
-
-
-        fileInput.style.display =
-            uploadMode
-                ? ""
-                : "none";
-
-
-        urlButton.classList.toggle(
-            "active",
-            !uploadMode
-        );
-
-
-        uploadButton.classList.toggle(
-            "active",
-            uploadMode
-        );
+                ? "upload"
+                : "url";
 
     }
 
 
+    /* =====================================================
+       BUTTON EVENTS
+    ===================================================== */
+
     urlButton.addEventListener(
         "click",
-        () => {
+        event => {
+
+            event.preventDefault();
+            event.stopPropagation();
 
             setMode(
                 "url"
@@ -764,7 +793,10 @@ export function createImageField(
 
     uploadButton.addEventListener(
         "click",
-        () => {
+        event => {
+
+            event.preventDefault();
+            event.stopPropagation();
 
             setMode(
                 "upload"
@@ -780,12 +812,11 @@ export function createImageField(
 
     fileInput.addEventListener(
         "change",
-        () => {
+        async () => {
 
             const files =
                 Array.from(
-                    fileInput.files ||
-                    []
+                    fileInput.files || []
                 );
 
 
@@ -793,19 +824,16 @@ export function createImageField(
                 !files.length
             ) {
 
-                wrapper._imageUploadPromise =
-                    null;
-
-
                 delete wrapper.dataset.uploadedUrl;
                 delete wrapper.dataset.uploadedUrls;
 
+                wrapper._imageUploadPromise =
+                    null;
 
                 renderImagePreview(
                     preview,
                     []
                 );
-
 
                 return;
 
@@ -824,20 +852,138 @@ export function createImageField(
                     }
                 );
 
-            } catch (
-                error
-            ) {
 
-                fileInput.value =
-                    "";
-
-
-                wrapper._imageUploadPromise =
-                    null;
+                renderImagePreview(
+                    preview,
+                    files
+                );
 
 
                 delete wrapper.dataset.uploadedUrl;
                 delete wrapper.dataset.uploadedUrls;
+
+
+                const configuredMaxItems =
+                    Number(
+                        definition?.maxItems ??
+                        definition?.max_items
+                    );
+
+
+                const maxItems =
+                    Number.isFinite(
+                        configuredMaxItems
+                    ) &&
+                    configuredMaxItems > 0
+
+                        ? Math.floor(
+                            configuredMaxItems
+                        )
+
+                        : 1;
+
+
+                const selectedFiles =
+                    files.slice(
+                        0,
+                        maxItems
+                    );
+
+
+                wrapper._imageUploadPromise =
+                    (async () => {
+
+                        const uploadedUrls =
+                            [];
+
+
+                        for (
+                            const file
+                            of selectedFiles
+                        ) {
+
+                            const uploaded =
+                                await uploadImage(
+                                    file
+                                );
+
+
+                            const uploadedUrl =
+                                String(
+                                    uploaded?.url ||
+                                    ""
+                                ).trim();
+
+
+                            if (
+                                uploadedUrl
+                            ) {
+
+                                uploadedUrls.push(
+                                    uploadedUrl
+                                );
+
+                            }
+
+                        }
+
+
+                        if (
+                            !uploadedUrls.length
+                        ) {
+
+                            throw new Error(
+                                "Upload gambar berhasil tetapi URL gambar tidak tersedia."
+                            );
+
+                        }
+
+
+                        wrapper.dataset.uploadedUrl =
+                            uploadedUrls[0];
+
+
+                        wrapper.dataset.uploadedUrls =
+                            JSON.stringify(
+                                uploadedUrls
+                            );
+
+
+                        console.debug(
+                            "[GEN-Z.AI][Generate Form] Image upload ready:",
+                            uploadedUrls
+                        );
+
+
+                        return uploadedUrls;
+
+                    })();
+
+
+                await wrapper._imageUploadPromise;
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Image upload gagal:",
+                    error
+                );
+
+
+                delete wrapper.dataset.uploadedUrl;
+                delete wrapper.dataset.uploadedUrls;
+
+
+                try {
+
+                    fileInput.value =
+                        "";
+
+                } catch {
+                    /* ignore */
+                }
 
 
                 renderImagePreview(
@@ -846,101 +992,59 @@ export function createImageField(
                 );
 
 
-                console.error(
-                    "[GEN-Z.AI][Generate Form] File gambar ditolak:",
-                    error
-                );
+                wrapper.dataset.uploadError =
+                    String(
+                        error?.message ||
+                        "Gagal mengupload gambar."
+                    );
 
+            } finally {
 
-                return;
+                wrapper._imageUploadPromise =
+                    null;
 
             }
-
-
-            renderImagePreview(
-                preview,
-                files
-            );
-
-
-            wrapper._imageUploadPromise =
-                Promise.all(
-                    files.map(
-                        file =>
-                            uploadImage(
-                                file
-                            )
-                    )
-                )
-                    .then(
-                        results => {
-
-                            const urls =
-                                results
-                                    .map(
-                                        result =>
-                                            String(
-                                                result?.url ||
-                                                ""
-                                            ).trim()
-                                    )
-                                    .filter(
-                                        Boolean
-                                    );
-
-
-                            if (
-                                urls.length
-                            ) {
-
-                                wrapper.dataset.uploadedUrl =
-                                    urls[0];
-
-
-                                wrapper.dataset.uploadedUrls =
-                                    JSON.stringify(
-                                        urls
-                                    );
-
-                            }
-
-
-                            return urls;
-
-                        }
-                    )
-                    .catch(
-                        error => {
-
-                            delete wrapper.dataset.uploadedUrl;
-                            delete wrapper.dataset.uploadedUrls;
-
-                            throw error;
-
-                        }
-                    );
 
         }
     );
 
 
     /* =====================================================
-       PUBLIC METHODS
+       HELPERS
     ===================================================== */
+
+    wrapper._imageUploadPromise =
+        null;
+
+    wrapper._imageMode =
+        () =>
+            wrapper.dataset.imageMode ||
+            "url";
+
+    wrapper._urlInput =
+        urlInput;
+
+    wrapper._fileInput =
+        fileInput;
+
+    wrapper._preview =
+        preview;
+
 
     wrapper.getInputMode =
         () =>
-            wrapper._imageMode;
+            wrapper.dataset.imageMode ||
+            "url";
 
 
     wrapper.getUrlInput =
         () =>
-            wrapper._urlInput;
+            urlInput;
 
 
     wrapper.getFileInput =
         () =>
-            wrapper._fileInput;
+            fileInput;
 
 
     wrapper.getUploadedUrl =
@@ -967,16 +1071,6 @@ export function createImageField(
                     parsed
                 )
                     ? parsed
-                        .map(
-                            value =>
-                                String(
-                                    value ||
-                                    ""
-                                ).trim()
-                        )
-                        .filter(
-                            Boolean
-                        )
                     : [];
 
             } catch {
@@ -1005,18 +1099,14 @@ export function createImageField(
                 wrapper.dataset.uploadedUrl =
                     normalized;
 
-
-                wrapper.dataset.uploadedUrls =
-                    JSON.stringify([
-                        normalized
-                    ]);
-
             } else {
 
                 delete wrapper.dataset.uploadedUrl;
-                delete wrapper.dataset.uploadedUrls;
 
             }
+
+
+            return normalized;
 
         };
 
@@ -1024,43 +1114,38 @@ export function createImageField(
     wrapper.getSelectedFiles =
         () =>
             Array.from(
-                wrapper._fileInput?.files ||
-                []
+                fileInput.files || []
             );
 
 
     wrapper.getImageMode =
         () =>
-            wrapper._imageMode;
+            wrapper.dataset.imageMode ||
+            "url";
 
 
     wrapper.clearUploadedFile =
         async () => {
 
-            wrapper._imageUploadPromise =
-                null;
+            fileInput.value =
+                "";
+
+            urlInput.value =
+                "";
+
+            preview.innerHTML =
+                "";
+
+            preview.style.display =
+                "none";
 
 
             delete wrapper.dataset.uploadedUrl;
             delete wrapper.dataset.uploadedUrls;
 
 
-            try {
-
-                wrapper._fileInput.value =
-                    "";
-
-            } catch {
-                /* ignore */
-            }
-
-
-            wrapper._preview.innerHTML =
-                "";
-
-
-            wrapper._preview.style.display =
-                "none";
+            wrapper._imageUploadPromise =
+                null;
 
 
             setMode(
@@ -1068,6 +1153,32 @@ export function createImageField(
             );
 
         };
+
+
+    /* =====================================================
+       APPEND
+    ===================================================== */
+
+    wrapper.appendChild(
+        modeSelector
+    );
+
+    wrapper.appendChild(
+        urlContainer
+    );
+
+    wrapper.appendChild(
+        uploadContainer
+    );
+
+    wrapper.appendChild(
+        preview
+    );
+
+
+    setMode(
+        "url"
+    );
 
 
     return wrapper;
@@ -1094,8 +1205,21 @@ export function createAudioField(
         "generate-audio-input";
 
 
-    wrapper.dataset.parameter =
-        parameterName;
+    wrapper.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
+
+
+    if (
+        parameterName
+    ) {
+
+        wrapper.dataset.parameter =
+            parameterName;
+
+    }
 
 
     wrapper.dataset.audioMode =
@@ -1103,17 +1227,27 @@ export function createAudioField(
 
 
     /* =====================================================
-       MODE BUTTONS
+       MODE SELECTOR
     ===================================================== */
 
-    const modeWrapper =
+    const modeSelector =
         document.createElement(
             "div"
         );
 
 
-    modeWrapper.className =
-        "generate-media-mode";
+    modeSelector.className =
+        "generate-audio-mode-selector";
+
+
+    modeSelector.style.display =
+        "flex";
+
+    modeSelector.style.gap =
+        "8px";
+
+    modeSelector.style.marginBottom =
+        "10px";
 
 
     const urlButton =
@@ -1125,13 +1259,14 @@ export function createAudioField(
     urlButton.type =
         "button";
 
+    urlButton.textContent =
+        "Gunakan URL";
 
     urlButton.className =
-        "generate-media-mode-button active";
+        "generate-audio-mode-button active";
 
-
-    urlButton.textContent =
-        "URL";
+    urlButton.style.cursor =
+        "pointer";
 
 
     const uploadButton =
@@ -1143,33 +1278,38 @@ export function createAudioField(
     uploadButton.type =
         "button";
 
+    uploadButton.textContent =
+        "Upload Audio";
 
     uploadButton.className =
-        "generate-media-mode-button";
+        "generate-audio-mode-button";
+
+    uploadButton.style.cursor =
+        "pointer";
 
 
-    uploadButton.textContent =
-        "Upload";
-
-
-    modeWrapper.appendChild(
+    modeSelector.appendChild(
         urlButton
     );
 
-
-    modeWrapper.appendChild(
+    modeSelector.appendChild(
         uploadButton
     );
 
 
-    wrapper.appendChild(
-        modeWrapper
-    );
-
-
     /* =====================================================
-       URL INPUT
+       URL
     ===================================================== */
+
+    const urlContainer =
+        document.createElement(
+            "div"
+        );
+
+
+    urlContainer.className =
+        "generate-audio-url-container";
+
 
     const urlInput =
         document.createElement(
@@ -1180,18 +1320,21 @@ export function createAudioField(
     urlInput.type =
         "url";
 
-
     urlInput.className =
-        "form-input generate-audio-url";
-
-
-    urlInput.dataset.parameter =
-        parameterName;
-
+        "generate-audio-url";
 
     urlInput.placeholder =
-        definition.placeholder ||
-        "Masukkan URL audio";
+        "Masukkan URL audio MP3/WAV";
+
+    urlInput.autocomplete =
+        "off";
+
+
+    urlInput.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
 
 
     const defaultValue =
@@ -1201,28 +1344,47 @@ export function createAudioField(
 
 
     if (
-        defaultValue !==
-        undefined &&
-        defaultValue !==
-        null
+        defaultValue !== undefined &&
+        defaultValue !== null
     ) {
 
         urlInput.value =
             String(
-                defaultValue
+                Array.isArray(
+                    defaultValue
+                )
+                    ? (
+                        defaultValue[0] ||
+                        ""
+                    )
+                    : defaultValue
             );
 
     }
 
 
-    wrapper.appendChild(
+    urlContainer.appendChild(
         urlInput
     );
 
 
     /* =====================================================
-       FILE INPUT
+       UPLOAD
     ===================================================== */
+
+    const uploadContainer =
+        document.createElement(
+            "div"
+        );
+
+
+    uploadContainer.className =
+        "generate-audio-upload-container";
+
+
+    uploadContainer.style.display =
+        "none";
+
 
     const fileInput =
         document.createElement(
@@ -1233,25 +1395,18 @@ export function createAudioField(
     fileInput.type =
         "file";
 
+    fileInput.accept =
+        definition.accept ||
+        ".mp3,.wav,audio/mpeg,audio/wav";
+
+    fileInput.multiple =
+        false;
 
     fileInput.className =
         "generate-audio-file";
 
 
-    fileInput.accept =
-        definition.accept ||
-        ".mp3,.wav,audio/mpeg,audio/wav";
-
-
-    fileInput.multiple =
-        false;
-
-
-    fileInput.style.display =
-        "none";
-
-
-    wrapper.appendChild(
+    uploadContainer.appendChild(
         fileInput
     );
 
@@ -1273,92 +1428,202 @@ export function createAudioField(
     preview.style.display =
         "none";
 
+    preview.style.marginTop =
+        "10px";
 
-    wrapper.appendChild(
-        preview
-    );
+
+    const audio =
+        createAudioPreview(
+            preview
+        );
+
+
+    function renderPreview(
+        file
+    ) {
+
+        audio.removeAttribute(
+            "src"
+        );
+
+        audio.load();
+
+
+        if (
+            !file
+        ) {
+
+            preview.style.display =
+                "none";
+
+            return;
+
+        }
+
+
+        const previousUrl =
+            audio.dataset.objectUrl;
+
+
+        if (
+            previousUrl
+        ) {
+
+            try {
+
+                URL.revokeObjectURL(
+                    previousUrl
+                );
+
+            } catch {
+                /* ignore */
+            }
+
+        }
+
+
+        const objectUrl =
+            URL.createObjectURL(
+                file
+            );
+
+
+        audio.src =
+            objectUrl;
+
+        audio.dataset.objectUrl =
+            objectUrl;
+
+
+        preview.style.display =
+            "block";
+
+    }
+
+
+    function clearPreview() {
+
+        const objectUrl =
+            audio.dataset.objectUrl;
+
+
+        if (
+            objectUrl
+        ) {
+
+            try {
+
+                URL.revokeObjectURL(
+                    objectUrl
+                );
+
+            } catch {
+                /* ignore */
+            }
+
+        }
+
+
+        delete audio.dataset.objectUrl;
+
+
+        audio.removeAttribute(
+            "src"
+        );
+
+        audio.load();
+
+
+        preview.style.display =
+            "none";
+
+    }
 
 
     /* =====================================================
-       UPLOAD STATE
-    ===================================================== */
-
-    wrapper._audioUploadPromise =
-        null;
-
-
-    wrapper._audioMode =
-        "url";
-
-
-    wrapper._urlInput =
-        urlInput;
-
-
-    wrapper._fileInput =
-        fileInput;
-
-
-    wrapper._preview =
-        preview;
-
-
-    /* =====================================================
-       SET MODE
+       MODE
     ===================================================== */
 
     function setMode(
         mode
     ) {
 
-        const nextMode =
-            mode === "upload"
-                ? "upload"
-                : "url";
+        const uploadMode =
+            mode === "upload";
 
 
-        wrapper._audioMode =
-            nextMode;
+        if (
+            uploadMode
+        ) {
+
+            urlContainer.style.display =
+                "none";
+
+            uploadContainer.style.display =
+                "block";
+
+
+            urlButton.classList.remove(
+                "active"
+            );
+
+            uploadButton.classList.add(
+                "active"
+            );
+
+
+            if (
+                fileInput.files &&
+                fileInput.files.length
+            ) {
+
+                renderPreview(
+                    fileInput.files[0]
+                );
+
+            }
+
+        } else {
+
+            urlContainer.style.display =
+                "block";
+
+            uploadContainer.style.display =
+                "none";
+
+
+            clearPreview();
+
+
+            uploadButton.classList.remove(
+                "active"
+            );
+
+            urlButton.classList.add(
+                "active"
+            );
+
+        }
 
 
         wrapper.dataset.audioMode =
-            nextMode;
-
-
-        const uploadMode =
-            nextMode ===
-            "upload";
-
-
-        urlInput.style.display =
             uploadMode
-                ? "none"
-                : "";
-
-
-        fileInput.style.display =
-            uploadMode
-                ? ""
-                : "none";
-
-
-        urlButton.classList.toggle(
-            "active",
-            !uploadMode
-        );
-
-
-        uploadButton.classList.toggle(
-            "active",
-            uploadMode
-        );
+                ? "upload"
+                : "url";
 
     }
 
 
+    /* =====================================================
+       BUTTON EVENTS
+    ===================================================== */
+
     urlButton.addEventListener(
         "click",
-        () => {
+        event => {
+
+            event.preventDefault();
+            event.stopPropagation();
 
             setMode(
                 "url"
@@ -1370,7 +1635,10 @@ export function createAudioField(
 
     uploadButton.addEventListener(
         "click",
-        () => {
+        event => {
+
+            event.preventDefault();
+            event.stopPropagation();
 
             setMode(
                 "upload"
@@ -1386,33 +1654,32 @@ export function createAudioField(
 
     fileInput.addEventListener(
         "change",
-        () => {
+        async () => {
 
-            const file =
-                fileInput.files?.[0] ||
-                null;
+            const files =
+                Array.from(
+                    fileInput.files || []
+                );
 
 
             if (
-                !file
+                !files.length
             ) {
+
+                delete wrapper.dataset.uploadedUrl;
 
                 wrapper._audioUploadPromise =
                     null;
 
-
-                delete wrapper.dataset.uploadedUrl;
-
-
-                renderAudioPreview(
-                    preview,
-                    null
-                );
-
+                clearPreview();
 
                 return;
 
             }
+
+
+            const file =
+                files[0];
 
 
             try {
@@ -1421,103 +1688,155 @@ export function createAudioField(
                     file
                 );
 
-            } catch (
-                error
-            ) {
 
-                fileInput.value =
-                    "";
-
-
-                wrapper._audioUploadPromise =
-                    null;
+                renderPreview(
+                    file
+                );
 
 
                 delete wrapper.dataset.uploadedUrl;
 
 
-                renderAudioPreview(
-                    preview,
-                    null
-                );
+                wrapper._audioUploadPromise =
+                    (async () => {
 
+                        const uploaded =
+                            await uploadAudio(
+                                file
+                            );
+
+
+                        const uploadedUrl =
+                            String(
+                                uploaded?.url ||
+                                ""
+                            ).trim();
+
+
+                        if (
+                            !uploadedUrl
+                        ) {
+
+                            throw new Error(
+                                "Upload audio berhasil tetapi URL audio tidak tersedia."
+                            );
+
+                        }
+
+
+                        wrapper.dataset.uploadedUrl =
+                            uploadedUrl;
+
+
+                        console.debug(
+                            "[GEN-Z.AI][Generate Form] Audio upload ready:",
+                            uploadedUrl
+                        );
+
+
+                        return uploadedUrl;
+
+                    })();
+
+
+                await wrapper._audioUploadPromise;
+
+            } catch (
+                error
+            ) {
 
                 console.error(
-                    "[GEN-Z.AI][Generate Form] File audio ditolak:",
+                    "[GEN-Z.AI][Generate Form] Audio upload gagal:",
                     error
                 );
 
 
-                return;
+                delete wrapper.dataset.uploadedUrl;
+
+
+                try {
+
+                    fileInput.value =
+                        "";
+
+                } catch {
+                    /* ignore */
+                }
+
+
+                clearPreview();
+
+
+                wrapper.dataset.uploadError =
+                    String(
+                        error?.message ||
+                        "Gagal mengupload audio."
+                    );
+
+            } finally {
+
+                wrapper._audioUploadPromise =
+                    null;
 
             }
 
-
-            renderAudioPreview(
-                preview,
-                file
-            );
+        }
+    );
 
 
-            wrapper._audioUploadPromise =
-                uploadAudio(
-                    file
-                )
-                    .then(
-                        result => {
+    urlInput.addEventListener(
+        "keydown",
+        event => {
 
-                            const url =
-                                String(
-                                    result?.url ||
-                                    ""
-                                ).trim();
+            if (
+                event.key ===
+                "Enter"
+            ) {
 
+                event.preventDefault();
 
-                            if (
-                                url
-                            ) {
-
-                                wrapper.dataset.uploadedUrl =
-                                    url;
-
-                            }
-
-
-                            return url;
-
-                        }
-                    )
-                    .catch(
-                        error => {
-
-                            delete wrapper.dataset.uploadedUrl;
-
-                            throw error;
-
-                        }
-                    );
+            }
 
         }
     );
 
 
     /* =====================================================
-       PUBLIC METHODS
+       HELPERS
     ===================================================== */
+
+    wrapper._audioUploadPromise =
+        null;
+
+    wrapper._audioMode =
+        () =>
+            wrapper.dataset.audioMode ||
+            "url";
+
+    wrapper._urlInput =
+        urlInput;
+
+    wrapper._fileInput =
+        fileInput;
+
+    wrapper._preview =
+        preview;
+
 
     wrapper.getInputMode =
         () =>
-            wrapper._audioMode;
+            wrapper.dataset.audioMode ||
+            "url";
 
 
     wrapper.getUrlInput =
         () =>
-            wrapper._urlInput;
+            urlInput;
 
 
     wrapper.getFileInput =
         () =>
-            wrapper._fileInput;
+            fileInput;
 
 
     wrapper.getUploadedUrl =
@@ -1528,69 +1847,29 @@ export function createAudioField(
             ).trim();
 
 
-    wrapper.setUploadedUrl =
-        url => {
-
-            const normalized =
-                String(
-                    url ||
-                    ""
-                ).trim();
-
-
-            if (
-                normalized
-            ) {
-
-                wrapper.dataset.uploadedUrl =
-                    normalized;
-
-            } else {
-
-                delete wrapper.dataset.uploadedUrl;
-
-            }
-
-        };
-
-
-    wrapper.getSelectedFile =
-        () =>
-            wrapper._fileInput?.files?.[0] ||
-            null;
-
-
     wrapper.getAudioMode =
         () =>
-            wrapper._audioMode;
+            wrapper.dataset.audioMode ||
+            "url";
 
 
     wrapper.clearUploadedFile =
         async () => {
 
-            wrapper._audioUploadPromise =
-                null;
+            fileInput.value =
+                "";
+
+            urlInput.value =
+                "";
+
+            clearPreview();
 
 
             delete wrapper.dataset.uploadedUrl;
 
 
-            try {
-
-                wrapper._fileInput.value =
-                    "";
-
-            } catch {
-                /* ignore */
-            }
-
-
-            wrapper._preview.innerHTML =
-                "";
-
-
-            wrapper._preview.style.display =
-                "none";
+            wrapper._audioUploadPromise =
+                null;
 
 
             setMode(
@@ -1600,6 +1879,44 @@ export function createAudioField(
         };
 
 
+    /* =====================================================
+       APPEND
+    ===================================================== */
+
+    wrapper.appendChild(
+        modeSelector
+    );
+
+    wrapper.appendChild(
+        urlContainer
+    );
+
+    wrapper.appendChild(
+        uploadContainer
+    );
+
+    wrapper.appendChild(
+        preview
+    );
+
+
+    setMode(
+        "url"
+    );
+
+
     return wrapper;
 
 }
+
+
+/* =========================================================
+   PUBLIC API
+========================================================= */
+
+export default Object.freeze({
+    registerImageMediaHandlers,
+    registerAudioMediaHandlers,
+    createImageField,
+    createAudioField
+});
