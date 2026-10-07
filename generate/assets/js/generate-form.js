@@ -110,18 +110,7 @@ registerAudioFieldFactory(
 );
 
 
-/* =========================================================
-   MEDIA FACTORY REGISTRATION
-========================================================= */
 
-registerImageFieldFactory(
-    createMediaImageField
-);
-
-
-registerAudioFieldFactory(
-    createMediaAudioField
-);
 
 /* =========================================================
    CONSTANTS
