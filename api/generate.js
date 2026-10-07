@@ -951,11 +951,35 @@ function calculateDiscountedCredit(
 
 /* =========================================================
    RESOLVE GENERATION CREDIT
-   ========================================================= */
+   ---------------------------------------------------------
+   Credit resolution mengikuti konfigurasi Supabase:
+ *
+ *   480p  -> credit_480p
+ *   720p  -> credit_720p
+ *   1080p -> credit_1080p
+ *
+ * KHUSUS MOTIONGEN
+ *
+ *   576P    -> credit_480p
+ *   720P HD -> credit_720p
+ *
+ * Penting:
+ *
+ *   resolution asli tetap dipertahankan sebagai
+ *   generationCredit.resolution agar History / response
+ *   tetap mengetahui pilihan user.
+ *
+ *   credit_resolution adalah resolution internal
+ *   yang digunakan untuk mengambil credit dari database.
+ *
+ * Resolution tidak dikirim ke provider Motiongen
+ * oleh adapter Motiongen.
+ * ========================================================= */
 
 function resolveGenerationCredit(
     databaseModel,
-    parameters
+    parameters,
+    modelId = ""
 ) {
 
     if (!databaseModel) {
@@ -973,17 +997,119 @@ function resolveGenerationCredit(
     }
 
 
-    const resolution =
+    /*
+     * =====================================================
+     * REQUESTED RESOLUTION
+     * =====================================================
+     *
+     * Ini adalah resolution yang datang dari Generate UI.
+     *
+     * Contoh Motiongen:
+     *
+     *   576P
+     *   720P HD
+     *
+     */
+
+    const requestedResolution =
         normalizeGenerationResolution(
             parameters?.resolution
         );
 
 
+    /*
+     * =====================================================
+     * CREDIT RESOLUTION
+     * =====================================================
+     *
+     * Default:
+     *
+     *   requested resolution = credit resolution
+     *
+     */
+
+    let creditResolution =
+        requestedResolution;
+
+
+    /*
+     * =====================================================
+     * MOTIONGEN RESOLUTION MAPPING
+     * =====================================================
+     *
+     * Motiongen tidak menggunakan resolution
+     * sebagai parameter provider.
+     *
+     * Resolution hanya digunakan GEN-Z.AI untuk
+     * menentukan credit package.
+     *
+     * Mapping:
+     *
+     *   576p     -> credit_480p
+     *   720p hd  -> credit_720p
+     *
+     * Jangan menggunakan credit_1080p karena
+     * Motiongen tidak menyediakan 1080p pada UI.
+     *
+     */
+
+    if (
+        String(
+            modelId || ""
+        )
+            .trim()
+            .toLowerCase() ===
+        "digital-human-lipsync-image"
+    ) {
+
+        switch (
+            requestedResolution
+        ) {
+
+            case "576p":
+            case "576":
+
+                creditResolution =
+                    "480p";
+
+                break;
+
+
+            case "720phd":
+            case "720phd":
+
+                creditResolution =
+                    "720p";
+
+                break;
+
+
+            case "720p":
+
+                creditResolution =
+                    "720p";
+
+                break;
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * STANDARD RESOLUTION
+     * =====================================================
+     *
+     * Untuk model lain, perilaku lama tetap sama.
+     *
+     */
+
     let rawCredit;
 
 
     switch (
-        resolution
+        creditResolution
     ) {
 
         case "480p":
@@ -1020,12 +1146,23 @@ function resolveGenerationCredit(
                     code:
                         "INVALID_RESOLUTION",
 
-                    resolution
+                    resolution:
+                        requestedResolution,
+
+                    credit_resolution:
+                        creditResolution
+
                 }
             );
 
     }
 
+
+    /*
+     * =====================================================
+     * CREDIT CONFIGURATION
+     * =====================================================
+     */
 
     if (
         rawCredit ===
@@ -1038,13 +1175,18 @@ function resolveGenerationCredit(
 
         throw Object.assign(
             new Error(
-                `Credit ${resolution} is not configured for this model`
+                `Credit ${creditResolution} is not configured for this model`
             ),
             {
                 code:
                     "MODEL_CREDIT_NOT_CONFIGURED",
 
-                resolution
+                resolution:
+                    requestedResolution,
+
+                credit_resolution:
+                    creditResolution
+
             }
         );
 
@@ -1066,18 +1208,29 @@ function resolveGenerationCredit(
 
         throw Object.assign(
             new Error(
-                `Credit ${resolution} is invalid`
+                `Credit ${creditResolution} is invalid`
             ),
             {
                 code:
                     "MODEL_CREDIT_INVALID",
 
-                resolution
+                resolution:
+                    requestedResolution,
+
+                credit_resolution:
+                    creditResolution
+
             }
         );
 
     }
 
+
+    /*
+     * =====================================================
+     * DISCOUNT
+     * =====================================================
+     */
 
     let discountPercent;
 
@@ -1094,12 +1247,23 @@ function resolveGenerationCredit(
         throw Object.assign(
             error,
             {
-                resolution
+                resolution:
+                    requestedResolution,
+
+                credit_resolution:
+                    creditResolution
+
             }
         );
 
     }
 
+
+    /*
+     * =====================================================
+     * FINAL CREDIT
+     * =====================================================
+     */
 
     const creditFinal =
         calculateDiscountedCredit(
@@ -1108,9 +1272,30 @@ function resolveGenerationCredit(
         );
 
 
+    /*
+     * =====================================================
+     * RESULT
+     * =====================================================
+     *
+     * resolution:
+     *   resolution asli yang dipilih user.
+     *
+     * credit_resolution:
+     *   resolution internal yang digunakan untuk
+     *   membaca credit_xxx dari Supabase.
+     *
+     * credit:
+     *   nilai final setelah discount.
+     *
+     */
+
     return {
 
-        resolution,
+        resolution:
+            requestedResolution,
+
+        credit_resolution:
+            creditResolution,
 
         credit_base:
             credit,
@@ -3457,10 +3642,11 @@ const parameters =
     try {
 
         generationCredit =
-            resolveGenerationCredit(
-                databaseModel,
-                parameters
-            );
+    resolveGenerationCredit(
+        databaseModel,
+        parameters,
+        modelId
+    );
 
     } catch (error) {
 
