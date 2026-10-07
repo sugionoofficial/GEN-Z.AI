@@ -1,37 +1,44 @@
 /* =========================================================
    GEN-Z.AI
-   GENERATE FORM RENDER
+   GENERATE FORM RENDER MODULE
    ---------------------------------------------------------
    File:
    generate/assets/js/generate-form-render.js
 
    Tanggung jawab:
    - Membuat wrapper field
-   - Membuat label
-   - Menambahkan description
+   - Menampilkan label
+   - Menampilkan description
    - Render parameter
    - Render seluruh dynamic form
-   - Mengatur layout 2 kolom
-   - Mengatur full-width parameter
+   - Mengatur visibility / grid layout
    - Tidak menangani upload
    - Tidak menangani submit
-   - Tidak menangani credit
+   - Tidak menangani collection parameter
 ========================================================= */
 
 "use strict";
 
 
+/* =========================================================
+   CORE
+========================================================= */
+
 import {
+    FULL_WIDTH_PARAMETERS,
     getContainer,
     resolveModel,
     getParameterDefinitions,
-    getOrderedParameterNames,
     getParameterLabel,
     getParameterDescription,
     isRenderableParameter,
-    FULL_WIDTH_PARAMETERS
+    getOrderedParameterNames
 } from "./generate-form-core.js";
 
+
+/* =========================================================
+   FIELD MODULE
+========================================================= */
 
 import {
     createFieldInput
@@ -39,7 +46,7 @@ import {
 
 
 /* =========================================================
-   FIELD
+   CREATE FIELD
 ========================================================= */
 
 export function createField(
@@ -483,18 +490,9 @@ export function forceContainerVisible(
 
 
             const fullWidth =
-                parameter ===
-                    "prompt" ||
-                parameter ===
-                    "negative_prompt" ||
-                parameter ===
-                    "description" ||
-                parameter ===
-                    "image_urls" ||
-                parameter ===
-                    "image_url" ||
-                parameter ===
-                    "audio_url";
+                FULL_WIDTH_PARAMETERS.has(
+                    parameter
+                );
 
 
             if (
@@ -715,3 +713,22 @@ export function renderGenerateForm(
         0;
 
 }
+
+
+/* =========================================================
+   DEFAULT EXPORT
+========================================================= */
+
+export default {
+
+    createField,
+
+    appendDescription,
+
+    renderParameter,
+
+    forceContainerVisible,
+
+    renderGenerateForm
+
+};
