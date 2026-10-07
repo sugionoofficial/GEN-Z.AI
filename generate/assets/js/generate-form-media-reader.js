@@ -1,3 +1,4 @@
+//generate/assets/js/generate-form-media-reader.js?v=1.1
 /* =========================================================
    GEN-Z.AI
    GENERATE FORM MEDIA READER
