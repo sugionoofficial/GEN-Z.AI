@@ -1,19 +1,24 @@
 /* =========================================================
    GEN-Z.AI
+   GENERATE FORM ENGINE
    ---------------------------------------------------------
    File:
    generate/assets/js/generate-form.js
 
    Fungsi:
-   - Dynamic parameter form renderer
+   - Dynamic model parameter form
    - Image upload / URL
    - Audio upload / URL
    - Parameter normalization
-   - Motiongen-AI specific handling
-   - Resolution mapping
-   - Forbidden parameter filtering
-   - Form value collection
-   - Seedance form compatibility
+   - Supabase storage upload
+   - Motiongen parameter handling
+   - Seedance compatibility
+   - Form parameter extraction
+
+   CATATAN:
+   - Jangan mengirim webhook_url ke client/provider
+   - Jangan mengirim nsfw_checker dari form
+   - Motiongen wajib 1 image + 1 audio
 ========================================================= */
 
 import {
@@ -25,7 +30,7 @@ import {
 
 
 /* =========================================================
-   CONSTANTS
+   INTERNAL PARAMETERS
 ========================================================= */
 
 const INTERNAL_PARAMETERS = new Set([
@@ -33,37 +38,70 @@ const INTERNAL_PARAMETERS = new Set([
     "index"
 ]);
 
+
+/* =========================================================
+   SERVER CONTROLLED PARAMETERS
+========================================================= */
+
 const SERVER_CONTROLLED_PARAMETERS = new Set([
     "nsfw_checker"
 ]);
+
+
+/* =========================================================
+   CLIENT FORBIDDEN PARAMETERS
+========================================================= */
 
 const CLIENT_FORBIDDEN_PARAMETERS = new Set([
     "webhook_url",
     "webhook"
 ]);
 
+
+/* =========================================================
+   STORAGE
+========================================================= */
+
 const STORAGE_BUCKET = "dashboard-videos";
 
-const ALLOWED_IMAGE_TYPES = new Set([
+const STORAGE_IMAGE_FOLDER = "generate-input";
+
+const STORAGE_AUDIO_FOLDER = "generate-input";
+
+
+/* =========================================================
+   FILE TYPES
+========================================================= */
+
+const ALLOWED_IMAGE_TYPES = Object.freeze([
     "image/jpeg",
     "image/png",
     "image/webp"
 ]);
 
-const MOTIONGEN_ALLOWED_IMAGE_TYPES = new Set([
+const MOTIONGEN_ALLOWED_IMAGE_TYPES = Object.freeze([
     "image/jpeg",
     "image/png"
 ]);
 
-const ALLOWED_AUDIO_TYPES = new Set([
+const ALLOWED_AUDIO_TYPES = Object.freeze([
     "audio/mpeg",
     "audio/mp3",
     "audio/wav",
-    "audio/x-wav",
-    "audio/wave"
+    "audio/x-wav"
 ]);
 
+
+/* =========================================================
+   FILE SIZE
+========================================================= */
+
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+
+
+/* =========================================================
+   MODEL IDENTIFIERS
+========================================================= */
 
 const MOTIONGEN_MODEL_ID =
     "digital-human-lipsync-image";
@@ -71,10 +109,15 @@ const MOTIONGEN_MODEL_ID =
 const MOTIONGEN_PROVIDER_ID =
     "motiongen";
 
-const MOTIONGEN_RESOLUTION_VALUES = [
+
+/* =========================================================
+   MOTIONGEN RESOLUTION
+========================================================= */
+
+const MOTIONGEN_RESOLUTIONS = Object.freeze([
     "480p",
     "720p"
-];
+]);
 
 const MOTIONGEN_RESOLUTION_LABELS = Object.freeze({
     "480p": "576P",
@@ -83,14 +126,19 @@ const MOTIONGEN_RESOLUTION_LABELS = Object.freeze({
 
 const MOTIONGEN_RESOLUTION_ALIASES = Object.freeze({
     "576p": "480p",
-    "576": "480p",
-    "480p": "480p",
-    "720p": "720p",
-    "720": "720p",
-    "720p hd": "720p"
+    "576P": "480p",
+    "480P": "480p",
+    "720P": "720p",
+    "720p HD": "720p",
+    "720P HD": "720p"
 });
 
-const PARAMETER_ORDER = [
+
+/* =========================================================
+   PARAMETER ORDER
+========================================================= */
+
+const PARAMETER_ORDER = Object.freeze([
     "image_urls",
     "image_url",
     "audio_url",
@@ -99,9 +147,14 @@ const PARAMETER_ORDER = [
     "aspect_ratio",
     "duration",
     "resolution"
-];
+]);
 
-const FULL_WIDTH_PARAMETERS = new Set([
+
+/* =========================================================
+   FULL WIDTH FIELDS
+========================================================= */
+
+const FULL_WIDTH_FIELDS = new Set([
     "image_urls",
     "image_url",
     "audio_url",
@@ -112,365 +165,123 @@ const FULL_WIDTH_PARAMETERS = new Set([
 
 
 /* =========================================================
-   BASIC HELPERS
+   MODEL CHECK
 ========================================================= */
 
-function getContainer() {
-    const elements =
-        typeof getGenerateElements === "function"
-            ? getGenerateElements()
-            : null;
-
-    if (
-        elements &&
-        elements.dynamicFields
-    ) {
-        return elements.dynamicFields;
-    }
-
-    return document.getElementById(
-        "dynamicFields"
-    );
-}
-
-
-function resolveModel(modelArgument = null) {
-
-    if (modelArgument) {
-        return modelArgument;
-    }
-
-    try {
-        return getCurrentModel();
-    } catch (error) {
-        console.warn(
-            "[GEN-Z.AI Generate] Unable to resolve current model:",
-            error
-        );
-
-        return null;
-    }
-}
-
-
-function getModelId(model) {
-
-    if (!model) {
-        return "";
-    }
-
-    return String(
-        model.model_id ||
-        model.modelId ||
-        model.id ||
-        model.model ||
-        ""
-    ).trim();
-}
-
-
-function getProviderId(model) {
-
-    if (!model) {
-        return "";
-    }
-
-    return String(
-        model.provider_id ||
-        model.providerId ||
-        model.provider ||
-        ""
-    ).trim();
-}
-
-
-function isMotiongenModel(modelArgument = null) {
-
-    const model =
-        resolveModel(modelArgument);
-
-    if (!model) {
-        return false;
-    }
+function isMotiongenModel(model) {
 
     const modelId =
-        getModelId(model).toLowerCase();
+        String(
+            model?.id ||
+            model?.model_id ||
+            model?.model ||
+            ""
+        ).trim();
 
     const providerId =
-        getProviderId(model).toLowerCase();
+        String(
+            model?.provider_id ||
+            model?.providerId ||
+            ""
+        ).trim();
 
     return (
-        modelId ===
-            MOTIONGEN_MODEL_ID.toLowerCase()
-        ||
+        modelId === MOTIONGEN_MODEL_ID ||
         (
-            modelId ===
-                MOTIONGEN_MODEL_ID.toLowerCase()
-            &&
-            providerId ===
-                MOTIONGEN_PROVIDER_ID
+            providerId === MOTIONGEN_PROVIDER_ID &&
+            modelId === MOTIONGEN_MODEL_ID
         )
     );
 }
 
 
 /* =========================================================
-   RESOLUTION HELPERS
+   MODEL PARAMETER DEFINITIONS
 ========================================================= */
 
-function normalizeMotiongenResolution(value) {
+function getParameterDefinitions(model) {
 
-    if (
-        value === null ||
-        value === undefined
-    ) {
-        return "";
+    if (!model || typeof model !== "object") {
+        return [];
     }
 
-    const raw =
-        String(value).trim();
+    let definitions =
+        model.parameters ||
+        model.parameter_definitions ||
+        model.inputs ||
+        model.fields ||
+        [];
 
-    if (!raw) {
-        return "";
-    }
-
-    if (
-        MOTIONGEN_RESOLUTION_VALUES.includes(
-            raw
-        )
-    ) {
-        return raw;
-    }
-
-    const normalized =
-        raw.toLowerCase();
-
-    return (
-        MOTIONGEN_RESOLUTION_ALIASES[
-            normalized
-        ] ||
-        ""
-    );
-}
-
-
-function getMotiongenResolutionLabel(
-    value
-) {
-
-    const normalized =
-        normalizeMotiongenResolution(
-            value
-        );
-
-    return (
-        MOTIONGEN_RESOLUTION_LABELS[
-            normalized
-        ] ||
-        String(value ?? "")
-    );
-}
-
-
-/* =========================================================
-   PARAMETER DEFINITIONS
-========================================================= */
-
-function getParameterDefinitions(
-    modelArgument = null
-) {
-
-    const model =
-        resolveModel(modelArgument);
-
-    if (!model) {
-        return {};
-    }
-
-    const possibleSources = [
-        model.parameters,
-        model.parameter_schema,
-        model.input_schema,
-        model.schema,
-        model.config?.parameters,
-        model.config?.parameter_schema,
-        model.config?.input_schema,
-        model.config?.schema,
-        model.repository?.parameters,
-        model.repository?.parameter_schema,
-        model.repository?.input_schema,
-        model.repository?.schema,
-        model.model?.parameters,
-        model.model?.parameter_schema,
-        model.model?.input_schema,
-        model.model?.schema,
-        model.data?.parameters,
-        model.data?.parameter_schema,
-        model.data?.input_schema,
-        model.data?.schema
-    ];
-
-    let normalizedDefinitions = null;
-
-    for (
-        const source
-        of possibleSources
-    ) {
-
-        const normalized =
-            normalizeParameterDefinitions(
-                source
-            );
+    if (!Array.isArray(definitions)) {
 
         if (
-            normalized &&
-            Object.keys(normalized).length
-        ) {
-            normalizedDefinitions =
-                normalized;
-
-            break;
-        }
-    }
-
-    if (!normalizedDefinitions) {
-        normalizedDefinitions = {};
-    }
-
-    /* =====================================================
-       MOTIONGEN RESOLUTION
-    ===================================================== */
-
-    if (
-        isMotiongenModel(model)
-    ) {
-
-        let supportedResolutions = [];
-
-        if (
-            Array.isArray(
-                model.supported_resolutions
-            )
+            definitions &&
+            typeof definitions === "object" &&
+            !Array.isArray(definitions)
         ) {
 
-            supportedResolutions =
-                model.supported_resolutions;
-        }
-
-        if (
-            !supportedResolutions.length &&
-            Array.isArray(
-                model.supportedResolutions
-            )
-        ) {
-
-            supportedResolutions =
-                model.supportedResolutions;
-        }
-
-        if (
-            !supportedResolutions.length &&
-            Array.isArray(
-                model.config?.supported_resolutions
-            )
-        ) {
-
-            supportedResolutions =
-                model.config
-                    .supported_resolutions;
-        }
-
-        if (
-            !supportedResolutions.length &&
-            Array.isArray(
-                model.data?.supported_resolutions
-            )
-        ) {
-
-            supportedResolutions =
-                model.data
-                    .supported_resolutions;
-        }
-
-        const mappedResolutions =
-            supportedResolutions
-                .map(
-                    normalizeMotiongenResolution
-                )
-                .filter(Boolean);
-
-        const uniqueResolutions =
-            [
-                ...new Set(
-                    mappedResolutions
-                )
-            ];
-
-        const finalResolutions =
-            uniqueResolutions.length
-                ? uniqueResolutions
-                : [
-                    ...MOTIONGEN_RESOLUTION_VALUES
-                ];
-
-        normalizedDefinitions.resolution =
-            {
-                type: "string",
-                enum: finalResolutions,
-                default:
-                    finalResolutions.includes(
-                        "720p"
-                    )
-                        ? "720p"
-                        : finalResolutions[0]
-            };
-    }
-
-    /* =====================================================
-       EXISTING RESOLUTION OVERRIDE
-       FOR NON-MOTIONGEN MODELS
-    ===================================================== */
-
-    if (
-        !isMotiongenModel(model) &&
-        Array.isArray(
-            model.supported_resolutions
-        ) &&
-        model.supported_resolutions.length
-    ) {
-
-        if (
-            normalizedDefinitions.resolution
-        ) {
-
-            normalizedDefinitions.resolution =
-                {
-                    ...normalizedDefinitions.resolution,
-                    enum:
-                        model.supported_resolutions
-                };
+            definitions =
+                Object.entries(definitions).map(
+                    ([name, definition]) => ({
+                        name,
+                        ...(definition || {})
+                    })
+                );
 
         } else {
 
-            normalizedDefinitions.resolution =
-                {
-                    type: "string",
-                    enum:
-                        model.supported_resolutions,
-                    default:
-                        model.supported_resolutions[0]
-                };
+            definitions = [];
         }
     }
 
-    /* =====================================================
-       NEVER RENDER WEBHOOK
-    ===================================================== */
+    definitions =
+        normalizeParameterDefinitions(
+            definitions
+        );
 
-    delete normalizedDefinitions.webhook_url;
-    delete normalizedDefinitions.webhook;
+    if (isMotiongenModel(model)) {
 
-    return normalizedDefinitions;
+        definitions =
+            definitions.filter(
+                definition =>
+                    !CLIENT_FORBIDDEN_PARAMETERS.has(
+                        definition.name
+                    )
+            );
+
+        definitions =
+            definitions.map(
+                definition => {
+
+                    if (
+                        definition.name ===
+                        "resolution"
+                    ) {
+
+                        return {
+                            ...definition,
+                            type: "select",
+                            options:
+                                MOTIONGEN_RESOLUTIONS.map(
+                                    resolution => ({
+                                        value: resolution,
+                                        label:
+                                            MOTIONGEN_RESOLUTION_LABELS[
+                                                resolution
+                                            ] ||
+                                            resolution
+                                    })
+                                ),
+                            default: "720p"
+                        };
+                    }
+
+                    return definition;
+                }
+            );
+    }
+
+    return definitions;
 }
 
 
@@ -479,356 +290,212 @@ function getParameterDefinitions(
 ========================================================= */
 
 function normalizeParameterDefinitions(
-    source
-) {
-
-    if (!source) {
-        return {};
-    }
-
-    if (
-        typeof source === "string"
-    ) {
-
-        try {
-            source =
-                JSON.parse(source);
-        } catch {
-            return {};
-        }
-    }
-
-    if (
-        Array.isArray(source)
-    ) {
-
-        const output = {};
-
-        source.forEach(
-            item => {
-
-                if (
-                    typeof item ===
-                    "string"
-                ) {
-
-                    output[item] = {
-                        type: "string"
-                    };
-
-                    return;
-                }
-
-                if (
-                    !item ||
-                    typeof item !==
-                        "object"
-                ) {
-                    return;
-                }
-
-                const name =
-                    item.name ||
-                    item.key ||
-                    item.id ||
-                    item.parameter;
-
-                if (!name) {
-                    return;
-                }
-
-                const {
-                    name: ignoredName,
-                    key: ignoredKey,
-                    id: ignoredId,
-                    parameter: ignoredParameter,
-                    ...definition
-                } = item;
-
-                output[name] =
-                    definition;
-            }
-        );
-
-        return output;
-    }
-
-    if (
-        typeof source !== "object"
-    ) {
-        return {};
-    }
-
-    if (
-        source.properties &&
-        typeof source.properties ===
-            "object"
-    ) {
-
-        return {
-            ...source.properties
-        };
-    }
-
-    if (
-        source.parameters &&
-        typeof source.parameters ===
-            "object"
-    ) {
-
-        return normalizeParameterDefinitions(
-            source.parameters
-        );
-    }
-
-    if (
-        source.inputs &&
-        typeof source.inputs ===
-            "object"
-    ) {
-
-        return normalizeParameterDefinitions(
-            source.inputs
-        );
-    }
-
-    if (
-        source.fields &&
-        typeof source.fields ===
-            "object"
-    ) {
-
-        return normalizeParameterDefinitions(
-            source.fields
-        );
-    }
-
-    return {
-        ...source
-    };
-}
-
-
-/* =========================================================
-   PARAMETER LABEL
-========================================================= */
-
-function getParameterLabel(
-    parameterName
-) {
-
-    const labels = {
-        image_urls: "Image",
-        image_url: "Image",
-        audio_url: "Audio",
-        prompt: "Prompt",
-        negative_prompt:
-            "Negative Prompt",
-        mode: "Mode",
-        aspect_ratio:
-            "Aspect Ratio",
-        duration: "Duration",
-        resolution: "Resolution",
-        description: "Description"
-    };
-
-    if (
-        labels[parameterName]
-    ) {
-
-        return labels[
-            parameterName
-        ];
-    }
-
-    return String(
-        parameterName
-    )
-        .replace(
-            /[_-]+/g,
-            " "
-        )
-        .replace(
-            /\b\w/g,
-            character =>
-                character.toUpperCase()
-        );
-}
-
-
-/* =========================================================
-   PARAMETER FILTERING
-========================================================= */
-
-function isInternalParameter(
-    parameterName
-) {
-
-    return INTERNAL_PARAMETERS.has(
-        parameterName
-    );
-}
-
-
-function isServerControlledParameter(
-    parameterName
-) {
-
-    return SERVER_CONTROLLED_PARAMETERS.has(
-        parameterName
-    );
-}
-
-
-function isClientForbiddenParameter(
-    parameterName
-) {
-
-    return (
-        CLIENT_FORBIDDEN_PARAMETERS.has(
-            parameterName
-        )
-        ||
-        isInternalParameter(
-            parameterName
-        )
-        ||
-        isServerControlledParameter(
-            parameterName
-        )
-    );
-}
-
-
-function isRenderableParameter(
-    parameterName
-) {
-
-    if (
-        !parameterName
-    ) {
-        return false;
-    }
-
-    return !isClientForbiddenParameter(
-        parameterName
-    );
-}
-
-
-/* =========================================================
-   PARAMETER ORDER
-========================================================= */
-
-function getOrderedParameterNames(
     definitions
 ) {
 
-    const names =
-        Object.keys(
-            definitions || {}
+    if (!Array.isArray(definitions)) {
+        return [];
+    }
+
+    return definitions
+        .map(
+            definition => {
+
+                if (
+                    typeof definition ===
+                    "string"
+                ) {
+
+                    return {
+                        name: definition,
+                        type: "text"
+                    };
+                }
+
+                if (
+                    !definition ||
+                    typeof definition !==
+                    "object"
+                ) {
+
+                    return null;
+                }
+
+                const name =
+                    definition.name ||
+                    definition.id ||
+                    definition.key;
+
+                if (!name) {
+                    return null;
+                }
+
+                let type =
+                    definition.type ||
+                    definition.input_type ||
+                    definition.inputType ||
+                    "text";
+
+                if (
+                    type === "string" &&
+                    (
+                        definition.format ===
+                            "textarea" ||
+                        definition.multiline === true
+                    )
+                ) {
+
+                    type = "textarea";
+                }
+
+                return {
+                    ...definition,
+                    name,
+                    type
+                };
+            }
         )
-        .filter(
-            isRenderableParameter
-        );
-
-    const ordered = [];
-
-    PARAMETER_ORDER.forEach(
-        preferredName => {
-
-            if (
-                names.includes(
-                    preferredName
-                )
-            ) {
-
-                ordered.push(
-                    preferredName
-                );
-            }
-        }
-    );
-
-    names.forEach(
-        name => {
-
-            if (
-                !ordered.includes(name)
-            ) {
-
-                ordered.push(name);
-            }
-        }
-    );
-
-    return ordered;
+        .filter(Boolean);
 }
 
 
 /* =========================================================
-   FIELD CREATION
+   SORT PARAMETERS
 ========================================================= */
 
-function createField(
-    parameterName,
-    definition,
-    modelArgument = null
+function sortParameterDefinitions(
+    definitions
 ) {
 
-    const wrapper =
-        document.createElement(
-            "div"
+    if (!Array.isArray(definitions)) {
+        return [];
+    }
+
+    const orderMap =
+        new Map(
+            PARAMETER_ORDER.map(
+                (name, index) =>
+                    [name, index]
+            )
         );
 
-    wrapper.className =
+    return [...definitions].sort(
+        (a, b) => {
+
+            const aIndex =
+                orderMap.has(a.name)
+                    ? orderMap.get(a.name)
+                    : 999;
+
+            const bIndex =
+                orderMap.has(b.name)
+                    ? orderMap.get(b.name)
+                    : 999;
+
+            return aIndex - bIndex;
+        }
+    );
+}
+
+
+/* =========================================================
+   GENERIC FIELD CONTAINER
+========================================================= */
+
+function createFieldContainer(
+    definition
+) {
+
+    const container =
+        document.createElement("div");
+
+    container.className =
         "generate-field";
 
-    wrapper.dataset.parameter =
-        parameterName;
-
     if (
-        FULL_WIDTH_PARAMETERS.has(
-            parameterName
+        FULL_WIDTH_FIELDS.has(
+            definition.name
         )
     ) {
 
-        wrapper.classList.add(
+        container.classList.add(
             "generate-field-full"
         );
     }
 
+    container.dataset.parameter =
+        definition.name;
+
+    return container;
+}
+
+
+/* =========================================================
+   LABEL
+========================================================= */
+
+function createFieldLabel(
+    definition
+) {
+
     const label =
-        document.createElement(
-            "label"
-        );
+        document.createElement("label");
 
     label.className =
         "generate-field-label";
 
     label.textContent =
-        getParameterLabel(
-            parameterName
-        );
+        definition.label ||
+        definition.title ||
+        definition.name;
 
-    wrapper.appendChild(
-        label
-    );
+    if (definition.required) {
 
-    const input =
-        createFieldInput(
-            parameterName,
-            definition,
-            modelArgument
-        );
+        const required =
+            document.createElement("span");
 
-    if (input) {
-        wrapper.appendChild(
-            input
+        required.className =
+            "generate-required";
+
+        required.textContent =
+            " *";
+
+        label.appendChild(
+            required
         );
     }
 
-    return wrapper;
+    return label;
+}
+
+
+/* =========================================================
+   DESCRIPTION
+========================================================= */
+
+function createFieldDescription(
+    definition
+) {
+
+    const description =
+        definition.description ||
+        definition.help ||
+        definition.hint;
+
+    if (!description) {
+        return null;
+    }
+
+    const element =
+        document.createElement("div");
+
+    element.className =
+        "generate-field-description";
+
+    element.textContent =
+        description;
+
+    return element;
 }
 
 
@@ -837,85 +504,115 @@ function createField(
 ========================================================= */
 
 function createImageField(
-    parameterName,
     definition,
-    modelArgument = null
+    modelArgument
 ) {
 
     const container =
-        document.createElement(
-            "div"
+        createFieldContainer(
+            definition
         );
 
-    container.className =
-        "generate-media-input generate-image-input";
+    container.classList.add(
+        "generate-image-field"
+    );
 
-    container.dataset.parameter =
-        parameterName;
-
-    const controls =
-        document.createElement(
-            "div"
+    const label =
+        createFieldLabel(
+            definition
         );
 
-    controls.className =
-        "generate-media-controls";
+    container.appendChild(
+        label
+    );
 
-    const urlButton =
-        document.createElement(
-            "button"
+    const description =
+        createFieldDescription(
+            definition
         );
 
-    urlButton.type = "button";
-    urlButton.className =
-        "generate-media-mode active";
-    urlButton.textContent =
-        "URL";
+    if (description) {
+
+        container.appendChild(
+            description
+        );
+    }
+
+
+    /* =====================================================
+       MODE SWITCH
+    ===================================================== */
+
+    const modeWrapper =
+        document.createElement("div");
+
+    modeWrapper.className =
+        "generate-media-mode";
+
 
     const uploadButton =
-        document.createElement(
-            "button"
-        );
+        document.createElement("button");
 
-    uploadButton.type = "button";
+    uploadButton.type =
+        "button";
+
     uploadButton.className =
-        "generate-media-mode";
+        "generate-media-mode-button active";
+
     uploadButton.textContent =
         "Upload";
 
-    controls.appendChild(
-        urlButton
-    );
 
-    controls.appendChild(
+    const urlButton =
+        document.createElement("button");
+
+    urlButton.type =
+        "button";
+
+    urlButton.className =
+        "generate-media-mode-button";
+
+    urlButton.textContent =
+        "URL";
+
+
+    modeWrapper.appendChild(
         uploadButton
     );
 
-    container.appendChild(
-        controls
+    modeWrapper.appendChild(
+        urlButton
     );
 
-    const urlInput =
-        document.createElement(
-            "input"
-        );
+    container.appendChild(
+        modeWrapper
+    );
 
-    urlInput.type = "url";
-    urlInput.className =
-        "generate-media-url";
-    urlInput.placeholder =
-        "https://...";
-    urlInput.autocomplete =
-        "off";
+
+    /* =====================================================
+       INPUT WRAPPER
+    ===================================================== */
+
+    const inputWrapper =
+        document.createElement("div");
+
+    inputWrapper.className =
+        "generate-media-input";
+
+
+    /* =====================================================
+       FILE INPUT
+    ===================================================== */
 
     const fileInput =
-        document.createElement(
-            "input"
-        );
+        document.createElement("input");
 
-    fileInput.type = "file";
+    fileInput.type =
+        "file";
+
     fileInput.className =
-        "generate-media-file";
+        "generate-file-input";
+
     fileInput.accept =
         isMotiongenModel(
             modelArgument
@@ -923,40 +620,134 @@ function createImageField(
             ? ".jpg,.jpeg,.png,image/jpeg,image/png"
             : ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
 
-    fileInput.style.display =
-        "none";
+
+    /* =====================================================
+       STATUS
+    ===================================================== */
+
+    const status =
+        document.createElement("div");
+
+    status.className =
+        "generate-upload-status";
+
+    status.textContent =
+        "Pilih gambar";
+
+
+    /* =====================================================
+       PREVIEW
+    ===================================================== */
 
     const preview =
-        document.createElement(
-            "div"
-        );
+        document.createElement("div");
 
     preview.className =
         "generate-media-preview";
 
-    const status =
-        document.createElement(
-            "div"
-        );
 
-    status.className =
-        "generate-media-status";
+    /* =====================================================
+       URL INPUT
+    ===================================================== */
 
-    container.appendChild(
+    const urlInput =
+        document.createElement("input");
+
+    urlInput.type =
+        "url";
+
+    urlInput.className =
+        "generate-url-input";
+
+    urlInput.placeholder =
+        "https://example.com/image.jpg";
+
+    urlInput.autocomplete =
+        "off";
+
+
+    /* =====================================================
+       DEFAULT MODE
+    ===================================================== */
+
+    urlInput.style.display =
+        "none";
+
+
+    /* =====================================================
+       APPEND
+    ===================================================== */
+
+    inputWrapper.appendChild(
+        fileInput
+    );
+
+    inputWrapper.appendChild(
+        status
+    );
+
+    inputWrapper.appendChild(
+        preview
+    );
+
+    inputWrapper.appendChild(
         urlInput
     );
 
     container.appendChild(
-        fileInput
+        inputWrapper
     );
 
-    container.appendChild(
-        preview
-    );
 
-    container.appendChild(
-        status
-    );
+    /* =====================================================
+       UPLOADED URL STATE
+    ===================================================== */
+
+    container.dataset.uploadedUrl =
+        "";
+
+
+    /* =====================================================
+       GET UPLOADED URL
+    ===================================================== */
+
+    container.getUploadedUrl =
+        function () {
+
+            return String(
+                container.dataset.uploadedUrl ||
+                ""
+            ).trim();
+        };
+
+
+    /* =====================================================
+       SET UPLOADED URL
+    ===================================================== */
+
+    container.setUploadedUrl =
+        function (value) {
+
+            container.dataset.uploadedUrl =
+                String(
+                    value || ""
+                ).trim();
+        };
+
+
+    /* =====================================================
+       SELECTED FILES
+    ===================================================== */
+
+    container.getSelectedFiles =
+        function () {
+
+            return fileInput.files
+                ? Array.from(
+                    fileInput.files
+                )
+                : [];
+        };
 
 
     /* =====================================================
@@ -967,37 +758,28 @@ function createImageField(
         "click",
         () => {
 
-            urlButton.classList.add(
-                "active"
-            );
-
             uploadButton.classList.remove(
                 "active"
             );
 
-            urlInput.style.display =
-                "";
+            urlButton.classList.add(
+                "active"
+            );
 
             fileInput.style.display =
                 "none";
 
-            /*
-             * URL mode must not accidentally reuse
-             * an old uploaded image.
-             */
+            status.style.display =
+                "none";
 
-            container.setUploadedUrl(
-                ""
-            );
+            preview.style.display =
+                "none";
 
-            fileInput.value =
+            urlInput.style.display =
                 "";
 
-            preview.innerHTML =
-                "";
-
-            status.textContent =
-                "";
+            container.dataset.mediaMode =
+                "url";
         }
     );
 
@@ -1010,29 +792,28 @@ function createImageField(
         "click",
         () => {
 
-            uploadButton.classList.add(
-                "active"
-            );
-
             urlButton.classList.remove(
                 "active"
             );
 
-            urlInput.style.display =
-                "none";
+            uploadButton.classList.add(
+                "active"
+            );
 
             fileInput.style.display =
                 "";
 
-            /*
-             * URL mode value must not interfere
-             * with uploaded image mode.
-             */
-
-            urlInput.value =
+            status.style.display =
                 "";
 
-            fileInput.click();
+            preview.style.display =
+                "";
+
+            urlInput.style.display =
+                "none";
+
+            container.dataset.mediaMode =
+                "upload";
         }
     );
 
@@ -1040,13 +821,9 @@ function createImageField(
     /* =====================================================
        IMAGE FILE CHANGE
        -----------------------------------------------------
-       IMPORTANT:
-       The previous implementation only displayed the
-       selected file locally.
-
-       Motiongen requires a PUBLIC image URL.
-       Therefore the file is uploaded immediately and
-       the resulting URL is stored in container.dataset.
+       FIX:
+       File langsung di-upload ke Supabase dan public URL
+       disimpan ke container.dataset.uploadedUrl.
     ===================================================== */
 
     fileInput.addEventListener(
@@ -1062,9 +839,9 @@ function createImageField(
 
             try {
 
-                /* =========================================
-                   VALIDATE IMAGE
-                ========================================= */
+                /* -----------------------------------------
+                   VALIDATE
+                ----------------------------------------- */
 
                 validateImageFile(
                     file,
@@ -1072,18 +849,18 @@ function createImageField(
                 );
 
 
-                /* =========================================
-                   CLEAR PREVIOUS UPLOADED URL
-                ========================================= */
+                /* -----------------------------------------
+                   RESET PREVIOUS URL
+                ----------------------------------------- */
 
                 container.setUploadedUrl(
                     ""
                 );
 
 
-                /* =========================================
-                   LOCAL PREVIEW
-                ========================================= */
+                /* -----------------------------------------
+                   PREVIEW
+                ----------------------------------------- */
 
                 preview.innerHTML =
                     "";
@@ -1093,13 +870,10 @@ function createImageField(
                         "img"
                     );
 
-                const objectUrl =
+                image.src =
                     URL.createObjectURL(
                         file
                     );
-
-                image.src =
-                    objectUrl;
 
                 image.alt =
                     "Image preview";
@@ -1109,17 +883,17 @@ function createImageField(
                 );
 
 
-                /* =========================================
+                /* -----------------------------------------
                    UPLOAD STATUS
-                ========================================= */
+                ----------------------------------------- */
 
                 status.textContent =
                     "Mengunggah gambar...";
 
 
-                /* =========================================
-                   UPLOAD TO SUPABASE
-                ========================================= */
+                /* -----------------------------------------
+                   IMMEDIATE UPLOAD
+                ----------------------------------------- */
 
                 const publicUrl =
                     await uploadImageFile(
@@ -1127,10 +901,6 @@ function createImageField(
                         modelArgument
                     );
 
-
-                /* =========================================
-                   VERIFY PUBLIC URL
-                ========================================= */
 
                 if (!publicUrl) {
 
@@ -1140,59 +910,23 @@ function createImageField(
                 }
 
 
-                /* =========================================
+                /* -----------------------------------------
                    STORE PUBLIC URL
-                   ------------------------------------------------
-                   getFormParameters() akan mengambil URL
-                   ini dan menghasilkan:
-
-                   image_urls: [
-                       publicUrl
-                   ]
-                ========================================= */
+                ----------------------------------------- */
 
                 container.setUploadedUrl(
                     publicUrl
                 );
 
 
-                /* =========================================
-                   SUCCESS STATUS
-                ========================================= */
+                /* -----------------------------------------
+                   SUCCESS
+                ----------------------------------------- */
 
                 status.textContent =
                     file.name;
 
-
-                /*
-                 * Release browser object URL after the
-                 * preview image has loaded.
-                 */
-
-                image.addEventListener(
-                    "load",
-                    () => {
-
-                        try {
-                            URL.revokeObjectURL(
-                                objectUrl
-                            );
-                        } catch {
-                            /* ignore */
-                        }
-
-                    },
-                    {
-                        once: true
-                    }
-                );
-
-
             } catch (error) {
-
-                /* =========================================
-                   RESET FAILED UPLOAD
-                ========================================= */
 
                 fileInput.value =
                     "";
@@ -1206,8 +940,7 @@ function createImageField(
 
                 status.textContent =
                     error?.message ||
-                    "Upload gambar gagal.";
-
+                    "Gagal mengunggah gambar.";
 
                 console.error(
                     "[GEN-Z.AI Generate] Image upload/validation error:",
@@ -1219,68 +952,26 @@ function createImageField(
 
 
     /* =====================================================
-       PUBLIC FIELD METHODS
+       URL CHANGE
     ===================================================== */
 
-    container.getInputMode = () => {
+    urlInput.addEventListener(
+        "input",
+        () => {
 
-        if (
-            uploadButton.classList.contains(
-                "active"
-            )
-        ) {
-
-            return "upload";
+            container.setUploadedUrl(
+                ""
+            );
         }
-
-        return "url";
-    };
+    );
 
 
-    container.getUrlInput = () =>
-        urlInput;
+    /* =====================================================
+       INITIAL MODE
+    ===================================================== */
 
-
-    container.getFileInput = () =>
-        fileInput;
-
-
-    container.getUploadedUrl = () =>
-        container.dataset.uploadedUrl ||
-        "";
-
-
-    container.setUploadedUrl = (
-        value
-    ) => {
-
-        container.dataset.uploadedUrl =
-            value || "";
-    };
-
-
-    container.clearUploadedFile = () => {
-
-        fileInput.value =
-            "";
-
-        container.dataset.uploadedUrl =
-            "";
-
-        preview.innerHTML =
-            "";
-
-        status.textContent =
-            "";
-    };
-
-
-    container.getSelectedFiles = () =>
-        fileInput.files
-            ? Array.from(
-                fileInput.files
-            )
-            : [];
+    container.dataset.mediaMode =
+        "upload";
 
 
     return container;
@@ -1292,170 +983,293 @@ function createImageField(
 ========================================================= */
 
 function createAudioField(
-    parameterName,
     definition,
-    modelArgument = null
+    modelArgument
 ) {
 
     const container =
-        document.createElement(
-            "div"
+        createFieldContainer(
+            definition
         );
 
-    container.className =
-        "generate-media-input generate-audio-input";
+    container.classList.add(
+        "generate-audio-field"
+    );
 
-    container.dataset.parameter =
-        parameterName;
-
-    const controls =
-        document.createElement(
-            "div"
+    const label =
+        createFieldLabel(
+            definition
         );
 
-    controls.className =
-        "generate-media-controls";
+    container.appendChild(
+        label
+    );
 
-    const urlButton =
-        document.createElement(
-            "button"
+    const description =
+        createFieldDescription(
+            definition
         );
 
-    urlButton.type = "button";
-    urlButton.className =
-        "generate-media-mode active";
-    urlButton.textContent =
-        "URL";
+    if (description) {
+
+        container.appendChild(
+            description
+        );
+    }
+
+
+    /* =====================================================
+       MODE SWITCH
+    ===================================================== */
+
+    const modeWrapper =
+        document.createElement("div");
+
+    modeWrapper.className =
+        "generate-media-mode";
+
 
     const uploadButton =
-        document.createElement(
-            "button"
-        );
+        document.createElement("button");
 
-    uploadButton.type = "button";
+    uploadButton.type =
+        "button";
+
     uploadButton.className =
-        "generate-media-mode";
+        "generate-media-mode-button active";
+
     uploadButton.textContent =
         "Upload";
 
-    controls.appendChild(
-        urlButton
-    );
 
-    controls.appendChild(
+    const urlButton =
+        document.createElement("button");
+
+    urlButton.type =
+        "button";
+
+    urlButton.className =
+        "generate-media-mode-button";
+
+    urlButton.textContent =
+        "URL";
+
+
+    modeWrapper.appendChild(
         uploadButton
     );
 
-    container.appendChild(
-        controls
+    modeWrapper.appendChild(
+        urlButton
     );
 
-    const urlInput =
-        document.createElement(
-            "input"
-        );
+    container.appendChild(
+        modeWrapper
+    );
 
-    urlInput.type = "url";
+
+    /* =====================================================
+       INPUT WRAPPER
+    ===================================================== */
+
+    const inputWrapper =
+        document.createElement("div");
+
+    inputWrapper.className =
+        "generate-media-input";
+
+
+    /* =====================================================
+       FILE INPUT
+    ===================================================== */
+
+    const fileInput =
+        document.createElement("input");
+
+    fileInput.type =
+        "file";
+
+    fileInput.className =
+        "generate-file-input";
+
+    fileInput.accept =
+        ".mp3,.wav,audio/mpeg,audio/mp3,audio/wav";
+
+
+    /* =====================================================
+       STATUS
+    ===================================================== */
+
+    const status =
+        document.createElement("div");
+
+    status.className =
+        "generate-upload-status";
+
+    status.textContent =
+        "Pilih audio";
+
+
+    /* =====================================================
+       URL INPUT
+    ===================================================== */
+
+    const urlInput =
+        document.createElement("input");
+
+    urlInput.type =
+        "url";
+
     urlInput.className =
-        "generate-media-url";
+        "generate-url-input";
+
     urlInput.placeholder =
-        "https://.../audio.mp3";
+        "https://example.com/audio.mp3";
+
     urlInput.autocomplete =
         "off";
 
-    const fileInput =
-        document.createElement(
-            "input"
-        );
-
-    fileInput.type = "file";
-    fileInput.className =
-        "generate-media-file";
-    fileInput.accept =
-        ".mp3,.wav,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/wave";
-
-    fileInput.style.display =
+    urlInput.style.display =
         "none";
 
-    const preview =
-        document.createElement(
-            "audio"
-        );
 
-    preview.className =
-        "generate-audio-preview";
+    /* =====================================================
+       APPEND
+    ===================================================== */
 
-    preview.controls =
-        true;
+    inputWrapper.appendChild(
+        fileInput
+    );
 
-    preview.style.display =
-        "none";
+    inputWrapper.appendChild(
+        status
+    );
 
-    const status =
-        document.createElement(
-            "div"
-        );
-
-    status.className =
-        "generate-media-status";
-
-    container.appendChild(
+    inputWrapper.appendChild(
         urlInput
     );
 
     container.appendChild(
-        fileInput
+        inputWrapper
     );
 
-    container.appendChild(
-        preview
-    );
 
-    container.appendChild(
-        status
-    );
+    /* =====================================================
+       UPLOADED URL STATE
+    ===================================================== */
+
+    container.dataset.uploadedUrl =
+        "";
+
+
+    /* =====================================================
+       GET UPLOADED URL
+    ===================================================== */
+
+    container.getUploadedUrl =
+        function () {
+
+            return String(
+                container.dataset.uploadedUrl ||
+                ""
+            ).trim();
+        };
+
+
+    /* =====================================================
+       SET UPLOADED URL
+    ===================================================== */
+
+    container.setUploadedUrl =
+        function (value) {
+
+            container.dataset.uploadedUrl =
+                String(
+                    value || ""
+                ).trim();
+        };
+
+
+    /* =====================================================
+       SELECTED FILES
+    ===================================================== */
+
+    container.getSelectedFiles =
+        function () {
+
+            return fileInput.files
+                ? Array.from(
+                    fileInput.files
+                )
+                : [];
+        };
+
+
+    /* =====================================================
+       URL MODE
+    ===================================================== */
 
     urlButton.addEventListener(
         "click",
         () => {
 
-            urlButton.classList.add(
-                "active"
-            );
-
             uploadButton.classList.remove(
                 "active"
             );
 
-            urlInput.style.display =
-                "";
+            urlButton.classList.add(
+                "active"
+            );
 
             fileInput.style.display =
                 "none";
+
+            status.style.display =
+                "none";
+
+            urlInput.style.display =
+                "";
+
+            container.dataset.mediaMode =
+                "url";
         }
     );
+
+
+    /* =====================================================
+       UPLOAD MODE
+    ===================================================== */
 
     uploadButton.addEventListener(
         "click",
         () => {
 
-            uploadButton.classList.add(
-                "active"
-            );
-
             urlButton.classList.remove(
                 "active"
             );
 
-            urlInput.style.display =
-                "none";
+            uploadButton.classList.add(
+                "active"
+            );
 
             fileInput.style.display =
                 "";
 
-            fileInput.click();
+            status.style.display =
+                "";
+
+            urlInput.style.display =
+                "none";
+
+            container.dataset.mediaMode =
+                "upload";
         }
     );
+
+
+    /* =====================================================
+       AUDIO FILE CHANGE
+    ===================================================== */
 
     fileInput.addEventListener(
         "change",
@@ -1474,13 +1288,9 @@ function createAudioField(
                     file
                 );
 
-                preview.src =
-                    URL.createObjectURL(
-                        file
-                    );
-
-                preview.style.display =
-                    "";
+                container.setUploadedUrl(
+                    ""
+                );
 
                 status.textContent =
                     file.name;
@@ -1490,15 +1300,13 @@ function createAudioField(
                 fileInput.value =
                     "";
 
-                preview.removeAttribute(
-                    "src"
+                container.setUploadedUrl(
+                    ""
                 );
 
-                preview.style.display =
-                    "none";
-
                 status.textContent =
-                    error.message;
+                    error?.message ||
+                    "Audio tidak valid.";
 
                 console.error(
                     "[GEN-Z.AI Generate] Audio validation error:",
@@ -1508,173 +1316,356 @@ function createAudioField(
         }
     );
 
-    container.getInputMode = () => {
 
-        if (
-            uploadButton.classList.contains(
-                "active"
-            )
-        ) {
+    /* =====================================================
+       URL CHANGE
+    ===================================================== */
 
-            return "upload";
+    urlInput.addEventListener(
+        "input",
+        () => {
+
+            container.setUploadedUrl(
+                ""
+            );
         }
+    );
 
-        return "url";
-    };
 
-    container.getUrlInput = () =>
-        urlInput;
+    /* =====================================================
+       INITIAL MODE
+    ===================================================== */
 
-    container.getFileInput = () =>
-        fileInput;
+    container.dataset.mediaMode =
+        "upload";
 
-    container.getUploadedUrl = () =>
-        container.dataset.uploadedUrl ||
-        "";
-
-    container.setUploadedUrl = (
-        value
-    ) => {
-
-        container.dataset.uploadedUrl =
-            value || "";
-    };
-
-    container.clearUploadedFile = () => {
-
-        fileInput.value =
-            "";
-
-        container.dataset.uploadedUrl =
-            "";
-
-        preview.removeAttribute(
-            "src"
-        );
-
-        preview.style.display =
-            "none";
-
-        status.textContent =
-            "";
-    };
-
-    container.getSelectedFiles = () =>
-        fileInput.files
-            ? Array.from(
-                fileInput.files
-            )
-            : [];
 
     return container;
 }
 
 
 /* =========================================================
-   ENUM FIELD
+   TEXTAREA FIELD
 ========================================================= */
 
-function createEnumField(
-    parameterName,
-    definition,
-    modelArgument = null
+function createTextareaField(
+    definition
 ) {
 
     const container =
-        document.createElement(
-            "div"
+        createFieldContainer(
+            definition
         );
 
-    container.className =
-        "generate-enum-field";
+    const label =
+        createFieldLabel(
+            definition
+        );
 
-    const values =
-        Array.isArray(
-            definition?.enum
-        )
-            ? definition.enum
-            : [];
+    container.appendChild(
+        label
+    );
 
-    const defaultValue =
-        definition?.default ??
-        definition?.defaultValue ??
-        values[0] ??
+    const description =
+        createFieldDescription(
+            definition
+        );
+
+    if (description) {
+
+        container.appendChild(
+            description
+        );
+    }
+
+    const textarea =
+        document.createElement(
+            "textarea"
+        );
+
+    textarea.className =
+        "generate-textarea";
+
+    textarea.name =
+        definition.name;
+
+    textarea.placeholder =
+        definition.placeholder ||
         "";
 
-    values.forEach(
-        (value, index) => {
+    textarea.rows =
+        Number(
+            definition.rows ||
+            5
+        );
 
-            const label =
-                document.createElement(
-                    "label"
-                );
+    if (definition.maxLength) {
 
-            label.className =
-                "generate-radio-option";
+        textarea.maxLength =
+            Number(
+                definition.maxLength
+            );
+    }
 
-            const input =
-                document.createElement(
-                    "input"
-                );
+    if (definition.required) {
 
-            input.type =
-                "radio";
+        textarea.required =
+            true;
+    }
 
-            input.name =
-                `parameter_${parameterName}`;
+    if (
+        definition.default !==
+        undefined
+    ) {
+
+        textarea.value =
+            String(
+                definition.default
+            );
+    }
+
+    container.appendChild(
+        textarea
+    );
+
+    container.getValue =
+        function () {
+
+            return textarea.value;
+        };
+
+    container.setValue =
+        function (value) {
+
+            textarea.value =
+                value == null
+                    ? ""
+                    : String(value);
+        };
+
+    return container;
+}
+
+
+/* =========================================================
+   TEXT FIELD
+========================================================= */
+
+function createTextField(
+    definition
+) {
+
+    const container =
+        createFieldContainer(
+            definition
+        );
+
+    const label =
+        createFieldLabel(
+            definition
+        );
+
+    container.appendChild(
+        label
+    );
+
+    const description =
+        createFieldDescription(
+            definition
+        );
+
+    if (description) {
+
+        container.appendChild(
+            description
+        );
+    }
+
+    const input =
+        document.createElement(
+            "input"
+        );
+
+    input.type =
+        definition.type ===
+            "number"
+            ? "number"
+            : "text";
+
+    input.className =
+        "generate-input";
+
+    input.name =
+        definition.name;
+
+    input.placeholder =
+        definition.placeholder ||
+        "";
+
+    if (definition.required) {
+
+        input.required =
+            true;
+    }
+
+    if (definition.maxLength) {
+
+        input.maxLength =
+            Number(
+                definition.maxLength
+            );
+    }
+
+    if (
+        definition.default !==
+        undefined
+    ) {
+
+        input.value =
+            String(
+                definition.default
+            );
+    }
+
+    container.appendChild(
+        input
+    );
+
+    container.getValue =
+        function () {
+
+            return input.value;
+        };
+
+    container.setValue =
+        function (value) {
 
             input.value =
-                String(value);
+                value == null
+                    ? ""
+                    : String(value);
+        };
 
-            if (
-                String(value) ===
-                String(defaultValue)
-            ) {
+    return container;
+}
 
-                input.checked =
-                    true;
-            }
 
-            const text =
-                document.createElement(
-                    "span"
-                );
+/* =========================================================
+   NUMBER FIELD
+========================================================= */
 
-            let displayValue =
-                value;
+function createNumberField(
+    definition
+) {
 
-            if (
-                parameterName ===
-                    "resolution" &&
-                isMotiongenModel(
-                    modelArgument
-                )
-            ) {
+    const container =
+        createFieldContainer(
+            definition
+        );
 
-                displayValue =
-                    getMotiongenResolutionLabel(
-                        value
-                    );
-            }
+    const label =
+        createFieldLabel(
+            definition
+        );
 
-            text.textContent =
-                String(
-                    displayValue
-                );
-
-            label.appendChild(
-                input
-            );
-
-            label.appendChild(
-                text
-            );
-
-            container.appendChild(
-                label
-            );
-        }
+    container.appendChild(
+        label
     );
+
+    const description =
+        createFieldDescription(
+            definition
+        );
+
+    if (description) {
+
+        container.appendChild(
+            description
+        );
+    }
+
+    const input =
+        document.createElement(
+            "input"
+        );
+
+    input.type =
+        "number";
+
+    input.className =
+        "generate-input";
+
+    input.name =
+        definition.name;
+
+    if (
+        definition.min !==
+        undefined
+    ) {
+
+        input.min =
+            String(
+                definition.min
+            );
+    }
+
+    if (
+        definition.max !==
+        undefined
+    ) {
+
+        input.max =
+            String(
+                definition.max
+            );
+    }
+
+    if (
+        definition.step !==
+        undefined
+    ) {
+
+        input.step =
+            String(
+                definition.step
+            );
+    }
+
+    if (
+        definition.default !==
+        undefined
+    ) {
+
+        input.value =
+            String(
+                definition.default
+            );
+    }
+
+    if (definition.required) {
+
+        input.required =
+            true;
+    }
+
+    container.appendChild(
+        input
+    );
+
+    container.getValue =
+        function () {
+
+            return input.value;
+        };
+
+    container.setValue =
+        function (value) {
+
+            input.value =
+                value == null
+                    ? ""
+                    : String(value);
+        };
 
     return container;
 }
@@ -1685,17 +1676,22 @@ function createEnumField(
 ========================================================= */
 
 function createBooleanField(
-    parameterName,
     definition
 ) {
 
-    const label =
+    const container =
+        createFieldContainer(
+            definition
+        );
+
+    const wrapper =
         document.createElement(
             "label"
         );
 
-    label.className =
-        "generate-checkbox-option";
+    wrapper.className =
+        "generate-checkbox-wrapper";
+
 
     const input =
         document.createElement(
@@ -1705,18 +1701,12 @@ function createBooleanField(
     input.type =
         "checkbox";
 
-    input.dataset.parameter =
-        parameterName;
-
-    const defaultValue =
-        definition?.default ??
-        definition?.defaultValue ??
-        false;
+    input.name =
+        definition.name;
 
     input.checked =
-        Boolean(
-            defaultValue
-        );
+        definition.default === true;
+
 
     const text =
         document.createElement(
@@ -1724,190 +1714,40 @@ function createBooleanField(
         );
 
     text.textContent =
-        getParameterLabel(
-            parameterName
-        );
+        definition.label ||
+        definition.title ||
+        definition.name;
 
-    label.appendChild(
+
+    wrapper.appendChild(
         input
     );
 
-    label.appendChild(
+    wrapper.appendChild(
         text
     );
 
-    return label;
-}
-
-
-/* =========================================================
-   NUMBER FIELD
-========================================================= */
-
-function createNumberField(
-    parameterName,
-    definition
-) {
-
-    const input =
-        document.createElement(
-            "input"
-        );
-
-    input.type =
-        "number";
-
-    input.dataset.parameter =
-        parameterName;
-
-    if (
-        definition?.min !==
-        undefined
-    ) {
-
-        input.min =
-            definition.min;
-    }
-
-    if (
-        definition?.max !==
-        undefined
-    ) {
-
-        input.max =
-            definition.max;
-    }
-
-    if (
-        definition?.step !==
-        undefined
-    ) {
-
-        input.step =
-            definition.step;
-    }
-
-    if (
-        definition?.default !==
-        undefined
-    ) {
-
-        input.value =
-            definition.default;
-    }
-
-    return input;
-}
-
-
-/* =========================================================
-   DURATION FIELD
-========================================================= */
-
-function createDurationField(
-    parameterName,
-    definition
-) {
-
-    return createNumberField(
-        parameterName,
-        definition
+    container.appendChild(
+        wrapper
     );
-}
 
 
-/* =========================================================
-   TEXTAREA
-========================================================= */
+    container.getValue =
+        function () {
 
-function createTextareaField(
-    parameterName,
-    definition
-) {
-
-    const textarea =
-        document.createElement(
-            "textarea"
-        );
-
-    textarea.dataset.parameter =
-        parameterName;
-
-    textarea.rows =
-        parameterName ===
-            "prompt"
-            ? 5
-            : 3;
-
-    textarea.placeholder =
-        definition?.placeholder ||
-        "";
-
-    if (
-        definition?.maxLength !==
-        undefined
-    ) {
-
-        textarea.maxLength =
-            definition.maxLength;
-    }
-
-    if (
-        definition?.default !==
-        undefined
-    ) {
-
-        textarea.value =
-            definition.default;
-    }
-
-    return textarea;
-}
+            return input.checked;
+        };
 
 
-/* =========================================================
-   TEXT FIELD
-========================================================= */
+    container.setValue =
+        function (value) {
 
-function createTextField(
-    parameterName,
-    definition
-) {
+            input.checked =
+                Boolean(value);
+        };
 
-    const input =
-        document.createElement(
-            "input"
-        );
 
-    input.type =
-        "text";
-
-    input.dataset.parameter =
-        parameterName;
-
-    input.placeholder =
-        definition?.placeholder ||
-        "";
-
-    if (
-        definition?.maxLength !==
-        undefined
-    ) {
-
-        input.maxLength =
-            definition.maxLength;
-    }
-
-    if (
-        definition?.default !==
-        undefined
-    ) {
-
-        input.value =
-            definition.default;
-    }
-
-    return input;
+    return container;
 }
 
 
@@ -1916,27 +1756,63 @@ function createTextField(
 ========================================================= */
 
 function createSelectField(
-    parameterName,
     definition
 ) {
+
+    const container =
+        createFieldContainer(
+            definition
+        );
+
+    const label =
+        createFieldLabel(
+            definition
+        );
+
+    container.appendChild(
+        label
+    );
+
+    const description =
+        createFieldDescription(
+            definition
+        );
+
+    if (description) {
+
+        container.appendChild(
+            description
+        );
+    }
 
     const select =
         document.createElement(
             "select"
         );
 
-    select.dataset.parameter =
-        parameterName;
+    select.className =
+        "generate-select";
+
+    select.name =
+        definition.name;
+
 
     const options =
-        definition?.options ||
-        definition?.values ||
-        [];
+        Array.isArray(
+            definition.options
+        )
+            ? definition.options
+            : Array.isArray(
+                definition.enum
+            )
+                ? definition.enum
+                : [];
+
 
     options.forEach(
         option => {
 
-            const optionElement =
+            const element =
                 document.createElement(
                     "option"
                 );
@@ -1946,12 +1822,14 @@ function createSelectField(
                 "object"
             ) {
 
-                optionElement.value =
-                    option.value ??
-                    option.id ??
-                    "";
+                element.value =
+                    String(
+                        option.value ??
+                        option.id ??
+                        ""
+                    );
 
-                optionElement.textContent =
+                element.textContent =
                     option.label ??
                     option.name ??
                     option.value ??
@@ -1959,587 +1837,195 @@ function createSelectField(
 
             } else {
 
-                optionElement.value =
-                    String(option);
+                element.value =
+                    String(
+                        option
+                    );
 
-                optionElement.textContent =
-                    String(option);
+                element.textContent =
+                    String(
+                        option
+                    );
             }
 
             select.appendChild(
-                optionElement
+                element
             );
         }
     );
 
+
     if (
-        definition?.default !==
+        definition.default !==
         undefined
     ) {
 
         select.value =
-            definition.default;
+            String(
+                definition.default
+            );
     }
 
-    return select;
+
+    container.appendChild(
+        select
+    );
+
+
+    container.getValue =
+        function () {
+
+            return select.value;
+        };
+
+
+    container.setValue =
+        function (value) {
+
+            select.value =
+                value == null
+                    ? ""
+                    : String(value);
+        };
+
+
+    return container;
 }
 
 
 /* =========================================================
-   FIELD INPUT FACTORY
+   GENERIC FIELD
 ========================================================= */
 
-function createFieldInput(
-    parameterName,
+function createGenericField(
     definition,
-    modelArgument = null
+    modelArgument
 ) {
-
-    if (
-        parameterName ===
-            "image_urls" ||
-        parameterName ===
-            "image_url"
-    ) {
-
-        return createImageField(
-            parameterName,
-            definition,
-            modelArgument
-        );
-    }
-
-    if (
-        parameterName ===
-        "audio_url"
-    ) {
-
-        return createAudioField(
-            parameterName,
-            definition,
-            modelArgument
-        );
-    }
-
-    if (
-        Array.isArray(
-            definition?.enum
-        ) &&
-        definition.enum.length
-    ) {
-
-        return createEnumField(
-            parameterName,
-            definition,
-            modelArgument
-        );
-    }
-
-    if (
-        Array.isArray(
-            definition?.options
-        ) &&
-        definition.options.length
-    ) {
-
-        return createSelectField(
-            parameterName,
-            definition
-        );
-    }
 
     const type =
         String(
-            definition?.type ||
-            ""
+            definition.type ||
+            "text"
         ).toLowerCase();
 
+
     if (
-        type === "boolean"
+        type === "image" ||
+        type === "images" ||
+        type === "image_url" ||
+        type === "image_urls"
     ) {
 
-        return createBooleanField(
-            parameterName,
-            definition
+        return createImageField(
+            definition,
+            modelArgument
         );
     }
 
+
     if (
-        parameterName ===
-            "duration" &&
-        (
-            type === "number" ||
-            type === "integer" ||
-            !type
-        )
+        type === "audio" ||
+        type === "audio_url"
     ) {
 
-        return createDurationField(
-            parameterName,
-            definition
+        return createAudioField(
+            definition,
+            modelArgument
         );
     }
 
-    if (
-        type === "number" ||
-        type === "integer"
-    ) {
-
-        return createNumberField(
-            parameterName,
-            definition
-        );
-    }
 
     if (
-        parameterName ===
-            "prompt" ||
-        parameterName ===
-            "negative_prompt" ||
-        parameterName ===
-            "description"
+        type === "textarea"
     ) {
 
         return createTextareaField(
-            parameterName,
             definition
         );
     }
 
+
+    if (
+        type === "boolean" ||
+        type === "bool" ||
+        type === "checkbox"
+    ) {
+
+        return createBooleanField(
+            definition
+        );
+    }
+
+
+    if (
+        type === "select" ||
+        type === "enum"
+    ) {
+
+        return createSelectField(
+            definition
+        );
+    }
+
+
+    if (
+        type === "number" ||
+        type === "integer" ||
+        type === "duration"
+    ) {
+
+        return createNumberField(
+            definition
+        );
+    }
+
+
     return createTextField(
-        parameterName,
         definition
     );
 }
 
 
 /* =========================================================
-   RENDER PARAMETER
-========================================================= */
-
-function renderParameter(
-    parameterName,
-    definition,
-    modelArgument = null
-) {
-
-    if (
-        !isRenderableParameter(
-            parameterName
-        )
-    ) {
-
-        return null;
-    }
-
-    const field =
-        createField(
-            parameterName,
-            definition,
-            modelArgument
-        );
-
-    if (
-        definition?.description
-    ) {
-
-        const description =
-            document.createElement(
-                "div"
-            );
-
-        description.className =
-            "generate-field-description";
-
-        description.textContent =
-            definition.description;
-
-        field.appendChild(
-            description
-        );
-    }
-
-    return field;
-}
-
-
-/* =========================================================
-   RENDER FORM
-========================================================= */
-
-function renderGenerateForm(
-    modelArgument = null
-) {
-
-    const container =
-        getContainer();
-
-    if (!container) {
-        console.warn(
-            "[GEN-Z.AI Generate] #dynamicFields not found."
-        );
-
-        return;
-    }
-
-    const model =
-        resolveModel(
-            modelArgument
-        );
-
-    const definitions =
-        getParameterDefinitions(
-            model
-        );
-
-    const names =
-        getOrderedParameterNames(
-            definitions
-        );
-
-    container.innerHTML =
-        "";
-
-    names.forEach(
-        parameterName => {
-
-            const field =
-                renderParameter(
-                    parameterName,
-                    definitions[
-                        parameterName
-                    ],
-                    model
-                );
-
-            if (field) {
-
-                container.appendChild(
-                    field
-                );
-            }
-        }
-    );
-
-    forceContainerVisible(
-        container
-    );
-}
-
-
-/* =========================================================
-   CONTAINER VISIBILITY / GRID
-========================================================= */
-
-function forceContainerVisible(
-    container
-) {
-
-    if (!container) {
-        return;
-    }
-
-    container.style.display =
-        "grid";
-
-    container.style.gridTemplateColumns =
-        "repeat(2, minmax(0, 1fr))";
-
-    container.style.gap =
-        "16px";
-
-    Array.from(
-        container.children
-    ).forEach(
-        field => {
-
-            const parameter =
-                field.dataset?.parameter;
-
-            if (
-                FULL_WIDTH_PARAMETERS.has(
-                    parameter
-                )
-            ) {
-
-                field.style.gridColumn =
-                    "1 / -1";
-            }
-        }
-    );
-}
-
-
-/* =========================================================
-   FIELD LOOKUP
-========================================================= */
-
-function findField(
-    parameterName
-) {
-
-    const container =
-        getContainer();
-
-    if (!container) {
-        return null;
-    }
-
-    return container.querySelector(
-        `[data-parameter="${CSS.escape(
-            parameterName
-        )}"]`
-    );
-}
-
-
-/* =========================================================
-   READ FIELD VALUE
-========================================================= */
-
-function readFieldValue(
-    field
-) {
-
-    if (!field) {
-        return null;
-    }
-
-    if (
-        field.classList.contains(
-            "generate-image-input"
-        )
-        ||
-        field.classList.contains(
-            "generate-audio-input"
-        )
-    ) {
-
-        const mode =
-            typeof field.getInputMode ===
-            "function"
-                ? field.getInputMode()
-                : "url";
-
-        if (
-            mode === "upload"
-        ) {
-
-            return {
-                mode: "upload",
-                url:
-                    typeof field.getUploadedUrl ===
-                    "function"
-                        ? field.getUploadedUrl()
-                        : "",
-                files:
-                    typeof field.getSelectedFiles ===
-                    "function"
-                        ? field.getSelectedFiles()
-                        : []
-            };
-        }
-
-        const urlInput =
-            typeof field.getUrlInput ===
-            "function"
-                ? field.getUrlInput()
-                : null;
-
-        return {
-            mode: "url",
-            url:
-                urlInput?.value?.trim() ||
-                "",
-            files: []
-        };
-    }
-
-    const radio =
-        field.querySelector(
-            'input[type="radio"]:checked'
-        );
-
-    if (radio) {
-        return radio.value;
-    }
-
-    const checkbox =
-        field.querySelector(
-            'input[type="checkbox"]'
-        );
-
-    if (checkbox) {
-        return checkbox.checked;
-    }
-
-    const input =
-        field.querySelector(
-            "input, textarea, select"
-        );
-
-    if (input) {
-
-        return input.type ===
-            "checkbox"
-            ? input.checked
-            : input.value;
-    }
-
-    return null;
-}
-
-
-/* =========================================================
-   NORMALIZE PARAMETER VALUE
-========================================================= */
-
-function normalizeParameterValue(
-    parameterName,
-    value,
-    definition,
-    modelArgument = null
-) {
-
-    if (
-        value === null ||
-        value === undefined
-    ) {
-
-        return value;
-    }
-
-    if (
-        parameterName ===
-            "image_urls"
-    ) {
-
-        if (
-            Array.isArray(value)
-        ) {
-
-            return value
-                .filter(Boolean)
-                .map(
-                    item =>
-                        String(item)
-                            .trim()
-                );
-        }
-
-        if (
-            typeof value ===
-            "string"
-        ) {
-
-            const trimmed =
-                value.trim();
-
-            if (!trimmed) {
-                return [];
-            }
-
-            return [
-                trimmed
-            ];
-        }
-    }
-
-    if (
-        parameterName ===
-            "image_url"
-    ) {
-
-        return String(
-            value
-        ).trim();
-    }
-
-    if (
-        parameterName ===
-            "audio_url"
-    ) {
-
-        return String(
-            value
-        ).trim();
-    }
-
-    if (
-        parameterName ===
-            "resolution" &&
-        isMotiongenModel(
-            modelArgument
-        )
-    ) {
-
-        return normalizeMotiongenResolution(
-            value
-        );
-    }
-
-    const type =
-        String(
-            definition?.type ||
-            ""
-        ).toLowerCase();
-
-    if (
-        type === "boolean"
-    ) {
-
-        return Boolean(
-            value
-        );
-    }
-
-    if (
-        type === "integer"
-    ) {
-
-        const number =
-            Number(value);
-
-        return Number.isFinite(
-            number
-        )
-            ? Math.round(number)
-            : value;
-    }
-
-    if (
-        type === "number"
-    ) {
-
-        const number =
-            Number(value);
-
-        return Number.isFinite(
-            number
-        )
-            ? number
-            : value;
-    }
-
-    return value;
-}
-
-
-/* =========================================================
-   IMAGE FILE VALIDATION
+   VALIDATE IMAGE
 ========================================================= */
 
 function validateImageFile(
     file,
-    modelArgument = null
+    modelArgument
 ) {
 
-    if (!file) {
+    if (!(file instanceof File)) {
 
         throw new Error(
-            "File gambar tidak ditemukan."
+            "File gambar tidak valid."
         );
     }
+
+
+    const allowedTypes =
+        isMotiongenModel(
+            modelArgument
+        )
+            ? MOTIONGEN_ALLOWED_IMAGE_TYPES
+            : ALLOWED_IMAGE_TYPES;
+
+
+    if (
+        !allowedTypes.includes(
+            file.type
+        )
+    ) {
+
+        throw new Error(
+            isMotiongenModel(
+                modelArgument
+            )
+                ? "Motiongen hanya mendukung JPG dan PNG."
+                : "Format gambar tidak didukung."
+        );
+    }
+
 
     if (
         file.size >
@@ -2551,182 +2037,63 @@ function validateImageFile(
         );
     }
 
-    const motiongen =
-        isMotiongenModel(
-            modelArgument
-        );
-
-    if (motiongen) {
-
-        const validMime =
-            MOTIONGEN_ALLOWED_IMAGE_TYPES.has(
-                file.type
-            );
-
-        const extension =
-            String(
-                file.name || ""
-            )
-                .split(".")
-                .pop()
-                .toLowerCase();
-
-        const validExtension =
-            extension === "jpg" ||
-            extension === "jpeg" ||
-            extension === "png";
-
-        if (
-            !validMime &&
-            !validExtension
-        ) {
-
-            throw new Error(
-                "Motiongen-AI hanya menerima gambar JPG atau PNG."
-            );
-        }
-
-        return true;
-    }
-
-    const validMime =
-        ALLOWED_IMAGE_TYPES.has(
-            file.type
-        );
-
-    const extension =
-        String(
-            file.name || ""
-        )
-            .split(".")
-            .pop()
-            .toLowerCase();
-
-    const validExtension =
-        extension === "jpg" ||
-        extension === "jpeg" ||
-        extension === "png" ||
-        extension === "webp";
-
-    if (
-        !validMime &&
-        !validExtension
-    ) {
-
-        throw new Error(
-            "Format gambar tidak didukung."
-        );
-    }
 
     return true;
 }
 
 
 /* =========================================================
-   AUDIO FILE VALIDATION
+   VALIDATE AUDIO
 ========================================================= */
 
 function validateAudioFile(
     file
 ) {
 
-    if (!file) {
+    if (!(file instanceof File)) {
 
         throw new Error(
-            "File audio tidak ditemukan."
+            "File audio tidak valid."
         );
     }
 
-    const validMime =
-        ALLOWED_AUDIO_TYPES.has(
-            file.type
-        );
-
-    const extension =
-        String(
-            file.name || ""
-        )
-            .split(".")
-            .pop()
-            .toLowerCase();
-
-    const validExtension =
-        extension === "mp3" ||
-        extension === "wav";
 
     if (
-        !validMime &&
-        !validExtension
+        !ALLOWED_AUDIO_TYPES.includes(
+            file.type
+        )
     ) {
 
-        throw new Error(
-            "Audio Motiongen-AI harus berupa MP3 atau WAV."
-        );
+        const extension =
+            file.name
+                .split(".")
+                .pop()
+                ?.toLowerCase();
+
+
+        if (
+            extension !== "mp3" &&
+            extension !== "wav"
+        ) {
+
+            throw new Error(
+                "Audio harus berupa MP3 atau WAV."
+            );
+        }
     }
+
 
     return true;
 }
 
 
 /* =========================================================
-   IMAGE STORAGE PATH
-========================================================= */
-
-function createImageStoragePath(
-    userId,
-    file
-) {
-
-    const extension =
-        String(
-            file.name || ""
-        )
-            .split(".")
-            .pop()
-            .toLowerCase() ||
-        "jpg";
-
-    return [
-        "generate-input",
-        userId,
-        `${crypto.randomUUID()}.${extension}`
-    ].join("/");
-}
-
-
-/* =========================================================
-   AUDIO STORAGE PATH
-========================================================= */
-
-function createAudioStoragePath(
-    userId,
-    file
-) {
-
-    const extension =
-        String(
-            file.name || ""
-        )
-            .split(".")
-            .pop()
-            .toLowerCase() ||
-        "mp3";
-
-    return [
-        "generate-input",
-        userId,
-        `${crypto.randomUUID()}.${extension}`
-    ].join("/");
-}
-
-
-/* =========================================================
-   IMAGE UPLOAD
+   UPLOAD IMAGE FILE
 ========================================================= */
 
 async function uploadImageFile(
     file,
-    modelArgument = null
+    modelArgument
 ) {
 
     validateImageFile(
@@ -2734,36 +2101,63 @@ async function uploadImageFile(
         modelArgument
     );
 
-    const client =
+
+    const supabase =
         getSupabaseClient();
 
-    if (!client) {
+
+    if (!supabase) {
 
         throw new Error(
             "Supabase client belum tersedia."
         );
     }
 
+
     const user =
         getCurrentUser();
 
-    if (!user?.id) {
+
+    const userId =
+        user?.id ||
+        user?.user?.id ||
+        "";
+
+
+    if (!userId) {
 
         throw new Error(
             "User belum terautentikasi."
         );
     }
 
+
+    const extension =
+        file.name
+            .split(".")
+            .pop()
+            ?.toLowerCase() ||
+        "jpg";
+
+
+    const safeExtension =
+        extension === "jpeg"
+            ? "jpg"
+            : extension;
+
+
+    const fileName =
+        `${crypto.randomUUID()}.${safeExtension}`;
+
+
     const path =
-        createImageStoragePath(
-            user.id,
-            file
-        );
+        `${STORAGE_IMAGE_FOLDER}/${userId}/${fileName}`;
+
 
     const {
         error
     } =
-        await client.storage
+        await supabase.storage
             .from(
                 STORAGE_BUCKET
             )
@@ -2781,15 +2175,20 @@ async function uploadImageFile(
                 }
             );
 
+
     if (error) {
 
-        throw error;
+        throw new Error(
+            error.message ||
+            "Gagal mengunggah gambar."
+        );
     }
+
 
     const {
         data
     } =
-        client.storage
+        supabase.storage
             .from(
                 STORAGE_BUCKET
             )
@@ -2797,63 +2196,96 @@ async function uploadImageFile(
                 path
             );
 
+
     const publicUrl =
-        data?.publicUrl ||
-        "";
+        String(
+            data?.publicUrl ||
+            ""
+        ).trim();
+
 
     if (!publicUrl) {
 
         throw new Error(
-            "Public URL gambar tidak berhasil dibuat."
+            "Public URL gambar tidak tersedia."
         );
     }
+
 
     return publicUrl;
 }
 
 
 /* =========================================================
-   AUDIO UPLOAD
+   UPLOAD AUDIO FILE
 ========================================================= */
 
 async function uploadAudioFile(
-    file
+    file,
+    modelArgument
 ) {
 
     validateAudioFile(
         file
     );
 
-    const client =
+
+    const supabase =
         getSupabaseClient();
 
-    if (!client) {
+
+    if (!supabase) {
 
         throw new Error(
             "Supabase client belum tersedia."
         );
     }
 
+
     const user =
         getCurrentUser();
 
-    if (!user?.id) {
+
+    const userId =
+        user?.id ||
+        user?.user?.id ||
+        "";
+
+
+    if (!userId) {
 
         throw new Error(
             "User belum terautentikasi."
         );
     }
 
+
+    const extension =
+        file.name
+            .split(".")
+            .pop()
+            ?.toLowerCase() ||
+        "mp3";
+
+
+    const safeExtension =
+        extension === "mpeg"
+            ? "mp3"
+            : extension;
+
+
+    const fileName =
+        `${crypto.randomUUID()}.${safeExtension}`;
+
+
     const path =
-        createAudioStoragePath(
-            user.id,
-            file
-        );
+        `${STORAGE_AUDIO_FOLDER}/${userId}/${fileName}`;
+
 
     const {
         error
     } =
-        await client.storage
+        await supabase.storage
             .from(
                 STORAGE_BUCKET
             )
@@ -2871,15 +2303,20 @@ async function uploadAudioFile(
                 }
             );
 
+
     if (error) {
 
-        throw error;
+        throw new Error(
+            error.message ||
+            "Gagal mengunggah audio."
+        );
     }
+
 
     const {
         data
     } =
-        client.storage
+        supabase.storage
             .from(
                 STORAGE_BUCKET
             )
@@ -2887,18 +2324,184 @@ async function uploadAudioFile(
                 path
             );
 
+
     const publicUrl =
-        data?.publicUrl ||
-        "";
+        String(
+            data?.publicUrl ||
+            ""
+        ).trim();
+
 
     if (!publicUrl) {
 
         throw new Error(
-            "Public URL audio tidak berhasil dibuat."
+            "Public URL audio tidak tersedia."
         );
     }
 
+
     return publicUrl;
+}
+
+
+/* =========================================================
+   NORMALIZE RESOLUTION
+========================================================= */
+
+function normalizeMotiongenResolution(
+    value
+) {
+
+    const normalized =
+        String(
+            value ?? ""
+        ).trim();
+
+
+    if (
+        MOTIONGEN_RESOLUTIONS.includes(
+            normalized
+        )
+    ) {
+
+        return normalized;
+    }
+
+
+    if (
+        MOTIONGEN_RESOLUTION_ALIASES[
+            normalized
+        ]
+    ) {
+
+        return MOTIONGEN_RESOLUTION_ALIASES[
+            normalized
+        ];
+    }
+
+
+    return "720p";
+}
+
+
+/* =========================================================
+   NORMALIZE PARAMETER VALUE
+========================================================= */
+
+function normalizeParameterValue(
+    definition,
+    value,
+    modelArgument
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return value;
+    }
+
+
+    const type =
+        String(
+            definition?.type ||
+            ""
+        ).toLowerCase();
+
+
+    if (
+        type === "image" ||
+        type === "images" ||
+        type === "image_url" ||
+        type === "image_urls"
+    ) {
+
+        if (Array.isArray(value)) {
+
+            return value
+                .map(
+                    item =>
+                        String(
+                            item || ""
+                        ).trim()
+                )
+                .filter(Boolean);
+        }
+
+
+        if (
+            typeof value ===
+            "string"
+        ) {
+
+            return value
+                .trim();
+        }
+
+
+        return value;
+    }
+
+
+    if (
+        type === "audio" ||
+        type === "audio_url"
+    ) {
+
+        return typeof value ===
+            "string"
+            ? value.trim()
+            : value;
+    }
+
+
+    if (
+        type === "number" ||
+        type === "integer" ||
+        type === "duration"
+    ) {
+
+        const number =
+            Number(value);
+
+        return Number.isFinite(
+            number
+        )
+            ? number
+            : value;
+    }
+
+
+    if (
+        type === "boolean" ||
+        type === "bool"
+    ) {
+
+        return Boolean(
+            value
+        );
+    }
+
+
+    if (
+        isMotiongenModel(
+            modelArgument
+        ) &&
+        definition.name ===
+            "resolution"
+    ) {
+
+        return normalizeMotiongenResolution(
+            value
+        );
+    }
+
+
+    return typeof value ===
+        "string"
+        ? value.trim()
+        : value;
 }
 
 
@@ -2907,30 +2510,23 @@ async function uploadAudioFile(
 ========================================================= */
 
 async function resolveImageParameterValue(
-    parameterName,
     rawValue,
-    modelArgument = null
+    modelArgument
 ) {
-
-    if (
-        !rawValue
-    ) {
-
-        return [];
-    }
 
     if (
         typeof rawValue ===
         "string"
     ) {
 
-        const trimmed =
+        const url =
             rawValue.trim();
 
-        return trimmed
-            ? [trimmed]
+        return url
+            ? [url]
             : [];
     }
+
 
     if (
         Array.isArray(
@@ -2939,26 +2535,33 @@ async function resolveImageParameterValue(
     ) {
 
         return rawValue
-            .filter(Boolean)
             .map(
-                item =>
-                    String(item)
-                        .trim()
+                value =>
+                    String(
+                        value || ""
+                    ).trim()
             )
             .filter(Boolean);
     }
 
+
     if (
+        !rawValue ||
         typeof rawValue !==
-        "object"
+            "object"
     ) {
 
         return [];
     }
 
+
+    const mode =
+        rawValue.mode ||
+        "upload";
+
+
     if (
-        rawValue.mode ===
-        "url"
+        mode === "url"
     ) {
 
         const url =
@@ -2972,70 +2575,55 @@ async function resolveImageParameterValue(
             : [];
     }
 
+
     if (
-        rawValue.mode ===
-        "upload"
+        rawValue.url
     ) {
 
-        /*
-         * The image upload handler now stores the
-         * public URL immediately.
+        const url =
+            String(
+                rawValue.url
+            ).trim();
 
-         * Therefore this branch normally receives:
-         *
-         * rawValue.url = public Supabase URL
-         *
-         * The fallback below remains intact for
-         * compatibility with existing callers.
-         */
-
-        if (
-            rawValue.url
-        ) {
-
-            return [
-                String(
-                    rawValue.url
-                ).trim()
-            ].filter(Boolean);
-        }
-
-        const files =
-            Array.isArray(
-                rawValue.files
-            )
-                ? rawValue.files
-                : [];
-
-        if (
-            !files.length
-        ) {
-
-            return [];
-        }
-
-        const urls = [];
-
-        for (
-            const file
-            of files
-        ) {
-
-            const url =
-                await uploadImageFile(
-                    file,
-                    modelArgument
-                );
-
-            urls.push(
-                url
-            );
-        }
-
-        return urls;
+        return url
+            ? [url]
+            : [];
     }
 
-    return [];
+
+    const files =
+        Array.isArray(
+            rawValue.files
+        )
+            ? rawValue.files
+            : [];
+
+
+    if (!files.length) {
+        return [];
+    }
+
+
+    const urls = [];
+
+
+    for (
+        const file of files
+    ) {
+
+        const url =
+            await uploadImageFile(
+                file,
+                modelArgument
+            );
+
+        if (url) {
+            urls.push(url);
+        }
+    }
+
+
+    return urls;
 }
 
 
@@ -3044,15 +2632,9 @@ async function resolveImageParameterValue(
 ========================================================= */
 
 async function resolveAudioParameterValue(
-    rawValue
+    rawValue,
+    modelArgument
 ) {
-
-    if (
-        !rawValue
-    ) {
-
-        return "";
-    }
 
     if (
         typeof rawValue ===
@@ -3062,17 +2644,24 @@ async function resolveAudioParameterValue(
         return rawValue.trim();
     }
 
+
     if (
+        !rawValue ||
         typeof rawValue !==
-        "object"
+            "object"
     ) {
 
         return "";
     }
 
+
+    const mode =
+        rawValue.mode ||
+        "upload";
+
+
     if (
-        rawValue.mode ===
-        "url"
+        mode === "url"
     ) {
 
         return String(
@@ -3081,42 +2670,138 @@ async function resolveAudioParameterValue(
         ).trim();
     }
 
+
     if (
-        rawValue.mode ===
-        "upload"
+        rawValue.url
     ) {
 
-        if (
+        return String(
             rawValue.url
-        ) {
+        ).trim();
+    }
 
-            return String(
-                rawValue.url
-            ).trim();
-        }
 
-        const files =
-            Array.isArray(
-                rawValue.files
-            )
-                ? rawValue.files
-                : [];
+    const files =
+        Array.isArray(
+            rawValue.files
+        )
+            ? rawValue.files
+            : [];
 
-        if (
-            files.length !== 1
-        ) {
 
-            throw new Error(
-                "Motiongen-AI membutuhkan tepat 1 file audio."
-            );
-        }
+    if (
+        files.length !== 1
+    ) {
 
-        return uploadAudioFile(
-            files[0]
+        throw new Error(
+            "Audio upload harus berisi tepat 1 file."
         );
     }
 
-    return "";
+
+    return await uploadAudioFile(
+        files[0],
+        modelArgument
+    );
+}
+
+
+/* =========================================================
+   READ FIELD VALUE
+========================================================= */
+
+function readFieldValue(
+    field
+) {
+
+    if (
+        typeof field.getValue ===
+        "function"
+    ) {
+
+        return field.getValue();
+    }
+
+
+    const name =
+        field.dataset.parameter ||
+        "";
+
+
+    /* =====================================================
+       MEDIA
+    ===================================================== */
+
+    if (
+        field.classList.contains(
+            "generate-image-field"
+        ) ||
+        field.classList.contains(
+            "generate-audio-field"
+        )
+    ) {
+
+        const mode =
+            field.dataset.mediaMode ||
+            "upload";
+
+
+        if (
+            mode === "url"
+        ) {
+
+            const input =
+                field.querySelector(
+                    ".generate-url-input"
+                );
+
+            return {
+                mode: "url",
+                url:
+                    input?.value?.trim() ||
+                    "",
+                files: []
+            };
+        }
+
+
+        return {
+            mode: "upload",
+            url:
+                typeof field.getUploadedUrl ===
+                "function"
+                    ? field.getUploadedUrl()
+                    : "",
+            files:
+                typeof field.getSelectedFiles ===
+                "function"
+                    ? field.getSelectedFiles()
+                    : []
+        };
+    }
+
+
+    const input =
+        field.querySelector(
+            `[name="${CSS.escape(name)}"]`
+        );
+
+
+    if (!input) {
+        return "";
+    }
+
+
+    if (
+        input.type ===
+        "checkbox"
+    ) {
+
+        return input.checked;
+    }
+
+
+    return input.value;
 }
 
 
@@ -3125,142 +2810,231 @@ async function resolveAudioParameterValue(
 ========================================================= */
 
 async function getFormParameters(
-    modelArgument = null
+    modelArgument
 ) {
 
     const model =
-        resolveModel(
-            modelArgument
+        modelArgument ||
+        getCurrentModel();
+
+
+    if (!model) {
+
+        throw new Error(
+            "Model belum dipilih."
         );
+    }
+
+
+    const elements =
+        getGenerateElements();
+
+
+    const form =
+        elements?.form ||
+        document.querySelector(
+            "form"
+        );
+
+
+    if (!form) {
+
+        throw new Error(
+            "Generate form tidak ditemukan."
+        );
+    }
+
 
     const definitions =
-        getParameterDefinitions(
-            model
+        sortParameterDefinitions(
+            getParameterDefinitions(
+                model
+            )
         );
 
-    const names =
-        getOrderedParameterNames(
-            definitions
-        );
 
     const parameters = {};
 
+
     for (
-        const parameterName
-        of names
+        const definition of
+        definitions
     ) {
 
-        if (
-            isClientForbiddenParameter(
-                parameterName
-            )
-        ) {
+        const name =
+            String(
+                definition.name ||
+                ""
+            ).trim();
+
+
+        if (!name) {
             continue;
         }
 
+
+        /* -----------------------------------------------
+           INTERNAL
+        ----------------------------------------------- */
+
+        if (
+            INTERNAL_PARAMETERS.has(
+                name
+            )
+        ) {
+
+            continue;
+        }
+
+
+        /* -----------------------------------------------
+           SERVER CONTROLLED
+        ----------------------------------------------- */
+
+        if (
+            SERVER_CONTROLLED_PARAMETERS.has(
+                name
+            )
+        ) {
+
+            continue;
+        }
+
+
+        /* -----------------------------------------------
+           CLIENT FORBIDDEN
+        ----------------------------------------------- */
+
+        if (
+            CLIENT_FORBIDDEN_PARAMETERS.has(
+                name
+            )
+        ) {
+
+            continue;
+        }
+
+
         const field =
-            findField(
-                parameterName
+            form.querySelector(
+                `[data-parameter="${CSS.escape(name)}"]`
             );
+
 
         if (!field) {
             continue;
         }
+
 
         const rawValue =
             readFieldValue(
                 field
             );
 
-        /* =============================================
+
+        const normalizedValue =
+            normalizeParameterValue(
+                definition,
+                rawValue,
+                model
+            );
+
+
+        /* =================================================
            IMAGE
-        ============================================= */
+        ================================================= */
+
+        const type =
+            String(
+                definition.type ||
+                ""
+            ).toLowerCase();
+
 
         if (
-            parameterName ===
-                "image_urls" ||
-            parameterName ===
-                "image_url"
+            type === "image" ||
+            type === "images" ||
+            type === "image_url" ||
+            type === "image_urls"
         ) {
 
             const imageUrls =
                 await resolveImageParameterValue(
-                    parameterName,
-                    rawValue,
+                    normalizedValue,
                     model
                 );
 
+
             if (
-                parameterName ===
-                "image_urls"
+                name === "image_url"
             ) {
 
-                parameters.image_urls =
-                    imageUrls;
+                if (
+                    imageUrls.length
+                ) {
+
+                    parameters.image_url =
+                        imageUrls[0];
+                }
 
             } else {
 
-                parameters.image_url =
-                    imageUrls[0] ||
-                    "";
+                parameters.image_urls =
+                    imageUrls;
             }
 
+
             continue;
         }
 
-        /* =============================================
+
+        /* =================================================
            AUDIO
-        ============================================= */
+        ================================================= */
 
         if (
-            parameterName ===
-            "audio_url"
+            type === "audio" ||
+            type === "audio_url"
         ) {
 
-            parameters.audio_url =
+            const audioUrl =
                 await resolveAudioParameterValue(
-                    rawValue
+                    normalizedValue,
+                    model
                 );
 
+
+            if (audioUrl) {
+
+                parameters.audio_url =
+                    audioUrl;
+            }
+
+
             continue;
         }
 
-        const normalizedValue =
-            normalizeParameterValue(
-                parameterName,
-                rawValue,
-                definitions[
-                    parameterName
-                ],
-                model
-            );
+
+        /* =================================================
+           EMPTY VALUES
+        ================================================= */
 
         if (
-            normalizedValue !==
-                null &&
-            normalizedValue !==
-                undefined &&
-            normalizedValue !==
-                ""
+            normalizedValue ===
+                "" ||
+            normalizedValue ===
+                null ||
+            normalizedValue ===
+                undefined
         ) {
 
-            parameters[
-                parameterName
-            ] =
-                normalizedValue;
+            continue;
         }
+
+
+        parameters[name] =
+            normalizedValue;
     }
-
-
-    /* =====================================================
-       ALWAYS REMOVE FORBIDDEN / SERVER CONTROLLED FIELDS
-    ===================================================== */
-
-    delete parameters.task_id;
-    delete parameters.index;
-    delete parameters.nsfw_checker;
-    delete parameters.webhook_url;
-    delete parameters.webhook;
 
 
     /* =====================================================
@@ -3273,15 +3047,16 @@ async function getFormParameters(
         )
     ) {
 
-        /* -------------------------------------------------
+        /* -----------------------------------------------
            PROMPT
-        ------------------------------------------------- */
+        ----------------------------------------------- */
 
         const prompt =
             String(
                 parameters.prompt ||
                 ""
             ).trim();
+
 
         if (!prompt) {
 
@@ -3290,71 +3065,63 @@ async function getFormParameters(
             );
         }
 
-        parameters.prompt =
-            prompt;
 
-
-        /* -------------------------------------------------
+        /* -----------------------------------------------
            IMAGE
-        ------------------------------------------------- */
+        ----------------------------------------------- */
 
         let imageUrls =
             Array.isArray(
                 parameters.image_urls
             )
                 ? parameters.image_urls
-                    .filter(Boolean)
-                    .map(
-                        value =>
-                            String(value)
-                                .trim()
-                    )
-                    .filter(Boolean)
                 : [];
 
-        /*
-         * Compatibility:
-         * Jika schema menggunakan image_url,
-         * ubah menjadi image_urls karena
-         * Motiongen API membutuhkan image_urls.
-         */
 
         if (
             !imageUrls.length &&
             parameters.image_url
         ) {
 
-            const imageUrl =
+            imageUrls = [
                 String(
                     parameters.image_url
-                ).trim();
-
-            if (imageUrl) {
-
-                imageUrls = [
-                    imageUrl
-                ];
-            }
+                ).trim()
+            ];
         }
+
+
+        imageUrls =
+            imageUrls
+                .map(
+                    url =>
+                        String(
+                            url || ""
+                        ).trim()
+                )
+                .filter(Boolean);
+
 
         if (
             imageUrls.length !== 1
         ) {
 
             throw new Error(
-                "Motiongen-AI membutuhkan tepat 1 gambar."
+                "Motiongen membutuhkan tepat 1 gambar."
             );
         }
+
 
         parameters.image_urls =
             imageUrls;
 
+
         delete parameters.image_url;
 
 
-        /* -------------------------------------------------
+        /* -----------------------------------------------
            AUDIO
-        ------------------------------------------------- */
+        ----------------------------------------------- */
 
         const audioUrl =
             String(
@@ -3362,69 +3129,57 @@ async function getFormParameters(
                 ""
             ).trim();
 
+
         if (!audioUrl) {
 
             throw new Error(
-                "Audio wajib diisi. Gunakan URL audio atau upload file MP3/WAV."
+                "Motiongen membutuhkan 1 audio."
             );
         }
+
 
         parameters.audio_url =
             audioUrl;
 
 
-        /* -------------------------------------------------
+        /* -----------------------------------------------
            RESOLUTION
-        ------------------------------------------------- */
+        ----------------------------------------------- */
 
-        if (
-            parameters.resolution !==
-            undefined
-        ) {
+        parameters.resolution =
+            normalizeMotiongenResolution(
+                parameters.resolution
+            );
 
-            const resolution =
-                normalizeMotiongenResolution(
-                    parameters.resolution
-                );
 
-            if (!resolution) {
+        /* -----------------------------------------------
+           FORBIDDEN
+        ----------------------------------------------- */
 
-                throw new Error(
-                    "Resolusi Motiongen-AI tidak valid."
-                );
-            }
+        delete parameters.webhook;
 
-            parameters.resolution =
-                resolution;
-        }
+        delete parameters.webhook_url;
+
+        delete parameters.nsfw_checker;
     }
 
+
+    /* =====================================================
+       FINAL CLEANUP
+    ===================================================== */
+
+    delete parameters.task_id;
+
+    delete parameters.index;
+
+    delete parameters.webhook;
+
+    delete parameters.webhook_url;
+
+    delete parameters.nsfw_checker;
+
+
     return parameters;
-}
-
-
-/* =========================================================
-   GET FORM DATA
-========================================================= */
-
-async function getFormData(
-    modelArgument = null
-) {
-
-    const parameters =
-        await getFormParameters(
-            modelArgument
-        );
-
-    return {
-        model:
-            getModelId(
-                resolveModel(
-                    modelArgument
-                )
-            ),
-        parameters
-    };
 }
 
 
@@ -3433,135 +3188,99 @@ async function getFormData(
 ========================================================= */
 
 function setFieldValue(
-    parameterName,
-    value,
-    modelArgument = null
+    field,
+    value
 ) {
 
-    const field =
-        findField(
-            parameterName
-        );
-
     if (!field) {
-        return false;
+        return;
     }
+
+
+    if (
+        typeof field.setValue ===
+        "function"
+    ) {
+
+        field.setValue(
+            value
+        );
+
+        return;
+    }
+
 
     if (
         field.classList.contains(
-            "generate-image-input"
-        )
-    ) {
-
-        const urlInput =
-            field.getUrlInput?.();
-
-        if (
-            urlInput &&
-            typeof value ===
-                "string"
-        ) {
-
-            urlInput.value =
-                value;
-        }
-
-        return true;
-    }
-
-    if (
+            "generate-image-field"
+        ) ||
         field.classList.contains(
-            "generate-audio-input"
+            "generate-audio-field"
         )
     ) {
-
-        const urlInput =
-            field.getUrlInput?.();
 
         if (
-            urlInput &&
             typeof value ===
-                "string"
+            "string"
         ) {
 
-            urlInput.value =
-                value;
+            const urlInput =
+                field.querySelector(
+                    ".generate-url-input"
+                );
+
+            if (urlInput) {
+
+                urlInput.value =
+                    value;
+            }
+
+            if (
+                typeof field.setUploadedUrl ===
+                "function"
+            ) {
+
+                field.setUploadedUrl(
+                    value
+                );
+            }
         }
 
-        return true;
+        return;
     }
 
-    if (
-        parameterName ===
-            "resolution" &&
-        isMotiongenModel(
-            modelArgument
-        )
-    ) {
 
-        value =
-            normalizeMotiongenResolution(
-                value
-            );
-    }
+    const name =
+        field.dataset.parameter;
 
-    const radio =
-        field.querySelector(
-            `input[type="radio"][value="${CSS.escape(
-                String(value)
-            )}"]`
-        );
-
-    if (radio) {
-
-        radio.checked =
-            true;
-
-        return true;
-    }
-
-    const checkbox =
-        field.querySelector(
-            'input[type="checkbox"]'
-        );
-
-    if (
-        checkbox &&
-        typeof value ===
-            "boolean"
-    ) {
-
-        checkbox.checked =
-            value;
-
-        return true;
-    }
 
     const input =
         field.querySelector(
-            "input, textarea, select"
+            `[name="${CSS.escape(name)}"]`
         );
 
-    if (input) {
 
-        if (
-            input.type ===
-            "checkbox"
-        ) {
-
-            input.checked =
-                Boolean(value);
-
-        } else {
-
-            input.value =
-                value ?? "";
-        }
-
-        return true;
+    if (!input) {
+        return;
     }
 
-    return false;
+
+    if (
+        input.type ===
+        "checkbox"
+    ) {
+
+        input.checked =
+            Boolean(value);
+
+        return;
+    }
+
+
+    input.value =
+        value == null
+            ? ""
+            : String(value);
 }
 
 
@@ -3571,145 +3290,241 @@ function setFieldValue(
 
 function resetDynamicFields() {
 
-    const container =
-        getContainer();
+    const elements =
+        getGenerateElements();
+
+
+    const form =
+        elements?.form ||
+        document.querySelector(
+            "form"
+        );
+
+
+    if (!form) {
+        return;
+    }
+
+
+    const dynamicContainer =
+        form.querySelector(
+            "[data-generate-dynamic-fields]"
+        ) ||
+        form.querySelector(
+            ".generate-dynamic-fields"
+        );
+
+
+    if (dynamicContainer) {
+
+        dynamicContainer.innerHTML =
+            "";
+    }
+}
+
+
+/* =========================================================
+   RENDER MODEL FORM
+========================================================= */
+
+function renderModelForm(
+    modelArgument
+) {
+
+    const model =
+        modelArgument ||
+        getCurrentModel();
+
+
+    if (!model) {
+        return;
+    }
+
+
+    const elements =
+        getGenerateElements();
+
+
+    const form =
+        elements?.form ||
+        document.querySelector(
+            "form"
+        );
+
+
+    if (!form) {
+        return;
+    }
+
+
+    let container =
+        form.querySelector(
+            "[data-generate-dynamic-fields]"
+        );
+
 
     if (!container) {
-        return;
+
+        container =
+            form.querySelector(
+                ".generate-dynamic-fields"
+            );
     }
 
-    /*
-     * Preserve Seedance-specific form.
-     * Seedance renderer is managed outside this
-     * generic dynamic renderer.
-     */
 
-    const seedanceForm =
-        container.querySelector(
-            "#seedance-form"
-        );
+    if (!container) {
 
-    if (seedanceForm) {
-
-        const children =
-            Array.from(
-                container.children
+        container =
+            document.createElement(
+                "div"
             );
 
-        children.forEach(
-            child => {
+        container.className =
+            "generate-dynamic-fields";
 
-                if (
-                    child !==
-                    seedanceForm
-                ) {
+        container.dataset.generateDynamicFields =
+            "true";
 
-                    child.remove();
-                }
-            }
+        form.appendChild(
+            container
         );
-
-        return;
     }
+
 
     container.innerHTML =
         "";
-}
 
-
-/* =========================================================
-   FORM DISABLED STATE
-========================================================= */
-
-function setFormDisabled(
-    disabled
-) {
-
-    const container =
-        getContainer();
-
-    if (!container) {
-        return;
-    }
-
-    const elements =
-        container.querySelectorAll(
-            "input, textarea, select, button"
-        );
-
-    elements.forEach(
-        element => {
-
-            element.disabled =
-                Boolean(
-                    disabled
-                );
-        }
-    );
-}
-
-
-/* =========================================================
-   MEDIA PARAMETERS
-========================================================= */
-
-async function getMediaParameters(
-    modelArgument = null
-) {
-
-    const data =
-        await getFormParameters(
-            modelArgument
-        );
-
-    return {
-        image_urls:
-            data.image_urls ||
-            [],
-        image_url:
-            data.image_url ||
-            "",
-        audio_url:
-            data.audio_url ||
-            ""
-    };
-}
-
-
-/* =========================================================
-   PARAMETER DEFINITION
-========================================================= */
-
-function getParameterDefinition(
-    parameterName,
-    modelArgument = null
-) {
 
     const definitions =
-        getParameterDefinitions(
-            modelArgument
+        sortParameterDefinitions(
+            getParameterDefinitions(
+                model
+            )
         );
 
-    return (
-        definitions[
-            parameterName
-        ] ||
-        null
+
+    definitions.forEach(
+        definition => {
+
+            if (
+                INTERNAL_PARAMETERS.has(
+                    definition.name
+                )
+            ) {
+                return;
+            }
+
+            if (
+                SERVER_CONTROLLED_PARAMETERS.has(
+                    definition.name
+                )
+            ) {
+                return;
+            }
+
+            if (
+                CLIENT_FORBIDDEN_PARAMETERS.has(
+                    definition.name
+                )
+            ) {
+                return;
+            }
+
+
+            const field =
+                createGenericField(
+                    definition,
+                    model
+                );
+
+
+            if (field) {
+
+                container.appendChild(
+                    field
+                );
+            }
+        }
     );
+
+
+    return container;
 }
 
 
 /* =========================================================
-   INITIALIZE FORM
+   GET MEDIA PARAMETERS
 ========================================================= */
 
-function initGenerateForm(
-    modelArgument = null
+function getMediaParameters(
+    modelArgument
 ) {
 
-    renderGenerateForm(
-        modelArgument
-    );
+    const model =
+        modelArgument ||
+        getCurrentModel();
+
+
+    if (!model) {
+        return {};
+    }
+
+
+    const elements =
+        getGenerateElements();
+
+
+    const form =
+        elements?.form ||
+        document.querySelector(
+            "form"
+        );
+
+
+    if (!form) {
+        return {};
+    }
+
+
+    const result = {};
+
+
+    const imageField =
+        form.querySelector(
+            '[data-parameter="image_urls"]'
+        ) ||
+        form.querySelector(
+            '[data-parameter="image_url"]'
+        );
+
+
+    if (imageField) {
+
+        result.image_urls =
+            typeof imageField.getUploadedUrl ===
+            "function"
+                ? imageField.getUploadedUrl()
+                : "";
+    }
+
+
+    const audioField =
+        form.querySelector(
+            '[data-parameter="audio_url"]'
+        );
+
+
+    if (audioField) {
+
+        result.audio_url =
+            typeof audioField.getUploadedUrl ===
+            "function"
+                ? audioField.getUploadedUrl()
+                : "";
+    }
+
+
+    return result;
 }
 
 
@@ -3717,51 +3532,27 @@ function initGenerateForm(
    PUBLIC API
 ========================================================= */
 
-const generateForm = Object.freeze({
-
-    init:
-        initGenerateForm,
-
-    render:
-        renderGenerateForm,
-
-    reset:
-        resetDynamicFields,
-
-    getParameters:
-        getFormParameters,
-
-    getData:
-        getFormData,
-
-    getMediaParameters,
-
-    setValue:
-        setFieldValue,
-
-    setDisabled:
-        setFormDisabled,
-
-    getParameterDefinitions,
-
-    getParameterDefinition,
-
-    normalizeParameterValue,
-
-    normalizeMotiongenResolution,
-
-    getMotiongenResolutionLabel,
-
+export {
     isMotiongenModel,
-
-    validateImageFile,
-
-    validateAudioFile,
-
+    getParameterDefinitions,
+    normalizeParameterDefinitions,
+    normalizeParameterValue,
+    createImageField,
+    createAudioField,
     uploadImageFile,
-
-    uploadAudioFile
-});
+    uploadAudioFile,
+    resolveImageParameterValue,
+    resolveAudioParameterValue,
+    readFieldValue,
+    getFormParameters,
+    setFieldValue,
+    resetDynamicFields,
+    renderModelForm,
+    getMediaParameters,
+    validateImageFile,
+    validateAudioFile,
+    normalizeMotiongenResolution
+};
 
 
 /* =========================================================
@@ -3774,38 +3565,25 @@ if (
 ) {
 
     window.GENZGenerateForm =
-        generateForm;
-
-    window.GENZGenerateFormRenderer =
-        generateForm;
+        Object.freeze({
+            isMotiongenModel,
+            getParameterDefinitions,
+            normalizeParameterDefinitions,
+            normalizeParameterValue,
+            createImageField,
+            createAudioField,
+            uploadImageFile,
+            uploadAudioFile,
+            resolveImageParameterValue,
+            resolveAudioParameterValue,
+            readFieldValue,
+            getFormParameters,
+            setFieldValue,
+            resetDynamicFields,
+            renderModelForm,
+            getMediaParameters,
+            validateImageFile,
+            validateAudioFile,
+            normalizeMotiongenResolution
+        });
 }
-
-
-/* =========================================================
-   EXPORTS
-========================================================= */
-
-export {
-    generateForm,
-
-    initGenerateForm,
-    renderGenerateForm,
-    resetDynamicFields,
-    getFormParameters,
-    getFormData,
-    getMediaParameters,
-    setFieldValue,
-    setFormDisabled,
-    getParameterDefinitions,
-    getParameterDefinition,
-    normalizeParameterValue,
-    normalizeMotiongenResolution,
-    getMotiongenResolutionLabel,
-    isMotiongenModel,
-    validateImageFile,
-    validateAudioFile,
-    uploadImageFile,
-    uploadAudioFile
-};
-
-export default generateForm;
