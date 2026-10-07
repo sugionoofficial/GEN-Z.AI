@@ -481,6 +481,10 @@ export function createNumberField(
 
 /* =========================================================
    DURATION FIELD
+   ---------------------------------------------------------
+   - Jika ada enum → pakai select/radio (enum)
+   - Jika ada min/max → pakai range slider (geser)
+   - Fallback → number input
 ========================================================= */
 
 export function createDurationField(
@@ -508,10 +512,292 @@ export function createDurationField(
     }
 
 
-    return createNumberField(
-        definition,
-        name
+    const min =
+        Number(
+            definition.min
+        );
+
+    const max =
+        Number(
+            definition.max
+        );
+
+
+    /*
+     * Range slider hanya dipakai jika
+     * min dan max valid.
+     */
+
+    if (
+        !Number.isFinite(min) ||
+        !Number.isFinite(max) ||
+        max <= min
+    ) {
+
+        return createNumberField(
+            definition,
+            name
+        );
+
+    }
+
+
+    const step =
+        Number(
+            definition.step
+        );
+
+    const resolvedStep =
+        Number.isFinite(step) &&
+        step > 0
+            ? step
+            : 1;
+
+
+    const defaultValue =
+        resolveFieldDefault(
+            definition
+        );
+
+    let initial =
+        Number(
+            defaultValue
+        );
+
+    if (
+        !Number.isFinite(initial)
+    ) {
+
+        initial =
+            min;
+
+    }
+
+
+    /*
+     * Clamp nilai awal ke rentang min–max.
+     */
+
+    if (
+        initial < min
+    ) {
+
+        initial =
+            min;
+
+    }
+
+    if (
+        initial > max
+    ) {
+
+        initial =
+            max;
+
+    }
+
+
+    const wrapper =
+        document.createElement(
+            "div"
+        );
+
+    wrapper.className =
+        "generate-duration-field";
+
+    wrapper.dataset.parameter =
+        name;
+
+
+    const valueRow =
+        document.createElement(
+            "div"
+        );
+
+    valueRow.className =
+        "generate-duration-value-row";
+
+    valueRow.style.cssText =
+        [
+            "display:flex",
+            "align-items:center",
+            "justify-content:space-between",
+            "gap:12px",
+            "margin-bottom:4px"
+        ].join(";");
+
+
+    const valueLabel =
+        document.createElement(
+            "span"
+        );
+
+    valueLabel.className =
+        "generate-duration-value-label";
+
+    valueLabel.style.cssText =
+        [
+            "font-size:13px",
+            "font-weight:700",
+            "letter-spacing:0.02em",
+            "color:rgba(255,255,255,0.72)"
+        ].join(";");
+
+    valueLabel.textContent =
+        "Durasi";
+
+
+    const valueDisplay =
+        document.createElement(
+            "span"
+        );
+
+    valueDisplay.className =
+        "generate-duration-value";
+
+    valueDisplay.style.cssText =
+        [
+            "font-size:14px",
+            "font-weight:800",
+            "color:var(--gz-lime, #b7ff00)",
+            "min-width:52px",
+            "text-align:right"
+        ].join(";");
+
+    valueDisplay.textContent =
+        `${initial}s`;
+
+
+    valueRow.appendChild(
+        valueLabel
     );
+
+    valueRow.appendChild(
+        valueDisplay
+    );
+
+
+    const input =
+        document.createElement(
+            "input"
+        );
+
+    input.type =
+        "range";
+
+    input.className =
+        "generate-duration-range form-input";
+
+    input.dataset.parameter =
+        name;
+
+    input.min =
+        String(
+            min
+        );
+
+    input.max =
+        String(
+            max
+        );
+
+    input.step =
+        String(
+            resolvedStep
+        );
+
+    input.value =
+        String(
+            initial
+        );
+
+
+    if (
+        definition.required ===
+        true
+    ) {
+
+        input.required =
+            true;
+
+    }
+
+
+    const metaRow =
+        document.createElement(
+            "div"
+        );
+
+    metaRow.className =
+        "generate-duration-meta";
+
+    metaRow.style.cssText =
+        [
+            "display:flex",
+            "align-items:center",
+            "justify-content:space-between",
+            "gap:12px",
+            "margin-top:6px",
+            "font-size:11px",
+            "font-weight:600",
+            "letter-spacing:0.04em",
+            "color:rgba(255,255,255,0.42)",
+            "text-transform:uppercase"
+        ].join(";");
+
+
+    const minLabel =
+        document.createElement(
+            "span"
+        );
+
+    minLabel.textContent =
+        `${min}s`;
+
+
+    const maxLabel =
+        document.createElement(
+            "span"
+        );
+
+    maxLabel.textContent =
+        `${max}s`;
+
+
+    metaRow.appendChild(
+        minLabel
+    );
+
+    metaRow.appendChild(
+        maxLabel
+    );
+
+
+    input.addEventListener(
+        "input",
+        () => {
+
+            valueDisplay.textContent =
+                `${input.value}s`;
+
+        }
+    );
+
+
+    wrapper.appendChild(
+        valueRow
+    );
+
+    wrapper.appendChild(
+        input
+    );
+
+    wrapper.appendChild(
+        metaRow
+    );
+
+
+    return wrapper;
 
 }
 
