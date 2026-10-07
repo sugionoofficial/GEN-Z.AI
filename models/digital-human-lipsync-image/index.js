@@ -1,76 +1,73 @@
-/**
- * =========================================================
- * GEN-Z.AI
- * DIGITAL HUMAN - LIPSYNC IMAGE
- * ---------------------------------------------------------
- * File:
- * models/digital-human-lipsync-image/index.js
- *
- * Provider:
- * Motiongen-AI
- *
- * Model:
- * digital-human-lipsync-image
- *
- * Fungsi:
- * - Model entry point
- * - Menggabungkan config
- * - Menggabungkan parameters
- * - Menggabungkan parameter adapter
- * - Menggabungkan create task
- * - Menggabungkan query task
- *
- * Tidak bertanggung jawab:
- * - Supabase
- * - provider credentials
- * - pricing
- * - credit user
- * - UI
- * - KIE.AI
- * =========================================================
- */
+/* =========================================================
+   GEN-Z.AI
+   MOTIONGEN-AI
+   DIGITAL HUMAN - LIPSYNC IMAGE
+   ---------------------------------------------------------
+   File:
+     models/digital-human-lipsync-image/index.js
 
-import config from "./config.js";
+   Fungsi:
+   - Entry point model
+   - Menggabungkan seluruh modul model
+   - Menyediakan interface standar adapter GEN-Z.AI
 
-import parameters, {
+   PROVIDER:
+     motiongen
+
+   MODEL:
+     digital-human-lipsync-image
+
+   IMPORTANT:
+   - Tidak menggunakan KIE.AI
+   - Tidak ada KIE fallback
+========================================================= */
+
+import config
+    from "./config.js";
+
+
+import parameters
+    from "./parameters.js";
+
+
+import {
     validate
 } from "./parameters.js";
+
 
 import {
     getSource,
     getParameters,
     sanitizeParameters,
-    buildPayload
+    buildPayload,
+    validateParameters
 } from "./parameter-adapter.js";
+
 
 import {
     buildInput,
     buildMotiongenPayload,
-    validateInput,
     createTask
 } from "./create-task.js";
 
-import {
-    STATUS,
+
+import queryTask, {
     normalizeJobId,
     normalizeStatus,
     normalizeOutputUrls,
-    queryTask,
     isCompleted,
     isFailed,
     isProcessing
 } from "./query-task.js";
 
 
-/**
- * =========================================================
- * MODEL DEFINITION
- * =========================================================
- */
+/* =========================================================
+   MODEL ADAPTER
+========================================================= */
 
 const model = {
 
-    /**
+    /*
      * -----------------------------------------------------
      * CONFIG
      * -----------------------------------------------------
@@ -79,7 +76,7 @@ const model = {
     config,
 
 
-    /**
+    /*
      * -----------------------------------------------------
      * PARAMETERS
      * -----------------------------------------------------
@@ -88,7 +85,7 @@ const model = {
     parameters,
 
 
-    /**
+    /*
      * -----------------------------------------------------
      * VALIDATION
      * -----------------------------------------------------
@@ -97,37 +94,27 @@ const model = {
     validate,
 
 
-    /**
+    validateParameters,
+
+
+    /*
      * -----------------------------------------------------
      * PARAMETER ADAPTER
      * -----------------------------------------------------
      */
 
-    parameterAdapter: {
+    getSource,
 
-        getSource,
+    getParameters,
 
-        getParameters,
+    sanitizeParameters,
 
-        sanitizeParameters,
-
-        buildPayload
-
-    },
+    buildPayload,
 
 
-    /**
+    /*
      * -----------------------------------------------------
      * CREATE TASK
-     * -----------------------------------------------------
-     */
-
-    createTask,
-
-
-    /**
-     * -----------------------------------------------------
-     * CREATE TASK HELPERS
      * -----------------------------------------------------
      */
 
@@ -135,25 +122,16 @@ const model = {
 
     buildMotiongenPayload,
 
-    validateInput,
+    createTask,
 
 
-    /**
+    /*
      * -----------------------------------------------------
      * QUERY TASK
      * -----------------------------------------------------
      */
 
     queryTask,
-
-
-    /**
-     * -----------------------------------------------------
-     * QUERY HELPERS
-     * -----------------------------------------------------
-     */
-
-    status: STATUS,
 
     normalizeJobId,
 
@@ -170,20 +148,9 @@ const model = {
 };
 
 
-/**
- * =========================================================
- * DEFAULT EXPORT
- * =========================================================
- */
-
-export default model;
-
-
-/**
- * =========================================================
- * NAMED EXPORTS
- * =========================================================
- */
+/* =========================================================
+   EXPORTS
+========================================================= */
 
 export {
 
@@ -192,6 +159,8 @@ export {
     parameters,
 
     validate,
+
+    validateParameters,
 
     getSource,
 
@@ -205,19 +174,15 @@ export {
 
     buildMotiongenPayload,
 
-    validateInput,
-
     createTask,
 
-    STATUS,
+    queryTask,
 
     normalizeJobId,
 
     normalizeStatus,
 
     normalizeOutputUrls,
-
-    queryTask,
 
     isCompleted,
 
@@ -226,3 +191,6 @@ export {
     isProcessing
 
 };
+
+
+export default model;
