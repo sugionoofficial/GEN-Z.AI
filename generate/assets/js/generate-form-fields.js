@@ -23,9 +23,126 @@
    - Tidak menangani API
    - Tidak menangani credit
    - Tidak mengubah nilai parameter
+   - Image / Audio menggunakan factory registry
 ========================================================= */
 
 "use strict";
+
+
+/* =========================================================
+   IMAGE / AUDIO FACTORY REGISTRY
+   ---------------------------------------------------------
+   Implementasi Image / Audio disediakan oleh
+   generate-form-media.js.
+
+   File ini hanya mengetahui kontrak factory.
+========================================================= */
+
+let imageFieldFactory = null;
+
+let audioFieldFactory = null;
+
+
+/* =========================================================
+   REGISTER IMAGE FIELD FACTORY
+========================================================= */
+
+export function registerImageFieldFactory(
+    factory
+) {
+
+    if (
+        typeof factory !==
+        "function"
+    ) {
+
+        throw new TypeError(
+            "Image field factory must be a function"
+        );
+    }
+
+    imageFieldFactory =
+        factory;
+}
+
+
+/* =========================================================
+   REGISTER AUDIO FIELD FACTORY
+========================================================= */
+
+export function registerAudioFieldFactory(
+    factory
+) {
+
+    if (
+        typeof factory !==
+        "function"
+    ) {
+
+        throw new TypeError(
+            "Audio field factory must be a function"
+        );
+    }
+
+    audioFieldFactory =
+        factory;
+}
+
+
+/* =========================================================
+   IMAGE FIELD
+   ---------------------------------------------------------
+   Dispatcher menuju factory yang sudah diregistrasikan.
+========================================================= */
+
+export function createImageField(
+    definition = {},
+    name = "image_urls"
+) {
+
+    if (
+        typeof imageFieldFactory !==
+        "function"
+    ) {
+
+        throw new Error(
+            "Image field factory is not registered"
+        );
+    }
+
+    return imageFieldFactory(
+        definition,
+        name
+    );
+}
+
+
+/* =========================================================
+   AUDIO FIELD
+   ---------------------------------------------------------
+   Dispatcher menuju factory yang sudah diregistrasikan.
+========================================================= */
+
+export function createAudioField(
+    definition = {},
+    name = "audio_url"
+) {
+
+    if (
+        typeof audioFieldFactory !==
+        "function"
+    ) {
+
+        throw new Error(
+            "Audio field factory is not registered"
+        );
+    }
+
+    return audioFieldFactory(
+        definition,
+        name
+    );
+}
 
 
 /* =========================================================
@@ -38,7 +155,9 @@ export function createTextField(
 ) {
 
     const input =
-        document.createElement("input");
+        document.createElement(
+            "input"
+        );
 
     input.type =
         "text";
@@ -251,17 +370,18 @@ export function createDurationField(
 ) {
 
     /*
-     * Duration menggunakan enum apabila tersedia.
+     * Duration menggunakan enum apabila provider
+     * menyediakan enum.
      *
      * Jangan membuat nilai duration sendiri.
-     * Nilai provider harus tetap mengikuti definition.
+     * Nilai harus tetap mengikuti definition.
      */
 
     if (
         Array.isArray(
             definition.enum
         ) &&
-        definition.enum.length
+        definition.enum.length > 0
     ) {
 
         return createEnumField(
@@ -393,7 +513,7 @@ export function createSelectField(
 
         if (
             typeof optionDefinition ===
-            "object" &&
+                "object" &&
             optionDefinition !== null
         ) {
 
@@ -517,7 +637,7 @@ export function createEnumField(
             /*
              * IMPORTANT
              *
-             * value harus mempertahankan
+             * Nilai radio harus mempertahankan
              * nilai asli dari definition.enum.
              *
              * Contoh:
@@ -532,8 +652,7 @@ export function createEnumField(
              * 720
              * 1080
              *
-             * Karena nilai radio ini akan dibaca
-             * kembali oleh getFormParameters().
+             * Label hanya untuk tampilan.
              */
 
             const value =
@@ -659,19 +778,88 @@ export function formatEnumLabel(
         return "";
     }
 
-    const text =
-        String(
-            value
-        );
-
     /*
      * Formatter hanya mempengaruhi
      * tampilan label.
      *
-     * Value radio tidak disentuh.
+     * Nilai parameter tidak disentuh.
      */
 
-    return text;
+    return String(
+        value
+    );
+}
+
+
+/* =========================================================
+   IMAGE TYPE DETECTOR
+========================================================= */
+
+function isImageField(
+    name,
+    definition = {}
+) {
+
+    const normalizedName =
+        String(
+            name || ""
+        )
+            .trim()
+            .toLowerCase();
+
+    const type =
+        String(
+            definition?.type || ""
+        )
+            .trim()
+            .toLowerCase();
+
+    return (
+        normalizedName ===
+            "image_urls" ||
+        normalizedName ===
+            "image_url" ||
+        type ===
+            "image" ||
+        type ===
+            "image_url" ||
+        type ===
+            "image_urls"
+    );
+}
+
+
+/* =========================================================
+   AUDIO TYPE DETECTOR
+========================================================= */
+
+function isAudioField(
+    name,
+    definition = {}
+) {
+
+    const normalizedName =
+        String(
+            name || ""
+        )
+            .trim()
+            .toLowerCase();
+
+    const type =
+        String(
+            definition?.type || ""
+        )
+            .trim()
+            .toLowerCase();
+
+    return (
+        normalizedName ===
+            "audio_url" ||
+        type ===
+            "audio" ||
+        type ===
+            "audio_url"
+    );
 }
 
 
@@ -700,8 +888,10 @@ export function createFieldInput(
     ===================================================== */
 
     if (
-        name === "image_urls" ||
-        name === "image_url"
+        isImageField(
+            name,
+            definition
+        )
     ) {
 
         return createImageField(
@@ -716,7 +906,10 @@ export function createFieldInput(
     ===================================================== */
 
     if (
-        name === "audio_url"
+        isAudioField(
+            name,
+            definition
+        )
     ) {
 
         return createAudioField(
@@ -734,7 +927,7 @@ export function createFieldInput(
         Array.isArray(
             definition?.enum
         ) &&
-        definition.enum.length
+        definition.enum.length > 0
     ) {
 
         return createEnumField(
@@ -752,7 +945,7 @@ export function createFieldInput(
         Array.isArray(
             definition?.options
         ) &&
-        definition.options.length
+        definition.options.length > 0
     ) {
 
         return createSelectField(
@@ -851,131 +1044,10 @@ export function createFieldInput(
 
 
 /* =========================================================
-   IMAGE / AUDIO FACTORY REGISTRY
-   ---------------------------------------------------------
-   generate-form-fields.js tidak mengetahui bagaimana
-   upload atau preview media bekerja.
-
-   generate-form-media.js yang menyediakan implementasi
-   field Image / Audio.
-
-   generate-form.js akan mendaftarkan factory tersebut.
-========================================================= */
-
-let imageFieldFactory =
-    null;
-
-let audioFieldFactory =
-    null;
-
-
-/* =========================================================
-   REGISTER IMAGE FIELD FACTORY
-========================================================= */
-
-export function registerImageFieldFactory(
-    factory
-) {
-
-    if (
-        typeof factory !==
-        "function"
-    ) {
-
-        throw new TypeError(
-            "Image field factory must be a function"
-        );
-    }
-
-    imageFieldFactory =
-        factory;
-}
-
-
-/* =========================================================
-   REGISTER AUDIO FIELD FACTORY
-========================================================= */
-
-export function registerAudioFieldFactory(
-    factory
-) {
-
-    if (
-        typeof factory !==
-        "function"
-    ) {
-
-        throw new TypeError(
-            "Audio field factory must be a function"
-        );
-    }
-
-    audioFieldFactory =
-        factory;
-}
-
-
-/* =========================================================
-   IMAGE FIELD
-   ---------------------------------------------------------
-   Dispatcher menuju factory yang sudah diregistrasikan.
-========================================================= */
-
-export function createImageField(
-    definition = {},
-    name = "image_urls"
-) {
-
-    if (
-        typeof imageFieldFactory !==
-        "function"
-    ) {
-
-        throw new Error(
-            "Image field factory is not registered"
-        );
-    }
-
-    return imageFieldFactory(
-        definition,
-        name
-    );
-}
-
-
-/* =========================================================
-   AUDIO FIELD
-   ---------------------------------------------------------
-   Dispatcher menuju factory yang sudah diregistrasikan.
-========================================================= */
-
-export function createAudioField(
-    definition = {},
-    name = "audio_url"
-) {
-
-    if (
-        typeof audioFieldFactory !==
-        "function"
-    ) {
-
-        throw new Error(
-            "Audio field factory is not registered"
-        );
-    }
-
-    return audioFieldFactory(
-        definition,
-        name
-    );
-}
-
-
-/* =========================================================
    DEFAULT EXPORT
    ---------------------------------------------------------
-   Tidak wajib digunakan, tetapi memudahkan debugging /
-   inspeksi module tanpa mengubah API named export.
+   Tidak wajib digunakan.
+   Named exports tetap menjadi API utama.
 ========================================================= */
 
 export default Object.freeze({
