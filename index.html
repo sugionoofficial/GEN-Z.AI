@@ -1554,6 +1554,163 @@
     margin-bottom: 0 !important;
 }
 
+         /* =========================================================
+    LIVE GENERATE TOAST
+ ========================================================= */
+
+.live-generate-toast {
+    position: fixed;
+    left: 22px;
+    bottom: 22px;
+
+    z-index: 9999;
+
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    min-height: 34px;
+    padding: 8px 13px;
+
+    border: 1px solid rgba(0, 255, 128, 0.16);
+    border-radius: 9px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(10, 18, 14, 0.94),
+            rgba(5, 8, 7, 0.91)
+        );
+
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.45),
+        0 0 18px rgba(0, 255, 128, 0.06);
+
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+
+    color: rgba(255, 255, 255, 0.72);
+
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+
+    opacity: 0;
+    visibility: hidden;
+
+    transform:
+        translate3d(-18px, 8px, 0)
+        scale(0.96);
+
+    transition:
+        opacity 0.35s ease,
+        transform 0.35s cubic-bezier(.22, .61, .36, 1),
+        visibility 0.35s ease;
+
+    pointer-events: none;
+}
+
+
+.live-generate-toast.is-visible {
+    opacity: 1;
+    visibility: visible;
+
+    transform:
+        translate3d(0, 0, 0)
+        scale(1);
+}
+
+
+.live-generate-dot {
+    width: 6px;
+    height: 6px;
+
+    flex: 0 0 6px;
+
+    border-radius: 50%;
+
+    background: #20ff8a;
+
+    box-shadow:
+        0 0 6px rgba(32, 255, 138, 0.9),
+        0 0 12px rgba(32, 255, 138, 0.35);
+
+    animation:
+        liveGeneratePulse 1.5s ease-in-out infinite;
+}
+
+
+.live-generate-username {
+    color: #20ff8a;
+
+    font-weight: 700;
+
+    text-shadow:
+        0 0 8px rgba(32, 255, 138, 0.28);
+}
+
+
+.live-generate-text {
+    color: rgba(255, 255, 255, 0.66);
+}
+
+
+@keyframes liveGeneratePulse {
+
+    0%,
+    100% {
+        opacity: 0.55;
+        transform: scale(0.85);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+
+    .live-generate-toast {
+        left: 12px;
+        bottom: 12px;
+
+        min-height: 32px;
+
+        padding:
+            7px 10px;
+
+        gap: 6px;
+
+        border-radius: 8px;
+
+        font-size: 10px;
+    }
+
+
+    .live-generate-dot {
+        width: 5px;
+        height: 5px;
+
+        flex-basis: 5px;
+    }
+
+}
+
     </style>
 </head>
 
@@ -4345,6 +4502,225 @@
         })();
 
     </script>
+
+    <!-- =========================================================
+     GEN-Z.AI LIVE GENERATION ACTIVITY
+========================================================= -->
+
+<div
+    id="liveGenerateToast"
+    class="live-generate-toast"
+    aria-live="polite"
+    aria-atomic="true"
+>
+    <span class="live-generate-dot"></span>
+
+    <span
+        id="liveGenerateUsername"
+        class="live-generate-username"
+    >
+        nag******
+    </span>
+
+    <span class="live-generate-text">
+        success generate video
+    </span>
+</div>
+
+    <script>
+/* =========================================================
+   GEN-Z.AI LIVE GENERATION ACTIVITY
+   ---------------------------------------------------------
+   - Random username
+   - Show 3 seconds
+   - Rotate to another username
+   - Only first 3 characters visible
+========================================================= */
+
+(function () {
+
+    "use strict";
+
+
+    const usernames = [
+        "nagaofficial",
+        "sugionoai",
+        "bellaart",
+        "rendycreative",
+        "andivideo",
+        "fajarstudio",
+        "dimasvisual",
+        "putraai",
+        "rizkycreative",
+        "alvinmedia",
+        "galihstudio",
+        "bagasvisual",
+        "yogacreative",
+        "dewaai",
+        "rafivideo"
+    ];
+
+
+    const toast =
+        document.getElementById(
+            "liveGenerateToast"
+        );
+
+    const usernameElement =
+        document.getElementById(
+            "liveGenerateUsername"
+        );
+
+
+    if (
+        !toast ||
+        !usernameElement ||
+        !usernames.length
+    ) {
+        return;
+    }
+
+
+    let lastIndex = -1;
+
+
+    function maskUsername(username) {
+
+        const normalized =
+            String(username || "")
+                .trim()
+                .toLowerCase();
+
+
+        if (!normalized) {
+            return "use******";
+        }
+
+
+        const visible =
+            normalized.slice(0, 3);
+
+
+        const hiddenLength =
+            Math.max(
+                4,
+                Math.min(
+                    normalized.length,
+                    9
+                )
+            );
+
+
+        return (
+            visible +
+            "*".repeat(hiddenLength)
+        );
+    }
+
+
+    function getRandomUsername() {
+
+        if (usernames.length === 1) {
+            return usernames[0];
+        }
+
+
+        let index;
+
+
+        do {
+
+            index =
+                Math.floor(
+                    Math.random() *
+                    usernames.length
+                );
+
+        } while (
+            index === lastIndex
+        );
+
+
+        lastIndex = index;
+
+
+        return usernames[index];
+    }
+
+
+    function showGenerateActivity() {
+
+        const username =
+            getRandomUsername();
+
+
+        usernameElement.textContent =
+            maskUsername(username);
+
+
+        toast.classList.remove(
+            "is-visible"
+        );
+
+
+        /*
+         * Memastikan browser menjalankan
+         * transisi dari keadaan hidden.
+         */
+        requestAnimationFrame(function () {
+
+            requestAnimationFrame(function () {
+
+                toast.classList.add(
+                    "is-visible"
+                );
+
+            });
+
+        });
+
+
+        /*
+         * Tampilkan selama 3 detik.
+         */
+        setTimeout(function () {
+
+            toast.classList.remove(
+                "is-visible"
+            );
+
+        }, 3000);
+
+    }
+
+
+    /*
+     * Delay awal supaya landing page
+     * selesai tampil terlebih dahulu.
+     */
+    setTimeout(function () {
+
+        showGenerateActivity();
+
+
+        /*
+         * Ganti user secara random
+         * setiap 4 detik:
+         *
+         * 3 detik tampil
+         * 1 detik jeda
+         */
+        setInterval(function () {
+
+            showGenerateActivity();
+
+        }, 4000);
+
+    }, 1800);
+
+
+})();
+</script>
 
 </body>
 </html>
