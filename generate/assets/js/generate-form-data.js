@@ -6,13 +6,14 @@
    File:
    generate/assets/js/generate-form-data.js
 
-   Fungsi:
+   Tanggung jawab:
    - Membaca parameter form
    - Membaca nilai field
    - Resolve image upload / URL
    - Resolve audio upload / URL
    - Normalisasi parameter
    - Membentuk data form
+   - Hard cleanup parameter internal / server-controlled
    - Tidak mengubah DOM
    - Tidak merender field
 ========================================================= */
@@ -37,10 +38,180 @@ import {
 
 
 /* =========================================================
+   HARD FORBIDDEN PARAMETERS
+========================================================= */
+
+const HARD_FORBIDDEN_PARAMETERS =
+    Object.freeze([
+        "task_id",
+        "index",
+        "nsfw_checker",
+        "webhook_url",
+        "webhook"
+    ]);
+
+
+/* =========================================================
+   CHECK HARD FORBIDDEN
+========================================================= */
+
+function isHardForbiddenParameter(
+    name
+) {
+
+    const normalized =
+        String(
+            name || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return HARD_FORBIDDEN_PARAMETERS.includes(
+        normalized
+    );
+
+}
+
+
+/* =========================================================
+   SHOULD PRESERVE VALUE
+========================================================= */
+
+function shouldPreserveValue(
+    value
+) {
+
+    if (
+        value === undefined ||
+        value === null
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        return (
+            value.length >
+            0
+        );
+
+    }
+
+
+    if (
+        typeof value === "string"
+    ) {
+
+        return (
+            value.trim() !== ""
+        );
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   DEFAULT VALUE
+========================================================= */
+
+function resolveDefaultValue(
+    definition
+) {
+
+    const defaultValue =
+        getDefaultValue(
+            definition
+        );
+
+
+    if (
+        defaultValue === undefined ||
+        defaultValue === null ||
+        defaultValue === ""
+    ) {
+
+        return undefined;
+
+    }
+
+
+    return normalizeParameterValue(
+        defaultValue,
+        definition
+    );
+
+}
+
+
+/* =========================================================
+   IMAGE PARAMETER
+========================================================= */
+
+function isImageParameter(
+    name,
+    definition
+) {
+
+    const type =
+        String(
+            definition?.type || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return (
+        type === "image" ||
+        type === "image_url" ||
+        type === "image_urls" ||
+        name === "image_url" ||
+        name === "image_urls"
+    );
+
+}
+
+
+/* =========================================================
+   AUDIO PARAMETER
+========================================================= */
+
+function isAudioParameter(
+    name,
+    definition
+) {
+
+    const type =
+        String(
+            definition?.type || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return (
+        type === "audio" ||
+        type === "audio_url" ||
+        name === "audio_url"
+    );
+
+}
+
+
+/* =========================================================
    GET FORM PARAMETERS
 ========================================================= */
 
-export function getFormParameters(
+export async function getFormParameters(
     modelArgument = null
 ) {
 
@@ -49,11 +220,14 @@ export function getFormParameters(
             modelArgument
         );
 
+
     if (
         !definitions ||
         typeof definitions !== "object"
     ) {
+
         return {};
+
     }
 
 
@@ -62,24 +236,55 @@ export function getFormParameters(
             definitions
         );
 
+
     const parameters = {};
 
 
     for (
-        const name of parameterNames
+        const name
+        of parameterNames
     ) {
 
-        if (!name) {
+        if (
+            !name
+        ) {
+
             continue;
+
         }
 
+
+        /*
+         * -------------------------------------------------
+         * HARD SECURITY FILTER
+         * -------------------------------------------------
+         */
+
+        if (
+            isHardForbiddenParameter(
+                name
+            )
+        ) {
+
+            continue;
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * CORE CLIENT FILTER
+         * -------------------------------------------------
+         */
 
         if (
             isClientForbiddenParameter(
                 name
             )
         ) {
+
             continue;
+
         }
 
 
@@ -87,58 +292,61 @@ export function getFormParameters(
             definitions[name];
 
 
-        if (!definition) {
+        if (
+            !definition
+        ) {
+
             continue;
+
         }
 
 
         const field =
-            findField(name);
+            findField(
+                name
+            );
 
 
-        /*
-         * -------------------------------------------------
-         * IMAGE PARAMETER
-         * -------------------------------------------------
-         */
-
-        const type =
-            String(
-                definition.type || ""
-            )
-                .trim()
-                .toLowerCase();
-
+        /* =================================================
+           IMAGE
+        ================================================= */
 
         if (
-            type === "image" ||
-            type === "image_url" ||
-            type === "image_urls" ||
-            name === "image_url" ||
-            name === "image_urls"
+            isImageParameter(
+                name,
+                definition
+            )
         ) {
 
-            if (!field) {
+            /*
+             * Jika field tidak ada, tetap hormati
+             * default value dari registry.
+             */
+
+            if (
+                !field
+            ) {
 
                 const defaultValue =
-                    getDefaultValue(
+                    resolveDefaultValue(
                         definition
                     );
 
+
                 if (
-                    defaultValue !== undefined &&
-                    defaultValue !== null &&
-                    defaultValue !== ""
+                    shouldPreserveValue(
+                        defaultValue
+                    )
                 ) {
 
                     parameters[name] =
-                        normalizeParameterValue(
-                            defaultValue,
-                            definition
-                        );
+                        defaultValue;
+
                 }
 
+
                 continue;
+
             }
 
 
@@ -148,59 +356,121 @@ export function getFormParameters(
                 );
 
 
-            if (imageInput) {
+            /*
+             * Jika renderer field secara langsung
+             * merupakan image input, gunakan field itu.
+             */
+
+            const imageSource =
+                imageInput ||
+                (
+                    field.classList?.contains(
+                        "generate-image-input"
+                    )
+                        ? field
+                        : null
+                );
+
+
+            if (
+                imageSource
+            ) {
 
                 const value =
                     await resolveImageParameterValue(
-                        imageInput,
+                        imageSource,
                         definition
                     );
 
 
-                parameters[name] =
+                const normalized =
                     normalizeParameterValue(
                         value,
                         definition
                     );
 
-                continue;
-            }
-        }
-
-
-        /*
-         * -------------------------------------------------
-         * AUDIO PARAMETER
-         * -------------------------------------------------
-         */
-
-        if (
-            type === "audio" ||
-            type === "audio_url" ||
-            name === "audio_url"
-        ) {
-
-            if (!field) {
-
-                const defaultValue =
-                    getDefaultValue(
-                        definition
-                    );
 
                 if (
-                    defaultValue !== undefined &&
-                    defaultValue !== null &&
-                    defaultValue !== ""
+                    shouldPreserveValue(
+                        normalized
+                    )
                 ) {
 
                     parameters[name] =
-                        normalizeParameterValue(
-                            defaultValue,
-                            definition
-                        );
+                        normalized;
+
                 }
 
+
                 continue;
+
+            }
+
+
+            /*
+             * Tidak menemukan renderer image.
+             * Jangan membaca input generik karena itu dapat
+             * mengubah perilaku field image.
+             */
+
+            const defaultValue =
+                resolveDefaultValue(
+                    definition
+                );
+
+
+            if (
+                shouldPreserveValue(
+                    defaultValue
+                )
+            ) {
+
+                parameters[name] =
+                    defaultValue;
+
+            }
+
+
+            continue;
+
+        }
+
+
+        /* =================================================
+           AUDIO
+        ================================================= */
+
+        if (
+            isAudioParameter(
+                name,
+                definition
+            )
+        ) {
+
+            if (
+                !field
+            ) {
+
+                const defaultValue =
+                    resolveDefaultValue(
+                        definition
+                    );
+
+
+                if (
+                    shouldPreserveValue(
+                        defaultValue
+                    )
+                ) {
+
+                    parameters[name] =
+                        defaultValue;
+
+                }
+
+
+                continue;
+
             }
 
 
@@ -210,53 +480,102 @@ export function getFormParameters(
                 );
 
 
-            if (audioInput) {
+            const audioSource =
+                audioInput ||
+                (
+                    field.classList?.contains(
+                        "generate-audio-input"
+                    )
+                        ? field
+                        : null
+                );
+
+
+            if (
+                audioSource
+            ) {
 
                 const value =
                     await resolveAudioParameterValue(
-                        audioInput
+                        audioSource
                     );
 
 
-                parameters[name] =
+                const normalized =
                     normalizeParameterValue(
                         value,
                         definition
                     );
 
+
+                if (
+                    shouldPreserveValue(
+                        normalized
+                    )
+                ) {
+
+                    parameters[name] =
+                        normalized;
+
+                }
+
+
                 continue;
+
             }
-        }
 
-
-        /*
-         * -------------------------------------------------
-         * STANDARD FIELD
-         * -------------------------------------------------
-         */
-
-        if (!field) {
 
             const defaultValue =
-                getDefaultValue(
+                resolveDefaultValue(
                     definition
                 );
 
 
             if (
-                defaultValue !== undefined &&
-                defaultValue !== null &&
-                defaultValue !== ""
+                shouldPreserveValue(
+                    defaultValue
+                )
             ) {
 
                 parameters[name] =
-                    normalizeParameterValue(
-                        defaultValue,
-                        definition
-                    );
+                    defaultValue;
+
             }
 
+
             continue;
+
+        }
+
+
+        /* =================================================
+           STANDARD FIELD
+        ================================================= */
+
+        if (
+            !field
+        ) {
+
+            const defaultValue =
+                resolveDefaultValue(
+                    definition
+                );
+
+
+            if (
+                shouldPreserveValue(
+                    defaultValue
+                )
+            ) {
+
+                parameters[name] =
+                    defaultValue;
+
+            }
+
+
+            continue;
+
         }
 
 
@@ -266,11 +585,9 @@ export function getFormParameters(
             );
 
 
-        /*
-         * -------------------------------------------------
-         * EMPTY VALUE
-         * -------------------------------------------------
-         */
+        /* =================================================
+           EMPTY VALUE -> DEFAULT
+        ================================================= */
 
         if (
             value === undefined ||
@@ -289,16 +606,18 @@ export function getFormParameters(
                 defaultValue !== null &&
                 defaultValue !== ""
             ) {
-                value = defaultValue;
+
+                value =
+                    defaultValue;
+
             }
+
         }
 
 
-        /*
-         * -------------------------------------------------
-         * NORMALIZE
-         * -------------------------------------------------
-         */
+        /* =================================================
+           NORMALIZE
+        ================================================= */
 
         value =
             normalizeParameterValue(
@@ -307,49 +626,118 @@ export function getFormParameters(
             );
 
 
-        /*
-         * -------------------------------------------------
-         * PRESERVE VALID VALUES
-         * -------------------------------------------------
-         */
+        /* =================================================
+           PRESERVE VALID VALUE
+        ================================================= */
 
         if (
-            value !== undefined &&
-            value !== null
+            shouldPreserveValue(
+                value
+            )
         ) {
 
-            if (
-                Array.isArray(value)
-            ) {
+            parameters[name] =
+                value;
 
-                if (
-                    value.length > 0
-                ) {
-                    parameters[name] =
-                        value;
-                }
-
-            } else if (
-                typeof value === "string"
-            ) {
-
-                if (
-                    value.trim() !== ""
-                ) {
-                    parameters[name] =
-                        value;
-                }
-
-            } else {
-
-                parameters[name] =
-                    value;
-            }
         }
+
     }
 
 
+    /* =====================================================
+       HARD CLIENT CLEANUP
+       =====================================================
+
+       Tetap dipertahankan sebagai lapisan kedua.
+
+       Walaupun registry atau parameter definition suatu
+       saat berubah, parameter internal/server-controlled
+       tidak boleh keluar dari browser.
+    */
+
+    delete parameters.task_id;
+    delete parameters.index;
+    delete parameters.nsfw_checker;
+    delete parameters.webhook_url;
+    delete parameters.webhook;
+
+
+    /* =====================================================
+       DEBUG
+    ===================================================== */
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] FORM PARAMETERS:",
+        parameters
+    );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] REFERENCE IMAGE:",
+        {
+            image_urls:
+                Array.isArray(
+                    parameters.image_urls
+                )
+                    ? parameters.image_urls.length
+                    : 0,
+
+            image_url:
+                parameters.image_url
+                    ? "present"
+                    : "missing",
+
+            hasReferenceImage:
+                (
+                    (
+                        Array.isArray(
+                            parameters.image_urls
+                        ) &&
+                        parameters.image_urls.length >
+                            0
+                    ) ||
+                    Boolean(
+                        parameters.image_url
+                    )
+                )
+        }
+    );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] AUDIO:",
+        {
+            audio_url:
+                parameters.audio_url
+                    ? "present"
+                    : "missing"
+        }
+    );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] CLIENT FORBIDDEN:",
+        {
+            webhook_url:
+                "removed",
+
+            webhook:
+                "removed",
+
+            nsfw_checker:
+                "removed",
+
+            task_id:
+                "removed",
+
+            index:
+                "removed"
+        }
+    );
+
+
     return parameters;
+
 }
 
 
@@ -370,11 +758,12 @@ export async function getFormData(
     return {
         parameters
     };
+
 }
 
 
 /* =========================================================
-   DEFAULT
+   DEFAULT EXPORT
 ========================================================= */
 
 export default {
