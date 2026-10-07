@@ -48,6 +48,27 @@ import {
     uploadAudioFile
 } from "./generate-form-upload.js";
 
+import {
+    INTERNAL_PARAMETERS,
+    SERVER_CONTROLLED_PARAMETERS,
+    PARAMETER_ORDER,
+    FULL_WIDTH_PARAMETERS,
+    getContainer,
+    resolveModel,
+    getParameterDefinitions,
+    normalizeParameterDefinitions,
+    getParameterLabel,
+    getParameterDescription,
+    isInternalParameter,
+    isServerControlledParameter,
+    isClientForbiddenParameter,
+    isRenderableParameter,
+    getOrderedParameterNames,
+    getDefaultValue,
+    normalizeArray,
+    createFieldId
+} from "./generate-form-core.js";
+
 
 /* =========================================================
    FORM FIELD MODULES
@@ -75,6 +96,8 @@ import {
     registerImageMediaHandlers,
     registerAudioMediaHandlers
 } from "./generate-form-media.js";
+
+
 
 
 
@@ -112,72 +135,6 @@ registerAudioFieldFactory(
 
 
 
-/* =========================================================
-   CONSTANTS
-========================================================= */
-
-const INTERNAL_PARAMETERS =
-    new Set([
-        "task_id",
-        "index"
-    ]);
-
-
-/*
- * Parameter yang tidak boleh berasal dari client.
- *
- * nsfw_checker:
- *   dikontrol server.
- *
- * webhook_url:
- *   bukan input pengguna Generate.
- *   Jika provider membutuhkan webhook, backend/provider
- *   yang menentukan dan mengisinya.
- */
-
-const SERVER_CONTROLLED_PARAMETERS =
-    new Set([
-        "nsfw_checker",
-        "webhook_url",
-        "webhook"
-    ]);
-
-/*
- * Hanya menentukan urutan visual.
- *
- * BUKAN whitelist.
- *
- * Parameter lain yang diberikan model
- * tetap akan dirender kecuali memang
- * client-forbidden.
- */
-
-const PARAMETER_ORDER = [
-    "image_urls",
-    "image_url",
-    "audio_url",
-    "prompt",
-    "mode",
-    "aspect_ratio",
-    "duration",
-    "resolution"
-];
-
-
-/*
- * Parameter yang secara visual sebaiknya
- * menggunakan satu baris penuh.
- */
-
-const FULL_WIDTH_PARAMETERS =
-    new Set([
-        "image_urls",
-        "image_url",
-        "audio_url",
-        "prompt",
-        "negative_prompt",
-        "description"
-    ]);
 
 
 
