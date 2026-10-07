@@ -63,7 +63,7 @@
 
 
     const LOGIN_PATH =
-        "/index.html";
+        "/login.html";
 
 
     const SESSION_RETRY_COUNT =
