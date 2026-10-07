@@ -27,32 +27,47 @@
 
 "use strict";
 
+
 /* =========================================================
    TEXT FIELD
 ========================================================= */
 
-export function createTextField(definition = {}, name = "") {
+export function createTextField(
+    definition = {},
+    name = ""
+) {
 
-    const input = document.createElement("input");
+    const input =
+        document.createElement("input");
 
-    input.type = "text";
-    input.className = "form-input";
+    input.type =
+        "text";
 
-    input.dataset.parameter = name;
+    input.className =
+        "form-input";
 
-    if (definition.placeholder) {
-        input.placeholder = String(
-            definition.placeholder
-        );
+    input.dataset.parameter =
+        name;
+
+    if (
+        definition.placeholder
+    ) {
+
+        input.placeholder =
+            String(
+                definition.placeholder
+            );
     }
 
     if (
         definition.default !== undefined &&
         definition.default !== null
     ) {
-        input.value = String(
-            definition.default
-        );
+
+        input.value =
+            String(
+                definition.default
+            );
     }
 
     const maxLength =
@@ -65,11 +80,17 @@ export function createTextField(definition = {}, name = "") {
         Number.isFinite(maxLength) &&
         maxLength > 0
     ) {
-        input.maxLength = maxLength;
+
+        input.maxLength =
+            maxLength;
     }
 
-    if (definition.required === true) {
-        input.required = true;
+    if (
+        definition.required === true
+    ) {
+
+        input.required =
+            true;
     }
 
     return input;
@@ -86,25 +107,35 @@ export function createTextareaField(
 ) {
 
     const textarea =
-        document.createElement("textarea");
-
-    textarea.className = "form-textarea";
-
-    textarea.dataset.parameter = name;
-
-    if (definition.placeholder) {
-        textarea.placeholder = String(
-            definition.placeholder
+        document.createElement(
+            "textarea"
         );
+
+    textarea.className =
+        "form-textarea";
+
+    textarea.dataset.parameter =
+        name;
+
+    if (
+        definition.placeholder
+    ) {
+
+        textarea.placeholder =
+            String(
+                definition.placeholder
+            );
     }
 
     if (
         definition.default !== undefined &&
         definition.default !== null
     ) {
-        textarea.value = String(
-            definition.default
-        );
+
+        textarea.value =
+            String(
+                definition.default
+            );
     }
 
     const maxLength =
@@ -117,11 +148,17 @@ export function createTextareaField(
         Number.isFinite(maxLength) &&
         maxLength > 0
     ) {
-        textarea.maxLength = maxLength;
+
+        textarea.maxLength =
+            maxLength;
     }
 
-    if (definition.required === true) {
-        textarea.required = true;
+    if (
+        definition.required === true
+    ) {
+
+        textarea.required =
+            true;
     }
 
     return textarea;
@@ -137,42 +174,67 @@ export function createNumberField(
     name = ""
 ) {
 
-    const input = document.createElement("input");
+    const input =
+        document.createElement(
+            "input"
+        );
 
-    input.type = "number";
-    input.className = "form-input";
+    input.type =
+        "number";
 
-    input.dataset.parameter = name;
+    input.className =
+        "form-input";
+
+    input.dataset.parameter =
+        name;
 
     if (
         definition.default !== undefined &&
         definition.default !== null
     ) {
-        input.value = String(
-            definition.default
-        );
+
+        input.value =
+            String(
+                definition.default
+            );
     }
 
-    if (definition.min !== undefined) {
-        input.min = String(
-            definition.min
-        );
+    if (
+        definition.min !== undefined
+    ) {
+
+        input.min =
+            String(
+                definition.min
+            );
     }
 
-    if (definition.max !== undefined) {
-        input.max = String(
-            definition.max
-        );
+    if (
+        definition.max !== undefined
+    ) {
+
+        input.max =
+            String(
+                definition.max
+            );
     }
 
-    if (definition.step !== undefined) {
-        input.step = String(
-            definition.step
-        );
+    if (
+        definition.step !== undefined
+    ) {
+
+        input.step =
+            String(
+                definition.step
+            );
     }
 
-    if (definition.required === true) {
-        input.required = true;
+    if (
+        definition.required === true
+    ) {
+
+        input.required =
+            true;
     }
 
     return input;
@@ -190,13 +252,18 @@ export function createDurationField(
 
     /*
      * Duration menggunakan enum apabila tersedia.
-     * Jangan membuat nilai sendiri.
+     *
+     * Jangan membuat nilai duration sendiri.
+     * Nilai provider harus tetap mengikuti definition.
      */
 
     if (
-        Array.isArray(definition.enum) &&
+        Array.isArray(
+            definition.enum
+        ) &&
         definition.enum.length
     ) {
+
         return createEnumField(
             name,
             definition
@@ -220,42 +287,63 @@ export function createBooleanField(
 ) {
 
     const wrapper =
-        document.createElement("label");
+        document.createElement(
+            "label"
+        );
 
     wrapper.className =
         "form-checkbox";
 
-    wrapper.dataset.parameter = name;
+    wrapper.dataset.parameter =
+        name;
 
     const input =
-        document.createElement("input");
+        document.createElement(
+            "input"
+        );
 
-    input.type = "checkbox";
+    input.type =
+        "checkbox";
 
-    input.value = "true";
+    input.value =
+        "true";
+
+    input.dataset.parameter =
+        name;
 
     if (
         definition.default === true
     ) {
-        input.checked = true;
+
+        input.checked =
+            true;
     }
 
     if (
         definition.required === true
     ) {
-        input.required = true;
+
+        input.required =
+            true;
     }
 
     const text =
-        document.createElement("span");
+        document.createElement(
+            "span"
+        );
 
     text.textContent =
         definition.label ||
         definition.title ||
         name;
 
-    wrapper.appendChild(input);
-    wrapper.appendChild(text);
+    wrapper.appendChild(
+        input
+    );
+
+    wrapper.appendChild(
+        text
+    );
 
     return wrapper;
 }
@@ -271,22 +359,29 @@ export function createSelectField(
 ) {
 
     const select =
-        document.createElement("select");
+        document.createElement(
+            "select"
+        );
 
     select.className =
         "form-select";
 
-    select.dataset.parameter = name;
+    select.dataset.parameter =
+        name;
 
     const options =
-        Array.isArray(definition.options)
+        Array.isArray(
+            definition.options
+        )
             ? definition.options
             : [];
 
     const defaultValue =
         definition.default !== undefined &&
         definition.default !== null
-            ? String(definition.default)
+            ? String(
+                definition.default
+            )
             : "";
 
     for (
@@ -325,30 +420,45 @@ export function createSelectField(
             value === undefined ||
             value === null
         ) {
+
             continue;
         }
 
         const option =
-            document.createElement("option");
+            document.createElement(
+                "option"
+            );
 
         option.value =
-            String(value);
+            String(
+                value
+            );
 
         option.textContent =
-            String(label);
+            String(
+                label
+            );
 
         if (
             String(value) ===
             defaultValue
         ) {
-            option.selected = true;
+
+            option.selected =
+                true;
         }
 
-        select.appendChild(option);
+        select.appendChild(
+            option
+        );
     }
 
-    if (definition.required === true) {
-        select.required = true;
+    if (
+        definition.required === true
+    ) {
+
+        select.required =
+            true;
     }
 
     return select;
@@ -365,7 +475,9 @@ export function createEnumField(
 ) {
 
     const wrapper =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
     wrapper.className =
         "form-enum-group";
@@ -374,60 +486,85 @@ export function createEnumField(
         name;
 
     const values =
-        Array.isArray(definition.enum)
+        Array.isArray(
+            definition.enum
+        )
             ? definition.enum
             : [];
 
     const defaultValue =
         definition.default !== undefined &&
         definition.default !== null
-            ? String(definition.default)
+            ? String(
+                definition.default
+            )
             : "";
 
     values.forEach(
-        (enumValue, index) => {
+        (
+            enumValue,
+            index
+        ) => {
 
             if (
                 enumValue === undefined ||
                 enumValue === null
             ) {
+
                 return;
             }
 
             /*
-             * IMPORTANT:
+             * IMPORTANT
              *
-             * value HARUS mempertahankan nilai
-             * asli dari definition.enum.
+             * value harus mempertahankan
+             * nilai asli dari definition.enum.
              *
-             * Jangan mengubah:
-             * 576P    -> 576
-             * 720P HD -> 720
+             * Contoh:
              *
-             * Karena nilai inilah yang nanti dibaca
-             * oleh getFormParameters().
+             * 576P
+             * 720P HD
+             * 1080P
+             *
+             * Jangan mengubahnya menjadi:
+             *
+             * 576
+             * 720
+             * 1080
+             *
+             * Karena nilai radio ini akan dibaca
+             * kembali oleh getFormParameters().
              */
 
             const value =
-                String(enumValue);
+                String(
+                    enumValue
+                );
 
             const id =
                 `parameter-${name}-${index}`;
 
             const label =
-                document.createElement("label");
+                document.createElement(
+                    "label"
+                );
 
             label.className =
                 "form-enum-option";
 
-            label.htmlFor = id;
+            label.htmlFor =
+                id;
 
             const radio =
-                document.createElement("input");
+                document.createElement(
+                    "input"
+                );
 
-            radio.type = "radio";
+            radio.type =
+                "radio";
 
-            radio.id = id;
+            radio.id =
+                id;
 
             radio.name =
                 `parameter-${name}`;
@@ -441,8 +578,13 @@ export function createEnumField(
             if (
                 value === defaultValue
             ) {
-                radio.checked = true;
-                label.classList.add("active");
+
+                radio.checked =
+                    true;
+
+                label.classList.add(
+                    "active"
+                );
             }
 
             radio.addEventListener(
@@ -455,13 +597,17 @@ export function createEnumField(
                         )
                         .forEach(
                             option => {
+
                                 option.classList.remove(
                                     "active"
                                 );
                             }
                         );
 
-                    if (radio.checked) {
+                    if (
+                        radio.checked
+                    ) {
+
                         label.classList.add(
                             "active"
                         );
@@ -470,15 +616,26 @@ export function createEnumField(
             );
 
             const text =
-                document.createElement("span");
+                document.createElement(
+                    "span"
+                );
 
             text.textContent =
-                formatEnumLabel(value);
+                formatEnumLabel(
+                    value
+                );
 
-            label.appendChild(radio);
-            label.appendChild(text);
+            label.appendChild(
+                radio
+            );
 
-            wrapper.appendChild(label);
+            label.appendChild(
+                text
+            );
+
+            wrapper.appendChild(
+                label
+            );
         }
     );
 
@@ -498,16 +655,20 @@ export function formatEnumLabel(
         value === undefined ||
         value === null
     ) {
+
         return "";
     }
 
     const text =
-        String(value);
+        String(
+            value
+        );
 
     /*
-     * Hanya untuk tampilan.
+     * Formatter hanya mempengaruhi
+     * tampilan label.
      *
-     * value radio TIDAK disentuh.
+     * Value radio tidak disentuh.
      */
 
     return text;
@@ -516,6 +677,8 @@ export function formatEnumLabel(
 
 /* =========================================================
    FIELD DISPATCHER
+   ---------------------------------------------------------
+   Menentukan factory field berdasarkan parameter.
 ========================================================= */
 
 export function createFieldInput(
@@ -525,15 +688,16 @@ export function createFieldInput(
 
     const type =
         String(
-            definition?.type || "string"
+            definition?.type ||
+            "string"
         )
             .trim()
             .toLowerCase();
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        IMAGE
-    ----------------------------------------------------- */
+    ===================================================== */
 
     if (
         name === "image_urls" ||
@@ -547,9 +711,9 @@ export function createFieldInput(
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        AUDIO
-    ----------------------------------------------------- */
+    ===================================================== */
 
     if (
         name === "audio_url"
@@ -562,12 +726,14 @@ export function createFieldInput(
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        ENUM
-    ----------------------------------------------------- */
+    ===================================================== */
 
     if (
-        Array.isArray(definition?.enum) &&
+        Array.isArray(
+            definition?.enum
+        ) &&
         definition.enum.length
     ) {
 
@@ -578,12 +744,14 @@ export function createFieldInput(
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        OPTIONS
-    ----------------------------------------------------- */
+    ===================================================== */
 
     if (
-        Array.isArray(definition?.options) &&
+        Array.isArray(
+            definition?.options
+        ) &&
         definition.options.length
     ) {
 
@@ -594,9 +762,9 @@ export function createFieldInput(
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        BOOLEAN
-    ----------------------------------------------------- */
+    ===================================================== */
 
     if (
         type === "boolean"
@@ -609,9 +777,9 @@ export function createFieldInput(
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        DURATION
-    ----------------------------------------------------- */
+    ===================================================== */
 
     if (
         name === "duration" &&
@@ -628,9 +796,9 @@ export function createFieldInput(
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        NUMBER
-    ----------------------------------------------------- */
+    ===================================================== */
 
     if (
         type === "number" ||
@@ -644,9 +812,9 @@ export function createFieldInput(
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        TEXTAREA
-    ----------------------------------------------------- */
+    ===================================================== */
 
     const maxLength =
         Number(
@@ -671,9 +839,9 @@ export function createFieldInput(
     }
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        DEFAULT TEXT
-    ----------------------------------------------------- */
+    ===================================================== */
 
     return createTextField(
         definition,
@@ -683,25 +851,37 @@ export function createFieldInput(
 
 
 /* =========================================================
-   IMAGE / AUDIO PLACEHOLDER
+   IMAGE / AUDIO FACTORY REGISTRY
    ---------------------------------------------------------
-   Untuk tahap refactor ini fungsi custom uploader tetap
-   dipertahankan sebagai dependency dari generate-form.js.
-   Jangan membuat implementasi baru di sini sebelum fungsi
-   asli uploader dipindahkan.
+   generate-form-fields.js tidak mengetahui bagaimana
+   upload atau preview media bekerja.
+
+   generate-form-media.js yang menyediakan implementasi
+   field Image / Audio.
+
+   generate-form.js akan mendaftarkan factory tersebut.
 ========================================================= */
 
-let imageFieldFactory = null;
-let audioFieldFactory = null;
+let imageFieldFactory =
+    null;
 
+let audioFieldFactory =
+    null;
+
+
+/* =========================================================
+   REGISTER IMAGE FIELD FACTORY
+========================================================= */
 
 export function registerImageFieldFactory(
     factory
 ) {
 
     if (
-        typeof factory !== "function"
+        typeof factory !==
+        "function"
     ) {
+
         throw new TypeError(
             "Image field factory must be a function"
         );
@@ -712,13 +892,19 @@ export function registerImageFieldFactory(
 }
 
 
+/* =========================================================
+   REGISTER AUDIO FIELD FACTORY
+========================================================= */
+
 export function registerAudioFieldFactory(
     factory
 ) {
 
     if (
-        typeof factory !== "function"
+        typeof factory !==
+        "function"
     ) {
+
         throw new TypeError(
             "Audio field factory must be a function"
         );
@@ -728,6 +914,12 @@ export function registerAudioFieldFactory(
         factory;
 }
 
+
+/* =========================================================
+   IMAGE FIELD
+   ---------------------------------------------------------
+   Dispatcher menuju factory yang sudah diregistrasikan.
+========================================================= */
 
 export function createImageField(
     definition = {},
@@ -751,6 +943,12 @@ export function createImageField(
 }
 
 
+/* =========================================================
+   AUDIO FIELD
+   ---------------------------------------------------------
+   Dispatcher menuju factory yang sudah diregistrasikan.
+========================================================= */
+
 export function createAudioField(
     definition = {},
     name = "audio_url"
@@ -771,3 +969,41 @@ export function createAudioField(
         name
     );
 }
+
+
+/* =========================================================
+   DEFAULT EXPORT
+   ---------------------------------------------------------
+   Tidak wajib digunakan, tetapi memudahkan debugging /
+   inspeksi module tanpa mengubah API named export.
+========================================================= */
+
+export default Object.freeze({
+
+    createTextField,
+
+    createTextareaField,
+
+    createNumberField,
+
+    createDurationField,
+
+    createBooleanField,
+
+    createSelectField,
+
+    createEnumField,
+
+    formatEnumLabel,
+
+    createFieldInput,
+
+    registerImageFieldFactory,
+
+    registerAudioFieldFactory,
+
+    createImageField,
+
+    createAudioField
+
+});
