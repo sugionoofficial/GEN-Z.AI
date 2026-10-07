@@ -26,7 +26,8 @@
    - prompt WAJIB
    - duration mengikuti parameter Motiongen
    - aspect_ratio mengikuti parameter Motiongen
-   - resolution TIDAK didefinisikan di sini
+   - resolution digunakan GEN-Z.AI untuk menentukan credit
+   - resolution TIDAK dikirim ke Motiongen API
    - credit TIDAK didefinisikan di sini
    - nsfw_checker TIDAK digunakan
 ========================================================= */
@@ -106,6 +107,44 @@ const parameters = [
 
         description:
             "URL publik file audio MP3 atau WAV untuk proses LipSync."
+
+    },
+
+
+    /* =====================================================
+       RESOLUTION
+       GEN-Z.AI CREDIT PARAMETER
+
+       IMPORTANT:
+       - 576P     -> credit_480p
+       - 720P HD  -> credit_720p
+       - Tidak dikirim ke provider Motiongen
+    ===================================================== */
+
+    {
+
+        name:
+            "resolution",
+
+        type:
+            "string",
+
+        required:
+            true,
+
+        enum: [
+
+            "576P",
+
+            "720P HD"
+
+        ],
+
+        default:
+            "720P HD",
+
+        description:
+            "Resolusi video untuk menentukan kredit GEN-Z.AI. 576P menggunakan credit_480p, sedangkan 720P HD menggunakan credit_720p."
 
     },
 
@@ -412,6 +451,44 @@ function validate(
 
         errors.push(
             "Audio wajib diupload atau diberikan sebagai URL MP3/WAV."
+        );
+
+    }
+
+
+    /* =====================================================
+       RESOLUTION
+       GEN-Z.AI CREDIT PARAMETER
+    ===================================================== */
+
+    const resolution =
+        input.resolution == null
+
+            ? "720P HD"
+
+            : String(
+                input.resolution
+            ).trim();
+
+
+    const resolutionDefinition =
+        getParameter(
+            "resolution"
+        );
+
+
+    if (
+        resolutionDefinition &&
+        Array.isArray(
+            resolutionDefinition.enum
+        ) &&
+        !resolutionDefinition.enum.includes(
+            resolution
+        )
+    ) {
+
+        errors.push(
+            `Resolution tidak valid. Gunakan: ${resolutionDefinition.enum.join(", ")}.`
         );
 
     }
