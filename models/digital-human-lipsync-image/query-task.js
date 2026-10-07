@@ -1,213 +1,129 @@
-/**
- * =========================================================
- * GEN-Z.AI
- * DIGITAL HUMAN - LIPSYNC IMAGE
- * ---------------------------------------------------------
- * File:
- * models/digital-human-lipsync-image/query-task.js
- *
- * Fungsi:
- * - Query status job Motiongen-AI
- * - Normalisasi status
- * - Mengambil output video
- * - Menyediakan kompatibilitas taskId / task_id / jobId / job_id
- *
- * Provider:
- * Motiongen-AI
- *
- * IMPORTANT:
- * - Tidak menggunakan KIE
- * - Tidak ada KIE fallback
- * - Tidak melakukan polling internal
- * - Polling tetap dikendalikan oleh Generate engine
- * =========================================================
- */
+/* =========================================================
+   GEN-Z.AI
+   MOTIONGEN-AI
+   DIGITAL HUMAN - LIPSYNC IMAGE
+   ---------------------------------------------------------
+   File:
+     models/digital-human-lipsync-image/query-task.js
+
+   Fungsi:
+   - Query status job Motiongen
+   - Normalisasi status provider
+   - Mengambil output video
+   - Menangani failed job
+   - Menyediakan helper status
+
+   PROVIDER:
+     motiongen
+
+   MODEL:
+     digital-human-lipsync-image
+
+   STATUS:
+     QUEUED
+     PROCESSING
+     COMPLETED
+     FAILED
+
+   IMPORTANT:
+   - Tidak menggunakan KIE.AI
+   - Tidak melakukan refund sendiri
+   - Refund provider dilakukan oleh Motiongen
+   - Refund kredit GEN-Z.AI ditangani oleh generation/history layer
+========================================================= */
 
 import {
     getJob
 } from "../../provider/motiongen-ai/client.js";
 
-import config from "./config.js";
+
+import config
+    from "./config.js";
 
 
-/**
- * =========================================================
- * STATUS CONSTANTS
- * =========================================================
- */
-
-const STATUS = Object.freeze({
-
-    QUEUED:
-        "QUEUED",
-
-    PROCESSING:
-        "PROCESSING",
-
-    COMPLETED:
-        "COMPLETED",
-
-    FAILED:
-        "FAILED",
-
-    UNKNOWN:
-        "UNKNOWN"
-
-});
-
-
-/**
- * =========================================================
- * NORMALIZE JOB ID
- * =========================================================
- *
- * Generate engine dapat menggunakan:
- *
- * - taskId
- * - task_id
- * - jobId
- * - job_id
- *
- * Motiongen secara resmi menggunakan:
- *
- * job_id
- * =========================================================
- */
+/* =========================================================
+   NORMALIZE JOB ID
+========================================================= */
 
 function normalizeJobId(
-    input
+    value
 ) {
 
     if (
-        typeof input === "string" &&
-        input.trim()
+        value ===
+            undefined ||
+        value ===
+            null
     ) {
 
-        return input.trim();
+        return "";
 
     }
 
 
-    if (
-        input &&
-        typeof input === "object"
-    ) {
-
-        const value =
-
-            input.jobId ||
-
-            input.job_id ||
-
-            input.taskId ||
-
-            input.task_id ||
-
-            input.id ||
-
-            null;
-
-
-        if (
-            value !== null &&
-            value !== undefined &&
-            String(value).trim()
-        ) {
-
-            return String(
-                value
-            ).trim();
-
-        }
-
-    }
-
-
-    return "";
+    return String(
+        value
+    ).trim();
 
 }
 
 
-/**
- * =========================================================
- * NORMALIZE STATUS
- * =========================================================
- */
+/* =========================================================
+   NORMALIZE STATUS
+========================================================= */
 
 function normalizeStatus(
-    value
+    status
 ) {
 
-    const status =
+    const value =
         String(
-            value || ""
+            status || ""
         )
-        .trim()
-        .toUpperCase();
+            .trim()
+            .toUpperCase();
 
 
     switch (
-        status
+        value
     ) {
 
         case "QUEUED":
 
-            return STATUS.QUEUED;
+            return "QUEUED";
 
 
         case "PROCESSING":
 
-            return STATUS.PROCESSING;
+            return "PROCESSING";
 
 
         case "COMPLETED":
 
-            return STATUS.COMPLETED;
+            return "COMPLETED";
 
 
         case "FAILED":
 
-            return STATUS.FAILED;
+            return "FAILED";
 
 
         default:
 
-            return STATUS.UNKNOWN;
+            return "UNKNOWN";
 
     }
 
 }
 
 
-/**
- * =========================================================
- * EXTRACT OUTPUT URLS
- * =========================================================
- */
+/* =========================================================
+   NORMALIZE OUTPUT URLS
+========================================================= */
 
 function normalizeOutputUrls(
     response
 ) {
-
-    if (
-        Array.isArray(
-            response?.output_urls
-        )
-    ) {
-
-        return response.output_urls
-            .filter(
-                value =>
-                    typeof value === "string" &&
-                    value.trim()
-            )
-            .map(
-                value =>
-                    value.trim()
-            );
-
-    }
-
 
     if (
         Array.isArray(
@@ -217,27 +133,36 @@ function normalizeOutputUrls(
 
         return response.outputUrls
             .filter(
-                value =>
-                    typeof value === "string" &&
-                    value.trim()
+                url =>
+                    typeof url ===
+                        "string" &&
+                    url.trim()
             )
             .map(
-                value =>
-                    value.trim()
+                url =>
+                    url.trim()
             );
 
     }
 
 
     if (
-        typeof response?.output_url ===
-        "string" &&
-        response.output_url.trim()
+        Array.isArray(
+            response?.output_urls
+        )
     ) {
 
-        return [
-            response.output_url.trim()
-        ];
+        return response.output_urls
+            .filter(
+                url =>
+                    typeof url ===
+                        "string" &&
+                    url.trim()
+            )
+            .map(
+                url =>
+                    url.trim()
+            );
 
     }
 
@@ -247,59 +172,51 @@ function normalizeOutputUrls(
 }
 
 
-/**
- * =========================================================
- * QUERY TASK
- * =========================================================
- *
- * API:
- *
- * GET /api/v1/jobs/{job_id}
- *
- * =========================================================
- */
+/* =========================================================
+   QUERY TASK
+========================================================= */
 
 async function queryTask(
-    taskInput,
+    taskId,
     apiKey
 ) {
 
-    /**
-     * -----------------------------------------------------
-     * JOB ID
-     * -----------------------------------------------------
-     */
-
     const jobId =
         normalizeJobId(
-            taskInput
+            taskId
         );
 
 
-    if (!jobId) {
+    if (
+        !jobId
+    ) {
 
         const error =
             new Error(
-                "job_id Motiongen-AI tidak tersedia."
+                "Motiongen-AI job ID is required."
             );
 
+
         error.code =
-            "MOTIONGEN_JOB_ID_MISSING";
+            "JOB_ID_MISSING";
+
 
         error.provider =
-            "motiongen";
+            config.providerId;
+
 
         error.model =
             config.id;
+
 
         throw error;
 
     }
 
 
-    /**
+    /*
      * -----------------------------------------------------
-     * REQUEST
+     * QUERY PROVIDER
      * -----------------------------------------------------
      */
 
@@ -310,9 +227,9 @@ async function queryTask(
         );
 
 
-    /**
+    /*
      * -----------------------------------------------------
-     * STATUS
+     * NORMALIZE STATUS
      * -----------------------------------------------------
      */
 
@@ -322,7 +239,7 @@ async function queryTask(
         );
 
 
-    /**
+    /*
      * -----------------------------------------------------
      * OUTPUT
      * -----------------------------------------------------
@@ -334,9 +251,9 @@ async function queryTask(
         );
 
 
-    /**
+    /*
      * -----------------------------------------------------
-     * NORMALIZED RESULT
+     * RESULT
      * -----------------------------------------------------
      */
 
@@ -346,19 +263,17 @@ async function queryTask(
             response?.success !== false,
 
         provider:
-            "motiongen",
-
-        providerId:
-            "motiongen",
+            config.providerId,
 
         providerName:
-            "Motiongen-AI",
+            config.providerName,
 
         model:
             config.id,
 
-        modelId:
-            config.id,
+        id:
+            response?.id ||
+            jobId,
 
         jobId,
 
@@ -375,19 +290,6 @@ async function queryTask(
 
         kind:
             response?.kind ||
-            "VIDEO",
-
-        outputUrls,
-
-        output_urls:
-            outputUrls,
-
-        outputUrl:
-            outputUrls[0] ||
-            null,
-
-        output_url:
-            outputUrls[0] ||
             null,
 
         creditCost:
@@ -400,8 +302,27 @@ async function queryTask(
             response?.creditCost ??
             null,
 
+        outputUrls,
+
+        output_urls:
+            outputUrls,
+
+        outputUrl:
+            outputUrls[0] ||
+            null,
+
+        errorMessage:
+            response?.errorMessage ||
+            response?.error_message ||
+            null,
+
+        error_message:
+            response?.error_message ||
+            response?.errorMessage ||
+            null,
+
         raw:
-            response?.raw ??
+            response?.raw ||
             response
 
     };
@@ -409,11 +330,9 @@ async function queryTask(
 }
 
 
-/**
- * =========================================================
- * STATUS HELPERS
- * =========================================================
- */
+/* =========================================================
+   STATUS HELPERS
+========================================================= */
 
 function isCompleted(
     result
@@ -423,7 +342,7 @@ function isCompleted(
         normalizeStatus(
             result?.status
         ) ===
-        STATUS.COMPLETED
+        "COMPLETED"
     );
 
 }
@@ -437,7 +356,7 @@ function isFailed(
         normalizeStatus(
             result?.status
         ) ===
-        STATUS.FAILED
+        "FAILED"
     );
 
 }
@@ -454,28 +373,21 @@ function isProcessing(
 
 
     return (
-
         status ===
-        STATUS.QUEUED ||
-
+            "QUEUED" ||
         status ===
-        STATUS.PROCESSING
-
+            "PROCESSING"
     );
 
 }
 
 
-/**
- * =========================================================
- * EXPORT
- * =========================================================
- */
+/* =========================================================
+   EXPORTS
+========================================================= */
 
 export {
 
-    STATUS,
-
     normalizeJobId,
 
     normalizeStatus,
@@ -493,22 +405,4 @@ export {
 };
 
 
-export default {
-
-    STATUS,
-
-    normalizeJobId,
-
-    normalizeStatus,
-
-    normalizeOutputUrls,
-
-    queryTask,
-
-    isCompleted,
-
-    isFailed,
-
-    isProcessing
-
-};
+export default queryTask;
