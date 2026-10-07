@@ -1,4 +1,3 @@
-//generate/assets/js/generate-form-media-reader.js?v=1.1
 /* =========================================================
    GEN-Z.AI
    GENERATE FORM MEDIA READER
@@ -13,6 +12,7 @@
    - Menangani uploaded media
    - Menunggu upload promise (DENGAN TIMEOUT)
    - Fallback upload dari file input (DENGAN TIMEOUT)
+   - Normalisasi return value uploader (string ATAU object)
 ========================================================= */
 
 "use strict";
@@ -21,6 +21,103 @@ import {
     uploadImageFile,
     uploadAudioFile
 } from "./generate-form-upload.js";
+
+
+/* =========================================================
+   HELPER: NORMALIZE UPLOAD RESULT
+   ---------------------------------------------------------
+   uploadImageFile() / uploadAudioFile() mengembalikan
+   OBJECT { path, url } di versi saat ini.
+
+   Kode lama mengharapkan STRING.
+
+   Helper ini menerima kedua bentuk dan mengembalikan
+   string URL yang benar.
+========================================================= */
+
+function extractUploadUrl(
+    result
+) {
+
+    if (
+        !result
+    ) {
+
+        return "";
+
+    }
+
+
+    if (
+        typeof result ===
+        "string"
+    ) {
+
+        return String(
+            result
+        ).trim();
+
+    }
+
+
+    if (
+        typeof result ===
+        "object"
+    ) {
+
+        if (
+            typeof result.url ===
+            "string"
+        ) {
+
+            return String(
+                result.url
+            ).trim();
+
+        }
+
+
+        if (
+            typeof result.publicUrl ===
+            "string"
+        ) {
+
+            return String(
+                result.publicUrl
+            ).trim();
+
+        }
+
+
+        if (
+            typeof result.public_url ===
+            "string"
+        ) {
+
+            return String(
+                result.public_url
+            ).trim();
+
+        }
+
+
+        if (
+            typeof result.href ===
+            "string"
+        ) {
+
+            return String(
+                result.href
+            ).trim();
+
+        }
+
+    }
+
+
+    return "";
+
+}
 
 
 /* =========================================================
@@ -253,13 +350,14 @@ export async function resolveImageParameterValue(
         ) {
 
             return uploadedUrls
+
                 .map(
                     value =>
-                        String(
-                            value ||
-                            ""
-                        ).trim()
+                        extractUploadUrl(
+                            value
+                        )
                 )
+
                 .filter(Boolean);
 
         }
@@ -277,10 +375,9 @@ export async function resolveImageParameterValue(
     ) {
 
         const uploadedUrl =
-            String(
-                imageInput.getUploadedUrl() ||
-                ""
-            ).trim();
+            extractUploadUrl(
+                imageInput.getUploadedUrl()
+            );
 
 
         if (
@@ -353,76 +450,36 @@ export async function resolveImageParameterValue(
 
             /*
              * -------------------------------------------------
-             * FIX: uploadImageFile() juga dibungkus
-             * awaitWithTimeout supaya tidak hang selamanya
-             * ketika fetch ke storage tidak pernah settle
-             * (CORS, network, atau CSP block).
+             * uploadImageFile() bisa mengembalikan:
+             *   - STRING URL   (kompatibel lama)
+             *   - OBJECT { path, url }  (versi sekarang)
+             *
+             * extractUploadUrl() menangani keduanya.
              * -------------------------------------------------
              */
 
-            await awaitWithTimeout(
+            const result =
+                await awaitWithTimeout(
 
-                uploadImageFile(
-                    file
-                ),
+                    uploadImageFile(
+                        file
+                    ),
 
-                "uploadImageFile:" +
-                (
-                    file?.name ||
-                    "?"
-                ),
+                    "uploadImageFile:" +
+                    (
+                        file?.name ||
+                        "?"
+                    ),
 
-                30000
+                    30000
 
-            );
-
-
-            /*
-             * Setelah timeout, kita tidak tahu apakah upload
-             * berhasil. Ambil URL dari helper internal jika
-             * tersedia — kalau tidak, ambil dari dataset
-             * yang mungkin sudah di-set oleh uploader.
-             */
-
-            let url =
-                "";
+                );
 
 
-            if (
-                typeof imageInput.getUploadedUrls ===
-                "function"
-            ) {
-
-                const current =
-                    imageInput.getUploadedUrls();
-
-
-                if (
-                    Array.isArray(current) &&
-                    current.length > 0
-                ) {
-
-                    url =
-                        current[
-                            current.length -
-                            1
-                        ];
-
-                }
-
-            }
-
-
-            if (
-                !url &&
-                typeof imageInput.getUploadedUrl ===
-                "function"
-            ) {
-
-                url =
-                    imageInput.getUploadedUrl();
-
-            }
+            const url =
+                extractUploadUrl(
+                    result
+                );
 
 
             if (
@@ -430,9 +487,7 @@ export async function resolveImageParameterValue(
             ) {
 
                 uploaded.push(
-                    String(
-                        url
-                    ).trim()
+                    url
                 );
 
             }
@@ -577,10 +632,9 @@ export async function resolveAudioParameterValue(
     ) {
 
         const uploadedUrl =
-            String(
-                audioInput.getUploadedUrl() ||
-                ""
-            ).trim();
+            extractUploadUrl(
+                audioInput.getUploadedUrl()
+            );
 
 
         if (
@@ -631,57 +685,36 @@ export async function resolveAudioParameterValue(
 
         /*
          * -------------------------------------------------
-         * FIX: uploadAudioFile() juga dibungkus
-         * awaitWithTimeout supaya tidak hang selamanya.
+         * uploadAudioFile() bisa mengembalikan:
+         *   - STRING URL   (kompatibel lama)
+         *   - OBJECT { path, url }  (versi sekarang)
+         *
+         * extractUploadUrl() menangani keduanya.
          * -------------------------------------------------
          */
 
-        await awaitWithTimeout(
+        const result =
+            await awaitWithTimeout(
 
-            uploadAudioFile(
-                file
-            ),
+                uploadAudioFile(
+                    file
+                ),
 
-            "uploadAudioFile:" +
-            (
-                file?.name ||
-                "?"
-            ),
+                "uploadAudioFile:" +
+                (
+                    file?.name ||
+                    "?"
+                ),
 
-            30000
+                30000
 
-        );
-
-
-        /*
-         * Setelah timeout, ambil URL dari helper internal
-         * jika tersedia — kalau tidak, ambil dari dataset.
-         */
-
-        let url =
-            "";
+            );
 
 
-        if (
-            typeof audioInput.getUploadedUrl ===
-            "function"
-        ) {
-
-            url =
-                audioInput.getUploadedUrl();
-
-        }
-
-
-        if (
-            !url &&
-            audioInput.dataset.uploadedUrl
-        ) {
-
-            url =
-                audioInput.dataset.uploadedUrl;
-
-        }
+        const url =
+            extractUploadUrl(
+                result
+            );
 
 
         if (
@@ -689,17 +722,12 @@ export async function resolveAudioParameterValue(
         ) {
 
             audioInput.dataset.uploadedUrl =
-                String(
-                    url
-                ).trim();
+                url;
 
         }
 
 
-        return String(
-            url ||
-            ""
-        ).trim();
+        return url;
 
     } catch (
         error
