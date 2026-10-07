@@ -1,487 +1,369 @@
-/**
- * =========================================================
- * GEN-Z.AI
- * DIGITAL HUMAN - LIPSYNC IMAGE
- * ---------------------------------------------------------
- * File:
- * models/digital-human-lipsync-image/parameter-adapter.js
- *
- * Fungsi:
- * - Mengambil source parameters
- * - Normalisasi input
- * - Menjaga parameter wajib
- * - Menghapus parameter yang tidak didukung Motiongen
- *
- * IMPORTANT:
- * - audio_url WAJIB
- * - image_urls WAJIB
- * - resolution TIDAK dikirim ke Motiongen
- * - duration berasal dari parameters.js
- * - aspect_ratio berasal dari parameters.js
- * - nsfw_checker TIDAK digunakan
- * - tidak ada KIE fallback
- * =========================================================
- */
+/* =========================================================
+   GEN-Z.AI
+   MOTIONGEN-AI
+   DIGITAL HUMAN - LIPSYNC IMAGE
+   ---------------------------------------------------------
+   File:
+     models/digital-human-lipsync-image/parameter-adapter.js
+
+   Fungsi:
+   - Mengambil source parameter
+   - Normalisasi parameter
+   - Sanitasi parameter
+   - Menjaga payload tetap sesuai API Motiongen
+
+   IMPORTANT:
+   - image_urls WAJIB
+   - audio_url WAJIB
+   - prompt WAJIB
+   - duration dari parameters.js
+   - aspect_ratio dari parameters.js
+   - resolution tidak dikirim dari adapter
+   - credit tidak dikirim dari adapter
+   - nsfw_checker tidak digunakan
+   - Tidak ada KIE fallback
+========================================================= */
+
+import {
+    validate
+} from "./parameters.js";
 
 
-/**
- * =========================================================
- * GET SOURCE
- * =========================================================
- *
- * Generate engine dapat mengirim:
- *
- * {
- *     parameters: {...}
- * }
- *
- * atau langsung:
- *
- * {
- *     prompt: "...",
- *     image_urls: [...]
- * }
- *
- * Keduanya didukung.
- * =========================================================
- */
+/* =========================================================
+   GET SOURCE
+========================================================= */
 
-function getSource(body = {}) {
+function getSource(
+    body = {}
+) {
 
     if (
         body &&
-        typeof body.parameters === "object" &&
-        !Array.isArray(body.parameters)
+        typeof body.parameters ===
+            "object" &&
+        !Array.isArray(
+            body.parameters
+        )
     ) {
 
         return body.parameters;
 
     }
 
-    return body;
-
-}
-
-
-/**
- * =========================================================
- * NORMALIZE IMAGE URLS
- * =========================================================
- */
-
-function normalizeImageUrls(
-    value
-) {
 
     if (
-        Array.isArray(value)
+        body &&
+        typeof body ===
+            "object" &&
+        !Array.isArray(
+            body
+        )
     ) {
 
-        return value
-            .map(
-                item =>
-                    typeof item === "string"
-                        ? item.trim()
-                        : ""
-            )
-            .filter(Boolean);
+        return body;
 
     }
 
 
-    if (
-        typeof value === "string" &&
-        value.trim()
-    ) {
-
-        return [
-            value.trim()
-        ];
-
-    }
-
-
-    return [];
+    return {};
 
 }
 
 
-/**
- * =========================================================
- * NORMALIZE STRING
- * =========================================================
- */
+/* =========================================================
+   NORMALIZE STRING
+========================================================= */
 
 function normalizeString(
     value
 ) {
 
     if (
-        typeof value !== "string"
+        typeof value !==
+            "string"
     ) {
 
         return "";
 
     }
 
+
     return value.trim();
 
 }
 
 
-/**
- * =========================================================
- * NORMALIZE DURATION
- * =========================================================
- */
+/* =========================================================
+   NORMALIZE IMAGE URLS
+========================================================= */
+
+function normalizeImageUrls(
+    value
+) {
+
+    if (
+        !Array.isArray(
+            value
+        )
+    ) {
+
+        return [];
+
+    }
+
+
+    return value
+
+        .map(
+            item =>
+                normalizeString(
+                    item
+                )
+        )
+
+        .filter(
+            Boolean
+        )
+
+        .slice(
+            0,
+            1
+        );
+
+}
+
+
+/* =========================================================
+   NORMALIZE DURATION
+========================================================= */
 
 function normalizeDuration(
     value
 ) {
 
     if (
-        value === undefined ||
-        value === null ||
-        value === ""
+        value ===
+            undefined ||
+        value ===
+            null ||
+        value ===
+            ""
     ) {
 
-        return undefined;
+        return 10;
 
     }
+
 
     const duration =
-        Number(value);
+        Number(
+            value
+        );
 
-    if (
-        !Number.isFinite(duration)
-    ) {
 
-        return undefined;
+    return Number.isFinite(
+        duration
+    )
 
-    }
+        ? duration
 
-    return duration;
+        : value;
 
 }
 
 
-/**
- * =========================================================
- * GET PARAMETERS
- * =========================================================
- *
- * Hanya parameter yang benar-benar dimiliki model.
- *
- * Resolution sengaja TIDAK termasuk.
- *
- * =========================================================
- */
+/* =========================================================
+   GET PARAMETERS
+========================================================= */
 
 function getParameters(
     body = {}
 ) {
 
     const source =
-        getSource(body);
+        getSource(
+            body
+        );
 
 
-    const result = {};
+    const parameters = {
 
-
-    /**
-     * =====================================================
-     * PROMPT
-     * =====================================================
-     */
-
-    if (
-        source.prompt !== undefined
-    ) {
-
-        result.prompt =
+        prompt:
             normalizeString(
                 source.prompt
-            );
+            ),
 
-    }
-
-
-    /**
-     * =====================================================
-     * IMAGE
-     * =====================================================
-     */
-
-    if (
-        source.image_urls !== undefined
-    ) {
-
-        result.image_urls =
+        image_urls:
             normalizeImageUrls(
                 source.image_urls
-            );
+            ),
 
-    }
-
-
-    /**
-     * =====================================================
-     * AUDIO
-     * =====================================================
-     */
-
-    if (
-        source.audio_url !== undefined
-    ) {
-
-        result.audio_url =
+        audio_url:
             normalizeString(
                 source.audio_url
-            );
+            ),
 
-    }
+        aspect_ratio:
+            source.aspect_ratio == null
 
+                ? "16:9"
 
-    /**
-     * =====================================================
-     * ASPECT RATIO
-     * =====================================================
-     */
+                : normalizeString(
+                    source.aspect_ratio
+                ),
 
-    if (
-        source.aspect_ratio !== undefined
-    ) {
-
-        result.aspect_ratio =
-            normalizeString(
-                source.aspect_ratio
-            );
-
-    }
-
-
-    /**
-     * =====================================================
-     * DURATION
-     * =====================================================
-     */
-
-    if (
-        source.duration !== undefined
-    ) {
-
-        result.duration =
+        duration:
             normalizeDuration(
                 source.duration
-            );
+            )
 
-    }
+    };
 
 
-    /**
-     * =====================================================
+    /*
+     * -----------------------------------------------------
      * WEBHOOK
-     * =====================================================
+     * -----------------------------------------------------
+     *
+     * Support:
+     *
+     * webhook_url
+     * webhook
+     *
+     * Canonical output:
+     * webhook_url
      */
 
+    const webhookUrl =
+        normalizeString(
+            source.webhook_url ||
+            source.webhook
+        );
+
+
     if (
-        source.webhook_url !== undefined
+        webhookUrl
     ) {
 
-        result.webhook_url =
-            normalizeString(
-                source.webhook_url
-            );
-
-    } else if (
-        source.webhook !== undefined
-    ) {
-
-        /**
-         * Motiongen API documentation allows
-         * webhook as an alias.
-         *
-         * GEN-Z.AI canonical form remains:
-         *
-         * webhook_url
-         */
-
-        result.webhook_url =
-            normalizeString(
-                source.webhook
-            );
+        parameters.webhook_url =
+            webhookUrl;
 
     }
 
 
-    return result;
+    return parameters;
 
 }
 
 
-/**
- * =========================================================
- * SANITIZE PARAMETERS
- * =========================================================
- *
- * Digunakan sebelum request dibuat.
- *
- * Jangan pernah memasukkan:
- *
- * - resolution
- * - credit
- * - credit_final
- * - nsfw_checker
- * - provider
- * - provider_id
- * - model_name
- *
- * ke payload Motiongen.
- * =========================================================
- */
+/* =========================================================
+   SANITIZE PARAMETERS
+========================================================= */
 
 function sanitizeParameters(
     body = {}
 ) {
 
+    const source =
+        getSource(
+            body
+        );
+
+
     const parameters =
-        getParameters(body);
+        getParameters(
+            source
+        );
 
 
-    const result = {};
+    /*
+     * -----------------------------------------------------
+     * HARD REQUIREMENTS
+     * -----------------------------------------------------
+     */
+
+    parameters.prompt =
+        normalizeString(
+            parameters.prompt
+        );
 
 
-    /**
-     * =====================================================
-     * PROMPT
-     * =====================================================
+    parameters.image_urls =
+        normalizeImageUrls(
+            parameters.image_urls
+        );
+
+
+    parameters.audio_url =
+        normalizeString(
+            parameters.audio_url
+        );
+
+
+    /*
+     * -----------------------------------------------------
+     * PROVIDER DEFAULTS
+     * -----------------------------------------------------
      */
 
     if (
-        parameters.prompt !== undefined
+        !parameters.aspect_ratio
     ) {
 
-        result.prompt =
-            parameters.prompt;
+        parameters.aspect_ratio =
+            "16:9";
 
     }
 
 
-    /**
-     * =====================================================
-     * IMAGE
-     * =====================================================
-     */
-
     if (
-        parameters.image_urls !== undefined
+        parameters.duration ===
+            undefined ||
+        parameters.duration ===
+            null
     ) {
 
-        result.image_urls =
-            parameters.image_urls;
+        parameters.duration =
+            10;
 
     }
 
 
-    /**
-     * =====================================================
-     * AUDIO
-     * =====================================================
+    /*
+     * -----------------------------------------------------
+     * IMPORTANT
+     * -----------------------------------------------------
      *
-     * WAJIB dipertahankan.
+     * Jangan menambahkan:
      *
-     * Jangan pernah menghapus audio_url hanya karena
-     * nilainya berasal dari upload atau URL.
-     * =====================================================
+     * - resolution
+     * - credit
+     * - credit_final
+     * - credit_480p
+     * - credit_720p
+     * - credit_1080p
+     * - discount_percent
+     * - nsfw_checker
+     * - provider_id
+     * - provider
+     * - model_name
+     *
+     * Field tersebut bukan payload Motiongen.
      */
 
-    if (
-        parameters.audio_url !== undefined
-    ) {
 
-        result.audio_url =
-            parameters.audio_url;
-
-    }
-
-
-    /**
-     * =====================================================
-     * ASPECT RATIO
-     * =====================================================
-     */
-
-    if (
-        parameters.aspect_ratio !== undefined
-    ) {
-
-        result.aspect_ratio =
-            parameters.aspect_ratio;
-
-    }
-
-
-    /**
-     * =====================================================
-     * DURATION
-     * =====================================================
-     */
-
-    if (
-        parameters.duration !== undefined
-    ) {
-
-        result.duration =
-            parameters.duration;
-
-    }
-
-
-    /**
-     * =====================================================
-     * WEBHOOK
-     * =====================================================
-     */
-
-    if (
-        parameters.webhook_url !== undefined &&
-        parameters.webhook_url !== ""
-    ) {
-
-        result.webhook_url =
-            parameters.webhook_url;
-
-    }
-
-
-    return result;
+    return parameters;
 
 }
 
 
-/**
- * =========================================================
- * BUILD MOTIONGEN PAYLOAD
- * =========================================================
- *
- * Motiongen API menggunakan payload flat:
- *
- * {
- *     model,
- *     prompt,
- *     image_urls,
- *     audio_url,
- *     aspect_ratio,
- *     duration,
- *     webhook_url
- * }
- *
- * =========================================================
- */
+/* =========================================================
+   BUILD PAYLOAD
+========================================================= */
 
 function buildPayload(
     body = {},
-    modelId = "digital-human-lipsync-image"
+    modelId
 ) {
 
     const parameters =
@@ -490,26 +372,48 @@ function buildPayload(
         );
 
 
-    const payload = {
+    const model =
+        normalizeString(
+            modelId
+        ) ||
+        "digital-human-lipsync-image";
 
-        model:
-            modelId,
+
+    return {
+
+        model,
 
         ...parameters
 
     };
 
+}
 
-    return payload;
+
+/* =========================================================
+   VALIDATE PARAMETERS
+========================================================= */
+
+function validateParameters(
+    body = {}
+) {
+
+    const parameters =
+        sanitizeParameters(
+            body
+        );
+
+
+    return validate(
+        parameters
+    );
 
 }
 
 
-/**
- * =========================================================
- * EXPORT
- * =========================================================
- */
+/* =========================================================
+   EXPORTS
+========================================================= */
 
 export {
 
@@ -519,9 +423,12 @@ export {
 
     sanitizeParameters,
 
-    buildPayload
+    buildPayload,
+
+    validateParameters
 
 };
+
 
 export default {
 
@@ -531,6 +438,8 @@ export default {
 
     sanitizeParameters,
 
-    buildPayload
+    buildPayload,
+
+    validateParameters
 
 };
