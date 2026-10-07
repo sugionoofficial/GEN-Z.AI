@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
 
     <meta charset="UTF-8">
@@ -9,130 +10,50 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>GEN-Z.AI | AI Video Generation Platform</title>
-
-    <meta
-        name="description"
-        content="GEN-Z.AI adalah platform AI Video Generation premium untuk mengubah ide, prompt, gambar, dan konsep kreatif menjadi video."
-    >
-
     <meta
         name="theme-color"
         content="#050505"
     >
 
+    <meta
+        name="description"
+        content="GEN-Z.AI — Premium AI Video Generation Platform. Create cinematic AI videos from text, images, vision and digital human."
+    >
+
+    <meta
+        name="robots"
+        content="index, follow"
+    >
+
+    <title>GEN-Z.AI — AI Video Generation Platform</title>
+
+
     <style>
-
-        /* =========================================================
-           GEN-Z.AI
-           PREMIUM HIGH CLASS LANDING PAGE
-        ========================================================= */
-
-        :root {
-
-            --bg:
-                #050505;
-
-            --bg-2:
-                #080809;
-
-            --bg-3:
-                #0d0d0f;
-
-            --surface:
-                rgba(255,255,255,0.035);
-
-            --surface-strong:
-                rgba(255,255,255,0.055);
-
-            --border:
-                rgba(255,255,255,0.09);
-
-            --border-soft:
-                rgba(255,255,255,0.055);
-
-            --red:
-                #ff3048;
-
-            --red-light:
-                #ff5367;
-
-            --red-dark:
-                #a90f27;
-
-            --white:
-                #ffffff;
-
-            --text:
-                #f4f4f5;
-
-            --muted:
-                #8b8d94;
-
-            --muted-2:
-                #62656d;
-
-            --green:
-                #42d392;
-
-            --gold:
-                #d7b77b;
-
-            --container:
-                1220px;
-        }
-
 
         /* =========================================================
            RESET
         ========================================================= */
 
-        *,
-        *::before,
-        *::after {
-
-            box-sizing:
-                border-box;
-
-            margin:
-                0;
-
-            padding:
-                0;
-
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
 
         html {
-
-            width:
-                100%;
-
-            scroll-behavior:
-                smooth;
-
-            background:
-                var(--bg);
-
+            width: 100%;
+            min-height: 100%;
+            scroll-behavior: smooth;
+            background: #050505;
         }
 
 
         body {
+            width: 100%;
+            min-height: 100vh;
 
-            width:
-                100%;
-
-            min-height:
-                100vh;
-
-            overflow-x:
-                hidden;
-
-            background:
-                var(--bg);
-
-            color:
-                var(--text);
+            overflow-x: hidden;
 
             font-family:
                 Inter,
@@ -143,172 +64,37 @@
                 "Segoe UI",
                 sans-serif;
 
-            -webkit-font-smoothing:
-                antialiased;
+            background:
+                radial-gradient(
+                    circle at 50% -10%,
+                    rgba(255, 48, 72, 0.16),
+                    transparent 34%
+                ),
+                #050505;
 
+            color: #ffffff;
+
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+
+        button,
+        a {
+            -webkit-tap-highlight-color: transparent;
         }
 
 
         img,
         video {
-
-            max-width:
-                100%;
-
-        }
-
-
-        a {
-
-            color:
-                inherit;
-
-            text-decoration:
-                none;
-
-        }
-
-
-        button {
-
-            font:
-                inherit;
-
-        }
-
-
-        /* =========================================================
-           BACKGROUND
-        ========================================================= */
-
-        .ambient {
-
-            position:
-                fixed;
-
-            inset:
-                0;
-
-            z-index:
-                -10;
-
-            pointer-events:
-                none;
-
-            overflow:
-                hidden;
-
-            background:
-                #050505;
-
-        }
-
-
-        .ambient::before {
-
-            content:
-                "";
-
-            position:
-                absolute;
-
-            width:
-                850px;
-
-            height:
-                850px;
-
-            top:
-                -420px;
-
-            left:
-                50%;
-
-            transform:
-                translateX(-50%);
-
-            border-radius:
-                50%;
-
-            background:
-                rgba(255,48,72,0.12);
-
-            filter:
-                blur(100px);
-
-        }
-
-
-        .ambient::after {
-
-            content:
-                "";
-
-            position:
-                absolute;
-
-            width:
-                600px;
-
-            height:
-                600px;
-
-            right:
-                -300px;
-
-            top:
-                35%;
-
-            border-radius:
-                50%;
-
-            background:
-                rgba(255,48,72,0.045);
-
-            filter:
-                blur(100px);
-
-        }
-
-
-        .grid {
-
-            position:
-                fixed;
-
-            inset:
-                0;
-
-            z-index:
-                -9;
-
-            pointer-events:
-                none;
-
-            opacity:
-                .17;
-
-            background-image:
-                linear-gradient(
-                    rgba(255,255,255,.025) 1px,
-                    transparent 1px
-                ),
-                linear-gradient(
-                    90deg,
-                    rgba(255,255,255,.025) 1px,
-                    transparent 1px
-                );
-
-            background-size:
-                72px 72px;
-
-            mask-image:
-                linear-gradient(
-                    to bottom,
-                    black 0%,
-                    transparent 72%
-                );
-
+            display: block;
+            max-width: 100%;
         }
 
 
@@ -316,118 +102,139 @@
            GLOBAL
         ========================================================= */
 
+        :root {
+
+            --red: #ff3048;
+            --red-light: #ff5368;
+            --red-dark: #b90f27;
+
+            --bg: #050505;
+            --bg-soft: #090909;
+            --surface: rgba(255, 255, 255, 0.045);
+            --surface-strong: rgba(255, 255, 255, 0.065);
+
+            --border: rgba(255, 255, 255, 0.10);
+            --border-red: rgba(255, 48, 72, 0.32);
+
+            --text: #ffffff;
+            --text-soft: #a9a9b2;
+            --text-muted: #6f7079;
+
+            --radius-lg: 28px;
+            --radius-md: 20px;
+            --radius-sm: 14px;
+
+            --max-width: 1240px;
+        }
+
+
         .container {
+            width: min(
+                calc(100% - 48px),
+                var(--max-width)
+            );
 
-            width:
-                min(
-                    calc(100% - 48px),
-                    var(--container)
-                );
-
-            margin:
-                0 auto;
-
+            margin: 0 auto;
         }
 
 
         .section {
-
-            padding:
-                130px 0;
-
+            position: relative;
+            padding: 120px 0;
         }
 
 
         .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
 
-            display:
-                inline-flex;
+            margin-bottom: 18px;
 
-            align-items:
-                center;
+            color: var(--red-light);
 
-            gap:
-                9px;
+            font-size: 11px;
+            font-weight: 800;
 
-            color:
-                var(--red-light);
-
-            font-size:
-                9px;
-
-            font-weight:
-                900;
-
-            letter-spacing:
-                .18em;
-
-            text-transform:
-                uppercase;
-
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
         }
 
 
         .section-label::before {
+            content: "";
 
-            content:
-                "";
+            width: 22px;
+            height: 1px;
 
-            width:
-                20px;
-
-            height:
-                1px;
-
-            background:
-                var(--red);
-
+            background: var(--red);
             box-shadow:
-                0 0 12px
-                rgba(255,48,72,.55);
-
+                0 0 10px rgba(255, 48, 72, 0.8);
         }
 
 
         .section-title {
-
-            margin-top:
-                18px;
-
-            max-width:
-                760px;
+            max-width: 800px;
 
             font-size:
-                clamp(36px, 5vw, 64px);
+                clamp(36px, 6vw, 76px);
 
-            line-height:
-                .98;
+            line-height: 0.98;
 
-            letter-spacing:
-                -.055em;
+            font-weight: 900;
 
-            font-weight:
-                950;
-
+            letter-spacing: -0.055em;
         }
 
 
         .section-description {
+            max-width: 660px;
 
-            max-width:
-                650px;
+            margin-top: 24px;
 
-            margin-top:
-                20px;
+            color: var(--text-soft);
 
-            color:
-                var(--muted);
+            font-size: 16px;
+            line-height: 1.75;
+        }
 
-            font-size:
-                14px;
 
-            line-height:
-                1.8;
+        /* =========================================================
+           BACKGROUND EFFECTS
+        ========================================================= */
 
+        .page-glow {
+            position: fixed;
+
+            width: 500px;
+            height: 500px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(255, 48, 72, 0.075),
+                    transparent 70%
+                );
+
+            pointer-events: none;
+
+            z-index: -1;
+
+            filter: blur(10px);
+        }
+
+
+        .page-glow.one {
+            top: 5%;
+            left: -250px;
+        }
+
+
+        .page-glow.two {
+            top: 55%;
+            right: -280px;
         }
 
 
@@ -435,303 +242,175 @@
            NAVBAR
         ========================================================= */
 
-        .site-header {
-
-            position:
-                fixed;
-
-            top:
-                0;
-
-            left:
-                0;
-
-            right:
-                0;
-
-            z-index:
-                100;
-
-            padding:
-                18px 20px;
-
-        }
-
-
         .navbar {
+            position: fixed;
 
-            width:
-                min(
-                    calc(100% - 0px),
-                    var(--container)
-                );
+            top: 18px;
+            left: 50%;
 
-            min-height:
-                62px;
+            transform: translateX(-50%);
 
-            margin:
-                0 auto;
+            width: min(
+                calc(100% - 32px),
+                1180px
+            );
 
-            display:
-                flex;
+            z-index: 1000;
 
-            align-items:
-                center;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
 
-            justify-content:
-                space-between;
-
-            gap:
-                24px;
-
-            padding:
-                8px 9px 8px 18px;
+            padding: 13px 16px 13px 20px;
 
             border:
-                1px solid
-                rgba(255,255,255,.09);
+                1px solid rgba(255, 255, 255, 0.09);
 
-            border-radius:
-                18px;
+            border-radius: 18px;
 
             background:
-                rgba(6,6,7,.78);
+                rgba(7, 7, 7, 0.72);
 
-            backdrop-filter:
-                blur(24px);
-
-            -webkit-backdrop-filter:
-                blur(24px);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
 
             box-shadow:
-                0 20px 70px
-                rgba(0,0,0,.42);
-
+                0 20px 60px rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04);
         }
 
 
-        .logo {
-
-            display:
-                inline-flex;
-
-            align-items:
-                center;
-
-            gap:
-                11px;
-
-            font-weight:
-                950;
-
-            letter-spacing:
-                -.05em;
-
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
         }
 
 
-        .logo-mark {
+        .brand-mark {
+            position: relative;
 
-            position:
-                relative;
+            width: 34px;
+            height: 34px;
 
-            width:
-                34px;
+            display: grid;
+            place-items: center;
 
-            height:
-                34px;
-
-            display:
-                grid;
-
-            place-items:
-                center;
-
-            border:
-                1px solid
-                rgba(255,255,255,.12);
-
-            border-radius:
-                10px;
-
-            background:
-                linear-gradient(
-                    145deg,
-                    #ff4058,
-                    #8e0c21
-                );
-
-            color:
-                #fff;
-
-            font-size:
-                10px;
-
-            box-shadow:
-                0 0 28px
-                rgba(255,48,72,.28);
-
-        }
-
-
-        .logo-name {
-
-            font-size:
-                17px;
-
-        }
-
-
-        .logo-name span {
-
-            color:
-                var(--red);
-
-        }
-
-
-        .nav-menu {
-
-            display:
-                flex;
-
-            align-items:
-                center;
-
-            gap:
-                31px;
-
-        }
-
-
-        .nav-menu a {
-
-            color:
-                #898d95;
-
-            font-size:
-                10px;
-
-            font-weight:
-                700;
-
-            letter-spacing:
-                .04em;
-
-            transition:
-                color .2s ease;
-
-        }
-
-
-        .nav-menu a:hover {
-
-            color:
-                #fff;
-
-        }
-
-
-        .nav-actions {
-
-            display:
-                flex;
-
-            align-items:
-                center;
-
-            gap:
-                8px;
-
-        }
-
-
-        .nav-login {
-
-            min-height:
-                40px;
-
-            display:
-                inline-flex;
-
-            align-items:
-                center;
-
-            justify-content:
-                center;
-
-            padding:
-                0 16px;
-
-            border:
-                1px solid
-                rgba(255,255,255,.10);
-
-            border-radius:
-                10px;
-
-            color:
-                #d2d4d9;
-
-            font-size:
-                9px;
-
-            font-weight:
-                900;
-
-            letter-spacing:
-                .08em;
-
-        }
-
-
-        .nav-register {
-
-            min-height:
-                40px;
-
-            display:
-                inline-flex;
-
-            align-items:
-                center;
-
-            justify-content:
-                center;
-
-            padding:
-                0 17px;
-
-            border:
-                1px solid
-                rgba(255,48,72,.55);
-
-            border-radius:
-                10px;
+            border-radius: 10px;
 
             background:
                 linear-gradient(
                     135deg,
-                    #ff4058,
-                    #c41832
+                    #ff3048,
+                    #8d0c20
                 );
 
-            color:
-                #fff;
+            box-shadow:
+                0 0 25px rgba(255, 48, 72, 0.28);
+        }
 
-            font-size:
-                9px;
 
-            font-weight:
-                900;
+        .brand-mark::before {
+            content: "";
 
-            letter-spacing:
-                .08em;
+            width: 12px;
+            height: 12px;
+
+            border-radius: 50%;
+
+            background: #ffffff;
 
             box-shadow:
-                0 8px 30px
-                rgba(255,48,72,.18);
+                0 0 12px rgba(255, 255, 255, 0.8);
+        }
 
+
+        .brand-name {
+            font-size: 15px;
+            font-weight: 900;
+            letter-spacing: -0.035em;
+        }
+
+
+        .brand-name span {
+            color: var(--red);
+        }
+
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+
+        .nav-links a {
+            color: #b7b7c0;
+
+            font-size: 12px;
+            font-weight: 600;
+
+            transition:
+                color 0.2s ease;
+        }
+
+
+        .nav-links a:hover {
+            color: #ffffff;
+        }
+
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+
+        .nav-login {
+            padding: 10px 14px;
+
+            color: #d8d8df;
+
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+
+        .nav-register {
+            padding: 11px 17px;
+
+            border:
+                1px solid rgba(255, 48, 72, 0.42);
+
+            border-radius: 10px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #ff3048,
+                    #d71730
+                );
+
+            color: #ffffff;
+
+            font-size: 12px;
+            font-weight: 800;
+
+            box-shadow:
+                0 8px 28px rgba(255, 48, 72, 0.18);
+
+            transition:
+                transform 0.2s ease,
+                box-shadow 0.2s ease;
+        }
+
+
+        .nav-register:hover {
+            transform: translateY(-2px);
+
+            box-shadow:
+                0 12px 35px rgba(255, 48, 72, 0.28);
         }
 
 
@@ -740,759 +419,437 @@
         ========================================================= */
 
         .hero {
+            position: relative;
 
-            position:
-                relative;
+            min-height: 100vh;
 
-            min-height:
-                930px;
-
-            display:
-                flex;
-
-            align-items:
-                center;
+            display: flex;
+            align-items: center;
 
             padding:
-                150px 0 100px;
-
-        }
-
-
-        .hero::after {
-
-            content:
-                "";
-
-            position:
-                absolute;
-
-            left:
-                50%;
-
-            bottom:
-                0;
-
-            width:
-                70%;
-
-            height:
-                1px;
-
-            transform:
-                translateX(-50%);
-
-            background:
-                linear-gradient(
-                    90deg,
-                    transparent,
-                    rgba(255,255,255,.10),
-                    transparent
-                );
-
+                160px 0
+                90px;
         }
 
 
         .hero-grid {
-
-            display:
-                grid;
+            display: grid;
 
             grid-template-columns:
-                minmax(0,1.05fr)
-                minmax(430px,.95fr);
+                minmax(0, 1fr)
+                minmax(420px, 0.9fr);
 
-            align-items:
-                center;
+            align-items: center;
 
-            gap:
-                90px;
-
+            gap: 70px;
         }
 
 
-        .hero-eyebrow {
+        .hero-copy {
+            position: relative;
+            z-index: 2;
+        }
 
-            display:
-                inline-flex;
 
-            align-items:
-                center;
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
 
-            gap:
-                9px;
+            margin-bottom: 22px;
 
-            padding:
-                8px 12px;
+            padding: 8px 12px;
 
             border:
-                1px solid
-                rgba(255,48,72,.24);
+                1px solid rgba(255, 48, 72, 0.22);
 
-            border-radius:
-                999px;
+            border-radius: 999px;
 
             background:
-                rgba(255,48,72,.055);
+                rgba(255, 48, 72, 0.055);
 
-            color:
-                #ff7a88;
+            color: #ff8a98;
 
-            font-size:
-                8px;
+            font-size: 10px;
+            font-weight: 800;
 
-            font-weight:
-                900;
-
-            letter-spacing:
-                .16em;
-
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
         }
 
 
-        .live-dot {
+        .eyebrow-dot {
+            width: 6px;
+            height: 6px;
 
-            width:
-                6px;
+            border-radius: 50%;
 
-            height:
-                6px;
-
-            border-radius:
-                50%;
-
-            background:
-                var(--red);
+            background: var(--red);
 
             box-shadow:
-                0 0 12px
-                var(--red);
-
+                0 0 12px var(--red);
         }
 
 
-        .hero h1 {
-
-            max-width:
-                760px;
-
-            margin-top:
-                25px;
+        .hero-title {
+            max-width: 850px;
 
             font-size:
-                clamp(52px, 7vw, 94px);
+                clamp(54px, 8vw, 104px);
 
-            line-height:
-                .91;
+            line-height: 0.89;
 
-            letter-spacing:
-                -.072em;
+            font-weight: 950;
 
-            font-weight:
-                950;
-
+            letter-spacing: -0.075em;
         }
 
 
-        .hero h1 span {
-
-            color:
-                var(--red);
+        .hero-title .accent {
+            color: var(--red);
 
             text-shadow:
-                0 0 55px
-                rgba(255,48,72,.15);
-
+                0 0 40px rgba(255, 48, 72, 0.22);
         }
 
 
-        .hero-text {
+        .hero-description {
+            max-width: 620px;
 
-            max-width:
-                620px;
+            margin-top: 28px;
 
-            margin-top:
-                30px;
-
-            color:
-                #9398a1;
+            color: var(--text-soft);
 
             font-size:
-                15px;
+                clamp(15px, 2vw, 18px);
 
-            line-height:
-                1.8;
-
+            line-height: 1.7;
         }
 
 
         .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
 
-            display:
-                flex;
+            gap: 12px;
 
-            align-items:
-                center;
-
-            flex-wrap:
-                wrap;
-
-            gap:
-                11px;
-
-            margin-top:
-                35px;
-
-        }
-
-
-        .btn {
-
-            min-height:
-                52px;
-
-            display:
-                inline-flex;
-
-            align-items:
-                center;
-
-            justify-content:
-                center;
-
-            gap:
-                10px;
-
-            padding:
-                0 22px;
-
-            border-radius:
-                12px;
-
-            font-size:
-                10px;
-
-            font-weight:
-                900;
-
-            letter-spacing:
-                .075em;
-
-            transition:
-                transform .2s ease,
-                box-shadow .2s ease,
-                border-color .2s ease;
-
+            margin-top: 34px;
         }
 
 
         .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+
+            min-height: 50px;
+
+            padding:
+                0 22px;
 
             border:
-                1px solid
-                rgba(255,48,72,.60);
+                1px solid rgba(255, 48, 72, 0.45);
+
+            border-radius: 13px;
 
             background:
                 linear-gradient(
                     135deg,
-                    #ff435a,
-                    #b9142d
+                    #ff3048,
+                    #c70f28
                 );
 
-            color:
-                #fff;
+            color: #ffffff;
+
+            font-size: 13px;
+            font-weight: 800;
 
             box-shadow:
-                0 14px 40px
-                rgba(255,48,72,.19);
+                0 14px 45px rgba(255, 48, 72, 0.20);
 
+            transition:
+                transform 0.2s ease,
+                box-shadow 0.2s ease;
         }
 
 
         .btn-primary:hover {
-
-            transform:
-                translateY(-2px);
+            transform: translateY(-2px);
 
             box-shadow:
-                0 18px 50px
-                rgba(255,48,72,.30);
-
+                0 18px 55px rgba(255, 48, 72, 0.3);
         }
 
 
         .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            min-height: 50px;
+
+            padding:
+                0 22px;
 
             border:
-                1px solid
-                rgba(255,255,255,.11);
+                1px solid rgba(255, 255, 255, 0.12);
+
+            border-radius: 13px;
 
             background:
-                rgba(255,255,255,.025);
+                rgba(255, 255, 255, 0.035);
 
-            color:
-                #d5d7dc;
+            color: #d4d4da;
 
+            font-size: 13px;
+            font-weight: 700;
+
+            transition:
+                border-color 0.2s ease,
+                background 0.2s ease;
         }
 
 
         .btn-secondary:hover {
-
-            transform:
-                translateY(-2px);
-
             border-color:
-                rgba(255,255,255,.23);
+                rgba(255, 255, 255, 0.25);
 
+            background:
+                rgba(255, 255, 255, 0.07);
         }
 
 
-        .hero-meta {
+        .hero-note {
+            margin-top: 18px;
 
-            display:
-                flex;
+            color: var(--text-muted);
 
-            align-items:
-                center;
-
-            gap:
-                14px;
-
-            margin-top:
-                23px;
-
-            color:
-                #5e626b;
-
-            font-size:
-                9px;
-
-        }
-
-
-        .hero-meta strong {
-
-            color:
-                #aeb1b8;
-
+            font-size: 11px;
         }
 
 
         /* =========================================================
-           HERO VISUAL
+           HERO VIDEO
         ========================================================= */
 
         .hero-visual {
+            position: relative;
 
-            position:
-                relative;
-
+            min-width: 0;
         }
 
 
-        .cinema {
+        .hero-video-shell {
+            position: relative;
 
-            position:
-                relative;
+            width: 100%;
 
-            aspect-ratio:
-                4 / 5;
+            aspect-ratio: 9 / 12;
 
-            overflow:
-                hidden;
+            max-height: 690px;
+
+            overflow: hidden;
 
             border:
-                1px solid
-                rgba(255,255,255,.12);
+                1px solid rgba(255, 255, 255, 0.10);
 
-            border-radius:
-                28px;
+            border-radius: 30px;
 
             background:
-                #0a0a0c;
+                linear-gradient(
+                    145deg,
+                    #121212,
+                    #060606
+                );
 
             box-shadow:
-                0 40px 110px
-                rgba(0,0,0,.62),
-                0 0 80px
-                rgba(255,48,72,.055);
-
+                0 40px 100px rgba(0, 0, 0, 0.60),
+                0 0 70px rgba(255, 48, 72, 0.08);
         }
 
 
-        .cinema::before {
+        .hero-video-shell::before {
+            content: "";
 
-            content:
-                "";
+            position: absolute;
+            inset: 0;
 
-            position:
-                absolute;
+            z-index: 2;
 
-            inset:
-                0;
-
-            z-index:
-                3;
-
-            pointer-events:
-                none;
+            pointer-events: none;
 
             background:
                 linear-gradient(
                     180deg,
-                    rgba(0,0,0,.04) 0%,
-                    rgba(0,0,0,.06) 45%,
-                    rgba(0,0,0,.82) 100%
+                    rgba(0, 0, 0, 0.08),
+                    transparent 35%,
+                    rgba(0, 0, 0, 0.32)
                 );
-
         }
 
 
-        .cinema-video {
+        .hero-video {
+            width: 100%;
+            height: 100%;
 
-            width:
-                100%;
+            object-fit: cover;
 
-            height:
-                100%;
+            background: #080808;
+        }
 
-            display:
-                block;
 
-            object-fit:
-                cover;
+        .video-placeholder {
+            position: absolute;
+            inset: 0;
+
+            z-index: 1;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 30px;
+
+            text-align: center;
 
             background:
                 radial-gradient(
-                    circle at 50% 35%,
-                    rgba(255,48,72,.16),
-                    transparent 34%
-                ),
-                #101014;
-
+                    circle at 50% 40%,
+                    rgba(255, 48, 72, 0.12),
+                    transparent 50%
+                );
         }
 
 
-        .cinema-placeholder {
-
-            position:
-                absolute;
-
-            inset:
-                0;
-
-            z-index:
-                2;
-
-            display:
-                flex;
-
-            align-items:
-                center;
-
-            justify-content:
-                center;
-
-            flex-direction:
-                column;
-
-            gap:
-                13px;
-
+        .video-placeholder-inner {
+            max-width: 280px;
         }
 
 
-        .play {
+        .video-placeholder-icon {
+            width: 62px;
+            height: 62px;
 
-            width:
-                68px;
+            margin: 0 auto 18px;
 
-            height:
-                68px;
-
-            display:
-                grid;
-
-            place-items:
-                center;
+            display: grid;
+            place-items: center;
 
             border:
-                1px solid
-                rgba(255,255,255,.13);
+                1px solid rgba(255, 48, 72, 0.30);
 
-            border-radius:
-                50%;
+            border-radius: 50%;
+
+            color: var(--red);
 
             background:
-                rgba(255,255,255,.04);
-
-            color:
-                #fff;
-
-            font-size:
-                20px;
+                rgba(255, 48, 72, 0.06);
 
             box-shadow:
-                0 0 40px
-                rgba(255,48,72,.12);
-
+                0 0 35px rgba(255, 48, 72, 0.12);
         }
 
 
-        .cinema-placeholder small {
-
-            color:
-                #676c75;
-
-            font-size:
-                8px;
-
-            font-weight:
-                800;
-
-            letter-spacing:
-                .16em;
-
+        .video-placeholder-title {
+            font-size: 14px;
+            font-weight: 800;
         }
 
 
-        .cinema-info {
+        .video-placeholder-text {
+            margin-top: 8px;
 
-            position:
-                absolute;
+            color: var(--text-muted);
 
-            left:
-                22px;
-
-            right:
-                22px;
-
-            bottom:
-                21px;
-
-            z-index:
-                5;
-
-            display:
-                flex;
-
-            align-items:
-                flex-end;
-
-            justify-content:
-                space-between;
-
-            gap:
-                15px;
-
+            font-size: 11px;
+            line-height: 1.6;
         }
 
 
-        .cinema-title {
+        .hero-badge {
+            position: absolute;
 
-            font-size:
-                14px;
+            left: -24px;
+            bottom: 28px;
 
-            font-weight:
-                900;
+            z-index: 5;
 
-        }
-
-
-        .cinema-subtitle {
-
-            margin-top:
-                5px;
-
-            color:
-                #8b9099;
-
-            font-size:
-                9px;
-
-        }
-
-
-        .ready {
-
-            padding:
-                7px 9px;
+            padding: 14px 17px;
 
             border:
-                1px solid
-                rgba(66,211,146,.24);
+                1px solid rgba(255, 255, 255, 0.10);
 
-            border-radius:
-                7px;
+            border-radius: 15px;
 
             background:
-                rgba(66,211,146,.07);
+                rgba(10, 10, 10, 0.80);
 
-            color:
-                var(--green);
-
-            font-size:
-                8px;
-
-            font-weight:
-                900;
-
-            letter-spacing:
-                .09em;
-
-        }
-
-
-        .floating {
-
-            position:
-                absolute;
-
-            z-index:
-                10;
-
-            padding:
-                13px 15px;
-
-            border:
-                1px solid
-                rgba(255,255,255,.11);
-
-            border-radius:
-                13px;
-
-            background:
-                rgba(10,10,12,.87);
-
-            backdrop-filter:
-                blur(18px);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
 
             box-shadow:
-                0 20px 60px
-                rgba(0,0,0,.45);
-
+                0 18px 50px rgba(0, 0, 0, 0.45);
         }
 
 
-        .floating.one {
+        .hero-badge-top {
+            color: var(--red-light);
 
-            left:
-                -42px;
+            font-size: 9px;
+            font-weight: 800;
 
-            top:
-                70px;
-
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
         }
 
 
-        .floating.two {
+        .hero-badge-main {
+            margin-top: 4px;
 
-            right:
-                -40px;
-
-            bottom:
-                105px;
-
-        }
-
-
-        .floating-label {
-
-            color:
-                #666b74;
-
-            font-size:
-                7px;
-
-            font-weight:
-                800;
-
-            letter-spacing:
-                .13em;
-
-            text-transform:
-                uppercase;
-
-        }
-
-
-        .floating-value {
-
-            margin-top:
-                5px;
-
-            color:
-                #e2e4e8;
-
-            font-size:
-                11px;
-
-            font-weight:
-                900;
-
+            font-size: 13px;
+            font-weight: 800;
         }
 
 
         /* =========================================================
-           TRUST
+           TRUST STRIP
         ========================================================= */
 
-        .trust {
-
+        .trust-strip {
             border-top:
-                1px solid
-                rgba(255,255,255,.055);
+                1px solid rgba(255, 255, 255, 0.07);
 
             border-bottom:
-                1px solid
-                rgba(255,255,255,.055);
+                1px solid rgba(255, 255, 255, 0.07);
 
             background:
-                rgba(255,255,255,.014);
-
+                rgba(255, 255, 255, 0.018);
         }
 
 
         .trust-inner {
+            min-height: 92px;
 
-            min-height:
-                90px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
 
-            display:
-                flex;
-
-            align-items:
-                center;
-
-            justify-content:
-                center;
-
-            flex-wrap:
-                wrap;
-
-            gap:
-                45px;
-
+            gap: 24px;
         }
 
 
         .trust-item {
+            color: #707079;
 
-            color:
-                #62666e;
+            font-size: 10px;
+            font-weight: 800;
 
-            font-size:
-                9px;
+            letter-spacing: 0.11em;
+            text-transform: uppercase;
 
-            font-weight:
-                800;
-
-            letter-spacing:
-                .12em;
-
-            text-transform:
-                uppercase;
-
+            white-space: nowrap;
         }
 
 
@@ -1500,319 +857,189 @@
            PROMO
         ========================================================= */
 
-        .promo {
+        .promo-card {
+            position: relative;
 
-            position:
-                relative;
-
-            overflow:
-                hidden;
+            overflow: hidden;
 
             padding:
-                40px 44px;
+                60px;
 
             border:
-                1px solid
-                rgba(255,48,72,.22);
+                1px solid rgba(255, 48, 72, 0.20);
 
-            border-radius:
-                22px;
+            border-radius: 30px;
 
             background:
+                radial-gradient(
+                    circle at 80% 20%,
+                    rgba(255, 48, 72, 0.16),
+                    transparent 35%
+                ),
                 linear-gradient(
-                    110deg,
-                    rgba(255,48,72,.11),
-                    rgba(255,48,72,.035) 45%,
-                    rgba(255,255,255,.025)
+                    135deg,
+                    rgba(255, 255, 255, 0.045),
+                    rgba(255, 255, 255, 0.015)
                 );
-
         }
 
 
-        .promo::before {
+        .promo-card::after {
+            content: "";
 
-            content:
-                "";
+            position: absolute;
 
-            position:
-                absolute;
+            width: 300px;
+            height: 300px;
 
-            width:
-                400px;
+            right: -140px;
+            bottom: -180px;
 
-            height:
-                400px;
+            border-radius: 50%;
 
-            right:
-                -230px;
-
-            top:
-                -240px;
-
-            border-radius:
-                50%;
-
-            background:
-                rgba(255,48,72,.13);
-
-            filter:
-                blur(50px);
-
+            border:
+                1px solid rgba(255, 48, 72, 0.18);
         }
 
 
         .promo-content {
+            position: relative;
+            z-index: 2;
 
-            position:
-                relative;
-
-            z-index:
-                2;
-
-            display:
-                grid;
-
-            grid-template-columns:
-                1fr auto;
-
-            align-items:
-                center;
-
-            gap:
-                35px;
-
+            max-width: 760px;
         }
 
 
-        .promo-tag {
-
-            display:
-                inline-flex;
-
-            margin-bottom:
-                13px;
-
-            padding:
-                6px 9px;
-
-            border-radius:
-                6px;
-
-            background:
-                rgba(255,48,72,.12);
-
-            color:
-                #ff7383;
-
+        .promo-title {
             font-size:
-                8px;
+                clamp(32px, 5vw, 64px);
 
-            font-weight:
-                900;
+            line-height: 1;
 
-            letter-spacing:
-                .12em;
+            font-weight: 900;
 
+            letter-spacing: -0.05em;
         }
 
 
-        .promo h2 {
+        .promo-text {
+            margin-top: 18px;
 
-            font-size:
-                clamp(25px, 4vw, 42px);
+            color: var(--text-soft);
 
-            line-height:
-                1.02;
-
-            letter-spacing:
-                -.045em;
-
+            font-size: 15px;
+            line-height: 1.7;
         }
 
 
-        .promo p {
-
-            max-width:
-                700px;
-
-            margin-top:
-                10px;
-
-            color:
-                #898e97;
-
-            font-size:
-                12px;
-
-            line-height:
-                1.7;
-
+        .promo-actions {
+            margin-top: 28px;
         }
 
 
         /* =========================================================
-           FEATURE GRID
+           FEATURES
         ========================================================= */
 
-        .feature-grid {
-
-            display:
-                grid;
+        .features-grid {
+            display: grid;
 
             grid-template-columns:
-                repeat(4, 1fr);
+                repeat(4, minmax(0, 1fr));
 
-            gap:
-                14px;
+            gap: 14px;
 
-            margin-top:
-                50px;
-
+            margin-top: 60px;
         }
 
 
-        .feature {
+        .feature-card {
+            position: relative;
 
-            position:
-                relative;
+            min-height: 300px;
 
-            min-height:
-                270px;
+            padding: 28px;
 
-            padding:
-                27px;
-
-            overflow:
-                hidden;
+            overflow: hidden;
 
             border:
-                1px solid
-                var(--border-soft);
+                1px solid rgba(255, 255, 255, 0.08);
 
-            border-radius:
-                20px;
+            border-radius: 22px;
 
             background:
-                linear-gradient(
-                    145deg,
-                    rgba(255,255,255,.045),
-                    rgba(255,255,255,.015)
-                );
+                rgba(255, 255, 255, 0.025);
 
             transition:
-                transform .25s ease,
-                border-color .25s ease;
-
+                transform 0.25s ease,
+                border-color 0.25s ease,
+                background 0.25s ease;
         }
 
 
-        .feature:hover {
-
-            transform:
-                translateY(-5px);
+        .feature-card:hover {
+            transform: translateY(-5px);
 
             border-color:
-                rgba(255,48,72,.24);
+                rgba(255, 48, 72, 0.28);
 
+            background:
+                rgba(255, 255, 255, 0.045);
         }
 
 
-        .feature::after {
+        .feature-number {
+            color:
+                rgba(255, 48, 72, 0.75);
 
-            content:
-                "";
+            font-size: 10px;
+            font-weight: 900;
 
-            position:
-                absolute;
-
-            width:
-                130px;
-
-            height:
-                130px;
-
-            right:
-                -80px;
-
-            bottom:
-                -80px;
-
-            border-radius:
-                50%;
-
-            background:
-                rgba(255,48,72,.08);
-
-            filter:
-                blur(25px);
-
+            letter-spacing: 0.15em;
         }
 
 
         .feature-icon {
+            width: 48px;
+            height: 48px;
 
-            width:
-                46px;
+            margin-top: 40px;
 
-            height:
-                46px;
-
-            display:
-                grid;
-
-            place-items:
-                center;
+            display: grid;
+            place-items: center;
 
             border:
-                1px solid
-                rgba(255,48,72,.20);
+                1px solid rgba(255, 48, 72, 0.20);
 
-            border-radius:
-                13px;
+            border-radius: 14px;
 
             background:
-                rgba(255,48,72,.06);
+                rgba(255, 48, 72, 0.055);
 
-            color:
-                #ff6879;
+            color: var(--red);
 
-            font-size:
-                17px;
-
-            font-weight:
-                900;
-
+            font-size: 18px;
+            font-weight: 900;
         }
 
 
-        .feature h3 {
+        .feature-title {
+            margin-top: 22px;
 
-            margin-top:
-                36px;
+            font-size: 19px;
+            font-weight: 850;
 
-            font-size:
-                14px;
-
-            font-weight:
-                900;
-
+            letter-spacing: -0.025em;
         }
 
 
-        .feature p {
+        .feature-text {
+            margin-top: 10px;
 
-            margin-top:
-                10px;
+            color: var(--text-muted);
 
-            color:
-                #757b85;
-
-            font-size:
-                10px;
-
-            line-height:
-                1.75;
-
+            font-size: 12px;
+            line-height: 1.7;
         }
 
 
@@ -1821,185 +1048,179 @@
         ========================================================= */
 
         .showcase-grid {
-
-            display:
-                grid;
+            display: grid;
 
             grid-template-columns:
-                repeat(3, 1fr);
+                repeat(3, minmax(0, 1fr));
 
-            gap:
-                16px;
+            gap: 18px;
 
-            margin-top:
-                50px;
-
+            margin-top: 60px;
         }
 
 
         .showcase-card {
+            position: relative;
 
-            overflow:
-                hidden;
+            overflow: hidden;
 
             border:
-                1px solid
-                var(--border-soft);
+                1px solid rgba(255, 255, 255, 0.09);
 
-            border-radius:
-                19px;
+            border-radius: 24px;
 
-            background:
-                #09090b;
+            background: #090909;
 
+            box-shadow:
+                0 20px 70px rgba(0, 0, 0, 0.28);
         }
 
 
         .showcase-media {
+            position: relative;
 
-            position:
-                relative;
+            aspect-ratio: 9 / 16;
 
-            aspect-ratio:
-                16 / 10;
-
-            overflow:
-                hidden;
+            overflow: hidden;
 
             background:
                 radial-gradient(
-                    circle at center,
-                    rgba(255,48,72,.12),
-                    #0a0a0c 65%
-                );
-
+                    circle at 50% 35%,
+                    rgba(255, 48, 72, 0.10),
+                    transparent 48%
+                ),
+                #0a0a0a;
         }
 
 
-        .showcase-media video {
+        .showcase-video {
+            width: 100%;
+            height: 100%;
 
-            width:
-                100%;
+            object-fit: cover;
 
-            height:
-                100%;
+            background: #090909;
 
-            display:
-                block;
-
-            object-fit:
-                cover;
-
+            transition:
+                transform 0.5s ease;
         }
 
 
-        .showcase-empty {
-
-            position:
-                absolute;
-
-            inset:
-                0;
-
-            display:
-                grid;
-
-            place-items:
-                center;
-
-            color:
-                #525761;
-
-            font-size:
-                8px;
-
-            font-weight:
-                900;
-
-            letter-spacing:
-                .13em;
-
+        .showcase-card:hover .showcase-video {
+            transform: scale(1.025);
         }
 
 
-        .showcase-play {
+        .showcase-overlay {
+            position: absolute;
+            inset: 0;
 
-            position:
-                absolute;
+            z-index: 2;
 
-            left:
-                50%;
-
-            top:
-                50%;
-
-            width:
-                40px;
-
-            height:
-                40px;
-
-            display:
-                grid;
-
-            place-items:
-                center;
-
-            transform:
-                translate(-50%,-50%);
-
-            border:
-                1px solid
-                rgba(255,255,255,.15);
-
-            border-radius:
-                50%;
+            pointer-events: none;
 
             background:
-                rgba(0,0,0,.35);
-
-            color:
-                #fff;
-
-            font-size:
-                11px;
-
+                linear-gradient(
+                    180deg,
+                    rgba(0, 0, 0, 0.05),
+                    transparent 45%,
+                    rgba(0, 0, 0, 0.78)
+                );
         }
 
 
-        .showcase-details {
+        .showcase-placeholder {
+            position: absolute;
+            inset: 0;
 
-            padding:
-                18px;
+            z-index: 1;
 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            text-align: center;
+
+            padding: 25px;
         }
 
 
-        .showcase-details h3 {
-
-            font-size:
-                12px;
-
-            font-weight:
-                900;
-
+        .showcase-placeholder-content {
+            max-width: 210px;
         }
 
 
-        .showcase-details p {
+        .showcase-placeholder-icon {
+            width: 52px;
+            height: 52px;
 
-            margin-top:
-                6px;
+            margin: 0 auto 14px;
 
-            color:
-                #676d77;
+            display: grid;
+            place-items: center;
 
-            font-size:
-                9px;
+            border:
+                1px solid rgba(255, 48, 72, 0.25);
 
-            line-height:
-                1.6;
+            border-radius: 50%;
 
+            color: var(--red);
+        }
+
+
+        .showcase-placeholder-title {
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+
+        .showcase-placeholder-text {
+            margin-top: 7px;
+
+            color: #66666e;
+
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+
+        .showcase-info {
+            padding: 19px 20px 21px;
+
+            border-top:
+                1px solid rgba(255, 255, 255, 0.06);
+
+            background:
+                rgba(255, 255, 255, 0.025);
+        }
+
+
+        .showcase-category {
+            color: var(--red-light);
+
+            font-size: 9px;
+            font-weight: 800;
+
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+
+        .showcase-title {
+            margin-top: 6px;
+
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+
+        .showcase-description {
+            margin-top: 6px;
+
+            color: var(--text-muted);
+
+            font-size: 11px;
+            line-height: 1.5;
         }
 
 
@@ -2008,317 +1229,198 @@
         ========================================================= */
 
         .workflow-grid {
-
-            display:
-                grid;
+            display: grid;
 
             grid-template-columns:
-                repeat(4,1fr);
+                repeat(4, minmax(0, 1fr));
 
-            gap:
-                14px;
+            gap: 0;
 
-            margin-top:
-                50px;
+            margin-top: 70px;
 
+            border-top:
+                1px solid rgba(255, 255, 255, 0.08);
+
+            border-bottom:
+                1px solid rgba(255, 255, 255, 0.08);
         }
 
 
-        .workflow-card {
+        .workflow-step {
+            position: relative;
 
-            position:
-                relative;
+            min-height: 220px;
 
-            padding:
-                30px 25px;
+            padding: 32px 28px;
 
-            border:
-                1px solid
-                var(--border-soft);
-
-            border-radius:
-                18px;
-
-            background:
-                rgba(255,255,255,.02);
-
+            border-right:
+                1px solid rgba(255, 255, 255, 0.08);
         }
 
 
-        .workflow-card:not(:last-child)::after {
-
-            content:
-                "→";
-
-            position:
-                absolute;
-
-            right:
-                -20px;
-
-            top:
-                42px;
-
-            z-index:
-                3;
-
-            color:
-                #4f535b;
-
-            font-size:
-                14px;
-
+        .workflow-step:last-child {
+            border-right: 0;
         }
 
 
         .workflow-number {
+            color: var(--red);
 
-            color:
-                rgba(255,48,72,.75);
+            font-size: 11px;
+            font-weight: 900;
 
-            font-size:
-                9px;
-
-            font-weight:
-                900;
-
-            letter-spacing:
-                .13em;
-
+            letter-spacing: 0.12em;
         }
 
 
-        .workflow-card h3 {
+        .workflow-title {
+            margin-top: 42px;
 
-            margin-top:
-                28px;
-
-            font-size:
-                14px;
-
+            font-size: 18px;
+            font-weight: 850;
         }
 
 
-        .workflow-card p {
+        .workflow-text {
+            margin-top: 10px;
 
-            margin-top:
-                9px;
+            color: var(--text-muted);
 
-            color:
-                #717782;
-
-            font-size:
-                10px;
-
-            line-height:
-                1.7;
-
+            font-size: 12px;
+            line-height: 1.7;
         }
 
 
         /* =========================================================
-           PRICING
+           CREDIT
         ========================================================= */
 
         .pricing-grid {
-
-            display:
-                grid;
+            display: grid;
 
             grid-template-columns:
-                repeat(3,1fr);
+                repeat(3, minmax(0, 1fr));
 
-            gap:
-                15px;
+            gap: 16px;
 
-            margin-top:
-                50px;
-
+            margin-top: 60px;
         }
 
 
         .pricing-card {
+            position: relative;
 
-            position:
-                relative;
-
-            padding:
-                31px;
+            padding: 34px 30px;
 
             border:
-                1px solid
-                var(--border-soft);
+                1px solid rgba(255, 255, 255, 0.08);
 
-            border-radius:
-                21px;
+            border-radius: 24px;
 
             background:
-                rgba(255,255,255,.022);
-
+                rgba(255, 255, 255, 0.025);
         }
 
 
-        .pricing-card.featured {
-
+        .pricing-card.recommended {
             border-color:
-                rgba(255,48,72,.40);
+                rgba(255, 48, 72, 0.42);
 
             background:
-                linear-gradient(
-                    145deg,
-                    rgba(255,48,72,.09),
-                    rgba(255,255,255,.018)
-                );
+                radial-gradient(
+                    circle at 50% 0%,
+                    rgba(255, 48, 72, 0.10),
+                    transparent 55%
+                ),
+                rgba(255, 255, 255, 0.035);
 
             box-shadow:
-                0 0 55px
-                rgba(255,48,72,.055);
-
+                0 25px 80px rgba(255, 48, 72, 0.08);
         }
 
 
-        .pricing-popular {
+        .recommended-label {
+            position: absolute;
 
-            position:
-                absolute;
+            top: 18px;
+            right: 18px;
 
-            top:
-                18px;
+            padding: 6px 9px;
 
-            right:
-                18px;
-
-            padding:
-                5px 7px;
-
-            border-radius:
-                5px;
+            border-radius: 999px;
 
             background:
-                rgba(255,48,72,.12);
+                rgba(255, 48, 72, 0.12);
 
-            color:
-                #ff7786;
+            color: var(--red-light);
 
-            font-size:
-                7px;
+            font-size: 8px;
+            font-weight: 900;
 
-            font-weight:
-                900;
-
-            letter-spacing:
-                .09em;
-
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
         }
 
 
-        .pricing-type {
+        .pricing-name {
+            color: #bcbcc5;
 
-            color:
-                #777d87;
+            font-size: 11px;
+            font-weight: 800;
 
-            font-size:
-                8px;
-
-            font-weight:
-                900;
-
-            letter-spacing:
-                .14em;
-
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
         }
 
 
-        .pricing-card h3 {
+        .pricing-credits {
+            margin-top: 25px;
 
-            margin-top:
-                10px;
+            font-size: 45px;
+            line-height: 1;
 
-            font-size:
-                20px;
+            font-weight: 900;
 
+            letter-spacing: -0.05em;
         }
 
 
-        .pricing-credit {
+        .pricing-credits span {
+            margin-left: 5px;
 
-            margin-top:
-                24px;
+            color: var(--text-muted);
 
-            font-size:
-                39px;
+            font-size: 12px;
+            font-weight: 600;
 
-            font-weight:
-                950;
-
-            letter-spacing:
-                -.055em;
-
+            letter-spacing: 0;
         }
 
 
-        .pricing-credit span {
+        .pricing-description {
+            margin-top: 12px;
 
-            margin-left:
-                4px;
+            color: var(--text-muted);
 
-            color:
-                #707680;
-
-            font-size:
-                9px;
-
-            font-weight:
-                600;
-
-            letter-spacing:
-                0;
-
+            font-size: 11px;
+            line-height: 1.6;
         }
 
 
-        .pricing-list {
+        .pricing-link {
+            display: inline-flex;
 
-            display:
-                grid;
+            margin-top: 28px;
 
-            gap:
-                11px;
+            color: #ffffff;
 
-            margin-top:
-                24px;
-
-            list-style:
-                none;
-
+            font-size: 12px;
+            font-weight: 800;
         }
 
 
-        .pricing-list li {
-
-            color:
-                #7b818b;
-
-            font-size:
-                10px;
-
-        }
-
-
-        .pricing-list li::before {
-
-            content:
-                "✓";
-
-            margin-right:
-                8px;
-
-            color:
-                var(--green);
-
-            font-weight:
-                900;
-
+        .pricing-link:hover {
+            color: var(--red-light);
         }
 
 
@@ -2326,131 +1428,79 @@
            FINAL CTA
         ========================================================= */
 
-        .cta {
+        .final-section {
+            padding:
+                130px 0
+                150px;
+        }
 
-            position:
-                relative;
 
-            overflow:
-                hidden;
+        .final-card {
+            position: relative;
+
+            overflow: hidden;
 
             padding:
-                105px 30px;
+                90px 40px;
 
-            text-align:
-                center;
+            text-align: center;
 
             border:
-                1px solid
-                rgba(255,48,72,.20);
+                1px solid rgba(255, 48, 72, 0.18);
 
-            border-radius:
-                28px;
+            border-radius: 34px;
 
             background:
                 radial-gradient(
-                    circle at 50% 45%,
-                    rgba(255,48,72,.13),
-                    rgba(255,255,255,.018) 48%,
-                    rgba(255,255,255,.01)
+                    circle at 50% 0%,
+                    rgba(255, 48, 72, 0.14),
+                    transparent 45%
+                ),
+                linear-gradient(
+                    180deg,
+                    rgba(255, 255, 255, 0.045),
+                    rgba(255, 255, 255, 0.018)
                 );
-
         }
 
 
-        .cta::before {
+        .final-title {
+            max-width: 850px;
 
-            content:
-                "";
-
-            position:
-                absolute;
-
-            left:
-                50%;
-
-            top:
-                -250px;
-
-            width:
-                550px;
-
-            height:
-                550px;
-
-            transform:
-                translateX(-50%);
-
-            border-radius:
-                50%;
-
-            background:
-                rgba(255,48,72,.08);
-
-            filter:
-                blur(70px);
-
-        }
-
-
-        .cta-content {
-
-            position:
-                relative;
-
-            z-index:
-                2;
-
-        }
-
-
-        .cta h2 {
+            margin: 0 auto;
 
             font-size:
-                clamp(39px,6vw,72px);
+                clamp(42px, 7vw, 88px);
 
-            line-height:
-                .95;
+            line-height: 0.95;
 
-            letter-spacing:
-                -.06em;
+            font-weight: 950;
 
+            letter-spacing: -0.065em;
         }
 
 
-        .cta h2 span {
+        .final-text {
+            max-width: 590px;
 
-            color:
-                var(--red);
+            margin: 22px auto 0;
 
+            color: var(--text-soft);
+
+            font-size: 15px;
+            line-height: 1.7;
         }
 
 
-        .cta p {
+        .final-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
 
-            max-width:
-                590px;
+            gap: 11px;
 
-            margin:
-                19px auto 0;
-
-            color:
-                #7f858f;
-
-            font-size:
-                13px;
-
-            line-height:
-                1.75;
-
-        }
-
-
-        .cta .hero-actions {
-
-            justify-content:
-                center;
-
+            margin-top: 32px;
         }
 
 
@@ -2458,109 +1508,49 @@
            FOOTER
         ========================================================= */
 
-        footer {
-
+        .footer {
             padding:
-                50px 0 28px;
+                28px 0
+                35px;
 
             border-top:
-                1px solid
-                rgba(255,255,255,.055);
-
+                1px solid rgba(255, 255, 255, 0.07);
         }
 
 
-        .footer-top {
+        .footer-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
 
-            display:
-                flex;
-
-            align-items:
-                center;
-
-            justify-content:
-                space-between;
-
-            gap:
-                25px;
-
+            gap: 20px;
         }
 
 
-        .footer-brand {
+        .footer-copy {
+            color: #55555d;
 
-            color:
-                #a0a4ac;
-
-            font-size:
-                11px;
-
-            font-weight:
-                900;
-
-            letter-spacing:
-                .08em;
-
+            font-size: 10px;
         }
 
 
         .footer-links {
-
-            display:
-                flex;
-
-            align-items:
-                center;
-
-            flex-wrap:
-                wrap;
-
-            gap:
-                22px;
-
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
 
 
         .footer-links a {
+            color: #777780;
 
-            color:
-                #5d626b;
-
-            font-size:
-                9px;
-
+            font-size: 10px;
+            font-weight: 600;
         }
 
 
         .footer-links a:hover {
-
-            color:
-                #aeb2ba;
-
-        }
-
-
-        .footer-bottom {
-
-            margin-top:
-                24px;
-
-            padding-top:
-                19px;
-
-            border-top:
-                1px solid
-                rgba(255,255,255,.035);
-
-            color:
-                #41454c;
-
-            font-size:
-                8px;
-
-            text-align:
-                center;
-
+            color: #ffffff;
         }
 
 
@@ -2568,416 +1558,300 @@
            RESPONSIVE
         ========================================================= */
 
-        @media (max-width: 1100px) {
+        @media (max-width: 1050px) {
 
-            .hero-grid {
-
-                grid-template-columns:
-                    minmax(0,1fr)
-                    minmax(350px,.8fr);
-
-                gap:
-                    55px;
-
-            }
-
-
-            .feature-grid {
-
-                grid-template-columns:
-                    repeat(2,1fr);
-
-            }
-
-
-            .workflow-grid {
-
-                grid-template-columns:
-                    repeat(2,1fr);
-
-            }
-
-
-            .workflow-card::after {
-
-                display:
-                    none;
-
-            }
-
-        }
-
-
-        @media (max-width: 820px) {
-
-            .nav-menu {
-
-                display:
-                    none;
-
-            }
-
-
-            .hero {
-
-                min-height:
-                    auto;
-
-                padding:
-                    130px 0 90px;
-
+            .nav-links {
+                display: none;
             }
 
 
             .hero-grid {
-
                 grid-template-columns:
-                    1fr;
+                    1fr
+                    minmax(340px, 520px);
 
-                gap:
-                    55px;
-
+                gap: 50px;
             }
 
 
-            .hero-visual {
-
-                width:
-                    min(100%,520px);
-
-                margin:
-                    0 auto;
-
+            .hero-copy {
+                max-width: 760px;
             }
 
 
-            .promo-content {
-
+            .features-grid {
                 grid-template-columns:
-                    1fr;
-
-            }
-
-
-            .promo-action {
-
-                width:
-                    100%;
-
-            }
-
-
-            .promo-action .btn {
-
-                width:
-                    100%;
-
+                    repeat(2, minmax(0, 1fr));
             }
 
 
             .showcase-grid {
-
                 grid-template-columns:
-                    1fr;
-
+                    repeat(3, minmax(0, 1fr));
             }
 
 
-            .pricing-grid {
-
+            .workflow-grid {
                 grid-template-columns:
-                    1fr;
-
+                    repeat(2, minmax(0, 1fr));
             }
 
 
-            .pricing-card {
+            .workflow-step:nth-child(2) {
+                border-right: 0;
+            }
 
-                max-width:
-                    560px;
 
-                width:
-                    100%;
-
-                margin:
-                    0 auto;
-
+            .workflow-step:nth-child(-n + 2) {
+                border-bottom:
+                    1px solid rgba(255, 255, 255, 0.08);
             }
 
         }
 
 
-        @media (max-width: 600px) {
+        @media (max-width: 760px) {
 
             .container {
-
                 width:
                     min(
                         calc(100% - 30px),
-                        var(--container)
+                        var(--max-width)
                     );
-
-            }
-
-
-            .site-header {
-
-                padding:
-                    10px 10px;
-
             }
 
 
             .navbar {
-
-                min-height:
-                    54px;
-
-                padding:
-                    7px 7px 7px 12px;
-
-                border-radius:
-                    15px;
-
-            }
-
-
-            .logo-mark {
+                top: 10px;
 
                 width:
-                    29px;
+                    calc(100% - 20px);
 
-                height:
-                    29px;
-
-                border-radius:
-                    9px;
-
-            }
-
-
-            .logo-name {
-
-                font-size:
-                    15px;
-
+                padding:
+                    10px 10px 10px 14px;
             }
 
 
             .nav-login {
-
-                display:
-                    none;
-
+                display: none;
             }
 
 
             .nav-register {
-
-                min-height:
-                    35px;
-
                 padding:
-                    0 12px;
-
-                font-size:
-                    8px;
-
+                    10px 13px;
             }
 
 
             .hero {
+                min-height: auto;
 
                 padding:
-                    112px 0 70px;
-
+                    135px 0
+                    70px;
             }
 
 
-            .hero h1 {
+            .hero-grid {
+                grid-template-columns: 1fr;
 
+                gap: 48px;
+            }
+
+
+            .hero-title {
                 font-size:
-                    clamp(46px,14vw,64px);
-
+                    clamp(48px, 15vw, 76px);
             }
 
 
-            .hero-text {
-
-                font-size:
-                    13px;
-
+            .hero-description {
+                font-size: 14px;
             }
 
 
-            .hero-actions {
+            .hero-video-shell {
+                width: min(100%, 430px);
 
-                display:
-                    grid;
+                margin: 0 auto;
 
-                grid-template-columns:
-                    1fr;
-
+                aspect-ratio: 9 / 13;
             }
 
 
-            .btn {
-
-                width:
-                    100%;
-
-            }
-
-
-            .hero-meta {
-
-                align-items:
-                    flex-start;
-
-                line-height:
-                    1.5;
-
-            }
-
-
-            .floating.one {
-
-                left:
-                    -6px;
-
-                top:
-                    25px;
-
-            }
-
-
-            .floating.two {
-
-                right:
-                    -6px;
-
-                bottom:
-                    50px;
-
+            .hero-badge {
+                left: 12px;
+                bottom: 14px;
             }
 
 
             .trust-inner {
+                min-height: auto;
 
-                min-height:
-                    110px;
+                display: grid;
 
-                gap:
-                    20px;
+                grid-template-columns:
+                    repeat(2, 1fr);
 
+                padding:
+                    26px 0;
+
+                gap: 20px;
+            }
+
+
+            .trust-item {
+                white-space: normal;
             }
 
 
             .section {
+                padding: 85px 0;
+            }
 
+
+            .promo-card {
                 padding:
-                    82px 0;
-
+                    40px 26px;
             }
 
 
-            .section-title {
+            .features-grid {
+                grid-template-columns: 1fr;
 
-                font-size:
-                    38px;
-
+                margin-top: 42px;
             }
 
 
-            .feature-grid {
+            .feature-card {
+                min-height: 250px;
+            }
 
+
+            .showcase-grid {
                 grid-template-columns:
-                    1fr;
+                    repeat(2, minmax(0, 1fr));
 
-                margin-top:
-                    34px;
+                gap: 10px;
 
+                margin-top: 42px;
             }
 
 
-            .feature {
-
-                min-height:
-                    auto;
-
-            }
-
-
-            .promo {
-
+            .showcase-info {
                 padding:
-                    28px 22px;
-
+                    15px 14px 17px;
             }
 
 
-            .showcase-grid,
-            .workflow-grid,
+            .showcase-title {
+                font-size: 12px;
+            }
+
+
+            .showcase-description {
+                font-size: 10px;
+            }
+
+
             .pricing-grid {
+                grid-template-columns: 1fr;
 
-                margin-top:
-                    34px;
-
+                margin-top: 42px;
             }
 
 
-            .cta {
+            .workflow-grid {
+                grid-template-columns: 1fr;
 
+                margin-top: 45px;
+            }
+
+
+            .workflow-step,
+            .workflow-step:nth-child(2) {
+                border-right: 0;
+
+                border-bottom:
+                    1px solid rgba(255, 255, 255, 0.08);
+            }
+
+
+            .workflow-step:last-child {
+                border-bottom: 0;
+            }
+
+
+            .final-section {
                 padding:
-                    70px 20px;
-
+                    80px 0
+                    100px;
             }
 
 
-            .footer-top {
-
-                flex-direction:
-                    column;
-
-                align-items:
-                    flex-start;
-
+            .final-card {
+                padding:
+                    65px 22px;
             }
 
 
-            .footer-links {
+            .footer-inner {
+                flex-direction: column;
 
-                gap:
-                    15px;
-
+                align-items: flex-start;
             }
 
         }
 
 
-        @media (max-width: 390px) {
+        @media (max-width: 460px) {
 
-            .hero h1 {
-
-                font-size:
-                    43px;
-
+            .hero-actions {
+                flex-direction: column;
+                align-items: stretch;
             }
 
 
-            .cinema {
-
-                border-radius:
-                    21px;
-
+            .btn-primary,
+            .btn-secondary {
+                width: 100%;
             }
 
 
-            .floating {
+            .showcase-grid {
+                grid-template-columns: 1fr;
+            }
 
-                padding:
-                    10px 11px;
 
+            .showcase-media {
+                aspect-ratio: 9 / 13;
+            }
+
+
+            .footer-links {
+                flex-wrap: wrap;
+            }
+
+        }
+
+
+        /* =========================================================
+           REDUCED MOTION
+        ========================================================= */
+
+        @media (prefers-reduced-motion: reduce) {
+
+            html {
+                scroll-behavior: auto;
+            }
+
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
             }
 
         }
@@ -2989,90 +1863,74 @@
 
 <body>
 
-
     <!-- =========================================================
          BACKGROUND
-    ========================================================= -->
+    ========================================================== -->
 
-    <div
-        class="ambient"
-        aria-hidden="true"
-    ></div>
-
-    <div
-        class="grid"
-        aria-hidden="true"
-    ></div>
+    <div class="page-glow one"></div>
+    <div class="page-glow two"></div>
 
 
     <!-- =========================================================
-         HEADER
-    ========================================================= -->
+         NAVIGATION
+    ========================================================== -->
 
-    <header class="site-header">
+    <header class="navbar">
 
-        <nav class="navbar">
+        <a
+            href="/"
+            class="brand"
+            aria-label="GEN-Z.AI Home"
+        >
+
+            <span class="brand-mark"></span>
+
+            <span class="brand-name">
+                GEN-Z<span>.AI</span>
+            </span>
+
+        </a>
+
+
+        <nav class="nav-links">
+
+            <a href="#features">
+                Fitur
+            </a>
+
+            <a href="#showcase">
+                Showcase
+            </a>
+
+            <a href="#workflow">
+                Cara Kerja
+            </a>
+
+            <a href="#credits">
+                Kredit
+            </a>
+
+        </nav>
+
+
+        <div class="nav-actions">
 
             <a
-                href="/"
-                class="logo"
-                aria-label="GEN-Z.AI"
+                href="/login.html"
+                class="nav-login"
             >
-
-                <span class="logo-mark">
-                    GZ
-                </span>
-
-                <span class="logo-name">
-                    GEN-Z<span>.AI</span>
-                </span>
-
+                LOGIN
             </a>
 
 
-            <div class="nav-menu">
+            <a
+                href="/register.html"
+                class="nav-register"
+            >
+                MULAI SEKARANG
+            </a>
 
-                <a href="#features">
-                    FITUR
-                </a>
-
-                <a href="#showcase">
-                    SHOWCASE
-                </a>
-
-                <a href="#workflow">
-                    CARA KERJA
-                </a>
-
-                <a href="#pricing">
-                    KREDIT
-                </a>
-
-            </div>
-
-
-            <div class="nav-actions">
-
-                <!-- ROUTING ASLI -->
-                <a
-                    href="/login.html"
-                    class="nav-login"
-                >
-                    LOGIN
-                </a>
-
-
-                <!-- ROUTING ASLI -->
-                <a
-                    href="/register.html"
-                    class="nav-register"
-                >
-                    DAFTAR
-                </a>
-
-            </div>
-
-        </nav>
+        </div>
 
     </header>
 
@@ -3093,17 +1951,16 @@
 
                     <div class="hero-copy">
 
+                        <div class="eyebrow">
 
-                        <div class="hero-eyebrow">
+                            <span class="eyebrow-dot"></span>
 
-                            <span class="live-dot"></span>
-
-                            AI VIDEO GENERATION PLATFORM
+                            NEXT GENERATION AI CREATION
 
                         </div>
 
 
-                        <h1>
+                        <h1 class="hero-title">
 
                             CREATE
                             <br>
@@ -3111,178 +1968,119 @@
                             WITHOUT
                             <br>
 
-                            <span>LIMITS.</span>
+                            <span class="accent">
+                                LIMITS.
+                            </span>
 
                         </h1>
 
 
-                        <p class="hero-text">
+                        <p class="hero-description">
 
-                            GEN-Z.AI adalah creative AI platform
-                            untuk mengubah ide, prompt, gambar,
-                            dan konsep visual menjadi video.
-                            Satu workspace untuk berbagai kebutuhan
-                            generative media.
+                            Platform AI generasi baru untuk
+                            membuat video sinematik dari
+                            teks, gambar, vision, digital human
+                            dan berbagai workflow kreatif
+                            dalam satu ekosistem.
 
                         </p>
 
 
                         <div class="hero-actions">
 
-                            <!-- ROUTING ASLI -->
-
                             <a
                                 href="/register.html"
-                                class="btn btn-primary"
+                                class="btn-primary"
                             >
-
-                                MULAI MEMBUAT VIDEO
-
-                                <span>
-                                    →
-                                </span>
-
+                                Mulai Membuat Video
+                                <span>→</span>
                             </a>
 
 
                             <a
                                 href="#showcase"
-                                class="btn btn-secondary"
+                                class="btn-secondary"
                             >
-
-                                LIHAT SHOWCASE
-
-                                <span>
-                                    ↓
-                                </span>
-
+                                Lihat Showcase
                             </a>
 
                         </div>
 
 
-                        <div class="hero-meta">
+                        <div class="hero-note">
 
-                            <span>
-                                ✦
-                            </span>
-
-                            <span>
-                                Creative workflow
-                                <strong>
-                                    powered by AI
-                                </strong>
-                            </span>
+                            Tidak perlu pengalaman editing profesional.
 
                         </div>
-
 
                     </div>
 
 
                     <!-- =================================================
-                         HERO VISUAL
+                         HERO VIDEO
                     ================================================== -->
 
                     <div class="hero-visual">
 
+                        <div class="hero-video-shell">
 
-                        <div class="floating one">
 
-                            <div class="floating-label">
-                                GENERATION ENGINE
+                            <div
+                                class="video-placeholder"
+                                id="heroVideoPlaceholder"
+                            >
+
+                                <div class="video-placeholder-inner">
+
+                                    <div class="video-placeholder-icon">
+                                        ▶
+                                    </div>
+
+                                    <div class="video-placeholder-title">
+                                        AI VIDEO SHOWCASE
+                                    </div>
+
+                                    <div class="video-placeholder-text">
+                                        Tambahkan hero-video.mp4
+                                        ke assets/showcase/
+                                    </div>
+
+                                </div>
+
                             </div>
 
-                            <div class="floating-value">
-                                AI PROCESSING
-                            </div>
-
-                        </div>
-
-
-                        <div class="cinema">
-
-
-                            <!--
-                                VIDEO HERO
-
-                                Masukkan video asli GEN-Z.AI
-                                ke dalam source berikut:
-
-                                /assets/showcase/hero-video.mp4
-                            -->
 
                             <video
-                                class="cinema-video"
-                                autoplay
+                                class="hero-video landing-video"
                                 muted
                                 loop
                                 playsinline
                                 preload="metadata"
                             >
 
-                                <!--
                                 <source
                                     src="/assets/showcase/hero-video.mp4"
                                     type="video/mp4"
                                 >
-                                -->
 
                             </video>
 
-
-                            <div class="cinema-placeholder">
-
-                                <div class="play">
-                                    ▶
-                                </div>
-
-                                <small>
-                                    GEN-Z.AI SHOWCASE
-                                </small>
-
-                            </div>
-
-
-                            <div class="cinema-info">
-
-                                <div>
-
-                                    <div class="cinema-title">
-                                        AI Generated Visual
-                                    </div>
-
-                                    <div class="cinema-subtitle">
-                                        Cinematic • Creative AI
-                                    </div>
-
-                                </div>
-
-
-                                <div class="ready">
-                                    READY
-                                </div>
-
-                            </div>
-
                         </div>
 
 
-                        <div class="floating two">
+                        <div class="hero-badge">
 
-                            <div class="floating-label">
-                                PLATFORM
+                            <div class="hero-badge-top">
+                                POWERED BY
                             </div>
 
-                            <div class="floating-value">
-                                GEN-Z.AI
+                            <div class="hero-badge-main">
+                                GEN-Z.AI Creative Engine
                             </div>
 
                         </div>
-
 
                     </div>
-
 
                 </div>
 
@@ -3295,37 +2093,37 @@
              TRUST
         ====================================================== -->
 
-        <div class="trust">
+        <section class="trust-strip">
 
             <div class="container">
 
                 <div class="trust-inner">
 
                     <div class="trust-item">
-                        TEXT → VIDEO
+                        Text → Video
                     </div>
 
                     <div class="trust-item">
-                        IMAGE → VIDEO
+                        Image → Video
                     </div>
 
                     <div class="trust-item">
-                        AI VISION
+                        AI Vision
                     </div>
 
                     <div class="trust-item">
-                        DIGITAL HUMAN
+                        Digital Human
                     </div>
 
                     <div class="trust-item">
-                        CREATIVE AI
+                        Creative AI
                     </div>
 
                 </div>
 
             </div>
 
-        </div>
+        </section>
 
 
         <!-- =====================================================
@@ -3336,49 +2134,43 @@
 
             <div class="container">
 
-                <div class="promo">
+                <div class="promo-card">
 
                     <div class="promo-content">
 
-
-                        <div>
-
-                            <div class="promo-tag">
-                                GEN-Z.AI PROMO
-                            </div>
-
-
-                            <h2>
-                                Mulai dari ide.
-                                <br>
-                                Bangun menjadi video.
-                            </h2>
-
-
-                            <p>
-                                Buat akun GEN-Z.AI dan mulai
-                                menjelajahi workflow AI video
-                                dalam satu platform.
-
-                            </p>
-
+                        <div class="section-label">
+                            GEN-Z.AI PLATFORM
                         </div>
 
 
-                        <div class="promo-action">
+                        <h2 class="promo-title">
+                            Ide menjadi video.
+                            <br>
+                            Tanpa workflow yang rumit.
+                        </h2>
 
-                            <!-- ROUTING ASLI -->
+
+                        <p class="promo-text">
+
+                            Bangun visual untuk konten,
+                            marketing, social media,
+                            storytelling dan eksperimen
+                            kreatif dengan AI.
+
+                        </p>
+
+
+                        <div class="promo-actions">
 
                             <a
                                 href="/register.html"
-                                class="btn btn-primary"
+                                class="btn-primary"
                             >
-                                DAFTAR SEKARANG
+                                Buat Akun Gratis
                                 <span>→</span>
                             </a>
 
                         </div>
-
 
                     </div>
 
@@ -3400,101 +2192,116 @@
 
             <div class="container">
 
-
                 <div class="section-label">
-                    PLATFORM
+                    WHAT YOU CAN CREATE
                 </div>
 
 
                 <h2 class="section-title">
-                    Creative tools.
-                    <br>
-                    One intelligent workspace.
+                    Satu platform.
+                    Banyak kemungkinan.
                 </h2>
 
 
                 <p class="section-description">
-                    GEN-Z.AI menyatukan berbagai workflow
-                    generative media sehingga proses kreatif
-                    tidak harus berpindah-pindah platform.
+
+                    GEN-Z.AI dirancang sebagai creative
+                    engine yang menggabungkan berbagai
+                    kemampuan AI dalam satu workflow.
 
                 </p>
 
 
-                <div class="feature-grid">
+                <div class="features-grid">
 
 
-                    <article class="feature">
+                    <article class="feature-card">
 
-                        <div class="feature-icon">
-                            ✦
+                        <div class="feature-number">
+                            01 / VIDEO
                         </div>
 
-                        <h3>
+                        <div class="feature-icon">
+                            ▶
+                        </div>
+
+                        <h3 class="feature-title">
                             AI Video Generation
                         </h3>
 
-                        <p>
-                            Buat video menggunakan prompt dan
-                            parameter kreatif melalui model AI
-                            yang tersedia di GEN-Z.AI.
+                        <p class="feature-text">
+                            Buat video dari prompt dengan
+                            berbagai model AI dan parameter
+                            kreatif.
                         </p>
 
                     </article>
 
 
-                    <article class="feature">
+                    <article class="feature-card">
+
+                        <div class="feature-number">
+                            02 / IMAGE
+                        </div>
 
                         <div class="feature-icon">
                             ◇
                         </div>
 
-                        <h3>
+                        <h3 class="feature-title">
                             Image to Video
                         </h3>
 
-                        <p>
-                            Hidupkan gambar menjadi visual
-                            bergerak dengan kontrol kreatif
-                            yang fleksibel.
+                        <p class="feature-text">
+                            Hidupkan gambar statis menjadi
+                            visual bergerak dengan kontrol
+                            kreatif yang lebih luas.
                         </p>
 
                     </article>
 
 
-                    <article class="feature">
+                    <article class="feature-card">
+
+                        <div class="feature-number">
+                            03 / HUMAN
+                        </div>
 
                         <div class="feature-icon">
                             ◎
                         </div>
 
-                        <h3>
+                        <h3 class="feature-title">
                             Digital Human
                         </h3>
 
-                        <p>
-                            Bangun workflow karakter digital,
-                            lip-sync, dan kebutuhan video
-                            berbasis manusia sintetis.
+                        <p class="feature-text">
+                            Bangun video berbasis digital
+                            human, lipsync dan berbagai
+                            workflow avatar AI.
                         </p>
 
                     </article>
 
 
-                    <article class="feature">
+                    <article class="feature-card">
+
+                        <div class="feature-number">
+                            04 / VISION
+                        </div>
 
                         <div class="feature-icon">
                             ◉
                         </div>
 
-                        <h3>
+                        <h3 class="feature-title">
                             AI Vision
                         </h3>
 
-                        <p>
-                            Gunakan kemampuan visual AI untuk
-                            memahami dan memproses konten
-                            berbasis gambar.
+                        <p class="feature-text">
+                            Gunakan kemampuan vision untuk
+                            memahami dan mengolah input
+                            visual secara lebih cerdas.
                         </p>
 
                     </article>
@@ -3518,22 +2325,23 @@
 
             <div class="container">
 
-
                 <div class="section-label">
-                    SHOWCASE
+                    GENERATED WITH GEN-Z.AI
                 </div>
 
 
                 <h2 class="section-title">
-                    See what AI
-                    <br>
-                    can create.
+                    See what AI can create.
                 </h2>
 
 
                 <p class="section-description">
-                    Showcase ini disiapkan untuk menampilkan
-                    hasil video generation asli dari GEN-Z.AI.
+
+                    Video showcase akan diputar ketika
+                    pengguna berinteraksi dengannya.
+                    Desktop menggunakan hover, sedangkan
+                    perangkat mobile menggunakan posisi
+                    video di layar.
 
                 </p>
 
@@ -3541,156 +2349,213 @@
                 <div class="showcase-grid">
 
 
-                    <!-- VIDEO 01 -->
+                    <!-- =================================================
+                         SHOWCASE 01
+                    ================================================== -->
 
                     <article class="showcase-card">
 
                         <div class="showcase-media">
 
+
+                            <div class="showcase-placeholder">
+
+                                <div class="showcase-placeholder-content">
+
+                                    <div class="showcase-placeholder-icon">
+                                        ▶
+                                    </div>
+
+                                    <div class="showcase-placeholder-title">
+                                        VIDEO 01
+                                    </div>
+
+                                    <div class="showcase-placeholder-text">
+                                        Tambahkan
+                                        assets/showcase/video-01.mp4
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
                             <video
+                                class="showcase-video landing-video"
                                 muted
                                 loop
-                                autoplay
                                 playsinline
                                 preload="metadata"
                             >
 
-                                <!--
                                 <source
                                     src="/assets/showcase/video-01.mp4"
                                     type="video/mp4"
                                 >
-                                -->
 
                             </video>
 
 
-                            <div class="showcase-empty">
-                                SHOWCASE 01
-                            </div>
-
-
-                            <div class="showcase-play">
-                                ▶
-                            </div>
+                            <div class="showcase-overlay"></div>
 
                         </div>
 
 
-                        <div class="showcase-details">
+                        <div class="showcase-info">
 
-                            <h3>
+                            <div class="showcase-category">
+                                TEXT TO VIDEO
+                            </div>
+
+                            <div class="showcase-title">
                                 Cinematic Generation
-                            </h3>
+                            </div>
 
-                            <p>
-                                Visual cinematic yang dibuat
-                                menggunakan AI.
-                            </p>
+                            <div class="showcase-description">
+                                AI generated cinematic visual.
+                            </div>
 
                         </div>
 
                     </article>
 
 
-                    <!-- VIDEO 02 -->
+                    <!-- =================================================
+                         SHOWCASE 02
+                    ================================================== -->
 
                     <article class="showcase-card">
 
                         <div class="showcase-media">
 
+
+                            <div class="showcase-placeholder">
+
+                                <div class="showcase-placeholder-content">
+
+                                    <div class="showcase-placeholder-icon">
+                                        ▶
+                                    </div>
+
+                                    <div class="showcase-placeholder-title">
+                                        VIDEO 02
+                                    </div>
+
+                                    <div class="showcase-placeholder-text">
+                                        Tambahkan
+                                        assets/showcase/video-02.mp4
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
                             <video
+                                class="showcase-video landing-video"
                                 muted
                                 loop
-                                autoplay
                                 playsinline
                                 preload="metadata"
                             >
 
-                                <!--
                                 <source
                                     src="/assets/showcase/video-02.mp4"
                                     type="video/mp4"
                                 >
-                                -->
 
                             </video>
 
 
-                            <div class="showcase-empty">
-                                SHOWCASE 02
-                            </div>
-
-
-                            <div class="showcase-play">
-                                ▶
-                            </div>
+                            <div class="showcase-overlay"></div>
 
                         </div>
 
 
-                        <div class="showcase-details">
+                        <div class="showcase-info">
 
-                            <h3>
-                                Image to Video
-                            </h3>
+                            <div class="showcase-category">
+                                IMAGE TO VIDEO
+                            </div>
 
-                            <p>
-                                Transformasi gambar menjadi
-                                visual bergerak.
-                            </p>
+                            <div class="showcase-title">
+                                Image Motion
+                            </div>
+
+                            <div class="showcase-description">
+                                Mengubah gambar menjadi visual bergerak.
+                            </div>
 
                         </div>
 
                     </article>
 
 
-                    <!-- VIDEO 03 -->
+                    <!-- =================================================
+                         SHOWCASE 03
+                    ================================================== -->
 
                     <article class="showcase-card">
 
                         <div class="showcase-media">
 
+
+                            <div class="showcase-placeholder">
+
+                                <div class="showcase-placeholder-content">
+
+                                    <div class="showcase-placeholder-icon">
+                                        ▶
+                                    </div>
+
+                                    <div class="showcase-placeholder-title">
+                                        VIDEO 03
+                                    </div>
+
+                                    <div class="showcase-placeholder-text">
+                                        Tambahkan
+                                        assets/showcase/video-03.mp4
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
                             <video
+                                class="showcase-video landing-video"
                                 muted
                                 loop
-                                autoplay
                                 playsinline
                                 preload="metadata"
                             >
 
-                                <!--
                                 <source
                                     src="/assets/showcase/video-03.mp4"
                                     type="video/mp4"
-                                />
-                                -->
+                                >
 
                             </video>
 
 
-                            <div class="showcase-empty">
-                                SHOWCASE 03
-                            </div>
-
-
-                            <div class="showcase-play">
-                                ▶
-                            </div>
+                            <div class="showcase-overlay"></div>
 
                         </div>
 
 
-                        <div class="showcase-details">
+                        <div class="showcase-info">
 
-                            <h3>
-                                Creative AI
-                            </h3>
+                            <div class="showcase-category">
+                                DIGITAL HUMAN
+                            </div>
 
-                            <p>
-                                Eksplorasi visual kreatif
-                                menggunakan generative AI.
-                            </p>
+                            <div class="showcase-title">
+                                AI Human Generation
+                            </div>
+
+                            <div class="showcase-description">
+                                Visual digital human berbasis AI.
+                            </div>
 
                         </div>
 
@@ -3715,97 +2580,86 @@
 
             <div class="container">
 
-
                 <div class="section-label">
-                    WORKFLOW
+                    SIMPLE WORKFLOW
                 </div>
 
 
                 <h2 class="section-title">
-                    From concept
-                    <br>
-                    to creation.
+                    Dari ide ke video.
                 </h2>
-
-
-                <p class="section-description">
-                    Proses generation dirancang sederhana:
-                    masukkan ide, pilih model, generate,
-                    lalu gunakan hasilnya.
-
-                </p>
 
 
                 <div class="workflow-grid">
 
 
-                    <article class="workflow-card">
+                    <article class="workflow-step">
 
                         <div class="workflow-number">
-                            STEP 01
+                            01
                         </div>
 
-                        <h3>
-                            Tulis Ide
+                        <h3 class="workflow-title">
+                            Pilih model
                         </h3>
 
-                        <p>
-                            Masukkan prompt dan konsep
-                            visual yang ingin dibuat.
+                        <p class="workflow-text">
+                            Pilih engine dan model AI sesuai
+                            kebutuhan kreatif Anda.
                         </p>
 
                     </article>
 
 
-                    <article class="workflow-card">
+                    <article class="workflow-step">
 
                         <div class="workflow-number">
-                            STEP 02
+                            02
                         </div>
 
-                        <h3>
-                            Pilih Model
+                        <h3 class="workflow-title">
+                            Masukkan prompt
                         </h3>
 
-                        <p>
-                            Pilih model AI yang sesuai
-                            dengan kebutuhan generation.
+                        <p class="workflow-text">
+                            Jelaskan visual yang ingin
+                            dibuat dengan prompt Anda.
                         </p>
 
                     </article>
 
 
-                    <article class="workflow-card">
+                    <article class="workflow-step">
 
                         <div class="workflow-number">
-                            STEP 03
+                            03
                         </div>
 
-                        <h3>
+                        <h3 class="workflow-title">
                             Generate
                         </h3>
 
-                        <p>
-                            Kirim generation task dan biarkan
-                            sistem memproses visual Anda.
+                        <p class="workflow-text">
+                            AI memproses input dan menghasilkan
+                            video sesuai parameter.
                         </p>
 
                     </article>
 
 
-                    <article class="workflow-card">
+                    <article class="workflow-step">
 
                         <div class="workflow-number">
-                            STEP 04
+                            04
                         </div>
 
-                        <h3>
+                        <h3 class="workflow-title">
                             Download
                         </h3>
 
-                        <p>
-                            Gunakan hasil video untuk kebutuhan
-                            kreatif dan produksi konten.
+                        <p class="workflow-text">
+                            Simpan hasil dan gunakan untuk
+                            kebutuhan kreatif Anda.
                         </p>
 
                     </article>
@@ -3819,33 +2673,31 @@
 
 
         <!-- =====================================================
-             PRICING
+             CREDITS
         ====================================================== -->
 
         <section
             class="section"
-            id="pricing"
+            id="credits"
         >
 
             <div class="container">
 
-
                 <div class="section-label">
-                    CREDIT
+                    CREATIVE CREDITS
                 </div>
 
 
                 <h2 class="section-title">
-                    Built for every
-                    <br>
-                    creative workflow.
+                    Gunakan kredit.
+                    Buat lebih banyak.
                 </h2>
 
 
                 <p class="section-description">
-                    Gunakan paket kredit sesuai kebutuhan.
-                    Struktur ini mengikuti paket GEN-Z.AI
-                    yang tersedia saat ini.
+
+                    Sistem kredit dibuat sederhana agar
+                    Anda dapat fokus pada proses kreatif.
 
                 </p>
 
@@ -3853,132 +2705,84 @@
                 <div class="pricing-grid">
 
 
-                    <!-- STARTER -->
-
                     <article class="pricing-card">
 
-                        <div class="pricing-type">
-                            STARTER
-                        </div>
-
-                        <h3>
+                        <div class="pricing-name">
                             Starter
-                        </h3>
+                        </div>
 
-                        <div class="pricing-credit">
-
+                        <div class="pricing-credits">
                             100
-
-                            <span>
-                                CREDITS
-                            </span>
-
+                            <span>credits</span>
                         </div>
 
+                        <p class="pricing-description">
+                            Cocok untuk mencoba workflow
+                            GEN-Z.AI dan membuat project awal.
+                        </p>
 
-                        <ul class="pricing-list">
-
-                            <li>
-                                Cocok untuk eksplorasi
-                            </li>
-
-                            <li>
-                                Akses workflow AI
-                            </li>
-
-                            <li>
-                                Mulai membuat konten
-                            </li>
-
-                        </ul>
+                        <a
+                            href="/register.html"
+                            class="pricing-link"
+                        >
+                            Mulai →
+                        </a>
 
                     </article>
 
 
-                    <!-- CREATOR -->
+                    <article class="pricing-card recommended">
 
-                    <article class="pricing-card featured">
-
-                        <div class="pricing-popular">
-                            RECOMMENDED
+                        <div class="recommended-label">
+                            Recommended
                         </div>
 
-                        <div class="pricing-type">
-                            CREATOR
-                        </div>
-
-                        <h3>
+                        <div class="pricing-name">
                             Creator
-                        </h3>
-
-                        <div class="pricing-credit">
-
-                            500
-
-                            <span>
-                                CREDITS
-                            </span>
-
                         </div>
 
+                        <div class="pricing-credits">
+                            500
+                            <span>credits</span>
+                        </div>
 
-                        <ul class="pricing-list">
+                        <p class="pricing-description">
+                            Untuk creator yang membutuhkan
+                            ruang eksperimen lebih besar.
+                        </p>
 
-                            <li>
-                                Untuk kreator aktif
-                            </li>
-
-                            <li>
-                                Lebih banyak generation
-                            </li>
-
-                            <li>
-                                Cocok untuk produksi konten
-                            </li>
-
-                        </ul>
+                        <a
+                            href="/register.html"
+                            class="pricing-link"
+                        >
+                            Mulai →
+                        </a>
 
                     </article>
 
-
-                    <!-- PRO -->
 
                     <article class="pricing-card">
 
-                        <div class="pricing-type">
-                            PRO
-                        </div>
-
-                        <h3>
+                        <div class="pricing-name">
                             Pro
-                        </h3>
-
-                        <div class="pricing-credit">
-
-                            1000
-
-                            <span>
-                                CREDITS
-                            </span>
-
                         </div>
 
+                        <div class="pricing-credits">
+                            1000
+                            <span>credits</span>
+                        </div>
 
-                        <ul class="pricing-list">
+                        <p class="pricing-description">
+                            Untuk workflow kreatif dengan
+                            volume generation yang lebih tinggi.
+                        </p>
 
-                            <li>
-                                Untuk production workflow
-                            </li>
-
-                            <li>
-                                Kapasitas generation besar
-                            </li>
-
-                            <li>
-                                Cocok untuk penggunaan intensif
-                            </li>
-
-                        </ul>
+                        <a
+                            href="/register.html"
+                            class="pricing-link"
+                        >
+                            Mulai →
+                        </a>
 
                     </article>
 
@@ -3994,67 +2798,44 @@
              FINAL CTA
         ====================================================== -->
 
-        <section class="section">
+        <section class="final-section">
 
             <div class="container">
 
+                <div class="final-card">
 
-                <div class="cta">
-
-                    <div class="cta-content">
-
-
-                        <h2>
-
-                            Your next idea.
-                            <br>
-
-                            <span>Generated.</span>
-
-                        </h2>
+                    <h2 class="final-title">
+                        YOUR NEXT
+                        <br>
+                        VIDEO STARTS HERE.
+                    </h2>
 
 
-                        <p>
-                            Masuk ke GEN-Z.AI dan mulai
-                            mengubah konsep kreatif menjadi
-                            visual dengan AI.
+                    <p class="final-text">
 
-                        </p>
+                        Bergabung dengan GEN-Z.AI dan mulai
+                        membuat visual dengan AI.
 
-
-                        <div class="hero-actions">
+                    </p>
 
 
-                            <!-- ROUTING ASLI -->
+                    <div class="final-actions">
 
-                            <a
-                                href="/register.html"
-                                class="btn btn-primary"
-                            >
-
-                                MULAI SEKARANG
-
-                                <span>
-                                    →
-                                </span>
-
-                            </a>
+                        <a
+                            href="/register.html"
+                            class="btn-primary"
+                        >
+                            Buat Akun
+                            <span>→</span>
+                        </a>
 
 
-                            <!-- ROUTING ASLI -->
-
-                            <a
-                                href="/login.html"
-                                class="btn btn-secondary"
-                            >
-
-                                LOGIN
-
-                            </a>
-
-
-                        </div>
-
+                        <a
+                            href="/login.html"
+                            class="btn-secondary"
+                        >
+                            Sudah punya akun? Login
+                        </a>
 
                     </div>
 
@@ -4070,46 +2851,36 @@
 
     <!-- =========================================================
          FOOTER
-    ========================================================= -->
+    ========================================================== -->
 
-    <footer>
+    <footer class="footer">
 
         <div class="container">
 
+            <div class="footer-inner">
 
-            <div class="footer-top">
-
-
-                <div class="footer-brand">
-                    GEN-Z.AI
+                <div class="footer-copy">
+                    © 2026 GEN-Z.AI. All rights reserved.
                 </div>
 
 
                 <div class="footer-links">
 
+                    <a href="/">
+                        Home
+                    </a>
+
                     <a href="#features">
-                        Fitur
+                        Features
                     </a>
 
                     <a href="#showcase">
                         Showcase
                     </a>
 
-                    <a href="#workflow">
-                        Cara Kerja
-                    </a>
-
-                    <a href="#pricing">
-                        Kredit
-                    </a>
-
-                    <!-- ROUTING ASLI -->
-
                     <a href="/login.html">
                         Login
                     </a>
-
-                    <!-- ROUTING ASLI -->
 
                     <a href="/register.html">
                         Register
@@ -4117,17 +2888,7 @@
 
                 </div>
 
-
             </div>
-
-
-            <div class="footer-bottom">
-
-                © 2026 GEN-Z.AI.
-                AI Video Generation Platform.
-
-            </div>
-
 
         </div>
 
@@ -4135,35 +2896,10 @@
 
 
     <!-- =========================================================
-         LANDING PAGE SCRIPT
-    ========================================================= -->
+         VIDEO ENGINE
+    ========================================================== -->
 
     <script>
-
-        /*
-         * =====================================================
-         * GEN-Z.AI ROOT LANDING PAGE
-         * =====================================================
-         *
-         * Root "/" sekarang merupakan landing page publik.
-         *
-         * TIDAK ADA:
-         * - authentication
-         * - auto redirect
-         * - Supabase initialization
-         * - generate logic
-         *
-         * Routing publik:
-         *
-         * Login:
-         * /login.html
-         *
-         * Register:
-         * /register.html
-         *
-         * =====================================================
-         */
-
 
         document.addEventListener(
             "DOMContentLoaded",
@@ -4171,33 +2907,355 @@
 
 
                 /*
-                 * =================================================
-                 * HERO VIDEO
-                 * =================================================
+                 * =====================================================
+                 * VIDEO ELEMENTS
+                 * =====================================================
                  */
 
-                const heroVideo =
-                    document.querySelector(
-                        ".cinema-video"
-                    );
-
-                const heroPlaceholder =
-                    document.querySelector(
-                        ".cinema-placeholder"
+                const videos =
+                    document.querySelectorAll(
+                        ".landing-video"
                     );
 
 
-                if (
-                    heroVideo &&
-                    heroPlaceholder
-                ) {
+                if (!videos.length) {
+                    return;
+                }
 
-                    heroVideo.addEventListener(
+
+                /*
+                 * =====================================================
+                 * DEVICE DETECTION
+                 * =====================================================
+                 *
+                 * Desktop:
+                 *   Hover = Play
+                 *   Mouse leave = Pause
+                 *
+                 * Mobile / Tablet:
+                 *   Enter viewport = Play
+                 *   Leave viewport = Pause
+                 *
+                 * =====================================================
+                 */
+
+                const isTouchDevice =
+                    window.matchMedia(
+                        "(hover: none) and (pointer: coarse)"
+                    ).matches;
+
+
+                /*
+                 * =====================================================
+                 * REDUCED MOTION
+                 * =====================================================
+                 */
+
+                const prefersReducedMotion =
+                    window.matchMedia(
+                        "(prefers-reduced-motion: reduce)"
+                    ).matches;
+
+
+                /*
+                 * =====================================================
+                 * VIDEO PLACEHOLDERS
+                 * =====================================================
+                 */
+
+                videos.forEach(function (video) {
+
+
+                    const source =
+                        video.querySelector("source");
+
+
+                    const placeholder =
+                        video.parentElement
+                            ?.querySelector(
+                                ".video-placeholder, .showcase-placeholder"
+                            );
+
+
+                    /*
+                     * Jika video berhasil dimuat,
+                     * sembunyikan placeholder.
+                     */
+
+                    video.addEventListener(
                         "loadeddata",
                         function () {
 
-                            heroPlaceholder.style.display =
-                                "none";
+                            if (placeholder) {
+
+                                placeholder.style.display =
+                                    "none";
+
+                            }
+
+                        }
+                    );
+
+
+                    /*
+                     * Jika source error,
+                     * placeholder tetap terlihat.
+                     */
+
+                    video.addEventListener(
+                        "error",
+                        function () {
+
+                            if (placeholder) {
+
+                                placeholder.style.display =
+                                    "flex";
+
+                            }
+
+                        }
+                    );
+
+
+                    /*
+                     * Jika source memang tidak tersedia,
+                     * jangan mencoba memainkan video.
+                     */
+
+                    if (!source) {
+
+                        if (placeholder) {
+
+                            placeholder.style.display =
+                                "flex";
+
+                        }
+
+                    }
+
+                });
+
+
+                /*
+                 * =====================================================
+                 * REDUCED MOTION
+                 * =====================================================
+                 *
+                 * Jika user mengaktifkan reduced motion,
+                 * jangan autoplay video.
+                 *
+                 * =====================================================
+                 */
+
+                if (prefersReducedMotion) {
+
+                    videos.forEach(function (video) {
+
+                        video.pause();
+
+                    });
+
+                    return;
+                }
+
+
+                /*
+                 * =====================================================
+                 * MOBILE / TABLET
+                 * =====================================================
+                 */
+
+                if (isTouchDevice) {
+
+
+                    /*
+                     * Hanya video yang cukup terlihat di layar
+                     * yang akan dimainkan.
+                     */
+
+                    const observer =
+                        new IntersectionObserver(
+                            function (entries) {
+
+
+                                entries.forEach(
+                                    function (entry) {
+
+                                        const video =
+                                            entry.target;
+
+
+                                        if (
+                                            entry.isIntersecting
+                                        ) {
+
+
+                                            /*
+                                             * Pastikan video
+                                             * tidak dibisukan
+                                             * secara tidak sengaja.
+                                             */
+
+                                            video.muted = true;
+
+
+                                            const playPromise =
+                                                video.play();
+
+
+                                            if (
+                                                playPromise &&
+                                                typeof playPromise.catch ===
+                                                    "function"
+                                            ) {
+
+                                                playPromise.catch(
+                                                    function () {
+                                                        /*
+                                                         * Browser dapat
+                                                         * menolak autoplay.
+                                                         */
+                                                    }
+                                                );
+
+                                            }
+
+                                        }
+
+                                        else {
+
+
+                                            /*
+                                             * Pause ketika keluar
+                                             * viewport.
+                                             */
+
+                                            video.pause();
+
+
+                                            /*
+                                             * Reset ke awal supaya
+                                             * ketika muncul kembali
+                                             * video mulai dari awal.
+                                             */
+
+                                            try {
+
+                                                video.currentTime = 0;
+
+                                            }
+                                            catch (error) {
+
+                                                /*
+                                                 * Tidak perlu melakukan
+                                                 * apa-apa jika browser
+                                                 * belum dapat mengubah
+                                                 * currentTime.
+                                                 */
+
+                                            }
+
+                                        }
+
+                                    }
+                                );
+
+                            },
+                            {
+                                /*
+                                 * Video harus terlihat minimal
+                                 * 35% sebelum dimainkan.
+                                 */
+
+                                threshold: 0.35,
+
+                                /*
+                                 * Sedikit area tambahan agar
+                                 * transisi terasa lebih natural.
+                                 */
+
+                                rootMargin:
+                                    "0px 0px -5% 0px"
+                            }
+                        );
+
+
+                    videos.forEach(
+                        function (video) {
+
+                            observer.observe(video);
+
+                        }
+                    );
+
+
+                }
+
+
+                /*
+                 * =====================================================
+                 * DESKTOP
+                 * =====================================================
+                 */
+
+                else {
+
+
+                    videos.forEach(
+                        function (video) {
+
+
+                            /*
+                             * Mouse masuk.
+                             */
+
+                            video.addEventListener(
+                                "mouseenter",
+                                function () {
+
+                                    video.muted = true;
+
+
+                                    const playPromise =
+                                        video.play();
+
+
+                                    if (
+                                        playPromise &&
+                                        typeof playPromise.catch ===
+                                            "function"
+                                    ) {
+
+                                        playPromise.catch(
+                                            function () {}
+                                        );
+
+                                    }
+
+                                }
+                            );
+
+
+                            /*
+                             * Mouse keluar.
+                             */
+
+                            video.addEventListener(
+                                "mouseleave",
+                                function () {
+
+                                    video.pause();
+
+
+                                    try {
+
+                                        video.currentTime = 0;
+
+                                    }
+                                    catch (error) {}
+
+                                }
+                            );
 
                         }
                     );
@@ -4206,61 +3264,34 @@
 
 
                 /*
-                 * =================================================
-                 * SHOWCASE VIDEOS
-                 * =================================================
+                 * =====================================================
+                 * CLEANUP WHEN PAGE IS HIDDEN
+                 * =====================================================
+                 *
+                 * Jika user berpindah tab,
+                 * hentikan video.
+                 *
+                 * =====================================================
                  */
 
-                const showcaseCards =
-                    document.querySelectorAll(
-                        ".showcase-card"
-                    );
+                document.addEventListener(
+                    "visibilitychange",
+                    function () {
 
+                        if (
+                            document.visibilityState ===
+                            "hidden"
+                        ) {
 
-                showcaseCards.forEach(
-                    function (card) {
+                            videos.forEach(
+                                function (video) {
 
-                        const video =
-                            card.querySelector(
-                                "video"
+                                    video.pause();
+
+                                }
                             );
 
-                        const empty =
-                            card.querySelector(
-                                ".showcase-empty"
-                            );
-
-                        const play =
-                            card.querySelector(
-                                ".showcase-play"
-                            );
-
-
-                        if (!video) {
-                            return;
                         }
-
-
-                        video.addEventListener(
-                            "loadeddata",
-                            function () {
-
-                                if (empty) {
-
-                                    empty.style.display =
-                                        "none";
-
-                                }
-
-                                if (play) {
-
-                                    play.style.display =
-                                        "none";
-
-                                }
-
-                            }
-                        );
 
                     }
                 );
@@ -4273,4 +3304,5 @@
 
 
 </body>
+
 </html>
