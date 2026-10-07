@@ -1,136 +1,176 @@
 /* =========================================================
    GEN-Z.AI
    GENERATE PAGE
-   PREMIUM HIGH-CLASS UI
+   PREMIUM HIGH-CLASS AI STUDIO
    ---------------------------------------------------------
    File:
    generate/assets/css/generate-premium.css
 
-   Catatan:
-   - Tidak mengubah ID HTML
-   - Tidak mengubah class yang digunakan JavaScript
-   - Tidak mengubah behavior Generate
-   - Tidak mengubah logic Seedance
-   - CSS kompatibilitas tetap dipertahankan
+   DESIGN:
+   - Premium black chrome
+   - Glass workspace
+   - Electric lime perimeter
+   - Real layout redesign
+   - Dynamic field grid
+   - Seedance 2-column layout
+   - Mobile optimized
+   - JS compatibility preserved
+
+   IMPORTANT:
+   - Tidak mengubah ID
+   - Tidak mengubah class
+   - Tidak mengubah JavaScript
+   - Tidak mengubah API
+   - Tidak mengubah Generate behavior
 ========================================================= */
 
 
 /* =========================================================
-   PREMIUM DESIGN TOKENS
+   01. DESIGN TOKENS
 ========================================================= */
 
 :root {
 
     --gz-bg:
-        #050507;
+        #020302;
 
-    --gz-bg-soft:
-        #08080c;
+    --gz-bg-1:
+        #050705;
 
-    --gz-panel:
-        rgba(13, 13, 18, 0.88);
+    --gz-bg-2:
+        #080b07;
 
-    --gz-panel-strong:
-        rgba(17, 17, 23, 0.96);
+    --gz-surface:
+        rgba(10, 13, 9, 0.94);
 
-    --gz-panel-soft:
-        rgba(255, 255, 255, 0.035);
+    --gz-surface-2:
+        rgba(14, 18, 12, 0.96);
 
-    --gz-border:
-        rgba(255, 255, 255, 0.085);
+    --gz-surface-3:
+        rgba(20, 25, 16, 0.96);
 
-    --gz-border-soft:
-        rgba(255, 255, 255, 0.055);
+    --gz-glass:
+        rgba(255,255,255,0.035);
 
-    --gz-border-hover:
-        rgba(255, 255, 255, 0.17);
+    --gz-glass-strong:
+        rgba(255,255,255,0.055);
 
-    --gz-red:
-        #ff2148;
+    --gz-line:
+        rgba(255,255,255,0.075);
 
-    --gz-red-bright:
-        #ff3157;
+    --gz-line-soft:
+        rgba(255,255,255,0.045);
 
-    --gz-red-dark:
-        #d80e34;
+    --gz-line-hover:
+        rgba(255,255,255,0.14);
 
-    --gz-red-soft:
-        rgba(255, 33, 72, 0.10);
+    --gz-lime:
+        #b7ff00;
 
-    --gz-red-glow:
-        rgba(255, 33, 72, 0.25);
+    --gz-lime-bright:
+        #d8ff55;
+
+    --gz-lime-soft:
+        rgba(183,255,0,0.08);
+
+    --gz-lime-mid:
+        rgba(183,255,0,0.22);
+
+    --gz-lime-line:
+        rgba(183,255,0,0.42);
+
+    --gz-lime-glow:
+        rgba(183,255,0,0.18);
+
+    --gz-white:
+        #f5f7f2;
 
     --gz-text:
-        #f8f8fa;
+        rgba(245,247,242,0.94);
 
     --gz-text-soft:
-        rgba(248, 248, 250, 0.72);
+        rgba(245,247,242,0.68);
 
     --gz-muted:
-        rgba(248, 248, 250, 0.52);
+        rgba(245,247,242,0.46);
 
     --gz-muted-soft:
-        rgba(248, 248, 250, 0.35);
+        rgba(245,247,242,0.30);
+
+    --gz-danger:
+        #ff405f;
+
+    --gz-warning:
+        #f5b942;
 
     --gz-radius-xl:
-        24px;
+        26px;
 
     --gz-radius-lg:
-        17px;
+        18px;
 
     --gz-radius-md:
-        12px;
+        13px;
 
     --gz-radius-sm:
         9px;
+
+    --gz-content-max:
+        1480px;
 }
 
 
 /* =========================================================
-   GLOBAL PAGE
+   02. GLOBAL
 ========================================================= */
 
 html {
 
     background:
         var(--gz-bg) !important;
+
+    color-scheme:
+        dark;
 }
 
 
 body {
 
-    background:
+    min-height:
+        100vh;
 
-        radial-gradient(
-            900px 520px at 78% -10%,
-            rgba(255, 25, 62, 0.10),
-            transparent 62%
-        ),
-
-        radial-gradient(
-            720px 520px at 5% 25%,
-            rgba(110, 20, 45, 0.075),
-            transparent 68%
-        ),
-
-        radial-gradient(
-            600px 400px at 90% 80%,
-            rgba(255, 33, 72, 0.035),
-            transparent 70%
-        ),
-
-        linear-gradient(
-            135deg,
-            #040406 0%,
-            #08080c 48%,
-            #050507 100%
-        ) !important;
+    margin:
+        0;
 
     color:
         var(--gz-text);
 
-    min-height:
-        100vh;
+    background:
+
+        radial-gradient(
+            1100px 700px at 72% -18%,
+            rgba(183,255,0,0.065),
+            transparent 65%
+        ),
+
+        radial-gradient(
+            800px 600px at -10% 35%,
+            rgba(183,255,0,0.035),
+            transparent 70%
+        ),
+
+        radial-gradient(
+            900px 700px at 100% 100%,
+            rgba(183,255,0,0.025),
+            transparent 70%
+        ),
+
+        linear-gradient(
+            145deg,
+            #010201 0%,
+            #050705 48%,
+            #020302 100%
+        ) !important;
 
     -webkit-font-smoothing:
         antialiased;
@@ -141,7 +181,7 @@ body {
 
 
 /* =========================================================
-   PREMIUM PAGE ATMOSPHERE
+   03. GLOBAL ATMOSPHERE
 ========================================================= */
 
 .app {
@@ -151,6 +191,9 @@ body {
 
     position:
         relative;
+
+    isolation:
+        isolate;
 }
 
 
@@ -165,23 +208,72 @@ body {
     inset:
         0;
 
+    z-index:
+        -1;
+
     pointer-events:
         none;
-
-    z-index:
-        0;
 
     background:
 
         linear-gradient(
             90deg,
             transparent 0%,
-            rgba(255,255,255,0.012) 50%,
+            rgba(255,255,255,0.008) 50%,
             transparent 100%
         );
+}
+
+
+.app::after {
+
+    content:
+        "";
+
+    position:
+        fixed;
+
+    inset:
+        0;
+
+    z-index:
+        -1;
+
+    pointer-events:
+        none;
 
     opacity:
-        0.75;
+        0.20;
+
+    background-image:
+
+        linear-gradient(
+            rgba(255,255,255,0.018) 1px,
+            transparent 1px
+        ),
+
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,0.018) 1px,
+            transparent 1px
+        );
+
+    background-size:
+        80px 80px;
+
+    mask-image:
+        linear-gradient(
+            to bottom,
+            black,
+            transparent 75%
+        );
+
+    -webkit-mask-image:
+        linear-gradient(
+            to bottom,
+            black,
+            transparent 75%
+        );
 }
 
 
@@ -207,51 +299,141 @@ body {
 
 
 /* =========================================================
-   TOP BAR
+   04. TOPBAR
 ========================================================= */
 
 .generate-topbar {
 
+    position:
+        sticky;
+
+    top:
+        0;
+
+    z-index:
+        100;
+
     min-height:
-        92px;
+        72px;
 
     padding:
-        20px 28px;
+        14px 32px;
 
-    border-bottom:
-        1px solid
-        rgba(255,255,255,0.065);
+    display:
+        flex;
+
+    align-items:
+        center;
 
     background:
 
         linear-gradient(
             180deg,
-            rgba(7,7,10,0.96),
-            rgba(7,7,10,0.76)
+            rgba(3,5,3,0.97),
+            rgba(3,5,3,0.88)
         ) !important;
 
+    border-bottom:
+        1px solid
+        rgba(183,255,0,0.18) !important;
+
     backdrop-filter:
-        blur(24px);
+        blur(26px)
+        saturate(140%);
 
     -webkit-backdrop-filter:
-        blur(24px);
+        blur(26px)
+        saturate(140%);
+
+    box-shadow:
+
+        0 12px 45px
+        rgba(0,0,0,0.42);
+}
+
+
+.generate-topbar::after {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    left:
+        3%;
+
+    right:
+        3%;
+
+    bottom:
+        -1px;
+
+    height:
+        1px;
+
+    pointer-events:
+        none;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(183,255,0,0.18),
+            rgba(183,255,0,0.82),
+            rgba(183,255,0,0.18),
+            transparent
+        );
+
+    box-shadow:
+        0 0 14px
+        rgba(183,255,0,0.28);
+}
+
+
+.topbar-title {
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    justify-content:
+        center;
+
+    gap:
+        2px;
 }
 
 
 .topbar-title h1 {
 
+    margin:
+        0;
+
     font-weight:
-        800;
+        850;
 
     letter-spacing:
-        -0.035em;
+        -0.045em;
+
+    color:
+        var(--gz-white);
 }
 
 
 .topbar-title p {
 
+    margin:
+        0;
+
     color:
         var(--gz-muted) !important;
+
+    font-size:
+        12px;
 }
 
 
@@ -259,78 +441,121 @@ body {
 .section-eyebrow {
 
     color:
-        rgba(255,91,116,0.90) !important;
-
-    letter-spacing:
-        0.16em !important;
+        var(--gz-lime-bright) !important;
 
     font-weight:
         800 !important;
+
+    letter-spacing:
+        0.17em !important;
+
+    text-transform:
+        uppercase;
+
+    text-shadow:
+        0 0 12px
+        rgba(183,255,0,0.20);
 }
 
 
 .topbar-actions {
 
+    display:
+        flex;
+
+    align-items:
+        center;
+
     gap:
-        10px;
+        9px;
 }
 
 
 /* =========================================================
-   PREMIUM BADGES
+   05. HEADER BADGES
 ========================================================= */
 
 .header-badge {
 
     min-height:
-        36px;
+        34px;
 
     padding:
         0 13px !important;
 
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
     border:
         1px solid
-        rgba(255,255,255,0.10) !important;
+        rgba(183,255,0,0.20) !important;
 
     border-radius:
         999px !important;
 
     background:
-        rgba(255,255,255,0.045) !important;
+
+        linear-gradient(
+            135deg,
+            rgba(183,255,0,0.065),
+            rgba(255,255,255,0.025)
+        ) !important;
 
     box-shadow:
 
         inset 0 1px 0
         rgba(255,255,255,0.055),
 
-        0 8px 30px
-        rgba(0,0,0,0.20);
-
-    backdrop-filter:
-        blur(14px);
-
-    -webkit-backdrop-filter:
-        blur(14px);
+        0 8px 25px
+        rgba(0,0,0,0.22);
 }
 
 
 .credit-badge {
 
     border-color:
-        rgba(255,33,72,0.28) !important;
+        rgba(183,255,0,0.52) !important;
 
     background:
 
         linear-gradient(
             135deg,
-            rgba(255,33,72,0.12),
-            rgba(255,255,255,0.035)
+            rgba(183,255,0,0.13),
+            rgba(183,255,0,0.035)
         ) !important;
+
+    box-shadow:
+
+        0 0 20px
+        rgba(183,255,0,0.075),
+
+        inset 0 1px 0
+        rgba(216,255,85,0.12);
 }
 
 
 /* =========================================================
-   MAIN GENERATE PANEL
+   06. MAIN CONTENT
+========================================================= */
+
+.content {
+
+    width:
+        min(100% - 48px, var(--gz-content-max));
+
+    margin:
+        0 auto;
+
+    padding:
+        34px 0 80px;
+}
+
+
+/* =========================================================
+   07. GENERATE WORKSPACE
 ========================================================= */
 
 .generate-neon-block {
@@ -338,15 +563,21 @@ body {
     position:
         relative;
 
-    margin-top:
-        30px;
+    width:
+        100%;
+
+    margin:
+        0;
 
     padding:
-        30px;
+        34px;
+
+    box-sizing:
+        border-box;
 
     border:
         1px solid
-        rgba(255,255,255,0.10);
+        rgba(183,255,0,0.42);
 
     border-radius:
         var(--gz-radius-xl);
@@ -355,29 +586,66 @@ body {
 
         linear-gradient(
             145deg,
-            rgba(20,20,26,0.94),
-            rgba(7,7,10,0.90)
+            rgba(14,18,11,0.97),
+            rgba(7,10,7,0.97) 52%,
+            rgba(3,5,3,0.98)
         );
 
     box-shadow:
 
-        0 30px 90px
-        rgba(0,0,0,0.38),
+        0 40px 110px
+        rgba(0,0,0,0.58),
 
         0 0 0 1px
-        rgba(255,255,255,0.018),
+        rgba(183,255,0,0.045),
+
+        0 0 40px
+        rgba(183,255,0,0.055),
 
         inset 0 1px 0
-        rgba(255,255,255,0.055);
+        rgba(255,255,255,0.065);
 
     backdrop-filter:
-        blur(24px);
+        blur(28px)
+        saturate(125%);
 
     -webkit-backdrop-filter:
-        blur(24px);
+        blur(28px)
+        saturate(125%);
 
     overflow:
         hidden;
+}
+
+
+.generate-neon-block::before {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    inset:
+        0;
+
+    z-index:
+        0;
+
+    pointer-events:
+        none;
+
+    border:
+        1px solid
+        rgba(183,255,0,0.13);
+
+    border-radius:
+        inherit;
+
+    box-shadow:
+
+        inset 0 0 45px
+        rgba(183,255,0,0.018);
 }
 
 
@@ -390,71 +658,115 @@ body {
         absolute;
 
     top:
-        -180px;
+        -250px;
 
     right:
-        -100px;
+        -180px;
 
     width:
-        360px;
+        560px;
 
     height:
-        360px;
+        560px;
 
-    border-radius:
-        50%;
+    z-index:
+        0;
 
     pointer-events:
         none;
+
+    border-radius:
+        50%;
 
     background:
 
         radial-gradient(
             circle,
-            rgba(255,33,72,0.12),
+            rgba(183,255,0,0.085),
             transparent 68%
         );
 
     filter:
-        blur(12px);
+        blur(20px);
+}
+
+
+.generate-neon-block > * {
+
+    position:
+        relative;
+
+    z-index:
+        1;
 }
 
 
 /* =========================================================
-   PANEL HEADER
+   08. WORKSPACE HEADER
 ========================================================= */
 
 .generate-neon-header {
 
-    padding-bottom:
-        23px;
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    gap:
+        8px;
+
+    margin:
+        0 0 24px;
+
+    padding:
+        0 0 24px;
 
     border-bottom:
         1px solid
-        rgba(255,255,255,0.065);
+        rgba(183,255,0,0.15) !important;
 }
 
 
 .generate-neon-title {
 
+    margin:
+        0;
+
     font-size:
-        25px;
+        clamp(25px, 2.1vw, 34px);
+
+    line-height:
+        1.05;
 
     font-weight:
-        800;
+        850;
 
     letter-spacing:
-        -0.035em;
+        -0.045em;
+
+    color:
+        #f3f7ee;
+
+    text-shadow:
+        0 0 30px
+        rgba(183,255,0,0.07);
 }
 
 
 .generate-neon-description {
 
     max-width:
-        720px;
+        820px;
+
+    margin:
+        0;
 
     color:
-        var(--gz-muted) !important;
+        var(--gz-text-soft) !important;
+
+    font-size:
+        14px;
 
     line-height:
         1.65;
@@ -462,20 +774,26 @@ body {
 
 
 /* =========================================================
-   MODEL FIELD
+   09. MODEL HERO
 ========================================================= */
 
 .generate-model-field {
 
-    margin-top:
-        24px;
+    position:
+        relative;
+
+    margin:
+        0 0 24px;
 
     padding:
-        20px;
+        22px;
+
+    box-sizing:
+        border-box;
 
     border:
         1px solid
-        var(--gz-border);
+        rgba(183,255,0,0.38) !important;
 
     border-radius:
         var(--gz-radius-lg);
@@ -484,92 +802,198 @@ body {
 
         linear-gradient(
             145deg,
-            rgba(255,255,255,0.035),
-            rgba(255,255,255,0.012)
-        );
+            rgba(18,24,12,0.94),
+            rgba(6,9,6,0.96)
+        ) !important;
 
     box-shadow:
 
+        0 20px 55px
+        rgba(0,0,0,0.32),
+
+        0 0 25px
+        rgba(183,255,0,0.045),
+
         inset 0 1px 0
-        rgba(255,255,255,0.035);
+        rgba(255,255,255,0.055);
 }
 
 
+.generate-model-field::before {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    top:
+        0;
+
+    left:
+        10%;
+
+    right:
+        10%;
+
+    height:
+        1px;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(216,255,85,0.85),
+            transparent
+        );
+
+    box-shadow:
+        0 0 12px
+        rgba(183,255,0,0.42);
+
+    pointer-events:
+        none;
+}
+
+
+/* =========================================================
+   10. MODEL SELECT
+========================================================= */
+
 .generate-model-select {
 
+    width:
+        100%;
+
     min-height:
-        52px !important;
+        58px !important;
+
+    padding:
+        0 17px !important;
 
     border:
         1px solid
-        rgba(255,255,255,0.11) !important;
+        rgba(183,255,0,0.25) !important;
 
     border-radius:
         var(--gz-radius-md) !important;
 
     background:
-        rgba(5,5,8,0.82) !important;
+
+        linear-gradient(
+            180deg,
+            rgba(4,7,4,0.94),
+            rgba(1,3,1,0.94)
+        ) !important;
 
     color:
-        #fff !important;
+        #f4f8ef !important;
 
     box-shadow:
 
         inset 0 1px 0
         rgba(255,255,255,0.035),
 
-        0 8px 24px
-        rgba(0,0,0,0.18);
+        0 10px 28px
+        rgba(0,0,0,0.22);
 
     transition:
-
         border-color .2s ease,
         box-shadow .2s ease,
-        background .2s ease;
+        transform .2s ease;
 }
 
 
 .generate-model-select:hover {
 
     border-color:
-        rgba(255,255,255,0.18) !important;
+        rgba(183,255,0,0.50) !important;
+
+    box-shadow:
+
+        0 0 20px
+        rgba(183,255,0,0.065),
+
+        inset 0 1px 0
+        rgba(255,255,255,0.04);
 }
 
 
 .generate-model-select:focus {
 
     border-color:
-        rgba(255,33,72,0.70) !important;
+        var(--gz-lime) !important;
+
+    outline:
+        none !important;
 
     box-shadow:
 
         0 0 0 3px
-        rgba(255,33,72,0.10),
+        rgba(183,255,0,0.075),
 
         0 0 30px
-        rgba(255,33,72,0.12) !important;
+        rgba(183,255,0,0.15),
 
-    outline:
-        none !important;
+        inset 0 0 20px
+        rgba(183,255,0,0.02) !important;
 }
 
 
 /* =========================================================
-   DYNAMIC FIELDS
+   11. DYNAMIC FIELD WORKSPACE
 ========================================================= */
 
 #dynamicFields {
 
-    margin-top:
-        22px;
+    width:
+        100%;
+
+    margin:
+        0;
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap:
+        16px;
+
+    align-items:
+        start;
 }
 
 
+/* =========================================================
+   12. GENERIC FIELD CARD
+========================================================= */
+
 #dynamicFields > .generate-field {
+
+    position:
+        relative;
+
+    min-width:
+        0;
+
+    width:
+        100%;
+
+    margin:
+        0 !important;
+
+    padding:
+        20px !important;
+
+    box-sizing:
+        border-box;
 
     border:
         1px solid
-        rgba(255,255,255,0.085) !important;
+        rgba(183,255,0,0.30) !important;
 
     border-radius:
         var(--gz-radius-lg) !important;
@@ -578,43 +1002,48 @@ body {
 
         linear-gradient(
             145deg,
-            rgba(255,255,255,0.035),
-            rgba(255,255,255,0.012)
+            rgba(14,19,11,0.94),
+            rgba(5,8,5,0.96)
         ) !important;
 
     box-shadow:
 
-        inset 0 1px 0
-        rgba(255,255,255,0.035),
+        0 14px 40px
+        rgba(0,0,0,0.28),
 
-        0 12px 35px
-        rgba(0,0,0,0.14);
+        0 0 18px
+        rgba(183,255,0,0.025),
+
+        inset 0 1px 0
+        rgba(255,255,255,0.04);
 
     transition:
-
         border-color .2s ease,
         box-shadow .2s ease,
-        background .2s ease;
+        transform .2s ease;
 }
 
 
 #dynamicFields > .generate-field:hover {
 
     border-color:
-        rgba(255,255,255,0.15) !important;
+        rgba(183,255,0,0.54) !important;
 
     box-shadow:
 
-        inset 0 1px 0
-        rgba(255,255,255,0.045),
+        0 20px 48px
+        rgba(0,0,0,0.34),
 
-        0 18px 45px
-        rgba(0,0,0,0.20);
+        0 0 25px
+        rgba(183,255,0,0.06),
+
+        inset 0 1px 0
+        rgba(255,255,255,0.05);
 }
 
 
 /* =========================================================
-   FIELD LABELS
+   13. GENERIC FIELD CONTENT
 ========================================================= */
 
 #dynamicFields
@@ -623,16 +1052,31 @@ body {
 #dynamicFields
 .seedance-label {
 
+    display:
+        block;
+
+    margin-bottom:
+        9px;
+
     color:
-        rgba(255,255,255,0.84) !important;
+        rgba(231,255,198,0.90) !important;
+
+    font-size:
+        12px;
+
+    font-weight:
+        800;
 
     letter-spacing:
-        0.015em;
+        0.035em;
+
+    text-transform:
+        uppercase;
 }
 
 
 /* =========================================================
-   PREMIUM INPUTS
+   14. GENERIC INPUTS
 ========================================================= */
 
 #dynamicFields
@@ -644,26 +1088,30 @@ select,
 #dynamicFields
 textarea {
 
+    width:
+        100%;
+
+    box-sizing:
+        border-box;
+
     border:
         1px solid
-        rgba(255,255,255,0.095) !important;
+        rgba(183,255,0,0.21) !important;
 
     border-radius:
         var(--gz-radius-md) !important;
 
     background:
-        rgba(3,3,6,0.66) !important;
+        rgba(2,5,2,0.78) !important;
 
     color:
-        #fff !important;
+        #f4f8ef !important;
 
     box-shadow:
-
         inset 0 1px 0
         rgba(255,255,255,0.025);
 
     transition:
-
         border-color .18s ease,
         box-shadow .18s ease,
         background .18s ease;
@@ -680,7 +1128,11 @@ select:hover,
 textarea:hover {
 
     border-color:
-        rgba(255,255,255,0.16) !important;
+        rgba(183,255,0,0.43) !important;
+
+    box-shadow:
+        0 0 15px
+        rgba(183,255,0,0.035);
 }
 
 
@@ -694,51 +1146,91 @@ select:focus,
 textarea:focus {
 
     border-color:
-        rgba(255,33,72,0.65) !important;
+        var(--gz-lime) !important;
+
+    outline:
+        none !important;
 
     background:
-        rgba(12,4,7,0.82) !important;
+        rgba(4,8,3,0.90) !important;
 
     box-shadow:
 
         0 0 0 3px
-        rgba(255,33,72,0.08),
+        rgba(183,255,0,0.07),
 
-        0 0 24px
-        rgba(255,33,72,0.10) !important;
+        0 0 25px
+        rgba(183,255,0,0.12),
 
-    outline:
-        none !important;
+        inset 0 0 18px
+        rgba(183,255,0,0.018) !important;
 }
 
 
 #dynamicFields textarea {
 
     min-height:
-        130px;
+        145px;
 
     line-height:
         1.65;
+
+    resize:
+        vertical;
 }
 
 
 /* =========================================================
-   OPTION BUTTONS
+   15. FULL-WIDTH TEXT / LARGE FIELDS
+========================================================= */
+
+#dynamicFields > .generate-field:has(textarea) {
+
+    grid-column:
+        1 / -1;
+}
+
+
+#dynamicFields > .generate-field:has(textarea)
+textarea {
+
+    min-height:
+        170px;
+}
+
+
+/* =========================================================
+   16. OPTION BUTTONS
 ========================================================= */
 
 .generate-option-label {
 
-    border-color:
-        rgba(255,255,255,0.10) !important;
+    min-height:
+        42px;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    box-sizing:
+        border-box;
+
+    border:
+        1px solid
+        rgba(183,255,0,0.20) !important;
 
     border-radius:
         var(--gz-radius-md) !important;
 
     background:
-        rgba(255,255,255,0.035) !important;
+        rgba(183,255,0,0.025) !important;
 
     transition:
-        all .18s ease;
+        border-color .18s ease,
+        background .18s ease,
+        box-shadow .18s ease;
 }
 
 
@@ -746,10 +1238,14 @@ textarea:focus {
 .generate-option-label {
 
     border-color:
-        rgba(255,33,72,0.42) !important;
+        rgba(183,255,0,0.55) !important;
 
     background:
-        rgba(255,33,72,0.07) !important;
+        rgba(183,255,0,0.06) !important;
+
+    box-shadow:
+        0 0 16px
+        rgba(183,255,0,0.055);
 }
 
 
@@ -758,40 +1254,31 @@ input:checked
 + .generate-option-label {
 
     border-color:
-        rgba(255,33,72,0.75) !important;
+        var(--gz-lime) !important;
 
     background:
 
         linear-gradient(
             135deg,
-            rgba(255,33,72,0.17),
-            rgba(255,33,72,0.055)
+            rgba(183,255,0,0.16),
+            rgba(183,255,0,0.035)
         ) !important;
 
     box-shadow:
 
-        0 0 20px
-        rgba(255,33,72,0.13),
+        0 0 22px
+        rgba(183,255,0,0.12),
 
-        inset 0 1px 0
-        rgba(255,120,140,0.08) !important;
+        inset 0 0 18px
+        rgba(183,255,0,0.025);
 }
 
 
 /* =========================================================
-   MODEL LOGO
+   17. MODEL LOGO
 ========================================================= */
 
 .generate-model-logo-preview {
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        center;
 
     width:
         100%;
@@ -805,29 +1292,8 @@ input:checked
     padding:
         12px 16px;
 
-    border:
-        1px solid
-        rgba(255,255,255,0.08);
-
-    border-radius:
-        14px;
-
-    background:
-
-        linear-gradient(
-            135deg,
-            rgba(255,255,255,0.045),
-            rgba(255,255,255,0.015)
-        );
-
-    box-shadow:
-
-        inset 0 1px 0
-        rgba(255,255,255,0.035);
-}
-
-
-.generate-model-logo {
+    box-sizing:
+        border-box;
 
     display:
         flex;
@@ -838,17 +1304,53 @@ input:checked
     justify-content:
         center;
 
+    border:
+        1px solid
+        rgba(183,255,0,0.26);
+
+    border-radius:
+        var(--gz-radius-md);
+
+    background:
+
+        linear-gradient(
+            135deg,
+            rgba(183,255,0,0.04),
+            rgba(255,255,255,0.012)
+        );
+
+    box-shadow:
+
+        inset 0 1px 0
+        rgba(255,255,255,0.04),
+
+        0 0 18px
+        rgba(183,255,0,0.025);
+}
+
+
+.generate-model-logo {
+
     width:
         56px;
 
     height:
         56px;
 
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
     overflow:
         hidden;
 
     border-radius:
-        12px;
+        13px;
 }
 
 
@@ -875,10 +1377,522 @@ input:checked
 
 
 /* =========================================================
-   ACTION AREA
+   18. SEEDANCE FORM
+========================================================= */
+
+#dynamicFields:has(> .seedance-form) {
+
+    display:
+        block;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form {
+
+    width:
+        100%;
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap:
+        16px;
+
+    align-items:
+        start;
+
+    align-content:
+        start;
+}
+
+
+/* =========================================================
+   19. SEEDANCE FIELD
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field {
+
+    position:
+        relative;
+
+    width:
+        100% !important;
+
+    min-width:
+        0 !important;
+
+    max-width:
+        none !important;
+
+    min-height:
+        0 !important;
+
+    height:
+        max-content !important;
+
+    margin:
+        0 !important;
+
+    padding:
+        19px !important;
+
+    box-sizing:
+        border-box !important;
+
+    align-self:
+        start !important;
+
+    justify-self:
+        stretch !important;
+
+    border:
+        1px solid
+        rgba(183,255,0,0.30) !important;
+
+    border-radius:
+        var(--gz-radius-lg) !important;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(14,19,11,0.94),
+            rgba(4,7,4,0.97)
+        ) !important;
+
+    box-shadow:
+
+        0 14px 40px
+        rgba(0,0,0,0.28),
+
+        0 0 18px
+        rgba(183,255,0,0.025),
+
+        inset 0 1px 0
+        rgba(255,255,255,0.04);
+
+    transition:
+        border-color .2s ease,
+        box-shadow .2s ease,
+        background .2s ease;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:hover {
+
+    border-color:
+        rgba(183,255,0,0.58) !important;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(19,27,11,0.96),
+            rgba(5,8,5,0.98)
+        ) !important;
+
+    box-shadow:
+
+        0 20px 48px
+        rgba(0,0,0,0.35),
+
+        0 0 27px
+        rgba(183,255,0,0.065),
+
+        inset 0 1px 0
+        rgba(255,255,255,0.05);
+}
+
+
+/* =========================================================
+   20. SEEDANCE INTERNAL ELEMENTS
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+> * {
+
+    box-sizing:
+        border-box;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+.seedance-select {
+
+    width:
+        100% !important;
+
+    min-height:
+        50px !important;
+
+    border:
+        1px solid
+        rgba(183,255,0,0.22) !important;
+
+    border-radius:
+        var(--gz-radius-md) !important;
+
+    background:
+        rgba(2,5,2,0.82) !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+.seedance-select:focus {
+
+    border-color:
+        var(--gz-lime) !important;
+
+    box-shadow:
+
+        0 0 0 3px
+        rgba(183,255,0,0.07),
+
+        0 0 22px
+        rgba(183,255,0,0.12) !important;
+}
+
+
+/* =========================================================
+   21. SEEDANCE FULL-WIDTH FIELDS
+========================================================= */
+
+/*
+ * Prompt
+ */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(textarea) {
+
+    grid-column:
+        1 / -1 !important;
+}
+
+
+/*
+ * Reference Audio
+ */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(
+    input[type="file"][accept*="audio"],
+    input[type="url"]
+) {
+
+    /*
+     * Tidak memaksa semua URL field menjadi full-width.
+     * Layout tetap aman untuk field dinamis.
+     */
+}
+
+
+/*
+ * Web Search
+ */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceWebSearch) {
+
+    grid-column:
+        1 / -1 !important;
+
+    order:
+        999 !important;
+
+    width:
+        100% !important;
+}
+
+
+/* =========================================================
+   22. SEEDANCE AUDIO / LAST FRAME
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceGenerateAudio) {
+
+    grid-column:
+        1 !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReturnLastFrame) {
+
+    grid-column:
+        2 !important;
+}
+
+
+/* =========================================================
+   23. SEEDANCE TOGGLES
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceGenerateAudio),
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReturnLastFrame),
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceWebSearch) {
+
+    display:
+        flex !important;
+
+    flex-direction:
+        column !important;
+
+    align-items:
+        stretch !important;
+
+    justify-content:
+        flex-start !important;
+
+    height:
+        max-content !important;
+
+    min-height:
+        0 !important;
+
+    overflow:
+        visible !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+.seedance-toggle {
+
+    display:
+        flex !important;
+
+    align-items:
+        center !important;
+
+    width:
+        100% !important;
+
+    min-width:
+        0 !important;
+
+    min-height:
+        42px !important;
+
+    height:
+        auto !important;
+
+    margin:
+        0 !important;
+
+    padding:
+        0 !important;
+
+    overflow:
+        visible !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+.seedance-toggle label {
+
+    display:
+        flex !important;
+
+    align-items:
+        center !important;
+
+    gap:
+        10px !important;
+
+    width:
+        auto !important;
+
+    margin:
+        0 !important;
+
+    padding:
+        0 !important;
+
+    line-height:
+        1.4 !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+.seedance-description {
+
+    display:
+        block !important;
+
+    width:
+        100% !important;
+
+    min-height:
+        18px !important;
+
+    margin-top:
+        8px !important;
+
+    color:
+        var(--gz-muted) !important;
+
+    line-height:
+        1.45;
+}
+
+
+/* =========================================================
+   24. SEEDANCE RANGE
+========================================================= */
+
+.generate-duration-range {
+
+    width:
+        100%;
+
+    height:
+        5px;
+
+    margin:
+        8px 0 0;
+
+    appearance:
+        none;
+
+    -webkit-appearance:
+        none;
+
+    border:
+        0;
+
+    border-radius:
+        999px;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            #b7ff00,
+            rgba(183,255,0,0.16)
+        ) !important;
+
+    box-shadow:
+        0 0 12px
+        rgba(183,255,0,0.12);
+
+    outline:
+        none;
+
+    cursor:
+        pointer;
+}
+
+
+.generate-duration-range::-webkit-slider-thumb {
+
+    width:
+        18px;
+
+    height:
+        18px;
+
+    appearance:
+        none;
+
+    -webkit-appearance:
+        none;
+
+    border:
+        2px solid
+        #f4f8ee;
+
+    border-radius:
+        50%;
+
+    background:
+        var(--gz-lime);
+
+    box-shadow:
+
+        0 0 8px
+        rgba(183,255,0,0.85),
+
+        0 0 20px
+        rgba(183,255,0,0.42);
+}
+
+
+.generate-duration-range::-moz-range-thumb {
+
+    width:
+        18px;
+
+    height:
+        18px;
+
+    border:
+        2px solid
+        #f4f8ee;
+
+    border-radius:
+        50%;
+
+    background:
+        var(--gz-lime);
+
+    box-shadow:
+
+        0 0 8px
+        rgba(183,255,0,0.85),
+
+        0 0 20px
+        rgba(183,255,0,0.42);
+}
+
+
+.generate-duration-scale {
+
+    display:
+        flex;
+
+    justify-content:
+        space-between;
+
+    margin-top:
+        8px;
+
+    color:
+        var(--gz-muted-soft);
+
+    font-size:
+        11px;
+}
+
+
+/* =========================================================
+   25. ACTION AREA
 ========================================================= */
 
 .generate-actions {
+
+    position:
+        relative;
 
     display:
         flex;
@@ -890,17 +1904,17 @@ input:checked
         space-between;
 
     gap:
-        14px;
+        18px;
 
     margin-top:
-        28px !important;
+        24px !important;
 
-    padding-top:
-        22px !important;
+    padding:
+        22px 0 0 !important;
 
     border-top:
         1px solid
-        rgba(255,255,255,0.07) !important;
+        rgba(183,255,0,0.18) !important;
 }
 
 
@@ -918,7 +1932,7 @@ input:checked
 
 
 /* =========================================================
-   RESET BUTTON
+   26. RESET
 ========================================================= */
 
 #resetButton {
@@ -927,51 +1941,64 @@ input:checked
         48px;
 
     padding:
-        0 18px;
+        0 19px;
 
     border:
         1px solid
-        rgba(255,255,255,0.10) !important;
+        rgba(183,255,0,0.24) !important;
 
     border-radius:
         12px !important;
 
     background:
-        rgba(255,255,255,0.035) !important;
+        rgba(183,255,0,0.025) !important;
 
     color:
-        rgba(255,255,255,0.82);
+        rgba(245,247,242,0.82);
 
     transition:
-        all .18s ease;
+        border-color .18s ease,
+        background .18s ease,
+        box-shadow .18s ease,
+        transform .18s ease;
 }
 
 
 #resetButton:hover {
 
     border-color:
-        rgba(255,255,255,0.18) !important;
+        rgba(183,255,0,0.56) !important;
 
     background:
-        rgba(255,255,255,0.065) !important;
+        rgba(183,255,0,0.065) !important;
+
+    box-shadow:
+        0 0 18px
+        rgba(183,255,0,0.065);
+
+    transform:
+        translateY(-1px);
 }
 
 
 /* =========================================================
-   GENERATE BUTTON
+   27. GENERATE BUTTON
 ========================================================= */
 
 #generateButton {
 
     min-height:
-        50px !important;
+        52px !important;
+
+    min-width:
+        180px;
 
     padding:
-        0 20px !important;
+        0 23px !important;
 
     border:
         1px solid
-        rgba(255,75,100,0.72) !important;
+        rgba(224,255,115,0.92) !important;
 
     border-radius:
         13px !important;
@@ -980,32 +2007,32 @@ input:checked
 
         linear-gradient(
             135deg,
-            #ff173f 0%,
-            #d90d32 100%
+            #dcff55 0%,
+            #b7ff00 45%,
+            #75ad00 100%
         ) !important;
 
     color:
-        #fff !important;
+        #061000 !important;
 
     box-shadow:
 
-        0 12px 32px
-        rgba(255,33,72,0.24),
+        0 16px 38px
+        rgba(183,255,0,0.20),
 
-        0 0 35px
-        rgba(255,33,72,0.12),
+        0 0 34px
+        rgba(183,255,0,0.14),
 
         inset 0 1px 0
-        rgba(255,255,255,0.20) !important;
+        rgba(255,255,255,0.62) !important;
 
     font-weight:
-        800 !important;
+        850 !important;
 
     letter-spacing:
         0.01em;
 
     transition:
-
         transform .18s ease,
         box-shadow .18s ease,
         filter .18s ease;
@@ -1015,21 +2042,21 @@ input:checked
 #generateButton:not(:disabled):hover {
 
     transform:
-        translateY(-1px);
+        translateY(-2px);
 
     filter:
-        brightness(1.08);
+        brightness(1.07);
 
     box-shadow:
 
-        0 16px 40px
-        rgba(255,33,72,0.30),
+        0 20px 48px
+        rgba(183,255,0,0.27),
 
-        0 0 45px
-        rgba(255,33,72,0.17),
+        0 0 52px
+        rgba(183,255,0,0.22),
 
         inset 0 1px 0
-        rgba(255,255,255,0.22) !important;
+        rgba(255,255,255,0.70) !important;
 }
 
 
@@ -1040,8 +2067,18 @@ input:checked
 }
 
 
+#generateButton:disabled {
+
+    opacity:
+        0.52;
+
+    cursor:
+        not-allowed;
+}
+
+
 /* =========================================================
-   CREDIT BADGE PADA BUTTON
+   28. BUTTON CREDIT
 ========================================================= */
 
 .generate-button-credit {
@@ -1063,22 +2100,22 @@ input:checked
 
     border:
         1px solid
-        rgba(255,255,255,0.16);
+        rgba(0,25,0,0.24);
 
     border-radius:
         7px;
 
     background:
-        rgba(0,0,0,0.18);
+        rgba(0,25,0,0.18);
 
     color:
-        rgba(255,255,255,0.88);
+        rgba(4,18,0,0.88);
 
     font-size:
         11px;
 
     font-weight:
-        700;
+        800;
 
     white-space:
         nowrap;
@@ -1088,12 +2125,12 @@ input:checked
 .generate-button-credit-icon {
 
     color:
-        #fff !important;
+        #071000 !important;
 }
 
 
 /* =========================================================
-   HIDE DUPLICATE LOADING
+   29. DUPLICATE LOADING
 ========================================================= */
 
 #loading {
@@ -1140,7 +2177,7 @@ input:checked
 
 
 /* =========================================================
-   GENERATE BUTTON SPINNER
+   30. GENERATE SPINNER
 ========================================================= */
 
 #generateButton .spinner,
@@ -1178,7 +2215,7 @@ input:checked
 
     animation:
         genzPremiumSpinner
-        0.75s
+        .75s
         linear
         infinite !important;
 
@@ -1202,7 +2239,7 @@ input:checked
 
 
 /* =========================================================
-   STATUS
+   31. STATUS
 ========================================================= */
 
 #status,
@@ -1219,525 +2256,74 @@ input:checked
 }
 
 
+#status {
+
+    border-color:
+        rgba(183,255,0,0.28) !important;
+}
+
+
 .page-error {
 
     border-color:
-        rgba(255,65,85,0.28) !important;
+        rgba(255,80,100,0.42) !important;
 
     background:
 
         linear-gradient(
             145deg,
-            rgba(255,33,72,0.08),
-            rgba(10,10,14,0.88)
+            rgba(255,50,75,0.075),
+            rgba(8,9,8,0.94)
         ) !important;
 }
 
 
 /* =========================================================
-   CANCELLED STATUS
+   32. CANCELLED STATUS
 ========================================================= */
 
 .genz-status-cancelled {
 
     border-color:
-        rgba(245,158,11,0.65) !important;
+        rgba(245,185,66,0.62) !important;
 
     background:
 
         linear-gradient(
             145deg,
-            rgba(245,158,11,0.07),
-            rgba(8,8,14,0.96)
+            rgba(245,185,66,0.065),
+            rgba(8,9,8,0.96)
         ) !important;
 
     box-shadow:
 
-        0 0 8px
-        rgba(245,158,11,0.18),
+        0 0 10px
+        rgba(245,185,66,0.14),
 
-        0 0 24px
-        rgba(245,158,11,0.07),
+        0 0 26px
+        rgba(245,185,66,0.05),
 
         inset 0 0 18px
-        rgba(245,158,11,0.025) !important;
+        rgba(245,185,66,0.02) !important;
 }
 
 
 .genz-generate-status-title.cancelled {
 
     color:
-        #f59e0b !important;
+        #f5b942 !important;
 }
 
 
 .genz-generate-status-message.cancelled {
 
     color:
-        rgba(245,158,11,0.88) !important;
+        rgba(245,185,66,0.88) !important;
 }
 
 
 /* =========================================================
-   SEEDANCE 2.5
-   PREMIUM FIELD CONTAINER
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form {
-
-    grid-auto-rows:
-        max-content !important;
-
-    align-items:
-        start !important;
-
-    align-content:
-        start !important;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field {
-
-    position:
-        relative !important;
-
-    width:
-        100% !important;
-
-    min-width:
-        0 !important;
-
-    max-width:
-        none !important;
-
-    height:
-        max-content !important;
-
-    min-height:
-        0 !important;
-
-    margin:
-        0 !important;
-
-    padding:
-        18px !important;
-
-    box-sizing:
-        border-box !important;
-
-    align-self:
-        start !important;
-
-    justify-self:
-        stretch !important;
-
-    border:
-        1px solid
-        rgba(255,255,255,0.095) !important;
-
-    border-radius:
-        var(--gz-radius-lg) !important;
-
-    background:
-
-        linear-gradient(
-            145deg,
-            rgba(255,255,255,0.038),
-            rgba(255,255,255,0.012)
-        ) !important;
-
-    box-shadow:
-
-        inset 0 1px 0
-        rgba(255,255,255,0.04),
-
-        0 12px 35px
-        rgba(0,0,0,0.16) !important;
-
-    transition:
-
-        border-color .2s ease,
-        box-shadow .2s ease,
-        background .2s ease;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:hover {
-
-    border-color:
-        rgba(255,255,255,0.17) !important;
-
-    background:
-
-        linear-gradient(
-            145deg,
-            rgba(255,33,72,0.055),
-            rgba(255,255,255,0.014)
-        ) !important;
-
-    box-shadow:
-
-        0 16px 42px
-        rgba(0,0,0,0.22),
-
-        0 0 24px
-        rgba(255,33,72,0.055) !important;
-}
-
-
-/* =========================================================
-   SEEDANCE INTERNAL ELEMENTS
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-> * {
-
-    box-sizing:
-        border-box;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-.seedance-select {
-
-    min-height:
-        50px !important;
-
-    border-radius:
-        12px !important;
-
-    border-color:
-        rgba(255,255,255,0.10) !important;
-
-    background:
-        rgba(3,3,6,0.70) !important;
-}
-
-
-/* =========================================================
-   SEEDANCE TOGGLES
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceGenerateAudio),
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceReturnLastFrame),
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceWebSearch) {
-
-    display:
-        flex !important;
-
-    flex-direction:
-        column !important;
-
-    align-items:
-        stretch !important;
-
-    justify-content:
-        flex-start !important;
-
-    height:
-        max-content !important;
-
-    min-height:
-        0 !important;
-
-    overflow:
-        visible !important;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field
-.seedance-toggle {
-
-    display:
-        flex !important;
-
-    flex:
-        0 0 auto !important;
-
-    align-items:
-        center !important;
-
-    justify-content:
-        flex-start !important;
-
-    width:
-        100% !important;
-
-    min-width:
-        0 !important;
-
-    min-height:
-        42px !important;
-
-    height:
-        auto !important;
-
-    margin:
-        0 !important;
-
-    padding:
-        0 !important;
-
-    overflow:
-        visible !important;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-.seedance-toggle label {
-
-    display:
-        flex !important;
-
-    align-items:
-        center !important;
-
-    gap:
-        10px !important;
-
-    width:
-        auto !important;
-
-    min-width:
-        0 !important;
-
-    margin:
-        0 !important;
-
-    padding:
-        0 !important;
-
-    line-height:
-        1.4 !important;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-.seedance-description {
-
-    display:
-        block !important;
-
-    width:
-        100% !important;
-
-    height:
-        auto !important;
-
-    min-height:
-        18px !important;
-
-    margin-top:
-        8px !important;
-
-    box-sizing:
-        border-box !important;
-
-    overflow:
-        visible !important;
-}
-
-
-/* =========================================================
-   SEEDANCE WEB SEARCH
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceWebSearch) {
-
-    grid-column:
-        1 / -1 !important;
-
-    grid-row:
-        auto !important;
-
-    order:
-        999 !important;
-
-    width:
-        100% !important;
-
-    min-width:
-        0 !important;
-
-    max-width:
-        none !important;
-
-    height:
-        max-content !important;
-
-    min-height:
-        0 !important;
-
-    align-self:
-        stretch !important;
-
-    justify-self:
-        stretch !important;
-}
-
-
-/* =========================================================
-   SEEDANCE GRID PAIR
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceGenerateAudio) {
-
-    grid-column:
-        1 !important;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceReturnLastFrame) {
-
-    grid-column:
-        2 !important;
-}
-
-
-/* =========================================================
-   DURATION
-========================================================= */
-
-.generate-duration-range {
-
-    width:
-        100%;
-
-    height:
-        5px;
-
-    margin:
-        4px 0 0;
-
-    appearance:
-        none;
-
-    -webkit-appearance:
-        none;
-
-    border-radius:
-        999px;
-
-    background:
-
-        linear-gradient(
-            90deg,
-            rgba(255,33,72,0.85),
-            rgba(255,33,72,0.18)
-        );
-
-    outline:
-        none;
-
-    cursor:
-        pointer;
-}
-
-
-.generate-duration-range::-webkit-slider-thumb {
-
-    width:
-        18px;
-
-    height:
-        18px;
-
-    appearance:
-        none;
-
-    -webkit-appearance:
-        none;
-
-    border:
-        2px solid
-        #fff;
-
-    border-radius:
-        50%;
-
-    background:
-        var(--gz-red);
-
-    box-shadow:
-
-        0 0 8px
-        rgba(255,33,72,0.80),
-
-        0 0 18px
-        rgba(255,33,72,0.35);
-}
-
-
-.generate-duration-range::-moz-range-thumb {
-
-    width:
-        18px;
-
-    height:
-        18px;
-
-    border:
-        2px solid
-        #fff;
-
-    border-radius:
-        50%;
-
-    background:
-        var(--gz-red);
-
-    box-shadow:
-
-        0 0 8px
-        rgba(255,33,72,0.80),
-
-        0 0 18px
-        rgba(255,33,72,0.35);
-}
-
-
-.generate-duration-scale {
-
-    display:
-        flex;
-
-    justify-content:
-        space-between;
-
-    margin-top:
-        8px;
-
-    color:
-        rgba(255,255,255,0.38);
-
-    font-size:
-        11px;
-}
-
-
-/* =========================================================
-   COMPATIBILITY
+   33. COMPATIBILITY
 ========================================================= */
 
 .generate-compat-hidden {
@@ -1748,35 +2334,271 @@ input:checked
 
 
 /* =========================================================
-   MOBILE
+   34. FOCUS
+========================================================= */
+
+:focus-visible {
+
+    outline:
+        2px solid
+        var(--gz-lime) !important;
+
+    outline-offset:
+        2px;
+
+    box-shadow:
+        0 0 12px
+        rgba(183,255,0,0.16);
+}
+
+
+/* =========================================================
+   35. DESKTOP LARGE
+========================================================= */
+
+@media (min-width: 1400px) {
+
+    .content {
+
+        padding-top:
+            42px;
+    }
+
+
+    .generate-neon-block {
+
+        padding:
+            40px;
+    }
+
+
+    #dynamicFields {
+
+        gap:
+            18px;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form {
+
+        gap:
+            18px;
+    }
+}
+
+
+/* =========================================================
+   36. TABLET
+========================================================= */
+
+@media (max-width: 1024px) {
+
+    .content {
+
+        width:
+            min(100% - 32px, var(--gz-content-max));
+    }
+
+
+    .generate-neon-block {
+
+        padding:
+            27px;
+    }
+
+
+    #dynamicFields {
+
+        gap:
+            14px;
+    }
+}
+
+
+/* =========================================================
+   37. MOBILE
 ========================================================= */
 
 @media (max-width: 768px) {
 
     .generate-topbar {
 
+        position:
+            relative;
+
+        min-height:
+            64px;
+
         padding:
-            16px 18px;
+            12px 16px;
+    }
+
+
+    .topbar-actions {
+
+        gap:
+            7px;
+    }
+
+
+    .header-badge {
+
+        min-height:
+            32px;
+
+        padding:
+            0 10px !important;
+    }
+
+
+    .content {
+
+        width:
+            min(100% - 24px, var(--gz-content-max));
+
+        padding:
+            20px 0 50px;
     }
 
 
     .generate-neon-block {
 
-        margin-top:
-            20px;
-
         padding:
-            20px;
+            22px;
 
         border-radius:
-            19px;
+            21px;
+    }
+
+
+    .generate-neon-header {
+
+        margin-bottom:
+            20px;
+
+        padding-bottom:
+            20px;
+    }
+
+
+    .generate-neon-title {
+
+        font-size:
+            24px;
     }
 
 
     .generate-model-field {
 
         padding:
-            16px;
+            17px;
+
+        margin-bottom:
+            18px;
+    }
+
+
+    /*
+     * Generic forms remain two-column where possible.
+     * Large textarea fields stay full width.
+     */
+
+    #dynamicFields {
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap:
+            12px;
+    }
+
+
+    #dynamicFields > .generate-field {
+
+        padding:
+            16px !important;
+    }
+
+
+    /*
+     * Seedance MUST remain two columns.
+     */
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form {
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr)) !important;
+
+        gap:
+            12px !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field {
+
+        grid-column:
+            auto !important;
+
+        width:
+            100% !important;
+
+        padding:
+            15px !important;
+    }
+
+
+    /*
+     * Prompt remains full width.
+     */
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(textarea) {
+
+        grid-column:
+            1 / -1 !important;
+    }
+
+
+    /*
+     * Web Search remains full width.
+     */
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(#seedanceWebSearch) {
+
+        grid-column:
+            1 / -1 !important;
+
+        order:
+            999 !important;
+    }
+
+
+    /*
+     * Generate Audio / Return Last Frame.
+     */
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(#seedanceGenerateAudio) {
+
+        grid-column:
+            1 !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(#seedanceReturnLastFrame) {
+
+        grid-column:
+            2 !important;
     }
 
 
@@ -1790,6 +2612,9 @@ input:checked
 
         gap:
             12px;
+
+        padding-top:
+            18px !important;
     }
 
 
@@ -1798,102 +2623,15 @@ input:checked
         width:
             100%;
 
-        justify-content:
-            flex-end;
-    }
-
-
-    #generateButton {
-
-        width:
-            100%;
-
-        justify-content:
-            center;
-    }
-
-
-    #dynamicFields:has(> .seedance-form)
-    > .seedance-form {
+        display:
+            grid;
 
         grid-template-columns:
-            minmax(0, 1fr) !important;
-
-        grid-auto-rows:
-            max-content !important;
-
-        align-items:
-            start !important;
-
-        align-content:
-            start !important;
+            minmax(0, 1fr)
+            minmax(0, 1.35fr);
 
         gap:
-            16px !important;
-    }
-
-
-    #dynamicFields:has(> .seedance-form)
-    > .seedance-form
-    > .seedance-field {
-
-        grid-column:
-            1 !important;
-
-        grid-row:
-            auto !important;
-
-        width:
-            100% !important;
-
-        height:
-            max-content !important;
-
-        min-height:
-            0 !important;
-
-        padding:
-            15px !important;
-    }
-
-
-    #dynamicFields:has(> .seedance-form)
-    > .seedance-form
-    > .seedance-field:has(#seedanceWebSearch) {
-
-        order:
-            999 !important;
-    }
-}
-
-
-/* =========================================================
-   SMALL MOBILE
-========================================================= */
-
-@media (max-width: 480px) {
-
-    .generate-neon-block {
-
-        padding:
-            15px;
-
-        border-radius:
-            16px;
-    }
-
-
-    .generate-neon-title {
-
-        font-size:
-            21px;
-    }
-
-
-    .generate-model-field {
-
-        padding:
-            13px;
+            10px;
     }
 
 
@@ -1904,11 +2642,106 @@ input:checked
     }
 
 
+    #generateButton {
+
+        width:
+            100%;
+
+        min-width:
+            0;
+
+        justify-content:
+            center;
+    }
+}
+
+
+/* =========================================================
+   38. SMALL MOBILE
+========================================================= */
+
+@media (max-width: 480px) {
+
+    .generate-topbar {
+
+        padding:
+            11px 13px;
+    }
+
+
+    .content {
+
+        width:
+            min(100% - 16px, var(--gz-content-max));
+
+        padding-top:
+            14px;
+    }
+
+
+    .generate-neon-block {
+
+        padding:
+            15px;
+
+        border-radius:
+            17px;
+    }
+
+
+    .generate-neon-header {
+
+        gap:
+            6px;
+
+        padding-bottom:
+            17px;
+    }
+
+
+    .generate-neon-title {
+
+        font-size:
+            21px;
+    }
+
+
+    .generate-neon-description {
+
+        font-size:
+            13px;
+    }
+
+
+    .generate-model-field {
+
+        padding:
+            13px;
+    }
+
+
+    #dynamicFields {
+
+        gap:
+            9px;
+    }
+
+
+    #dynamicFields > .generate-field {
+
+        padding:
+            13px !important;
+
+        border-radius:
+            14px !important;
+    }
+
+
     #dynamicFields:has(> .seedance-form)
     > .seedance-form {
 
         gap:
-            12px !important;
+            9px !important;
     }
 
 
@@ -1917,25 +2750,88 @@ input:checked
     > .seedance-field {
 
         padding:
-            13px !important;
+            12px !important;
+
+        border-radius:
+            14px !important;
+    }
+
+
+    #dynamicFields
+    .generate-field-label,
+
+    #dynamicFields
+    .seedance-label {
+
+        font-size:
+            10px;
+    }
+
+
+    .generate-model-select {
+
+        min-height:
+            52px !important;
+    }
+
+
+    #generateButton {
+
+        min-height:
+            50px !important;
+    }
+
+
+    .generate-actions-right {
+
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1.3fr);
     }
 }
 
 
 /* =========================================================
-   ACCESSIBILITY
+   39. VERY SMALL DEVICES
 ========================================================= */
 
-:focus-visible {
+@media (max-width: 360px) {
 
-    outline:
-        2px solid
-        rgba(255,33,72,0.72) !important;
+    .generate-neon-block {
 
-    outline-offset:
-        2px;
+        padding:
+            12px;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form {
+
+        gap:
+            7px !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field {
+
+        padding:
+            10px !important;
+    }
+
+
+    .generate-button-credit {
+
+        display:
+            none;
+    }
 }
 
+
+/* =========================================================
+   40. REDUCED MOTION
+========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
 
@@ -1945,1115 +2841,22 @@ input:checked
 
         scroll-behavior:
             auto !important;
+
+        animation-duration:
+            0.01ms !important;
+
+        animation-iteration-count:
+            1 !important;
+
+        transition-duration:
+            0.01ms !important;
     }
 
 
-    #generateButton:not(:disabled):hover {
+    #generateButton:not(:disabled):hover,
+    #resetButton:hover {
 
         transform:
             none;
-    }
-}
-
-/* =========================================================
-   GEN-Z.AI
-   PREMIUM HIGH-CLASS
-   ELECTRIC LIME / HIGHLIGHT NEON EDGES
-   ---------------------------------------------------------
-   Tambahkan di bagian PALING BAWAH:
-   generate/assets/css/generate-premium.css
-========================================================= */
-
-
-/* =========================================================
-   LIME DESIGN TOKENS
-========================================================= */
-
-:root {
-
-    --gz-lime:
-        #b7ff00;
-
-    --gz-lime-bright:
-        #d4ff3f;
-
-    --gz-lime-soft:
-        rgba(183, 255, 0, 0.16);
-
-    --gz-lime-glow:
-        rgba(183, 255, 0, 0.34);
-
-    --gz-lime-strong:
-        rgba(183, 255, 0, 0.72);
-
-    --gz-lime-border:
-        rgba(183, 255, 0, 0.48);
-
-    --gz-lime-subtle:
-        rgba(183, 255, 0, 0.08);
-}
-
-
-/* =========================================================
-   GLOBAL BACKGROUND
-========================================================= */
-
-html {
-
-    background:
-        #020402 !important;
-}
-
-
-body {
-
-    background:
-
-        radial-gradient(
-            900px 560px at 82% -8%,
-            rgba(183,255,0,0.075),
-            transparent 62%
-        ),
-
-        radial-gradient(
-            720px 520px at 0% 35%,
-            rgba(130,190,0,0.045),
-            transparent 68%
-        ),
-
-        radial-gradient(
-            600px 420px at 90% 90%,
-            rgba(183,255,0,0.035),
-            transparent 72%
-        ),
-
-        linear-gradient(
-            135deg,
-            #020302 0%,
-            #060806 48%,
-            #020302 100%
-        ) !important;
-}
-
-
-/* =========================================================
-   PREMIUM TOPBAR
-========================================================= */
-
-.generate-topbar {
-
-    position:
-        relative;
-
-    border-bottom:
-        1px solid
-        rgba(183,255,0,0.16) !important;
-
-    background:
-
-        linear-gradient(
-            180deg,
-            rgba(5,8,5,0.97),
-            rgba(3,5,3,0.88)
-        ) !important;
-
-    box-shadow:
-
-        0 18px 55px
-        rgba(0,0,0,0.42);
-}
-
-
-.generate-topbar::after {
-
-    content:
-        "";
-
-    position:
-        absolute;
-
-    left:
-        4%;
-
-    right:
-        4%;
-
-    bottom:
-        -1px;
-
-    height:
-        1px;
-
-    background:
-
-        linear-gradient(
-            90deg,
-            transparent,
-            rgba(183,255,0,0.70),
-            rgba(212,255,63,0.95),
-            rgba(183,255,0,0.70),
-            transparent
-        );
-
-    box-shadow:
-
-        0 0 10px
-        rgba(183,255,0,0.45),
-
-        0 0 24px
-        rgba(183,255,0,0.16);
-
-    pointer-events:
-        none;
-}
-
-
-/* =========================================================
-   TOPBAR TEXT
-========================================================= */
-
-.topbar-eyebrow,
-.section-eyebrow {
-
-    color:
-        var(--gz-lime-bright) !important;
-
-    text-shadow:
-
-        0 0 10px
-        rgba(183,255,0,0.25);
-}
-
-
-/* =========================================================
-   HEADER BADGES
-========================================================= */
-
-.header-badge {
-
-    border-color:
-        rgba(183,255,0,0.25) !important;
-
-    background:
-
-        linear-gradient(
-            135deg,
-            rgba(183,255,0,0.075),
-            rgba(255,255,255,0.025)
-        ) !important;
-
-    box-shadow:
-
-        inset 0 1px 0
-        rgba(255,255,255,0.06),
-
-        0 0 18px
-        rgba(183,255,0,0.035);
-}
-
-
-.credit-badge {
-
-    border-color:
-        rgba(183,255,0,0.52) !important;
-
-    background:
-
-        linear-gradient(
-            135deg,
-            rgba(183,255,0,0.14),
-            rgba(183,255,0,0.035)
-        ) !important;
-
-    box-shadow:
-
-        0 0 18px
-        rgba(183,255,0,0.08),
-
-        inset 0 1px 0
-        rgba(212,255,63,0.12);
-}
-
-
-/* =========================================================
-   MAIN GENERATE PANEL
-   NEON LIME PERIMETER
-========================================================= */
-
-.generate-neon-block {
-
-    border:
-        1px solid
-        var(--gz-lime-border) !important;
-
-    background:
-
-        linear-gradient(
-            145deg,
-            rgba(13,17,10,0.96),
-            rgba(5,7,5,0.96) 55%,
-            rgba(3,5,3,0.98)
-        ) !important;
-
-    box-shadow:
-
-        0 30px 90px
-        rgba(0,0,0,0.52),
-
-        0 0 0 1px
-        rgba(183,255,0,0.055),
-
-        0 0 26px
-        rgba(183,255,0,0.065),
-
-        inset 0 1px 0
-        rgba(255,255,255,0.055);
-}
-
-
-/*
- * Thin premium lime perimeter
- */
-
-.generate-neon-block::before {
-
-    content:
-        "";
-
-    position:
-        absolute;
-
-    inset:
-        0;
-
-    border:
-        1px solid
-        rgba(183,255,0,0.22);
-
-    border-radius:
-        inherit;
-
-    pointer-events:
-        none;
-
-    box-shadow:
-
-        inset 0 0 18px
-        rgba(183,255,0,0.025);
-}
-
-
-/*
- * Ambient lime light
- */
-
-.generate-neon-block::after {
-
-    background:
-
-        radial-gradient(
-            circle,
-            rgba(183,255,0,0.10),
-            transparent 68%
-        ) !important;
-}
-
-
-/* =========================================================
-   MAIN PANEL HEADER
-========================================================= */
-
-.generate-neon-header {
-
-    border-bottom:
-        1px solid
-        rgba(183,255,0,0.16) !important;
-}
-
-
-.generate-neon-title {
-
-    color:
-        #f5ffe3;
-
-    text-shadow:
-
-        0 0 24px
-        rgba(183,255,0,0.08);
-}
-
-
-/* =========================================================
-   MODEL BLOCK
-========================================================= */
-
-.generate-model-field {
-
-    position:
-        relative;
-
-    border:
-        1px solid
-        rgba(183,255,0,0.40) !important;
-
-    background:
-
-        linear-gradient(
-            145deg,
-            rgba(17,22,12,0.88),
-            rgba(6,9,6,0.92)
-        ) !important;
-
-    box-shadow:
-
-        0 0 18px
-        rgba(183,255,0,0.045),
-
-        inset 0 1px 0
-        rgba(255,255,255,0.045),
-
-        inset 0 0 24px
-        rgba(183,255,0,0.018);
-}
-
-
-.generate-model-field::before {
-
-    content:
-        "";
-
-    position:
-        absolute;
-
-    top:
-        0;
-
-    left:
-        8%;
-
-    right:
-        8%;
-
-    height:
-        1px;
-
-    background:
-
-        linear-gradient(
-            90deg,
-            transparent,
-            rgba(212,255,63,0.80),
-            transparent
-        );
-
-    box-shadow:
-        0 0 9px
-        rgba(183,255,0,0.45);
-
-    pointer-events:
-        none;
-}
-
-
-/* =========================================================
-   MODEL SELECT
-========================================================= */
-
-.generate-model-select {
-
-    border-color:
-        rgba(183,255,0,0.28) !important;
-
-    background:
-        rgba(2,5,2,0.90) !important;
-
-    color:
-        #f4ffe3 !important;
-}
-
-
-.generate-model-select:hover {
-
-    border-color:
-        rgba(183,255,0,0.52) !important;
-
-    box-shadow:
-
-        0 0 16px
-        rgba(183,255,0,0.07),
-
-        inset 0 1px 0
-        rgba(255,255,255,0.035);
-}
-
-
-.generate-model-select:focus {
-
-    border-color:
-        var(--gz-lime) !important;
-
-    box-shadow:
-
-        0 0 0 3px
-        rgba(183,255,0,0.09),
-
-        0 0 28px
-        rgba(183,255,0,0.17),
-
-        inset 0 0 18px
-        rgba(183,255,0,0.025) !important;
-}
-
-
-/* =========================================================
-   EVERY DYNAMIC FIELD
-========================================================= */
-
-#dynamicFields > .generate-field {
-
-    border-color:
-        rgba(183,255,0,0.34) !important;
-
-    background:
-
-        linear-gradient(
-            145deg,
-            rgba(12,16,10,0.90),
-            rgba(5,7,5,0.92)
-        ) !important;
-
-    box-shadow:
-
-        0 12px 35px
-        rgba(0,0,0,0.24),
-
-        0 0 18px
-        rgba(183,255,0,0.035),
-
-        inset 0 1px 0
-        rgba(255,255,255,0.035);
-}
-
-
-#dynamicFields > .generate-field:hover {
-
-    border-color:
-        rgba(183,255,0,0.62) !important;
-
-    box-shadow:
-
-        0 18px 45px
-        rgba(0,0,0,0.30),
-
-        0 0 25px
-        rgba(183,255,0,0.075),
-
-        inset 0 1px 0
-        rgba(255,255,255,0.045);
-}
-
-
-/* =========================================================
-   FIELD LABELS
-========================================================= */
-
-#dynamicFields
-.generate-field-label,
-
-#dynamicFields
-.seedance-label {
-
-    color:
-        rgba(228,255,190,0.88) !important;
-}
-
-
-/* =========================================================
-   INPUT / SELECT / TEXTAREA
-========================================================= */
-
-#dynamicFields
-input:not([type="checkbox"]):not([type="radio"]),
-
-#dynamicFields
-select,
-
-#dynamicFields
-textarea {
-
-    border-color:
-        rgba(183,255,0,0.22) !important;
-
-    background:
-        rgba(2,5,2,0.76) !important;
-
-    color:
-        #f5ffe7 !important;
-}
-
-
-#dynamicFields
-input:not([type="checkbox"]):not([type="radio"]):hover,
-
-#dynamicFields
-select:hover,
-
-#dynamicFields
-textarea:hover {
-
-    border-color:
-        rgba(183,255,0,0.46) !important;
-
-    box-shadow:
-
-        0 0 14px
-        rgba(183,255,0,0.045);
-}
-
-
-#dynamicFields
-input:not([type="checkbox"]):not([type="radio"]):focus,
-
-#dynamicFields
-select:focus,
-
-#dynamicFields
-textarea:focus {
-
-    border-color:
-        var(--gz-lime) !important;
-
-    background:
-        rgba(5,9,3,0.88) !important;
-
-    box-shadow:
-
-        0 0 0 3px
-        rgba(183,255,0,0.075),
-
-        0 0 24px
-        rgba(183,255,0,0.13),
-
-        inset 0 0 16px
-        rgba(183,255,0,0.018) !important;
-}
-
-
-/* =========================================================
-   MODEL LOGO BLOCK
-========================================================= */
-
-.generate-model-logo-preview {
-
-    border-color:
-        rgba(183,255,0,0.28) !important;
-
-    background:
-
-        linear-gradient(
-            135deg,
-            rgba(183,255,0,0.045),
-            rgba(255,255,255,0.012)
-        ) !important;
-
-    box-shadow:
-
-        0 0 18px
-        rgba(183,255,0,0.035),
-
-        inset 0 1px 0
-        rgba(255,255,255,0.04);
-}
-
-
-/* =========================================================
-   OPTION BUTTONS
-========================================================= */
-
-.generate-option-label {
-
-    border-color:
-        rgba(183,255,0,0.24) !important;
-
-    background:
-        rgba(183,255,0,0.025) !important;
-}
-
-
-.generate-option:hover
-.generate-option-label {
-
-    border-color:
-        rgba(183,255,0,0.62) !important;
-
-    background:
-        rgba(183,255,0,0.065) !important;
-
-    box-shadow:
-        0 0 16px
-        rgba(183,255,0,0.06);
-}
-
-
-.generate-option
-input:checked
-+ .generate-option-label {
-
-    border-color:
-        var(--gz-lime) !important;
-
-    background:
-
-        linear-gradient(
-            135deg,
-            rgba(183,255,0,0.15),
-            rgba(183,255,0,0.035)
-        ) !important;
-
-    box-shadow:
-
-        0 0 20px
-        rgba(183,255,0,0.13),
-
-        inset 0 0 18px
-        rgba(183,255,0,0.025);
-}
-
-
-/* =========================================================
-   SEEDANCE FIELD BLOCKS
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field {
-
-    border-color:
-        rgba(183,255,0,0.32) !important;
-
-    background:
-
-        linear-gradient(
-            145deg,
-            rgba(12,17,9,0.92),
-            rgba(4,7,4,0.96)
-        ) !important;
-
-    box-shadow:
-
-        0 12px 35px
-        rgba(0,0,0,0.28),
-
-        0 0 18px
-        rgba(183,255,0,0.035),
-
-        inset 0 1px 0
-        rgba(255,255,255,0.04);
-}
-
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:hover {
-
-    border-color:
-        rgba(183,255,0,0.65) !important;
-
-    background:
-
-        linear-gradient(
-            145deg,
-            rgba(20,28,11,0.94),
-            rgba(5,8,5,0.97)
-        ) !important;
-
-    box-shadow:
-
-        0 16px 42px
-        rgba(0,0,0,0.34),
-
-        0 0 28px
-        rgba(183,255,0,0.085),
-
-        inset 0 1px 0
-        rgba(255,255,255,0.045) !important;
-}
-
-
-/* =========================================================
-   SEEDANCE SELECT
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-.seedance-select {
-
-    border-color:
-        rgba(183,255,0,0.25) !important;
-
-    background:
-        rgba(2,5,2,0.82) !important;
-}
-
-
-#dynamicFields:has(> .seedance-form)
-.seedance-select:focus {
-
-    border-color:
-        var(--gz-lime) !important;
-
-    box-shadow:
-
-        0 0 0 3px
-        rgba(183,255,0,0.075),
-
-        0 0 22px
-        rgba(183,255,0,0.12) !important;
-}
-
-
-/* =========================================================
-   SEEDANCE TOGGLE BLOCKS
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceGenerateAudio),
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceReturnLastFrame),
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceWebSearch) {
-
-    border-color:
-        rgba(183,255,0,0.38) !important;
-}
-
-
-/* =========================================================
-   WEB SEARCH FULL WIDTH
-========================================================= */
-
-#dynamicFields:has(> .seedance-form)
-> .seedance-form
-> .seedance-field:has(#seedanceWebSearch) {
-
-    border-color:
-        rgba(183,255,0,0.48) !important;
-
-    box-shadow:
-
-        0 0 22px
-        rgba(183,255,0,0.055),
-
-        inset 0 0 20px
-        rgba(183,255,0,0.018);
-}
-
-
-/* =========================================================
-   DURATION SLIDER
-========================================================= */
-
-.generate-duration-range {
-
-    background:
-
-        linear-gradient(
-            90deg,
-            #b7ff00,
-            rgba(183,255,0,0.18)
-        ) !important;
-
-    box-shadow:
-
-        0 0 10px
-        rgba(183,255,0,0.16);
-}
-
-
-.generate-duration-range::-webkit-slider-thumb {
-
-    border-color:
-        #f5ffe3;
-
-    background:
-        var(--gz-lime);
-
-    box-shadow:
-
-        0 0 8px
-        rgba(183,255,0,0.90),
-
-        0 0 20px
-        rgba(183,255,0,0.46);
-}
-
-
-.generate-duration-range::-moz-range-thumb {
-
-    border-color:
-        #f5ffe3;
-
-    background:
-        var(--gz-lime);
-
-    box-shadow:
-
-        0 0 8px
-        rgba(183,255,0,0.90),
-
-        0 0 20px
-        rgba(183,255,0,0.46);
-}
-
-
-/* =========================================================
-   ACTION DIVIDER
-========================================================= */
-
-.generate-actions {
-
-    border-top-color:
-        rgba(183,255,0,0.20) !important;
-}
-
-
-/* =========================================================
-   RESET BUTTON
-========================================================= */
-
-#resetButton {
-
-    border-color:
-        rgba(183,255,0,0.25) !important;
-
-    background:
-        rgba(183,255,0,0.025) !important;
-}
-
-
-#resetButton:hover {
-
-    border-color:
-        rgba(183,255,0,0.56) !important;
-
-    background:
-        rgba(183,255,0,0.065) !important;
-
-    box-shadow:
-
-        0 0 18px
-        rgba(183,255,0,0.07);
-}
-
-
-/* =========================================================
-   GENERATE BUTTON
-   RED → ELECTRIC LIME
-========================================================= */
-
-#generateButton {
-
-    border:
-        1px solid
-        rgba(220,255,100,0.90) !important;
-
-    background:
-
-        linear-gradient(
-            135deg,
-            #d4ff32 0%,
-            #8fd600 48%,
-            #5f9f00 100%
-        ) !important;
-
-    color:
-        #071000 !important;
-
-    box-shadow:
-
-        0 14px 34px
-        rgba(183,255,0,0.20),
-
-        0 0 34px
-        rgba(183,255,0,0.16),
-
-        inset 0 1px 0
-        rgba(255,255,255,0.55) !important;
-}
-
-
-#generateButton:not(:disabled):hover {
-
-    filter:
-        brightness(1.08);
-
-    box-shadow:
-
-        0 18px 44px
-        rgba(183,255,0,0.28),
-
-        0 0 48px
-        rgba(183,255,0,0.24),
-
-        inset 0 1px 0
-        rgba(255,255,255,0.62) !important;
-}
-
-
-/* =========================================================
-   BUTTON CREDIT
-========================================================= */
-
-.generate-button-credit {
-
-    border-color:
-        rgba(0,20,0,0.24);
-
-    background:
-        rgba(0,20,0,0.20);
-
-    color:
-        rgba(4,18,0,0.88);
-}
-
-
-.generate-button-credit-icon {
-
-    color:
-        #071000 !important;
-}
-
-
-/* =========================================================
-   STATUS / ERROR
-========================================================= */
-
-#status {
-
-    border-color:
-        rgba(183,255,0,0.30) !important;
-}
-
-
-.page-error {
-
-    border-color:
-        rgba(255,80,100,0.42) !important;
-}
-
-
-/* =========================================================
-   FOCUS
-========================================================= */
-
-:focus-visible {
-
-    outline:
-        2px solid
-        var(--gz-lime) !important;
-
-    outline-offset:
-        2px;
-
-    box-shadow:
-
-        0 0 12px
-        rgba(183,255,0,0.18);
-}
-
-
-/* =========================================================
-   MOBILE LIME EDGE
-========================================================= */
-
-@media (max-width: 768px) {
-
-    .generate-neon-block {
-
-        border-color:
-            rgba(183,255,0,0.42) !important;
-
-        box-shadow:
-
-            0 24px 65px
-            rgba(0,0,0,0.48),
-
-            0 0 22px
-            rgba(183,255,0,0.055);
-    }
-
-
-    .generate-model-field {
-
-        border-color:
-            rgba(183,255,0,0.38) !important;
-    }
-
-
-    #dynamicFields:has(> .seedance-form)
-    > .seedance-form
-    > .seedance-field {
-
-        border-color:
-            rgba(183,255,0,0.34) !important;
-    }
-}
-
-
-/* =========================================================
-   PREMIUM NEON EDGE ANIMATION
-   VERY SLOW / STABLE
-========================================================= */
-
-@keyframes gzLimeEdgePulse {
-
-    0%,
-    100% {
-
-        box-shadow:
-
-            0 0 14px
-            rgba(183,255,0,0.035),
-
-            inset 0 0 12px
-            rgba(183,255,0,0.012);
-    }
-
-    50% {
-
-        box-shadow:
-
-            0 0 20px
-            rgba(183,255,0,0.065),
-
-            inset 0 0 16px
-            rgba(183,255,0,0.018);
-    }
-}
-
-
-/*
- * Sangat subtle.
- * Tidak membuat seluruh UI berkedip seperti lampu disko.
- */
-
-.generate-neon-block {
-
-    animation:
-        gzLimeEdgePulse
-        5s
-        ease-in-out
-        infinite;
-}
-
-
-@media (prefers-reduced-motion: reduce) {
-
-    .generate-neon-block {
-
-        animation:
-            none !important;
     }
 }
