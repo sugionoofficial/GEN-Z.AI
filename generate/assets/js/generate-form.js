@@ -9,20 +9,17 @@
    - Render parameter model secara dinamis
    - Source parameter dari konfigurasi model
    - Mendukung object / array / JSON Schema
-   - Image URL / Upload
-   - Audio URL / Upload
+   - Image URL / Upload melalui media module
+   - Audio URL / Upload melalui media module
    - Enum
    - Boolean
    - Number / Integer
    - Duration range
-   - Collect parameter
+   - Collect parameter melalui generate-form-data.js
    - Reset form
    - Tidak membuat parameter model baru
-   - Parameter internal seperti task_id / index tidak
-     ditampilkan atau dikirim secara otomatis
-   - Parameter keamanan/server-controlled seperti
-     nsfw_checker / webhook_url tidak pernah
-     ditampilkan atau dikirim dari client
+   - Parameter internal tidak ditampilkan
+   - Parameter server-controlled tidak dikirim dari client
 ========================================================= */
 
 "use strict";
@@ -39,6 +36,11 @@ import {
     getSupabaseClient
 } from "./generate-state.js";
 
+
+/* =========================================================
+   UPLOAD
+========================================================= */
+
 import {
     createImageStoragePath,
     validateImageFile,
@@ -47,6 +49,11 @@ import {
     validateAudioFile,
     uploadAudioFile
 } from "./generate-form-upload.js";
+
+
+/* =========================================================
+   FORM CORE
+========================================================= */
 
 import {
     INTERNAL_PARAMETERS,
@@ -70,10 +77,17 @@ import {
     createFieldId
 } from "./generate-form-core.js";
 
+
+/* =========================================================
+   FIELD FACTORIES
+========================================================= */
+
 import {
     registerImageFieldFactory,
     registerAudioFieldFactory
 } from "./generate-form-fields.js";
+
+
 /* =========================================================
    MEDIA FIELD MODULE
 ========================================================= */
@@ -85,23 +99,40 @@ import {
     registerAudioMediaHandlers
 } from "./generate-form-media.js";
 
+
+/* =========================================================
+   FIELD READER
+========================================================= */
+
 import {
     findField,
     readFieldValue
 } from "./generate-form-reader.js";
+
+
+/* =========================================================
+   MEDIA READER
+========================================================= */
 
 import {
     resolveImageParameterValue,
     resolveAudioParameterValue
 } from "./generate-form-media-reader.js";
 
+
+/* =========================================================
+   FORM DATA
+   ---------------------------------------------------------
+   getFormParameters()
+   getFormData()
+   sekarang dimiliki oleh:
+   generate-form-data.js
+========================================================= */
+
 import {
     getFormParameters,
     getFormData
 } from "./generate-form-data.js";
-
-
-
 
 
 /* =========================================================
@@ -136,95 +167,27 @@ registerAudioFieldFactory(
 );
 
 
-
-
-
-
-
-
-
-    const nestedCandidates = [
-
-        model.data?.parameters,
-
-        model.data?.parameter_schema,
-
-        model.data?.parameterSchema,
-
-        model.data?.input_schema,
-
-        model.data?.inputSchema,
-
-        model.data?.schema
-
-    ];
-
-
-    for (
-        const candidate
-        of nestedCandidates
-    ) {
-
-        const normalized =
-            normalizeParameterDefinitions(
-                candidate
-            );
-
-
-        if (
-            Object.keys(
-                normalized
-            ).length > 0
-        ) {
-
-            return normalized;
-
-        }
-
-    }
-
-
-    console.warn(
-        "[GEN-Z.AI][Generate Form] Parameter model tidak ditemukan:",
-        {
-            modelId:
-                model.model_id ||
-                model.id ||
-                "-",
-
-            modelKeys:
-                Object.keys(
-                    model
-                )
-        }
-    );
-
-
-    return {};
-
-}
-
-
-
-
-
-
-
 /* =========================================================
-   IMAGE FIELD
+   CREATE FIELD
 ========================================================= */
 
-function createImageField(
-    definition = {},
-    parameterName = ""
+function createField(
+    name,
+    definition = {}
 ) {
 
     const wrapper =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
     wrapper.className =
-        "generate-image-input";
+        "generate-field";
+
+
+    wrapper.dataset.parameter =
+        name;
 
 
     wrapper.style.setProperty(
@@ -234,820 +197,297 @@ function createImageField(
     );
 
 
-    if (
-        parameterName
-    ) {
-
-        wrapper.dataset.parameter =
-            parameterName;
-
-    }
-
-
-    const modeSelector =
-        document.createElement("div");
-
-
-    modeSelector.className =
-        "generate-image-mode-selector";
-
-
-    modeSelector.style.display =
-        "flex";
-
-
-    modeSelector.style.gap =
-        "8px";
-
-
-    modeSelector.style.marginBottom =
-        "10px";
-
-
-    const urlButton =
-        document.createElement("button");
-
-
-    urlButton.type =
-        "button";
-
-
-    urlButton.textContent =
-        "Gunakan URL";
-
-
-    urlButton.className =
-        "generate-image-mode-button active";
-
-
-    urlButton.style.cursor =
-        "pointer";
-
-
-    const uploadButton =
-        document.createElement("button");
-
-
-    uploadButton.type =
-        "button";
-
-
-    uploadButton.textContent =
-        "Upload Gambar";
-
-
-    uploadButton.className =
-        "generate-image-mode-button";
-
-
-    uploadButton.style.cursor =
-        "pointer";
-
-
-    modeSelector.appendChild(
-        urlButton
-    );
-
-
-    modeSelector.appendChild(
-        uploadButton
-    );
-
-
-    const urlContainer =
-        document.createElement("div");
-
-
-    urlContainer.className =
-        "generate-image-url-container";
-
-
-    const urlInput =
-        document.createElement("input");
-
-
-    urlInput.type =
-        "url";
-
-
-    urlInput.className =
-        "generate-image-url";
-
-
-    urlInput.placeholder =
-        "Masukkan URL gambar";
-
-
-    urlInput.autocomplete =
-        "off";
-
-
-    urlInput.style.setProperty(
-        "width",
-        "100%",
+    wrapper.style.setProperty(
+        "min-width",
+        "0",
         "important"
     );
 
 
-    urlContainer.appendChild(
-        urlInput
+    wrapper.style.setProperty(
+        "box-sizing",
+        "border-box",
+        "important"
     );
 
 
-    const uploadContainer =
-        document.createElement("div");
+    wrapper.style.setProperty(
+        "visibility",
+        "visible",
+        "important"
+    );
 
 
-    uploadContainer.className =
-        "generate-image-upload-container";
+    wrapper.style.setProperty(
+        "opacity",
+        "1",
+        "important"
+    );
 
 
-    uploadContainer.style.display =
-        "none";
-
-
-    const fileInput =
-        document.createElement("input");
-
-
-    fileInput.type =
-        "file";
-
-
-    fileInput.accept =
-        definition.accept ||
-        "image/*";
-
-
-    fileInput.multiple =
-        Boolean(
-            definition.multiple ||
-            Number(
-                definition.maxItems ||
-                definition.max_items
-            ) > 1
+    const label =
+        document.createElement(
+            "label"
         );
 
 
-    fileInput.className =
-        "generate-image-file";
+    label.className =
+        "generate-field-label";
 
 
-    uploadContainer.appendChild(
-        fileInput
+    label.htmlFor =
+        createFieldId(
+            name
+        );
+
+
+    label.textContent =
+        getParameterLabel(
+            name,
+            definition
+        );
+
+
+    wrapper.appendChild(
+        label
     );
 
 
-    const preview =
-        document.createElement("div");
+    return wrapper;
+
+}
 
 
-    preview.className =
-        "generate-image-preview";
+/* =========================================================
+   DESCRIPTION
+========================================================= */
 
+function appendDescription(
+    wrapper,
+    definition
+) {
 
-    preview.style.display =
-        "none";
-
-
-    preview.style.flexWrap =
-        "wrap";
-
-
-    preview.style.gap =
-        "8px";
-
-
-    preview.style.marginTop =
-        "10px";
-
-
-    preview.style.maxWidth =
-        "360px";
-
-
-    function renderPreview(
-        files
+    if (
+        !wrapper
     ) {
 
-        preview.innerHTML =
-            "";
-
-
-        const selectedFiles =
-            Array.from(
-                files || []
-            ).filter(
-                file =>
-                    file &&
-                    file.type &&
-                    file.type.startsWith(
-                        "image/"
-                    )
-            );
-
-
-        if (
-            !selectedFiles.length
-        ) {
-
-            preview.style.display =
-                "none";
-
-
-            return;
-
-        }
-
-
-        preview.style.display =
-            "flex";
-
-
-        selectedFiles.forEach(
-            file => {
-
-                const reader =
-                    new FileReader();
-
-
-                reader.onload =
-                    event => {
-
-                        const image =
-                            document.createElement(
-                                "img"
-                            );
-
-
-                        image.src =
-                            event.target.result;
-
-
-                        image.alt =
-                            "Preview gambar";
-
-
-                        image.style.width =
-                            "160px";
-
-
-                        image.style.height =
-                            "160px";
-
-
-                        image.style.maxWidth =
-                            "160px";
-
-
-                        image.style.maxHeight =
-                            "160px";
-
-
-                        image.style.objectFit =
-                            "cover";
-
-
-                        image.style.display =
-                            "block";
-
-
-                        image.style.borderRadius =
-                            "10px";
-
-
-                        image.style.border =
-                            "1px solid rgba(255,255,255,.12)";
-
-
-                        preview.appendChild(
-                            image
-                        );
-
-                    };
-
-
-                reader.readAsDataURL(
-                    file
-                );
-
-            }
-        );
+        return;
 
     }
 
 
-    function setMode(
-        mode
+    const description =
+        getParameterDescription(
+            definition
+        );
+
+
+    if (
+        !description
     ) {
 
-        const uploadMode =
-            mode === "upload";
-
-
-        if (
-            uploadMode
-        ) {
-
-            urlContainer.style.display =
-                "none";
-
-
-            uploadContainer.style.display =
-                "block";
-
-
-            urlButton.classList.remove(
-                "active"
-            );
-
-
-            uploadButton.classList.add(
-                "active"
-            );
-
-
-            if (
-                fileInput.files &&
-                fileInput.files.length
-            ) {
-
-                renderPreview(
-                    fileInput.files
-                );
-
-            } else {
-
-                preview.style.display =
-                    "none";
-
-            }
-
-        } else {
-
-            urlContainer.style.display =
-                "block";
-
-
-            uploadContainer.style.display =
-                "none";
-
-
-            preview.style.display =
-                "none";
-
-
-            uploadButton.classList.remove(
-                "active"
-            );
-
-
-            urlButton.classList.add(
-                "active"
-            );
-
-        }
-
-
-        wrapper.dataset.imageMode =
-            uploadMode
-                ? "upload"
-                : "url";
+        return;
 
     }
 
 
-    urlButton.addEventListener(
-        "click",
-        event => {
-
-            event.preventDefault();
-            event.stopPropagation();
+    const element =
+        document.createElement(
+            "div"
+        );
 
 
-            setMode(
-                "url"
-            );
+    element.className =
+        "generate-field-description";
 
-        }
+
+    element.textContent =
+        description;
+
+
+    wrapper.appendChild(
+        element
     );
 
-
-    uploadButton.addEventListener(
-        "click",
-        event => {
-
-            event.preventDefault();
-            event.stopPropagation();
+}
 
 
-            setMode(
-                "upload"
+/* =========================================================
+   ENUM
+========================================================= */
+
+function createEnumField(
+    name,
+    definition = {}
+) {
+
+    const wrapper =
+        document.createElement(
+            "div"
+        );
+
+
+    wrapper.className =
+        "generate-option-group";
+
+
+    const enumValues =
+        Array.isArray(
+            definition?.enum
+        )
+
+            ? definition.enum
+
+            : (
+                Array.isArray(
+                    definition?.options
+                )
+                    ? definition.options
+                    : []
             );
 
-        }
-    );
+
+    let defaultValue =
+        getDefaultValue(
+            definition
+        );
 
 
-    fileInput.addEventListener(
-        "change",
-        async () => {
+    if (
+        defaultValue ===
+            undefined &&
+        enumValues.length
+    ) {
 
-            const files =
-                Array.from(
-                    fileInput.files || []
+        defaultValue =
+            enumValues[0];
+
+    }
+
+
+    enumValues.forEach(
+        value => {
+
+            const option =
+                document.createElement(
+                    "label"
+                );
+
+
+            option.className =
+                "generate-option";
+
+
+            const input =
+                document.createElement(
+                    "input"
+                );
+
+
+            input.type =
+                "radio";
+
+
+            input.name =
+                `generate-radio-${name}`;
+
+
+            input.value =
+                String(
+                    value
+                );
+
+
+            input.dataset.parameter =
+                name;
+
+
+            input.id =
+                createFieldId(
+                    `${name}-${String(value)}`
+                );
+
+
+            const optionLabel =
+                document.createElement(
+                    "span"
+                );
+
+
+            optionLabel.className =
+                "generate-option-label";
+
+
+            optionLabel.textContent =
+                String(
+                    value
                 );
 
 
             if (
-                !files.length
+                String(value) ===
+                String(defaultValue)
             ) {
 
-                delete wrapper.dataset.uploadedUrl;
+                input.checked =
+                    true;
 
-                wrapper._imageUploadPromise =
-                    null;
 
-                renderPreview(
-                    []
+                optionLabel.classList.add(
+                    "active"
                 );
-
-                return;
 
             }
 
 
-            try {
+            input.addEventListener(
+                "change",
+                () => {
 
-                files.forEach(
-                    file => {
-
-                        validateImageFile(
-                            file
-                        );
-
-                    }
-                );
-
-
-                renderPreview(
-                    files
-                );
-
-
-                delete wrapper.dataset.uploadedUrl;
-
-
-                const configuredMaxItems =
-                    Number(
-                        definition?.maxItems ??
-                        definition?.max_items
-                    );
-
-
-                const maxItems =
-                    Number.isFinite(
-                        configuredMaxItems
-                    ) &&
-                    configuredMaxItems > 0
-
-                        ? Math.floor(
-                            configuredMaxItems
+                    wrapper
+                        .querySelectorAll(
+                            ".generate-option-label"
                         )
+                        .forEach(
+                            label => {
 
-                        : 1;
-
-
-                const selectedFiles =
-                    files.slice(
-                        0,
-                        maxItems
-                    );
-
-
-                /*
-                 * Simpan Promise supaya jika user langsung
-                 * menekan Generate ketika upload masih berjalan,
-                 * getFormParameters() dapat menunggunya
-                 * daripada mengirim image kosong.
-                 */
-
-                wrapper._imageUploadPromise =
-                    (async () => {
-
-                        const uploadedUrls =
-                            [];
-
-
-                        for (
-                            const file
-                            of selectedFiles
-                        ) {
-
-                            const uploaded =
-                                await uploadImageFile(
-                                    file
-                                );
-
-
-                            const uploadedUrl =
-                                String(
-                                    uploaded?.url ||
-                                    ""
-                                ).trim();
-
-
-                            if (
-                                uploadedUrl
-                            ) {
-
-                                uploadedUrls.push(
-                                    uploadedUrl
+                                label.classList.remove(
+                                    "active"
                                 );
 
                             }
-
-                        }
-
-
-                        if (
-                            !uploadedUrls.length
-                        ) {
-
-                            throw new Error(
-                                "Upload gambar berhasil tetapi URL gambar tidak tersedia."
-                            );
-
-                        }
-
-
-                        /*
-                         * Renderer lama memakai satu dataset
-                         * untuk uploaded URL. URL pertama tetap
-                         * disimpan agar kompatibel.
-                         */
-
-                        wrapper.dataset.uploadedUrl =
-                            uploadedUrls[0];
-
-
-                        /*
-                         * Untuk model yang mendukung beberapa
-                         * gambar, simpan seluruh URL secara
-                         * internal.
-                         */
-
-                        wrapper.dataset.uploadedUrls =
-                            JSON.stringify(
-                                uploadedUrls
-                            );
-
-
-                        console.debug(
-                            "[GEN-Z.AI][Generate Form] Image upload ready:",
-                            uploadedUrls
                         );
 
 
-                        return uploadedUrls;
+                    if (
+                        input.checked
+                    ) {
 
-                    })();
+                        optionLabel.classList.add(
+                            "active"
+                        );
 
+                    }
 
-                await wrapper._imageUploadPromise;
-
-            } catch (
-                error
-            ) {
-
-                console.error(
-                    "[GEN-Z.AI][Generate Form] Image upload gagal:",
-                    error
-                );
-
-
-                delete wrapper.dataset.uploadedUrl;
-                delete wrapper.dataset.uploadedUrls;
-
-
-                try {
-
-                    fileInput.value =
-                        "";
-
-                } catch {
-                    /* ignore */
                 }
-
-
-                renderPreview(
-                    []
-                );
-
-
-                wrapper.dataset.uploadError =
-                    String(
-                        error?.message ||
-                        "Gagal mengupload gambar."
-                    );
-
-
-            } finally {
-
-                wrapper._imageUploadPromise =
-                    null;
-
-            }
-
-        }
-    );
-
-
-    urlInput.addEventListener(
-        "keydown",
-        event => {
-
-            if (
-                event.key ===
-                "Enter"
-            ) {
-
-                event.preventDefault();
-
-            }
-
-        }
-    );
-
-
-    wrapper._imageMode =
-        () =>
-            wrapper.dataset.imageMode ||
-            "url";
-
-
-    wrapper._urlInput =
-        urlInput;
-
-
-    wrapper._fileInput =
-        fileInput;
-
-
-    wrapper._preview =
-        preview;
-
-
-    wrapper.getInputMode =
-        () =>
-            wrapper.dataset.imageMode ||
-            "url";
-
-
-    wrapper.getUrlInput =
-        () =>
-            urlInput;
-
-
-    wrapper.getFileInput =
-        () =>
-            fileInput;
-
-
-    wrapper.getUploadedUrl =
-        () =>
-            String(
-                wrapper.dataset.uploadedUrl ||
-                ""
-            ).trim();
-
-
-    wrapper.getUploadedUrls =
-        () => {
-
-            try {
-
-                const parsed =
-                    JSON.parse(
-                        wrapper.dataset.uploadedUrls ||
-                        "[]"
-                    );
-
-
-                return Array.isArray(
-                    parsed
-                )
-
-                    ? parsed
-                    : [];
-
-            } catch {
-
-                return [];
-
-            }
-
-        };
-
-
-    wrapper.setUploadedUrl =
-        url => {
-
-            const normalized =
-                String(
-                    url ||
-                    ""
-                ).trim();
-
-
-            if (
-                normalized
-            ) {
-
-                wrapper.dataset.uploadedUrl =
-                    normalized;
-
-            } else {
-
-                delete wrapper.dataset.uploadedUrl;
-
-            }
-
-
-            return normalized;
-
-        };
-
-
-    wrapper.getSelectedFiles =
-        () =>
-            Array.from(
-                fileInput.files || []
             );
 
 
-    wrapper.getImageMode =
-        () =>
-            wrapper.dataset.imageMode ||
-            "url";
-
-
-    wrapper.clearUploadedFile =
-        async () => {
-
-            fileInput.value =
-                "";
-
-
-            urlInput.value =
-                "";
-
-
-            preview.innerHTML =
-                "";
-
-
-            preview.style.display =
-                "none";
-
-
-            delete wrapper.dataset.uploadedUrl;
-            delete wrapper.dataset.uploadedUrls;
-
-
-            wrapper._imageUploadPromise =
-                null;
-
-
-            setMode(
-                "url"
+            option.appendChild(
+                input
             );
 
-        };
+
+            option.appendChild(
+                optionLabel
+            );
 
 
-    wrapper.appendChild(
-        modeSelector
-    );
+            wrapper.appendChild(
+                option
+            );
 
-
-    wrapper.appendChild(
-        urlContainer
-    );
-
-
-    wrapper.appendChild(
-        uploadContainer
-    );
-
-
-    wrapper.appendChild(
-        preview
-    );
-
-
-    setMode(
-        "url"
+        }
     );
 
 
@@ -1057,12 +497,218 @@ function createImageField(
 
 
 /* =========================================================
-   AUDIO FIELD
+   BOOLEAN
 ========================================================= */
 
-function createAudioField(
+function createBooleanField(
     definition = {},
-    parameterName = "audio_url"
+    name = ""
+) {
+
+    const wrapper =
+        document.createElement(
+            "label"
+        );
+
+
+    wrapper.className =
+        "generate-checkbox-field";
+
+
+    const input =
+        document.createElement(
+            "input"
+        );
+
+
+    input.type =
+        "checkbox";
+
+
+    input.name =
+        name;
+
+
+    input.dataset.parameter =
+        name;
+
+
+    input.id =
+        createFieldId(
+            name
+        );
+
+
+    input.checked =
+        Boolean(
+            getDefaultValue(
+                definition
+            )
+        );
+
+
+    const text =
+        document.createElement(
+            "span"
+        );
+
+
+    text.className =
+        "generate-checkbox-label";
+
+
+    text.textContent =
+        getParameterLabel(
+            name,
+            definition
+        );
+
+
+    wrapper.appendChild(
+        input
+    );
+
+
+    wrapper.appendChild(
+        text
+    );
+
+
+    return wrapper;
+
+}
+
+
+/* =========================================================
+   NUMBER
+========================================================= */
+
+function createNumberField(
+    definition = {},
+    name = ""
+) {
+
+    const input =
+        document.createElement(
+            "input"
+        );
+
+
+    input.type =
+        "number";
+
+
+    input.id =
+        createFieldId(
+            name
+        );
+
+
+    input.name =
+        name;
+
+
+    input.className =
+        "form-control";
+
+
+    input.dataset.parameter =
+        name;
+
+
+    const min =
+        Number(
+            definition?.min ??
+            definition?.minimum
+        );
+
+
+    const max =
+        Number(
+            definition?.max ??
+            definition?.maximum
+        );
+
+
+    if (
+        Number.isFinite(
+            min
+        )
+    ) {
+
+        input.min =
+            String(
+                min
+            );
+
+    }
+
+
+    if (
+        Number.isFinite(
+            max
+        )
+    ) {
+
+        input.max =
+            String(
+                max
+            );
+
+    }
+
+
+    const type =
+        String(
+            definition?.type ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    input.step =
+        type ===
+            "integer"
+
+            ? "1"
+
+            : "any";
+
+
+    const defaultValue =
+        getDefaultValue(
+            definition
+        );
+
+
+    if (
+        defaultValue !==
+        undefined &&
+        defaultValue !==
+        null
+    ) {
+
+        input.value =
+            String(
+                defaultValue
+            );
+
+    }
+
+
+    return input;
+
+}
+
+
+/* =========================================================
+   DURATION
+========================================================= */
+
+function createDurationField(
+    definition = {},
+    name = "duration"
 ) {
 
     const wrapper =
@@ -1072,707 +718,233 @@ function createAudioField(
 
 
     wrapper.className =
-        "generate-audio-input";
+        "generate-duration-field";
 
 
-    wrapper.style.setProperty(
-        "width",
-        "100%",
-        "important"
-    );
+    const top =
+        document.createElement(
+            "div"
+        );
+
+
+    top.className =
+        "generate-duration-top";
+
+
+    const title =
+        document.createElement(
+            "span"
+        );
+
+
+    title.textContent =
+        getParameterLabel(
+            name,
+            definition
+        );
+
+
+    const valueLabel =
+        document.createElement(
+            "span"
+        );
+
+
+    valueLabel.className =
+        "generate-duration-value";
+
+
+    const range =
+        document.createElement(
+            "input"
+        );
+
+
+    range.type =
+        "range";
+
+
+    range.id =
+        createFieldId(
+            name
+        );
+
+
+    range.name =
+        name;
+
+
+    range.className =
+        "generate-duration-range";
+
+
+    range.dataset.parameter =
+        name;
+
+
+    let min =
+        Number(
+            definition?.min ??
+            definition?.minimum
+        );
+
+
+    let max =
+        Number(
+            definition?.max ??
+            definition?.maximum
+        );
 
 
     if (
-        parameterName
+        !Number.isFinite(
+            min
+        )
     ) {
 
-        wrapper.dataset.parameter =
-            parameterName;
+        min =
+            1;
 
     }
 
 
-    const modeSelector =
-        document.createElement(
-            "div"
-        );
-
-
-    modeSelector.className =
-        "generate-audio-mode-selector";
-
-
-    modeSelector.style.display =
-        "flex";
-
-
-    modeSelector.style.gap =
-        "8px";
-
-
-    modeSelector.style.marginBottom =
-        "10px";
-
-
-    const urlButton =
-        document.createElement(
-            "button"
-        );
-
-
-    urlButton.type =
-        "button";
-
-
-    urlButton.textContent =
-        "Gunakan URL";
-
-
-    urlButton.className =
-        "generate-audio-mode-button active";
-
-
-    urlButton.style.cursor =
-        "pointer";
-
-
-    const uploadButton =
-        document.createElement(
-            "button"
-        );
-
-
-    uploadButton.type =
-        "button";
-
-
-    uploadButton.textContent =
-        "Upload Audio";
-
-
-    uploadButton.className =
-        "generate-audio-mode-button";
-
-
-    uploadButton.style.cursor =
-        "pointer";
-
-
-    modeSelector.appendChild(
-        urlButton
-    );
-
-
-    modeSelector.appendChild(
-        uploadButton
-    );
-
-
-    /* =====================================================
-       URL CONTAINER
-    ===================================================== */
-
-    const urlContainer =
-        document.createElement(
-            "div"
-        );
-
-
-    urlContainer.className =
-        "generate-audio-url-container";
-
-
-    const urlInput =
-        document.createElement(
-            "input"
-        );
-
-
-    urlInput.type =
-        "url";
-
-
-    urlInput.className =
-        "generate-audio-url";
-
-
-    urlInput.placeholder =
-        "Masukkan URL audio MP3/WAV";
-
-
-    urlInput.autocomplete =
-        "off";
-
-
-    urlInput.style.setProperty(
-        "width",
-        "100%",
-        "important"
-    );
-
-
-    urlContainer.appendChild(
-        urlInput
-    );
-
-
-    /* =====================================================
-       UPLOAD CONTAINER
-    ===================================================== */
-
-    const uploadContainer =
-        document.createElement(
-            "div"
-        );
-
-
-    uploadContainer.className =
-        "generate-audio-upload-container";
-
-
-    uploadContainer.style.display =
-        "none";
-
-
-    const fileInput =
-        document.createElement(
-            "input"
-        );
-
-
-    fileInput.type =
-        "file";
-
-
-    fileInput.accept =
-        definition.accept ||
-        ".mp3,.wav,audio/mpeg,audio/wav";
-
-
-    fileInput.multiple =
-        false;
-
-
-    fileInput.className =
-        "generate-audio-file";
-
-
-    uploadContainer.appendChild(
-        fileInput
-    );
-
-
-    /* =====================================================
-       AUDIO PREVIEW
-    ===================================================== */
-
-    const preview =
-        document.createElement(
-            "div"
-        );
-
-
-    preview.className =
-        "generate-audio-preview";
-
-
-    preview.style.display =
-        "none";
-
-
-    preview.style.marginTop =
-        "10px";
-
-
-    const audio =
-        document.createElement(
-            "audio"
-        );
-
-
-    audio.controls =
-        true;
-
-
-    audio.preload =
-        "metadata";
-
-
-    audio.style.width =
-        "100%";
-
-
-    audio.style.maxWidth =
-        "500px";
-
-
-    preview.appendChild(
-        audio
-    );
-
-
-    function renderPreview(
-        file
+    if (
+        !Number.isFinite(
+            max
+        )
     ) {
 
-        audio.removeAttribute(
-            "src"
+        max =
+            30;
+
+    }
+
+
+    const parsedDefault =
+        Number(
+            getDefaultValue(
+                definition
+            )
         );
 
 
-        audio.load();
+    let value =
+        Number.isFinite(
+            parsedDefault
+        )
+            ? parsedDefault
+            : min;
 
 
-        if (
-            !file
-        ) {
-
-            preview.style.display =
-                "none";
-
-
-            return;
-
-        }
-
-
-        const objectUrl =
-            URL.createObjectURL(
-                file
-            );
-
-
-        audio.src =
-            objectUrl;
-
-
-        audio.dataset.objectUrl =
-            objectUrl;
-
-
-        preview.style.display =
-            "block";
-
-    }
-
-
-    function clearPreview() {
-
-        const objectUrl =
-            audio.dataset.objectUrl;
-
-
-        if (
-            objectUrl
-        ) {
-
-            try {
-
-                URL.revokeObjectURL(
-                    objectUrl
-                );
-
-            } catch {
-                /* ignore */
-            }
-
-        }
-
-
-        delete audio.dataset.objectUrl;
-
-
-        audio.removeAttribute(
-            "src"
+    value =
+        Math.max(
+            min,
+            Math.min(
+                max,
+                value
+            )
         );
 
 
-        audio.load();
+    range.min =
+        String(
+            min
+        );
 
 
-        preview.style.display =
-            "none";
-
-    }
-
-
-    function setMode(
-        mode
-    ) {
-
-        const uploadMode =
-            mode === "upload";
+    range.max =
+        String(
+            max
+        );
 
 
-        if (
-            uploadMode
-        ) {
-
-            urlContainer.style.display =
-                "none";
+    range.step =
+        "1";
 
 
-            uploadContainer.style.display =
-                "block";
+    range.value =
+        String(
+            value
+        );
 
 
-            urlButton.classList.remove(
-                "active"
-            );
+    valueLabel.textContent =
+        `${value} detik`;
 
 
-            uploadButton.classList.add(
-                "active"
-            );
-
-
-            if (
-                fileInput.files &&
-                fileInput.files.length
-            ) {
-
-                renderPreview(
-                    fileInput.files[0]
-                );
-
-            }
-
-        } else {
-
-            urlContainer.style.display =
-                "block";
-
-
-            uploadContainer.style.display =
-                "none";
-
-
-            clearPreview();
-
-
-            uploadButton.classList.remove(
-                "active"
-            );
-
-
-            urlButton.classList.add(
-                "active"
-            );
-
-        }
-
-
-        wrapper.dataset.audioMode =
-            uploadMode
-                ? "upload"
-                : "url";
-
-    }
-
-
-    urlButton.addEventListener(
-        "click",
-        event => {
-
-            event.preventDefault();
-            event.stopPropagation();
-
-
-            setMode(
-                "url"
-            );
-
-        }
+    top.appendChild(
+        title
     );
 
 
-    uploadButton.addEventListener(
-        "click",
-        event => {
-
-            event.preventDefault();
-            event.stopPropagation();
-
-
-            setMode(
-                "upload"
-            );
-
-        }
-    );
-
-
-    fileInput.addEventListener(
-        "change",
-        async () => {
-
-            const files =
-                Array.from(
-                    fileInput.files || []
-                );
-
-
-            if (
-                !files.length
-            ) {
-
-                delete wrapper.dataset.uploadedUrl;
-
-                wrapper._audioUploadPromise =
-                    null;
-
-                clearPreview();
-
-                return;
-
-            }
-
-
-            const file =
-                files[0];
-
-
-            try {
-
-                validateAudioFile(
-                    file
-                );
-
-
-                renderPreview(
-                    file
-                );
-
-
-                delete wrapper.dataset.uploadedUrl;
-
-
-                /*
-                 * Sama seperti image:
-                 * simpan Promise agar submit yang terjadi
-                 * sebelum upload selesai dapat menunggu
-                 * URL publiknya.
-                 */
-
-                wrapper._audioUploadPromise =
-                    (async () => {
-
-                        const uploaded =
-                            await uploadAudioFile(
-                                file
-                            );
-
-
-                        const uploadedUrl =
-                            String(
-                                uploaded?.url ||
-                                ""
-                            ).trim();
-
-
-                        if (
-                            !uploadedUrl
-                        ) {
-
-                            throw new Error(
-                                "Upload audio berhasil tetapi URL audio tidak tersedia."
-                            );
-
-                        }
-
-
-                        wrapper.dataset.uploadedUrl =
-                            uploadedUrl;
-
-
-                        console.debug(
-                            "[GEN-Z.AI][Generate Form] Audio upload ready:",
-                            uploadedUrl
-                        );
-
-
-                        return uploadedUrl;
-
-                    })();
-
-
-                await wrapper._audioUploadPromise;
-
-            } catch (
-                error
-            ) {
-
-                console.error(
-                    "[GEN-Z.AI][Generate Form] Audio upload gagal:",
-                    error
-                );
-
-
-                delete wrapper.dataset.uploadedUrl;
-
-
-                try {
-
-                    fileInput.value =
-                        "";
-
-                } catch {
-                    /* ignore */
-                }
-
-
-                clearPreview();
-
-
-                wrapper.dataset.uploadError =
-                    String(
-                        error?.message ||
-                        "Gagal mengupload audio."
-                    );
-
-            } finally {
-
-                wrapper._audioUploadPromise =
-                    null;
-
-            }
-
-        }
-    );
-
-
-    urlInput.addEventListener(
-        "keydown",
-        event => {
-
-            if (
-                event.key ===
-                "Enter"
-            ) {
-
-                event.preventDefault();
-
-            }
-
-        }
-    );
-
-
-    wrapper.getInputMode =
-        () =>
-            wrapper.dataset.audioMode ||
-            "url";
-
-
-    wrapper.getUrlInput =
-        () =>
-            urlInput;
-
-
-    wrapper.getFileInput =
-        () =>
-            fileInput;
-
-
-    wrapper.getUploadedUrl =
-        () =>
-            String(
-                wrapper.dataset.uploadedUrl ||
-                ""
-            ).trim();
-
-
-    wrapper.setUploadedUrl =
-        url => {
-
-            const normalized =
-                String(
-                    url ||
-                    ""
-                ).trim();
-
-
-            if (
-                normalized
-            ) {
-
-                wrapper.dataset.uploadedUrl =
-                    normalized;
-
-            } else {
-
-                delete wrapper.dataset.uploadedUrl;
-
-            }
-
-
-            return normalized;
-
-        };
-
-
-    wrapper.getSelectedFile =
-        () =>
-            fileInput.files?.[0] ||
-            null;
-
-
-    wrapper.getAudioMode =
-        () =>
-            wrapper.dataset.audioMode ||
-            "url";
-
-
-    wrapper.clearUploadedFile =
-        async () => {
-
-            fileInput.value =
-                "";
-
-
-            urlInput.value =
-                "";
-
-
-            delete wrapper.dataset.uploadedUrl;
-
-
-            wrapper._audioUploadPromise =
-                null;
-
-
-            clearPreview();
-
-
-            setMode(
-                "url"
-            );
-
-        };
-
-
-    wrapper.appendChild(
-        modeSelector
+    top.appendChild(
+        valueLabel
     );
 
 
     wrapper.appendChild(
-        urlContainer
+        top
     );
 
 
     wrapper.appendChild(
-        uploadContainer
+        range
+    );
+
+
+    const scale =
+        document.createElement(
+            "div"
+        );
+
+
+    scale.className =
+        "generate-duration-scale";
+
+
+    const minLabel =
+        document.createElement(
+            "span"
+        );
+
+
+    minLabel.textContent =
+        `${min} detik`;
+
+
+    const maxLabel =
+        document.createElement(
+            "span"
+        );
+
+
+    maxLabel.textContent =
+        `${max} detik`;
+
+
+    scale.appendChild(
+        minLabel
+    );
+
+
+    scale.appendChild(
+        maxLabel
     );
 
 
     wrapper.appendChild(
-        preview
+        scale
     );
 
 
-    setMode(
-        "url"
+    range.addEventListener(
+        "input",
+        () => {
+
+            valueLabel.textContent =
+                `${range.value} detik`;
+
+        }
     );
 
 
@@ -1781,6 +953,306 @@ function createAudioField(
 }
 
 
+/* =========================================================
+   TEXTAREA
+========================================================= */
+
+function createTextareaField(
+    definition = {},
+    name = ""
+) {
+
+    const textarea =
+        document.createElement(
+            "textarea"
+        );
+
+
+    textarea.id =
+        createFieldId(
+            name
+        );
+
+
+    textarea.name =
+        name;
+
+
+    textarea.className =
+        "form-control";
+
+
+    textarea.dataset.parameter =
+        name;
+
+
+    textarea.rows =
+        Number(
+            definition?.rows
+        ) ||
+        5;
+
+
+    textarea.placeholder =
+        definition?.placeholder ||
+        (
+            name === "prompt"
+                ? "Masukkan prompt..."
+                : ""
+        );
+
+
+    const maxLength =
+        Number(
+            definition?.maxLength ??
+            definition?.max_length
+        );
+
+
+    if (
+        Number.isFinite(
+            maxLength
+        )
+    ) {
+
+        textarea.maxLength =
+            maxLength;
+
+    }
+
+
+    const defaultValue =
+        getDefaultValue(
+            definition
+        );
+
+
+    if (
+        defaultValue !==
+            undefined &&
+        defaultValue !==
+            null
+    ) {
+
+        textarea.value =
+            String(
+                defaultValue
+            );
+
+    }
+
+
+    return textarea;
+
+}
+
+
+/* =========================================================
+   TEXT
+========================================================= */
+
+function createTextField(
+    definition = {},
+    name = ""
+) {
+
+    const input =
+        document.createElement(
+            "input"
+        );
+
+
+    input.type =
+        "text";
+
+
+    input.id =
+        createFieldId(
+            name
+        );
+
+
+    input.name =
+        name;
+
+
+    input.className =
+        "form-control";
+
+
+    input.dataset.parameter =
+        name;
+
+
+    input.placeholder =
+        definition?.placeholder ||
+        "";
+
+
+    const maxLength =
+        Number(
+            definition?.maxLength ??
+            definition?.max_length
+        );
+
+
+    if (
+        Number.isFinite(
+            maxLength
+        )
+    ) {
+
+        input.maxLength =
+            maxLength;
+
+    }
+
+
+    const defaultValue =
+        getDefaultValue(
+            definition
+        );
+
+
+    if (
+        defaultValue !==
+            undefined &&
+        defaultValue !==
+            null
+    ) {
+
+        input.value =
+            String(
+                defaultValue
+            );
+
+    }
+
+
+    return input;
+
+}
+
+
+/* =========================================================
+   SELECT
+========================================================= */
+
+function createSelectField(
+    definition = {},
+    name = ""
+) {
+
+    const select =
+        document.createElement(
+            "select"
+        );
+
+
+    select.id =
+        createFieldId(
+            name
+        );
+
+
+    select.name =
+        name;
+
+
+    select.className =
+        "form-control";
+
+
+    select.dataset.parameter =
+        name;
+
+
+    const options =
+        Array.isArray(
+            definition?.options
+        )
+            ? definition.options
+            : [];
+
+
+    options.forEach(
+        optionValue => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+
+            if (
+                optionValue &&
+                typeof optionValue ===
+                    "object"
+            ) {
+
+                option.value =
+                    String(
+                        optionValue.value ??
+                        optionValue.id ??
+                        ""
+                    );
+
+
+                option.textContent =
+                    String(
+                        optionValue.label ??
+                        optionValue.name ??
+                        option.value
+                    );
+
+            } else {
+
+                option.value =
+                    String(
+                        optionValue
+                    );
+
+
+                option.textContent =
+                    String(
+                        optionValue
+                    );
+
+            }
+
+
+            select.appendChild(
+                option
+            );
+
+        }
+    );
+
+
+    const defaultValue =
+        getDefaultValue(
+            definition
+        );
+
+
+    if (
+        defaultValue !==
+            undefined &&
+        defaultValue !==
+            null
+    ) {
+
+        select.value =
+            String(
+                defaultValue
+            );
+
+    }
+
+
+    return select;
+
+}
 
 
 /* =========================================================
@@ -1789,7 +1261,7 @@ function createAudioField(
 
 function createFieldInput(
     name,
-    definition
+    definition = {}
 ) {
 
     const type =
@@ -1801,14 +1273,16 @@ function createFieldInput(
             .toLowerCase();
 
 
+    /* =====================================================
+       IMAGE
+    ===================================================== */
+
     if (
-        name ===
-            "image_urls" ||
-        name ===
-            "image_url"
+        name === "image_urls" ||
+        name === "image_url"
     ) {
 
-        return createImageField(
+        return createMediaImageField(
             definition,
             name
         );
@@ -1816,25 +1290,27 @@ function createFieldInput(
     }
 
 
-    /*
-     * Audio provider parameter.
-     *
-     * Khusus field bernama audio_url,
-     * gunakan renderer Upload + URL.
-     */
+    /* =====================================================
+       AUDIO
+    ===================================================== */
 
     if (
-        name ===
-        "audio_url"
+        name === "audio_url" ||
+        type === "audio" ||
+        type === "audio_url"
     ) {
 
-        return createAudioField(
+        return createMediaAudioField(
             definition,
             name
         );
 
     }
 
+
+    /* =====================================================
+       ENUM
+    ===================================================== */
 
     if (
         Array.isArray(
@@ -1851,6 +1327,10 @@ function createFieldInput(
     }
 
 
+    /* =====================================================
+       OPTIONS
+    ===================================================== */
+
     if (
         Array.isArray(
             definition?.options
@@ -1866,9 +1346,12 @@ function createFieldInput(
     }
 
 
+    /* =====================================================
+       BOOLEAN
+    ===================================================== */
+
     if (
-        type ===
-        "boolean"
+        type === "boolean"
     ) {
 
         return createBooleanField(
@@ -1879,14 +1362,15 @@ function createFieldInput(
     }
 
 
+    /* =====================================================
+       DURATION
+    ===================================================== */
+
     if (
-        name ===
-            "duration" &&
+        name === "duration" &&
         (
-            type ===
-                "number" ||
-            type ===
-                "integer"
+            type === "number" ||
+            type === "integer"
         )
     ) {
 
@@ -1898,11 +1382,13 @@ function createFieldInput(
     }
 
 
+    /* =====================================================
+       NUMBER
+    ===================================================== */
+
     if (
-        type ===
-            "number" ||
-        type ===
-            "integer"
+        type === "number" ||
+        type === "integer"
     ) {
 
         return createNumberField(
@@ -1913,6 +1399,10 @@ function createFieldInput(
     }
 
 
+    /* =====================================================
+       TEXTAREA
+    ===================================================== */
+
     const maxLength =
         Number(
             definition?.maxLength ??
@@ -1921,18 +1411,14 @@ function createFieldInput(
 
 
     if (
-        name ===
-            "prompt" ||
-        name ===
-            "description" ||
-        name ===
-            "negative_prompt" ||
+        name === "prompt" ||
+        name === "description" ||
+        name === "negative_prompt" ||
         (
             Number.isFinite(
                 maxLength
             ) &&
-            maxLength >
-                500
+            maxLength > 500
         )
     ) {
 
@@ -1944,6 +1430,10 @@ function createFieldInput(
     }
 
 
+    /* =====================================================
+       DEFAULT TEXT
+    ===================================================== */
+
     return createTextField(
         definition,
         name
@@ -1952,6 +1442,104 @@ function createFieldInput(
 }
 
 
+/* =========================================================
+   RENDER PARAMETER
+========================================================= */
+
+function renderParameter(
+    name,
+    definition
+) {
+
+    if (
+        !isRenderableParameter(
+            name,
+            definition
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        isClientForbiddenParameter(
+            name
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        isInternalParameter(
+            name
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        isServerControlledParameter(
+            name
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    const wrapper =
+        createField(
+            name,
+            definition
+        );
+
+
+    const input =
+        createFieldInput(
+            name,
+            definition
+        );
+
+
+    if (
+        input
+    ) {
+
+        wrapper.appendChild(
+            input
+        );
+
+    }
+
+
+    /*
+     * Duration memiliki title sendiri.
+     */
+
+    if (
+        name !== "duration"
+    ) {
+
+        appendDescription(
+            wrapper,
+            definition
+        );
+
+    }
+
+
+    return wrapper;
+
+}
 
 
 /* =========================================================
@@ -2178,18 +1766,28 @@ function forceContainerVisible(
 
 
             const fullWidth =
-                parameter ===
-                    "prompt" ||
-                parameter ===
-                    "negative_prompt" ||
-                parameter ===
-                    "description" ||
-                parameter ===
-                    "image_urls" ||
-                parameter ===
-                    "image_url" ||
-                parameter ===
-                    "audio_url";
+                (
+                    Array.isArray(
+                        FULL_WIDTH_PARAMETERS
+                    )
+                        ? FULL_WIDTH_PARAMETERS.includes(
+                            parameter
+                        )
+                        : (
+                            FULL_WIDTH_PARAMETERS instanceof Set
+                                ? FULL_WIDTH_PARAMETERS.has(
+                                    parameter
+                                )
+                                : (
+                                    parameter === "prompt" ||
+                                    parameter === "negative_prompt" ||
+                                    parameter === "description" ||
+                                    parameter === "image_urls" ||
+                                    parameter === "image_url" ||
+                                    parameter === "audio_url"
+                                )
+                        )
+                );
 
 
             if (
@@ -2228,381 +1826,184 @@ function forceContainerVisible(
 }
 
 
+/* =========================================================
+   RENDER FORM
+========================================================= */
 
+export function renderGenerateForm(
+    modelArgument = null
+) {
 
-
-
-
-
-    const path =
-        createImageStoragePath(
-            userId,
-            file
-        );
-
-
-    console.debug(
-        "[GEN-Z.AI][Generate Form] Upload gambar:",
-        {
-            bucket:
-                STORAGE_BUCKET,
-
-            path,
-
-            name:
-                file.name,
-
-            type:
-                file.type,
-
-            size:
-                file.size
-        }
-    );
-
-
-    const {
-        error:
-            uploadError
-    } =
-        await supabase.storage
-            .from(
-                STORAGE_BUCKET
-            )
-            .upload(
-                path,
-                file,
-                {
-                    cacheControl:
-                        "3600",
-
-                    upsert:
-                        false,
-
-                    contentType:
-                        file.type
-                }
-            );
+    const container =
+        getContainer();
 
 
     if (
-        uploadError
+        !container
     ) {
 
         console.error(
-            "[GEN-Z.AI][Generate Form] Upload gambar gagal:",
-            uploadError
+            "[GEN-Z.AI][Generate Form] #dynamicFields tidak ditemukan."
         );
 
 
-        throw uploadError;
+        return false;
 
     }
 
 
-
-
-
-/////////////
-
-   
-
-
-
-
-    const existingUrl =
-        typeof imageInput.getUploadedUrl ===
-        "function"
-
-            ? imageInput.getUploadedUrl()
-
-            : String(
-                imageInput.dataset.uploadedUrl ||
-                ""
-            ).trim();
-
-
-    if (
-        existingUrl
-    ) {
-
-        return [
-            existingUrl
-        ];
-
-    }
-
-
-    const fileInput =
-        typeof imageInput.getFileInput ===
-        "function"
-
-            ? imageInput.getFileInput()
-
-            : imageInput.querySelector(
-                ".generate-image-file"
-            );
-
-
-    const files =
-        Array.from(
-            fileInput?.files ||
-            []
+    const model =
+        resolveModel(
+            modelArgument
         );
 
 
     if (
-        !files.length
+        !model
     ) {
 
-        return [];
-
-    }
-
-
-    const configuredMaxItems =
-        Number(
-            definition?.maxItems ??
-            definition?.max_items
+        console.error(
+            "[GEN-Z.AI][Generate Form] Model tidak tersedia."
         );
 
 
-    const maxItems =
-        Number.isFinite(
-            configuredMaxItems
-        ) &&
-        configuredMaxItems > 0
+        return false;
 
-            ? Math.floor(
-                configuredMaxItems
-            )
-
-            : 1;
+    }
 
 
-    const selectedFiles =
-        files.slice(
-            0,
-            maxItems
+    container.innerHTML =
+        "";
+
+
+    const definitions =
+        getParameterDefinitions(
+            model
         );
 
 
-    const uploadedUrls =
-        [];
-
-
-    for (
-        const file
-        of selectedFiles
-    ) {
-
-        const uploaded =
-            await uploadImageFile(
-                file
-            );
-
-
-        if (
-            uploaded?.url
-        ) {
-
-            uploadedUrls.push(
-                uploaded.url
-            );
-
-        }
-
-    }
-
-
-    if (
-        uploadedUrls.length
-    ) {
-
-        imageInput.dataset.uploadedUrl =
-            uploadedUrls[0];
-
-
-        imageInput.dataset.uploadedUrls =
-            JSON.stringify(
-                uploadedUrls
-            );
-
-    }
-
-
-    return uploadedUrls;
-
-}
-
-
-
-    /*
-     * Upload sudah selesai.
-     */
-
-    const existingUrl =
-        typeof audioInput.getUploadedUrl ===
-        "function"
-
-            ? audioInput.getUploadedUrl()
-
-            : String(
-                audioInput.dataset.uploadedUrl ||
-                ""
-            ).trim();
-
-
-    if (
-        existingUrl
-    ) {
-
-        return existingUrl;
-
-    }
-
-
-    /*
-     * Fallback:
-     * jika upload belum pernah diproses,
-     * lakukan upload dari FileList.
-     */
-
-    const fileInput =
-        typeof audioInput.getFileInput ===
-        "function"
-
-            ? audioInput.getFileInput()
-
-            : audioInput.querySelector(
-                ".generate-audio-file"
-            );
-
-
-    const file =
-        fileInput?.files?.[0] ||
-        null;
-
-
-    if (
-        !file
-    ) {
-
-        return "";
-
-    }
-
-
-    const uploaded =
-        await uploadAudioFile(
-            file
+    const names =
+        getOrderedParameterNames(
+            definitions
         );
-
-
-    const uploadedUrl =
-        String(
-            uploaded?.url ||
-            ""
-        ).trim();
-
-
-    if (
-        uploadedUrl
-    ) {
-
-        audioInput.dataset.uploadedUrl =
-            uploadedUrl;
-
-    }
-
-
-    return uploadedUrl;
-
-}
-
-
-
-    /*
-     * =====================================================
-     * HARD CLIENT CLEANUP
-     * =====================================================
-     *
-     * Tidak peduli parameter apa yang diberikan registry,
-     * parameter ini tidak boleh keluar dari browser.
-     */
-
-    delete parameters.task_id;
-    delete parameters.index;
-    delete parameters.nsfw_checker;
-    delete parameters.webhook_url;
-    delete parameters.webhook;
 
 
     console.debug(
-        "[GEN-Z.AI][Generate Form] FORM PARAMETERS:",
-        parameters
+        "[GEN-Z.AI][Generate Form] MODEL:",
+        model.model_id ||
+        model.id ||
+        "-"
     );
 
 
     console.debug(
-        "[GEN-Z.AI][Generate Form] REFERENCE IMAGE:",
+        "[GEN-Z.AI][Generate Form] PARAMETER NAMES:",
+        names
+    );
+
+
+    if (
+        names.length === 0
+    ) {
+
+        const empty =
+            document.createElement(
+                "div"
+            );
+
+
+        empty.className =
+            "generate-empty-parameters";
+
+
+        empty.textContent =
+            "Parameter model belum tersedia.";
+
+
+        container.appendChild(
+            empty
+        );
+
+
+        forceContainerVisible(
+            container
+        );
+
+
+        return false;
+
+    }
+
+
+    let renderedCount =
+        0;
+
+
+    names.forEach(
+        name => {
+
+            try {
+
+                const field =
+                    renderParameter(
+                        name,
+                        definitions[name]
+                    );
+
+
+                if (
+                    field
+                ) {
+
+                    container.appendChild(
+                        field
+                    );
+
+
+                    renderedCount +=
+                        1;
+
+                }
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Parameter gagal dirender:",
+                    name,
+                    error
+                );
+
+            }
+
+        }
+    );
+
+
+    forceContainerVisible(
+        container
+    );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] RENDER SELESAI:",
         {
-            image_urls:
-                Array.isArray(
-                    parameters.image_urls
-                )
-                    ? parameters.image_urls.length
-                    : 0,
+            model:
+                model.model_id ||
+                model.id ||
+                "-",
 
-            image_url:
-                parameters.image_url
-                    ? "present"
-                    : "missing",
+            fields:
+                renderedCount,
 
-            hasReferenceImage:
-                (
-                    (
-                        Array.isArray(
-                            parameters.image_urls
-                        ) &&
-                        parameters.image_urls.length >
-                            0
-                    ) ||
-                    Boolean(
-                        parameters.image_url
-                    )
-                )
+            parameters:
+                names
         }
     );
 
 
-    console.debug(
-        "[GEN-Z.AI][Generate Form] AUDIO:",
-        {
-            audio_url:
-                parameters.audio_url
-                    ? "present"
-                    : "missing"
-        }
-    );
-
-
-    console.debug(
-        "[GEN-Z.AI][Generate Form] CLIENT FORBIDDEN:",
-        {
-            webhook_url:
-                "removed",
-
-            webhook:
-                "removed",
-
-            nsfw_checker:
-                "removed"
-        }
-    );
-
-
-    return parameters;
+    return renderedCount > 0;
 
 }
 
@@ -2618,6 +2019,12 @@ export function setFieldValue(
 
     if (
         isClientForbiddenParameter(
+            name
+        ) ||
+        isInternalParameter(
+            name
+        ) ||
+        isServerControlledParameter(
             name
         )
     ) {
@@ -2642,16 +2049,25 @@ export function setFieldValue(
     }
 
 
+    /* =====================================================
+       IMAGE
+    ===================================================== */
+
     if (
-        name ===
-            "image_urls" ||
-        name ===
-            "image_url"
+        name === "image_urls" ||
+        name === "image_url"
     ) {
 
         const imageInput =
             field.querySelector(
                 ".generate-image-input"
+            ) ||
+            (
+                field.classList?.contains(
+                    "generate-image-input"
+                )
+                    ? field
+                    : null
             );
 
 
@@ -2702,14 +2118,24 @@ export function setFieldValue(
     }
 
 
+    /* =====================================================
+       AUDIO
+    ===================================================== */
+
     if (
-        name ===
-        "audio_url"
+        name === "audio_url"
     ) {
 
         const audioInput =
             field.querySelector(
                 ".generate-audio-input"
+            ) ||
+            (
+                field.classList?.contains(
+                    "generate-audio-input"
+                )
+                    ? field
+                    : null
             );
 
 
@@ -2755,6 +2181,10 @@ export function setFieldValue(
 
     }
 
+
+    /* =====================================================
+       RADIO
+    ===================================================== */
 
     const radios =
         field.querySelectorAll(
@@ -2812,6 +2242,10 @@ export function setFieldValue(
     }
 
 
+    /* =====================================================
+       CHECKBOX
+    ===================================================== */
+
     const checkbox =
         field.querySelector(
             'input[type="checkbox"]'
@@ -2832,6 +2266,10 @@ export function setFieldValue(
 
     }
 
+
+    /* =====================================================
+       NORMAL
+    ===================================================== */
 
     const input =
         field.querySelector(
@@ -3056,7 +2494,7 @@ export async function resetDynamicFields(
             );
 
 
-        const uploads =
+        const imageUploads =
             seedanceForm.querySelectorAll(
                 ".generate-image-input"
             );
@@ -3064,7 +2502,7 @@ export async function resetDynamicFields(
 
         for (
             const upload
-            of uploads
+            of imageUploads
         ) {
 
             if (
@@ -3081,7 +2519,43 @@ export async function resetDynamicFields(
                 ) {
 
                     console.warn(
-                        "[GEN-Z.AI][Generate Form] Reset upload Seedance gagal:",
+                        "[GEN-Z.AI][Generate Form] Reset image upload Seedance gagal:",
+                        error
+                    );
+
+                }
+
+            }
+
+        }
+
+
+        const audioUploads =
+            seedanceForm.querySelectorAll(
+                ".generate-audio-input"
+            );
+
+
+        for (
+            const upload
+            of audioUploads
+        ) {
+
+            if (
+                typeof upload.clearUploadedFile ===
+                "function"
+            ) {
+
+                try {
+
+                    await upload.clearUploadedFile();
+
+                } catch (
+                    error
+                ) {
+
+                    console.warn(
+                        "[GEN-Z.AI][Generate Form] Reset audio upload Seedance gagal:",
                         error
                     );
 
@@ -3121,6 +2595,19 @@ export async function resetDynamicFields(
                 element => {
 
                     delete element.dataset.uploadedUrl;
+
+                }
+            );
+
+
+        seedanceForm
+            .querySelectorAll(
+                "[data-uploaded-urls]"
+            )
+            .forEach(
+                element => {
+
+                    delete element.dataset.uploadedUrls;
 
                 }
             );
@@ -3338,7 +2825,13 @@ export async function getMediaParameters(
                 data.image_urls
             )
                 ? data.image_urls
-                : [],
+                : (
+                    data.image_url
+                        ? normalizeArray(
+                            data.image_url
+                        )
+                        : []
+                ),
 
         audio_url:
             String(
@@ -3363,6 +2856,12 @@ export function getParameterDefinition(
     if (
         isClientForbiddenParameter(
             name
+        ) ||
+        isInternalParameter(
+            name
+        ) ||
+        isServerControlledParameter(
+            name
         )
     ) {
 
@@ -3378,7 +2877,7 @@ export function getParameterDefinition(
 
 
     return (
-        definitions[name] ||
+        definitions?.[name] ||
         null
     );
 
