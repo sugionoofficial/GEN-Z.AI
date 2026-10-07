@@ -44,7 +44,6 @@ const parameters = [
     ===================================================== */
 
     {
-
         name:
             "prompt",
 
@@ -59,7 +58,6 @@ const parameters = [
 
         description:
             "Prompt untuk Digital Human LipSync."
-
     },
 
 
@@ -68,7 +66,6 @@ const parameters = [
     ===================================================== */
 
     {
-
         name:
             "image_urls",
 
@@ -86,7 +83,6 @@ const parameters = [
 
         description:
             "Satu URL publik JPG atau PNG sebagai sumber wajah Digital Human."
-
     },
 
 
@@ -95,7 +91,6 @@ const parameters = [
     ===================================================== */
 
     {
-
         name:
             "audio_url",
 
@@ -107,7 +102,66 @@ const parameters = [
 
         description:
             "URL publik file audio MP3 atau WAV untuk proses LipSync."
+    },
 
+
+    /* =====================================================
+       ASPECT RATIO
+       Provider-owned parameter
+    ===================================================== */
+
+    {
+        name:
+            "aspect_ratio",
+
+        type:
+            "string",
+
+        required:
+            false,
+
+        enum: [
+            "16:9",
+            "9:16",
+            "1:1"
+        ],
+
+        default:
+            "16:9",
+
+        description:
+            "Aspect ratio video yang didukung Motiongen-AI."
+    },
+
+
+    /* =====================================================
+       DURATION
+       Provider-owned parameter
+    ===================================================== */
+
+    {
+        name:
+            "duration",
+
+        type:
+            "number",
+
+        required:
+            false,
+
+        enum: [
+            10,
+            15,
+            20,
+            25,
+            30
+        ],
+
+        default:
+            10,
+
+        description:
+            "Durasi video dalam detik yang didukung Motiongen-AI."
     },
 
 
@@ -119,10 +173,10 @@ const parameters = [
        - 576P     -> credit_480p
        - 720P HD  -> credit_720p
        - Tidak dikirim ke provider Motiongen
+       - Dirender oleh generic Generate Form
     ===================================================== */
 
     {
-
         name:
             "resolution",
 
@@ -133,102 +187,29 @@ const parameters = [
             true,
 
         enum: [
-
             "576P",
-
             "720P HD"
-
         ],
 
         default:
             "720P HD",
 
         description:
-            "Resolusi video untuk menentukan kredit GEN-Z.AI. 576P menggunakan credit_480p, sedangkan 720P HD menggunakan credit_720p."
-
-    },
-
-
-    /* =====================================================
-       ASPECT RATIO
-       Provider-owned parameter
-    ===================================================== */
-
-    {
-
-        name:
-            "aspect_ratio",
-
-        type:
-            "string",
-
-        required:
-            false,
-
-        enum: [
-
-            "16:9",
-
-            "9:16",
-
-            "1:1"
-
-        ],
-
-        default:
-            "16:9",
-
-        description:
-            "Aspect ratio video yang didukung Motiongen-AI."
-
-    },
-
-
-    /* =====================================================
-       DURATION
-       Provider-owned parameter
-    ===================================================== */
-
-    {
-
-        name:
-            "duration",
-
-        type:
-            "number",
-
-        required:
-            false,
-
-        enum: [
-
-            10,
-
-            15,
-
-            20,
-
-            25,
-
-            30
-
-        ],
-
-        default:
-            10,
-
-        description:
-            "Durasi video dalam detik yang didukung Motiongen-AI."
-
+            "Resolusi video untuk menentukan kredit GEN-Z.AI."
     },
 
 
     /* =====================================================
        WEBHOOK
+       Provider parameter
+
+       IMPORTANT:
+       Parameter ini tetap tersedia untuk kebutuhan backend,
+       tetapi Generate Form akan membuangnya sebelum request
+       dikirim dari sisi client.
     ===================================================== */
 
     {
-
         name:
             "webhook_url",
 
@@ -240,7 +221,6 @@ const parameters = [
 
         description:
             "URL webhook opsional untuk menerima status job Motiongen-AI."
-
     }
 
 ];
@@ -273,13 +253,12 @@ function normalizeString(
 
     if (
         typeof value !==
-            "string"
+        "string"
     ) {
 
         return "";
 
     }
-
 
     return value.trim();
 
@@ -304,20 +283,16 @@ function normalizeImageUrls(
 
     }
 
-
     return value
-
         .map(
             item =>
                 normalizeString(
                     item
                 )
         )
-
         .filter(
             Boolean
         )
-
         .slice(
             0,
             1
@@ -337,6 +312,10 @@ function validate(
     const errors = [];
 
 
+    /* =====================================================
+       INPUT OBJECT
+    ===================================================== */
+
     if (
         !input ||
         typeof input !==
@@ -352,9 +331,7 @@ function validate(
                 false,
 
             errors: [
-
                 "Parameter input harus berupa object."
-
             ]
 
         };
