@@ -1,45 +1,46 @@
-/**
- * =========================================================
- * GEN-Z.AI
- * DIGITAL HUMAN - LIPSYNC IMAGE
- * ---------------------------------------------------------
- * File:
- * models/digital-human-lipsync-image/parameters.js
- *
- * Provider:
- * Motiongen-AI
- *
- * Model:
- * digital-human-lipsync-image
- *
- * Credit:
- * 3.5 credit / video
- *
- * IMPORTANT:
- * - audio_url WAJIB
- * - image_urls WAJIB
- * - duration berasal dari file ini
- * - aspect_ratio berasal dari file ini
- * - resolution TIDAK dikirim ke Motiongen API
- * - resolution merupakan parameter bisnis GEN-Z.AI
- *   yang dikelola melalui Edit Model
- * =========================================================
- */
+/* =========================================================
+   GEN-Z.AI
+   MOTIONGEN-AI
+   DIGITAL HUMAN - LIPSYNC IMAGE
+   ---------------------------------------------------------
+   File:
+     models/digital-human-lipsync-image/parameters.js
+
+   Fungsi:
+   - Definisi parameter model
+   - Validasi parameter
+   - Provider-specific parameter rules
+
+   MODEL:
+     digital-human-lipsync-image
+
+   PROVIDER:
+     motiongen
+
+   CREDIT:
+     3.5 Credit / PER_VIDEO
+
+   IMPORTANT:
+   - image_urls WAJIB, tepat 1 image
+   - audio_url WAJIB
+   - prompt WAJIB
+   - duration mengikuti parameter Motiongen
+   - aspect_ratio mengikuti parameter Motiongen
+   - resolution TIDAK didefinisikan di sini
+   - credit TIDAK didefinisikan di sini
+   - nsfw_checker TIDAK digunakan
+========================================================= */
 
 
-/**
- * =========================================================
- * PARAMETER DEFINITIONS
- * =========================================================
- */
+/* =========================================================
+   PARAMETER DEFINITIONS
+========================================================= */
 
 const parameters = [
 
-    /**
-     * =====================================================
-     * PROMPT
-     * =====================================================
-     */
+    /* =====================================================
+       PROMPT
+    ===================================================== */
 
     {
 
@@ -56,21 +57,14 @@ const parameters = [
             30000,
 
         description:
-            "Instruksi untuk menghasilkan video lip-sync."
+            "Prompt untuk Digital Human LipSync."
 
     },
 
 
-    /**
-     * =====================================================
-     * IMAGE URLS
-     * =====================================================
-     *
-     * Tepat 1 gambar.
-     *
-     * Public JPG / PNG.
-     * =====================================================
-     */
+    /* =====================================================
+       IMAGE
+    ===================================================== */
 
     {
 
@@ -90,23 +84,14 @@ const parameters = [
             1,
 
         description:
-            "Satu URL gambar publik JPG atau PNG."
+            "Satu URL publik JPG atau PNG sebagai sumber wajah Digital Human."
 
     },
 
 
-    /**
-     * =====================================================
-     * AUDIO URL
-     * =====================================================
-     *
-     * WAJIB.
-     *
-     * Public MP3 / WAV.
-     *
-     * Tidak boleh optional.
-     * =====================================================
-     */
+    /* =====================================================
+       AUDIO
+    ===================================================== */
 
     {
 
@@ -120,21 +105,15 @@ const parameters = [
             true,
 
         description:
-            "Satu URL audio publik MP3 atau WAV."
+            "URL publik file audio MP3 atau WAV untuk proses LipSync."
 
     },
 
 
-    /**
-     * =====================================================
-     * ASPECT RATIO
-     * =====================================================
-     *
-     * Dikelola oleh parameters.js.
-     *
-     * Tidak ditampilkan sebagai field Edit Model.
-     * =====================================================
-     */
+    /* =====================================================
+       ASPECT RATIO
+       Provider-owned parameter
+    ===================================================== */
 
     {
 
@@ -161,29 +140,15 @@ const parameters = [
             "16:9",
 
         description:
-            "Aspect ratio video."
+            "Aspect ratio video yang didukung Motiongen-AI."
 
     },
 
 
-    /**
-     * =====================================================
-     * DURATION
-     * =====================================================
-     *
-     * Dikelola oleh parameters.js.
-     *
-     * Tidak ditampilkan sebagai field Edit Model.
-     *
-     * Supported:
-     *
-     * 10
-     * 15
-     * 20
-     * 25
-     * 30
-     * =====================================================
-     */
+    /* =====================================================
+       DURATION
+       Provider-owned parameter
+    ===================================================== */
 
     {
 
@@ -214,21 +179,14 @@ const parameters = [
             10,
 
         description:
-            "Durasi video dalam detik."
+            "Durasi video dalam detik yang didukung Motiongen-AI."
 
     },
 
 
-    /**
-     * =====================================================
-     * WEBHOOK URL
-     * =====================================================
-     *
-     * Optional.
-     *
-     * Alias webhook ditangani oleh parameter-adapter.
-     * =====================================================
-     */
+    /* =====================================================
+       WEBHOOK
+    ===================================================== */
 
     {
 
@@ -242,214 +200,332 @@ const parameters = [
             false,
 
         description:
-            "URL webhook untuk menerima status job."
+            "URL webhook opsional untuk menerima status job Motiongen-AI."
 
     }
 
 ];
 
 
-/**
- * =========================================================
- * VALIDATE
- * =========================================================
- */
+/* =========================================================
+   PARAMETER LOOKUP
+========================================================= */
 
-function validate(input = {}) {
+function getParameter(
+    name
+) {
+
+    return parameters.find(
+        parameter =>
+            parameter &&
+            parameter.name === name
+    ) || null;
+
+}
+
+
+/* =========================================================
+   NORMALIZE STRING
+========================================================= */
+
+function normalizeString(
+    value
+) {
+
+    if (
+        typeof value !==
+            "string"
+    ) {
+
+        return "";
+
+    }
+
+
+    return value.trim();
+
+}
+
+
+/* =========================================================
+   NORMALIZE IMAGE URLS
+========================================================= */
+
+function normalizeImageUrls(
+    value
+) {
+
+    if (
+        !Array.isArray(
+            value
+        )
+    ) {
+
+        return [];
+
+    }
+
+
+    return value
+
+        .map(
+            item =>
+                normalizeString(
+                    item
+                )
+        )
+
+        .filter(
+            Boolean
+        )
+
+        .slice(
+            0,
+            1
+        );
+
+}
+
+
+/* =========================================================
+   VALIDATE
+========================================================= */
+
+function validate(
+    input = {}
+) {
 
     const errors = [];
 
 
-    /**
-     * =====================================================
-     * PROMPT
-     * =====================================================
-     */
-
     if (
-        typeof input.prompt !== "string" ||
-        !input.prompt.trim()
+        !input ||
+        typeof input !==
+            "object" ||
+        Array.isArray(
+            input
+        )
     ) {
+
+        return {
+
+            valid:
+                false,
+
+            errors: [
+
+                "Parameter input harus berupa object."
+
+            ]
+
+        };
+
+    }
+
+
+    /* =====================================================
+       PROMPT
+    ===================================================== */
+
+    const prompt =
+        normalizeString(
+            input.prompt
+        );
+
+
+    if (!prompt) {
 
         errors.push(
             "Prompt wajib diisi."
         );
 
-    } else if (
-        input.prompt.length > 30000
+    } else {
+
+        const definition =
+            getParameter(
+                "prompt"
+            );
+
+
+        if (
+            definition &&
+            definition.maxLength &&
+            prompt.length >
+                definition.maxLength
+        ) {
+
+            errors.push(
+                `Prompt maksimal ${definition.maxLength} karakter.`
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       IMAGE
+    ===================================================== */
+
+    const imageUrls =
+        normalizeImageUrls(
+            input.image_urls
+        );
+
+
+    if (
+        imageUrls.length ===
+            0
     ) {
 
         errors.push(
-            "Prompt maksimal 30000 karakter."
+            "Satu image wajib diupload atau diberikan sebagai URL."
         );
 
     }
 
 
-    /**
-     * =====================================================
-     * IMAGE
-     * =====================================================
-     */
+    if (
+        imageUrls.length >
+            1
+    ) {
+
+        errors.push(
+            "Motiongen-AI hanya mendukung 1 image."
+        );
+
+    }
+
+
+    /* =====================================================
+       AUDIO
+       HARD REQUIRED
+    ===================================================== */
+
+    const audioUrl =
+        normalizeString(
+            input.audio_url
+        );
+
+
+    if (!audioUrl) {
+
+        errors.push(
+            "Audio wajib diupload atau diberikan sebagai URL MP3/WAV."
+        );
+
+    }
+
+
+    /* =====================================================
+       ASPECT RATIO
+    ===================================================== */
+
+    const aspectRatio =
+        input.aspect_ratio == null
+
+            ? "16:9"
+
+            : String(
+                input.aspect_ratio
+            ).trim();
+
+
+    const aspectRatioDefinition =
+        getParameter(
+            "aspect_ratio"
+        );
+
 
     if (
-        !Array.isArray(
-            input.image_urls
+        aspectRatioDefinition &&
+        Array.isArray(
+            aspectRatioDefinition.enum
+        ) &&
+        !aspectRatioDefinition.enum.includes(
+            aspectRatio
         )
     ) {
 
         errors.push(
-            "image_urls wajib berupa array."
-        );
-
-    } else if (
-        input.image_urls.length !== 1
-    ) {
-
-        errors.push(
-            "Wajib menyertakan tepat 1 image."
-        );
-
-    } else if (
-        typeof input.image_urls[0] !== "string" ||
-        !input.image_urls[0].trim()
-    ) {
-
-        errors.push(
-            "image_urls harus berisi URL gambar yang valid."
+            `Aspect ratio tidak valid. Gunakan: ${aspectRatioDefinition.enum.join(", ")}.`
         );
 
     }
 
 
-    /**
-     * =====================================================
-     * AUDIO
-     * =====================================================
-     *
-     * HARD REQUIRED.
-     * =====================================================
-     */
+    /* =====================================================
+       DURATION
+    ===================================================== */
 
-    if (
-        typeof input.audio_url !== "string" ||
-        !input.audio_url.trim()
-    ) {
+    const duration =
+        input.duration == null
 
-        errors.push(
-            "Audio wajib diupload atau menggunakan URL audio."
-        );
+            ? 10
 
-    }
-
-
-    /**
-     * =====================================================
-     * ASPECT RATIO
-     * =====================================================
-     */
-
-    if (
-        input.aspect_ratio !== undefined &&
-        input.aspect_ratio !== null &&
-        input.aspect_ratio !== ""
-    ) {
-
-        if (
-            !parameters
-                .find(
-                    parameter =>
-                        parameter.name ===
-                        "aspect_ratio"
-                )
-                .enum
-                .includes(
-                    input.aspect_ratio
-                )
-        ) {
-
-            errors.push(
-                "Aspect ratio tidak didukung."
-            );
-
-        }
-
-    }
-
-
-    /**
-     * =====================================================
-     * DURATION
-     * =====================================================
-     */
-
-    if (
-        input.duration !== undefined &&
-        input.duration !== null &&
-        input.duration !== ""
-    ) {
-
-        const duration =
-            Number(
+            : Number(
                 input.duration
             );
 
-        const supportedDurations =
-            parameters
-                .find(
-                    parameter =>
-                        parameter.name ===
-                        "duration"
-                )
-                .enum;
 
+    const durationDefinition =
+        getParameter(
+            "duration"
+        );
 
-        if (
-            !supportedDurations.includes(
-                duration
-            )
-        ) {
-
-            errors.push(
-                "Duration harus 10, 15, 20, 25, atau 30 detik."
-            );
-
-        }
-
-    }
-
-
-    /**
-     * =====================================================
-     * WEBHOOK
-     * =====================================================
-     */
 
     if (
-        input.webhook_url !== undefined &&
-        input.webhook_url !== null &&
-        input.webhook_url !== ""
+        !Number.isFinite(
+            duration
+        )
     ) {
 
-        if (
-            typeof input.webhook_url !==
-            "string"
-        ) {
+        errors.push(
+            "Duration harus berupa angka."
+        );
 
-            errors.push(
-                "webhook_url harus berupa string."
-            );
+    } else if (
 
-        }
+        durationDefinition &&
+
+        Array.isArray(
+            durationDefinition.enum
+        ) &&
+
+        !durationDefinition.enum.includes(
+            duration
+        )
+
+    ) {
+
+        errors.push(
+            `Duration tidak valid. Gunakan: ${durationDefinition.enum.join(", ")} detik.`
+        );
 
     }
 
 
-    /**
-     * =====================================================
-     * RESULT
-     * =====================================================
-     */
+    /* =====================================================
+       WEBHOOK
+    ===================================================== */
+
+    if (
+        input.webhook_url != null &&
+        normalizeString(
+            input.webhook_url
+        ) === ""
+    ) {
+
+        errors.push(
+            "Webhook URL tidak boleh kosong jika dikirim."
+        );
+
+    }
+
+
+    /* =====================================================
+       RESULT
+    ===================================================== */
 
     return {
 
@@ -463,12 +539,19 @@ function validate(input = {}) {
 }
 
 
+/* =========================================================
+   EXPORTS
+========================================================= */
+
 export {
 
     parameters,
 
+    getParameter,
+
     validate
 
 };
+
 
 export default parameters;
