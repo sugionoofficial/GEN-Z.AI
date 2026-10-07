@@ -12,12 +12,11 @@
    - Mendukung object / array / JSON Schema
    - Image URL / Upload melalui media module
    - Audio URL / Upload melalui media module
-   - Enum
-   - Boolean
-   - Number / Integer
-   - Duration range
    - Collect parameter melalui generate-form-data.js
    - Reset form
+   - Form disabled state
+   - Media parameter access
+   - Parameter definition access
    - Tidak membuat parameter model baru
    - Parameter internal tidak ditampilkan
    - Parameter server-controlled tidak dikirim dari client
@@ -27,6 +26,9 @@
 
    Field factories:
    - generate-form-fields.js
+
+   Field value:
+   - generate-form-value.js
 
    Media:
    - generate-form-media.js
@@ -50,7 +52,6 @@ import {
     isServerControlledParameter,
     isClientForbiddenParameter,
     getOrderedParameterNames,
-    getDefaultValue,
     normalizeArray
 } from "./generate-form-core.js";
 
@@ -98,6 +99,8 @@ import {
 ========================================================= */
 
 import {
+    createImageField as createMediaImageField,
+    createAudioField as createMediaAudioField,
     registerImageMediaHandlers,
     registerAudioMediaHandlers
 } from "./generate-form-media.js";
@@ -110,6 +113,19 @@ import {
 import {
     findField
 } from "./generate-form-reader.js";
+
+
+/* =========================================================
+   FORM VALUE
+   ---------------------------------------------------------
+   setFieldValue()
+   sekarang dimiliki oleh:
+   generate-form-value.js
+========================================================= */
+
+import {
+    setFieldValue
+} from "./generate-form-value.js";
 
 
 /* =========================================================
@@ -129,6 +145,9 @@ import {
 
 /* =========================================================
    MEDIA HANDLER REGISTRATION
+   ---------------------------------------------------------
+   Register upload / validation handler sebelum field
+   media digunakan oleh form.
 ========================================================= */
 
 registerImageMediaHandlers({
@@ -156,15 +175,9 @@ registerAudioMediaHandlers({
 /* =========================================================
    FIELD FACTORY REGISTRATION
    ---------------------------------------------------------
-   Media field dibuat oleh generate-form-media.js,
-   kemudian didaftarkan ke generate-form-fields.js.
+   Field factory image/audio disediakan oleh
+   generate-form-media.js.
 ========================================================= */
-
-import {
-    createImageField as createMediaImageField,
-    createAudioField as createMediaAudioField
-} from "./generate-form-media.js";
-
 
 registerImageFieldFactory(
     createMediaImageField
@@ -222,13 +235,17 @@ export function renderGenerateForm(
     }
 
 
-    /*
-     * Bersihkan form lama.
-     */
+    /* =====================================================
+       CLEAR FORM LAMA
+    ===================================================== */
 
     container.innerHTML =
         "";
 
+
+    /* =====================================================
+       GET PARAMETER DEFINITIONS
+    ===================================================== */
 
     const definitions =
         getParameterDefinitions(
@@ -241,6 +258,10 @@ export function renderGenerateForm(
             definitions
         );
 
+
+    /* =====================================================
+       DEBUG
+    ===================================================== */
 
     console.debug(
         "[GEN-Z.AI][Generate Form] MODEL:",
@@ -344,13 +365,17 @@ export function renderGenerateForm(
 
 
     /* =====================================================
-       FORCE VISIBILITY / LAYOUT
+       FORCE CONTAINER VISIBLE
     ===================================================== */
 
     forceContainerVisible(
         container
     );
 
+
+    /* =====================================================
+       DEBUG RENDER RESULT
+    ===================================================== */
 
     console.debug(
         "[GEN-Z.AI][Generate Form] RENDER SELESAI:",
@@ -372,298 +397,6 @@ export function renderGenerateForm(
 
 
     return renderedCount > 0;
-
-}
-
-
-/* =========================================================
-   SET FIELD VALUE
-========================================================= */
-
-export function setFieldValue(
-    name,
-    value
-) {
-
-    /* =====================================================
-       PROTECTED PARAMETERS
-    ===================================================== */
-
-    if (
-        isClientForbiddenParameter(
-            name
-        ) ||
-        isInternalParameter(
-            name
-        ) ||
-        isServerControlledParameter(
-            name
-        )
-    ) {
-
-        return false;
-
-    }
-
-
-    const field =
-        findField(
-            name
-        );
-
-
-    if (
-        !field
-    ) {
-
-        return false;
-
-    }
-
-
-    /* =====================================================
-       IMAGE
-    ===================================================== */
-
-    if (
-        name === "image_urls" ||
-        name === "image_url"
-    ) {
-
-        const imageInput =
-            field.querySelector(
-                ".generate-image-input"
-            ) ||
-            (
-                field.classList?.contains(
-                    "generate-image-input"
-                )
-                    ? field
-                    : null
-            );
-
-
-        const images =
-            normalizeArray(
-                value
-            );
-
-
-        const urlInput =
-            imageInput &&
-            typeof imageInput.getUrlInput ===
-                "function"
-
-                ? imageInput.getUrlInput()
-
-                : field.querySelector(
-                    'input[type="url"]'
-                );
-
-
-        if (
-            urlInput
-        ) {
-
-            urlInput.value =
-                images[0] ||
-                "";
-
-        }
-
-
-        if (
-            imageInput &&
-            typeof imageInput.setUploadedUrl ===
-                "function"
-        ) {
-
-            imageInput.setUploadedUrl(
-                ""
-            );
-
-        }
-
-
-        return true;
-
-    }
-
-
-    /* =====================================================
-       AUDIO
-    ===================================================== */
-
-    if (
-        name === "audio_url"
-    ) {
-
-        const audioInput =
-            field.querySelector(
-                ".generate-audio-input"
-            ) ||
-            (
-                field.classList?.contains(
-                    "generate-audio-input"
-                )
-                    ? field
-                    : null
-            );
-
-
-        const urlInput =
-            audioInput &&
-            typeof audioInput.getUrlInput ===
-                "function"
-
-                ? audioInput.getUrlInput()
-
-                : field.querySelector(
-                    'input[type="url"]'
-                );
-
-
-        if (
-            urlInput
-        ) {
-
-            urlInput.value =
-                String(
-                    value ||
-                    ""
-                ).trim();
-
-        }
-
-
-        if (
-            audioInput &&
-            typeof audioInput.setUploadedUrl ===
-                "function"
-        ) {
-
-            audioInput.setUploadedUrl(
-                ""
-            );
-
-        }
-
-
-        return true;
-
-    }
-
-
-    /* =====================================================
-       RADIO
-    ===================================================== */
-
-    const radios =
-        field.querySelectorAll(
-            'input[type="radio"]'
-        );
-
-
-    if (
-        radios.length
-    ) {
-
-        let found =
-            false;
-
-
-        radios.forEach(
-            radio => {
-
-                const active =
-                    String(
-                        radio.value
-                    ) ===
-                    String(
-                        value
-                    );
-
-
-                radio.checked =
-                    active;
-
-
-                radio
-                    .nextElementSibling
-                    ?.classList.toggle(
-                        "active",
-                        active
-                    );
-
-
-                if (
-                    active
-                ) {
-
-                    found =
-                        true;
-
-                }
-
-            }
-        );
-
-
-        return found;
-
-    }
-
-
-    /* =====================================================
-       CHECKBOX
-    ===================================================== */
-
-    const checkbox =
-        field.querySelector(
-            'input[type="checkbox"]'
-        );
-
-
-    if (
-        checkbox
-    ) {
-
-        checkbox.checked =
-            Boolean(
-                value
-            );
-
-
-        return true;
-
-    }
-
-
-    /* =====================================================
-       NORMAL INPUT
-    ===================================================== */
-
-    const input =
-        field.querySelector(
-            "input, textarea, select"
-        );
-
-
-    if (
-        !input
-    ) {
-
-        return false;
-
-    }
-
-
-    input.value =
-        value ??
-        "";
-
-
-    return true;
 
 }
 
@@ -713,7 +446,7 @@ export async function resetDynamicFields(
 
 
         /* =================================================
-           TEXT / NUMBER / RANGE / TEXTAREA
+           TEXT / NUMBER / RANGE / URL / TEXTAREA
         ================================================= */
 
         seedanceForm
@@ -1142,7 +875,9 @@ export async function resetDynamicFields(
 
 
     /* =====================================================
-       MODEL NON-SEEDANCE
+       NON-SEEDANCE
+       -----------------------------------------------------
+       Bersihkan upload terlebih dahulu.
     ===================================================== */
 
     const uploads =
@@ -1182,9 +917,9 @@ export async function resetDynamicFields(
     }
 
 
-    /*
-     * Non-Seedance tetap menggunakan renderer normal.
-     */
+    /* =====================================================
+       RENDER ULANG
+    ===================================================== */
 
     renderGenerateForm(
         modelArgument
@@ -1281,6 +1016,10 @@ export function getParameterDefinition(
     modelArgument = null
 ) {
 
+    /* =====================================================
+       PROTECTED PARAMETERS
+    ===================================================== */
+
     if (
         isClientForbiddenParameter(
             name
@@ -1297,6 +1036,10 @@ export function getParameterDefinition(
 
     }
 
+
+    /* =====================================================
+       DEFINITIONS
+    ===================================================== */
 
     const definitions =
         getParameterDefinitions(
