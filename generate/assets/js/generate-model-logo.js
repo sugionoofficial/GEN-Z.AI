@@ -49,7 +49,20 @@ const LOGO_MAP = Object.freeze({
         "seedance.svg",
 
     seed:
-        "seedance.svg"
+        "seedance.svg",
+
+
+    /* =====================================================
+       MOTIONGEN / MINIMAX
+       Model: digital-human-lipsync-image
+       Logo file: minimax.svg
+    ===================================================== */
+
+    motiongen:
+        "minimax.svg",
+
+    minimax:
+        "minimax.svg"
 
 });
 
@@ -357,55 +370,4 @@ export function updateModelLogo(
 
     container.hidden = false;
 
-
-    if (
-        normalized.modelId
-    ) {
-
-        container.dataset.modelId =
-            normalized.modelId;
-
-    }
-
 }
-
-
-/* =========================================================
-   INIT
-========================================================= */
-
-export function initModelLogo(
-    model = null
-) {
-
-    if (model) {
-
-        updateModelLogo(
-            model
-        );
-
-        return;
-
-    }
-
-
-    clearModelLogo();
-
-}
-
-
-/* =========================================================
-   GLOBAL API
-========================================================= */
-
-window.GENZModelLogo = {
-
-    updateModelLogo,
-
-    clearModelLogo,
-
-    getModelLogoFile,
-
-    initModelLogo
-
-};
