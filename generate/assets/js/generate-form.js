@@ -10,6 +10,7 @@
    - Source parameter dari konfigurasi model
    - Mendukung object / array / JSON Schema
    - Image URL / Upload
+   - Audio URL / Upload
    - Enum
    - Boolean
    - Number / Integer
@@ -19,8 +20,9 @@
    - Tidak membuat parameter model baru
    - Parameter internal seperti task_id / index tidak
      ditampilkan atau dikirim secara otomatis
-   - Parameter keamanan server seperti nsfw_checker
-     tidak pernah ditampilkan atau dikirim dari client
+   - Parameter keamanan/server-controlled seperti
+     nsfw_checker / webhook_url tidak pernah
+     ditampilkan atau dikirim dari client
 ========================================================= */
 
 "use strict";
@@ -49,15 +51,33 @@ const INTERNAL_PARAMETERS =
     ]);
 
 
+/*
+ * Parameter yang tidak boleh berasal dari client.
+ *
+ * nsfw_checker:
+ *   dikontrol server.
+ *
+ * webhook_url:
+ *   bukan input pengguna Generate.
+ *   Jika provider membutuhkan webhook, backend/provider
+ *   yang menentukan dan mengisinya.
+ */
+
 const SERVER_CONTROLLED_PARAMETERS =
     new Set([
-        "nsfw_checker"
+        "nsfw_checker",
+        "webhook_url",
+        "webhook"
     ]);
 
 
 const STORAGE_BUCKET =
     "dashboard-videos";
 
+
+/* =========================================================
+   IMAGE
+========================================================= */
 
 const ALLOWED_IMAGE_TYPES =
     new Set([
@@ -71,18 +91,39 @@ const MAX_IMAGE_SIZE =
     10 * 1024 * 1024;
 
 
+/* =========================================================
+   AUDIO
+========================================================= */
+
+const ALLOWED_AUDIO_TYPES =
+    new Set([
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/wave",
+        "audio/x-pn-wav"
+    ]);
+
+
+const MAX_AUDIO_SIZE =
+    50 * 1024 * 1024;
+
+
 /*
  * Hanya menentukan urutan visual.
  *
  * BUKAN whitelist.
  *
  * Parameter lain yang diberikan model
- * tetap akan dirender.
+ * tetap akan dirender kecuali memang
+ * client-forbidden.
  */
 
 const PARAMETER_ORDER = [
     "image_urls",
     "image_url",
+    "audio_url",
     "prompt",
     "mode",
     "aspect_ratio",
@@ -94,17 +135,13 @@ const PARAMETER_ORDER = [
 /*
  * Parameter yang secara visual sebaiknya
  * menggunakan satu baris penuh.
- *
- * Prompt dan gambar biasanya membutuhkan
- * ruang horizontal penuh.
- *
- * Parameter lain dapat berdampingan.
  */
 
 const FULL_WIDTH_PARAMETERS =
     new Set([
         "image_urls",
         "image_url",
+        "audio_url",
         "prompt",
         "negative_prompt",
         "description"
@@ -121,6 +158,7 @@ function getContainer() {
         document.getElementById(
             "dynamicFields"
         );
+
 
     if (
         domContainer
@@ -269,101 +307,91 @@ function getParameterDefinitions(
     ) {
 
         const normalized =
-    normalizeParameterDefinitions(
-        candidate
-    );
+            normalizeParameterDefinitions(
+                candidate
+            );
 
-
-if (
-    Object.keys(
-        normalized
-    ).length > 0
-) {
-
-    /* =====================================================
-       ACTIVE RESOLUTION OVERRIDE
-       -----------------------------------------------------
-       Parameter registry berisi daftar teknis model.
-
-       Jika database mempunyai:
-           supported_resolutions
-
-       maka daftar tersebut menjadi source of truth
-       untuk pilihan resolution di Generate.
-
-       Penting:
-       - Cek property dengan hasOwnProperty
-       - Jangan menggunakan || karena [] adalah nilai valid
-       - Jangan mengubah parameters asli
-    ===================================================== */
-
-    if (
-        Object.prototype.hasOwnProperty.call(
-            model,
-            "supported_resolutions"
-        )
-    ) {
-
-        const activeResolutions =
-            Array.isArray(
-                model.supported_resolutions
-            )
-                ? model.supported_resolutions
-                    .map(
-                        value =>
-                            String(
-                                value
-                            ).trim()
-                    )
-                    .filter(
-                        Boolean
-                    )
-                : [];
 
         if (
-            normalized.resolution &&
-            typeof normalized.resolution ===
-                "object"
+            Object.keys(
+                normalized
+            ).length > 0
         ) {
 
-            normalized.resolution = {
+            /*
+             * =================================================
+             * ACTIVE RESOLUTION OVERRIDE
+             * =================================================
+             */
 
-                ...normalized.resolution,
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    model,
+                    "supported_resolutions"
+                )
+            ) {
 
-                enum:
-                    activeResolutions
+                const activeResolutions =
+                    Array.isArray(
+                        model.supported_resolutions
+                    )
+                        ? model.supported_resolutions
+                            .map(
+                                value =>
+                                    String(
+                                        value
+                                    ).trim()
+                            )
+                            .filter(
+                                Boolean
+                            )
+                        : [];
 
-            };
+
+                if (
+                    normalized.resolution &&
+                    typeof normalized.resolution ===
+                        "object"
+                ) {
+
+                    normalized.resolution = {
+
+                        ...normalized.resolution,
+
+                        enum:
+                            activeResolutions
+
+                    };
+
+                }
+
+            }
+
+
+            console.debug(
+                "[GEN-Z.AI][Generate Form] Parameter source ditemukan:",
+                {
+                    model:
+                        model.model_id ||
+                        model.id ||
+                        "-",
+
+                    keys:
+                        Object.keys(
+                            normalized
+                        ),
+
+                    resolution:
+                        normalized.resolution?.enum ||
+                        []
+
+                }
+            );
+
+
+            return normalized;
 
         }
-
-    }
-
-
-    console.debug(
-        "[GEN-Z.AI][Generate Form] Parameter source ditemukan:",
-        {
-            model:
-                model.model_id ||
-                model.id ||
-                "-",
-
-            keys:
-                Object.keys(
-                    normalized
-                ),
-
-            resolution:
-                normalized.resolution?.enum ||
-                []
-
-        }
-    );
-
-
-    return normalized;
-
-}
 
     }
 
@@ -781,6 +809,9 @@ function getParameterLabel(
         image_url:
             "Gambar Referensi",
 
+        audio_url:
+            "Audio",
+
         prompt:
             "Prompt",
 
@@ -1005,12 +1036,6 @@ function getOrderedParameterNames(
 
 /* =========================================================
    FIELD
-   ---------------------------------------------------------
-   PERBAIKAN LAYOUT:
-   - Tidak lagi width: 100% untuk semua field
-   - Field biasa memakai 1 kolom
-   - Prompt / image memakai full width
-   - Grid dikontrol oleh #dynamicFields
 ========================================================= */
 
 function createField(
@@ -1031,18 +1056,6 @@ function createField(
     wrapper.dataset.parameter =
         name;
 
-
-    /*
-     * PENTING:
-     * Sebelumnya:
-     *
-     * wrapper.style.width = "100%";
-     *
-     * Ini menyebabkan semua field mengambil
-     * satu baris penuh walaupun parent adalah grid.
-     *
-     * Sekarang field memakai ukuran grid.
-     */
 
     wrapper.style.setProperty(
         "width",
@@ -1079,10 +1092,6 @@ function createField(
     wrapper.style.opacity =
         "1";
 
-
-    /*
-     * Prompt / image membutuhkan satu baris penuh.
-     */
 
     if (
         FULL_WIDTH_PARAMETERS.has(
@@ -1802,155 +1811,218 @@ function createImageField(
 
 
     fileInput.addEventListener(
-    "change",
-    async () => {
+        "change",
+        async () => {
 
-        const files =
-            Array.from(
-                fileInput.files || []
-            );
-
-        /*
-         * Tidak ada file.
-         */
-        if (
-            !files.length
-        ) {
-
-            delete wrapper.dataset.uploadedUrl;
-
-            renderPreview(
-                []
-            );
-
-            return;
-
-        }
-
-
-        /*
-         * Upload renderer ini hanya digunakan
-         * untuk satu image pada model seperti
-         * Motiongen.
-         *
-         * Jangan mengubah perilaku file selection
-         * model lain.
-         */
-        try {
-
-            /*
-             * Validasi semua file terlebih dahulu.
-             */
-            files.forEach(
-                file => {
-
-                    validateImageFile(
-                        file
-                    );
-
-                }
-            );
-
-
-            /*
-             * Tampilkan preview segera.
-             */
-            renderPreview(
-                files
-            );
-
-
-            /*
-             * Bersihkan URL upload sebelumnya.
-             */
-            delete wrapper.dataset.uploadedUrl;
-
-
-            /*
-             * Upload file pertama.
-             *
-             * resolveImageParameterValue()
-             * nantinya akan menggunakan URL ini,
-             * sehingga tidak perlu meng-upload ulang
-             * file yang sama.
-             */
-            const uploaded =
-                await uploadImageFile(
-                    files[0]
+            const files =
+                Array.from(
+                    fileInput.files || []
                 );
-
-
-            const uploadedUrl =
-                String(
-                    uploaded?.url ||
-                    ""
-                ).trim();
 
 
             if (
-                !uploadedUrl
+                !files.length
             ) {
 
-                throw new Error(
-                    "Upload gambar berhasil tetapi URL gambar tidak tersedia."
+                delete wrapper.dataset.uploadedUrl;
+
+                wrapper._imageUploadPromise =
+                    null;
+
+                renderPreview(
+                    []
                 );
 
+                return;
+
             }
-
-
-            wrapper.dataset.uploadedUrl =
-                uploadedUrl;
-
-
-            console.debug(
-                "[GEN-Z.AI][Generate Form] Image upload ready:",
-                uploadedUrl
-            );
-
-        } catch (
-            error
-        ) {
-
-            console.error(
-                "[GEN-Z.AI][Generate Form] Image upload gagal:",
-                error
-            );
-
-
-            /*
-             * Jangan meninggalkan state setengah jadi.
-             */
-            delete wrapper.dataset.uploadedUrl;
 
 
             try {
 
-                fileInput.value =
-                    "";
+                files.forEach(
+                    file => {
 
-            } catch {
-                /* ignore */
-            }
+                        validateImageFile(
+                            file
+                        );
 
-
-            renderPreview(
-                []
-            );
-
-
-            /*
-             * Simpan pesan agar UI tetap informatif.
-             */
-            wrapper.dataset.uploadError =
-                String(
-                    error?.message ||
-                    "Gagal mengupload gambar."
+                    }
                 );
 
-        }
 
-    }
-);
+                renderPreview(
+                    files
+                );
+
+
+                delete wrapper.dataset.uploadedUrl;
+
+
+                const configuredMaxItems =
+                    Number(
+                        definition?.maxItems ??
+                        definition?.max_items
+                    );
+
+
+                const maxItems =
+                    Number.isFinite(
+                        configuredMaxItems
+                    ) &&
+                    configuredMaxItems > 0
+
+                        ? Math.floor(
+                            configuredMaxItems
+                        )
+
+                        : 1;
+
+
+                const selectedFiles =
+                    files.slice(
+                        0,
+                        maxItems
+                    );
+
+
+                /*
+                 * Simpan Promise supaya jika user langsung
+                 * menekan Generate ketika upload masih berjalan,
+                 * getFormParameters() dapat menunggunya
+                 * daripada mengirim image kosong.
+                 */
+
+                wrapper._imageUploadPromise =
+                    (async () => {
+
+                        const uploadedUrls =
+                            [];
+
+
+                        for (
+                            const file
+                            of selectedFiles
+                        ) {
+
+                            const uploaded =
+                                await uploadImageFile(
+                                    file
+                                );
+
+
+                            const uploadedUrl =
+                                String(
+                                    uploaded?.url ||
+                                    ""
+                                ).trim();
+
+
+                            if (
+                                uploadedUrl
+                            ) {
+
+                                uploadedUrls.push(
+                                    uploadedUrl
+                                );
+
+                            }
+
+                        }
+
+
+                        if (
+                            !uploadedUrls.length
+                        ) {
+
+                            throw new Error(
+                                "Upload gambar berhasil tetapi URL gambar tidak tersedia."
+                            );
+
+                        }
+
+
+                        /*
+                         * Renderer lama memakai satu dataset
+                         * untuk uploaded URL. URL pertama tetap
+                         * disimpan agar kompatibel.
+                         */
+
+                        wrapper.dataset.uploadedUrl =
+                            uploadedUrls[0];
+
+
+                        /*
+                         * Untuk model yang mendukung beberapa
+                         * gambar, simpan seluruh URL secara
+                         * internal.
+                         */
+
+                        wrapper.dataset.uploadedUrls =
+                            JSON.stringify(
+                                uploadedUrls
+                            );
+
+
+                        console.debug(
+                            "[GEN-Z.AI][Generate Form] Image upload ready:",
+                            uploadedUrls
+                        );
+
+
+                        return uploadedUrls;
+
+                    })();
+
+
+                await wrapper._imageUploadPromise;
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Image upload gagal:",
+                    error
+                );
+
+
+                delete wrapper.dataset.uploadedUrl;
+                delete wrapper.dataset.uploadedUrls;
+
+
+                try {
+
+                    fileInput.value =
+                        "";
+
+                } catch {
+                    /* ignore */
+                }
+
+
+                renderPreview(
+                    []
+                );
+
+
+                wrapper.dataset.uploadError =
+                    String(
+                        error?.message ||
+                        "Gagal mengupload gambar."
+                    );
+
+
+            } finally {
+
+                wrapper._imageUploadPromise =
+                    null;
+
+            }
+
+        }
+    );
+
 
     urlInput.addEventListener(
         "keydown",
@@ -2009,6 +2081,34 @@ function createImageField(
                 wrapper.dataset.uploadedUrl ||
                 ""
             ).trim();
+
+
+    wrapper.getUploadedUrls =
+        () => {
+
+            try {
+
+                const parsed =
+                    JSON.parse(
+                        wrapper.dataset.uploadedUrls ||
+                        "[]"
+                    );
+
+
+                return Array.isArray(
+                    parsed
+                )
+
+                    ? parsed
+                    : [];
+
+            } catch {
+
+                return [];
+
+            }
+
+        };
 
 
     wrapper.setUploadedUrl =
@@ -2073,6 +2173,736 @@ function createImageField(
 
 
             delete wrapper.dataset.uploadedUrl;
+            delete wrapper.dataset.uploadedUrls;
+
+
+            wrapper._imageUploadPromise =
+                null;
+
+
+            setMode(
+                "url"
+            );
+
+        };
+
+
+    wrapper.appendChild(
+        modeSelector
+    );
+
+
+    wrapper.appendChild(
+        urlContainer
+    );
+
+
+    wrapper.appendChild(
+        uploadContainer
+    );
+
+
+    wrapper.appendChild(
+        preview
+    );
+
+
+    setMode(
+        "url"
+    );
+
+
+    return wrapper;
+
+}
+
+
+/* =========================================================
+   AUDIO FIELD
+========================================================= */
+
+function createAudioField(
+    definition = {},
+    parameterName = "audio_url"
+) {
+
+    const wrapper =
+        document.createElement(
+            "div"
+        );
+
+
+    wrapper.className =
+        "generate-audio-input";
+
+
+    wrapper.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
+
+
+    if (
+        parameterName
+    ) {
+
+        wrapper.dataset.parameter =
+            parameterName;
+
+    }
+
+
+    const modeSelector =
+        document.createElement(
+            "div"
+        );
+
+
+    modeSelector.className =
+        "generate-audio-mode-selector";
+
+
+    modeSelector.style.display =
+        "flex";
+
+
+    modeSelector.style.gap =
+        "8px";
+
+
+    modeSelector.style.marginBottom =
+        "10px";
+
+
+    const urlButton =
+        document.createElement(
+            "button"
+        );
+
+
+    urlButton.type =
+        "button";
+
+
+    urlButton.textContent =
+        "Gunakan URL";
+
+
+    urlButton.className =
+        "generate-audio-mode-button active";
+
+
+    urlButton.style.cursor =
+        "pointer";
+
+
+    const uploadButton =
+        document.createElement(
+            "button"
+        );
+
+
+    uploadButton.type =
+        "button";
+
+
+    uploadButton.textContent =
+        "Upload Audio";
+
+
+    uploadButton.className =
+        "generate-audio-mode-button";
+
+
+    uploadButton.style.cursor =
+        "pointer";
+
+
+    modeSelector.appendChild(
+        urlButton
+    );
+
+
+    modeSelector.appendChild(
+        uploadButton
+    );
+
+
+    /* =====================================================
+       URL CONTAINER
+    ===================================================== */
+
+    const urlContainer =
+        document.createElement(
+            "div"
+        );
+
+
+    urlContainer.className =
+        "generate-audio-url-container";
+
+
+    const urlInput =
+        document.createElement(
+            "input"
+        );
+
+
+    urlInput.type =
+        "url";
+
+
+    urlInput.className =
+        "generate-audio-url";
+
+
+    urlInput.placeholder =
+        "Masukkan URL audio MP3/WAV";
+
+
+    urlInput.autocomplete =
+        "off";
+
+
+    urlInput.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
+
+
+    urlContainer.appendChild(
+        urlInput
+    );
+
+
+    /* =====================================================
+       UPLOAD CONTAINER
+    ===================================================== */
+
+    const uploadContainer =
+        document.createElement(
+            "div"
+        );
+
+
+    uploadContainer.className =
+        "generate-audio-upload-container";
+
+
+    uploadContainer.style.display =
+        "none";
+
+
+    const fileInput =
+        document.createElement(
+            "input"
+        );
+
+
+    fileInput.type =
+        "file";
+
+
+    fileInput.accept =
+        definition.accept ||
+        ".mp3,.wav,audio/mpeg,audio/wav";
+
+
+    fileInput.multiple =
+        false;
+
+
+    fileInput.className =
+        "generate-audio-file";
+
+
+    uploadContainer.appendChild(
+        fileInput
+    );
+
+
+    /* =====================================================
+       AUDIO PREVIEW
+    ===================================================== */
+
+    const preview =
+        document.createElement(
+            "div"
+        );
+
+
+    preview.className =
+        "generate-audio-preview";
+
+
+    preview.style.display =
+        "none";
+
+
+    preview.style.marginTop =
+        "10px";
+
+
+    const audio =
+        document.createElement(
+            "audio"
+        );
+
+
+    audio.controls =
+        true;
+
+
+    audio.preload =
+        "metadata";
+
+
+    audio.style.width =
+        "100%";
+
+
+    audio.style.maxWidth =
+        "500px";
+
+
+    preview.appendChild(
+        audio
+    );
+
+
+    function renderPreview(
+        file
+    ) {
+
+        audio.removeAttribute(
+            "src"
+        );
+
+
+        audio.load();
+
+
+        if (
+            !file
+        ) {
+
+            preview.style.display =
+                "none";
+
+
+            return;
+
+        }
+
+
+        const objectUrl =
+            URL.createObjectURL(
+                file
+            );
+
+
+        audio.src =
+            objectUrl;
+
+
+        audio.dataset.objectUrl =
+            objectUrl;
+
+
+        preview.style.display =
+            "block";
+
+    }
+
+
+    function clearPreview() {
+
+        const objectUrl =
+            audio.dataset.objectUrl;
+
+
+        if (
+            objectUrl
+        ) {
+
+            try {
+
+                URL.revokeObjectURL(
+                    objectUrl
+                );
+
+            } catch {
+                /* ignore */
+            }
+
+        }
+
+
+        delete audio.dataset.objectUrl;
+
+
+        audio.removeAttribute(
+            "src"
+        );
+
+
+        audio.load();
+
+
+        preview.style.display =
+            "none";
+
+    }
+
+
+    function setMode(
+        mode
+    ) {
+
+        const uploadMode =
+            mode === "upload";
+
+
+        if (
+            uploadMode
+        ) {
+
+            urlContainer.style.display =
+                "none";
+
+
+            uploadContainer.style.display =
+                "block";
+
+
+            urlButton.classList.remove(
+                "active"
+            );
+
+
+            uploadButton.classList.add(
+                "active"
+            );
+
+
+            if (
+                fileInput.files &&
+                fileInput.files.length
+            ) {
+
+                renderPreview(
+                    fileInput.files[0]
+                );
+
+            }
+
+        } else {
+
+            urlContainer.style.display =
+                "block";
+
+
+            uploadContainer.style.display =
+                "none";
+
+
+            clearPreview();
+
+
+            uploadButton.classList.remove(
+                "active"
+            );
+
+
+            urlButton.classList.add(
+                "active"
+            );
+
+        }
+
+
+        wrapper.dataset.audioMode =
+            uploadMode
+                ? "upload"
+                : "url";
+
+    }
+
+
+    urlButton.addEventListener(
+        "click",
+        event => {
+
+            event.preventDefault();
+            event.stopPropagation();
+
+
+            setMode(
+                "url"
+            );
+
+        }
+    );
+
+
+    uploadButton.addEventListener(
+        "click",
+        event => {
+
+            event.preventDefault();
+            event.stopPropagation();
+
+
+            setMode(
+                "upload"
+            );
+
+        }
+    );
+
+
+    fileInput.addEventListener(
+        "change",
+        async () => {
+
+            const files =
+                Array.from(
+                    fileInput.files || []
+                );
+
+
+            if (
+                !files.length
+            ) {
+
+                delete wrapper.dataset.uploadedUrl;
+
+                wrapper._audioUploadPromise =
+                    null;
+
+                clearPreview();
+
+                return;
+
+            }
+
+
+            const file =
+                files[0];
+
+
+            try {
+
+                validateAudioFile(
+                    file
+                );
+
+
+                renderPreview(
+                    file
+                );
+
+
+                delete wrapper.dataset.uploadedUrl;
+
+
+                /*
+                 * Sama seperti image:
+                 * simpan Promise agar submit yang terjadi
+                 * sebelum upload selesai dapat menunggu
+                 * URL publiknya.
+                 */
+
+                wrapper._audioUploadPromise =
+                    (async () => {
+
+                        const uploaded =
+                            await uploadAudioFile(
+                                file
+                            );
+
+
+                        const uploadedUrl =
+                            String(
+                                uploaded?.url ||
+                                ""
+                            ).trim();
+
+
+                        if (
+                            !uploadedUrl
+                        ) {
+
+                            throw new Error(
+                                "Upload audio berhasil tetapi URL audio tidak tersedia."
+                            );
+
+                        }
+
+
+                        wrapper.dataset.uploadedUrl =
+                            uploadedUrl;
+
+
+                        console.debug(
+                            "[GEN-Z.AI][Generate Form] Audio upload ready:",
+                            uploadedUrl
+                        );
+
+
+                        return uploadedUrl;
+
+                    })();
+
+
+                await wrapper._audioUploadPromise;
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Audio upload gagal:",
+                    error
+                );
+
+
+                delete wrapper.dataset.uploadedUrl;
+
+
+                try {
+
+                    fileInput.value =
+                        "";
+
+                } catch {
+                    /* ignore */
+                }
+
+
+                clearPreview();
+
+
+                wrapper.dataset.uploadError =
+                    String(
+                        error?.message ||
+                        "Gagal mengupload audio."
+                    );
+
+            } finally {
+
+                wrapper._audioUploadPromise =
+                    null;
+
+            }
+
+        }
+    );
+
+
+    urlInput.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key ===
+                "Enter"
+            ) {
+
+                event.preventDefault();
+
+            }
+
+        }
+    );
+
+
+    wrapper.getInputMode =
+        () =>
+            wrapper.dataset.audioMode ||
+            "url";
+
+
+    wrapper.getUrlInput =
+        () =>
+            urlInput;
+
+
+    wrapper.getFileInput =
+        () =>
+            fileInput;
+
+
+    wrapper.getUploadedUrl =
+        () =>
+            String(
+                wrapper.dataset.uploadedUrl ||
+                ""
+            ).trim();
+
+
+    wrapper.setUploadedUrl =
+        url => {
+
+            const normalized =
+                String(
+                    url ||
+                    ""
+                ).trim();
+
+
+            if (
+                normalized
+            ) {
+
+                wrapper.dataset.uploadedUrl =
+                    normalized;
+
+            } else {
+
+                delete wrapper.dataset.uploadedUrl;
+
+            }
+
+
+            return normalized;
+
+        };
+
+
+    wrapper.getSelectedFile =
+        () =>
+            fileInput.files?.[0] ||
+            null;
+
+
+    wrapper.getAudioMode =
+        () =>
+            wrapper.dataset.audioMode ||
+            "url";
+
+
+    wrapper.clearUploadedFile =
+        async () => {
+
+            fileInput.value =
+                "";
+
+
+            urlInput.value =
+                "";
+
+
+            delete wrapper.dataset.uploadedUrl;
+
+
+            wrapper._audioUploadPromise =
+                null;
+
+
+            clearPreview();
 
 
             setMode(
@@ -3078,6 +3908,26 @@ function createFieldInput(
     }
 
 
+    /*
+     * Audio provider parameter.
+     *
+     * Khusus field bernama audio_url,
+     * gunakan renderer Upload + URL.
+     */
+
+    if (
+        name ===
+        "audio_url"
+    ) {
+
+        return createAudioField(
+            definition,
+            name
+        );
+
+    }
+
+
     if (
         Array.isArray(
             definition?.enum
@@ -3444,13 +4294,6 @@ export function renderGenerateForm(
 
 /* =========================================================
    FORCE CONTAINER VISIBLE
-   ---------------------------------------------------------
-   PERBAIKAN LAYOUT:
-   - Desktop = 2 kolom
-   - Mobile = 1 kolom
-   - Field biasa = 1 kolom
-   - Prompt / image = full width
-   - Memaksa direct child grid agar tidak kembali vertikal
 ========================================================= */
 
 function forceContainerVisible(
@@ -3474,12 +4317,6 @@ function forceContainerVisible(
         "hidden"
     );
 
-
-    /*
-     * =====================================================
-     * CONTAINER
-     * =====================================================
-     */
 
     container.style.setProperty(
         "display",
@@ -3572,12 +4409,6 @@ function forceContainerVisible(
     );
 
 
-    /*
-     * =====================================================
-     * MOBILE
-     * =====================================================
-     */
-
     const mobile =
         typeof window !==
             "undefined" &&
@@ -3600,12 +4431,6 @@ function forceContainerVisible(
 
     }
 
-
-    /*
-     * =====================================================
-     * FIELD CHILDREN
-     * =====================================================
-     */
 
     const fields =
         container.querySelectorAll(
@@ -3633,11 +4458,6 @@ function forceContainerVisible(
                     .trim()
                     .toLowerCase();
 
-
-            /*
-             * Pastikan field benar-benar
-             * menjadi item grid.
-             */
 
             field.style.setProperty(
                 "display",
@@ -3695,10 +4515,6 @@ function forceContainerVisible(
             );
 
 
-            /*
-             * Prompt / image full width.
-             */
-
             const fullWidth =
                 parameter ===
                     "prompt" ||
@@ -3709,7 +4525,9 @@ function forceContainerVisible(
                 parameter ===
                     "image_urls" ||
                 parameter ===
-                    "image_url";
+                    "image_url" ||
+                parameter ===
+                    "audio_url";
 
 
             if (
@@ -3876,6 +4694,67 @@ function readFieldValue(
     }
 
 
+    const audioInput =
+        field.querySelector(
+            ".generate-audio-input"
+        );
+
+
+    if (
+        audioInput
+    ) {
+
+        const mode =
+            typeof audioInput.getInputMode ===
+            "function"
+
+                ? audioInput.getInputMode()
+
+                : (
+                    audioInput.dataset.audioMode ||
+                    "url"
+                );
+
+
+        if (
+            mode ===
+            "upload"
+        ) {
+
+            return (
+                typeof audioInput.getUploadedUrl ===
+                "function"
+
+                    ? audioInput.getUploadedUrl()
+
+                    : String(
+                        audioInput.dataset.uploadedUrl ||
+                        ""
+                    ).trim()
+            );
+
+        }
+
+
+        const urlInput =
+            typeof audioInput.getUrlInput ===
+            "function"
+
+                ? audioInput.getUrlInput()
+
+                : field.querySelector(
+                    'input[type="url"]'
+                );
+
+
+        return String(
+            urlInput?.value ||
+            ""
+        ).trim();
+
+    }
+
+
     const radio =
         field.querySelector(
             'input[type="radio"]:checked'
@@ -3955,6 +4834,19 @@ function normalizeParameterValue(
         return normalizeArray(
             value
         );
+
+    }
+
+
+    if (
+        name ===
+        "audio_url"
+    ) {
+
+        return String(
+            value ||
+            ""
+        ).trim();
 
     }
 
@@ -4289,6 +5181,344 @@ async function uploadImageFile(
 }
 
 
+/* =========================================================
+   AUDIO UPLOAD
+========================================================= */
+
+function createAudioStoragePath(
+    userId,
+    file
+) {
+
+    const safeUserId =
+        String(
+            userId ||
+            "anonymous"
+        )
+            .replace(
+                /[^a-zA-Z0-9_-]/g,
+                ""
+            );
+
+
+    const originalName =
+        String(
+            file?.name ||
+            "audio"
+        );
+
+
+    const extensionMatch =
+        originalName.match(
+            /\.([a-zA-Z0-9]+)$/
+        );
+
+
+    let extension =
+        extensionMatch
+            ? extensionMatch[1]
+                .toLowerCase()
+                .replace(
+                    /[^a-z0-9]/g,
+                    ""
+                )
+            : "mp3";
+
+
+    if (
+        extension ===
+        "mpeg"
+    ) {
+
+        extension =
+            "mp3";
+
+    }
+
+
+    const randomPart =
+        (
+            typeof crypto !==
+                "undefined" &&
+            typeof crypto.randomUUID ===
+                "function"
+        )
+
+            ? crypto.randomUUID()
+
+            : (
+                Date.now().toString(36) +
+                "-" +
+                Math.random()
+                    .toString(36)
+                    .slice(2, 12)
+            );
+
+
+    return (
+        "generate-input/" +
+        safeUserId +
+        "/audio-" +
+        randomPart +
+        "." +
+        extension
+    );
+
+}
+
+
+function validateAudioFile(
+    file
+) {
+
+    if (
+        !file
+    ) {
+
+        throw new Error(
+            "File audio tidak ditemukan."
+        );
+
+    }
+
+
+    const mimeType =
+        String(
+            file.type ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    const fileName =
+        String(
+            file.name ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    const extensionAllowed =
+        fileName.endsWith(
+            ".mp3"
+        ) ||
+        fileName.endsWith(
+            ".wav"
+        );
+
+
+    const mimeAllowed =
+        ALLOWED_AUDIO_TYPES.has(
+            mimeType
+        );
+
+
+    /*
+     * Beberapa browser Windows kadang memberikan
+     * MIME type kosong untuk WAV.
+     *
+     * Extension tetap diverifikasi sebagai fallback.
+     */
+
+    if (
+        !mimeAllowed &&
+        !extensionAllowed
+    ) {
+
+        throw new Error(
+            "Format audio tidak didukung. Gunakan MP3 atau WAV."
+        );
+
+    }
+
+
+    if (
+        file.size >
+        MAX_AUDIO_SIZE
+    ) {
+
+        throw new Error(
+            "Ukuran audio maksimal 50 MB."
+        );
+
+    }
+
+
+    return true;
+
+}
+
+
+async function uploadAudioFile(
+    file
+) {
+
+    validateAudioFile(
+        file
+    );
+
+
+    const supabase =
+        getSupabaseClient();
+
+
+    if (
+        !supabase ||
+        !supabase.storage
+    ) {
+
+        throw new Error(
+            "Supabase Storage belum tersedia."
+        );
+
+    }
+
+
+    const user =
+        getCurrentUser();
+
+
+    const userId =
+        user?.id ||
+        user?.user?.id ||
+        "";
+
+
+    if (
+        !userId
+    ) {
+
+        throw new Error(
+            "User belum terautentikasi untuk upload audio."
+        );
+
+    }
+
+
+    const path =
+        createAudioStoragePath(
+            userId,
+            file
+        );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] Upload audio:",
+        {
+            bucket:
+                STORAGE_BUCKET,
+
+            path,
+
+            name:
+                file.name,
+
+            type:
+                file.type,
+
+            size:
+                file.size
+        }
+    );
+
+
+    const {
+        error:
+            uploadError
+    } =
+        await supabase.storage
+            .from(
+                STORAGE_BUCKET
+            )
+            .upload(
+                path,
+                file,
+                {
+                    cacheControl:
+                        "3600",
+
+                    upsert:
+                        false,
+
+                    contentType:
+                        file.type ||
+                        (
+                            file.name
+                                .toLowerCase()
+                                .endsWith(
+                                    ".wav"
+                                )
+                                ? "audio/wav"
+                                : "audio/mpeg"
+                        )
+                }
+            );
+
+
+    if (
+        uploadError
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][Generate Form] Upload audio gagal:",
+            uploadError
+        );
+
+
+        throw uploadError;
+
+    }
+
+
+    const publicResult =
+        supabase.storage
+            .from(
+                STORAGE_BUCKET
+            )
+            .getPublicUrl(
+                path
+            );
+
+
+    const publicUrl =
+        String(
+            publicResult?.data?.publicUrl ||
+            ""
+        ).trim();
+
+
+    if (
+        !publicUrl
+    ) {
+
+        throw new Error(
+            "Upload berhasil tetapi URL publik audio tidak tersedia."
+        );
+
+    }
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] Upload audio berhasil:",
+        publicUrl
+    );
+
+
+    return {
+        path,
+        url:
+            publicUrl
+    };
+
+}
+
+
+/* =========================================================
+   RESOLVE IMAGE PARAMETER
+========================================================= */
+
 async function resolveImageParameterValue(
     imageInput,
     definition
@@ -4350,6 +5580,67 @@ async function resolveImageParameterValue(
         return [
             url
         ];
+
+    }
+
+
+    /*
+     * Jika upload masih berjalan, tunggu Promise.
+     */
+
+    if (
+        imageInput._imageUploadPromise
+    ) {
+
+        try {
+
+            const pendingUrls =
+                await imageInput._imageUploadPromise;
+
+
+            if (
+                Array.isArray(
+                    pendingUrls
+                ) &&
+                pendingUrls.length
+            ) {
+
+                return pendingUrls;
+
+            }
+
+        } catch (
+            error
+        ) {
+
+            throw error;
+
+        }
+
+    }
+
+
+    /*
+     * Jika upload sudah selesai, gunakan semua URL
+     * yang telah disimpan.
+     */
+
+    if (
+        typeof imageInput.getUploadedUrls ===
+        "function"
+    ) {
+
+        const uploadedUrls =
+            imageInput.getUploadedUrls();
+
+
+        if (
+            uploadedUrls.length
+        ) {
+
+            return uploadedUrls;
+
+        }
 
     }
 
@@ -4466,10 +5757,177 @@ async function resolveImageParameterValue(
         imageInput.dataset.uploadedUrl =
             uploadedUrls[0];
 
+
+        imageInput.dataset.uploadedUrls =
+            JSON.stringify(
+                uploadedUrls
+            );
+
     }
 
 
     return uploadedUrls;
+
+}
+
+
+/* =========================================================
+   RESOLVE AUDIO PARAMETER
+========================================================= */
+
+async function resolveAudioParameterValue(
+    audioInput
+) {
+
+    if (
+        !audioInput
+    ) {
+
+        return "";
+
+    }
+
+
+    const mode =
+        typeof audioInput.getInputMode ===
+        "function"
+
+            ? audioInput.getInputMode()
+
+            : (
+                audioInput.dataset.audioMode ||
+                "url"
+            );
+
+
+    /*
+     * URL mode
+     */
+
+    if (
+        mode !==
+        "upload"
+    ) {
+
+        const urlInput =
+            typeof audioInput.getUrlInput ===
+            "function"
+
+                ? audioInput.getUrlInput()
+
+                : audioInput.querySelector(
+                    'input[type="url"]'
+                );
+
+
+        return String(
+            urlInput?.value ||
+            ""
+        ).trim();
+
+    }
+
+
+    /*
+     * Upload masih berjalan.
+     */
+
+    if (
+        audioInput._audioUploadPromise
+    ) {
+
+        const pendingUrl =
+            await audioInput._audioUploadPromise;
+
+
+        return String(
+            pendingUrl ||
+            ""
+        ).trim();
+
+    }
+
+
+    /*
+     * Upload sudah selesai.
+     */
+
+    const existingUrl =
+        typeof audioInput.getUploadedUrl ===
+        "function"
+
+            ? audioInput.getUploadedUrl()
+
+            : String(
+                audioInput.dataset.uploadedUrl ||
+                ""
+            ).trim();
+
+
+    if (
+        existingUrl
+    ) {
+
+        return existingUrl;
+
+    }
+
+
+    /*
+     * Fallback:
+     * jika upload belum pernah diproses,
+     * lakukan upload dari FileList.
+     */
+
+    const fileInput =
+        typeof audioInput.getFileInput ===
+        "function"
+
+            ? audioInput.getFileInput()
+
+            : audioInput.querySelector(
+                ".generate-audio-file"
+            );
+
+
+    const file =
+        fileInput?.files?.[0] ||
+        null;
+
+
+    if (
+        !file
+    ) {
+
+        return "";
+
+    }
+
+
+    const uploaded =
+        await uploadAudioFile(
+            file
+        );
+
+
+    const uploadedUrl =
+        String(
+            uploaded?.url ||
+            ""
+        ).trim();
+
+
+    if (
+        uploadedUrl
+    ) {
+
+        audioInput.dataset.uploadedUrl =
+            uploadedUrl;
+
+    }
+
+
+    return uploadedUrl;
 
 }
 
@@ -4532,6 +5990,10 @@ export async function getFormParameters(
         const definition =
             definitions[name];
 
+
+        /* =================================================
+           IMAGE
+        ================================================= */
 
         if (
             name ===
@@ -4642,6 +6104,74 @@ export async function getFormParameters(
         }
 
 
+        /* =================================================
+           AUDIO
+        ================================================= */
+
+        if (
+            name ===
+            "audio_url"
+        ) {
+
+            const audioInput =
+                field.querySelector(
+                    ".generate-audio-input"
+                );
+
+
+            if (
+                !audioInput
+            ) {
+
+                continue;
+
+            }
+
+
+            let audioUrl =
+                "";
+
+
+            try {
+
+                audioUrl =
+                    await resolveAudioParameterValue(
+                        audioInput
+                    );
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Upload audio gagal:",
+                    error
+                );
+
+
+                throw new Error(
+                    error?.message ||
+                    "Gagal mengupload audio."
+                );
+
+            }
+
+
+            if (
+                audioUrl
+            ) {
+
+                parameters.audio_url =
+                    audioUrl;
+
+            }
+
+
+            continue;
+
+        }
+
+
         const value =
             readFieldValue(
                 field
@@ -4693,9 +6223,20 @@ export async function getFormParameters(
     }
 
 
+    /*
+     * =====================================================
+     * HARD CLIENT CLEANUP
+     * =====================================================
+     *
+     * Tidak peduli parameter apa yang diberikan registry,
+     * parameter ini tidak boleh keluar dari browser.
+     */
+
     delete parameters.task_id;
     delete parameters.index;
     delete parameters.nsfw_checker;
+    delete parameters.webhook_url;
+    delete parameters.webhook;
 
 
     console.debug(
@@ -4732,6 +6273,32 @@ export async function getFormParameters(
                         parameters.image_url
                     )
                 )
+        }
+    );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] AUDIO:",
+        {
+            audio_url:
+                parameters.audio_url
+                    ? "present"
+                    : "missing"
+        }
+    );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] CLIENT FORBIDDEN:",
+        {
+            webhook_url:
+                "removed",
+
+            webhook:
+                "removed",
+
+            nsfw_checker:
+                "removed"
         }
     );
 
@@ -4829,6 +6396,73 @@ export function setFieldValue(
             urlInput.value =
                 images[0] ||
                 "";
+
+        }
+
+
+        if (
+            imageInput &&
+            typeof imageInput.setUploadedUrl ===
+                "function"
+        ) {
+
+            imageInput.setUploadedUrl(
+                ""
+            );
+
+        }
+
+
+        return true;
+
+    }
+
+
+    if (
+        name ===
+        "audio_url"
+    ) {
+
+        const audioInput =
+            field.querySelector(
+                ".generate-audio-input"
+            );
+
+
+        const urlInput =
+            audioInput &&
+            typeof audioInput.getUrlInput ===
+                "function"
+
+                ? audioInput.getUrlInput()
+
+                : field.querySelector(
+                    'input[type="url"]'
+                );
+
+
+        if (
+            urlInput
+        ) {
+
+            urlInput.value =
+                String(
+                    value ||
+                    ""
+                ).trim();
+
+        }
+
+
+        if (
+            audioInput &&
+            typeof audioInput.setUploadedUrl ===
+                "function"
+        ) {
+
+            audioInput.setUploadedUrl(
+                ""
+            );
 
         }
 
@@ -4942,15 +6576,6 @@ export function setFieldValue(
 
 /* =========================================================
    RESET
-   ---------------------------------------------------------
-   PERBAIKAN:
-   - Seedance tidak boleh di-render ulang saat Reset
-   - Struktur/layout Seedance dipertahankan
-   - Semua input dikembalikan ke nilai default
-   - File upload dibersihkan
-   - Preview dibersihkan
-   - Toggle dikembalikan ke default
-   - Model lain tetap menggunakan render ulang normal
 ========================================================= */
 
 export async function resetDynamicFields(
@@ -4970,25 +6595,9 @@ export async function resetDynamicFields(
     }
 
 
-    /*
-     * =====================================================
-     * SEEDANCE
-     * =====================================================
-     *
-     * Seedance mempunyai renderer dan layout khusus.
-     *
-     * JANGAN memanggil:
-     *
-     *     renderGenerateForm()
-     *
-     * karena itu akan menghapus:
-     *
-     *     .seedance-form
-     *
-     * lalu menggantinya dengan generic form renderer.
-     *
-     * Kita reset langsung elemen yang sudah ada.
-     */
+    /* =====================================================
+       SEEDANCE
+    ===================================================== */
 
     const seedanceForm =
         container.querySelector(
@@ -5004,12 +6613,6 @@ export async function resetDynamicFields(
             "[GEN-Z.AI][Generate Form] Reset Seedance tanpa render ulang."
         );
 
-
-        /*
-         * -------------------------------------------------
-         * INPUT TEXT / TEXTAREA
-         * -------------------------------------------------
-         */
 
         seedanceForm
             .querySelectorAll(
@@ -5059,23 +6662,12 @@ export async function resetDynamicFields(
             );
 
 
-        /*
-         * -------------------------------------------------
-         * SELECT
-         * -------------------------------------------------
-         */
-
         seedanceForm
             .querySelectorAll(
                 "select"
             )
             .forEach(
                 select => {
-
-                    /*
-                     * Kembalikan ke option pertama
-                     * jika tidak ada selected default.
-                     */
 
                     const defaultOption =
                         select.querySelector(
@@ -5114,12 +6706,6 @@ export async function resetDynamicFields(
             );
 
 
-        /*
-         * -------------------------------------------------
-         * RADIO
-         * -------------------------------------------------
-         */
-
         seedanceForm
             .querySelectorAll(
                 "input[type='radio']"
@@ -5133,12 +6719,6 @@ export async function resetDynamicFields(
                 }
             );
 
-
-        /*
-         * -------------------------------------------------
-         * CHECKBOX / TOGGLE
-         * -------------------------------------------------
-         */
 
         seedanceForm
             .querySelectorAll(
@@ -5164,12 +6744,6 @@ export async function resetDynamicFields(
                 }
             );
 
-
-        /*
-         * -------------------------------------------------
-         * FILE INPUT
-         * -------------------------------------------------
-         */
 
         seedanceForm
             .querySelectorAll(
@@ -5197,16 +6771,6 @@ export async function resetDynamicFields(
                 }
             );
 
-
-        /*
-         * -------------------------------------------------
-         * UPLOAD COMPONENT
-         * -------------------------------------------------
-         *
-         * Jika renderer Seedance mempunyai method
-         * clearUploadedFile(), gunakan method tersebut
-         * supaya state internal renderer ikut dibersihkan.
-         */
 
         const uploads =
             seedanceForm.querySelectorAll(
@@ -5244,12 +6808,6 @@ export async function resetDynamicFields(
         }
 
 
-        /*
-         * -------------------------------------------------
-         * PREVIEW / SELECTED FILES
-         * -------------------------------------------------
-         */
-
         seedanceForm
             .querySelectorAll(
                 ".seedance-preview, " +
@@ -5271,12 +6829,6 @@ export async function resetDynamicFields(
             );
 
 
-        /*
-         * -------------------------------------------------
-         * UPLOADED URL / DATASET
-         * -------------------------------------------------
-         */
-
         seedanceForm
             .querySelectorAll(
                 "[data-uploaded-url]"
@@ -5290,12 +6842,6 @@ export async function resetDynamicFields(
             );
 
 
-        /*
-         * -------------------------------------------------
-         * TEXT COUNTER
-         * -------------------------------------------------
-         */
-
         seedanceForm
             .querySelectorAll(
                 "[data-counter], " +
@@ -5304,12 +6850,6 @@ export async function resetDynamicFields(
             )
             .forEach(
                 counter => {
-
-                    /*
-                     * Jangan menghapus struktur counter.
-                     * Hanya reset angka jika memang
-                     * menggunakan pola angka.
-                     */
 
                     const text =
                         String(
@@ -5340,19 +6880,6 @@ export async function resetDynamicFields(
                 }
             );
 
-
-        /*
-         * -------------------------------------------------
-         * TOGGLE VISUAL STATE
-         * -------------------------------------------------
-         *
-         * Beberapa renderer Seedance memakai class
-         * untuk menampilkan Aktif / Nonaktif.
-         *
-         * Setelah checkbox dikembalikan ke default,
-         * kirim event supaya renderer memperbarui
-         * visualnya sendiri.
-         */
 
         seedanceForm
             .querySelectorAll(
@@ -5386,12 +6913,6 @@ export async function resetDynamicFields(
             );
 
 
-        /*
-         * -------------------------------------------------
-         * PASTIKAN LAYOUT TETAP HIDUP
-         * -------------------------------------------------
-         */
-
         container.hidden =
             false;
 
@@ -5415,21 +6936,6 @@ export async function resetDynamicFields(
         );
 
 
-        /*
-         * PENTING:
-         *
-         * Tidak ada:
-         *
-         *     container.innerHTML = "";
-         *
-         * Tidak ada:
-         *
-         *     renderGenerateForm();
-         *
-         * Jadi .seedance-form tetap berada
-         * di tempatnya.
-         */
-
         console.debug(
             "[GEN-Z.AI][Generate Form] Reset Seedance selesai. Layout dipertahankan."
         );
@@ -5440,17 +6946,14 @@ export async function resetDynamicFields(
     }
 
 
-    /*
-     * =====================================================
-     * MODEL NON-SEEDANCE
-     * =====================================================
-     *
-     * Perilaku model lama tetap dipertahankan.
-     */
+    /* =====================================================
+       MODEL NON-SEEDANCE
+    ===================================================== */
 
     const uploads =
         container.querySelectorAll(
-            ".generate-image-input"
+            ".generate-image-input, " +
+            ".generate-audio-input"
         );
 
 
@@ -5534,12 +7037,12 @@ export function setFormDisabled(
    MEDIA PARAMETERS
 ========================================================= */
 
-export function getMediaParameters(
+export async function getMediaParameters(
     modelArgument = null
 ) {
 
     const data =
-        getFormParameters(
+        await getFormParameters(
             modelArgument
         );
 
@@ -5551,7 +7054,13 @@ export function getMediaParameters(
                 data.image_urls
             )
                 ? data.image_urls
-                : []
+                : [],
+
+        audio_url:
+            String(
+                data.audio_url ||
+                ""
+            ).trim()
 
     };
 
