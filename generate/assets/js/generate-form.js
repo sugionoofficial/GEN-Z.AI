@@ -94,6 +94,16 @@ registerAudioMediaHandlers({
 });
 
 
+registerImageFieldFactory(
+    createMediaImageField
+);
+
+
+registerAudioFieldFactory(
+    createMediaAudioField
+);
+
+
 /* =========================================================
    MEDIA FACTORY REGISTRATION
 ========================================================= */
