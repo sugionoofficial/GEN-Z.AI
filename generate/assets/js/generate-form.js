@@ -69,22 +69,9 @@ import {
     createFieldId
 } from "./generate-form-core.js";
 
-
-/* =========================================================
-   FORM FIELD MODULES
-========================================================= */
-
 import {
     registerImageFieldFactory,
-    registerAudioFieldFactory,
-    createTextField,
-    createTextareaField,
-    createNumberField,
-    createDurationField,
-    createBooleanField,
-    createSelectField,
-    createEnumField,
-    createFieldInput
+    registerAudioFieldFactory
 } from "./generate-form-fields.js";
 /* =========================================================
    MEDIA FIELD MODULE
