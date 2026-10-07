@@ -11,7 +11,7 @@
    - Menangani URL input
    - Menangani uploaded media
    - Menunggu upload promise (DENGAN TIMEOUT)
-   - Fallback upload dari file input
+   - Fallback upload dari file input (DENGAN TIMEOUT)
 ========================================================= */
 
 "use strict";
@@ -25,7 +25,7 @@ import {
 /* =========================================================
    HELPER: AWAIT WITH TIMEOUT
    ---------------------------------------------------------
-   Mencegah hang total ketika upload promise tidak pernah
+   Mencegah hang total ketika promise tidak pernah
    settle (resolve/reject). Setelah timeout, eksekusi
    dilanjutkan seolah-olah promise sudah selesai.
 ========================================================= */
@@ -350,10 +350,78 @@ export async function resolveImageParameterValue(
 
         try {
 
-            const url =
-                await uploadImageFile(
+            /*
+             * -------------------------------------------------
+             * FIX: uploadImageFile() juga dibungkus
+             * awaitWithTimeout supaya tidak hang selamanya
+             * ketika fetch ke storage tidak pernah settle
+             * (CORS, network, atau CSP block).
+             * -------------------------------------------------
+             */
+
+            await awaitWithTimeout(
+
+                uploadImageFile(
                     file
-                );
+                ),
+
+                "uploadImageFile:" +
+                (
+                    file?.name ||
+                    "?"
+                ),
+
+                30000
+
+            );
+
+
+            /*
+             * Setelah timeout, kita tidak tahu apakah upload
+             * berhasil. Ambil URL dari helper internal jika
+             * tersedia — kalau tidak, ambil dari dataset
+             * yang mungkin sudah di-set oleh uploader.
+             */
+
+            let url =
+                "";
+
+
+            if (
+                typeof imageInput.getUploadedUrls ===
+                "function"
+            ) {
+
+                const current =
+                    imageInput.getUploadedUrls();
+
+
+                if (
+                    Array.isArray(current) &&
+                    current.length > 0
+                ) {
+
+                    url =
+                        current[
+                            current.length -
+                            1
+                        ];
+
+                }
+
+            }
+
+
+            if (
+                !url &&
+                typeof imageInput.getUploadedUrl ===
+                "function"
+            ) {
+
+                url =
+                    imageInput.getUploadedUrl();
+
+            }
 
 
             if (
@@ -560,10 +628,59 @@ export async function resolveAudioParameterValue(
 
     try {
 
-        const url =
-            await uploadAudioFile(
+        /*
+         * -------------------------------------------------
+         * FIX: uploadAudioFile() juga dibungkus
+         * awaitWithTimeout supaya tidak hang selamanya.
+         * -------------------------------------------------
+         */
+
+        await awaitWithTimeout(
+
+            uploadAudioFile(
                 file
-            );
+            ),
+
+            "uploadAudioFile:" +
+            (
+                file?.name ||
+                "?"
+            ),
+
+            30000
+
+        );
+
+
+        /*
+         * Setelah timeout, ambil URL dari helper internal
+         * jika tersedia — kalau tidak, ambil dari dataset.
+         */
+
+        let url =
+            "";
+
+
+        if (
+            typeof audioInput.getUploadedUrl ===
+            "function"
+        ) {
+
+            url =
+                audioInput.getUploadedUrl();
+
+        }
+
+
+        if (
+            !url &&
+            audioInput.dataset.uploadedUrl
+        ) {
+
+            url =
+                audioInput.dataset.uploadedUrl;
+
+        }
 
 
         if (
