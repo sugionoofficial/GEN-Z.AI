@@ -1,0 +1,1956 @@
+/* =========================================================
+   GEN-Z.AI
+   GENERATE PAGE
+   PREMIUM HIGH-CLASS UI
+   ---------------------------------------------------------
+   File:
+   generate/assets/css/generate-premium.css
+
+   Catatan:
+   - Tidak mengubah ID HTML
+   - Tidak mengubah class yang digunakan JavaScript
+   - Tidak mengubah behavior Generate
+   - Tidak mengubah logic Seedance
+   - CSS kompatibilitas tetap dipertahankan
+========================================================= */
+
+
+/* =========================================================
+   PREMIUM DESIGN TOKENS
+========================================================= */
+
+:root {
+
+    --gz-bg:
+        #050507;
+
+    --gz-bg-soft:
+        #08080c;
+
+    --gz-panel:
+        rgba(13, 13, 18, 0.88);
+
+    --gz-panel-strong:
+        rgba(17, 17, 23, 0.96);
+
+    --gz-panel-soft:
+        rgba(255, 255, 255, 0.035);
+
+    --gz-border:
+        rgba(255, 255, 255, 0.085);
+
+    --gz-border-soft:
+        rgba(255, 255, 255, 0.055);
+
+    --gz-border-hover:
+        rgba(255, 255, 255, 0.17);
+
+    --gz-red:
+        #ff2148;
+
+    --gz-red-bright:
+        #ff3157;
+
+    --gz-red-dark:
+        #d80e34;
+
+    --gz-red-soft:
+        rgba(255, 33, 72, 0.10);
+
+    --gz-red-glow:
+        rgba(255, 33, 72, 0.25);
+
+    --gz-text:
+        #f8f8fa;
+
+    --gz-text-soft:
+        rgba(248, 248, 250, 0.72);
+
+    --gz-muted:
+        rgba(248, 248, 250, 0.52);
+
+    --gz-muted-soft:
+        rgba(248, 248, 250, 0.35);
+
+    --gz-radius-xl:
+        24px;
+
+    --gz-radius-lg:
+        17px;
+
+    --gz-radius-md:
+        12px;
+
+    --gz-radius-sm:
+        9px;
+}
+
+
+/* =========================================================
+   GLOBAL PAGE
+========================================================= */
+
+html {
+
+    background:
+        var(--gz-bg) !important;
+}
+
+
+body {
+
+    background:
+
+        radial-gradient(
+            900px 520px at 78% -10%,
+            rgba(255, 25, 62, 0.10),
+            transparent 62%
+        ),
+
+        radial-gradient(
+            720px 520px at 5% 25%,
+            rgba(110, 20, 45, 0.075),
+            transparent 68%
+        ),
+
+        radial-gradient(
+            600px 400px at 90% 80%,
+            rgba(255, 33, 72, 0.035),
+            transparent 70%
+        ),
+
+        linear-gradient(
+            135deg,
+            #040406 0%,
+            #08080c 48%,
+            #050507 100%
+        ) !important;
+
+    color:
+        var(--gz-text);
+
+    min-height:
+        100vh;
+
+    -webkit-font-smoothing:
+        antialiased;
+
+    text-rendering:
+        optimizeLegibility;
+}
+
+
+/* =========================================================
+   PREMIUM PAGE ATMOSPHERE
+========================================================= */
+
+.app {
+
+    min-height:
+        100vh;
+
+    position:
+        relative;
+}
+
+
+.app::before {
+
+    content:
+        "";
+
+    position:
+        fixed;
+
+    inset:
+        0;
+
+    pointer-events:
+        none;
+
+    z-index:
+        0;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255,255,255,0.012) 50%,
+            transparent 100%
+        );
+
+    opacity:
+        0.75;
+}
+
+
+.main {
+
+    position:
+        relative;
+
+    z-index:
+        1;
+}
+
+
+.topbar,
+.content {
+
+    position:
+        relative;
+
+    z-index:
+        2;
+}
+
+
+/* =========================================================
+   TOP BAR
+========================================================= */
+
+.generate-topbar {
+
+    min-height:
+        92px;
+
+    padding:
+        20px 28px;
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,0.065);
+
+    background:
+
+        linear-gradient(
+            180deg,
+            rgba(7,7,10,0.96),
+            rgba(7,7,10,0.76)
+        ) !important;
+
+    backdrop-filter:
+        blur(24px);
+
+    -webkit-backdrop-filter:
+        blur(24px);
+}
+
+
+.topbar-title h1 {
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        -0.035em;
+}
+
+
+.topbar-title p {
+
+    color:
+        var(--gz-muted) !important;
+}
+
+
+.topbar-eyebrow,
+.section-eyebrow {
+
+    color:
+        rgba(255,91,116,0.90) !important;
+
+    letter-spacing:
+        0.16em !important;
+
+    font-weight:
+        800 !important;
+}
+
+
+.topbar-actions {
+
+    gap:
+        10px;
+}
+
+
+/* =========================================================
+   PREMIUM BADGES
+========================================================= */
+
+.header-badge {
+
+    min-height:
+        36px;
+
+    padding:
+        0 13px !important;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.10) !important;
+
+    border-radius:
+        999px !important;
+
+    background:
+        rgba(255,255,255,0.045) !important;
+
+    box-shadow:
+
+        inset 0 1px 0
+        rgba(255,255,255,0.055),
+
+        0 8px 30px
+        rgba(0,0,0,0.20);
+
+    backdrop-filter:
+        blur(14px);
+
+    -webkit-backdrop-filter:
+        blur(14px);
+}
+
+
+.credit-badge {
+
+    border-color:
+        rgba(255,33,72,0.28) !important;
+
+    background:
+
+        linear-gradient(
+            135deg,
+            rgba(255,33,72,0.12),
+            rgba(255,255,255,0.035)
+        ) !important;
+}
+
+
+/* =========================================================
+   MAIN GENERATE PANEL
+========================================================= */
+
+.generate-neon-block {
+
+    position:
+        relative;
+
+    margin-top:
+        30px;
+
+    padding:
+        30px;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.10);
+
+    border-radius:
+        var(--gz-radius-xl);
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(20,20,26,0.94),
+            rgba(7,7,10,0.90)
+        );
+
+    box-shadow:
+
+        0 30px 90px
+        rgba(0,0,0,0.38),
+
+        0 0 0 1px
+        rgba(255,255,255,0.018),
+
+        inset 0 1px 0
+        rgba(255,255,255,0.055);
+
+    backdrop-filter:
+        blur(24px);
+
+    -webkit-backdrop-filter:
+        blur(24px);
+
+    overflow:
+        hidden;
+}
+
+
+.generate-neon-block::after {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    top:
+        -180px;
+
+    right:
+        -100px;
+
+    width:
+        360px;
+
+    height:
+        360px;
+
+    border-radius:
+        50%;
+
+    pointer-events:
+        none;
+
+    background:
+
+        radial-gradient(
+            circle,
+            rgba(255,33,72,0.12),
+            transparent 68%
+        );
+
+    filter:
+        blur(12px);
+}
+
+
+/* =========================================================
+   PANEL HEADER
+========================================================= */
+
+.generate-neon-header {
+
+    padding-bottom:
+        23px;
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,0.065);
+}
+
+
+.generate-neon-title {
+
+    font-size:
+        25px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        -0.035em;
+}
+
+
+.generate-neon-description {
+
+    max-width:
+        720px;
+
+    color:
+        var(--gz-muted) !important;
+
+    line-height:
+        1.65;
+}
+
+
+/* =========================================================
+   MODEL FIELD
+========================================================= */
+
+.generate-model-field {
+
+    margin-top:
+        24px;
+
+    padding:
+        20px;
+
+    border:
+        1px solid
+        var(--gz-border);
+
+    border-radius:
+        var(--gz-radius-lg);
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,0.035),
+            rgba(255,255,255,0.012)
+        );
+
+    box-shadow:
+
+        inset 0 1px 0
+        rgba(255,255,255,0.035);
+}
+
+
+.generate-model-select {
+
+    min-height:
+        52px !important;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.11) !important;
+
+    border-radius:
+        var(--gz-radius-md) !important;
+
+    background:
+        rgba(5,5,8,0.82) !important;
+
+    color:
+        #fff !important;
+
+    box-shadow:
+
+        inset 0 1px 0
+        rgba(255,255,255,0.035),
+
+        0 8px 24px
+        rgba(0,0,0,0.18);
+
+    transition:
+
+        border-color .2s ease,
+        box-shadow .2s ease,
+        background .2s ease;
+}
+
+
+.generate-model-select:hover {
+
+    border-color:
+        rgba(255,255,255,0.18) !important;
+}
+
+
+.generate-model-select:focus {
+
+    border-color:
+        rgba(255,33,72,0.70) !important;
+
+    box-shadow:
+
+        0 0 0 3px
+        rgba(255,33,72,0.10),
+
+        0 0 30px
+        rgba(255,33,72,0.12) !important;
+
+    outline:
+        none !important;
+}
+
+
+/* =========================================================
+   DYNAMIC FIELDS
+========================================================= */
+
+#dynamicFields {
+
+    margin-top:
+        22px;
+}
+
+
+#dynamicFields > .generate-field {
+
+    border:
+        1px solid
+        rgba(255,255,255,0.085) !important;
+
+    border-radius:
+        var(--gz-radius-lg) !important;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,0.035),
+            rgba(255,255,255,0.012)
+        ) !important;
+
+    box-shadow:
+
+        inset 0 1px 0
+        rgba(255,255,255,0.035),
+
+        0 12px 35px
+        rgba(0,0,0,0.14);
+
+    transition:
+
+        border-color .2s ease,
+        box-shadow .2s ease,
+        background .2s ease;
+}
+
+
+#dynamicFields > .generate-field:hover {
+
+    border-color:
+        rgba(255,255,255,0.15) !important;
+
+    box-shadow:
+
+        inset 0 1px 0
+        rgba(255,255,255,0.045),
+
+        0 18px 45px
+        rgba(0,0,0,0.20);
+}
+
+
+/* =========================================================
+   FIELD LABELS
+========================================================= */
+
+#dynamicFields
+.generate-field-label,
+
+#dynamicFields
+.seedance-label {
+
+    color:
+        rgba(255,255,255,0.84) !important;
+
+    letter-spacing:
+        0.015em;
+}
+
+
+/* =========================================================
+   PREMIUM INPUTS
+========================================================= */
+
+#dynamicFields
+input:not([type="checkbox"]):not([type="radio"]),
+
+#dynamicFields
+select,
+
+#dynamicFields
+textarea {
+
+    border:
+        1px solid
+        rgba(255,255,255,0.095) !important;
+
+    border-radius:
+        var(--gz-radius-md) !important;
+
+    background:
+        rgba(3,3,6,0.66) !important;
+
+    color:
+        #fff !important;
+
+    box-shadow:
+
+        inset 0 1px 0
+        rgba(255,255,255,0.025);
+
+    transition:
+
+        border-color .18s ease,
+        box-shadow .18s ease,
+        background .18s ease;
+}
+
+
+#dynamicFields
+input:not([type="checkbox"]):not([type="radio"]):hover,
+
+#dynamicFields
+select:hover,
+
+#dynamicFields
+textarea:hover {
+
+    border-color:
+        rgba(255,255,255,0.16) !important;
+}
+
+
+#dynamicFields
+input:not([type="checkbox"]):not([type="radio"]):focus,
+
+#dynamicFields
+select:focus,
+
+#dynamicFields
+textarea:focus {
+
+    border-color:
+        rgba(255,33,72,0.65) !important;
+
+    background:
+        rgba(12,4,7,0.82) !important;
+
+    box-shadow:
+
+        0 0 0 3px
+        rgba(255,33,72,0.08),
+
+        0 0 24px
+        rgba(255,33,72,0.10) !important;
+
+    outline:
+        none !important;
+}
+
+
+#dynamicFields textarea {
+
+    min-height:
+        130px;
+
+    line-height:
+        1.65;
+}
+
+
+/* =========================================================
+   OPTION BUTTONS
+========================================================= */
+
+.generate-option-label {
+
+    border-color:
+        rgba(255,255,255,0.10) !important;
+
+    border-radius:
+        var(--gz-radius-md) !important;
+
+    background:
+        rgba(255,255,255,0.035) !important;
+
+    transition:
+        all .18s ease;
+}
+
+
+.generate-option:hover
+.generate-option-label {
+
+    border-color:
+        rgba(255,33,72,0.42) !important;
+
+    background:
+        rgba(255,33,72,0.07) !important;
+}
+
+
+.generate-option
+input:checked
++ .generate-option-label {
+
+    border-color:
+        rgba(255,33,72,0.75) !important;
+
+    background:
+
+        linear-gradient(
+            135deg,
+            rgba(255,33,72,0.17),
+            rgba(255,33,72,0.055)
+        ) !important;
+
+    box-shadow:
+
+        0 0 20px
+        rgba(255,33,72,0.13),
+
+        inset 0 1px 0
+        rgba(255,120,140,0.08) !important;
+}
+
+
+/* =========================================================
+   MODEL LOGO
+========================================================= */
+
+.generate-model-logo-preview {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    width:
+        100%;
+
+    min-height:
+        76px;
+
+    margin-top:
+        12px;
+
+    padding:
+        12px 16px;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.08);
+
+    border-radius:
+        14px;
+
+    background:
+
+        linear-gradient(
+            135deg,
+            rgba(255,255,255,0.045),
+            rgba(255,255,255,0.015)
+        );
+
+    box-shadow:
+
+        inset 0 1px 0
+        rgba(255,255,255,0.035);
+}
+
+
+.generate-model-logo {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    width:
+        56px;
+
+    height:
+        56px;
+
+    overflow:
+        hidden;
+
+    border-radius:
+        12px;
+}
+
+
+.generate-model-logo-image {
+
+    display:
+        block;
+
+    width:
+        48px;
+
+    height:
+        48px;
+
+    max-width:
+        48px;
+
+    max-height:
+        48px;
+
+    object-fit:
+        contain;
+}
+
+
+/* =========================================================
+   ACTION AREA
+========================================================= */
+
+.generate-actions {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    gap:
+        14px;
+
+    margin-top:
+        28px !important;
+
+    padding-top:
+        22px !important;
+
+    border-top:
+        1px solid
+        rgba(255,255,255,0.07) !important;
+}
+
+
+.generate-actions-right {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        12px;
+}
+
+
+/* =========================================================
+   RESET BUTTON
+========================================================= */
+
+#resetButton {
+
+    min-height:
+        48px;
+
+    padding:
+        0 18px;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.10) !important;
+
+    border-radius:
+        12px !important;
+
+    background:
+        rgba(255,255,255,0.035) !important;
+
+    color:
+        rgba(255,255,255,0.82);
+
+    transition:
+        all .18s ease;
+}
+
+
+#resetButton:hover {
+
+    border-color:
+        rgba(255,255,255,0.18) !important;
+
+    background:
+        rgba(255,255,255,0.065) !important;
+}
+
+
+/* =========================================================
+   GENERATE BUTTON
+========================================================= */
+
+#generateButton {
+
+    min-height:
+        50px !important;
+
+    padding:
+        0 20px !important;
+
+    border:
+        1px solid
+        rgba(255,75,100,0.72) !important;
+
+    border-radius:
+        13px !important;
+
+    background:
+
+        linear-gradient(
+            135deg,
+            #ff173f 0%,
+            #d90d32 100%
+        ) !important;
+
+    color:
+        #fff !important;
+
+    box-shadow:
+
+        0 12px 32px
+        rgba(255,33,72,0.24),
+
+        0 0 35px
+        rgba(255,33,72,0.12),
+
+        inset 0 1px 0
+        rgba(255,255,255,0.20) !important;
+
+    font-weight:
+        800 !important;
+
+    letter-spacing:
+        0.01em;
+
+    transition:
+
+        transform .18s ease,
+        box-shadow .18s ease,
+        filter .18s ease;
+}
+
+
+#generateButton:not(:disabled):hover {
+
+    transform:
+        translateY(-1px);
+
+    filter:
+        brightness(1.08);
+
+    box-shadow:
+
+        0 16px 40px
+        rgba(255,33,72,0.30),
+
+        0 0 45px
+        rgba(255,33,72,0.17),
+
+        inset 0 1px 0
+        rgba(255,255,255,0.22) !important;
+}
+
+
+#generateButton:not(:disabled):active {
+
+    transform:
+        translateY(0);
+}
+
+
+/* =========================================================
+   CREDIT BADGE PADA BUTTON
+========================================================= */
+
+.generate-button-credit {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    gap:
+        6px;
+
+    margin-left:
+        7px;
+
+    padding:
+        4px 8px;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.16);
+
+    border-radius:
+        7px;
+
+    background:
+        rgba(0,0,0,0.18);
+
+    color:
+        rgba(255,255,255,0.88);
+
+    font-size:
+        11px;
+
+    font-weight:
+        700;
+
+    white-space:
+        nowrap;
+}
+
+
+.generate-button-credit-icon {
+
+    color:
+        #fff !important;
+}
+
+
+/* =========================================================
+   HIDE DUPLICATE LOADING
+========================================================= */
+
+#loading {
+
+    display:
+        none !important;
+
+    visibility:
+        hidden !important;
+
+    opacity:
+        0 !important;
+
+    width:
+        0 !important;
+
+    min-width:
+        0 !important;
+
+    max-width:
+        0 !important;
+
+    height:
+        0 !important;
+
+    min-height:
+        0 !important;
+
+    max-height:
+        0 !important;
+
+    margin:
+        0 !important;
+
+    padding:
+        0 !important;
+
+    overflow:
+        hidden !important;
+
+    pointer-events:
+        none !important;
+}
+
+
+/* =========================================================
+   GENERATE BUTTON SPINNER
+========================================================= */
+
+#generateButton .spinner,
+#generateButton .btn-spinner,
+#generateButton .loading-spinner,
+#generateButton [class*="spinner"] {
+
+    display:
+        inline-block !important;
+
+    width:
+        16px !important;
+
+    height:
+        16px !important;
+
+    min-width:
+        16px !important;
+
+    min-height:
+        16px !important;
+
+    margin-right:
+        7px !important;
+
+    border:
+        2px solid
+        currentColor !important;
+
+    border-top-color:
+        transparent !important;
+
+    border-radius:
+        50% !important;
+
+    animation:
+        genzPremiumSpinner
+        0.75s
+        linear
+        infinite !important;
+
+    flex:
+        0 0 16px !important;
+}
+
+
+@keyframes genzPremiumSpinner {
+
+    from {
+        transform:
+            rotate(0deg);
+    }
+
+    to {
+        transform:
+            rotate(360deg);
+    }
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+#status,
+.page-error {
+
+    border-radius:
+        16px !important;
+
+    backdrop-filter:
+        blur(18px);
+
+    -webkit-backdrop-filter:
+        blur(18px);
+}
+
+
+.page-error {
+
+    border-color:
+        rgba(255,65,85,0.28) !important;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(255,33,72,0.08),
+            rgba(10,10,14,0.88)
+        ) !important;
+}
+
+
+/* =========================================================
+   CANCELLED STATUS
+========================================================= */
+
+.genz-status-cancelled {
+
+    border-color:
+        rgba(245,158,11,0.65) !important;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(245,158,11,0.07),
+            rgba(8,8,14,0.96)
+        ) !important;
+
+    box-shadow:
+
+        0 0 8px
+        rgba(245,158,11,0.18),
+
+        0 0 24px
+        rgba(245,158,11,0.07),
+
+        inset 0 0 18px
+        rgba(245,158,11,0.025) !important;
+}
+
+
+.genz-generate-status-title.cancelled {
+
+    color:
+        #f59e0b !important;
+}
+
+
+.genz-generate-status-message.cancelled {
+
+    color:
+        rgba(245,158,11,0.88) !important;
+}
+
+
+/* =========================================================
+   SEEDANCE 2.5
+   PREMIUM FIELD CONTAINER
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form {
+
+    grid-auto-rows:
+        max-content !important;
+
+    align-items:
+        start !important;
+
+    align-content:
+        start !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field {
+
+    position:
+        relative !important;
+
+    width:
+        100% !important;
+
+    min-width:
+        0 !important;
+
+    max-width:
+        none !important;
+
+    height:
+        max-content !important;
+
+    min-height:
+        0 !important;
+
+    margin:
+        0 !important;
+
+    padding:
+        18px !important;
+
+    box-sizing:
+        border-box !important;
+
+    align-self:
+        start !important;
+
+    justify-self:
+        stretch !important;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.095) !important;
+
+    border-radius:
+        var(--gz-radius-lg) !important;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,0.038),
+            rgba(255,255,255,0.012)
+        ) !important;
+
+    box-shadow:
+
+        inset 0 1px 0
+        rgba(255,255,255,0.04),
+
+        0 12px 35px
+        rgba(0,0,0,0.16) !important;
+
+    transition:
+
+        border-color .2s ease,
+        box-shadow .2s ease,
+        background .2s ease;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:hover {
+
+    border-color:
+        rgba(255,255,255,0.17) !important;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(255,33,72,0.055),
+            rgba(255,255,255,0.014)
+        ) !important;
+
+    box-shadow:
+
+        0 16px 42px
+        rgba(0,0,0,0.22),
+
+        0 0 24px
+        rgba(255,33,72,0.055) !important;
+}
+
+
+/* =========================================================
+   SEEDANCE INTERNAL ELEMENTS
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+> * {
+
+    box-sizing:
+        border-box;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+.seedance-select {
+
+    min-height:
+        50px !important;
+
+    border-radius:
+        12px !important;
+
+    border-color:
+        rgba(255,255,255,0.10) !important;
+
+    background:
+        rgba(3,3,6,0.70) !important;
+}
+
+
+/* =========================================================
+   SEEDANCE TOGGLES
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceGenerateAudio),
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReturnLastFrame),
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceWebSearch) {
+
+    display:
+        flex !important;
+
+    flex-direction:
+        column !important;
+
+    align-items:
+        stretch !important;
+
+    justify-content:
+        flex-start !important;
+
+    height:
+        max-content !important;
+
+    min-height:
+        0 !important;
+
+    overflow:
+        visible !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field
+.seedance-toggle {
+
+    display:
+        flex !important;
+
+    flex:
+        0 0 auto !important;
+
+    align-items:
+        center !important;
+
+    justify-content:
+        flex-start !important;
+
+    width:
+        100% !important;
+
+    min-width:
+        0 !important;
+
+    min-height:
+        42px !important;
+
+    height:
+        auto !important;
+
+    margin:
+        0 !important;
+
+    padding:
+        0 !important;
+
+    overflow:
+        visible !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+.seedance-toggle label {
+
+    display:
+        flex !important;
+
+    align-items:
+        center !important;
+
+    gap:
+        10px !important;
+
+    width:
+        auto !important;
+
+    min-width:
+        0 !important;
+
+    margin:
+        0 !important;
+
+    padding:
+        0 !important;
+
+    line-height:
+        1.4 !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+.seedance-description {
+
+    display:
+        block !important;
+
+    width:
+        100% !important;
+
+    height:
+        auto !important;
+
+    min-height:
+        18px !important;
+
+    margin-top:
+        8px !important;
+
+    box-sizing:
+        border-box !important;
+
+    overflow:
+        visible !important;
+}
+
+
+/* =========================================================
+   SEEDANCE WEB SEARCH
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceWebSearch) {
+
+    grid-column:
+        1 / -1 !important;
+
+    grid-row:
+        auto !important;
+
+    order:
+        999 !important;
+
+    width:
+        100% !important;
+
+    min-width:
+        0 !important;
+
+    max-width:
+        none !important;
+
+    height:
+        max-content !important;
+
+    min-height:
+        0 !important;
+
+    align-self:
+        stretch !important;
+
+    justify-self:
+        stretch !important;
+}
+
+
+/* =========================================================
+   SEEDANCE GRID PAIR
+========================================================= */
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceGenerateAudio) {
+
+    grid-column:
+        1 !important;
+}
+
+
+#dynamicFields:has(> .seedance-form)
+> .seedance-form
+> .seedance-field:has(#seedanceReturnLastFrame) {
+
+    grid-column:
+        2 !important;
+}
+
+
+/* =========================================================
+   DURATION
+========================================================= */
+
+.generate-duration-range {
+
+    width:
+        100%;
+
+    height:
+        5px;
+
+    margin:
+        4px 0 0;
+
+    appearance:
+        none;
+
+    -webkit-appearance:
+        none;
+
+    border-radius:
+        999px;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            rgba(255,33,72,0.85),
+            rgba(255,33,72,0.18)
+        );
+
+    outline:
+        none;
+
+    cursor:
+        pointer;
+}
+
+
+.generate-duration-range::-webkit-slider-thumb {
+
+    width:
+        18px;
+
+    height:
+        18px;
+
+    appearance:
+        none;
+
+    -webkit-appearance:
+        none;
+
+    border:
+        2px solid
+        #fff;
+
+    border-radius:
+        50%;
+
+    background:
+        var(--gz-red);
+
+    box-shadow:
+
+        0 0 8px
+        rgba(255,33,72,0.80),
+
+        0 0 18px
+        rgba(255,33,72,0.35);
+}
+
+
+.generate-duration-range::-moz-range-thumb {
+
+    width:
+        18px;
+
+    height:
+        18px;
+
+    border:
+        2px solid
+        #fff;
+
+    border-radius:
+        50%;
+
+    background:
+        var(--gz-red);
+
+    box-shadow:
+
+        0 0 8px
+        rgba(255,33,72,0.80),
+
+        0 0 18px
+        rgba(255,33,72,0.35);
+}
+
+
+.generate-duration-scale {
+
+    display:
+        flex;
+
+    justify-content:
+        space-between;
+
+    margin-top:
+        8px;
+
+    color:
+        rgba(255,255,255,0.38);
+
+    font-size:
+        11px;
+}
+
+
+/* =========================================================
+   COMPATIBILITY
+========================================================= */
+
+.generate-compat-hidden {
+
+    display:
+        none !important;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+
+    .generate-topbar {
+
+        padding:
+            16px 18px;
+    }
+
+
+    .generate-neon-block {
+
+        margin-top:
+            20px;
+
+        padding:
+            20px;
+
+        border-radius:
+            19px;
+    }
+
+
+    .generate-model-field {
+
+        padding:
+            16px;
+    }
+
+
+    .generate-actions {
+
+        flex-direction:
+            column;
+
+        align-items:
+            stretch;
+
+        gap:
+            12px;
+    }
+
+
+    .generate-actions-right {
+
+        width:
+            100%;
+
+        justify-content:
+            flex-end;
+    }
+
+
+    #generateButton {
+
+        width:
+            100%;
+
+        justify-content:
+            center;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form {
+
+        grid-template-columns:
+            minmax(0, 1fr) !important;
+
+        grid-auto-rows:
+            max-content !important;
+
+        align-items:
+            start !important;
+
+        align-content:
+            start !important;
+
+        gap:
+            16px !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field {
+
+        grid-column:
+            1 !important;
+
+        grid-row:
+            auto !important;
+
+        width:
+            100% !important;
+
+        height:
+            max-content !important;
+
+        min-height:
+            0 !important;
+
+        padding:
+            15px !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field:has(#seedanceWebSearch) {
+
+        order:
+            999 !important;
+    }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 480px) {
+
+    .generate-neon-block {
+
+        padding:
+            15px;
+
+        border-radius:
+            16px;
+    }
+
+
+    .generate-neon-title {
+
+        font-size:
+            21px;
+    }
+
+
+    .generate-model-field {
+
+        padding:
+            13px;
+    }
+
+
+    #resetButton {
+
+        width:
+            100%;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form {
+
+        gap:
+            12px !important;
+    }
+
+
+    #dynamicFields:has(> .seedance-form)
+    > .seedance-form
+    > .seedance-field {
+
+        padding:
+            13px !important;
+    }
+}
+
+
+/* =========================================================
+   ACCESSIBILITY
+========================================================= */
+
+:focus-visible {
+
+    outline:
+        2px solid
+        rgba(255,33,72,0.72) !important;
+
+    outline-offset:
+        2px;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+
+        scroll-behavior:
+            auto !important;
+    }
+
+
+    #generateButton:not(:disabled):hover {
+
+        transform:
+            none;
+    }
+}
