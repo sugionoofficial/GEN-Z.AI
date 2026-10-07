@@ -41,6 +41,40 @@ import {
 
 
 /* =========================================================
+   FORM FIELD MODULES
+========================================================= */
+
+import {
+    registerImageFieldFactory,
+    registerAudioFieldFactory
+} from "./generate-form-fields.js";
+
+
+/* =========================================================
+   MEDIA FIELD MODULE
+========================================================= */
+
+import {
+    createImageField as createMediaImageField,
+    createAudioField as createMediaAudioField,
+    registerImageMediaHandlers,
+    registerAudioMediaHandlers
+} from "./generate-form-media.js";
+
+/* =========================================================
+   MEDIA FACTORY REGISTRATION
+========================================================= */
+
+registerImageFieldFactory(
+    createImageField
+);
+
+registerAudioFieldFactory(
+    createAudioField
+);
+
+
+/* =========================================================
    CONSTANTS
 ========================================================= */
 
