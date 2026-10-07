@@ -81,6 +81,9 @@ import grokImagineImageToVideo
 import seedance25
     from "../models/seedance-2-5/index.js";
 
+import digitalHumanLipSyncImage
+    from "../models/digital-human-lipsync-image/index.js";
+
 
 /* =========================================================
    MODEL REGISTRY
@@ -88,9 +91,9 @@ import seedance25
 
 const MODEL_REGISTRY = Object.freeze([
 
-    grokImagineImageToVideo,
-
-    seedance25
+   grokImagineImageToVideo,
+   seedance25,
+   digitalHumanLipSyncImage
 
 ]);
 
