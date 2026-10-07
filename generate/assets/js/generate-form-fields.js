@@ -31,11 +31,6 @@
 
 /* =========================================================
    IMAGE / AUDIO FACTORY REGISTRY
-   ---------------------------------------------------------
-   Implementasi Image / Audio disediakan oleh
-   generate-form-media.js.
-
-   File ini hanya mengetahui kontrak factory.
 ========================================================= */
 
 let imageFieldFactory = null;
@@ -59,10 +54,12 @@ export function registerImageFieldFactory(
         throw new TypeError(
             "Image field factory must be a function"
         );
+
     }
 
     imageFieldFactory =
         factory;
+
 }
 
 
@@ -82,17 +79,17 @@ export function registerAudioFieldFactory(
         throw new TypeError(
             "Audio field factory must be a function"
         );
+
     }
 
     audioFieldFactory =
         factory;
+
 }
 
 
 /* =========================================================
    IMAGE FIELD
-   ---------------------------------------------------------
-   Dispatcher menuju factory yang sudah diregistrasikan.
 ========================================================= */
 
 export function createImageField(
@@ -108,19 +105,19 @@ export function createImageField(
         throw new Error(
             "Image field factory is not registered"
         );
+
     }
 
     return imageFieldFactory(
         definition,
         name
     );
+
 }
 
 
 /* =========================================================
    AUDIO FIELD
-   ---------------------------------------------------------
-   Dispatcher menuju factory yang sudah diregistrasikan.
 ========================================================= */
 
 export function createAudioField(
@@ -136,12 +133,52 @@ export function createAudioField(
         throw new Error(
             "Audio field factory is not registered"
         );
+
     }
 
     return audioFieldFactory(
         definition,
         name
     );
+
+}
+
+
+/* =========================================================
+   DEFAULT VALUE HELPER
+   ---------------------------------------------------------
+   Hanya membaca definition.
+   Tidak menghitung / mengubah nilai.
+========================================================= */
+
+function resolveFieldDefault(
+    definition = {}
+) {
+
+    if (
+        definition.default !==
+            undefined &&
+        definition.default !==
+            null
+    ) {
+
+        return definition.default;
+
+    }
+
+    if (
+        definition.default_value !==
+            undefined &&
+        definition.default_value !==
+            null
+    ) {
+
+        return definition.default_value;
+
+    }
+
+    return undefined;
+
 }
 
 
@@ -159,35 +196,52 @@ export function createTextField(
             "input"
         );
 
+
     input.type =
         "text";
+
 
     input.className =
         "form-input";
 
+
     input.dataset.parameter =
         name;
 
+
     if (
-        definition.placeholder
+        definition.placeholder !==
+            undefined &&
+        definition.placeholder !==
+            null
     ) {
 
         input.placeholder =
             String(
                 definition.placeholder
             );
+
     }
 
+
+    const defaultValue =
+        resolveFieldDefault(
+            definition
+        );
+
+
     if (
-        definition.default !== undefined &&
-        definition.default !== null
+        defaultValue !==
+            undefined
     ) {
 
         input.value =
             String(
-                definition.default
+                defaultValue
             );
+
     }
+
 
     const maxLength =
         Number(
@@ -195,24 +249,33 @@ export function createTextField(
             definition.max_length
         );
 
+
     if (
-        Number.isFinite(maxLength) &&
+        Number.isFinite(
+            maxLength
+        ) &&
         maxLength > 0
     ) {
 
         input.maxLength =
             maxLength;
+
     }
 
+
     if (
-        definition.required === true
+        definition.required ===
+        true
     ) {
 
         input.required =
             true;
+
     }
 
+
     return input;
+
 }
 
 
@@ -230,32 +293,48 @@ export function createTextareaField(
             "textarea"
         );
 
+
     textarea.className =
         "form-textarea";
+
 
     textarea.dataset.parameter =
         name;
 
+
     if (
-        definition.placeholder
+        definition.placeholder !==
+            undefined &&
+        definition.placeholder !==
+            null
     ) {
 
         textarea.placeholder =
             String(
                 definition.placeholder
             );
+
     }
 
+
+    const defaultValue =
+        resolveFieldDefault(
+            definition
+        );
+
+
     if (
-        definition.default !== undefined &&
-        definition.default !== null
+        defaultValue !==
+            undefined
     ) {
 
         textarea.value =
             String(
-                definition.default
+                defaultValue
             );
+
     }
+
 
     const maxLength =
         Number(
@@ -263,24 +342,33 @@ export function createTextareaField(
             definition.max_length
         );
 
+
     if (
-        Number.isFinite(maxLength) &&
+        Number.isFinite(
+            maxLength
+        ) &&
         maxLength > 0
     ) {
 
         textarea.maxLength =
             maxLength;
+
     }
 
+
     if (
-        definition.required === true
+        definition.required ===
+        true
     ) {
 
         textarea.required =
             true;
+
     }
 
+
     return textarea;
+
 }
 
 
@@ -298,65 +386,96 @@ export function createNumberField(
             "input"
         );
 
+
     input.type =
         "number";
+
 
     input.className =
         "form-input";
 
+
     input.dataset.parameter =
         name;
 
+
+    const defaultValue =
+        resolveFieldDefault(
+            definition
+        );
+
+
     if (
-        definition.default !== undefined &&
-        definition.default !== null
+        defaultValue !==
+            undefined
     ) {
 
         input.value =
             String(
-                definition.default
+                defaultValue
             );
+
     }
 
+
     if (
-        definition.min !== undefined
+        definition.min !==
+            undefined &&
+        definition.min !==
+            null
     ) {
 
         input.min =
             String(
                 definition.min
             );
+
     }
 
+
     if (
-        definition.max !== undefined
+        definition.max !==
+            undefined &&
+        definition.max !==
+            null
     ) {
 
         input.max =
             String(
                 definition.max
             );
+
     }
 
+
     if (
-        definition.step !== undefined
+        definition.step !==
+            undefined &&
+        definition.step !==
+            null
     ) {
 
         input.step =
             String(
                 definition.step
             );
+
     }
 
+
     if (
-        definition.required === true
+        definition.required ===
+        true
     ) {
 
         input.required =
             true;
+
     }
 
+
     return input;
+
 }
 
 
@@ -370,11 +489,8 @@ export function createDurationField(
 ) {
 
     /*
-     * Duration menggunakan enum apabila provider
-     * menyediakan enum.
-     *
-     * Jangan membuat nilai duration sendiri.
-     * Nilai harus tetap mengikuti definition.
+     * Jika provider memberikan enum,
+     * gunakan enum asli provider.
      */
 
     if (
@@ -388,12 +504,15 @@ export function createDurationField(
             name,
             definition
         );
+
     }
+
 
     return createNumberField(
         definition,
         name
     );
+
 }
 
 
@@ -411,61 +530,166 @@ export function createBooleanField(
             "label"
         );
 
+
     wrapper.className =
         "form-checkbox";
 
+
     wrapper.dataset.parameter =
         name;
+
 
     const input =
         document.createElement(
             "input"
         );
 
+
     input.type =
         "checkbox";
+
 
     input.value =
         "true";
 
+
     input.dataset.parameter =
         name;
 
-    if (
-        definition.default === true
-    ) {
 
-        input.checked =
-            true;
-    }
+    const defaultValue =
+        resolveFieldDefault(
+            definition
+        );
+
+
+    /*
+     * Boolean hanya dianggap checked
+     * jika nilai default memang true.
+     */
+
+    input.checked =
+        defaultValue === true;
+
 
     if (
-        definition.required === true
+        definition.required ===
+        true
     ) {
 
         input.required =
             true;
+
     }
+
 
     const text =
         document.createElement(
             "span"
         );
 
+
     text.textContent =
         definition.label ||
         definition.title ||
         name;
 
+
     wrapper.appendChild(
         input
     );
+
 
     wrapper.appendChild(
         text
     );
 
+
     return wrapper;
+
+}
+
+
+/* =========================================================
+   SELECT OPTION NORMALIZER
+========================================================= */
+
+function resolveSelectOption(
+    optionDefinition
+) {
+
+    if (
+        optionDefinition ===
+            undefined ||
+        optionDefinition ===
+            null
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        typeof optionDefinition ===
+        "object"
+    ) {
+
+        const value =
+            optionDefinition.value ??
+            optionDefinition.id ??
+            optionDefinition.name;
+
+
+        if (
+            value ===
+                undefined ||
+            value ===
+                null
+        ) {
+
+            return null;
+
+        }
+
+
+        const label =
+            optionDefinition.label ??
+            optionDefinition.name ??
+            value;
+
+
+        return {
+
+            value:
+                String(
+                    value
+                ),
+
+            label:
+                String(
+                    label
+                )
+
+        };
+
+    }
+
+
+    return {
+
+        value:
+            String(
+                optionDefinition
+            ),
+
+        label:
+            String(
+                optionDefinition
+            )
+
+    };
+
 }
 
 
@@ -483,11 +707,14 @@ export function createSelectField(
             "select"
         );
 
+
     select.className =
         "form-select";
 
+
     select.dataset.parameter =
         name;
+
 
     const options =
         Array.isArray(
@@ -496,92 +723,89 @@ export function createSelectField(
             ? definition.options
             : [];
 
+
     const defaultValue =
-        definition.default !== undefined &&
-        definition.default !== null
+        resolveFieldDefault(
+            definition
+        );
+
+
+    const defaultString =
+        defaultValue !==
+            undefined &&
+        defaultValue !==
+            null
             ? String(
-                definition.default
+                defaultValue
             )
             : "";
 
+
     for (
-        const optionDefinition of options
+        const optionDefinition
+        of options
     ) {
 
-        let value;
-        let label;
+        const optionData =
+            resolveSelectOption(
+                optionDefinition
+            );
+
 
         if (
-            typeof optionDefinition ===
-                "object" &&
-            optionDefinition !== null
-        ) {
-
-            value =
-                optionDefinition.value ??
-                optionDefinition.id ??
-                optionDefinition.name;
-
-            label =
-                optionDefinition.label ??
-                optionDefinition.name ??
-                value;
-
-        } else {
-
-            value =
-                optionDefinition;
-
-            label =
-                optionDefinition;
-        }
-
-        if (
-            value === undefined ||
-            value === null
+            !optionData
         ) {
 
             continue;
+
         }
+
 
         const option =
             document.createElement(
                 "option"
             );
 
+
         option.value =
-            String(
-                value
-            );
+            optionData.value;
+
 
         option.textContent =
-            String(
-                label
-            );
+            optionData.label;
+
 
         if (
-            String(value) ===
-            defaultValue
+            optionData.value ===
+            defaultString
         ) {
 
             option.selected =
                 true;
+
         }
+
 
         select.appendChild(
             option
         );
+
     }
 
+
     if (
-        definition.required === true
+        definition.required ===
+        true
     ) {
 
         select.required =
             true;
+
     }
 
+
     return select;
+
 }
 
 
@@ -599,11 +823,14 @@ export function createEnumField(
             "div"
         );
 
+
     wrapper.className =
         "form-enum-group";
 
+
     wrapper.dataset.parameter =
         name;
+
 
     const values =
         Array.isArray(
@@ -612,13 +839,23 @@ export function createEnumField(
             ? definition.enum
             : [];
 
+
     const defaultValue =
-        definition.default !== undefined &&
-        definition.default !== null
+        resolveFieldDefault(
+            definition
+        );
+
+
+    const defaultString =
+        defaultValue !==
+            undefined &&
+        defaultValue !==
+            null
             ? String(
-                definition.default
+                defaultValue
             )
             : "";
+
 
     values.forEach(
         (
@@ -627,32 +864,23 @@ export function createEnumField(
         ) => {
 
             if (
-                enumValue === undefined ||
-                enumValue === null
+                enumValue ===
+                    undefined ||
+                enumValue ===
+                    null
             ) {
 
                 return;
+
             }
 
+
             /*
-             * IMPORTANT
+             * Nilai parameter HARUS tetap sama
+             * dengan definition.enum.
              *
-             * Nilai radio harus mempertahankan
-             * nilai asli dari definition.enum.
-             *
-             * Contoh:
-             *
-             * 576P
-             * 720P HD
-             * 1080P
-             *
-             * Jangan mengubahnya menjadi:
-             *
-             * 576
-             * 720
-             * 1080
-             *
-             * Label hanya untuk tampilan.
+             * Formatter hanya berlaku untuk
+             * text label.
              */
 
             const value =
@@ -660,51 +888,66 @@ export function createEnumField(
                     enumValue
                 );
 
+
             const id =
                 `parameter-${name}-${index}`;
+
 
             const label =
                 document.createElement(
                     "label"
                 );
 
+
             label.className =
                 "form-enum-option";
 
+
             label.htmlFor =
                 id;
+
 
             const radio =
                 document.createElement(
                     "input"
                 );
 
+
             radio.type =
                 "radio";
+
 
             radio.id =
                 id;
 
+
             radio.name =
                 `parameter-${name}`;
+
 
             radio.value =
                 value;
 
+
             radio.dataset.parameter =
                 name;
 
+
             if (
-                value === defaultValue
+                value ===
+                defaultString
             ) {
 
                 radio.checked =
                     true;
 
+
                 label.classList.add(
                     "active"
                 );
+
             }
+
 
             radio.addEventListener(
                 "change",
@@ -720,8 +963,10 @@ export function createEnumField(
                                 option.classList.remove(
                                     "active"
                                 );
+
                             }
                         );
+
 
                     if (
                         radio.checked
@@ -730,35 +975,45 @@ export function createEnumField(
                         label.classList.add(
                             "active"
                         );
+
                     }
+
                 }
             );
+
 
             const text =
                 document.createElement(
                     "span"
                 );
 
+
             text.textContent =
                 formatEnumLabel(
                     value
                 );
 
+
             label.appendChild(
                 radio
             );
+
 
             label.appendChild(
                 text
             );
 
+
             wrapper.appendChild(
                 label
             );
+
         }
     );
 
+
     return wrapper;
+
 }
 
 
@@ -771,23 +1026,26 @@ export function formatEnumLabel(
 ) {
 
     if (
-        value === undefined ||
-        value === null
+        value ===
+            undefined ||
+        value ===
+            null
     ) {
 
         return "";
+
     }
 
+
     /*
-     * Formatter hanya mempengaruhi
-     * tampilan label.
-     *
-     * Nilai parameter tidak disentuh.
+     * Jangan mengubah nilai.
+     * Label hanya menampilkan nilai asli.
      */
 
     return String(
         value
     );
+
 }
 
 
@@ -807,6 +1065,7 @@ function isImageField(
             .trim()
             .toLowerCase();
 
+
     const type =
         String(
             definition?.type || ""
@@ -814,18 +1073,24 @@ function isImageField(
             .trim()
             .toLowerCase();
 
+
     return (
         normalizedName ===
             "image_urls" ||
+
         normalizedName ===
             "image_url" ||
+
         type ===
             "image" ||
+
         type ===
             "image_url" ||
+
         type ===
             "image_urls"
     );
+
 }
 
 
@@ -845,6 +1110,7 @@ function isAudioField(
             .trim()
             .toLowerCase();
 
+
     const type =
         String(
             definition?.type || ""
@@ -852,27 +1118,37 @@ function isAudioField(
             .trim()
             .toLowerCase();
 
+
     return (
         normalizedName ===
             "audio_url" ||
+
         type ===
             "audio" ||
+
         type ===
             "audio_url"
     );
+
 }
 
 
 /* =========================================================
    FIELD DISPATCHER
-   ---------------------------------------------------------
-   Menentukan factory field berdasarkan parameter.
 ========================================================= */
 
 export function createFieldInput(
     name,
     definition = {}
 ) {
+
+    const normalizedName =
+        String(
+            name || ""
+        )
+            .trim()
+            .toLowerCase();
+
 
     const type =
         String(
@@ -898,6 +1174,7 @@ export function createFieldInput(
             definition,
             name
         );
+
     }
 
 
@@ -916,11 +1193,14 @@ export function createFieldInput(
             definition,
             name
         );
+
     }
 
 
     /* =====================================================
        ENUM
+       -----------------------------------------------------
+       Enum harus diprioritaskan sebelum generic type.
     ===================================================== */
 
     if (
@@ -934,6 +1214,7 @@ export function createFieldInput(
             name,
             definition
         );
+
     }
 
 
@@ -952,6 +1233,7 @@ export function createFieldInput(
             definition,
             name
         );
+
     }
 
 
@@ -960,13 +1242,15 @@ export function createFieldInput(
     ===================================================== */
 
     if (
-        type === "boolean"
+        type ===
+            "boolean"
     ) {
 
         return createBooleanField(
             definition,
             name
         );
+
     }
 
 
@@ -975,10 +1259,13 @@ export function createFieldInput(
     ===================================================== */
 
     if (
-        name === "duration" &&
+        normalizedName ===
+            "duration" &&
         (
-            type === "number" ||
-            type === "integer"
+            type ===
+                "number" ||
+            type ===
+                "integer"
         )
     ) {
 
@@ -986,6 +1273,7 @@ export function createFieldInput(
             definition,
             name
         );
+
     }
 
 
@@ -994,14 +1282,17 @@ export function createFieldInput(
     ===================================================== */
 
     if (
-        type === "number" ||
-        type === "integer"
+        type ===
+            "number" ||
+        type ===
+            "integer"
     ) {
 
         return createNumberField(
             definition,
             name
         );
+
     }
 
 
@@ -1015,12 +1306,21 @@ export function createFieldInput(
             definition?.max_length
         );
 
+
     if (
-        name === "prompt" ||
-        name === "description" ||
-        name === "negative_prompt" ||
+        normalizedName ===
+            "prompt" ||
+
+        normalizedName ===
+            "description" ||
+
+        normalizedName ===
+            "negative_prompt" ||
+
         (
-            Number.isFinite(maxLength) &&
+            Number.isFinite(
+                maxLength
+            ) &&
             maxLength > 500
         )
     ) {
@@ -1029,6 +1329,7 @@ export function createFieldInput(
             definition,
             name
         );
+
     }
 
 
@@ -1040,14 +1341,12 @@ export function createFieldInput(
         definition,
         name
     );
+
 }
 
 
 /* =========================================================
    DEFAULT EXPORT
-   ---------------------------------------------------------
-   Tidak wajib digunakan.
-   Named exports tetap menjadi API utama.
 ========================================================= */
 
 export default Object.freeze({
