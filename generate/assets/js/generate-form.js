@@ -6,6 +6,7 @@
    generate/assets/js/generate-form.js
 
    Tanggung jawab:
+   - Orchestrate generate form
    - Render parameter model secara dinamis
    - Source parameter dari konfigurasi model
    - Mendukung object / array / JSON Schema
@@ -20,6 +21,18 @@
    - Tidak membuat parameter model baru
    - Parameter internal tidak ditampilkan
    - Parameter server-controlled tidak dikirim dari client
+
+   Renderer:
+   - generate-form-render.js
+
+   Field factories:
+   - generate-form-fields.js
+
+   Media:
+   - generate-form-media.js
+
+   Data:
+   - generate-form-data.js
 ========================================================= */
 
 "use strict";
@@ -30,21 +43,32 @@
 ========================================================= */
 
 import {
-    FULL_WIDTH_PARAMETERS,
     getContainer,
     resolveModel,
     getParameterDefinitions,
-    getParameterLabel,
-    getParameterDescription,
     isInternalParameter,
     isServerControlledParameter,
     isClientForbiddenParameter,
-    isRenderableParameter,
     getOrderedParameterNames,
     getDefaultValue,
-    normalizeArray,
-    createFieldId
+    normalizeArray
 } from "./generate-form-core.js";
+
+
+/* =========================================================
+   FORM RENDERER
+   ---------------------------------------------------------
+   Tanggung jawab:
+   - createField()
+   - appendDescription()
+   - renderParameter()
+   - forceContainerVisible()
+========================================================= */
+
+import {
+    renderParameter,
+    forceContainerVisible
+} from "./generate-form-render.js";
 
 
 /* =========================================================
@@ -74,8 +98,6 @@ import {
 ========================================================= */
 
 import {
-    createImageField as createMediaImageField,
-    createAudioField as createMediaAudioField,
     registerImageMediaHandlers,
     registerAudioMediaHandlers
 } from "./generate-form-media.js";
@@ -95,7 +117,7 @@ import {
    ---------------------------------------------------------
    getFormParameters()
    getFormData()
-   sekarang dimiliki oleh:
+   dimiliki oleh:
    generate-form-data.js
 ========================================================= */
 
@@ -110,21 +132,38 @@ import {
 ========================================================= */
 
 registerImageMediaHandlers({
+
     upload:
         uploadImageFile,
 
     validate:
         validateImageFile
+
 });
 
 
 registerAudioMediaHandlers({
+
     upload:
         uploadAudioFile,
 
     validate:
         validateAudioFile
+
 });
+
+
+/* =========================================================
+   FIELD FACTORY REGISTRATION
+   ---------------------------------------------------------
+   Media field dibuat oleh generate-form-media.js,
+   kemudian didaftarkan ke generate-form-fields.js.
+========================================================= */
+
+import {
+    createImageField as createMediaImageField,
+    createAudioField as createMediaAudioField
+} from "./generate-form-media.js";
 
 
 registerImageFieldFactory(
@@ -135,1665 +174,6 @@ registerImageFieldFactory(
 registerAudioFieldFactory(
     createMediaAudioField
 );
-
-
-/* =========================================================
-   CREATE FIELD
-========================================================= */
-
-function createField(
-    name,
-    definition = {}
-) {
-
-    const wrapper =
-        document.createElement(
-            "div"
-        );
-
-
-    wrapper.className =
-        "generate-field";
-
-
-    wrapper.dataset.parameter =
-        name;
-
-
-    wrapper.style.setProperty(
-        "width",
-        "100%",
-        "important"
-    );
-
-
-    wrapper.style.setProperty(
-        "min-width",
-        "0",
-        "important"
-    );
-
-
-    wrapper.style.setProperty(
-        "box-sizing",
-        "border-box",
-        "important"
-    );
-
-
-    wrapper.style.setProperty(
-        "visibility",
-        "visible",
-        "important"
-    );
-
-
-    wrapper.style.setProperty(
-        "opacity",
-        "1",
-        "important"
-    );
-
-
-    const label =
-        document.createElement(
-            "label"
-        );
-
-
-    label.className =
-        "generate-field-label";
-
-
-    label.htmlFor =
-        createFieldId(
-            name
-        );
-
-
-    label.textContent =
-        getParameterLabel(
-            name,
-            definition
-        );
-
-
-    wrapper.appendChild(
-        label
-    );
-
-
-    return wrapper;
-
-}
-
-
-/* =========================================================
-   DESCRIPTION
-========================================================= */
-
-function appendDescription(
-    wrapper,
-    definition
-) {
-
-    if (
-        !wrapper
-    ) {
-
-        return;
-
-    }
-
-
-    const description =
-        getParameterDescription(
-            definition
-        );
-
-
-    if (
-        !description
-    ) {
-
-        return;
-
-    }
-
-
-    const element =
-        document.createElement(
-            "div"
-        );
-
-
-    element.className =
-        "generate-field-description";
-
-
-    element.textContent =
-        description;
-
-
-    wrapper.appendChild(
-        element
-    );
-
-}
-
-
-/* =========================================================
-   ENUM
-========================================================= */
-
-function createEnumField(
-    name,
-    definition = {}
-) {
-
-    const wrapper =
-        document.createElement(
-            "div"
-        );
-
-
-    wrapper.className =
-        "generate-option-group";
-
-
-    const enumValues =
-        Array.isArray(
-            definition?.enum
-        )
-
-            ? definition.enum
-
-            : (
-                Array.isArray(
-                    definition?.options
-                )
-                    ? definition.options
-                    : []
-            );
-
-
-    let defaultValue =
-        getDefaultValue(
-            definition
-        );
-
-
-    if (
-        defaultValue ===
-            undefined &&
-        enumValues.length
-    ) {
-
-        defaultValue =
-            enumValues[0];
-
-    }
-
-
-    enumValues.forEach(
-        value => {
-
-            const option =
-                document.createElement(
-                    "label"
-                );
-
-
-            option.className =
-                "generate-option";
-
-
-            const input =
-                document.createElement(
-                    "input"
-                );
-
-
-            input.type =
-                "radio";
-
-
-            input.name =
-                `generate-radio-${name}`;
-
-
-            input.value =
-                String(
-                    value
-                );
-
-
-            input.dataset.parameter =
-                name;
-
-
-            input.id =
-                createFieldId(
-                    `${name}-${String(value)}`
-                );
-
-
-            const optionLabel =
-                document.createElement(
-                    "span"
-                );
-
-
-            optionLabel.className =
-                "generate-option-label";
-
-
-            optionLabel.textContent =
-                String(
-                    value
-                );
-
-
-            if (
-                String(value) ===
-                String(defaultValue)
-            ) {
-
-                input.checked =
-                    true;
-
-
-                optionLabel.classList.add(
-                    "active"
-                );
-
-            }
-
-
-            input.addEventListener(
-                "change",
-                () => {
-
-                    wrapper
-                        .querySelectorAll(
-                            ".generate-option-label"
-                        )
-                        .forEach(
-                            label => {
-
-                                label.classList.remove(
-                                    "active"
-                                );
-
-                            }
-                        );
-
-
-                    if (
-                        input.checked
-                    ) {
-
-                        optionLabel.classList.add(
-                            "active"
-                        );
-
-                    }
-
-                }
-            );
-
-
-            option.appendChild(
-                input
-            );
-
-
-            option.appendChild(
-                optionLabel
-            );
-
-
-            wrapper.appendChild(
-                option
-            );
-
-        }
-    );
-
-
-    return wrapper;
-
-}
-
-
-/* =========================================================
-   BOOLEAN
-========================================================= */
-
-function createBooleanField(
-    definition = {},
-    name = ""
-) {
-
-    const wrapper =
-        document.createElement(
-            "label"
-        );
-
-
-    wrapper.className =
-        "generate-checkbox-field";
-
-
-    const input =
-        document.createElement(
-            "input"
-        );
-
-
-    input.type =
-        "checkbox";
-
-
-    input.name =
-        name;
-
-
-    input.dataset.parameter =
-        name;
-
-
-    input.id =
-        createFieldId(
-            name
-        );
-
-
-    input.checked =
-        Boolean(
-            getDefaultValue(
-                definition
-            )
-        );
-
-
-    const text =
-        document.createElement(
-            "span"
-        );
-
-
-    text.className =
-        "generate-checkbox-label";
-
-
-    text.textContent =
-        getParameterLabel(
-            name,
-            definition
-        );
-
-
-    wrapper.appendChild(
-        input
-    );
-
-
-    wrapper.appendChild(
-        text
-    );
-
-
-    return wrapper;
-
-}
-
-
-/* =========================================================
-   NUMBER
-========================================================= */
-
-function createNumberField(
-    definition = {},
-    name = ""
-) {
-
-    const input =
-        document.createElement(
-            "input"
-        );
-
-
-    input.type =
-        "number";
-
-
-    input.id =
-        createFieldId(
-            name
-        );
-
-
-    input.name =
-        name;
-
-
-    input.className =
-        "form-control";
-
-
-    input.dataset.parameter =
-        name;
-
-
-    const min =
-        Number(
-            definition?.min ??
-            definition?.minimum
-        );
-
-
-    const max =
-        Number(
-            definition?.max ??
-            definition?.maximum
-        );
-
-
-    if (
-        Number.isFinite(
-            min
-        )
-    ) {
-
-        input.min =
-            String(
-                min
-            );
-
-    }
-
-
-    if (
-        Number.isFinite(
-            max
-        )
-    ) {
-
-        input.max =
-            String(
-                max
-            );
-
-    }
-
-
-    const type =
-        String(
-            definition?.type ||
-            ""
-        )
-            .trim()
-            .toLowerCase();
-
-
-    input.step =
-        type ===
-            "integer"
-
-            ? "1"
-
-            : "any";
-
-
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
-
-
-    if (
-        defaultValue !==
-        undefined &&
-        defaultValue !==
-        null
-    ) {
-
-        input.value =
-            String(
-                defaultValue
-            );
-
-    }
-
-
-    return input;
-
-}
-
-
-/* =========================================================
-   DURATION
-========================================================= */
-
-function createDurationField(
-    definition = {},
-    name = "duration"
-) {
-
-    const wrapper =
-        document.createElement(
-            "div"
-        );
-
-
-    wrapper.className =
-        "generate-duration-field";
-
-
-    const top =
-        document.createElement(
-            "div"
-        );
-
-
-    top.className =
-        "generate-duration-top";
-
-
-    const title =
-        document.createElement(
-            "span"
-        );
-
-
-    title.textContent =
-        getParameterLabel(
-            name,
-            definition
-        );
-
-
-    const valueLabel =
-        document.createElement(
-            "span"
-        );
-
-
-    valueLabel.className =
-        "generate-duration-value";
-
-
-    const range =
-        document.createElement(
-            "input"
-        );
-
-
-    range.type =
-        "range";
-
-
-    range.id =
-        createFieldId(
-            name
-        );
-
-
-    range.name =
-        name;
-
-
-    range.className =
-        "generate-duration-range";
-
-
-    range.dataset.parameter =
-        name;
-
-
-    let min =
-        Number(
-            definition?.min ??
-            definition?.minimum
-        );
-
-
-    let max =
-        Number(
-            definition?.max ??
-            definition?.maximum
-        );
-
-
-    if (
-        !Number.isFinite(
-            min
-        )
-    ) {
-
-        min =
-            1;
-
-    }
-
-
-    if (
-        !Number.isFinite(
-            max
-        )
-    ) {
-
-        max =
-            30;
-
-    }
-
-
-    const parsedDefault =
-        Number(
-            getDefaultValue(
-                definition
-            )
-        );
-
-
-    let value =
-        Number.isFinite(
-            parsedDefault
-        )
-            ? parsedDefault
-            : min;
-
-
-    value =
-        Math.max(
-            min,
-            Math.min(
-                max,
-                value
-            )
-        );
-
-
-    range.min =
-        String(
-            min
-        );
-
-
-    range.max =
-        String(
-            max
-        );
-
-
-    range.step =
-        "1";
-
-
-    range.value =
-        String(
-            value
-        );
-
-
-    valueLabel.textContent =
-        `${value} detik`;
-
-
-    top.appendChild(
-        title
-    );
-
-
-    top.appendChild(
-        valueLabel
-    );
-
-
-    wrapper.appendChild(
-        top
-    );
-
-
-    wrapper.appendChild(
-        range
-    );
-
-
-    const scale =
-        document.createElement(
-            "div"
-        );
-
-
-    scale.className =
-        "generate-duration-scale";
-
-
-    const minLabel =
-        document.createElement(
-            "span"
-        );
-
-
-    minLabel.textContent =
-        `${min} detik`;
-
-
-    const maxLabel =
-        document.createElement(
-            "span"
-        );
-
-
-    maxLabel.textContent =
-        `${max} detik`;
-
-
-    scale.appendChild(
-        minLabel
-    );
-
-
-    scale.appendChild(
-        maxLabel
-    );
-
-
-    wrapper.appendChild(
-        scale
-    );
-
-
-    range.addEventListener(
-        "input",
-        () => {
-
-            valueLabel.textContent =
-                `${range.value} detik`;
-
-        }
-    );
-
-
-    return wrapper;
-
-}
-
-
-/* =========================================================
-   TEXTAREA
-========================================================= */
-
-function createTextareaField(
-    definition = {},
-    name = ""
-) {
-
-    const textarea =
-        document.createElement(
-            "textarea"
-        );
-
-
-    textarea.id =
-        createFieldId(
-            name
-        );
-
-
-    textarea.name =
-        name;
-
-
-    textarea.className =
-        "form-control";
-
-
-    textarea.dataset.parameter =
-        name;
-
-
-    textarea.rows =
-        Number(
-            definition?.rows
-        ) ||
-        5;
-
-
-    textarea.placeholder =
-        definition?.placeholder ||
-        (
-            name === "prompt"
-                ? "Masukkan prompt..."
-                : ""
-        );
-
-
-    const maxLength =
-        Number(
-            definition?.maxLength ??
-            definition?.max_length
-        );
-
-
-    if (
-        Number.isFinite(
-            maxLength
-        )
-    ) {
-
-        textarea.maxLength =
-            maxLength;
-
-    }
-
-
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
-
-
-    if (
-        defaultValue !==
-            undefined &&
-        defaultValue !==
-            null
-    ) {
-
-        textarea.value =
-            String(
-                defaultValue
-            );
-
-    }
-
-
-    return textarea;
-
-}
-
-
-/* =========================================================
-   TEXT
-========================================================= */
-
-function createTextField(
-    definition = {},
-    name = ""
-) {
-
-    const input =
-        document.createElement(
-            "input"
-        );
-
-
-    input.type =
-        "text";
-
-
-    input.id =
-        createFieldId(
-            name
-        );
-
-
-    input.name =
-        name;
-
-
-    input.className =
-        "form-control";
-
-
-    input.dataset.parameter =
-        name;
-
-
-    input.placeholder =
-        definition?.placeholder ||
-        "";
-
-
-    const maxLength =
-        Number(
-            definition?.maxLength ??
-            definition?.max_length
-        );
-
-
-    if (
-        Number.isFinite(
-            maxLength
-        )
-    ) {
-
-        input.maxLength =
-            maxLength;
-
-    }
-
-
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
-
-
-    if (
-        defaultValue !==
-            undefined &&
-        defaultValue !==
-            null
-    ) {
-
-        input.value =
-            String(
-                defaultValue
-            );
-
-    }
-
-
-    return input;
-
-}
-
-
-/* =========================================================
-   SELECT
-========================================================= */
-
-function createSelectField(
-    definition = {},
-    name = ""
-) {
-
-    const select =
-        document.createElement(
-            "select"
-        );
-
-
-    select.id =
-        createFieldId(
-            name
-        );
-
-
-    select.name =
-        name;
-
-
-    select.className =
-        "form-control";
-
-
-    select.dataset.parameter =
-        name;
-
-
-    const options =
-        Array.isArray(
-            definition?.options
-        )
-            ? definition.options
-            : [];
-
-
-    options.forEach(
-        optionValue => {
-
-            const option =
-                document.createElement(
-                    "option"
-                );
-
-
-            if (
-                optionValue &&
-                typeof optionValue ===
-                    "object"
-            ) {
-
-                option.value =
-                    String(
-                        optionValue.value ??
-                        optionValue.id ??
-                        ""
-                    );
-
-
-                option.textContent =
-                    String(
-                        optionValue.label ??
-                        optionValue.name ??
-                        option.value
-                    );
-
-            } else {
-
-                option.value =
-                    String(
-                        optionValue
-                    );
-
-
-                option.textContent =
-                    String(
-                        optionValue
-                    );
-
-            }
-
-
-            select.appendChild(
-                option
-            );
-
-        }
-    );
-
-
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
-
-
-    if (
-        defaultValue !==
-            undefined &&
-        defaultValue !==
-            null
-    ) {
-
-        select.value =
-            String(
-                defaultValue
-            );
-
-    }
-
-
-    return select;
-
-}
-
-
-/* =========================================================
-   CREATE INPUT
-========================================================= */
-
-function createFieldInput(
-    name,
-    definition = {}
-) {
-
-    const type =
-        String(
-            definition?.type ||
-            "string"
-        )
-            .trim()
-            .toLowerCase();
-
-
-    /* =====================================================
-       IMAGE
-    ===================================================== */
-
-    if (
-        name === "image_urls" ||
-        name === "image_url"
-    ) {
-
-        return createMediaImageField(
-            definition,
-            name
-        );
-
-    }
-
-
-    /* =====================================================
-       AUDIO
-    ===================================================== */
-
-    if (
-        name === "audio_url" ||
-        type === "audio" ||
-        type === "audio_url"
-    ) {
-
-        return createMediaAudioField(
-            definition,
-            name
-        );
-
-    }
-
-
-    /* =====================================================
-       ENUM
-    ===================================================== */
-
-    if (
-        Array.isArray(
-            definition?.enum
-        ) &&
-        definition.enum.length
-    ) {
-
-        return createEnumField(
-            name,
-            definition
-        );
-
-    }
-
-
-    /* =====================================================
-       OPTIONS
-    ===================================================== */
-
-    if (
-        Array.isArray(
-            definition?.options
-        ) &&
-        definition.options.length
-    ) {
-
-        return createSelectField(
-            definition,
-            name
-        );
-
-    }
-
-
-    /* =====================================================
-       BOOLEAN
-    ===================================================== */
-
-    if (
-        type === "boolean"
-    ) {
-
-        return createBooleanField(
-            definition,
-            name
-        );
-
-    }
-
-
-    /* =====================================================
-       DURATION
-    ===================================================== */
-
-    if (
-        name === "duration" &&
-        (
-            type === "number" ||
-            type === "integer"
-        )
-    ) {
-
-        return createDurationField(
-            definition,
-            name
-        );
-
-    }
-
-
-    /* =====================================================
-       NUMBER
-    ===================================================== */
-
-    if (
-        type === "number" ||
-        type === "integer"
-    ) {
-
-        return createNumberField(
-            definition,
-            name
-        );
-
-    }
-
-
-    /* =====================================================
-       TEXTAREA
-    ===================================================== */
-
-    const maxLength =
-        Number(
-            definition?.maxLength ??
-            definition?.max_length
-        );
-
-
-    if (
-        name === "prompt" ||
-        name === "description" ||
-        name === "negative_prompt" ||
-        (
-            Number.isFinite(
-                maxLength
-            ) &&
-            maxLength > 500
-        )
-    ) {
-
-        return createTextareaField(
-            definition,
-            name
-        );
-
-    }
-
-
-    /* =====================================================
-       DEFAULT TEXT
-    ===================================================== */
-
-    return createTextField(
-        definition,
-        name
-    );
-
-}
-
-
-/* =========================================================
-   RENDER PARAMETER
-========================================================= */
-
-function renderParameter(
-    name,
-    definition
-) {
-
-    if (
-        !isRenderableParameter(
-            name,
-            definition
-        )
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        isClientForbiddenParameter(
-            name
-        )
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        isInternalParameter(
-            name
-        )
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        isServerControlledParameter(
-            name
-        )
-    ) {
-
-        return null;
-
-    }
-
-
-    const wrapper =
-        createField(
-            name,
-            definition
-        );
-
-
-    const input =
-        createFieldInput(
-            name,
-            definition
-        );
-
-
-    if (
-        input
-    ) {
-
-        wrapper.appendChild(
-            input
-        );
-
-    }
-
-
-    /*
-     * Duration memiliki title sendiri.
-     */
-
-    if (
-        name !== "duration"
-    ) {
-
-        appendDescription(
-            wrapper,
-            definition
-        );
-
-    }
-
-
-    return wrapper;
-
-}
-
-
-/* =========================================================
-   FORCE CONTAINER VISIBLE
-========================================================= */
-
-function forceContainerVisible(
-    container
-) {
-
-    if (
-        !container
-    ) {
-
-        return;
-
-    }
-
-
-    container.hidden =
-        false;
-
-
-    container.removeAttribute(
-        "hidden"
-    );
-
-
-    container.style.setProperty(
-        "display",
-        "grid",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "grid-template-columns",
-        "repeat(2, minmax(0, 1fr))",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "grid-auto-flow",
-        "row",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "align-items",
-        "start",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "column-gap",
-        "20px",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "row-gap",
-        "18px",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "width",
-        "100%",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "box-sizing",
-        "border-box",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "visibility",
-        "visible",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "opacity",
-        "1",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "height",
-        "auto",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "max-height",
-        "none",
-        "important"
-    );
-
-
-    container.style.setProperty(
-        "overflow",
-        "visible",
-        "important"
-    );
-
-
-    const mobile =
-        typeof window !==
-            "undefined" &&
-        typeof window.matchMedia ===
-            "function" &&
-        window.matchMedia(
-            "(max-width: 768px)"
-        ).matches;
-
-
-    if (
-        mobile
-    ) {
-
-        container.style.setProperty(
-            "grid-template-columns",
-            "minmax(0, 1fr)",
-            "important"
-        );
-
-    }
-
-
-    const fields =
-        container.querySelectorAll(
-            ".generate-field"
-        );
-
-
-    fields.forEach(
-        field => {
-
-            if (
-                !field
-            ) {
-
-                return;
-
-            }
-
-
-            const parameter =
-                String(
-                    field.dataset.parameter ||
-                    ""
-                )
-                    .trim()
-                    .toLowerCase();
-
-
-            field.style.setProperty(
-                "display",
-                "block",
-                "important"
-            );
-
-
-            field.style.setProperty(
-                "width",
-                "auto",
-                "important"
-            );
-
-
-            field.style.setProperty(
-                "min-width",
-                "0",
-                "important"
-            );
-
-
-            field.style.setProperty(
-                "max-width",
-                "100%",
-                "important"
-            );
-
-
-            field.style.setProperty(
-                "box-sizing",
-                "border-box",
-                "important"
-            );
-
-
-            field.style.setProperty(
-                "align-self",
-                "start",
-                "important"
-            );
-
-
-            field.style.setProperty(
-                "visibility",
-                "visible",
-                "important"
-            );
-
-
-            field.style.setProperty(
-                "opacity",
-                "1",
-                "important"
-            );
-
-
-            const fullWidth =
-                (
-                    Array.isArray(
-                        FULL_WIDTH_PARAMETERS
-                    )
-                        ? FULL_WIDTH_PARAMETERS.includes(
-                            parameter
-                        )
-                        : (
-                            FULL_WIDTH_PARAMETERS instanceof Set
-                                ? FULL_WIDTH_PARAMETERS.has(
-                                    parameter
-                                )
-                                : (
-                                    parameter === "prompt" ||
-                                    parameter === "negative_prompt" ||
-                                    parameter === "description" ||
-                                    parameter === "image_urls" ||
-                                    parameter === "image_url" ||
-                                    parameter === "audio_url"
-                                )
-                        )
-                );
-
-
-            if (
-                mobile
-            ) {
-
-                field.style.setProperty(
-                    "grid-column",
-                    "1 / -1",
-                    "important"
-                );
-
-            } else if (
-                fullWidth
-            ) {
-
-                field.style.setProperty(
-                    "grid-column",
-                    "1 / -1",
-                    "important"
-                );
-
-            } else {
-
-                field.style.setProperty(
-                    "grid-column",
-                    "span 1",
-                    "important"
-                );
-
-            }
-
-        }
-    );
-
-}
 
 
 /* =========================================================
@@ -1842,6 +222,10 @@ export function renderGenerateForm(
     }
 
 
+    /*
+     * Bersihkan form lama.
+     */
+
     container.innerHTML =
         "";
 
@@ -1871,6 +255,10 @@ export function renderGenerateForm(
         names
     );
 
+
+    /* =====================================================
+       EMPTY PARAMETERS
+    ===================================================== */
 
     if (
         names.length === 0
@@ -1904,6 +292,10 @@ export function renderGenerateForm(
 
     }
 
+
+    /* =====================================================
+       RENDER PARAMETERS
+    ===================================================== */
 
     let renderedCount =
         0;
@@ -1951,6 +343,10 @@ export function renderGenerateForm(
     );
 
 
+    /* =====================================================
+       FORCE VISIBILITY / LAYOUT
+    ===================================================== */
+
     forceContainerVisible(
         container
     );
@@ -1959,6 +355,7 @@ export function renderGenerateForm(
     console.debug(
         "[GEN-Z.AI][Generate Form] RENDER SELESAI:",
         {
+
             model:
                 model.model_id ||
                 model.id ||
@@ -1969,6 +366,7 @@ export function renderGenerateForm(
 
             parameters:
                 names
+
         }
     );
 
@@ -1986,6 +384,10 @@ export function setFieldValue(
     name,
     value
 ) {
+
+    /* =====================================================
+       PROTECTED PARAMETERS
+    ===================================================== */
 
     if (
         isClientForbiddenParameter(
@@ -2238,7 +640,7 @@ export function setFieldValue(
 
 
     /* =====================================================
-       NORMAL
+       NORMAL INPUT
     ===================================================== */
 
     const input =
@@ -2289,6 +691,10 @@ export async function resetDynamicFields(
 
     /* =====================================================
        SEEDANCE
+       -----------------------------------------------------
+       Seedance memiliki form khusus yang tidak boleh
+       dirender ulang karena state/layout handler-nya
+       dikelola oleh form khusus tersebut.
     ===================================================== */
 
     const seedanceForm =
@@ -2305,6 +711,10 @@ export async function resetDynamicFields(
             "[GEN-Z.AI][Generate Form] Reset Seedance tanpa render ulang."
         );
 
+
+        /* =================================================
+           TEXT / NUMBER / RANGE / TEXTAREA
+        ================================================= */
 
         seedanceForm
             .querySelectorAll(
@@ -2354,6 +764,10 @@ export async function resetDynamicFields(
             );
 
 
+        /* =================================================
+           SELECT
+        ================================================= */
+
         seedanceForm
             .querySelectorAll(
                 "select"
@@ -2398,6 +812,10 @@ export async function resetDynamicFields(
             );
 
 
+        /* =================================================
+           RADIO
+        ================================================= */
+
         seedanceForm
             .querySelectorAll(
                 "input[type='radio']"
@@ -2411,6 +829,10 @@ export async function resetDynamicFields(
                 }
             );
 
+
+        /* =================================================
+           CHECKBOX
+        ================================================= */
 
         seedanceForm
             .querySelectorAll(
@@ -2436,6 +858,10 @@ export async function resetDynamicFields(
                 }
             );
 
+
+        /* =================================================
+           FILE INPUT
+        ================================================= */
 
         seedanceForm
             .querySelectorAll(
@@ -2463,6 +889,10 @@ export async function resetDynamicFields(
                 }
             );
 
+
+        /* =================================================
+           IMAGE UPLOAD
+        ================================================= */
 
         const imageUploads =
             seedanceForm.querySelectorAll(
@@ -2500,6 +930,10 @@ export async function resetDynamicFields(
         }
 
 
+        /* =================================================
+           AUDIO UPLOAD
+        ================================================= */
+
         const audioUploads =
             seedanceForm.querySelectorAll(
                 ".generate-audio-input"
@@ -2536,6 +970,10 @@ export async function resetDynamicFields(
         }
 
 
+        /* =================================================
+           PREVIEW
+        ================================================= */
+
         seedanceForm
             .querySelectorAll(
                 ".seedance-preview, " +
@@ -2556,6 +994,10 @@ export async function resetDynamicFields(
                 }
             );
 
+
+        /* =================================================
+           UPLOADED URL
+        ================================================= */
 
         seedanceForm
             .querySelectorAll(
@@ -2582,6 +1024,10 @@ export async function resetDynamicFields(
                 }
             );
 
+
+        /* =================================================
+           COUNTER
+        ================================================= */
 
         seedanceForm
             .querySelectorAll(
@@ -2622,6 +1068,10 @@ export async function resetDynamicFields(
             );
 
 
+        /* =================================================
+           CHECKBOX EVENTS
+        ================================================= */
+
         seedanceForm
             .querySelectorAll(
                 "input[type='checkbox']"
@@ -2653,6 +1103,10 @@ export async function resetDynamicFields(
                 }
             );
 
+
+        /* =================================================
+           KEEP CONTAINER VISIBLE
+        ================================================= */
 
         container.hidden =
             false;
@@ -2727,6 +1181,10 @@ export async function resetDynamicFields(
 
     }
 
+
+    /*
+     * Non-Seedance tetap menggunakan renderer normal.
+     */
 
     renderGenerateForm(
         modelArgument
