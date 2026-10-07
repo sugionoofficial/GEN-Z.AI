@@ -314,7 +314,7 @@
             overflow: hidden;
 
             padding:
-                70px 0 25px;
+                70px 0 0px;
         }
 
         .hero::before {
@@ -724,12 +724,12 @@
 
         .trust-strip {
     position: relative;
-    z-index: 5;
-    margin-top: -35px;
-    padding: 28px 0;
-    border-top: 1px solid rgba(255, 48, 72, 0.14);
+    z-index: 10;
+    margin-top: -1px;
+    padding: 22px 0;
+    border-top: 1px solid rgba(255, 48, 72, 0.18);
     border-bottom: 1px solid rgba(255, 48, 72, 0.14);
-    background: rgba(10, 10, 10, 0.82);
+    background: rgba(10, 10, 10, 0.88);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
 }
@@ -1537,6 +1537,18 @@
         margin-top: -20px;
         padding: 22px 0;
     }
+}
+        @media (max-width: 768px) {
+
+    .hero {
+        padding: 92px 0 0;
+    }
+
+    .trust-strip {
+        margin-top: -1px;
+        padding: 18px 0;
+    }
+
 }
 
     </style>
