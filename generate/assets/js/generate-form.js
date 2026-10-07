@@ -90,6 +90,11 @@ import {
     readFieldValue
 } from "./generate-form-reader.js";
 
+import {
+    resolveImageParameterValue,
+    resolveAudioParameterValue
+} from "./generate-form-media-reader.js";
+
 
 
 
@@ -2297,134 +2302,7 @@ function forceContainerVisible(
 
    
 
-/* =========================================================
-   RESOLVE IMAGE PARAMETER
-========================================================= */
 
-async function resolveImageParameterValue(
-    imageInput,
-    definition
-) {
-
-    if (
-        !imageInput
-    ) {
-
-        return [];
-
-    }
-
-
-    const mode =
-        typeof imageInput.getInputMode ===
-        "function"
-
-            ? imageInput.getInputMode()
-
-            : (
-                imageInput.dataset.imageMode ||
-                "url"
-            );
-
-
-    if (
-        mode !==
-        "upload"
-    ) {
-
-        const urlInput =
-            typeof imageInput.getUrlInput ===
-            "function"
-
-                ? imageInput.getUrlInput()
-
-                : imageInput.querySelector(
-                    'input[type="url"]'
-                );
-
-
-        const url =
-            String(
-                urlInput?.value ||
-                ""
-            ).trim();
-
-
-        if (
-            !url
-        ) {
-
-            return [];
-
-        }
-
-
-        return [
-            url
-        ];
-
-    }
-
-
-    /*
-     * Jika upload masih berjalan, tunggu Promise.
-     */
-
-    if (
-        imageInput._imageUploadPromise
-    ) {
-
-        try {
-
-            const pendingUrls =
-                await imageInput._imageUploadPromise;
-
-
-            if (
-                Array.isArray(
-                    pendingUrls
-                ) &&
-                pendingUrls.length
-            ) {
-
-                return pendingUrls;
-
-            }
-
-        } catch (
-            error
-        ) {
-
-            throw error;
-
-        }
-
-    }
-
-
-    /*
-     * Jika upload sudah selesai, gunakan semua URL
-     * yang telah disimpan.
-     */
-
-    if (
-        typeof imageInput.getUploadedUrls ===
-        "function"
-    ) {
-
-        const uploadedUrls =
-            imageInput.getUploadedUrls();
-
-
-        if (
-            uploadedUrls.length
-        ) {
-
-            return uploadedUrls;
-
-        }
-
-    }
 
 
     const existingUrl =
@@ -2552,82 +2430,6 @@ async function resolveImageParameterValue(
 
 }
 
-
-/* =========================================================
-   RESOLVE AUDIO PARAMETER
-========================================================= */
-
-async function resolveAudioParameterValue(
-    audioInput
-) {
-
-    if (
-        !audioInput
-    ) {
-
-        return "";
-
-    }
-
-
-    const mode =
-        typeof audioInput.getInputMode ===
-        "function"
-
-            ? audioInput.getInputMode()
-
-            : (
-                audioInput.dataset.audioMode ||
-                "url"
-            );
-
-
-    /*
-     * URL mode
-     */
-
-    if (
-        mode !==
-        "upload"
-    ) {
-
-        const urlInput =
-            typeof audioInput.getUrlInput ===
-            "function"
-
-                ? audioInput.getUrlInput()
-
-                : audioInput.querySelector(
-                    'input[type="url"]'
-                );
-
-
-        return String(
-            urlInput?.value ||
-            ""
-        ).trim();
-
-    }
-
-
-    /*
-     * Upload masih berjalan.
-     */
-
-    if (
-        audioInput._audioUploadPromise
-    ) {
-
-        const pendingUrl =
-            await audioInput._audioUploadPromise;
-
-
-        return String(
-            pendingUrl ||
-            ""
-        ).trim();
-
-    }
 
 
     /*
