@@ -30,6 +30,128 @@ let generationInProgress =
 
 
 /* =========================================================
+   DIAGNOSTIC HELPER
+   ---------------------------------------------------------
+   Update judul tab + console log supaya posisi stuck bisa
+   dilihat dari HP tanpa DevTools.
+========================================================= */
+
+function setDiagStage(
+    stage
+) {
+
+    const label =
+        String(
+            stage ||
+            ""
+        );
+
+
+    try {
+
+        document.title =
+            "[DIAG] " +
+            label;
+
+    } catch {
+        /* ignore */
+    }
+
+
+    try {
+
+        console.log(
+            "[GEN-Z.AI][DIAG]",
+            new Date()
+                .toISOString(),
+
+            label
+        );
+
+    } catch {
+        /* ignore */
+    }
+
+}
+
+
+/* =========================================================
+   DIAGNOSTIC: AWAIT WITH TIMEOUT
+   ---------------------------------------------------------
+   Mencegah hang total kalau promise tidak pernah settle.
+========================================================= */
+
+async function awaitWithTimeout(
+    promise,
+    label,
+    ms = 90000
+) {
+
+    if (
+        !promise ||
+        typeof promise.then !==
+        "function"
+    ) {
+
+        return promise;
+
+    }
+
+
+    let timer =
+        null;
+
+
+    const timeout =
+        new Promise(
+            (_, reject) => {
+
+                timer =
+                    setTimeout(
+                        () => {
+
+                            reject(
+                                new Error(
+                                    `[TIMEOUT] ${label} > ${ms}ms`
+                                )
+                            );
+
+                        },
+                        ms
+                    );
+
+            }
+        );
+
+
+    try {
+
+        return await Promise.race([
+
+            promise,
+
+            timeout
+
+        ]);
+
+    } finally {
+
+        if (
+            timer
+        ) {
+
+            clearTimeout(
+                timer
+            );
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
    GENERATION STATE
 ========================================================= */
 
@@ -756,6 +878,11 @@ async function handleGenerateSubmit(
     }
 
 
+    setDiagStage(
+        "1. Mulai submit"
+    );
+
+
     const elements =
         getDOM();
 
@@ -999,10 +1126,28 @@ async function handleGenerateSubmit(
          * generate-form.js
          */
 
+        setDiagStage(
+            "2. Sebelum getModelParameters"
+        );
+
+
         const parameters =
-            await render.getModelParameters(
-                model
+            await awaitWithTimeout(
+
+                render.getModelParameters(
+                    model
+                ),
+
+                "getModelParameters",
+
+                90000
+
             );
+
+
+        setDiagStage(
+            "3. Setelah getModelParameters OK"
+        );
 
 
         /*
@@ -1074,10 +1219,28 @@ async function handleGenerateSubmit(
          * =================================================
          */
 
+        setDiagStage(
+            "4. Sebelum generateVideo"
+        );
+
+
         const response =
-            await request.generateVideo(
-                parameters
+            await awaitWithTimeout(
+
+                request.generateVideo(
+                    parameters
+                ),
+
+                "generateVideo",
+
+                90000
+
             );
+
+
+        setDiagStage(
+            "5. generateVideo OK, dapat response"
+        );
 
 
         renderKieDiagnostic(
@@ -1162,6 +1325,11 @@ async function handleGenerateSubmit(
          * POLLING
          * =================================================
          */
+
+        setDiagStage(
+            "6. Sebelum polling"
+        );
+
 
         const result =
             await polling.pollGenerateTask(
@@ -1250,6 +1418,11 @@ async function handleGenerateSubmit(
 
                 }
             );
+
+
+        setDiagStage(
+            "7. Polling OK"
+        );
 
 
         /*
@@ -1465,6 +1638,15 @@ async function handleGenerateSubmit(
     } catch (
         error
     ) {
+
+        setDiagStage(
+            "ERROR: " +
+            (
+                error?.message ||
+                "unknown"
+            )
+        );
+
 
         const diagnostic =
             extractErrorDiagnostic(
