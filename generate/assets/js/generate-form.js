@@ -73,17 +73,39 @@ import {
 
 
 /* =========================================================
+   MEDIA HANDLER REGISTRATION
+========================================================= */
+
+registerImageMediaHandlers({
+    upload:
+        uploadImageFile,
+
+    validate:
+        validateImageFile
+});
+
+
+registerAudioMediaHandlers({
+    upload:
+        uploadAudioFile,
+
+    validate:
+        validateAudioFile
+});
+
+
+/* =========================================================
    MEDIA FACTORY REGISTRATION
 ========================================================= */
 
 registerImageFieldFactory(
-    createImageField
+    createMediaImageField
 );
+
 
 registerAudioFieldFactory(
-    createAudioField
+    createMediaAudioField
 );
-
 
 /* =========================================================
    CONSTANTS
