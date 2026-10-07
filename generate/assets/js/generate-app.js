@@ -2983,20 +2983,53 @@ function enableGenerateButton(
             error
         ) {
 
+            /*
+             * UI module tidak boleh membuat tombol Generate
+             * tetap disabled apabila model sudah valid.
+             *
+             * generate-app.js adalah sumber keputusan terakhir
+             * untuk readiness model.
+             */
+
         }
 
     }
 
+    /*
+     * =====================================================
+     * FINAL BUTTON STATE
+     * -----------------------------------------------------
+     * Jangan bergantung sepenuhnya kepada generate-ui.js.
+     * Jika model valid dan mempunyai model_id,
+     * tombol harus benar-benar aktif.
+     * =====================================================
+     */
+
     if (
-        elements.generateButton
+        elements.generateButton &&
+        modelReady
     ) {
 
         elements.generateButton.disabled =
             false;
 
         elements.generateButton.removeAttribute(
+            "disabled"
+        );
+
+        elements.generateButton.removeAttribute(
+            "aria-disabled"
+        );
+
+        elements.generateButton.removeAttribute(
             "aria-busy"
         );
+
+        elements.generateButton.style.pointerEvents =
+            "auto";
+
+        elements.generateButton.style.cursor =
+            "pointer";
 
     }
 
@@ -5041,21 +5074,128 @@ async function bootstrap() {
 
 /* =========================================================
    GLOBAL API
+   ---------------------------------------------------------
+   DIPERBAIKI:
+   generate-submit.js menggunakan GENZGenerateApp sebagai
+   bridge ke fungsi internal generate-app.js.
+
+   Semua fungsi yang memang sudah tersedia di module ini
+   sekarang diekspos ke submit module.
+
+   TIDAK MENGUBAH:
+   - navigation
+   - authentication
+   - model registry
+   - provider
+   - request endpoint
+   - polling
+   - cancellation
+   - credit calculation
 ========================================================= */
 
 window.GENZGenerateApp =
     Object.freeze({
+
+        /* =================================================
+           APPLICATION
+        ================================================= */
 
         state:
             appState,
 
         bootstrap,
 
-        getCurrentModel,
-
         getModules:
             () =>
-                appState.modules
+                appState.modules,
+
+
+        /* =================================================
+           MODEL
+        ================================================= */
+
+        getCurrentModel,
+
+        getModelId,
+
+        getModelName,
+
+        getProviderName,
+
+        getModelType,
+
+        setCurrentModel,
+
+        markModelReady,
+
+        enableGenerateButton,
+
+        disableGenerateButton,
+
+
+        /* =================================================
+           MODEL CREDIT
+        ================================================= */
+
+        getModelCredit,
+
+        getSelectedResolution,
+
+        syncModelCreditForResolution,
+
+        renderModelCredit,
+
+        calculateFinalCredit,
+
+        formatCredit,
+
+
+        /* =================================================
+           UI
+        ================================================= */
+
+        showError,
+
+        hideError,
+
+        showLoading,
+
+        hideLoading,
+
+        setGenerateStatus,
+
+        resetGenerateStatus,
+
+
+        /* =================================================
+           DIAGNOSTIC
+        ================================================= */
+
+        renderKieDiagnostic,
+
+        hideLegacyKieDiagnostic,
+
+        renderGenerationResult,
+
+
+        /* =================================================
+           TASK
+        ================================================= */
+
+        extractTaskId,
+
+        extractErrorDiagnostic,
+
+
+        /* =================================================
+           POLLING
+        ================================================= */
+
+        getPollingState,
+
+        isPollingCompleted,
+
+        isPollingFailed
 
     });
 
