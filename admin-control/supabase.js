@@ -1,4 +1,4 @@
-//supabase.js?v=1.2
+//supabase.js?v=1.3
 (function () {
     "use strict";
 
