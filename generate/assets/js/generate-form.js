@@ -122,6 +122,25 @@ import {
 
 
 /* =========================================================
+   NAMED RE-EXPORT
+   ---------------------------------------------------------
+   Memastikan `getFormParameters` dan `getFormData` dapat
+   diakses sebagai named export oleh module lain, mis:
+
+       import { getFormParameters } from "./generate-form.js";
+       import * as form from "./generate-form.js";
+       form.getFormParameters(...);
+
+   Tidak mengubah perilaku object `generateForm`.
+========================================================= */
+
+export {
+    getFormParameters,
+    getFormData
+};
+
+
+/* =========================================================
    MEDIA HANDLER REGISTRATION
    ---------------------------------------------------------
    Registration dilakukan sekali saat module dimuat.
