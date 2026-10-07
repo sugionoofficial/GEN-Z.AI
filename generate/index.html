@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <link
-    rel="stylesheet"
-    href="./assets/css/generate-premium.css"
->
+    <!-- =====================================================
+         META DASAR (charset HARUS di 1024 byte pertama)
+    ====================================================== -->
 
     <meta charset="UTF-8">
 
@@ -23,48 +22,139 @@
         content="dark"
     >
 
+    <meta
+        name="description"
+        content="GEN-Z.AI — Studio AI untuk generate video dengan konfigurasi model otomatis."
+    >
+
+
+    <!-- =====================================================
+         KEAMANAN: REFERRER POLICY
+         Kirim referrer hanya origin-nya saat cross-origin.
+         Mencegah kebocoran path/query internal.
+    ====================================================== -->
+
+    <meta
+        name="referrer"
+        content="strict-origin-when-cross-origin"
+    >
+
+
+    <!-- =====================================================
+         KEAMANAN: CONTENT SECURITY POLICY (CSP)
+         - script-src TIDAK pakai 'unsafe-inline' (kuat)
+         - style-src pakai 'unsafe-inline' karena JS biasanya
+           meng-inject <style> dinamis — risiko jauh lebih kecil
+         - connect-src dibatasi ke Supabase saja
+         - object-src 'none' mematikan Flash/embed berbahaya
+
+         CATATAN:
+         * frame-ancestors & X-Frame-Options TIDAK bekerja
+           via <meta>, harus via HTTP header server:
+               Content-Security-Policy: frame-ancestors 'self'
+               X-Frame-Options: SAMEORIGIN
+         * Jika console menunjukkan "Refused to connect...",
+           tambahkan origin yang diblokir ke connect-src.
+    ====================================================== -->
+
+    <meta
+        http-equiv="Content-Security-Policy"
+        content="
+            default-src 'self';
+            script-src 'self' https://cdn.jsdelivr.net;
+            style-src 'self' 'unsafe-inline';
+            img-src 'self' data: blob: https:;
+            media-src 'self' blob: https:;
+            font-src 'self' data:;
+            connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+            object-src 'none';
+            base-uri 'self';
+            form-action 'self';
+            frame-src 'self' https:;
+            worker-src 'self' blob:;
+            upgrade-insecure-requests;
+        "
+    >
+
+
     <title>GEN-Z.AI - Generate Video</title>
 
 
     <!-- =====================================================
-         SUPABASE
+         PERFORMA: PRECONNECT CDN
+    ====================================================== -->
+
+    <link
+        rel="preconnect"
+        href="https://cdn.jsdelivr.net"
+        crossorigin
+    >
+
+    <link
+        rel="dns-prefetch"
+        href="https://cdn.jsdelivr.net"
+    >
+
+
+    <!-- =====================================================
+         SUPABASE (CDN)
+         - Versi di-PIN ke rilis spesifik (bukan "@2" floating)
+           supaya tidak ada update mendadak yang bisa merusak app
+         - crossorigin + referrerpolicy ditambahkan
+         - integrity: WAJIB di-generate dulu (lihat catatan bawah)
+
+         CARA AKTIFKAN SRI (direkomendasikan):
+         1. Buka https://www.srihash.org/
+         2. Paste URL di bawah ini
+         3. Salin hasil integrity="sha384-..." ke atribut integrity
+         4. Hapus komentar pada atribut integrity
+
+         ⚠️ JANGAN aktifkan integrity dengan hash yang salah —
+            script Supabase akan GAGAL dimuat dan auth akan rusak.
     ====================================================== -->
 
     <script
-        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-    ></script>
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"
+        ><!-- integrity="sha384-GANTI-DENGAN-HASH-ASLI" -->
+    </script>
 
 
     <!-- =====================================================
          GEN-Z CONFIG
     ====================================================== -->
 
-    <script
-        src="../assets/js/config.js"
-    ></script>
+    <script src="../assets/js/config.js"></script>
 
 
     <!-- =====================================================
          GLOBAL CSS
+         (urutan dipertahankan: generate-premium dulu,
+          lalu genz-premium untuk override)
     ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="./assets/css/generate-premium.css"
+    >
 
     <link
         rel="stylesheet"
         href="../assets/css/genz-premium.css"
     >
 
+
     <!-- =====================================================
          SHARED NAVIGATION
     ====================================================== -->
 
-    <script
-        src="/navigation/navigation.js"
-    ></script>
+    <script src="/navigation/navigation.js"></script>
 
     <script
-    type="module"
-    src="./assets/js/generate-page-auth.js"
-></script>
+        type="module"
+        src="./assets/js/generate-page-auth.js"
+    ></script>
 
 </head>
 
@@ -73,17 +163,21 @@
 
     <!-- =====================================================
          SHARED NAVIGATION
+         role="navigation" ditambahkan supaya screen reader
+         mengenali sebagai landmark. <div> tetap dipertahankan
+         supaya selector CSS/JS (#adminNavigation) tidak rusak.
     ====================================================== -->
 
     <div
         id="adminNavigation"
-        aria-label="GEN-Z.AI Navigation"
+        role="navigation"
+        aria-label="Navigasi GEN-Z.AI"
     ></div>
 
 
     <!-- =====================================================
          APPLICATION
-    ====================================================== -->
+    ===================================================== -->
 
     <div class="app">
 
@@ -112,17 +206,9 @@
                         aria-hidden="true"
                     >
 
-                        <span class="brand-gen">
-                            GEN
-                        </span>
-
-                        <span class="brand-z">
-                            -Z
-                        </span>
-
-                        <span class="brand-ai">
-                            .AI
-                        </span>
+                        <span class="brand-gen">GEN</span>
+                        <span class="brand-z">-Z</span>
+                        <span class="brand-ai">.AI</span>
 
                     </div>
 
@@ -178,7 +264,7 @@
 
                     <div
                         class="header-badge role-badge"
-                        aria-label="User role"
+                        aria-label="Peran pengguna"
                     >
 
                         <span
@@ -187,29 +273,23 @@
                         ></span>
 
 
-                        <span id="roleBadge">
-                            ...
-                        </span>
+                        <span id="roleBadge">...</span>
 
                     </div>
 
 
                     <div
                         class="header-badge credit-badge"
-                        aria-label="Available credits"
+                        aria-label="Kredit tersedia"
                     >
 
                         <span
                             class="credit-icon"
                             aria-hidden="true"
-                        >
-                            ✦
-                        </span>
+                        >✦</span>
 
 
-                        <span id="creditBadge">
-                            ...
-                        </span>
+                        <span id="creditBadge">...</span>
 
                     </div>
 
@@ -252,17 +332,12 @@
                     <div
                         class="page-error-icon"
                         aria-hidden="true"
-                    >
-                        !
-                    </div>
+                    >!</div>
 
 
                     <div class="page-error-content">
 
-                        <h2>
-                            Model tidak tersedia
-                        </h2>
-
+                        <h2>Model tidak tersedia</h2>
 
                         <p id="pageErrorMessage">
                             Konfigurasi model tidak dapat dimuat.
@@ -283,9 +358,7 @@
                     aria-labelledby="generateCardTitle"
                 >
 
-                    <!-- =============================================
-                         HEADER
-                    ============================================== -->
+                    <!-- HEADER -->
 
                     <div class="generate-neon-header">
 
@@ -310,9 +383,7 @@
                     </div>
 
 
-                    <!-- =============================================
-                         MODEL SELECTOR
-                    ============================================== -->
+                    <!-- MODEL SELECTOR -->
 
                     <section
                         id="modelSelector"
@@ -349,11 +420,9 @@
                                 disabled
                                 autocomplete="off"
                             >
-
                                 <option value="">
                                     Memuat model...
                                 </option>
-
                             </select>
 
                         </div>
@@ -361,9 +430,7 @@
                     </section>
 
 
-                    <!-- =============================================
-                         GENERATE FORM
-                    ============================================== -->
+                    <!-- GENERATE FORM -->
 
                     <form
                         id="generateForm"
@@ -371,19 +438,11 @@
                         autocomplete="off"
                     >
 
-                        <!-- =========================================
-                             DYNAMIC PARAMETERS
-                        ========================================== -->
-
                         <div
                             id="dynamicFields"
                             class="dynamic-fields"
                         ></div>
 
-
-                        <!-- =========================================
-                             ACTIONS
-                        ========================================== -->
 
                         <div
                             class="generate-actions"
@@ -419,10 +478,7 @@
                                         aria-hidden="true"
                                     ></span>
 
-
-                                    <span>
-                                        Memproses...
-                                    </span>
+                                    <span>Memproses...</span>
 
                                 </div>
 
@@ -437,33 +493,22 @@
                                     <span
                                         class="btn-icon"
                                         aria-hidden="true"
-                                    >
-                                        ✦
-                                    </span>
+                                    >✦</span>
 
-
-                                    <span>
-                                        Generate Video
-                                    </span>
-
+                                    <span>Generate Video</span>
 
                                     <span
                                         id="generateCreditCost"
                                         class="generate-button-credit"
-                                        aria-label="Credit yang digunakan"
+                                        aria-label="Kredit yang digunakan"
                                     >
 
                                         <span
                                             class="generate-button-credit-icon"
                                             aria-hidden="true"
-                                        >
-                                            ◆
-                                        </span>
+                                        >◆</span>
 
-
-                                        <span
-                                            id="generateCreditValue"
-                                        >
+                                        <span id="generateCreditValue">
                                             -- Credit
                                         </span>
 
@@ -490,20 +535,11 @@
                     aria-hidden="true"
                 >
 
-                    <h2 id="modelName">
-                        -
-                    </h2>
+                    <h2 id="modelName">-</h2>
 
+                    <p id="modelDescription">-</p>
 
-                    <p id="modelDescription">
-                        -
-                    </p>
-
-
-                    <div id="providerName">
-                        -
-                    </div>
-
+                    <div id="providerName">-</div>
 
                     <div id="modelMeta"></div>
 
@@ -521,19 +557,9 @@
                     hidden
                 >
 
-                    <div id="resultModel">
-                        -
-                    </div>
-
-
-                    <div id="resultProvider">
-                        -
-                    </div>
-
-
-                    <div id="resultTaskId">
-                        -
-                    </div>
+                    <div id="resultModel">-</div>
+                    <div id="resultProvider">-</div>
+                    <div id="resultTaskId">-</div>
 
                 </section>
 
