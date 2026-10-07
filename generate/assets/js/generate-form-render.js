@@ -1,282 +1,592 @@
 /* =========================================================
    GEN-Z.AI
-   GENERATE FORM READER
+   GENERATE FORM RENDERER
    ---------------------------------------------------------
    File:
-   generate/assets/js/generate-form-reader.js
+   generate/assets/js/generate-form-render.js
 
-   Tanggung jawab:
-   - Mencari field berdasarkan parameter
-   - Membaca nilai field dari DOM
-   - Tidak melakukan upload
-   - Tidak mengubah state model
-   - Tidak melakukan submit
+   Fungsi:
+   - Membuat wrapper field
+   - Membuat label parameter
+   - Membuat description
+   - Merender parameter
+   - Mengatur visibility container
+   - Mengatur layout 1 / 2 kolom
+
+   Tidak menangani:
+   - State
+   - Submit
+   - API
+   - Credit
+   - Reset
+   - Form data
+   - Upload
 ========================================================= */
 
 "use strict";
 
 
+/* =========================================================
+   FORM CORE
+========================================================= */
+
 import {
-    getContainer
+    FULL_WIDTH_PARAMETERS,
+    getContainer,
+    getParameterLabel,
+    getParameterDescription,
+    isInternalParameter,
+    isServerControlledParameter,
+    isClientForbiddenParameter,
+    isRenderableParameter,
+    createFieldId
 } from "./generate-form-core.js";
 
 
 /* =========================================================
-   FIND FIELD
+   FIELD FACTORY
 ========================================================= */
 
-export function findField(
-    name
+import {
+    createFieldInput
+} from "./generate-form-fields.js";
+
+
+/* =========================================================
+   CREATE FIELD
+========================================================= */
+
+export function createField(
+    name,
+    definition = {}
 ) {
 
-    const container =
-        getContainer();
+    const wrapper =
+        document.createElement(
+            "div"
+        );
 
+
+    wrapper.className =
+        "generate-field";
+
+
+    wrapper.dataset.parameter =
+        name;
+
+
+    wrapper.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
+
+
+    wrapper.style.setProperty(
+        "min-width",
+        "0",
+        "important"
+    );
+
+
+    wrapper.style.setProperty(
+        "box-sizing",
+        "border-box",
+        "important"
+    );
+
+
+    wrapper.style.setProperty(
+        "visibility",
+        "visible",
+        "important"
+    );
+
+
+    wrapper.style.setProperty(
+        "opacity",
+        "1",
+        "important"
+    );
+
+
+    const label =
+        document.createElement(
+            "label"
+        );
+
+
+    label.className =
+        "generate-field-label";
+
+
+    label.htmlFor =
+        createFieldId(
+            name
+        );
+
+
+    label.textContent =
+        getParameterLabel(
+            name,
+            definition
+        );
+
+
+    wrapper.appendChild(
+        label
+    );
+
+
+    return wrapper;
+}
+
+
+/* =========================================================
+   DESCRIPTION
+========================================================= */
+
+export function appendDescription(
+    wrapper,
+    definition = {}
+) {
+
+    if (
+        !wrapper
+    ) {
+
+        return;
+    }
+
+
+    const description =
+        getParameterDescription(
+            definition
+        );
+
+
+    if (
+        !description
+    ) {
+
+        return;
+    }
+
+
+    const element =
+        document.createElement(
+            "div"
+        );
+
+
+    element.className =
+        "generate-field-description";
+
+
+    element.textContent =
+        description;
+
+
+    wrapper.appendChild(
+        element
+    );
+}
+
+
+/* =========================================================
+   RENDER PARAMETER
+========================================================= */
+
+export function renderParameter(
+    name,
+    definition
+) {
+
+    if (
+        !isRenderableParameter(
+            name,
+            definition
+        )
+    ) {
+
+        return null;
+    }
+
+
+    if (
+        isClientForbiddenParameter(
+            name
+        )
+    ) {
+
+        return null;
+    }
+
+
+    if (
+        isInternalParameter(
+            name
+        )
+    ) {
+
+        return null;
+    }
+
+
+    if (
+        isServerControlledParameter(
+            name
+        )
+    ) {
+
+        return null;
+    }
+
+
+    const wrapper =
+        createField(
+            name,
+            definition
+        );
+
+
+    const input =
+        createFieldInput(
+            name,
+            definition
+        );
+
+
+    if (
+        input
+    ) {
+
+        wrapper.appendChild(
+            input
+        );
+    }
+
+
+    /*
+     * Duration memiliki title / label
+     * internal sendiri.
+     *
+     * Description tidak ditambahkan
+     * dua kali.
+     */
+
+    if (
+        name !== "duration"
+    ) {
+
+        appendDescription(
+            wrapper,
+            definition
+        );
+    }
+
+
+    return wrapper;
+}
+
+
+/* =========================================================
+   FULL WIDTH CHECK
+========================================================= */
+
+function isFullWidthParameter(
+    parameter
+) {
+
+    if (
+        Array.isArray(
+            FULL_WIDTH_PARAMETERS
+        )
+    ) {
+
+        return FULL_WIDTH_PARAMETERS.includes(
+            parameter
+        );
+    }
+
+
+    if (
+        FULL_WIDTH_PARAMETERS instanceof Set
+    ) {
+
+        return FULL_WIDTH_PARAMETERS.has(
+            parameter
+        );
+    }
+
+
+    return (
+        parameter === "prompt" ||
+        parameter === "negative_prompt" ||
+        parameter === "description" ||
+        parameter === "image_urls" ||
+        parameter === "image_url" ||
+        parameter === "audio_url"
+    );
+}
+
+
+/* =========================================================
+   FORCE CONTAINER VISIBLE
+========================================================= */
+
+export function forceContainerVisible(
+    container
+) {
 
     if (
         !container
     ) {
 
-        return null;
-
+        return;
     }
 
 
-    const escaped =
-        typeof CSS !==
-            "undefined" &&
-        typeof CSS.escape ===
-            "function"
-
-            ? CSS.escape(
-                name
-            )
-
-            : String(
-                name
-            )
-                .replace(
-                    /"/g,
-                    '\\"'
-                );
+    container.hidden =
+        false;
 
 
-    return (
-        container.querySelector(
-            `[data-parameter="${escaped}"]`
-        ) ||
-        null
+    container.removeAttribute(
+        "hidden"
     );
 
-}
+
+    container.style.setProperty(
+        "display",
+        "grid",
+        "important"
+    );
 
 
-/* =========================================================
-   READ FIELD
-========================================================= */
+    container.style.setProperty(
+        "grid-template-columns",
+        "repeat(2, minmax(0, 1fr))",
+        "important"
+    );
 
-export function readFieldValue(
-    field
-) {
+
+    container.style.setProperty(
+        "grid-auto-flow",
+        "row",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "align-items",
+        "start",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "column-gap",
+        "20px",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "row-gap",
+        "18px",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "box-sizing",
+        "border-box",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "visibility",
+        "visible",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "opacity",
+        "1",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "height",
+        "auto",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "max-height",
+        "none",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "overflow",
+        "visible",
+        "important"
+    );
+
+
+    const mobile =
+        typeof window !==
+            "undefined" &&
+        typeof window.matchMedia ===
+            "function" &&
+        window.matchMedia(
+            "(max-width: 768px)"
+        ).matches;
+
 
     if (
-        !field
+        mobile
     ) {
 
-        return undefined;
-
+        container.style.setProperty(
+            "grid-template-columns",
+            "minmax(0, 1fr)",
+            "important"
+        );
     }
 
 
-    /* =====================================================
-       IMAGE
-    ===================================================== */
-
-    const imageInput =
-        field.querySelector(
-            ".generate-image-input"
+    const fields =
+        container.querySelectorAll(
+            ".generate-field"
         );
 
 
-    if (
-        imageInput
-    ) {
+    fields.forEach(
+        field => {
 
-        const mode =
-            typeof imageInput.getInputMode ===
-            "function"
+            if (
+                !field
+            ) {
 
-                ? imageInput.getInputMode()
-
-                : (
-                    imageInput.dataset.imageMode ||
-                    "url"
-                );
+                return;
+            }
 
 
-        if (
-            mode ===
-            "upload"
-        ) {
+            const parameter =
+                String(
+                    field.dataset.parameter ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
 
-            return (
-                typeof imageInput.getUploadedUrl ===
-                "function"
 
-                    ? imageInput.getUploadedUrl()
-
-                    : String(
-                        imageInput.dataset.uploadedUrl ||
-                        ""
-                    ).trim()
+            field.style.setProperty(
+                "display",
+                "block",
+                "important"
             );
 
-        }
 
-
-        const urlInput =
-            typeof imageInput.getUrlInput ===
-            "function"
-
-                ? imageInput.getUrlInput()
-
-                : field.querySelector(
-                    'input[type="url"]'
-                );
-
-
-        return String(
-            urlInput?.value ||
-            ""
-        ).trim();
-
-    }
-
-
-    /* =====================================================
-       AUDIO
-    ===================================================== */
-
-    const audioInput =
-        field.querySelector(
-            ".generate-audio-input"
-        );
-
-
-    if (
-        audioInput
-    ) {
-
-        const mode =
-            typeof audioInput.getInputMode ===
-            "function"
-
-                ? audioInput.getInputMode()
-
-                : (
-                    audioInput.dataset.audioMode ||
-                    "url"
-                );
-
-
-        if (
-            mode ===
-            "upload"
-        ) {
-
-            return (
-                typeof audioInput.getUploadedUrl ===
-                "function"
-
-                    ? audioInput.getUploadedUrl()
-
-                    : String(
-                        audioInput.dataset.uploadedUrl ||
-                        ""
-                    ).trim()
+            field.style.setProperty(
+                "width",
+                "auto",
+                "important"
             );
 
-        }
+
+            field.style.setProperty(
+                "min-width",
+                "0",
+                "important"
+            );
 
 
-        const urlInput =
-            typeof audioInput.getUrlInput ===
-            "function"
+            field.style.setProperty(
+                "max-width",
+                "100%",
+                "important"
+            );
 
-                ? audioInput.getUrlInput()
 
-                : field.querySelector(
-                    'input[type="url"]'
+            field.style.setProperty(
+                "box-sizing",
+                "border-box",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "align-self",
+                "start",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "visibility",
+                "visible",
+                "important"
+            );
+
+
+            field.style.setProperty(
+                "opacity",
+                "1",
+                "important"
+            );
+
+
+            const fullWidth =
+                isFullWidthParameter(
+                    parameter
                 );
 
 
-        return String(
-            urlInput?.value ||
-            ""
-        ).trim();
+            if (
+                mobile
+            ) {
 
-    }
+                field.style.setProperty(
+                    "grid-column",
+                    "1 / -1",
+                    "important"
+                );
 
+            } else if (
+                fullWidth
+            ) {
 
-    /* =====================================================
-       RADIO
-    ===================================================== */
+                field.style.setProperty(
+                    "grid-column",
+                    "1 / -1",
+                    "important"
+                );
 
-    const radio =
-        field.querySelector(
-            'input[type="radio"]:checked'
-        );
+            } else {
 
-
-    if (
-        radio
-    ) {
-
-        return radio.value;
-
-    }
-
-
-    /* =====================================================
-       CHECKBOX
-    ===================================================== */
-
-    const checkbox =
-        field.querySelector(
-            'input[type="checkbox"]'
-        );
-
-
-    if (
-        checkbox
-    ) {
-
-        return checkbox.checked;
-
-    }
-
-
-    /* =====================================================
-       STANDARD INPUT
-    ===================================================== */
-
-    const input =
-        field.querySelector(
-            "input, textarea, select"
-        );
-
-
-    if (
-        !input
-    ) {
-
-        return undefined;
-
-    }
-
-
-    return input.value;
-
+                field.style.setProperty(
+                    "grid-column",
+                    "span 1",
+                    "important"
+                );
+            }
+        }
+    );
 }
 
 
@@ -284,10 +594,14 @@ export function readFieldValue(
    DEFAULT EXPORT
 ========================================================= */
 
-export default {
+export default Object.freeze({
 
-    findField,
+    createField,
 
-    readFieldValue
+    appendDescription,
 
-};
+    renderParameter,
+
+    forceContainerVisible
+
+});
