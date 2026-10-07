@@ -55,9 +55,16 @@ import {
 
 import {
     registerImageFieldFactory,
-    registerAudioFieldFactory
+    registerAudioFieldFactory,
+    createTextField,
+    createTextareaField,
+    createNumberField,
+    createDurationField,
+    createBooleanField,
+    createSelectField,
+    createEnumField,
+    createFieldInput
 } from "./generate-form-fields.js";
-
 
 /* =========================================================
    MEDIA FIELD MODULE
