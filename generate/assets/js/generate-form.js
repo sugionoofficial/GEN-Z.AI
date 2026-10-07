@@ -142,46 +142,6 @@ const SERVER_CONTROLLED_PARAMETERS =
         "webhook"
     ]);
 
-
-const STORAGE_BUCKET =
-    "dashboard-videos";
-
-
-/* =========================================================
-   IMAGE
-========================================================= */
-
-const ALLOWED_IMAGE_TYPES =
-    new Set([
-        "image/jpeg",
-        "image/png",
-        "image/webp"
-    ]);
-
-
-const MAX_IMAGE_SIZE =
-    10 * 1024 * 1024;
-
-
-/* =========================================================
-   AUDIO
-========================================================= */
-
-const ALLOWED_AUDIO_TYPES =
-    new Set([
-        "audio/mpeg",
-        "audio/mp3",
-        "audio/wav",
-        "audio/x-wav",
-        "audio/wave",
-        "audio/x-pn-wav"
-    ]);
-
-
-const MAX_AUDIO_SIZE =
-    50 * 1024 * 1024;
-
-
 /*
  * Hanya menentukan urutan visual.
  *
