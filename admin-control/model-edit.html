@@ -2479,260 +2479,678 @@
         loadProviders
     } from "./models/models-data.js";
 
+
+    /* =========================================================
+       SUPABASE
+    ========================================================= */
+
     const supabase =
         window.GENZ_SUPABASE ||
         window.supabaseClient ||
         null;
 
-    const appShell = document.getElementById("appShell");
-    const backButton = document.getElementById("backButton");
-    const cancelButton = document.getElementById("cancelButton");
-    const saveButton = document.getElementById("saveButton");
-    const alertBox = document.getElementById("alertBox");
-    const loadingBox = document.getElementById("loadingBox");
-    const editContent = document.getElementById("editContent");
-    const heroModelName = document.getElementById("heroModelName");
-    const heroModelId = document.getElementById("heroModelId");
-    const modelName = document.getElementById("modelName");
-    const modelId = document.getElementById("modelId");
-    const providerName = document.getElementById("providerName");
-    const modelType = document.getElementById("modelType");
-    const description = document.getElementById("description");
-    const statusToggle = document.getElementById("statusToggle");
-    const statusText = document.getElementById("statusText");
-    const priceUsd = document.getElementById("priceUsd");
-    const exchangeRate = document.getElementById("exchangeRate");
-    const discount = document.getElementById("discount");
-    const priceIdrPreview = document.getElementById("priceIdrPreview");
-    const discountIdrPreview = document.getElementById("discountIdrPreview");
-    const finalIdrPreview = document.getElementById("finalIdrPreview");
-    const pricingCredit480p = document.getElementById("pricingCredit480p");
-    const pricingDiscount480p = document.getElementById("pricingDiscount480p");
-    const pricingFinal480p = document.getElementById("pricingFinal480p");
-    const pricingCredit720p = document.getElementById("pricingCredit720p");
-    const pricingDiscount720p = document.getElementById("pricingDiscount720p");
-    const pricingFinal720p = document.getElementById("pricingFinal720p");
-    const pricingCredit1080p = document.getElementById("pricingCredit1080p");
-    const pricingDiscount1080p = document.getElementById("pricingDiscount1080p");
-    const pricingFinal1080p = document.getElementById("pricingFinal1080p");
-    const credit480p = document.getElementById("credit480p");
-    const credit720p = document.getElementById("credit720p");
-    const credit1080p = document.getElementById("credit1080p");
-    const durationValue = document.getElementById("durationValue");
-    const ratioValue = document.getElementById("ratioValue");
-    const resolutionValue = document.getElementById("resolutionValue");
+
+    /* =========================================================
+       DOM
+    ========================================================= */
+
+    const appShell =
+        document.getElementById("appShell");
+
+    const backButton =
+        document.getElementById("backButton");
+
+    const cancelButton =
+        document.getElementById("cancelButton");
+
+    const saveButton =
+        document.getElementById("saveButton");
+
+    const alertBox =
+        document.getElementById("alertBox");
+
+    const loadingBox =
+        document.getElementById("loadingBox");
+
+    const editContent =
+        document.getElementById("editContent");
+
+    const heroModelName =
+        document.getElementById("heroModelName");
+
+    const heroModelId =
+        document.getElementById("heroModelId");
+
+    const modelName =
+        document.getElementById("modelName");
+
+    const modelId =
+        document.getElementById("modelId");
+
+    const providerName =
+        document.getElementById("providerName");
+
+    const modelType =
+        document.getElementById("modelType");
+
+    const description =
+        document.getElementById("description");
+
+    const statusToggle =
+        document.getElementById("statusToggle");
+
+    const statusText =
+        document.getElementById("statusText");
+
+    const priceUsd =
+        document.getElementById("priceUsd");
+
+    const exchangeRate =
+        document.getElementById("exchangeRate");
+
+    const discount =
+        document.getElementById("discount");
+
+    const priceIdrPreview =
+        document.getElementById("priceIdrPreview");
+
+    const discountIdrPreview =
+        document.getElementById("discountIdrPreview");
+
+    const finalIdrPreview =
+        document.getElementById("finalIdrPreview");
+
+    const pricingCredit480p =
+        document.getElementById("pricingCredit480p");
+
+    const pricingDiscount480p =
+        document.getElementById("pricingDiscount480p");
+
+    const pricingFinal480p =
+        document.getElementById("pricingFinal480p");
+
+    const pricingCredit720p =
+        document.getElementById("pricingCredit720p");
+
+    const pricingDiscount720p =
+        document.getElementById("pricingDiscount720p");
+
+    const pricingFinal720p =
+        document.getElementById("pricingFinal720p");
+
+    const pricingCredit1080p =
+        document.getElementById("pricingCredit1080p");
+
+    const pricingDiscount1080p =
+        document.getElementById("pricingDiscount1080p");
+
+    const pricingFinal1080p =
+        document.getElementById("pricingFinal1080p");
+
+    const credit480p =
+        document.getElementById("credit480p");
+
+    const credit720p =
+        document.getElementById("credit720p");
+
+    const credit1080p =
+        document.getElementById("credit1080p");
+
+    const durationValue =
+        document.getElementById("durationValue");
+
+    const ratioValue =
+        document.getElementById("ratioValue");
+
+    const resolutionValue =
+        document.getElementById("resolutionValue");
+
     const activeResolutionSelector =
-    document.getElementById(
-        "activeResolutionSelector"
-    );
-
-    let currentModel = null;
-let currentModelId = "";
-let currentDatabaseModel = null;
-let currentRegistryModel = null;
-let saving = false;
-
-    const RESOLUTION_ORDER = [
-    "480p",
-    "720p",
-    "1080p"
-];
-
-function normalizeResolutionArray(value) {
-
-    if (Array.isArray(value)) {
-
-        return Array.from(
-            new Set(
-                value
-                    .map(item =>
-                        String(item ?? "").trim()
-                    )
-                    .filter(Boolean)
-            )
+        document.getElementById(
+            "activeResolutionSelector"
         );
 
+
+    /* =========================================================
+       STATE
+    ========================================================= */
+
+    let currentModel = null;
+    let currentModelId = "";
+    let currentDatabaseModel = null;
+    let currentRegistryModel = null;
+    let saving = false;
+
+
+    /* =========================================================
+       CONSTANTS
+    ========================================================= */
+
+    const RESOLUTION_ORDER = [
+        "480p",
+        "720p",
+        "1080p"
+    ];
+
+
+    const MOTIONGEN_MODEL_ID =
+        "digital-human-lipsync-image";
+
+    const MOTIONGEN_PROVIDER_ID =
+        "motiongen";
+
+
+    /* =========================================================
+       MOTIONGEN DETECTION
+    ========================================================= */
+
+    function isMotiongenModel(model = null) {
+
+        const source =
+            model ||
+            currentRegistryModel ||
+            currentModel ||
+            {};
+
+        const modelId =
+            String(
+                source?.model_id ||
+                source?.id ||
+                source?.config?.id ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+        const providerId =
+            String(
+                source?.provider_id ||
+                source?.providerId ||
+                source?.config?.providerId ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+        return (
+            modelId ===
+                MOTIONGEN_MODEL_ID ||
+            providerId ===
+                MOTIONGEN_PROVIDER_ID
+        );
     }
 
-    if (
-        value === null ||
-        value === undefined ||
-        value === ""
-    ) {
+
+    /* =========================================================
+       MOTIONGEN RESOLUTION NORMALIZER
+       ---------------------------------------------------------
+       INTERNAL STORAGE:
+         576P    -> 480p
+         720P HD -> 720p
+
+       Jangan menyimpan "576p" ke credit_576p karena field
+       tersebut memang tidak ada pada arsitektur database.
+    ========================================================= */
+
+    function normalizeMotiongenResolution(value) {
+
+        const normalized =
+            String(value ?? "")
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, "");
+
+        if (
+            normalized === "576p" ||
+            normalized === "576phd" ||
+            normalized === "480p"
+        ) {
+            return "480p";
+        }
+
+        if (
+            normalized === "720p" ||
+            normalized === "720phd"
+        ) {
+            return "720p";
+        }
+
+        return normalized;
+    }
+
+
+    function getMotiongenResolutionLabel(value) {
+
+        const normalized =
+            normalizeMotiongenResolution(
+                value
+            );
+
+        if (normalized === "480p") {
+            return "576P";
+        }
+
+        if (normalized === "720p") {
+            return "720P HD";
+        }
+
+        return String(value ?? "");
+    }
+
+
+    /* =========================================================
+       GENERIC RESOLUTION HELPERS
+    ========================================================= */
+
+    function normalizeResolutionArray(value) {
+
+        if (Array.isArray(value)) {
+
+            return Array.from(
+                new Set(
+                    value
+                        .map(item =>
+                            String(item ?? "").trim()
+                        )
+                        .filter(Boolean)
+                )
+            );
+
+        }
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+
+            return [];
+
+        }
+
+        if (typeof value === "string") {
+
+            const text =
+                value.trim();
+
+            if (!text) {
+                return [];
+            }
+
+            if (
+                text.startsWith("[") &&
+                text.endsWith("]")
+            ) {
+
+                try {
+
+                    const parsed =
+                        JSON.parse(text);
+
+                    if (Array.isArray(parsed)) {
+
+                        return Array.from(
+                            new Set(
+                                parsed
+                                    .map(item =>
+                                        String(item ?? "").trim()
+                                    )
+                                    .filter(Boolean)
+                            )
+                        );
+
+                    }
+
+                } catch (_) {
+                    /* fallback */
+                }
+
+            }
+
+            return Array.from(
+                new Set(
+                    text
+                        .split(",")
+                        .map(item => item.trim())
+                        .filter(Boolean)
+                )
+            );
+
+        }
 
         return [];
 
     }
 
-    if (typeof value === "string") {
 
-        const text =
-            value.trim();
+    function sortResolutions(values) {
 
-        if (!text) {
-            return [];
-        }
+        const normalized =
+            normalizeResolutionArray(
+                values
+            );
 
-        if (
-            text.startsWith("[") &&
-            text.endsWith("]")
-        ) {
+        return normalized.sort(
+            (a, b) => {
 
-            try {
-
-                const parsed =
-                    JSON.parse(text);
-
-                if (Array.isArray(parsed)) {
-
-                    return Array.from(
-                        new Set(
-                            parsed
-                                .map(item =>
-                                    String(item ?? "").trim()
-                                )
-                                .filter(Boolean)
-                        )
+                const ai =
+                    RESOLUTION_ORDER.indexOf(
+                        normalizeMotiongenResolution(a)
                     );
 
+                const bi =
+                    RESOLUTION_ORDER.indexOf(
+                        normalizeMotiongenResolution(b)
+                    );
+
+                if (ai === -1 && bi === -1) {
+                    return a.localeCompare(b);
                 }
 
-            } catch (_) {
-                /* fallback ke comma separated */
+                if (ai === -1) {
+                    return 1;
+                }
+
+                if (bi === -1) {
+                    return -1;
+                }
+
+                return ai - bi;
+
             }
-
-        }
-
-        return Array.from(
-            new Set(
-                text
-                    .split(",")
-                    .map(item => item.trim())
-                    .filter(Boolean)
-            )
         );
 
     }
 
-    return [];
 
-}
+    /* =========================================================
+       PARAMETER DEFINITION
+       ---------------------------------------------------------
+       Mendukung:
+         parameters = [...]
+       dan:
+         parameters = {
+             prompt: {...},
+             duration: {...}
+         }
+    ========================================================= */
 
-function sortResolutions(values) {
-
-    const normalized =
-        normalizeResolutionArray(
-            values
-        );
-
-    return normalized.sort(
-        (a, b) => {
-
-            const ai =
-                RESOLUTION_ORDER.indexOf(a);
-
-            const bi =
-                RESOLUTION_ORDER.indexOf(b);
-
-            if (ai === -1 && bi === -1) {
-                return a.localeCompare(b);
-            }
-
-            if (ai === -1) {
-                return 1;
-            }
-
-            if (bi === -1) {
-                return -1;
-            }
-
-            return ai - bi;
-
-        }
-    );
-
-}
-
-function getAvailableResolutions(model) {
-
-    /*
-     * =========================================================
-     * AVAILABLE RESOLUTIONS
-     * ---------------------------------------------------------
-     * Daftar ini adalah KEMAMPUAN TEKNIS model.
-     *
-     * IMPORTANT:
-     * parameters.js GEN-Z.AI menggunakan OBJECT:
-     *
-     * parameters = {
-     *
-     *     prompt: {...},
-     *
-     *     resolution: {
-     *         type: "string",
-     *         enum: [
-     *             "480p",
-     *             "720p",
-     *             "1080p"
-     *         ]
-     *     }
-     *
-     * }
-     *
-     * Jadi JANGAN hanya menganggap parameters
-     * sebagai Array.
-     *
-     * supported_resolutions tetap merupakan
-     * daftar RESOLUTION AKTIF dari database.
-     * =========================================================
-     */
-
-    const registry =
-        currentRegistryModel ||
-        model ||
-        {};
-
-
-    const parameters =
-        registry?.parameters;
-
-
-    /*
-     * =========================================================
-     * PRIORITAS 1
-     * ---------------------------------------------------------
-     * parameters.js native object
-     *
-     * parameters.resolution.enum
-     * =========================================================
-     */
-
-    if (
-        parameters &&
-        typeof parameters === "object" &&
-        !Array.isArray(parameters)
+    function getParameterDefinition(
+        model,
+        parameterName
     ) {
 
-        const resolutionParameter =
-            parameters.resolution;
+        const parameters =
+            model?.parameters;
+
+        if (
+            !parameters ||
+            typeof parameters !== "object"
+        ) {
+            return null;
+        }
+
+
+        if (Array.isArray(parameters)) {
+
+            return (
+                parameters.find(
+                    parameter => {
+
+                        if (!parameter) {
+                            return false;
+                        }
+
+                        return (
+                            String(
+                                parameter.name ||
+                                parameter.key ||
+                                parameter.id ||
+                                ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            String(
+                                parameterName
+                            )
+                                .trim()
+                                .toLowerCase()
+                        );
+
+                    }
+                ) ||
+                null
+            );
+
+        }
 
 
         if (
-            resolutionParameter &&
-            typeof resolutionParameter === "object"
+            Object.prototype.hasOwnProperty.call(
+                parameters,
+                parameterName
+            )
         ) {
+
+            return (
+                parameters[
+                    parameterName
+                ] || null
+            );
+
+        }
+
+
+        const target =
+            String(
+                parameterName
+            )
+                .trim()
+                .toLowerCase();
+
+
+        const entry =
+            Object.entries(
+                parameters
+            )
+                .find(
+                    ([key]) =>
+                        String(key)
+                            .trim()
+                            .toLowerCase() ===
+                        target
+                );
+
+
+        return entry
+            ? entry[1]
+            : null;
+
+    }
+
+
+    function getParameterValues(
+        model,
+        parameterName
+    ) {
+
+        const definition =
+            getParameterDefinition(
+                model,
+                parameterName
+            );
+
+        if (!definition) {
+            return [];
+        }
+
+        if (
+            Array.isArray(
+                definition.enum
+            )
+        ) {
+
+            return definition.enum;
+
+        }
+
+        if (
+            Array.isArray(
+                definition.options
+            )
+        ) {
+
+            return definition.options;
+
+        }
+
+        return [];
+
+    }
+
+
+    function getParameterDefault(
+        model,
+        parameterName
+    ) {
+
+        const definition =
+            getParameterDefinition(
+                model,
+                parameterName
+            );
+
+        return definition
+            ? (
+                definition.default ??
+                null
+            )
+            : null;
+
+    }
+
+
+    /* =========================================================
+       AVAILABLE RESOLUTIONS
+    ========================================================= */
+
+    function getAvailableResolutions(model) {
+
+        /*
+         * Motiongen:
+         *
+         * 576P    -> internal 480p
+         * 720P HD -> internal 720p
+         *
+         * Resolution UI Edit Model menggunakan dua
+         * resolution tersebut saja.
+         */
+
+        if (
+            isMotiongenModel(model)
+        ) {
+
+            return [
+                "480p",
+                "720p"
+            ];
+
+        }
+
+
+        const registry =
+            currentRegistryModel ||
+            model ||
+            {};
+
+        const parameters =
+            registry?.parameters;
+
+
+        /*
+         * parameters.js object
+         */
+
+        if (
+            parameters &&
+            typeof parameters === "object" &&
+            !Array.isArray(parameters)
+        ) {
+
+            const resolutionParameter =
+                parameters.resolution;
+
+            if (
+                resolutionParameter &&
+                typeof resolutionParameter === "object"
+            ) {
+
+                const parameterValues =
+                    Array.isArray(
+                        resolutionParameter.enum
+                    )
+                        ? resolutionParameter.enum
+                        : Array.isArray(
+                            resolutionParameter.options
+                        )
+                            ? resolutionParameter.options
+                            : [];
+
+                if (
+                    parameterValues.length
+                ) {
+
+                    return sortResolutions(
+                        parameterValues
+                    );
+
+                }
+
+            }
+
+        }
+
+
+        /*
+         * parameters.js array
+         */
+
+        if (
+            Array.isArray(parameters)
+        ) {
+
+            const resolutionParameter =
+                parameters.find(
+                    parameter => {
+
+                        const name =
+                            String(
+                                parameter?.name ||
+                                parameter?.key ||
+                                parameter?.id ||
+                                ""
+                            )
+                                .trim()
+                                .toLowerCase();
+
+                        return (
+                            name ===
+                            "resolution"
+                        );
+
+                    }
+                );
 
             const parameterValues =
                 Array.isArray(
-                    resolutionParameter.enum
+                    resolutionParameter?.enum
                 )
                     ? resolutionParameter.enum
                     : Array.isArray(
-                        resolutionParameter.options
+                        resolutionParameter?.options
                     )
                         ? resolutionParameter.options
                         : [];
-
 
             if (
                 parameterValues.length
@@ -2746,965 +3164,2605 @@ function getAvailableResolutions(model) {
 
         }
 
-    }
 
-
-    /*
-     * =========================================================
-     * PRIORITAS 2
-     * ---------------------------------------------------------
-     * Dukungan jika registry lama menggunakan
-     * parameters dalam bentuk ARRAY.
-     * =========================================================
-     */
-
-    if (
-        Array.isArray(parameters)
-    ) {
-
-        const resolutionParameter =
-            parameters.find(
-                parameter =>
-                    parameter &&
-                    String(
-                        parameter.name ||
-                        parameter.key ||
-                        parameter.id ||
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase() ===
-                    "resolution"
+        const registryValues =
+            normalizeResolutionArray(
+                registry?.supported_resolutions
             );
 
-
-        const parameterValues =
-            Array.isArray(
-                resolutionParameter?.enum
-            )
-                ? resolutionParameter.enum
-                : Array.isArray(
-                    resolutionParameter?.options
-                )
-                    ? resolutionParameter.options
-                    : [];
-
-
         if (
-            parameterValues.length
+            registryValues.length
         ) {
 
             return sortResolutions(
-                parameterValues
+                registryValues
             );
 
         }
 
-    }
 
-
-    /*
-     * =========================================================
-     * PRIORITAS 3
-     * ---------------------------------------------------------
-     * Fallback ke registry supported_resolutions.
-     *
-     * CATATAN:
-     * Pada model yang sudah memiliki database aktif,
-     * field ini bisa berisi hanya resolution aktif.
-     *
-     * Karena itu fallback ini hanya dipakai jika
-     * parameters.js tidak menyediakan metadata resolution.
-     * =========================================================
-     */
-
-    const registryValues =
-        normalizeResolutionArray(
-            registry?.supported_resolutions
-        );
-
-
-    if (
-        registryValues.length
-    ) {
-
-        return sortResolutions(
-            registryValues
-        );
-
-    }
-
-
-    /*
-     * =========================================================
-     * PRIORITAS 4
-     * ---------------------------------------------------------
-     * Dukungan registry camelCase lama.
-     * =========================================================
-     */
-
-    const camelCaseValues =
-        normalizeResolutionArray(
-            registry?.supportedResolutions
-        );
-
-
-    if (
-        camelCaseValues.length
-    ) {
-
-        return sortResolutions(
-            camelCaseValues
-        );
-
-    }
-
-
-    /*
-     * =========================================================
-     * TIDAK ADA DATA
-     * =========================================================
-     */
-
-    return [];
-
-}
-
-function getActiveResolutions(model) {
-
-    if (
-        model &&
-        Object.prototype.hasOwnProperty.call(
-            model,
-            "supported_resolutions"
-        )
-    ) {
-
-        const value =
-            model.supported_resolutions;
+        const camelCaseValues =
+            normalizeResolutionArray(
+                registry?.supportedResolutions
+            );
 
         if (
-            value !== null &&
-            value !== undefined
+            camelCaseValues.length
         ) {
 
             return sortResolutions(
-                value
+                camelCaseValues
             );
 
         }
 
-    }
 
-    return getAvailableResolutions(
-        model
-    );
-
-}
-
-function renderActiveResolutionSelector(
-    model
-) {
-
-    if (
-        !activeResolutionSelector
-    ) {
-
-        return;
+        return [];
 
     }
 
 
-    /*
-     * =========================================================
-     * AVAILABLE
-     * ---------------------------------------------------------
-     * SELALU berasal dari registry.
-     *
-     * Jangan menggunakan model.supported_resolutions
-     * sebagai daftar available karena field tersebut hanya
-     * menyimpan resolution yang AKTIF di database.
-     * =========================================================
-     */
+    /* =========================================================
+       ACTIVE RESOLUTIONS
+    ========================================================= */
 
-    const available =
-        getAvailableResolutions(
-            currentRegistryModel
-        );
+    function getActiveResolutions(model) {
 
-
-    /*
-     * =========================================================
-     * ACTIVE
-     * ---------------------------------------------------------
-     * Berasal dari database model.
-     *
-     * Contoh:
-     *
-     * Registry:
-     * [480p, 720p, 1080p]
-     *
-     * Database:
-     * [720p]
-     *
-     * Maka:
-     *
-     * ☐ 480p
-     * ☑ 720p
-     * ☐ 1080p
-     * =========================================================
-     */
-
-    const active =
-        new Set(
-            getActiveResolutions(
-                model
+        if (
+            model &&
+            Object.prototype.hasOwnProperty.call(
+                model,
+                "supported_resolutions"
             )
-        );
-
-
-    activeResolutionSelector.innerHTML =
-        "";
-
-
-    if (
-        !available.length
-    ) {
-
-        activeResolutionSelector.innerHTML = `
-            <div class="readonly-value">
-                Resolution tidak tersedia dari registry.
-            </div>
-        `;
-
-        return;
-
-    }
-
-
-    available.forEach(
-        resolution => {
+        ) {
 
             const value =
-                String(
-                    resolution ?? ""
-                ).trim();
+                model.supported_resolutions;
+
+            if (
+                value !== null &&
+                value !== undefined
+            ) {
+
+                let values =
+                    normalizeResolutionArray(
+                        value
+                    );
 
 
-            if (!value) {
-                return;
+                if (
+                    isMotiongenModel(model)
+                ) {
+
+                    values =
+                        values.map(
+                            normalizeMotiongenResolution
+                        );
+
+                }
+
+
+                return sortResolutions(
+                    values
+                );
+
             }
 
-
-            const id =
-                `activeResolution_${
-                    value.replace(
-                        /[^a-zA-Z0-9_-]/g,
-                        "_"
-                    )
-                }`;
+        }
 
 
-            const checked =
-                active.has(
-                    value
-                );
+        return getAvailableResolutions(
+            model
+        );
+
+    }
 
 
-            const wrapper =
-                document.createElement(
-                    "div"
-                );
+    /* =========================================================
+       ACTIVE RESOLUTION SELECTOR
+    ========================================================= */
+
+    function renderActiveResolutionSelector(
+        model
+    ) {
+
+        if (
+            !activeResolutionSelector
+        ) {
+            return;
+        }
 
 
-            wrapper.className =
-                "resolution-option";
-
-
-            wrapper.innerHTML = `
-                <input
-                    type="checkbox"
-                    id="${id}"
-                    value="${value}"
-                    data-active-resolution="${value}"
-                    ${checked ? "checked" : ""}
-                >
-
-                <label
-                    class="resolution-option-label"
-                    for="${id}"
-                >
-
-                    <span
-                        class="resolution-option-check"
-                        aria-hidden="true"
-                    >
-                        ✓
-                    </span>
-
-                    <span
-                        class="resolution-option-text"
-                    >
-
-                        <span
-                            class="resolution-option-name"
-                        >
-                            ${value}
-                        </span>
-
-                        <span
-                            class="resolution-option-status"
-                        >
-                            ${
-                                checked
-                                    ? "Aktif di Generate"
-                                    : "Tidak aktif"
-                            }
-                        </span>
-
-                    </span>
-
-                </label>
-            `;
-
-
-            activeResolutionSelector.appendChild(
-                wrapper
+        const available =
+            getAvailableResolutions(
+                currentRegistryModel ||
+                model
             );
 
+
+        const active =
+            new Set(
+                getActiveResolutions(
+                    model
+                )
+                    .map(
+                        value =>
+                            isMotiongenModel(model)
+                                ? normalizeMotiongenResolution(value)
+                                : value
+                    )
+            );
+
+
+        activeResolutionSelector.innerHTML =
+            "";
+
+
+        if (
+            !available.length
+        ) {
+
+            activeResolutionSelector.innerHTML = `
+                <div class="readonly-value">
+                    Resolution tidak tersedia dari registry.
+                </div>
+            `;
+
+            return;
+
         }
-    );
 
 
-    /*
-     * =========================================================
-     * CHECKBOX STATUS
-     * =========================================================
-     */
+        available.forEach(
+            resolution => {
 
-    activeResolutionSelector
-        .querySelectorAll(
-            "input[data-active-resolution]"
-        )
-        .forEach(
-            input => {
+                const rawValue =
+                    String(
+                        resolution ?? ""
+                    ).trim();
 
-                input.addEventListener(
-                    "change",
-                    () => {
-
-                        const status =
-                            input.parentElement
-                                ?.querySelector(
-                                    ".resolution-option-status"
-                                );
+                if (!rawValue) {
+                    return;
+                }
 
 
-                        if (
-                            status
-                        ) {
+                const value =
+                    isMotiongenModel(model)
+                        ? normalizeMotiongenResolution(
+                            rawValue
+                        )
+                        : rawValue;
 
-                            status.textContent =
-                                input.checked
-                                    ? "Aktif di Generate"
-                                    : "Tidak aktif";
 
-                        }
+                const displayValue =
+                    isMotiongenModel(model)
+                        ? getMotiongenResolutionLabel(
+                            value
+                        )
+                        : value;
 
-                    }
+
+                const id =
+                    `activeResolution_${
+                        value.replace(
+                            /[^a-zA-Z0-9_-]/g,
+                            "_"
+                        )
+                    }`;
+
+
+                const checked =
+                    active.has(
+                        value
+                    );
+
+
+                const wrapper =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                wrapper.className =
+                    "resolution-option";
+
+
+                wrapper.innerHTML = `
+                    <input
+                        type="checkbox"
+                        id="${id}"
+                        value="${value}"
+                        data-active-resolution="${value}"
+                        ${checked ? "checked" : ""}
+                    >
+
+                    <label
+                        class="resolution-option-label"
+                        for="${id}"
+                    >
+
+                        <span
+                            class="resolution-option-check"
+                            aria-hidden="true"
+                        >
+                            ✓
+                        </span>
+
+                        <span
+                            class="resolution-option-text"
+                        >
+
+                            <span
+                                class="resolution-option-name"
+                            >
+                                ${displayValue}
+                            </span>
+
+                            <span
+                                class="resolution-option-status"
+                            >
+                                ${
+                                    checked
+                                        ? "Aktif di Generate"
+                                        : "Tidak aktif"
+                                }
+                            </span>
+
+                        </span>
+
+                    </label>
+                `;
+
+
+                activeResolutionSelector.appendChild(
+                    wrapper
                 );
 
             }
         );
 
-}
 
-function getSelectedActiveResolutions() {
+        activeResolutionSelector
+            .querySelectorAll(
+                "input[data-active-resolution]"
+            )
+            .forEach(
+                input => {
 
-    if (
-        !activeResolutionSelector
+                    input.addEventListener(
+                        "change",
+                        () => {
+
+                            const status =
+                                input.parentElement
+                                    ?.querySelector(
+                                        ".resolution-option-status"
+                                    );
+
+
+                            if (
+                                status
+                            ) {
+
+                                status.textContent =
+                                    input.checked
+                                        ? "Aktif di Generate"
+                                        : "Tidak aktif";
+
+                            }
+
+                        }
+                    );
+
+                }
+            );
+
+    }
+
+
+    function getSelectedActiveResolutions() {
+
+        if (
+            !activeResolutionSelector
+        ) {
+            return [];
+        }
+
+
+        let values =
+            Array.from(
+                activeResolutionSelector
+                    .querySelectorAll(
+                        "input[data-active-resolution]:checked"
+                    )
+            )
+                .map(
+                    input =>
+                        input.value
+                );
+
+
+        if (
+            isMotiongenModel(
+                currentModel
+            )
+        ) {
+
+            values =
+                values.map(
+                    normalizeMotiongenResolution
+                );
+
+        }
+
+
+        return sortResolutions(
+            values
+        );
+
+    }
+
+
+    /* =========================================================
+       ALERT / LOADING
+    ========================================================= */
+
+    function showAlert(
+        message,
+        type = "error"
     ) {
 
-        return [];
+        alertBox.textContent =
+            message;
+
+        alertBox.className =
+            "alert show " + type;
 
     }
 
-    return sortResolutions(
-        Array.from(
-            activeResolutionSelector
-                .querySelectorAll(
-                    "input[data-active-resolution]:checked"
-                )
-        ).map(
-            input =>
-                input.value
-        )
-    );
-
-}
-
-    function showAlert(message, type = "error") {
-        alertBox.textContent = message;
-        alertBox.className = "alert show " + type;
-    }
 
     function hideAlert() {
-        alertBox.textContent = "";
-        alertBox.className = "alert";
+
+        alertBox.textContent =
+            "";
+
+        alertBox.className =
+            "alert";
+
     }
+
 
     function setLoading(value) {
+
         if (value) {
-            loadingBox.classList.remove("hidden");
-            editContent.classList.add("hidden");
+
+            loadingBox.classList.remove(
+                "hidden"
+            );
+
+            editContent.classList.add(
+                "hidden"
+            );
+
         } else {
-            loadingBox.classList.add("hidden");
-            editContent.classList.remove("hidden");
+
+            loadingBox.classList.add(
+                "hidden"
+            );
+
+            editContent.classList.remove(
+                "hidden"
+            );
+
         }
+
     }
 
-    function numberValue(value, fallback = 0) {
-        if (value === null || value === undefined || value === "") return fallback;
-        const number = Number(value);
-        return Number.isFinite(number) ? number : fallback;
+
+    /* =========================================================
+       NUMBER HELPERS
+    ========================================================= */
+
+    function numberValue(
+        value,
+        fallback = 0
+    ) {
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+            return fallback;
+        }
+
+        const number =
+            Number(value);
+
+        return Number.isFinite(number)
+            ? number
+            : fallback;
+
     }
+
 
     function nullableNumber(value) {
-        if (value === null || value === undefined || value === "") return null;
-        const number = Number(value);
-        return Number.isFinite(number) ? number : null;
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+            return null;
+        }
+
+        const number =
+            Number(value);
+
+        return Number.isFinite(number)
+            ? number
+            : null;
+
     }
+
 
     function normalizeArray(value) {
-        if (Array.isArray(value)) return value;
-        if (typeof value === "string") {
-            try {
-                const parsed = JSON.parse(value);
-                if (Array.isArray(parsed)) return parsed;
-            } catch (_) {}
-            return value.split(",").map(item => item.trim()).filter(Boolean);
+
+        if (
+            Array.isArray(value)
+        ) {
+            return value;
         }
+
+        if (
+            typeof value === "string"
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(value);
+
+                if (
+                    Array.isArray(parsed)
+                ) {
+                    return parsed;
+                }
+
+            } catch (_) {
+                /* fallback */
+            }
+
+
+            return value
+                .split(",")
+                .map(
+                    item =>
+                        item.trim()
+                )
+                .filter(Boolean);
+
+        }
+
         return [];
+
     }
+
+
+    /* =========================================================
+       URL / NAVIGATION
+    ========================================================= */
 
     function getQueryModelId() {
-        const params = new URLSearchParams(window.location.search);
-        return (params.get("model_id") || params.get("id") || "").trim();
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+        return (
+            params.get("model_id") ||
+            params.get("id") ||
+            ""
+        )
+            .trim();
+
     }
+
 
     function goBack() {
-        if (document.referrer && document.referrer.includes(window.location.host)) {
+
+        if (
+            document.referrer &&
+            document.referrer.includes(
+                window.location.host
+            )
+        ) {
+
             window.history.back();
+
+            return;
+
+        }
+
+
+        window.location.href =
+            "./models.html";
+
+    }
+
+
+    /* =========================================================
+       MOTIONGEN UI
+       ---------------------------------------------------------
+       Edit Model tidak menampilkan:
+         - Duration
+         - Aspect Ratio
+         - Resolution technical metadata
+         - 1080P
+
+       Duration + aspect ratio tetap dikelola
+       parameters.js Motiongen.
+    ========================================================= */
+
+    function applyMotiongenUI() {
+
+        if (
+            !isMotiongenModel(
+                currentModel
+            )
+        ) {
             return;
         }
-        window.location.href = "./models.html";
+
+
+        /*
+         * Parameter cards
+         */
+
+        const parameterCards =
+            document.querySelectorAll(
+                ".parameter-grid .parameter-card"
+            );
+
+
+        if (
+            parameterCards.length >= 3
+        ) {
+
+            /*
+             * Duration
+             */
+            parameterCards[0]
+                .classList.add(
+                    "hidden"
+                );
+
+
+            /*
+             * Aspect Ratio
+             */
+            parameterCards[1]
+                .classList.add(
+                    "hidden"
+                );
+
+
+            /*
+             * Resolution technical
+             */
+            parameterCards[2]
+                .classList.add(
+                    "hidden"
+                );
+
+        }
+
+
+        /*
+         * Hide 1080P pricing preview
+         */
+
+        const priceBoxes =
+            document.querySelectorAll(
+                ".price-preview .resolution-price-box"
+            );
+
+
+        if (
+            priceBoxes.length >= 3
+        ) {
+
+            priceBoxes[2]
+                .classList.add(
+                    "hidden"
+                );
+
+        }
+
+
+        /*
+         * Hide 1080P credit input
+         */
+
+        if (
+            credit1080p
+        ) {
+
+            const field =
+                credit1080p.closest(
+                    ".field"
+                );
+
+            if (field) {
+                field.classList.add(
+                    "hidden"
+                );
+            }
+
+        }
+
+
+        /*
+         * Rename 480p / 720p pricing labels
+         */
+
+        if (
+            priceBoxes.length >= 2
+        ) {
+
+            const title480 =
+                priceBoxes[0]
+                    .querySelector(
+                        ".resolution-title"
+                    );
+
+            const title720 =
+                priceBoxes[1]
+                    .querySelector(
+                        ".resolution-title"
+                    );
+
+
+            if (title480) {
+                title480.textContent =
+                    "576P";
+            }
+
+            if (title720) {
+                title720.textContent =
+                    "720P HD";
+            }
+
+        }
+
+
+        /*
+         * Rename credit inputs
+         */
+
+        const credit480Field =
+            credit480p?.closest(
+                ".field"
+            );
+
+        const credit720Field =
+            credit720p?.closest(
+                ".field"
+            );
+
+
+        const credit480Label =
+            credit480Field?.querySelector(
+                "label"
+            );
+
+        const credit720Label =
+            credit720Field?.querySelector(
+                "label"
+            );
+
+
+        if (credit480Label) {
+
+            credit480Label.textContent =
+                "Credit 576P";
+
+        }
+
+
+        if (credit720Label) {
+
+            credit720Label.textContent =
+                "Credit 720P HD";
+
+        }
+
+
+        const credit480Help =
+            credit480Field?.querySelector(
+                ".field-help"
+            );
+
+        const credit720Help =
+            credit720Field?.querySelector(
+                ".field-help"
+            );
+
+
+        if (credit480Help) {
+
+            credit480Help.textContent =
+                "Credit yang digunakan untuk resolution 576P.";
+
+        }
+
+
+        if (credit720Help) {
+
+            credit720Help.textContent =
+                "Credit yang digunakan untuk resolution 720P HD.";
+
+        }
+
     }
 
-    function getParameterDefinition(model, parameterName) {
-        const parameters = model?.parameters;
-        if (!Array.isArray(parameters)) return null;
-        return parameters.find(parameter => parameter && parameter.name === parameterName) || null;
-    }
 
-    function getParameterValues(model, parameterName) {
-        const definition = getParameterDefinition(model, parameterName);
-        if (!definition) return [];
-        if (Array.isArray(definition.enum)) return definition.enum;
-        if (Array.isArray(definition.options)) return definition.options;
-        return [];
-    }
-
-    function getParameterDefault(model, parameterName) {
-        const definition = getParameterDefinition(model, parameterName);
-        return definition ? (definition.default ?? null) : null;
-    }
+    /* =========================================================
+       PARAMETERS
+    ========================================================= */
 
     function renderParameters(model) {
-        const durationParameter = getParameterDefinition(model, "duration");
-        const minDuration = model?.min_duration ?? durationParameter?.min ?? null;
-        const maxDuration = model?.max_duration ?? durationParameter?.max ?? null;
 
-        if (minDuration !== null && maxDuration !== null) {
-            durationValue.textContent = `${minDuration} - ${maxDuration} detik`;
-        } else if (minDuration !== null) {
-            durationValue.textContent = `${minDuration} detik`;
-        } else if (maxDuration !== null) {
-            durationValue.textContent = `${maxDuration} detik`;
+        /*
+         * Motiongen:
+         * parameter teknis duration dan aspect ratio
+         * mengikuti parameters.js.
+         *
+         * Tidak ditampilkan pada Edit Model.
+         */
+
+        if (
+            isMotiongenModel(model)
+        ) {
+
+            durationValue.textContent =
+                "";
+
+            ratioValue.textContent =
+                "";
+
+            resolutionValue.textContent =
+                "";
+
+            applyMotiongenUI();
+
+            return;
+
+        }
+
+
+        const durationParameter =
+            getParameterDefinition(
+                model,
+                "duration"
+            );
+
+
+        const minDuration =
+            model?.min_duration ??
+            durationParameter?.min ??
+            null;
+
+
+        const maxDuration =
+            model?.max_duration ??
+            durationParameter?.max ??
+            null;
+
+
+        if (
+            minDuration !== null &&
+            maxDuration !== null
+        ) {
+
+            durationValue.textContent =
+                `${minDuration} - ${maxDuration} detik`;
+
+        } else if (
+            minDuration !== null
+        ) {
+
+            durationValue.textContent =
+                `${minDuration} detik`;
+
+        } else if (
+            maxDuration !== null
+        ) {
+
+            durationValue.textContent =
+                `${maxDuration} detik`;
+
         } else {
-            const defaultDuration = getParameterDefault(model, "duration");
-            durationValue.textContent = defaultDuration !== null
-                ? `${defaultDuration} detik`
+
+            const defaultDuration =
+                getParameterDefault(
+                    model,
+                    "duration"
+                );
+
+
+            durationValue.textContent =
+                defaultDuration !== null
+                    ? `${defaultDuration} detik`
+                    : "Mengikuti parameters.js";
+
+        }
+
+
+        let ratios =
+            normalizeArray(
+                model?.supported_ratios
+            );
+
+
+        if (
+            !ratios.length
+        ) {
+
+            ratios =
+                getParameterValues(
+                    model,
+                    "aspect_ratio"
+                );
+
+        }
+
+
+        if (
+            !ratios.length
+        ) {
+
+            const defaultRatio =
+                getParameterDefault(
+                    model,
+                    "aspect_ratio"
+                );
+
+            if (
+                defaultRatio !== null
+            ) {
+                ratios = [
+                    defaultRatio
+                ];
+            }
+
+        }
+
+
+        ratioValue.textContent =
+            ratios.length
+                ? ratios.join(" • ")
                 : "Mengikuti parameters.js";
+
+
+        let resolutions =
+            normalizeArray(
+                model?.supported_resolutions
+            );
+
+
+        if (
+            !resolutions.length
+        ) {
+
+            resolutions =
+                getParameterValues(
+                    model,
+                    "resolution"
+                );
+
         }
 
-        let ratios = normalizeArray(model?.supported_ratios);
-        if (!ratios.length) ratios = getParameterValues(model, "aspect_ratio");
-        if (!ratios.length) {
-            const defaultRatio = getParameterDefault(model, "aspect_ratio");
-            if (defaultRatio !== null) ratios = [defaultRatio];
-        }
-        ratioValue.textContent = ratios.length ? ratios.join(" • ") : "Mengikuti parameters.js";
 
-        let resolutions = normalizeArray(model?.supported_resolutions);
-        if (!resolutions.length) resolutions = getParameterValues(model, "resolution");
-        if (!resolutions.length) {
-            const defaultResolution = getParameterDefault(model, "resolution");
-            if (defaultResolution !== null) resolutions = [defaultResolution];
+        if (
+            !resolutions.length
+        ) {
+
+            const defaultResolution =
+                getParameterDefault(
+                    model,
+                    "resolution"
+                );
+
+            if (
+                defaultResolution !== null
+            ) {
+                resolutions = [
+                    defaultResolution
+                ];
+            }
+
         }
-        resolutionValue.textContent = resolutions.length ? resolutions.join(" • ") : "Mengikuti parameters.js";
+
+
+        resolutionValue.textContent =
+            resolutions.length
+                ? resolutions.join(" • ")
+                : "Mengikuti parameters.js";
+
     }
+
+
+    /* =========================================================
+       STATUS
+    ========================================================= */
 
     function updateStatusText() {
-        statusText.textContent = statusToggle.checked ? "Aktif" : "Nonaktif";
+
+        statusText.textContent =
+            statusToggle.checked
+                ? "Aktif"
+                : "Nonaktif";
+
     }
+
+
+    /* =========================================================
+       CREDIT / PRICING
+    ========================================================= */
 
     function formatCredit(value) {
-        const number = nullableNumber(value);
-        if (number === null) return "Belum diatur";
-        return `${number.toLocaleString("id-ID", {
-            maximumFractionDigits: 2
-        })} Credit`;
+
+        const number =
+            nullableNumber(value);
+
+        if (
+            number === null
+        ) {
+            return "Belum diatur";
+        }
+
+        return `${number.toLocaleString(
+            "id-ID",
+            {
+                maximumFractionDigits: 2
+            }
+        )} Credit`;
+
     }
 
-    function formatDiscount(discountPercent) {
-        const percent = Math.min(100, Math.max(0, numberValue(discountPercent)));
-        if (percent <= 0) return "Tidak ada";
-        return `${percent.toLocaleString("id-ID", {
-            maximumFractionDigits: 2
-        })}%`;
+
+    function formatDiscount(
+        discountPercent
+    ) {
+
+        const percent =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    numberValue(
+                        discountPercent
+                    )
+                )
+            );
+
+
+        if (
+            percent <= 0
+        ) {
+            return "Tidak ada";
+        }
+
+
+        return `${percent.toLocaleString(
+            "id-ID",
+            {
+                maximumFractionDigits: 2
+            }
+        )}%`;
+
     }
 
-    function calculateFinalCredit(credit, discountPercent) {
-        const numericCredit = nullableNumber(credit);
-        if (numericCredit === null) return null;
-        const percent = Math.min(100, Math.max(0, numberValue(discountPercent)));
-        return numericCredit * (1 - percent / 100);
+
+    function calculateFinalCredit(
+        credit,
+        discountPercent
+    ) {
+
+        const numericCredit =
+            nullableNumber(
+                credit
+            );
+
+
+        if (
+            numericCredit === null
+        ) {
+            return null;
+        }
+
+
+        const percent =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    numberValue(
+                        discountPercent
+                    )
+                )
+            );
+
+
+        return (
+            numericCredit *
+            (
+                1 -
+                percent / 100
+            )
+        );
+
     }
+
 
     function updateResolutionPricing() {
-        const discountPercent = Math.min(100, Math.max(0, numberValue(discount.value)));
+
+        const discountPercent =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    numberValue(
+                        discount.value
+                    )
+                )
+            );
+
+
         const values = [
-            { credit: credit480p.value, creditEl: pricingCredit480p, discountEl: pricingDiscount480p, finalEl: pricingFinal480p },
-            { credit: credit720p.value, creditEl: pricingCredit720p, discountEl: pricingDiscount720p, finalEl: pricingFinal720p },
-            { credit: credit1080p.value, creditEl: pricingCredit1080p, discountEl: pricingDiscount1080p, finalEl: pricingFinal1080p }
+
+            {
+                credit:
+                    credit480p.value,
+
+                creditEl:
+                    pricingCredit480p,
+
+                discountEl:
+                    pricingDiscount480p,
+
+                finalEl:
+                    pricingFinal480p
+            },
+
+            {
+                credit:
+                    credit720p.value,
+
+                creditEl:
+                    pricingCredit720p,
+
+                discountEl:
+                    pricingDiscount720p,
+
+                finalEl:
+                    pricingFinal720p
+            },
+
+            {
+                credit:
+                    credit1080p.value,
+
+                creditEl:
+                    pricingCredit1080p,
+
+                discountEl:
+                    pricingDiscount1080p,
+
+                finalEl:
+                    pricingFinal1080p
+            }
+
         ];
 
-        values.forEach(item => {
-            const finalCredit = calculateFinalCredit(item.credit, discountPercent);
-            item.creditEl.textContent = formatCredit(item.credit);
-            item.discountEl.textContent = formatDiscount(discountPercent);
-            item.finalEl.textContent = formatCredit(finalCredit);
-        });
 
-        return { discountPercent };
+        values.forEach(
+            item => {
+
+                const finalCredit =
+                    calculateFinalCredit(
+                        item.credit,
+                        discountPercent
+                    );
+
+
+                item.creditEl.textContent =
+                    formatCredit(
+                        item.credit
+                    );
+
+
+                item.discountEl.textContent =
+                    formatDiscount(
+                        discountPercent
+                    );
+
+
+                item.finalEl.textContent =
+                    formatCredit(
+                        finalCredit
+                    );
+
+            }
+        );
+
+
+        return {
+            discountPercent
+        };
+
     }
+
 
     function formatIdr(value) {
-        const number = Number(value);
-        if (!Number.isFinite(number) || number <= 0) return "Rp0";
-        return `Rp${number.toLocaleString("id-ID", {
-            maximumFractionDigits: 0
-        })}`;
+
+        const number =
+            Number(value);
+
+
+        if (
+            !Number.isFinite(number) ||
+            number <= 0
+        ) {
+            return "Rp0";
+        }
+
+
+        return `Rp${number.toLocaleString(
+            "id-ID",
+            {
+                maximumFractionDigits: 0
+            }
+        )}`;
+
     }
 
+
     function updatePricePreview() {
-        const usd = Math.max(0, numberValue(priceUsd.value));
-        const rate = Math.max(0, numberValue(exchangeRate.value));
-        const discountPercent = Math.min(100, Math.max(0, numberValue(discount.value)));
-        const idr = usd * rate;
-        const discountIdr = idr * (discountPercent / 100);
-        const finalIdr = idr - discountIdr;
 
-        if (priceIdrPreview) {
-            priceIdrPreview.textContent = formatIdr(idr);
+        const usd =
+            Math.max(
+                0,
+                numberValue(
+                    priceUsd.value
+                )
+            );
+
+
+        const rate =
+            Math.max(
+                0,
+                numberValue(
+                    exchangeRate.value
+                )
+            );
+
+
+        const discountPercent =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    numberValue(
+                        discount.value
+                    )
+                )
+            );
+
+
+        const idr =
+            usd * rate;
+
+
+        const discountIdr =
+            idr *
+            (
+                discountPercent /
+                100
+            );
+
+
+        const finalIdr =
+            idr -
+            discountIdr;
+
+
+        if (
+            priceIdrPreview
+        ) {
+
+            priceIdrPreview.textContent =
+                formatIdr(idr);
+
         }
 
-        if (discountIdrPreview) {
-            discountIdrPreview.textContent = formatIdr(discountIdr);
+
+        if (
+            discountIdrPreview
+        ) {
+
+            discountIdrPreview.textContent =
+                formatIdr(
+                    discountIdr
+                );
+
         }
 
-        if (finalIdrPreview) {
-            finalIdrPreview.textContent = formatIdr(finalIdr);
+
+        if (
+            finalIdrPreview
+        ) {
+
+            finalIdrPreview.textContent =
+                formatIdr(
+                    finalIdr
+                );
+
         }
+
 
         updateResolutionPricing();
 
-        return { usd, rate, idr, discountIdr, discountPercent, finalIdr };
-    }
 
-    function renderModel(model) {
-        currentModel = model;
-        currentModelId = String(model?.model_id || model?.id || "").trim();
-
-        const name = model?.model_name || model?.name || currentModelId || "Model";
-        const provider = model?.provider_name || model?.providerName || model?.provider_id || model?.providerId || "-";
-        const type = model?.type || model?.model_type || "-";
-
-        heroModelName.textContent = name;
-        heroModelId.textContent = currentModelId;
-        modelName.value = name;
-        modelId.textContent = currentModelId;
-        providerName.textContent = provider;
-        modelType.textContent = type;
-        description.value = model?.description ?? "";
-
-        statusToggle.checked = String(model?.status || "").toLowerCase() === "active";
-        updateStatusText();
-        renderParameters(model);
-
-        const registryPrice = model?.price_usd ?? model?.priceUSD ?? null;
-        priceUsd.value = registryPrice !== null ? numberValue(registryPrice) : "";
-        exchangeRate.value = "";
-        discount.value = numberValue(model?.discount_percent ?? 0);
-
-        credit480p.value = model?.credit_480p ?? model?.credit480p ?? "";
-        credit720p.value = model?.credit_720p ?? model?.credit720p ?? "";
-        credit1080p.value =
-    model?.credit_1080p ??
-    model?.credit1080p ??
-    "";
-
-renderActiveResolutionSelector(
-    model
-);
-
-updatePricePreview();
-    }
-
-    async function getAccessToken() {
-        if (!supabase?.auth) return null;
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        return data?.session?.access_token || null;
-    }
-
-    async function requestAdminModels(method = "GET", body = null) {
-        const accessToken = await getAccessToken();
-        if (!accessToken) {
-            throw new Error("Sesi login tidak ditemukan. Silakan login kembali.");
-        }
-
-        const options = {
-            method,
-            headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${accessToken}`
-            },
-            credentials: "same-origin"
+        return {
+            usd,
+            rate,
+            idr,
+            discountIdr,
+            discountPercent,
+            finalIdr
         };
 
-        if (body !== null) {
-            options.headers["Content-Type"] = "application/json";
-            options.body = JSON.stringify(body);
+    }
+
+
+    /* =========================================================
+       RENDER MODEL
+    ========================================================= */
+
+    function renderModel(model) {
+
+        currentModel =
+            model;
+
+        currentModelId =
+            String(
+                model?.model_id ||
+                model?.id ||
+                ""
+            ).trim();
+
+
+        const name =
+            model?.model_name ||
+            model?.name ||
+            currentModelId ||
+            "Model";
+
+
+        const provider =
+            model?.provider_name ||
+            model?.providerName ||
+            model?.provider_id ||
+            model?.providerId ||
+            "-";
+
+
+        const type =
+            model?.type ||
+            model?.model_type ||
+            "-";
+
+
+        heroModelName.textContent =
+            name;
+
+
+        heroModelId.textContent =
+            currentModelId;
+
+
+        modelName.value =
+            name;
+
+
+        modelId.textContent =
+            currentModelId;
+
+
+        providerName.textContent =
+            provider;
+
+
+        modelType.textContent =
+            type;
+
+
+        description.value =
+            model?.description ??
+            "";
+
+
+        statusToggle.checked =
+            String(
+                model?.status ||
+                ""
+            ).toLowerCase() ===
+            "active";
+
+
+        updateStatusText();
+
+
+        /*
+         * Credit mapping:
+         *
+         * Motiongen:
+         * 480p DB field = 576P
+         * 720p DB field = 720P HD
+         */
+
+        credit480p.value =
+            model?.credit_480p ??
+            model?.credit480p ??
+            "";
+
+
+        credit720p.value =
+            model?.credit_720p ??
+            model?.credit720p ??
+            "";
+
+
+        credit1080p.value =
+            model?.credit_1080p ??
+            model?.credit1080p ??
+            "";
+
+
+        renderParameters(
+            model
+        );
+
+
+        const registryPrice =
+            model?.price_usd ??
+            model?.priceUSD ??
+            null;
+
+
+        priceUsd.value =
+            registryPrice !== null
+                ? numberValue(
+                    registryPrice
+                )
+                : "";
+
+
+        exchangeRate.value =
+            "";
+
+
+        discount.value =
+            numberValue(
+                model?.discount_percent ??
+                0
+            );
+
+
+        renderActiveResolutionSelector(
+            model
+        );
+
+
+        updatePricePreview();
+
+
+        /*
+         * Jalankan lagi setelah DOM resolution selector
+         * selesai dibuat.
+         */
+
+        applyMotiongenUI();
+
+    }
+
+
+    /* =========================================================
+       AUTH
+    ========================================================= */
+
+    async function getAccessToken() {
+
+        if (
+            !supabase?.auth
+        ) {
+            return null;
         }
 
-        const response = await fetch("../api/admin-models", options);
-        const data = await response.json().catch(() => ({}));
 
-        if (!response.ok) {
+        const {
+            data,
+            error
+        } =
+            await supabase.auth.getSession();
+
+
+        if (
+            error
+        ) {
+            throw error;
+        }
+
+
+        return (
+            data?.session?.access_token ||
+            null
+        );
+
+    }
+
+
+    /* =========================================================
+       ADMIN MODELS API
+    ========================================================= */
+
+    async function requestAdminModels(
+        method = "GET",
+        body = null
+    ) {
+
+        const accessToken =
+            await getAccessToken();
+
+
+        if (
+            !accessToken
+        ) {
+
+            throw new Error(
+                "Sesi login tidak ditemukan. Silakan login kembali."
+            );
+
+        }
+
+
+        const options = {
+
+            method,
+
+            headers: {
+
+                Accept:
+                    "application/json",
+
+                Authorization:
+                    `Bearer ${accessToken}`
+
+            },
+
+            credentials:
+                "same-origin"
+
+        };
+
+
+        if (
+            body !== null
+        ) {
+
+            options.headers[
+                "Content-Type"
+            ] =
+                "application/json";
+
+
+            options.body =
+                JSON.stringify(
+                    body
+                );
+
+        }
+
+
+        const response =
+            await fetch(
+                "../api/admin-models",
+                options
+            );
+
+
+        const data =
+            await response
+                .json()
+                .catch(
+                    () => ({})
+                );
+
+
+        if (
+            !response.ok
+        ) {
+
             throw new Error(
                 data?.error ||
                 data?.message ||
                 `Admin Models API gagal (${response.status}).`
             );
+
         }
 
-        if (data?.success === false) {
-            throw new Error(data.error || data.message || "Admin Models API gagal.");
+
+        if (
+            data?.success === false
+        ) {
+
+            throw new Error(
+                data.error ||
+                data.message ||
+                "Admin Models API gagal."
+            );
+
         }
+
 
         return data;
+
     }
+
+
+    /* =========================================================
+       RESPONSE HELPERS
+    ========================================================= */
 
     function extractAdminModels(data) {
-        if (Array.isArray(data)) return data;
-        if (Array.isArray(data?.models)) return data.models;
-        if (Array.isArray(data?.data)) return data.data;
-        if (Array.isArray(data?.data?.models)) return data.data.models;
-        if (data?.model && typeof data.model === "object") return [data.model];
-        if (data?.data?.model && typeof data.data.model === "object") return [data.data.model];
+
+        if (
+            Array.isArray(data)
+        ) {
+            return data;
+        }
+
+
+        if (
+            Array.isArray(
+                data?.models
+            )
+        ) {
+            return data.models;
+        }
+
+
+        if (
+            Array.isArray(
+                data?.data
+            )
+        ) {
+            return data.data;
+        }
+
+
+        if (
+            Array.isArray(
+                data?.data?.models
+            )
+        ) {
+            return data.data.models;
+        }
+
+
+        if (
+            data?.model &&
+            typeof data.model ===
+                "object"
+        ) {
+            return [
+                data.model
+            ];
+        }
+
+
+        if (
+            data?.data?.model &&
+            typeof data.data.model ===
+                "object"
+        ) {
+            return [
+                data.data.model
+            ];
+        }
+
+
         return [];
+
     }
 
-    function findAdminModel(models, requestedId) {
-        const normalized = String(requestedId || "").trim();
-        return models.find(item =>
-            String(item?.model_id || "").trim() === normalized ||
-            String(item?.id || "").trim() === normalized
-        ) || null;
+
+    function findAdminModel(
+        models,
+        requestedId
+    ) {
+
+        const normalized =
+            String(
+                requestedId ||
+                ""
+            ).trim();
+
+
+        return (
+            models.find(
+                item =>
+                    String(
+                        item?.model_id ||
+                        ""
+                    ).trim() ===
+                        normalized ||
+
+                    String(
+                        item?.id ||
+                        ""
+                    ).trim() ===
+                        normalized
+            ) ||
+            null
+        );
+
     }
+
 
     function extractSavedModel(data) {
-        if (data?.model && typeof data.model === "object") return data.model;
-        if (data?.data?.model && typeof data.data.model === "object") return data.data.model;
-        if (data?.data && typeof data.data === "object" && !Array.isArray(data.data) && (data.data.id || data.data.model_id)) return data.data;
-        if (Array.isArray(data?.models) && data.models[0]) return data.models[0];
-        if (Array.isArray(data) && data[0]) return data[0];
-        if (data && typeof data === "object" && !Array.isArray(data) && (data.id || data.model_id)) return data;
+
+        if (
+            data?.model &&
+            typeof data.model ===
+                "object"
+        ) {
+            return data.model;
+        }
+
+
+        if (
+            data?.data?.model &&
+            typeof data.data.model ===
+                "object"
+        ) {
+            return data.data.model;
+        }
+
+
+        if (
+            data?.data &&
+            typeof data.data ===
+                "object" &&
+            !Array.isArray(
+                data.data
+            ) &&
+            (
+                data.data.id ||
+                data.data.model_id
+            )
+        ) {
+            return data.data;
+        }
+
+
+        if (
+            Array.isArray(
+                data?.models
+            ) &&
+            data.models[0]
+        ) {
+            return data.models[0];
+        }
+
+
+        if (
+            Array.isArray(data) &&
+            data[0]
+        ) {
+            return data[0];
+        }
+
+
+        if (
+            data &&
+            typeof data ===
+                "object" &&
+            !Array.isArray(data) &&
+            (
+                data.id ||
+                data.model_id
+            )
+        ) {
+            return data;
+        }
+
+
         return null;
+
     }
 
-    function mergeModelData(registryModel, adminModel, requestedId) {
-        const registry = registryModel || {};
-        const admin = adminModel || {};
+
+    /* =========================================================
+       MERGE MODEL DATA
+    ========================================================= */
+
+    function mergeModelData(
+        registryModel,
+        adminModel,
+        requestedId
+    ) {
+
+        const registry =
+            registryModel ||
+            {};
+
+        const admin =
+            adminModel ||
+            {};
+
 
         return {
+
             ...registry,
+
             ...admin,
-            id: admin.id ?? registry.id ?? null,
-            model_id: admin.model_id || registry.model_id || requestedId,
-            model_name: admin.model_name || registry.model_name || registry.name || requestedId,
-            provider_id: admin.provider_id ?? registry.provider_id ?? registry.providerId ?? null,
-            provider_name: admin.provider_name || registry.provider_name || registry.providerName || registry.provider_id || "-",
-            type: registry.type || registry.model_type || admin.type || admin.model_type || "-",
-            model_type: registry.model_type || registry.type || admin.model_type || admin.type || "-",
-            description: admin.description ?? "",
-            status: admin.status ?? "inactive",
-            discount_percent: admin.discount_percent ?? 0,
-            credit_480p: admin.credit_480p ?? null,
-            credit_720p: admin.credit_720p ?? null,
-            credit_1080p: admin.credit_1080p ?? null,
+
+
+            id:
+                admin.id ??
+                registry.id ??
+                null,
+
+
+            model_id:
+                admin.model_id ||
+                registry.model_id ||
+                requestedId,
+
+
+            model_name:
+                admin.model_name ||
+                registry.model_name ||
+                registry.name ||
+                requestedId,
+
+
+            provider_id:
+                admin.provider_id ??
+                registry.provider_id ??
+                registry.providerId ??
+                null,
+
+
+            provider_name:
+                admin.provider_name ||
+                registry.provider_name ||
+                registry.providerName ||
+                registry.provider_id ||
+                "-",
+
+
+            type:
+                registry.type ||
+                registry.model_type ||
+                admin.type ||
+                admin.model_type ||
+                "-",
+
+
+            model_type:
+                registry.model_type ||
+                registry.type ||
+                admin.model_type ||
+                admin.type ||
+                "-",
+
+
+            description:
+                admin.description ??
+                "",
+
+
+            status:
+                admin.status ??
+                "inactive",
+
+
+            discount_percent:
+                admin.discount_percent ??
+                0,
+
+
+            credit_480p:
+                admin.credit_480p ??
+                null,
+
+
+            credit_720p:
+                admin.credit_720p ??
+                null,
+
+
             credit_1080p:
-    admin.credit_1080p ?? null,
+                admin.credit_1080p ??
+                null,
 
-supported_resolutions:
-    Object.prototype.hasOwnProperty.call(
-        admin,
-        "supported_resolutions"
-    )
-        ? admin.supported_resolutions
-        : registry.supported_resolutions
+
+            supported_resolutions:
+                Object.prototype.hasOwnProperty.call(
+                    admin,
+                    "supported_resolutions"
+                )
+                    ? admin.supported_resolutions
+                    : registry.supported_resolutions
+
         };
+
     }
 
-    async function loadRegistryModel(requestedId) {
+
+    /* =========================================================
+       REGISTRY LOAD
+    ========================================================= */
+
+    async function loadRegistryModel(
+        requestedId
+    ) {
+
         try {
-            await loadProviders({ includeInactive: true });
-            await loadModels({ force: true, includeInactive: true });
-            return await getModelByModelId(requestedId);
+
+            await loadProviders({
+                includeInactive:
+                    true
+            });
+
+
+            await loadModels({
+                force:
+                    true,
+
+                includeInactive:
+                    true
+            });
+
+
+            return await getModelByModelId(
+                requestedId
+            );
+
         } catch (error) {
-            console.warn("GEN-Z.AI model-edit registry load warning:", error);
+
+            console.warn(
+                "GEN-Z.AI model-edit registry load warning:",
+                error
+            );
+
+
             return null;
+
         }
+
     }
+
+
+    /* =========================================================
+       LOAD MODEL
+    ========================================================= */
 
     async function loadModel() {
-        hideAlert();
-        setLoading(true);
 
-        const requestedId = getQueryModelId();
-        if (!requestedId) {
-            setLoading(false);
-            showAlert("Model ID tidak ditemukan pada URL. Gunakan format ?model_id=...", "error");
-            return;
-        }
-
-        try {
-            const [adminResult, registryResult] = await Promise.all([
-    requestAdminModels("GET"),
-    loadRegistryModel(requestedId)
-]);
-
-/*
- * Simpan model registry secara terpisah.
- *
- * Ini penting karena:
- * - registry = seluruh resolution yang didukung
- * - database = resolution yang sedang diaktifkan Owner
- */
-
-currentRegistryModel =
-    registryResult || null;
-
-const adminModels =
-    extractAdminModels(
-        adminResult
-    );
-            const adminModel = findAdminModel(adminModels, requestedId);
-
-            if (!adminModel) {
-                throw new Error(`Model "${requestedId}" tidak ditemukan pada Admin Models / tabel models.`);
-            }
-
-            currentDatabaseModel = adminModel;
-            const mergedModel = mergeModelData(registryResult, adminModel, requestedId);
-            renderModel(mergedModel);
-            setLoading(false);
-        } catch (error) {
-            console.error("GEN-Z.AI model-edit load error:", error);
-            currentDatabaseModel = null;
-            currentModel = null;
-            setLoading(false);
-            showAlert(error?.message || "Gagal memuat konfigurasi model.", "error");
-        }
-    }
-
-    async function saveModel() {
-        if (saving) return;
         hideAlert();
 
-        if (!currentModel || !currentDatabaseModel?.id) {
-            showAlert("Record Admin Model tidak tersedia. Model tidak dapat disimpan.", "error");
-            return;
-        }
+        setLoading(
+            true
+        );
 
-        if (!supabase) {
-            showAlert("Supabase belum terhubung. Periksa konfigurasi project.", "error");
-            return;
-        }
 
-        const name = modelName.value.trim();
-        if (!name) {
-            showAlert("Nama model wajib diisi.", "error");
-            modelName.focus();
-            return;
-        }
+        const requestedId =
+            getQueryModelId();
 
-        const modelIdValue = String(currentDatabaseModel.model_id || currentModel.model_id || currentModelId || "").trim();
-        if (!modelIdValue) {
-            showAlert("Model ID tidak valid.", "error");
-            return;
-        }
 
-        const discountPercent = Math.min(100, Math.max(0, numberValue(discount.value)));
-        const credit480pValue = Math.max(0, numberValue(credit480p.value));
-        const credit720pValue = Math.max(0, numberValue(credit720p.value));
-        const credit1080pValue = Math.max(0, numberValue(credit1080p.value));
-
-        const activeResolutions =
-    getSelectedActiveResolutions();
         if (
-    activeResolutions.length === 0
-) {
+            !requestedId
+        ) {
 
-    showAlert(
-        "Pilih minimal satu resolution untuk diaktifkan di Generate.",
-        "error"
-    );
+            setLoading(
+                false
+            );
 
-    return;
-}
 
-const payload = {
-    id: currentDatabaseModel.id,
-    model_id: modelIdValue,
-    model_name: name,
-    description: description.value.trim(),
-    discount_percent: discountPercent,
-    status: statusToggle.checked ? "active" : "inactive",
-    credit_480p: credit480pValue,
-    credit_720p: credit720pValue,
-    credit_1080p: credit1080pValue,
-    supported_resolutions:
-        activeResolutions
-};
+            showAlert(
+                "Model ID tidak ditemukan pada URL. Gunakan format ?model_id=...",
+                "error"
+            );
 
-        saving = true;
-        saveButton.disabled = true;
-        saveButton.textContent = "Menyimpan...";
+
+            return;
+
+        }
+
 
         try {
-            const result = await requestAdminModels("PATCH", payload);
-            const saved = extractSavedModel(result);
 
-            let verified = saved;
-            if (!verified) {
-                const verifyResult = await requestAdminModels("GET");
-                verified = findAdminModel(extractAdminModels(verifyResult), modelIdValue);
-            }
+            const [
+                adminResult,
+                registryResult
+            ] =
+                await Promise.all([
 
-            if (!verified) {
-                throw new Error("Perubahan dikirim tetapi record model tidak dapat diverifikasi setelah penyimpanan.");
-            }
+                    requestAdminModels(
+                        "GET"
+                    ),
 
-            const savedCredits = [
-                nullableNumber(verified.credit_480p),
-                nullableNumber(verified.credit_720p),
-                nullableNumber(verified.credit_1080p)
-            ];
+                    loadRegistryModel(
+                        requestedId
+                    )
+
+                ]);
+
+
+            currentRegistryModel =
+                registryResult ||
+                null;
+
+
+            const adminModels =
+                extractAdminModels(
+                    adminResult
+                );
+
+
+            const adminModel =
+                findAdminModel(
+                    adminModels,
+                    requestedId
+                );
+
 
             if (
-    savedCredits[0] !== credit480pValue ||
-    savedCredits[1] !== credit720pValue ||
-    savedCredits[2] !== credit1080pValue
-) {
-    throw new Error(
-        "Credit model tidak sesuai dengan nilai yang dikirim ke Admin Models."
-    );
-}
+                !adminModel
+            ) {
+
+                throw new Error(
+                    `Model "${requestedId}" tidak ditemukan pada Admin Models / tabel models.`
+                );
+
+            }
 
 
-const savedResolutions =
-    sortResolutions(
-        verified?.supported_resolutions
-    );
+            currentDatabaseModel =
+                adminModel;
 
-const expectedResolutions =
-    sortResolutions(
-        activeResolutions
-    );
 
-if (
-    JSON.stringify(savedResolutions) !==
-    JSON.stringify(expectedResolutions)
-) {
-    throw new Error(
-        "Resolution aktif tidak sesuai dengan nilai yang dikirim ke Admin Models."
-    );
-}
+            const mergedModel =
+                mergeModelData(
+                    registryResult,
+                    adminModel,
+                    requestedId
+                );
 
-            currentDatabaseModel = { ...currentDatabaseModel, ...verified };
-            currentModel = {
-                ...currentModel,
-                model_name: name,
-                description: payload.description,
-                discount_percent: discountPercent,
-                status: payload.status,
-                credit_480p: credit480pValue,
-                credit_720p: credit720pValue,
-                credit_1080p: credit1080pValue
-            };
 
-            heroModelName.textContent = name;
-            showAlert("Perubahan model berhasil disimpan.", "success");
+            renderModel(
+                mergedModel
+            );
 
-            setTimeout(() => {
-                window.location.href = "./models.html";
-            }, 900);
+
+            setLoading(
+                false
+            );
+
         } catch (error) {
-            console.error("GEN-Z.AI model-edit save error:", error);
-            showAlert(error?.message || "Gagal menyimpan perubahan model.", "error");
-        } finally {
-            saving = false;
-            saveButton.disabled = false;
-            saveButton.textContent = "Simpan Perubahan";
+
+            console.error(
+                "GEN-Z.AI model-edit load error:",
+                error
+            );
+
+
+            currentDatabaseModel =
+                null;
+
+            currentModel =
+                null;
+
+
+            setLoading(
+                false
+            );
+
+
+            showAlert(
+                error?.message ||
+                "Gagal memuat konfigurasi model.",
+                "error"
+            );
+
         }
+
     }
 
-    backButton.addEventListener("click", goBack);
-    cancelButton.addEventListener("click", goBack);
-    saveButton.addEventListener("click", saveModel);
-    statusToggle.addEventListener("change", updateStatusText);
-    priceUsd.addEventListener("input", updatePricePreview);
-    exchangeRate.addEventListener("input", updatePricePreview);
-    discount.addEventListener("input", updatePricePreview);
+
+    /* =========================================================
+       SAVE MODEL
+    ========================================================= */
+
+    async function saveModel() {
+
+        if (
+            saving
+        ) {
+            return;
+        }
+
+
+        hideAlert();
+
+
+        if (
+            !currentModel ||
+            !currentDatabaseModel?.id
+        ) {
+
+            showAlert(
+                "Record Admin Model tidak tersedia. Model tidak dapat disimpan.",
+                "error"
+            );
+
+
+            return;
+
+        }
+
+
+        if (
+            !supabase
+        ) {
+
+            showAlert(
+                "Supabase belum terhubung. Periksa konfigurasi project.",
+                "error"
+            );
+
+
+            return;
+
+        }
+
+
+        const name =
+            modelName.value.trim();
+
+
+        if (
+            !name
+        ) {
+
+            showAlert(
+                "Nama model wajib diisi.",
+                "error"
+            );
+
+
+            modelName.focus();
+
+
+            return;
+
+        }
+
+
+        const modelIdValue =
+            String(
+                currentDatabaseModel.model_id ||
+                currentModel.model_id ||
+                currentModelId ||
+                ""
+            ).trim();
+
+
+        if (
+            !modelIdValue
+        ) {
+
+            showAlert(
+                "Model ID tidak valid.",
+                "error"
+            );
+
+
+            return;
+
+        }
+
+
+        const discountPercent =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    numberValue(
+                        discount.value
+                    )
+                )
+            );
+
+
+        const credit480pValue =
+            Math.max(
+                0,
+                numberValue(
+                    credit480p.value
+                )
+            );
+
+
+        const credit720pValue =
+            Math.max(
+                0,
+                numberValue(
+                    credit720p.value
+                )
+            );
+
+
+        const credit1080pValue =
+            Math.max(
+                0,
+                numberValue(
+                    credit1080p.value
+                )
+            );
+
+
+        let activeResolutions =
+            getSelectedActiveResolutions();
+
+
+        if (
+            isMotiongenModel(
+                currentModel
+            )
+        ) {
+
+            activeResolutions =
+                activeResolutions.map(
+                    normalizeMotiongenResolution
+                );
+
+        }
+
+
+        activeResolutions =
+            sortResolutions(
+                activeResolutions
+            );
+
+
+        if (
+            activeResolutions.length === 0
+        ) {
+
+            showAlert(
+                "Pilih minimal satu resolution untuk diaktifkan di Generate.",
+                "error"
+            );
+
+
+            return;
+
+        }
+
+
+        /*
+         * Motiongen hanya menggunakan:
+         *
+         * 480p DB -> 576P
+         * 720p DB -> 720P HD
+         *
+         * credit_1080p tidak disentuh.
+         */
+
+        const payload = {
+
+            id:
+                currentDatabaseModel.id,
+
+            model_id:
+                modelIdValue,
+
+            model_name:
+                name,
+
+            description:
+                description.value.trim(),
+
+            discount_percent:
+                discountPercent,
+
+            status:
+                statusToggle.checked
+                    ? "active"
+                    : "inactive",
+
+            credit_480p:
+                credit480pValue,
+
+            credit_720p:
+                credit720pValue,
+
+            supported_resolutions:
+                activeResolutions
+
+        };
+
+
+        /*
+         * Jangan mengirim credit_1080p untuk Motiongen.
+         * Untuk model lain, perilaku lama tetap dipertahankan.
+         */
+
+        if (
+            !isMotiongenModel(
+                currentModel
+            )
+        ) {
+
+            payload.credit_1080p =
+                credit1080pValue;
+
+        }
+
+
+        saving =
+            true;
+
+
+        saveButton.disabled =
+            true;
+
+
+        saveButton.textContent =
+            "Menyimpan...";
+
+
+        try {
+
+            const result =
+                await requestAdminModels(
+                    "PATCH",
+                    payload
+                );
+
+
+            const saved =
+                extractSavedModel(
+                    result
+                );
+
+
+            let verified =
+                saved;
+
+
+            if (
+                !verified
+            ) {
+
+                const verifyResult =
+                    await requestAdminModels(
+                        "GET"
+                    );
+
+
+                verified =
+                    findAdminModel(
+                        extractAdminModels(
+                            verifyResult
+                        ),
+                        modelIdValue
+                    );
+
+            }
+
+
+            if (
+                !verified
+            ) {
+
+                throw new Error(
+                    "Perubahan dikirim tetapi record model tidak dapat diverifikasi setelah penyimpanan."
+                );
+
+            }
+
+
+            const saved480 =
+                nullableNumber(
+                    verified.credit_480p
+                );
+
+
+            const saved720 =
+                nullableNumber(
+                    verified.credit_720p
+                );
+
+
+            if (
+                saved480 !==
+                    credit480pValue ||
+                saved720 !==
+                    credit720pValue
+            ) {
+
+                throw new Error(
+                    "Credit model tidak sesuai dengan nilai yang dikirim ke Admin Models."
+                );
+
+            }
+
+
+            /*
+             * Model non-Motiongen tetap diverifikasi
+             * dengan credit_1080p.
+             */
+
+            if (
+                !isMotiongenModel(
+                    currentModel
+                )
+            ) {
+
+                const saved1080 =
+                    nullableNumber(
+                        verified.credit_1080p
+                    );
+
+
+                if (
+                    saved1080 !==
+                    credit1080pValue
+                ) {
+
+                    throw new Error(
+                        "Credit 1080p tidak sesuai dengan nilai yang dikirim ke Admin Models."
+                    );
+
+                }
+
+            }
+
+
+            const savedResolutions =
+                sortResolutions(
+                    verified?.supported_resolutions
+                );
+
+
+            const expectedResolutions =
+                sortResolutions(
+                    activeResolutions
+                );
+
+
+            if (
+                JSON.stringify(
+                    savedResolutions
+                ) !==
+                JSON.stringify(
+                    expectedResolutions
+                )
+            ) {
+
+                throw new Error(
+                    "Resolution aktif tidak sesuai dengan nilai yang dikirim ke Admin Models."
+                );
+
+            }
+
+
+            currentDatabaseModel =
+                {
+                    ...currentDatabaseModel,
+                    ...verified
+                };
+
+
+            currentModel =
+                {
+                    ...currentModel,
+
+                    model_name:
+                        name,
+
+                    description:
+                        payload.description,
+
+                    discount_percent:
+                        discountPercent,
+
+                    status:
+                        payload.status,
+
+                    credit_480p:
+                        credit480pValue,
+
+                    credit_720p:
+                        credit720pValue,
+
+                    supported_resolutions:
+                        activeResolutions
+                };
+
+
+            if (
+                !isMotiongenModel(
+                    currentModel
+                )
+            ) {
+
+                currentModel.credit_1080p =
+                    credit1080pValue;
+
+            }
+
+
+            heroModelName.textContent =
+                name;
+
+
+            showAlert(
+                "Perubahan model berhasil disimpan.",
+                "success"
+            );
+
+
+            setTimeout(
+                () => {
+
+                    window.location.href =
+                        "./models.html";
+
+                },
+                900
+            );
+
+        } catch (error) {
+
+            console.error(
+                "GEN-Z.AI model-edit save error:",
+                error
+            );
+
+
+            showAlert(
+                error?.message ||
+                "Gagal menyimpan perubahan model.",
+                "error"
+            );
+
+        } finally {
+
+            saving =
+                false;
+
+
+            saveButton.disabled =
+                false;
+
+
+            saveButton.textContent =
+                "Simpan Perubahan";
+
+        }
+
+    }
+
+
+    /* =========================================================
+       EVENTS
+    ========================================================= */
+
+    backButton.addEventListener(
+        "click",
+        goBack
+    );
+
+
+    cancelButton.addEventListener(
+        "click",
+        goBack
+    );
+
+
+    saveButton.addEventListener(
+        "click",
+        saveModel
+    );
+
+
+    statusToggle.addEventListener(
+        "change",
+        updateStatusText
+    );
+
+
+    priceUsd.addEventListener(
+        "input",
+        updatePricePreview
+    );
+
+
+    exchangeRate.addEventListener(
+        "input",
+        updatePricePreview
+    );
+
+
+    discount.addEventListener(
+        "input",
+        updatePricePreview
+    );
+
+
+    /* =========================================================
+       START
+    ========================================================= */
 
     async function startModelEdit() {
+
         if (
             window.GENZNavigationReady &&
-            typeof window.GENZNavigationReady.then === "function"
+            typeof
+                window.GENZNavigationReady.then ===
+                "function"
         ) {
+
             try {
-                const ready = await window.GENZNavigationReady;
-                if (ready !== true) return;
+
+                const ready =
+                    await window.GENZNavigationReady;
+
+
+                if (
+                    ready !== true
+                ) {
+                    return;
+                }
+
             } catch (error) {
-                console.error("GEN-Z.AI navigation readiness error:", error);
+
+                console.error(
+                    "GEN-Z.AI navigation readiness error:",
+                    error
+                );
+
+
                 return;
+
             }
+
         }
 
+
         loadModel();
+
     }
+
 
     startModelEdit();
 
