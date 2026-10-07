@@ -12,7 +12,7 @@
 
     <meta
         name="description"
-        content="GEN-Z.AI - Create stunning AI videos, digital humans and visual content with next-generation AI."
+        content="GEN-Z.AI - Next generation AI creative platform."
     >
 
     <meta
@@ -50,7 +50,7 @@
             background:
                 radial-gradient(
                     circle at 50% -10%,
-                    rgba(255, 48, 72, 0.12),
+                    rgba(255, 48, 72, 0.13),
                     transparent 38%
                 ),
                 #050505;
@@ -82,12 +82,12 @@
 
             background:
                 linear-gradient(
-                    rgba(255,255,255,0.018) 1px,
+                    rgba(255,255,255,0.015) 1px,
                     transparent 1px
                 ),
                 linear-gradient(
                     90deg,
-                    rgba(255,255,255,0.018) 1px,
+                    rgba(255,255,255,0.015) 1px,
                     transparent 1px
                 );
 
@@ -95,6 +95,13 @@
                 70px 70px;
 
             mask-image:
+                linear-gradient(
+                    to bottom,
+                    black,
+                    transparent 75%
+                );
+
+            -webkit-mask-image:
                 linear-gradient(
                     to bottom,
                     black,
@@ -123,17 +130,13 @@
         }
 
 
-        /* =====================================================
-           VARIABLES
-        ===================================================== */
-
         :root {
 
             --red:
                 #ff3048;
 
             --red-bright:
-                #ff5266;
+                #ff6072;
 
             --red-dark:
                 #b51228;
@@ -144,17 +147,11 @@
             --panel:
                 rgba(18,18,20,0.78);
 
-            --panel-soft:
-                rgba(255,255,255,0.045);
-
             --border:
                 rgba(255,255,255,0.09);
 
             --border-red:
                 rgba(255,48,72,0.45);
-
-            --text:
-                #ffffff;
 
             --muted:
                 #96969d;
@@ -181,16 +178,16 @@
         }
 
 
-        .red {
-            color:
-                var(--red);
-        }
-
-
         .section {
 
             padding:
                 110px 0;
+        }
+
+
+        .red {
+            color:
+                var(--red);
         }
 
 
@@ -240,7 +237,7 @@
                 20px;
 
             max-width:
-                760px;
+                800px;
 
             font-size:
                 clamp(34px, 5vw, 64px);
@@ -300,7 +297,7 @@
                 18px 0;
 
             background:
-                rgba(5,5,5,0.72);
+                rgba(5,5,5,0.76);
 
             backdrop-filter:
                 blur(20px);
@@ -387,11 +384,11 @@
                     rgba(255,48,72,0.03)
                 );
 
-            box-shadow:
-                0 0 24px rgba(255,48,72,0.18);
-
             color:
                 var(--red);
+
+            box-shadow:
+                0 0 24px rgba(255,48,72,0.18);
 
             font-size:
                 13px;
@@ -479,9 +476,6 @@
             font-weight:
                 700;
 
-            box-shadow:
-                0 0 20px rgba(255,48,72,0.10);
-
             transition:
                 .2s ease;
         }
@@ -530,12 +524,6 @@
 
             align-items:
                 center;
-        }
-
-
-        .hero-content {
-            position:
-                relative;
         }
 
 
@@ -761,7 +749,7 @@
 
 
         /* =====================================================
-           VIDEO FRAME
+           VIDEO
         ===================================================== */
 
         .video-shell {
@@ -862,8 +850,8 @@
                 );
 
             transition:
-                opacity .3s ease,
-                visibility .3s ease;
+                opacity .25s ease,
+                visibility .25s ease;
         }
 
 
@@ -978,7 +966,7 @@
 
 
         /* =====================================================
-           TRUST STRIP
+           TRUST
         ===================================================== */
 
         .trust-strip {
@@ -1047,7 +1035,7 @@
                 17px;
 
             letter-spacing:
-                -0.3px;
+                -.3px;
 
             text-transform:
                 none;
@@ -1129,6 +1117,9 @@
 
             max-width:
                 760px;
+
+            margin-top:
+                20px;
 
             font-size:
                 clamp(30px,4vw,52px);
@@ -1320,6 +1311,9 @@
             position:
                 relative;
 
+            overflow:
+                hidden;
+
             background:
                 #050505;
         }
@@ -1393,9 +1387,6 @@
 
         .workflow-card {
 
-            position:
-                relative;
-
             padding:
                 25px;
 
@@ -1450,7 +1441,7 @@
 
 
         /* =====================================================
-           CREDIT
+           CREDITS
         ===================================================== */
 
         .credit-grid {
@@ -1668,6 +1659,9 @@
 
             gap:
                 20px;
+
+            flex-wrap:
+                wrap;
         }
 
 
@@ -1678,7 +1672,7 @@
 
 
         /* =====================================================
-           MOBILE
+           RESPONSIVE
         ===================================================== */
 
         @media (max-width: 900px) {
@@ -1702,12 +1696,6 @@
 
                 gap:
                     50px;
-            }
-
-
-            .hero h1 {
-                letter-spacing:
-                    -3px;
             }
 
 
@@ -1737,6 +1725,7 @@
                 grid-template-columns:
                     1fr;
             }
+
         }
 
 
@@ -1746,10 +1735,7 @@
             .nav-inner {
 
                 width:
-                    min(
-                        calc(100% - 28px),
-                        var(--max)
-                    );
+                    calc(100% - 28px);
             }
 
 
@@ -1777,6 +1763,7 @@
 
 
             .hero-description {
+
                 font-size:
                     14px;
             }
@@ -1789,12 +1776,17 @@
 
 
             .nav-register {
+
                 padding:
                     9px 13px;
+
+                font-size:
+                    12px;
             }
 
 
             .brand {
+
                 font-size:
                     17px;
             }
@@ -1860,11 +1852,6 @@
                     flex-start;
             }
 
-
-            .footer-links {
-                flex-wrap:
-                    wrap;
-            }
         }
 
     </style>
@@ -1876,8 +1863,8 @@
 
 
     <!-- =====================================================
-         NAVIGATION
-    ====================================================== -->
+         NAVBAR
+    ===================================================== -->
 
     <header class="navbar">
 
@@ -1927,6 +1914,7 @@
                     Login
                 </a>
 
+
                 <a
                     href="/register.html"
                     class="nav-register"
@@ -1943,10 +1931,15 @@
 
 
     <!-- =====================================================
-         HERO
-    ====================================================== -->
+         MAIN
+    ===================================================== -->
 
     <main>
+
+
+        <!-- =================================================
+             HERO
+        ================================================== -->
 
         <section class="hero">
 
@@ -2017,7 +2010,7 @@
 
                         <div class="hero-note">
 
-                            No complicated setup · AI-powered workflow
+                            AI-powered creative workflow
 
                         </div>
 
@@ -2037,6 +2030,7 @@
                         <video
                             id="heroVideo"
                             class="hero-video landing-video"
+                            autoplay
                             muted
                             loop
                             playsinline
@@ -2062,7 +2056,7 @@
                             </div>
 
                             <div class="placeholder-subtitle">
-                                Preparing preview...
+                                Loading preview...
                             </div>
 
                         </div>
@@ -2086,6 +2080,7 @@
             <div class="container">
 
                 <div class="trust-inner">
+
 
                     <div class="trust-item">
 
@@ -2130,6 +2125,7 @@
 
                     </div>
 
+
                 </div>
 
             </div>
@@ -2170,8 +2166,8 @@
                             Dari prompt sederhana menjadi
                             video dan visual yang siap digunakan
                             untuk content creation, advertising,
-                            social media, dan berbagai kebutuhan
-                            kreatif lainnya.
+                            social media, dan kebutuhan kreatif
+                            lainnya.
 
                         </p>
 
@@ -2202,10 +2198,12 @@
 
 
                 <h2 class="section-title">
+
                     One platform.
                     <span class="red">
                         Multiple possibilities.
                     </span>
+
                 </h2>
 
 
@@ -2250,8 +2248,7 @@
 
                         <p>
                             Hidupkan gambar menjadi video
-                            dengan motion dan visual yang
-                            lebih dinamis.
+                            dengan motion dan visual dinamis.
                         </p>
 
                     </article>
@@ -2292,6 +2289,7 @@
 
                     </article>
 
+
                 </div>
 
             </div>
@@ -2317,10 +2315,12 @@
 
 
                 <h2 class="section-title">
+
                     See what
                     <span class="red">
                         AI can create.
                     </span>
+
                 </h2>
 
 
@@ -2343,6 +2343,7 @@
 
                             <video
                                 class="showcase-video landing-video"
+                                autoplay
                                 muted
                                 loop
                                 playsinline
@@ -2401,6 +2402,7 @@
 
                             <video
                                 class="showcase-video landing-video"
+                                autoplay
                                 muted
                                 loop
                                 playsinline
@@ -2459,6 +2461,7 @@
 
                             <video
                                 class="showcase-video landing-video"
+                                autoplay
                                 muted
                                 loop
                                 playsinline
@@ -2507,6 +2510,7 @@
 
                     </article>
 
+
                 </div>
 
             </div>
@@ -2545,8 +2549,7 @@
 
                     Workflow dibuat sederhana supaya
                     kreativitas tidak tersangkut di
-                    halaman konfigurasi yang panjangnya
-                    seperti kontrak internet.
+                    konfigurasi yang tidak perlu.
 
                 </p>
 
@@ -2566,7 +2569,7 @@
 
                         <p>
                             Masukkan ide atau konsep yang
-                            ingin Anda visualisasikan.
+                            ingin divisualisasikan.
                         </p>
 
                     </article>
@@ -2624,6 +2627,7 @@
                         </p>
 
                     </article>
+
 
                 </div>
 
@@ -2743,6 +2747,7 @@
 
                     </article>
 
+
                 </div>
 
             </div>
@@ -2801,13 +2806,14 @@
 
         </section>
 
+
     </main>
 
 
 
     <!-- =====================================================
          FOOTER
-    ====================================================== -->
+    ===================================================== -->
 
     <footer>
 
@@ -2854,479 +2860,530 @@
 
     <!-- =====================================================
          VIDEO ENGINE
-         -----------------------------------------------------
-         Desktop:
-         - hover = play
-         - leave = pause
-
-         Mobile / Tablet:
-         - enter viewport = play
-         - leave viewport = pause
-    ====================================================== -->
+    ===================================================== -->
 
     <script>
 
-        (() => {
+    (() => {
 
-            "use strict";
+        "use strict";
 
 
-            const videos =
-                Array.from(
-                    document.querySelectorAll(
-                        ".landing-video"
-                    )
+        const videos = Array.from(
+            document.querySelectorAll(
+                ".landing-video"
+            )
+        );
+
+
+        if (!videos.length) {
+
+            console.warn(
+                "[GEN-Z.AI Landing] No videos found."
+            );
+
+            return;
+
+        }
+
+
+        /* =====================================================
+           DEVICE DETECTION
+        ===================================================== */
+
+        const touchMedia =
+            window.matchMedia(
+                "(hover: none), (pointer: coarse)"
+            );
+
+
+        const isTouchDevice =
+            touchMedia.matches ||
+            navigator.maxTouchPoints > 0;
+
+
+        const reducedMotion =
+            window.matchMedia(
+                "(prefers-reduced-motion: reduce)"
+            ).matches;
+
+
+        console.log(
+            "[GEN-Z.AI Landing] Video engine initialized",
+            {
+                count:
+                    videos.length,
+
+                touch:
+                    isTouchDevice,
+
+                reducedMotion:
+                    reducedMotion
+            }
+        );
+
+
+        /* =====================================================
+           SOURCE
+        ===================================================== */
+
+        function getSource(video) {
+
+            const source =
+                video.querySelector(
+                    "source"
                 );
 
 
-            if (!videos.length) {
-                return;
-            }
-
-
-            /* =================================================
-               DEVICE DETECTION
-            ================================================= */
-
-            const isTouchDevice =
-                window.matchMedia(
-                    "(hover: none), (pointer: coarse)"
-                ).matches
-                ||
-                navigator.maxTouchPoints > 0;
-
-
-            const reducedMotion =
-                window.matchMedia(
-                    "(prefers-reduced-motion: reduce)"
-                ).matches;
-
-
-
-            /* =================================================
-               PLACEHOLDER
-            ================================================= */
-
-            function getPlaceholder(video) {
-
-                const parent =
-                    video.closest(
-                        ".video-shell, .showcase-media"
-                    );
-
-
-                if (!parent) {
-                    return null;
-                }
-
-
-                return parent.querySelector(
-                    ".video-placeholder"
-                );
-            }
-
-
-
-            function hidePlaceholder(video) {
-
-                const placeholder =
-                    getPlaceholder(video);
-
-
-                if (!placeholder) {
-                    return;
-                }
-
-
-                placeholder.classList.add(
-                    "hidden"
-                );
-            }
-
-
-
-            function showPlaceholder(video) {
-
-                const placeholder =
-                    getPlaceholder(video);
-
-
-                if (!placeholder) {
-                    return;
-                }
-
-
-                placeholder.classList.remove(
-                    "hidden"
-                );
-            }
-
-
-
-            /* =================================================
-               PLAY
-            ================================================= */
-
-            async function playVideo(video) {
-
-                if (!video) {
-                    return;
-                }
-
-
-                if (reducedMotion) {
-                    return;
-                }
-
-
-                try {
-
-                    video.muted = true;
-
-                    video.defaultMuted = true;
-
-                    video.setAttribute(
-                        "muted",
-                        ""
-                    );
-
-                    video.setAttribute(
-                        "playsinline",
-                        ""
-                    );
-
-                    video.setAttribute(
-                        "webkit-playsinline",
-                        ""
-                    );
-
-
-                    const promise =
-                        video.play();
-
-
-                    if (
-                        promise &&
-                        typeof promise.then === "function"
-                    ) {
-
-                        await promise;
-
-                    }
-
-
-                    hidePlaceholder(video);
-
-                }
-
-                catch (error) {
-
-                    /*
-                     * Autoplay policy browser can reject
-                     * play(). This is not fatal.
-                     *
-                     * A later viewport / pointer / touch
-                     * event will attempt playback again.
-                     */
-
-                    console.debug(
-                        "[GEN-Z.AI Landing] Video play blocked:",
-                        error
-                    );
-
-                }
-
-            }
-
-
-
-            /* =================================================
-               PAUSE
-            ================================================= */
-
-            function pauseVideo(
-                video,
-                reset = false
+            if (
+                source &&
+                source.src
             ) {
 
-                if (!video) {
-                    return;
-                }
-
-
-                try {
-
-                    video.pause();
-
-
-                    if (reset) {
-
-                        try {
-
-                            video.currentTime =
-                                0;
-
-                        }
-                        catch (_) {}
-
-                    }
-
-                }
-                catch (_) {}
+                return source.src;
 
             }
 
 
+            return video.currentSrc || "";
 
-            /* =================================================
-               PREPARE VIDEO
-            ================================================= */
+        }
+
+
+        /* =====================================================
+           PLACEHOLDER
+        ===================================================== */
+
+        function getPlaceholder(video) {
+
+            const parent =
+                video.closest(
+                    ".video-shell, .showcase-media"
+                );
+
+
+            if (!parent) {
+
+                return null;
+
+            }
+
+
+            return parent.querySelector(
+                ".video-placeholder"
+            );
+
+        }
+
+
+        function hidePlaceholder(video) {
+
+            const placeholder =
+                getPlaceholder(video);
+
+
+            if (!placeholder) {
+
+                return;
+
+            }
+
+
+            placeholder.classList.add(
+                "hidden"
+            );
+
+        }
+
+
+        function showPlaceholder(video) {
+
+            const placeholder =
+                getPlaceholder(video);
+
+
+            if (!placeholder) {
+
+                return;
+
+            }
+
+
+            placeholder.classList.remove(
+                "hidden"
+            );
+
+        }
+
+
+        /* =====================================================
+           PREPARE
+        ===================================================== */
+
+        function prepareVideo(video) {
+
+            video.muted =
+                true;
+
+            video.defaultMuted =
+                true;
+
+            video.loop =
+                true;
+
+            video.playsInline =
+                true;
+
+            video.autoplay =
+                true;
+
+            video.preload =
+                "auto";
+
+
+            video.setAttribute(
+                "muted",
+                ""
+            );
+
+
+            video.setAttribute(
+                "autoplay",
+                ""
+            );
+
+
+            video.setAttribute(
+                "playsinline",
+                ""
+            );
+
+
+            video.setAttribute(
+                "webkit-playsinline",
+                ""
+            );
+
+
+            try {
+
+                video.volume =
+                    0;
+
+            }
+            catch (_) {}
+
+
+            console.log(
+                "[GEN-Z.AI Landing] Preparing:",
+                getSource(video)
+            );
+
+        }
+
+
+        videos.forEach(
+            prepareVideo
+        );
+
+
+        /* =====================================================
+           PLAY
+        ===================================================== */
+
+        async function playVideo(video) {
+
+            if (!video) {
+
+                return false;
+
+            }
+
+
+            if (reducedMotion) {
+
+                return false;
+
+            }
+
+
+            try {
+
+                video.muted =
+                    true;
+
+                video.defaultMuted =
+                    true;
+
+                video.playsInline =
+                    true;
+
+                video.autoplay =
+                    true;
+
+                video.loop =
+                    true;
+
+
+                video.setAttribute(
+                    "muted",
+                    ""
+                );
+
+
+                video.setAttribute(
+                    "playsinline",
+                    ""
+                );
+
+
+                video.setAttribute(
+                    "autoplay",
+                    ""
+                );
+
+
+                /*
+                 * Ensure source has been loaded.
+                 */
+
+                if (
+                    video.readyState ===
+                    HTMLMediaElement.HAVE_NOTHING
+                ) {
+
+                    video.load();
+
+                }
+
+
+                const playPromise =
+                    video.play();
+
+
+                if (
+                    playPromise &&
+                    typeof playPromise.then ===
+                    "function"
+                ) {
+
+                    await playPromise;
+
+                }
+
+
+                hidePlaceholder(
+                    video
+                );
+
+
+                console.log(
+                    "[GEN-Z.AI Landing] PLAYING:",
+                    getSource(video)
+                );
+
+
+                return true;
+
+            }
+            catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI Landing] PLAY BLOCKED:",
+                    getSource(video),
+                    error
+                );
+
+
+                return false;
+
+            }
+
+        }
+
+
+        /* =====================================================
+           PAUSE
+        ===================================================== */
+
+        function pauseVideo(video) {
+
+            if (!video) {
+
+                return;
+
+            }
+
+
+            try {
+
+                video.pause();
+
+            }
+            catch (_) {}
+
+        }
+
+
+        /* =====================================================
+           MEDIA EVENTS
+        ===================================================== */
+
+        videos.forEach(
+            video => {
+
+                video.addEventListener(
+                    "loadedmetadata",
+                    () => {
+
+                        console.log(
+                            "[GEN-Z.AI Landing] Metadata:",
+                            getSource(video)
+                        );
+
+                    }
+                );
+
+
+                video.addEventListener(
+                    "loadeddata",
+                    () => {
+
+                        hidePlaceholder(
+                            video
+                        );
+
+                    }
+                );
+
+
+                video.addEventListener(
+                    "canplay",
+                    () => {
+
+                        hidePlaceholder(
+                            video
+                        );
+
+                    }
+                );
+
+
+                video.addEventListener(
+                    "playing",
+                    () => {
+
+                        hidePlaceholder(
+                            video
+                        );
+
+
+                        console.log(
+                            "[GEN-Z.AI Landing] PLAYING EVENT:",
+                            getSource(video)
+                        );
+
+                    }
+                );
+
+
+                video.addEventListener(
+                    "error",
+                    () => {
+
+                        const mediaError =
+                            video.error;
+
+
+                        console.error(
+                            "[GEN-Z.AI Landing] VIDEO ERROR",
+                            {
+                                source:
+                                    getSource(video),
+
+                                code:
+                                    mediaError
+                                        ? mediaError.code
+                                        : null,
+
+                                message:
+                                    mediaError
+                                        ? mediaError.message
+                                        : null
+                            }
+                        );
+
+
+                        showPlaceholder(
+                            video
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+
+        /* =====================================================
+           MOBILE / TABLET
+        ===================================================== */
+
+        if (isTouchDevice) {
+
+            console.log(
+                "[GEN-Z.AI Landing] MOBILE AUTOPLAY MODE"
+            );
+
+
+            /*
+             * Native autoplay.
+             */
 
             videos.forEach(
                 video => {
 
-                    video.muted =
-                        true;
-
-                    video.defaultMuted =
-                        true;
-
-                    video.loop =
-                        true;
-
-                    video.playsInline =
+                    video.autoplay =
                         true;
 
                     video.setAttribute(
-                        "muted",
+                        "autoplay",
                         ""
-                    );
-
-                    video.setAttribute(
-                        "playsinline",
-                        ""
-                    );
-
-                    video.setAttribute(
-                        "webkit-playsinline",
-                        ""
-                    );
-
-                    video.preload =
-                        "auto";
-
-
-                    video.addEventListener(
-                        "loadeddata",
-                        () => {
-
-                            hidePlaceholder(
-                                video
-                            );
-
-                        }
-                    );
-
-
-                    video.addEventListener(
-                        "canplay",
-                        () => {
-
-                            hidePlaceholder(
-                                video
-                            );
-
-                        }
-                    );
-
-
-                    video.addEventListener(
-                        "loadedmetadata",
-                        () => {
-
-                            hidePlaceholder(
-                                video
-                            );
-
-                        }
-                    );
-
-
-                    video.addEventListener(
-                        "error",
-                        () => {
-
-                            console.error(
-                                "[GEN-Z.AI Landing] Video failed:",
-                                video.currentSrc ||
-                                video.querySelector(
-                                    "source"
-                                )?.src
-                            );
-
-                            showPlaceholder(
-                                video
-                            );
-
-                        }
-                    );
-
-
-                    /*
-                     * User interaction fallback.
-                     * Especially useful on mobile Safari /
-                     * Chromium variants with strict autoplay.
-                     */
-
-                    video.addEventListener(
-                        "touchstart",
-                        () => {
-
-                            playVideo(video);
-
-                        },
-                        {
-                            passive: true
-                        }
-                    );
-
-
-                    video.addEventListener(
-                        "click",
-                        () => {
-
-                            playVideo(video);
-
-                        }
                     );
 
                 }
             );
 
 
-
             /* =================================================
-               MOBILE / TABLET
+               INTERSECTION OBSERVER
             ================================================= */
 
-            if (isTouchDevice) {
-
-                /*
-                 * Enable native autoplay only for
-                 * touch devices.
-                 */
-
-                videos.forEach(
-                    video => {
-
-                        video.autoplay =
-                            true;
-
-                        video.setAttribute(
-                            "autoplay",
-                            ""
-                        );
-
-                    }
-                );
+            let observer = null;
 
 
-                if (
-                    "IntersectionObserver"
-                    in window
-                ) {
+            if (
+                "IntersectionObserver"
+                in window
+            ) {
 
-                    const observer =
-                        new IntersectionObserver(
-                            entries => {
+                observer =
+                    new IntersectionObserver(
+                        entries => {
 
-                                entries.forEach(
-                                    entry => {
+                            entries.forEach(
+                                entry => {
 
-                                        const video =
-                                            entry.target;
-
-
-                                        if (
-                                            entry.isIntersecting
-                                            &&
-                                            entry.intersectionRatio >= 0.20
-                                        ) {
-
-                                            playVideo(
-                                                video
-                                            );
-
-                                        }
-                                        else {
-
-                                            pauseVideo(
-                                                video,
-                                                false
-                                            );
-
-                                        }
-
-                                    }
-                                );
-
-                            },
-                            {
-                                threshold: [
-                                    0,
-                                    0.10,
-                                    0.20,
-                                    0.35,
-                                    0.50,
-                                    0.75
-                                ],
-
-                                rootMargin:
-                                    "0px 0px -5% 0px"
-                            }
-                        );
+                                    const video =
+                                        entry.target;
 
 
-                    videos.forEach(
-                        video => {
-
-                            observer.observe(
-                                video
-                            );
-
-                        }
-                    );
-
-                }
-                else {
-
-                    /*
-                     * Fallback for very old browsers.
-                     */
-
-                    const checkViewport =
-                        () => {
-
-                            const viewportHeight =
-                                window.innerHeight;
-
-
-                            videos.forEach(
-                                video => {
-
-                                    const rect =
-                                        video.getBoundingClientRect();
-
-
-                                    const visible =
-                                        rect.top <
-                                        viewportHeight * 0.80
+                                    if (
+                                        entry.isIntersecting
                                         &&
-                                        rect.bottom >
-                                        viewportHeight * 0.20;
-
-
-                                    if (visible) {
+                                        entry.intersectionRatio >=
+                                        0.15
+                                    ) {
 
                                         playVideo(
                                             video
@@ -3344,218 +3401,425 @@
                                 }
                             );
 
-                        };
+                        },
+                        {
+                            threshold: [
+                                0,
+                                0.10,
+                                0.15,
+                                0.25,
+                                0.50,
+                                0.75,
+                                1
+                            ],
 
+                            rootMargin:
+                                "100px 0px 100px 0px"
+                        }
+                    );
+
+
+                videos.forEach(
+                    video => {
+
+                        observer.observe(
+                            video
+                        );
+
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               PLAY VISIBLE
+            ================================================= */
+
+            function playVisibleVideos() {
+
+                videos.forEach(
+                    video => {
+
+                        const rect =
+                            video.getBoundingClientRect();
+
+
+                        const viewportHeight =
+                            window.innerHeight;
+
+
+                        const visible =
+                            rect.bottom > 0 &&
+                            rect.top <
+                            viewportHeight;
+
+
+                        if (visible) {
+
+                            playVideo(
+                                video
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+
+
+            /*
+             * Multiple attempts are intentional.
+             * Mobile browsers love changing their minds.
+             */
+
+            if (
+                document.readyState ===
+                "loading"
+            ) {
+
+                document.addEventListener(
+                    "DOMContentLoaded",
+                    playVisibleVideos,
+                    {
+                        once: true
+                    }
+                );
+
+            }
+            else {
+
+                playVisibleVideos();
+
+            }
+
+
+            window.addEventListener(
+                "load",
+                playVisibleVideos,
+                {
+                    once: true
+                }
+            );
+
+
+            requestAnimationFrame(
+                () => {
+
+                    playVisibleVideos();
+
+
+                    requestAnimationFrame(
+                        () => {
+
+                            playVisibleVideos();
+
+                        }
+                    );
+
+                }
+            );
+
+
+            setTimeout(
+                playVisibleVideos,
+                150
+            );
+
+
+            setTimeout(
+                playVisibleVideos,
+                500
+            );
+
+
+            setTimeout(
+                playVisibleVideos,
+                1000
+            );
+
+
+            setTimeout(
+                playVisibleVideos,
+                2000
+            );
+
+
+            /* =================================================
+               USER INTERACTION FALLBACK
+            ================================================= */
+
+            function unlockPlayback() {
+
+                videos.forEach(
+                    video => {
+
+                        const rect =
+                            video.getBoundingClientRect();
+
+
+                        const visible =
+                            rect.bottom > 0 &&
+                            rect.top <
+                            window.innerHeight;
+
+
+                        if (visible) {
+
+                            playVideo(
+                                video
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+
+
+            [
+                "touchstart",
+                "touchend",
+                "pointerdown",
+                "click"
+            ].forEach(
+                eventName => {
 
                     window.addEventListener(
-                        "scroll",
-                        checkViewport,
+                        eventName,
+                        unlockPlayback,
                         {
                             passive: true
                         }
                     );
 
+                }
+            );
 
-                    window.addEventListener(
-                        "resize",
-                        checkViewport
+        }
+
+
+        /* =====================================================
+           DESKTOP
+        ===================================================== */
+
+        else {
+
+            console.log(
+                "[GEN-Z.AI Landing] DESKTOP HOVER MODE"
+            );
+
+
+            videos.forEach(
+                video => {
+
+                    /*
+                     * Desktop does not autoplay.
+                     */
+
+                    video.autoplay =
+                        false;
+
+                    video.removeAttribute(
+                        "autoplay"
                     );
 
 
-                    checkViewport();
+                    video.addEventListener(
+                        "mouseenter",
+                        () => {
 
-                }
+                            playVideo(
+                                video
+                            );
 
-            }
-
-
-
-            /* =================================================
-               DESKTOP
-            ================================================= */
-
-            else {
-
-                videos.forEach(
-                    video => {
-
-                        /*
-                         * Explicitly prevent desktop
-                         * autoplay.
-                         */
-
-                        video.autoplay =
-                            false;
-
-                        video.removeAttribute(
-                            "autoplay"
-                        );
+                        }
+                    );
 
 
-                        video.addEventListener(
-                            "mouseenter",
-                            () => {
+                    video.addEventListener(
+                        "mouseleave",
+                        () => {
+
+                            pauseVideo(
+                                video
+                            );
+
+                        }
+                    );
+
+
+                    video.addEventListener(
+                        "pointerenter",
+                        event => {
+
+                            if (
+                                event.pointerType ===
+                                "mouse"
+                            ) {
 
                                 playVideo(
                                     video
                                 );
 
                             }
-                        );
+
+                        }
+                    );
 
 
-                        video.addEventListener(
-                            "mouseleave",
-                            () => {
+                    video.addEventListener(
+                        "pointerleave",
+                        event => {
+
+                            if (
+                                event.pointerType ===
+                                "mouse"
+                            ) {
 
                                 pauseVideo(
-                                    video,
-                                    false
+                                    video
                                 );
 
                             }
-                        );
+
+                        }
+                    );
+
+                }
+            );
+
+        }
 
 
-                        /*
-                         * Pointer events fallback.
-                         */
+        /* =====================================================
+           VISIBILITY
+        ===================================================== */
 
-                        video.addEventListener(
-                            "pointerenter",
-                            event => {
+        document.addEventListener(
+            "visibilitychange",
+            () => {
 
-                                if (
-                                    event.pointerType ===
-                                    "mouse"
-                                ) {
+                if (
+                    document.hidden
+                ) {
 
-                                    playVideo(
-                                        video
-                                    );
+                    videos.forEach(
+                        pauseVideo
+                    );
+
+                }
+                else if (
+                    isTouchDevice
+                ) {
+
+                    setTimeout(
+                        () => {
+
+                            videos.forEach(
+                                video => {
+
+                                    const rect =
+                                        video.getBoundingClientRect();
+
+
+                                    if (
+                                        rect.bottom > 0 &&
+                                        rect.top <
+                                        window.innerHeight
+                                    ) {
+
+                                        playVideo(
+                                            video
+                                        );
+
+                                    }
 
                                 }
+                            );
 
-                            }
-                        );
+                        },
+                        250
+                    );
 
-
-                        video.addEventListener(
-                            "pointerleave",
-                            event => {
-
-                                if (
-                                    event.pointerType ===
-                                    "mouse"
-                                ) {
-
-                                    pauseVideo(
-                                        video,
-                                        false
-                                    );
-
-                                }
-
-                            }
-                        );
-
-                    }
-                );
+                }
 
             }
+        );
 
 
+        /* =====================================================
+           RESIZE
+        ===================================================== */
 
-            /* =================================================
-               PAGE VISIBILITY
-            ================================================= */
+        window.addEventListener(
+            "resize",
+            () => {
 
-            document.addEventListener(
-                "visibilitychange",
+                if (
+                    isTouchDevice
+                ) {
+
+                    videos.forEach(
+                        video => {
+
+                            const rect =
+                                video.getBoundingClientRect();
+
+
+                            if (
+                                rect.bottom > 0 &&
+                                rect.top <
+                                window.innerHeight
+                            ) {
+
+                                playVideo(
+                                    video
+                                );
+
+                            }
+
+                        }
+                    );
+
+                }
+
+            }
+        );
+
+
+        /* =====================================================
+           TOUCH MEDIA CHANGE
+        ===================================================== */
+
+        if (
+            typeof touchMedia.addEventListener ===
+            "function"
+        ) {
+
+            touchMedia.addEventListener(
+                "change",
                 () => {
 
-                    if (
-                        document.hidden
-                    ) {
-
-                        videos.forEach(
-                            video => {
-
-                                pauseVideo(
-                                    video,
-                                    false
-                                );
-
-                            }
-                        );
-
-                    }
+                    window.location.reload();
 
                 }
             );
 
+        }
 
 
-            /* =================================================
-               INITIAL MOBILE CHECK
-            ================================================= */
+        /* =====================================================
+           FINAL
+        ===================================================== */
 
-            if (isTouchDevice) {
+        console.log(
+            "[GEN-Z.AI Landing] Video engine READY."
+        );
 
-                setTimeout(
-                    () => {
-
-                        videos.forEach(
-                            video => {
-
-                                const rect =
-                                    video.getBoundingClientRect();
-
-
-                                const viewportHeight =
-                                    window.innerHeight;
-
-
-                                const visible =
-                                    rect.top <
-                                    viewportHeight * 0.80
-                                    &&
-                                    rect.bottom >
-                                    viewportHeight * 0.20;
-
-
-                                if (visible) {
-
-                                    playVideo(
-                                        video
-                                    );
-
-                                }
-
-                            }
-                        );
-
-                    },
-                    250
-                );
-
-            }
-
-
-            /* =================================================
-               DEBUG
-            ================================================= */
-
-            console.info(
-                "[GEN-Z.AI Landing] Video engine ready.",
-                {
-                    videos: videos.length,
-                    touchDevice: isTouchDevice,
-                    reducedMotion: reducedMotion
-                }
-            );
-
-        })();
+    })();
 
     </script>
 
