@@ -1,183 +1,123 @@
-/**
- * =========================================================
- * GEN-Z.AI
- * MOTIONGEN-AI GENERIC CLIENT
- * ---------------------------------------------------------
- * File:
- * provider/motiongen-ai/client.js
- *
- * Tanggung jawab:
- * - HTTP request ke Motiongen-AI
- * - createGeneration()
- * - getJob()
- * - normalisasi response
- * - normalisasi error
- *
- * Tidak bertanggung jawab:
- * - konfigurasi model
- * - parameter model
- * - pricing
- * - credit user
- * - Supabase
- * - provider_credentials
- * - workflow Generate
- * - fallback provider
- * - KIE.AI
- *
- * API:
- * POST /api/v1/generate
- * GET  /api/v1/jobs/{job_id}
- * =========================================================
- */
+/* =========================================================
+   GEN-Z.AI
+   MOTIONGEN-AI PROVIDER CLIENT
+   ---------------------------------------------------------
+   File:
+     provider/motiongen-ai/client.js
 
+   Fungsi:
+   - HTTP client untuk Motiongen-AI
+   - Create generation job
+   - Query generation job
+   - Authorization Bearer
+   - Normalisasi response
+   - Normalisasi error
 
-/**
- * =========================================================
- * DEFAULT CONFIGURATION
- * =========================================================
- */
+   Provider:
+     motiongen
+
+   API:
+     https://app.motiongenai.pro
+
+   IMPORTANT:
+   - API key TIDAK disimpan di file ini.
+   - API key diberikan dari server melalui parameter apiKey.
+   - Tidak ada fallback ke KIE.AI.
+========================================================= */
 
 const DEFAULT_BASE_URL =
     "https://app.motiongenai.pro";
 
-const GENERATE_PATH =
+
+const PROVIDER_ID =
+    "motiongen";
+
+
+const PROVIDER_NAME =
+    "Motiongen-AI";
+
+
+const CREATE_ENDPOINT =
     "/api/v1/generate";
 
-const JOB_PATH =
+
+const JOB_ENDPOINT =
     "/api/v1/jobs";
 
 
-/**
- * =========================================================
- * NORMALIZE BASE URL
- * =========================================================
- */
+/* =========================================================
+   BASE URL
+========================================================= */
 
-function normalizeBaseUrl(value) {
-
-    const url =
-        String(
-            value ||
-            DEFAULT_BASE_URL
-        ).trim();
-
-    return url.replace(
-        /\/+$/,
-        ""
-    );
-
-}
-
-
-/**
- * =========================================================
- * BUILD URL
- * =========================================================
- */
-
-function buildUrl(path) {
-
-    const normalizedPath =
-        String(
-            path || ""
-        ).startsWith("/")
-            ? String(path)
-            : `/${String(path)}`;
+function getBaseUrl() {
 
     return (
-        normalizeBaseUrl(
-            DEFAULT_BASE_URL
-        ) +
-        normalizedPath
-    );
+        DEFAULT_BASE_URL
+    )
+        .trim()
+        .replace(
+            /\/+$/,
+            ""
+        );
 
 }
 
 
-/**
- * =========================================================
- * VALIDATE API KEY
- * =========================================================
- *
- * API key SELALU diberikan oleh caller.
- *
- * Provider client tidak mengambil:
- *
- * - process.env.KIE_API_KEY
- * - process.env.MOTIONGEN_API_KEY
- * - frontend
- * - Supabase
- *
- * Credential tetap menjadi tanggung jawab:
- *
- * api/generate.js
- *        ↓
- * provider_credentials
- *        ↓
- * createGeneration(payload, apiKey)
- *
- * =========================================================
- */
+/* =========================================================
+   API KEY
+========================================================= */
 
-function normalizeApiKey(apiKey) {
+function normalizeApiKey(
+    apiKey
+) {
 
-    const normalized =
+    const value =
         String(
             apiKey || ""
         ).trim();
 
-    if (!normalized) {
+
+    if (!value) {
 
         const error =
             new Error(
-                "API key Motiongen-AI tidak tersedia."
+                "Motiongen-AI API key is missing"
             );
 
+
         error.code =
-            "MOTIONGEN_API_KEY_MISSING";
+            "MISSING_API_KEY";
+
+
+        error.provider =
+            PROVIDER_ID;
+
+
+        error.status =
+            401;
+
 
         throw error;
 
     }
 
-    return normalized;
+
+    return value;
 
 }
 
 
-/**
- * =========================================================
- * PARSE RESPONSE
- * =========================================================
- */
+/* =========================================================
+   JSON PARSER
+========================================================= */
 
-async function parseResponse(response) {
-
-    const contentType =
-        response.headers.get(
-            "content-type"
-        ) || "";
-
-    if (
-        contentType
-            .toLowerCase()
-            .includes("application/json")
-    ) {
-
-        try {
-
-            return await response.json();
-
-        } catch {
-
-            return null;
-
-        }
-
-    }
+async function parseResponseBody(
+    response
+) {
 
     const text =
         await response.text();
+
 
     if (!text) {
 
@@ -185,255 +125,308 @@ async function parseResponse(response) {
 
     }
 
+
     try {
 
-        return JSON.parse(text);
+        return JSON.parse(
+            text
+        );
 
     } catch {
 
-        return {
-            raw: text
-        };
+        return text;
 
     }
 
 }
 
 
-/**
- * =========================================================
- * EXTRACT ERROR CODE
- * =========================================================
- */
+/* =========================================================
+   ERROR MESSAGE
+========================================================= */
 
-function extractErrorCode(data) {
+function extractErrorMessage(
+    data,
+    status
+) {
 
     if (
         data &&
-        typeof data === "object"
+        typeof data ===
+            "object"
     ) {
 
         return (
-            data.code ||
-            data.error_code ||
-            data?.error?.code ||
-            data?.data?.code ||
-            data?.data?.error_code ||
-            null
+
+            data.message ||
+
+            data.error?.message ||
+
+            data.error ||
+
+            data.detail ||
+
+            data.details ||
+
+            `Motiongen-AI request failed with status ${status}`
+
         );
 
     }
 
-    return null;
-
-}
-
-
-/**
- * =========================================================
- * EXTRACT ERROR MESSAGE
- * =========================================================
- */
-
-function extractErrorMessage(
-    data,
-    fallback
-) {
-
-    if (!data) {
-
-        return fallback;
-
-    }
 
     if (
-        typeof data === "string"
+        typeof data ===
+            "string" &&
+        data.trim()
     ) {
 
-        return data;
+        return data.trim();
 
     }
 
+
     return (
-
-        data.message ||
-
-        data.msg ||
-
-        data.error ||
-
-        data.error_message ||
-
-        data.error_description ||
-
-        data?.error?.message ||
-
-        data?.data?.message ||
-
-        data?.data?.msg ||
-
-        data?.data?.error ||
-
-        data?.data?.error_message ||
-
-        fallback
-
+        `Motiongen-AI request failed with status ${status}`
     );
 
 }
 
 
-/**
- * =========================================================
- * SUCCESS CHECK
- * =========================================================
- *
- * Motiongen:
- *
- * HTTP 2xx
- * +
- * success !== false
- *
- * dianggap berhasil.
- *
- * Business error seperti:
- *
- * 401 MISSING_API_KEY
- * 401 INVALID_API_KEY
- * 403 DEVELOPER_NOT_APPROVED
- * 402 INSUFFICIENT_CREDITS
- * 400 INVALID_PAYLOAD
- * 400 INVALID_MODEL_INPUT
- * 404 JOB_NOT_FOUND
- * 404 MODEL_NOT_FOUND
- * 503 MODEL_MAINTENANCE
- * 500 INTERNAL_SERVER_ERROR
- *
- * tetap diproses sebagai error.
- *
- * =========================================================
- */
+/* =========================================================
+   ERROR NORMALIZATION
+========================================================= */
 
-function isSuccessfulResponse(
+function createProviderError(
     response,
     data
 ) {
 
-    if (!response.ok) {
+    const status =
+        Number(
+            response?.status || 0
+        );
 
-        return false;
 
-    }
+    const message =
+        extractErrorMessage(
+            data,
+            status
+        );
+
+
+    const error =
+        new Error(
+            message
+        );
+
+
+    error.provider =
+        PROVIDER_ID;
+
+
+    error.providerName =
+        PROVIDER_NAME;
+
+
+    error.status =
+        status || null;
+
+
+    error.statusCode =
+        status || null;
+
+
+    error.data =
+        data;
+
+
+    /*
+     * Motiongen documented error codes:
+     *
+     * 401
+     * MISSING_API_KEY
+     * INVALID_API_KEY
+     *
+     * 403
+     * DEVELOPER_NOT_APPROVED
+     *
+     * 402
+     * INSUFFICIENT_CREDITS
+     *
+     * 400
+     * INVALID_PAYLOAD
+     * INVALID_MODEL_INPUT
+     *
+     * 404
+     * JOB_NOT_FOUND
+     * MODEL_NOT_FOUND
+     *
+     * 503
+     * MODEL_MAINTENANCE
+     *
+     * 500
+     * INTERNAL_SERVER_ERROR
+     */
 
     if (
         data &&
-        typeof data === "object"
+        typeof data ===
+            "object"
     ) {
 
-        if (
-            data.success === false
+        error.code =
+            data.code ||
+            data.error?.code ||
+            null;
+
+    }
+
+
+    if (
+        !error.code
+    ) {
+
+        switch (
+            status
         ) {
 
-            return false;
+            case 400:
+
+                error.code =
+                    "INVALID_PAYLOAD";
+
+                break;
+
+
+            case 401:
+
+                error.code =
+                    "INVALID_API_KEY";
+
+                break;
+
+
+            case 402:
+
+                error.code =
+                    "INSUFFICIENT_CREDITS";
+
+                break;
+
+
+            case 403:
+
+                error.code =
+                    "DEVELOPER_NOT_APPROVED";
+
+                break;
+
+
+            case 404:
+
+                error.code =
+                    "JOB_NOT_FOUND";
+
+                break;
+
+
+            case 503:
+
+                error.code =
+                    "MODEL_MAINTENANCE";
+
+                break;
+
+
+            case 500:
+
+                error.code =
+                    "INTERNAL_SERVER_ERROR";
+
+                break;
+
+
+            default:
+
+                error.code =
+                    "MOTIONGEN_REQUEST_FAILED";
 
         }
 
     }
 
-    return true;
-
-}
-
-
-/**
- * =========================================================
- * BUILD ERROR
- * =========================================================
- */
-
-function createApiError(
-    response,
-    data
-) {
-
-    const message =
-        extractErrorMessage(
-            data,
-            `Motiongen-AI request gagal (${response.status}).`
-        );
-
-    const error =
-        new Error(message);
-
-    error.status =
-        response.status;
-
-    error.code =
-        extractErrorCode(data) ||
-        `HTTP_${response.status}`;
-
-    error.provider =
-        "motiongen";
-
-    error.providerName =
-        "Motiongen-AI";
-
-    error.response =
-        data;
 
     return error;
 
 }
 
 
-/**
- * =========================================================
- * GENERIC REQUEST
- * =========================================================
- */
+/* =========================================================
+   GENERIC REQUEST
+========================================================= */
 
 async function request(
     path,
-    options = {}
+    options = {},
+    apiKey
 ) {
+
+    const normalizedApiKey =
+        normalizeApiKey(
+            apiKey
+        );
+
+
+    const baseUrl =
+        getBaseUrl();
+
+
+    const endpoint =
+        String(
+            path || ""
+        )
+            .trim();
+
+
+    if (!endpoint) {
+
+        throw new Error(
+            "Motiongen-AI endpoint is missing"
+        );
+
+    }
+
+
+    const url =
+        `${baseUrl}${endpoint}`;
+
 
     const method =
         String(
             options.method ||
             "GET"
-        ).toUpperCase();
+        )
+            .trim()
+            .toUpperCase();
 
-    const apiKey =
-        normalizeApiKey(
-            options.apiKey
-        );
 
     const headers = {
 
+        Authorization:
+            `Bearer ${normalizedApiKey}`,
+
         Accept:
             "application/json",
-
-        Authorization:
-            `Bearer ${apiKey}`,
 
         ...(options.headers || {})
 
     };
 
 
-    if (
-        options.body !== undefined &&
-        !headers["Content-Type"] &&
-        !headers["content-type"]
-    ) {
-
-        headers["Content-Type"] =
-            "application/json";
-
-    }
-
-
     const requestOptions = {
+
+        ...options,
 
         method,
 
@@ -442,68 +435,24 @@ async function request(
     };
 
 
-    if (
-        options.body !== undefined
-    ) {
-
-        requestOptions.body =
-
-            typeof options.body === "string"
-
-                ? options.body
-
-                : JSON.stringify(
-                    options.body
-                );
-
-    }
-
-
-    let response;
-
-    try {
-
-        response =
-            await fetch(
-                buildUrl(path),
-                requestOptions
-            );
-
-    } catch (error) {
-
-        const networkError =
-            new Error(
-                `Gagal terhubung ke Motiongen-AI: ${error.message}`
-            );
-
-        networkError.code =
-            "MOTIONGEN_NETWORK_ERROR";
-
-        networkError.provider =
-            "motiongen";
-
-        networkError.cause =
-            error;
-
-        throw networkError;
-
-    }
+    const response =
+        await fetch(
+            url,
+            requestOptions
+        );
 
 
     const data =
-        await parseResponse(
+        await parseResponseBody(
             response
         );
 
 
     if (
-        !isSuccessfulResponse(
-            response,
-            data
-        )
+        !response.ok
     ) {
 
-        throw createApiError(
+        throw createProviderError(
             response,
             data
         );
@@ -516,116 +465,9 @@ async function request(
 }
 
 
-/**
- * =========================================================
- * NORMALIZE CREATE RESPONSE
- * =========================================================
- *
- * Expected:
- *
- * {
- *   success: true,
- *   job_id: "...",
- *   status: "QUEUED",
- *   credits_held: 3.5
- * }
- *
- * =========================================================
- */
-
-function normalizeCreateResponse(
-    data
-) {
-
-    const jobId =
-        data?.job_id ||
-        data?.jobId ||
-        data?.data?.job_id ||
-        data?.data?.jobId ||
-        null;
-
-    if (!jobId) {
-
-        const error =
-            new Error(
-                "Motiongen-AI tidak mengembalikan job_id."
-            );
-
-        error.code =
-            "MOTIONGEN_JOB_ID_MISSING";
-
-        error.provider =
-            "motiongen";
-
-        error.response =
-            data;
-
-        throw error;
-
-    }
-
-
-    return {
-
-        success:
-            data?.success !== false,
-
-        jobId:
-            String(jobId),
-
-        job_id:
-            String(jobId),
-
-        taskId:
-            String(jobId),
-
-        task_id:
-            String(jobId),
-
-        status:
-            data?.status ||
-            data?.data?.status ||
-            "QUEUED",
-
-        creditsHeld:
-            data?.credits_held ??
-            data?.data?.credits_held ??
-            null,
-
-        credits_held:
-            data?.credits_held ??
-            data?.data?.credits_held ??
-            null,
-
-        raw:
-            data
-
-    };
-
-}
-
-
-/**
- * =========================================================
- * CREATE GENERATION
- * =========================================================
- *
- * Payload diteruskan apa adanya dari model adapter.
- *
- * Client TIDAK:
- *
- * - menambah prompt
- * - mengubah image
- * - mengubah audio
- * - menghitung credit
- * - mengubah duration
- * - mengubah aspect ratio
- * - menambahkan resolution
- * - menambahkan nsfw_checker
- * - melakukan fallback
- *
- * =========================================================
- */
+/* =========================================================
+   CREATE GENERATION
+========================================================= */
 
 async function createGeneration(
     payload,
@@ -634,207 +476,118 @@ async function createGeneration(
 
     if (
         !payload ||
-        typeof payload !== "object" ||
-        Array.isArray(payload)
+        typeof payload !==
+            "object" ||
+        Array.isArray(
+            payload
+        )
     ) {
 
-        const error =
-            new Error(
-                "Payload Motiongen-AI harus berupa object."
-            );
-
-        error.code =
-            "INVALID_MOTIONGEN_PAYLOAD";
-
-        error.provider =
-            "motiongen";
-
-        throw error;
+        throw new Error(
+            "Motiongen-AI generation payload must be an object"
+        );
 
     }
 
 
-    const data =
+    const response =
         await request(
-            GENERATE_PATH,
+            CREATE_ENDPOINT,
             {
 
                 method:
                     "POST",
 
-                apiKey,
+                headers: {
+
+                    "Content-Type":
+                        "application/json"
+
+                },
 
                 body:
-                    payload
+                    JSON.stringify(
+                        payload
+                    )
 
-            }
+            },
+            apiKey
         );
 
 
-    return normalizeCreateResponse(
-        data
-    );
-
-}
-
-
-/**
- * =========================================================
- * NORMALIZE JOB RESPONSE
- * =========================================================
- */
-
-function normalizeJobResponse(
-    data
-) {
-
-    const source =
-        data?.data &&
-        typeof data.data === "object"
-
-            ? data.data
-
-            : data;
-
-
     const jobId =
-        source?.id ||
-        source?.job_id ||
-        source?.jobId ||
+
+        response?.job_id ||
+
+        response?.jobId ||
+
+        response?.data?.job_id ||
+
+        response?.data?.jobId ||
+
+        response?.data?.id ||
+
         null;
 
 
     const status =
-        String(
-            source?.status ||
-            source?.state ||
-            "UNKNOWN"
-        ).toUpperCase();
+
+        response?.status ||
+
+        response?.data?.status ||
+
+        "QUEUED";
 
 
-    let outputUrls = [];
+    const creditsHeld =
 
+        response?.credits_held ??
 
-    if (
-        Array.isArray(
-            source?.output_urls
-        )
-    ) {
+        response?.data?.credits_held ??
 
-        outputUrls =
-            source.output_urls
-                .filter(Boolean)
-                .map(
-                    url =>
-                        String(url)
-                );
-
-    }
-
-
-    if (
-        !outputUrls.length &&
-        Array.isArray(
-            source?.outputUrls
-        )
-    ) {
-
-        outputUrls =
-            source.outputUrls
-                .filter(Boolean)
-                .map(
-                    url =>
-                        String(url)
-                );
-
-    }
-
-
-    if (
-        !outputUrls.length &&
-        typeof source?.output_url === "string"
-    ) {
-
-        outputUrls = [
-            source.output_url
-        ];
-
-    }
-
-
-    if (
-        !outputUrls.length &&
-        typeof source?.outputUrl === "string"
-    ) {
-
-        outputUrls = [
-            source.outputUrl
-        ];
-
-    }
+        null;
 
 
     return {
 
         success:
-            data?.success !== false,
+            response?.success !== false,
 
-        jobId:
-            jobId
-                ? String(jobId)
-                : null,
+        provider:
+            PROVIDER_ID,
+
+        providerName:
+            PROVIDER_NAME,
+
+        jobId,
 
         job_id:
-            jobId
-                ? String(jobId)
-                : null,
+            jobId,
 
         taskId:
-            jobId
-                ? String(jobId)
-                : null,
+            jobId,
 
         task_id:
-            jobId
-                ? String(jobId)
-                : null,
+            jobId,
 
         status,
 
-        kind:
-            source?.kind ||
-            null,
+        creditsHeld,
 
-        model:
-            source?.model ||
-            null,
-
-        creditCost:
-            source?.credit_cost ??
-            null,
-
-        credit_cost:
-            source?.credit_cost ??
-            null,
-
-        outputUrls,
-
-        output_urls:
-            outputUrls,
+        credits_held:
+            creditsHeld,
 
         raw:
-            data
+            response
 
     };
 
 }
 
 
-/**
- * =========================================================
- * GET JOB
- * =========================================================
- */
+/* =========================================================
+   GET JOB
+========================================================= */
 
 async function getJob(
     jobId,
@@ -847,66 +600,196 @@ async function getJob(
         ).trim();
 
 
-    if (!normalizedJobId) {
+    if (
+        !normalizedJobId
+    ) {
 
         const error =
             new Error(
-                "job_id Motiongen-AI wajib diisi."
+                "Motiongen-AI job ID is required"
             );
 
+
         error.code =
-            "MOTIONGEN_JOB_ID_MISSING";
+            "JOB_ID_MISSING";
+
 
         error.provider =
-            "motiongen";
+            PROVIDER_ID;
+
 
         throw error;
 
     }
 
 
-    const path =
-        `${JOB_PATH}/${encodeURIComponent(normalizedJobId)}`;
-
-
-    const data =
+    const response =
         await request(
-            path,
+            `${JOB_ENDPOINT}/${encodeURIComponent(normalizedJobId)}`,
             {
 
                 method:
-                    "GET",
+                    "GET"
 
-                apiKey
-
-            }
+            },
+            apiKey
         );
 
 
-    return normalizeJobResponse(
-        data
-    );
+    const data =
+        response?.data &&
+        typeof response.data ===
+            "object"
+
+            ? response.data
+
+            : response;
+
+
+    const id =
+
+        data?.id ||
+
+        data?.job_id ||
+
+        data?.jobId ||
+
+        normalizedJobId;
+
+
+    const status =
+        String(
+            data?.status ||
+            ""
+        )
+            .trim()
+            .toUpperCase();
+
+
+    const outputUrls =
+
+        Array.isArray(
+            data?.output_urls
+        )
+
+            ? data.output_urls
+
+            : Array.isArray(
+                data?.outputUrls
+            )
+
+                ? data.outputUrls
+
+                : [];
+
+
+    const errorMessage =
+
+        data?.error_message ||
+
+        data?.error?.message ||
+
+        data?.error ||
+
+        null;
+
+
+    return {
+
+        success:
+            response?.success !== false,
+
+        provider:
+            PROVIDER_ID,
+
+        providerName:
+            PROVIDER_NAME,
+
+        id,
+
+        jobId:
+            id,
+
+        job_id:
+            id,
+
+        taskId:
+            id,
+
+        task_id:
+            id,
+
+        status,
+
+        kind:
+            data?.kind ||
+            null,
+
+        model:
+            data?.model ||
+            null,
+
+        creditCost:
+            data?.credit_cost ??
+            null,
+
+        credit_cost:
+            data?.credit_cost ??
+            null,
+
+        outputUrls,
+
+        output_urls:
+            outputUrls,
+
+        errorMessage,
+
+        error_message:
+            errorMessage,
+
+        raw:
+            response
+
+    };
 
 }
 
 
-/**
- * =========================================================
- * EXPORT
- * =========================================================
- */
+/* =========================================================
+   EXPORTS
+========================================================= */
 
 export {
 
+    PROVIDER_ID,
+
+    PROVIDER_NAME,
+
+    DEFAULT_BASE_URL,
+
+    CREATE_ENDPOINT,
+
+    JOB_ENDPOINT,
+
+    request,
+
     createGeneration,
 
-    getJob,
-
-    request
+    getJob
 
 };
 
+
 export default {
+
+    providerId:
+        PROVIDER_ID,
+
+    providerName:
+        PROVIDER_NAME,
+
+    baseUrl:
+        DEFAULT_BASE_URL,
 
     createGeneration,
 
