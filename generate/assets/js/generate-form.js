@@ -66,6 +66,7 @@ import {
     getOrderedParameterNames,
     getDefaultValue,
     normalizeArray,
+    normalizeParameterValue,
     createFieldId
 } from "./generate-form-core.js";
 
@@ -2217,105 +2218,7 @@ function forceContainerVisible(
 }
 
 
-/* =========================================================
-   NORMALIZE VALUE
-========================================================= */
 
-function normalizeParameterValue(
-    name,
-    value,
-    definition
-) {
-
-    const type =
-        String(
-            definition?.type ||
-            ""
-        )
-            .trim()
-            .toLowerCase();
-
-
-    if (
-        name ===
-            "image_urls" ||
-        name ===
-            "image_url"
-    ) {
-
-        return normalizeArray(
-            value
-        );
-
-    }
-
-
-    if (
-        name ===
-        "audio_url"
-    ) {
-
-        return String(
-            value ||
-            ""
-        ).trim();
-
-    }
-
-
-    if (
-        type ===
-        "boolean"
-    ) {
-
-        return Boolean(
-            value
-        );
-
-    }
-
-
-    if (
-        type ===
-            "number" ||
-        type ===
-            "integer"
-    ) {
-
-        const number =
-            Number(
-                value
-            );
-
-
-        if (
-            !Number.isFinite(
-                number
-            )
-        ) {
-
-            return value;
-
-        }
-
-
-        return (
-            type ===
-            "integer"
-        )
-
-            ? Math.round(
-                number
-            )
-
-            : number;
-
-    }
-
-
-    return value;
-
-}
 
 
 
