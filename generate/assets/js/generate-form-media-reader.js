@@ -10,7 +10,7 @@
    - Resolve final audio parameter value
    - Menangani URL input
    - Menangani uploaded media
-   - Menunggu upload promise
+   - Menunggu upload promise (DENGAN TIMEOUT)
    - Fallback upload dari file input
 ========================================================= */
 
@@ -20,6 +20,86 @@ import {
     uploadImageFile,
     uploadAudioFile
 } from "./generate-form-upload.js";
+
+
+/* =========================================================
+   HELPER: AWAIT WITH TIMEOUT
+   ---------------------------------------------------------
+   Mencegah hang total ketika upload promise tidak pernah
+   settle (resolve/reject). Setelah timeout, eksekusi
+   dilanjutkan seolah-olah promise sudah selesai.
+========================================================= */
+
+async function awaitWithTimeout(
+    promise,
+    label,
+    ms = 30000
+) {
+
+    if (
+        !promise ||
+        typeof promise.then !==
+        "function"
+    ) {
+
+        return;
+
+    }
+
+
+    let timer =
+        null;
+
+
+    const timeout =
+        new Promise(
+            resolve => {
+
+                timer =
+                    setTimeout(
+                        () => {
+
+                            console.warn(
+                                `[GEN-Z.AI][MediaReader] TIMEOUT ${ms}ms pada ${label}. Melanjutkan tanpa menunggu promise.`
+                            );
+
+                            resolve();
+
+                        },
+                        ms
+                    );
+
+            }
+        );
+
+
+    try {
+
+        await Promise.race([
+
+            promise.catch(
+                () => {}
+            ),
+
+            timeout
+
+        ]);
+
+    } finally {
+
+        if (
+            timer
+        ) {
+
+            clearTimeout(
+                timer
+            );
+
+        }
+
+    }
+
+}
 
 
 /* =========================================================
@@ -34,6 +114,10 @@ export async function resolveImageParameterValue(
     if (
         !imageInput
     ) {
+
+        console.debug(
+            "[GEN-Z.AI][MediaReader] Image input kosong."
+        );
 
         return [];
 
@@ -50,6 +134,12 @@ export async function resolveImageParameterValue(
                 imageInput.dataset.imageMode ||
                 "url"
             );
+
+
+    console.debug(
+        "[GEN-Z.AI][MediaReader] Image mode:",
+        mode
+    );
 
 
     /* -----------------------------------------------------
@@ -115,7 +205,7 @@ export async function resolveImageParameterValue(
 
 
     /* -----------------------------------------------------
-       WAIT FOR ACTIVE UPLOAD
+       WAIT FOR ACTIVE UPLOAD (DENGAN TIMEOUT)
     ----------------------------------------------------- */
 
     if (
@@ -124,13 +214,21 @@ export async function resolveImageParameterValue(
         "function"
     ) {
 
-        try {
+        console.debug(
+            "[GEN-Z.AI][MediaReader] Menunggu _imageUploadPromise (max 30s)..."
+        );
 
-            await imageInput._imageUploadPromise;
 
-        } catch {
-            /* upload error handled by uploader */
-        }
+        await awaitWithTimeout(
+            imageInput._imageUploadPromise,
+            "image upload",
+            30000
+        );
+
+
+        console.debug(
+            "[GEN-Z.AI][MediaReader] _imageUploadPromise selesai atau timeout."
+        );
 
     }
 
@@ -217,9 +315,20 @@ export async function resolveImageParameterValue(
         0
     ) {
 
+        console.debug(
+            "[GEN-Z.AI][MediaReader] Tidak ada file image untuk di-upload."
+        );
+
         return [];
 
     }
+
+
+    console.debug(
+        "[GEN-Z.AI][MediaReader] Fallback upload image:",
+        files.length,
+        "file"
+    );
 
 
     const uploaded =
@@ -305,6 +414,10 @@ export async function resolveAudioParameterValue(
         !audioInput
     ) {
 
+        console.debug(
+            "[GEN-Z.AI][MediaReader] Audio input kosong."
+        );
+
         return "";
 
     }
@@ -320,6 +433,12 @@ export async function resolveAudioParameterValue(
                 audioInput.dataset.audioMode ||
                 "url"
             );
+
+
+    console.debug(
+        "[GEN-Z.AI][MediaReader] Audio mode:",
+        mode
+    );
 
 
     /* -----------------------------------------------------
@@ -351,7 +470,7 @@ export async function resolveAudioParameterValue(
 
 
     /* -----------------------------------------------------
-       WAIT FOR ACTIVE UPLOAD
+       WAIT FOR ACTIVE UPLOAD (DENGAN TIMEOUT)
     ----------------------------------------------------- */
 
     if (
@@ -360,13 +479,21 @@ export async function resolveAudioParameterValue(
         "function"
     ) {
 
-        try {
+        console.debug(
+            "[GEN-Z.AI][MediaReader] Menunggu _audioUploadPromise (max 30s)..."
+        );
 
-            await audioInput._audioUploadPromise;
 
-        } catch {
-            /* upload error handled by uploader */
-        }
+        await awaitWithTimeout(
+            audioInput._audioUploadPromise,
+            "audio upload",
+            30000
+        );
+
+
+        console.debug(
+            "[GEN-Z.AI][MediaReader] _audioUploadPromise selesai atau timeout."
+        );
 
     }
 
@@ -416,9 +543,19 @@ export async function resolveAudioParameterValue(
         !file
     ) {
 
+        console.debug(
+            "[GEN-Z.AI][MediaReader] Tidak ada file audio untuk di-upload."
+        );
+
         return "";
 
     }
+
+
+    console.debug(
+        "[GEN-Z.AI][MediaReader] Fallback upload audio:",
+        file.name
+    );
 
 
     try {
