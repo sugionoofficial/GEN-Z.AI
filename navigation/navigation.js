@@ -63,7 +63,7 @@
 
 
     const LOGIN_PATH =
-        "/login.html";
+        "/index.html";
 
 
     const SESSION_RETRY_COUNT =
@@ -306,7 +306,7 @@
         return (
             path === LOGIN_PATH ||
             path === "/login" ||
-            path.endsWith("/index.html")
+            path.endsWith("/login.html")
         );
 
     }
