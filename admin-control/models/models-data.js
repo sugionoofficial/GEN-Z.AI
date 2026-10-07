@@ -71,6 +71,12 @@ import seedanceConfig
 import seedanceParameters
     from "../../models/seedance-2-5/parameters.js";
 
+import motiongenConfig
+    from "../../models/digital-human-lipsync-image/config.js";
+
+import motiongenParameters
+    from "../../models/digital-human-lipsync-image/parameters.js";
+
 
 /* =========================================================
    CONSTANT
@@ -109,6 +115,17 @@ const MODEL_REGISTRY = [
 
         parameters:
             seedanceParameters
+    },
+
+   {
+        folder:
+            "models/digital-human-lipsync-image",
+
+        config:
+            motiongenConfig,
+
+        parameters:
+            motiongenParameters
     }
 
 ];
