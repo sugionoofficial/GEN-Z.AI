@@ -120,6 +120,9 @@ import grokImagineImageToVideo
 import seedance25
     from "../models/seedance-2-5/index.js";
 
+import digitalHumanLipSyncImage
+    from "../models/digital-human-lipsync-image/index.js";
+
 
 /* =========================================================
    ENVIRONMENT
@@ -155,8 +158,10 @@ const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
 const MODEL_REGISTRY = Object.freeze([
 
     grokImagineImageToVideo,
-    
-    seedance25
+
+    seedance25,
+
+    digitalHumanLipSyncImage
 
 ]);
 
