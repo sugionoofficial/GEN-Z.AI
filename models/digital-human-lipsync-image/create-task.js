@@ -1,39 +1,41 @@
-/**
- * =========================================================
- * GEN-Z.AI
- * DIGITAL HUMAN - LIPSYNC IMAGE
- * ---------------------------------------------------------
- * File:
- * models/digital-human-lipsync-image/create-task.js
- *
- * Fungsi:
- * - Validasi parameter model
- * - Build payload Motiongen
- * - Submit generation ke Motiongen-AI
- *
- * Provider:
- * Motiongen-AI
- *
- * IMPORTANT:
- * - Tidak menggunakan KIE
- * - Tidak ada KIE fallback
- * - audio_url WAJIB
- * - image_urls WAJIB tepat 1
- * - duration mengikuti parameters.js
- * - aspect_ratio mengikuti parameters.js
- * - resolution tidak dikirim ke provider
- * =========================================================
- */
+/* =========================================================
+   GEN-Z.AI
+   MOTIONGEN-AI
+   DIGITAL HUMAN - LIPSYNC IMAGE
+   ---------------------------------------------------------
+   File:
+     models/digital-human-lipsync-image/create-task.js
+
+   Fungsi:
+   - Validasi parameter
+   - Build payload Motiongen
+   - Submit generation job
+   - Mengembalikan job ID
+   - Tidak menggunakan KIE.AI
+
+   PROVIDER:
+     motiongen
+
+   MODEL:
+     digital-human-lipsync-image
+
+   CREDIT:
+     3.5 Credit / PER_VIDEO
+========================================================= */
 
 import {
     createGeneration
 } from "../../provider/motiongen-ai/client.js";
 
-import config from "./config.js";
+
+import config
+    from "./config.js";
+
 
 import {
     validate
 } from "./parameters.js";
+
 
 import {
     getSource,
@@ -42,122 +44,148 @@ import {
 } from "./parameter-adapter.js";
 
 
-/**
- * =========================================================
- * BUILD INPUT
- * =========================================================
- *
- * Mengambil parameter model dari request Generate.
- *
- * Tidak memasukkan:
- *
- * - resolution
- * - credit
- * - provider
- * - nsfw_checker
- * - KIE fields
- * =========================================================
- */
+/* =========================================================
+   BUILD INPUT
+========================================================= */
 
 function buildInput(
-    input = {}
+    body = {}
 ) {
 
     const source =
-        getSource(input);
-
-    const parameters =
-        sanitizeParameters(
-            source
+        getSource(
+            body
         );
 
 
-    return parameters;
+    return sanitizeParameters(
+        source
+    );
 
 }
 
 
-/**
- * =========================================================
- * BUILD PAYLOAD
- * =========================================================
- */
+/* =========================================================
+   BUILD MOTIONGEN PAYLOAD
+========================================================= */
 
 function buildMotiongenPayload(
-    input = {}
+    body = {}
 ) {
 
-    const payload =
-        buildPayload(
-            input,
-            config.id
+    const input =
+        buildInput(
+            body
         );
 
 
-    return payload;
+    return buildPayload(
+        input,
+        config.id
+    );
 
 }
 
 
-/**
- * =========================================================
- * EXTRACT API KEY
- * =========================================================
- *
- * api/generate.js sudah bertanggung jawab mengambil
- * credential dari provider_credentials.
- *
- * File ini hanya menerima apiKey dari caller.
- * =========================================================
- */
+/* =========================================================
+   VALIDATE REQUIRED INPUT
+========================================================= */
 
-function normalizeApiKey(
-    apiKey
+function validateRequiredInput(
+    input
 ) {
 
-    const normalized =
-        String(
-            apiKey || ""
-        ).trim();
+    const errors = [];
 
 
-    if (!normalized) {
+    /* =====================================================
+       PROMPT
+    ===================================================== */
 
-        const error =
-            new Error(
-                "API key Motiongen-AI tidak tersedia."
-            );
+    if (
+        typeof input.prompt !==
+            "string" ||
+        !input.prompt.trim()
+    ) {
 
-        error.code =
-            "MOTIONGEN_API_KEY_MISSING";
-
-        throw error;
+        errors.push(
+            "Prompt wajib diisi."
+        );
 
     }
 
 
-    return normalized;
+    /* =====================================================
+       IMAGE
+    ===================================================== */
+
+    if (
+        !Array.isArray(
+            input.image_urls
+        ) ||
+        input.image_urls.length !==
+            1
+    ) {
+
+        errors.push(
+            "Motiongen-AI membutuhkan tepat 1 image."
+        );
+
+    }
+
+
+    /* =====================================================
+       AUDIO
+    ===================================================== */
+
+    if (
+        typeof input.audio_url !==
+            "string" ||
+        !input.audio_url.trim()
+    ) {
+
+        errors.push(
+            "Audio wajib diisi."
+        );
+
+    }
+
+
+    return errors;
 
 }
 
 
-/**
- * =========================================================
- * VALIDATE INPUT
- * =========================================================
- */
+/* =========================================================
+   CREATE TASK
+========================================================= */
 
-function validateInput(
-    input
+async function createTask(
+    body = {},
+    apiKey
 ) {
 
-    const source =
-        getSource(input);
+    /*
+     * -----------------------------------------------------
+     * BUILD INPUT
+     * -----------------------------------------------------
+     */
 
+    const input =
+        buildInput(
+            body
+        );
+
+
+    /*
+     * -----------------------------------------------------
+     * MODEL VALIDATION
+     * -----------------------------------------------------
+     */
 
     const validation =
         validate(
-            source
+            input
         );
 
 
@@ -167,16 +195,18 @@ function validateInput(
 
         const error =
             new Error(
-                validation.errors.join(" ")
+                validation.errors.join(
+                    " "
+                )
             );
 
 
         error.code =
-            "INVALID_MOTIONGEN_MODEL_INPUT";
+            "INVALID_MODEL_INPUT";
 
 
         error.provider =
-            "motiongen";
+            config.providerId;
 
 
         error.model =
@@ -192,53 +222,58 @@ function validateInput(
     }
 
 
-    return source;
-
-}
-
-
-/**
- * =========================================================
- * CREATE TASK
- * =========================================================
- *
- * API:
- *
- * POST https://app.motiongenai.pro/api/v1/generate
- *
- * =========================================================
- */
-
-async function createTask(
-    input = {},
-    apiKey
-) {
-
-    /**
+    /*
      * -----------------------------------------------------
-     * API KEY
+     * HARD REQUIRED VALIDATION
      * -----------------------------------------------------
+     *
+     * Jangan pernah membiarkan request tanpa:
+     *
+     * - prompt
+     * - 1 image
+     * - audio
      */
 
-    const normalizedApiKey =
-        normalizeApiKey(
-            apiKey
-        );
-
-
-    /**
-     * -----------------------------------------------------
-     * VALIDATE MODEL INPUT
-     * -----------------------------------------------------
-     */
-
-    const source =
-        validateInput(
+    const requiredErrors =
+        validateRequiredInput(
             input
         );
 
 
-    /**
+    if (
+        requiredErrors.length
+    ) {
+
+        const error =
+            new Error(
+                requiredErrors.join(
+                    " "
+                )
+            );
+
+
+        error.code =
+            "INVALID_MODEL_INPUT";
+
+
+        error.provider =
+            config.providerId;
+
+
+        error.model =
+            config.id;
+
+
+        error.validationErrors =
+            requiredErrors;
+
+
+        throw error;
+
+    }
+
+
+    /*
      * -----------------------------------------------------
      * BUILD PAYLOAD
      * -----------------------------------------------------
@@ -246,40 +281,70 @@ async function createTask(
 
     const payload =
         buildMotiongenPayload(
-            source
+            input
         );
 
 
-    /**
+    /*
      * -----------------------------------------------------
-     * FINAL SAFETY CHECK
-     * -----------------------------------------------------
-     *
-     * Jangan biarkan audio hilang sebelum request.
-     *
-     * Ini sengaja dilakukan lagi di boundary provider.
-     * Karena satu validasi saja terlalu optimistis untuk
-     * software produksi.
+     * FINAL PAYLOAD SAFETY CHECK
      * -----------------------------------------------------
      */
+
+    if (
+        !payload ||
+        payload.model !==
+            config.id
+    ) {
+
+        const error =
+            new Error(
+                "Motiongen-AI model payload is invalid."
+            );
+
+
+        error.code =
+            "INVALID_PAYLOAD";
+
+
+        error.provider =
+            config.providerId;
+
+
+        error.model =
+            config.id;
+
+
+        throw error;
+
+    }
+
 
     if (
         !Array.isArray(
             payload.image_urls
         ) ||
-        payload.image_urls.length !== 1
+        payload.image_urls.length !==
+            1
     ) {
 
         const error =
             new Error(
-                "Motiongen membutuhkan tepat 1 image."
+                "Motiongen-AI requires exactly one image."
             );
 
+
         error.code =
-            "MOTIONGEN_IMAGE_REQUIRED";
+            "INVALID_MODEL_INPUT";
+
 
         error.provider =
-            "motiongen";
+            config.providerId;
+
+
+        error.model =
+            config.id;
+
 
         throw error;
 
@@ -287,63 +352,108 @@ async function createTask(
 
 
     if (
-        typeof payload.audio_url !== "string" ||
+        typeof payload.audio_url !==
+            "string" ||
         !payload.audio_url.trim()
     ) {
 
         const error =
             new Error(
-                "Motiongen membutuhkan audio."
+                "Motiongen-AI requires an audio URL."
             );
 
+
         error.code =
-            "MOTIONGEN_AUDIO_REQUIRED";
+            "INVALID_MODEL_INPUT";
+
 
         error.provider =
-            "motiongen";
+            config.providerId;
+
+
+        error.model =
+            config.id;
+
 
         throw error;
 
     }
 
 
-    if (
-        typeof payload.prompt !== "string" ||
-        !payload.prompt.trim()
-    ) {
-
-        const error =
-            new Error(
-                "Prompt Motiongen wajib diisi."
-            );
-
-        error.code =
-            "MOTIONGEN_PROMPT_REQUIRED";
-
-        error.provider =
-            "motiongen";
-
-        throw error;
-
-    }
-
-
-    /**
+    /*
      * -----------------------------------------------------
-     * SEND TO MOTIONGEN
+     * SUBMIT TO MOTIONGEN
      * -----------------------------------------------------
+     *
+     * apiKey diberikan dari server.
+     *
+     * Tidak ada:
+     *
+     * - KIE client
+     * - KIE API key
+     * - fallback provider
      */
 
     const response =
         await createGeneration(
             payload,
-            normalizedApiKey
+            apiKey
         );
 
 
-    /**
+    /*
      * -----------------------------------------------------
-     * NORMALIZED RESULT
+     * EXTRACT JOB ID
+     * -----------------------------------------------------
+     */
+
+    const jobId =
+
+        response?.jobId ||
+
+        response?.job_id ||
+
+        response?.taskId ||
+
+        response?.task_id ||
+
+        null;
+
+
+    if (
+        !jobId
+    ) {
+
+        const error =
+            new Error(
+                "Motiongen-AI tidak mengembalikan job_id."
+            );
+
+
+        error.code =
+            "MISSING_JOB_ID";
+
+
+        error.provider =
+            config.providerId;
+
+
+        error.model =
+            config.id;
+
+
+        error.providerResponse =
+            response;
+
+
+        throw error;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * RESULT
      * -----------------------------------------------------
      */
 
@@ -351,33 +461,41 @@ async function createTask(
 
         ...response,
 
-        provider:
-            "motiongen",
+        success:
+            response?.success !== false,
 
-        providerId:
-            "motiongen",
+        provider:
+            config.providerId,
 
         providerName:
-            "Motiongen-AI",
+            config.providerName,
 
         model:
             config.id,
 
-        modelId:
-            config.id,
+        taskId:
+            jobId,
 
-        payload
+        task_id:
+            jobId,
+
+        jobId,
+
+        job_id:
+            jobId,
+
+        status:
+            response?.status ||
+            "QUEUED"
 
     };
 
 }
 
 
-/**
- * =========================================================
- * EXPORT
- * =========================================================
- */
+/* =========================================================
+   EXPORTS
+========================================================= */
 
 export {
 
@@ -385,21 +503,9 @@ export {
 
     buildMotiongenPayload,
 
-    validateInput,
-
     createTask
 
 };
 
 
-export default {
-
-    buildInput,
-
-    buildMotiongenPayload,
-
-    validateInput,
-
-    createTask
-
-};
+export default createTask;
