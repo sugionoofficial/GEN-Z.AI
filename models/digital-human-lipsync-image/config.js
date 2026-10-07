@@ -1,22 +1,33 @@
-/**
- * =========================================================
- * GEN-Z.AI
- * DIGITAL HUMAN - LIPSYNC IMAGE
- * ---------------------------------------------------------
- * File:
- * models/digital-human-lipsync-image/config.js
- *
- * Provider:
- * Motiongen-AI
- *
- * Model:
- * digital-human-lipsync-image
- * =========================================================
- */
+/* =========================================================
+   GEN-Z.AI
+   MOTIONGEN-AI
+   DIGITAL HUMAN - LIPSYNC IMAGE
+   ---------------------------------------------------------
+   File:
+     models/digital-human-lipsync-image/config.js
+
+   Fungsi:
+   - Model identity
+   - Provider identity
+   - Model type
+   - API endpoint definition
+
+   Provider:
+     motiongen
+
+   Model:
+     digital-human-lipsync-image
+
+   IMPORTANT:
+   - Tidak menggunakan KIE.AI
+   - Tidak ada fallback provider
+   - Resolution dan credit dikelola registry/admin model
+   - Duration dan aspect ratio mengikuti parameters.js
+========================================================= */
 
 const config = {
 
-    /**
+    /*
      * =====================================================
      * MODEL ID
      * =====================================================
@@ -26,9 +37,9 @@ const config = {
         "digital-human-lipsync-image",
 
 
-    /**
+    /*
      * =====================================================
-     * DISPLAY NAME
+     * MODEL NAME
      * =====================================================
      */
 
@@ -36,31 +47,21 @@ const config = {
         "Digital Human - LipSync Image",
 
 
-    /**
+    /*
      * =====================================================
      * PROVIDER
      * =====================================================
-     *
-     * HARUS menggunakan provider code:
-     *
-     * motiongen
-     *
-     * Bukan:
-     *
-     * motiongen_ai
-     * kie
-     * kie_ai
-     *
      */
 
     providerId:
         "motiongen",
 
+
     providerName:
         "Motiongen-AI",
 
 
-    /**
+    /*
      * =====================================================
      * MODEL TYPE
      * =====================================================
@@ -70,7 +71,7 @@ const config = {
         "image-to-video",
 
 
-    /**
+    /*
      * =====================================================
      * API
      * =====================================================
