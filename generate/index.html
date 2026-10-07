@@ -45,7 +45,9 @@
          - script-src TIDAK pakai 'unsafe-inline' (kuat)
          - style-src pakai 'unsafe-inline' karena JS biasanya
            meng-inject <style> dinamis — risiko jauh lebih kecil
-         - connect-src dibatasi ke Supabase saja
+         - connect-src dibatasi ke:
+             * Supabase (auth + database + storage hasil generate)
+             * motiongenai.pro (endpoint upload + generate)
          - object-src 'none' mematikan Flash/embed berbahaya
 
          CATATAN:
@@ -66,7 +68,7 @@
             img-src 'self' data: blob: https:;
             media-src 'self' blob: https:;
             font-src 'self' data:;
-            connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+            connect-src 'self' https://*.supabase.co wss://*.supabase.co https://app.motiongenai.pro https://*.motiongenai.pro;
             object-src 'none';
             base-uri 'self';
             form-action 'self';
@@ -93,6 +95,22 @@
     <link
         rel="dns-prefetch"
         href="https://cdn.jsdelivr.net"
+    >
+
+
+    <!-- =====================================================
+         PERFORMA: PRECONNECT BACKEND GENERATE
+    ====================================================== -->
+
+    <link
+        rel="preconnect"
+        href="https://app.motiongenai.pro"
+        crossorigin
+    >
+
+    <link
+        rel="dns-prefetch"
+        href="https://app.motiongenai.pro"
     >
 
 
