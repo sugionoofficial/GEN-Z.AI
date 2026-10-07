@@ -3544,6 +3544,12 @@ function getResolutionCredit(
             .toLowerCase();
 
 
+    /*
+     * =====================================================
+     * STANDARD RESOLUTIONS
+     * =====================================================
+     */
+
     if (
         normalizedResolution === "480p"
     ) {
@@ -3577,6 +3583,50 @@ function getResolutionCredit(
         return normalizeNumber(
             model.credit_1080p ??
             model.credit1080p,
+            0
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * MOTIONGEN
+     * =====================================================
+     *
+     * Motiongen:
+     *
+     * 576P
+     *   → menggunakan storage credit_480p
+     *
+     * 720P HD
+     *   → menggunakan storage credit_720p
+     *
+     * Ini hanya mapping storage.
+     * Label resolution tetap mengikuti model Motiongen.
+     */
+
+    if (
+        normalizedResolution === "576p"
+    ) {
+
+        return normalizeNumber(
+            model.credit_480p ??
+            model.credit480p,
+            0
+        );
+
+    }
+
+
+    if (
+        normalizedResolution === "720p hd" ||
+        normalizedResolution === "720phd"
+    ) {
+
+        return normalizeNumber(
+            model.credit_720p ??
+            model.credit720p,
             0
         );
 
