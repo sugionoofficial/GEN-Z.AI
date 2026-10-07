@@ -1,33 +1,25 @@
 /* =========================================================
    GEN-Z.AI
-   GENERATE FORM RENDERER
+   GENERATE FORM RENDER
    ---------------------------------------------------------
    File:
    generate/assets/js/generate-form-render.js
 
    Tanggung jawab:
    - Membuat wrapper field
-   - Menentukan layout field
-   - Render parameter model
+   - Membuat label
+   - Menambahkan description
+   - Render parameter
    - Render seluruh dynamic form
-   - Menjaga visibility/layout container
-   - Mencari field
-   - Membaca nilai field
-   - Normalisasi nilai primitive
-
-   Catatan:
+   - Mengatur layout 2 kolom
+   - Mengatur full-width parameter
    - Tidak menangani upload
    - Tidak menangani submit
    - Tidak menangani credit
-   - Tidak menangani reset
 ========================================================= */
 
 "use strict";
 
-
-/* =========================================================
-   CORE
-========================================================= */
 
 import {
     getContainer,
@@ -37,13 +29,9 @@ import {
     getParameterLabel,
     getParameterDescription,
     isRenderableParameter,
-    createFieldId
+    FULL_WIDTH_PARAMETERS
 } from "./generate-form-core.js";
 
-
-/* =========================================================
-   FIELD FACTORY
-========================================================= */
 
 import {
     createFieldInput
@@ -51,12 +39,12 @@ import {
 
 
 /* =========================================================
-   CREATE FIELD
+   FIELD
 ========================================================= */
 
 export function createField(
     name,
-    definition = {}
+    definition
 ) {
 
     const wrapper =
@@ -73,50 +61,66 @@ export function createField(
         name;
 
 
-    wrapper.style.width =
-        "100%";
+    wrapper.style.setProperty(
+        "width",
+        "auto",
+        "important"
+    );
 
 
-    wrapper.style.minWidth =
-        "0";
+    wrapper.style.setProperty(
+        "min-width",
+        "0",
+        "important"
+    );
 
 
-    wrapper.style.maxWidth =
-        "100%";
+    wrapper.style.setProperty(
+        "max-width",
+        "100%",
+        "important"
+    );
 
 
-    wrapper.style.boxSizing =
-        "border-box";
+    wrapper.style.setProperty(
+        "box-sizing",
+        "border-box",
+        "important"
+    );
 
 
-    const normalizedName =
-        String(
-            name ||
-            ""
+    wrapper.style.visibility =
+        "visible";
+
+
+    wrapper.style.opacity =
+        "1";
+
+
+    if (
+        FULL_WIDTH_PARAMETERS.has(
+            String(
+                name ||
+                ""
+            ).toLowerCase()
         )
-            .trim()
-            .toLowerCase();
+    ) {
 
+        wrapper.style.setProperty(
+            "grid-column",
+            "1 / -1",
+            "important"
+        );
 
-    const fullWidth =
-        normalizedName ===
-            "image_urls" ||
-        normalizedName ===
-            "image_url" ||
-        normalizedName ===
-            "audio_url" ||
-        normalizedName ===
-            "prompt" ||
-        normalizedName ===
-            "negative_prompt" ||
-        normalizedName ===
-            "description";
+    } else {
 
+        wrapper.style.setProperty(
+            "grid-column",
+            "span 1",
+            "important"
+        );
 
-    wrapper.style.gridColumn =
-        fullWidth
-            ? "1 / -1"
-            : "span 1";
+    }
 
 
     const label =
@@ -127,12 +131,6 @@ export function createField(
 
     label.className =
         "generate-field-label";
-
-
-    label.htmlFor =
-        createFieldId(
-            name
-        );
 
 
     label.textContent =
@@ -158,17 +156,8 @@ export function createField(
 
 export function appendDescription(
     wrapper,
-    definition = {}
+    definition
 ) {
-
-    if (
-        !wrapper
-    ) {
-
-        return;
-
-    }
-
 
     const description =
         getParameterDescription(
@@ -253,12 +242,7 @@ export function renderParameter(
 
 
     if (
-        String(
-            name ||
-            ""
-        )
-            .trim()
-            .toLowerCase() !==
+        name !==
         "duration"
     ) {
 
@@ -271,191 +255,6 @@ export function renderParameter(
 
 
     return wrapper;
-
-}
-
-
-/* =========================================================
-   RENDER FORM
-========================================================= */
-
-export function renderGenerateForm(
-    modelArgument = null
-) {
-
-    const container =
-        getContainer();
-
-
-    if (
-        !container
-    ) {
-
-        console.error(
-            "[GEN-Z.AI][Generate Form] #dynamicFields tidak ditemukan."
-        );
-
-
-        return false;
-
-    }
-
-
-    const model =
-        resolveModel(
-            modelArgument
-        );
-
-
-    if (
-        !model
-    ) {
-
-        console.error(
-            "[GEN-Z.AI][Generate Form] Model tidak tersedia."
-        );
-
-
-        return false;
-
-    }
-
-
-    container.innerHTML =
-        "";
-
-
-    const definitions =
-        getParameterDefinitions(
-            model
-        );
-
-
-    const names =
-        getOrderedParameterNames(
-            definitions
-        );
-
-
-    console.log(
-        "[GEN-Z.AI][Generate Form] MODEL:",
-        model.model_id ||
-        model.id ||
-        "-"
-    );
-
-
-    console.log(
-        "[GEN-Z.AI][Generate Form] PARAMETER NAMES:",
-        names
-    );
-
-
-    if (
-        names.length ===
-        0
-    ) {
-
-        const empty =
-            document.createElement(
-                "div"
-            );
-
-
-        empty.className =
-            "generate-empty-parameters";
-
-
-        empty.textContent =
-            "Parameter model belum tersedia.";
-
-
-        container.appendChild(
-            empty
-        );
-
-
-        forceContainerVisible(
-            container
-        );
-
-
-        return false;
-
-    }
-
-
-    let renderedCount =
-        0;
-
-
-    names.forEach(
-        name => {
-
-            try {
-
-                const field =
-                    renderParameter(
-                        name,
-                        definitions[name]
-                    );
-
-
-                if (
-                    field
-                ) {
-
-                    container.appendChild(
-                        field
-                    );
-
-
-                    renderedCount +=
-                        1;
-
-                }
-
-            } catch (
-                error
-            ) {
-
-                console.error(
-                    "[GEN-Z.AI][Generate Form] Parameter gagal dirender:",
-                    name,
-                    error
-                );
-
-            }
-
-        }
-    );
-
-
-    forceContainerVisible(
-        container
-    );
-
-
-    console.log(
-        "[GEN-Z.AI][Generate Form] RENDER SELESAI:",
-        {
-            model:
-                model.model_id ||
-                model.id ||
-                "-",
-
-            fields:
-                renderedCount,
-
-            parameters:
-                names
-
-        }
-    );
-
-
-    return renderedCount >
-        0;
 
 }
 
@@ -708,9 +507,7 @@ export function forceContainerVisible(
                     "important"
                 );
 
-            }
-
-            else if (
+            } else if (
                 fullWidth
             ) {
 
@@ -720,9 +517,7 @@ export function forceContainerVisible(
                     "important"
                 );
 
-            }
-
-            else {
+            } else {
 
                 field.style.setProperty(
                     "grid-column",
@@ -739,11 +534,11 @@ export function forceContainerVisible(
 
 
 /* =========================================================
-   FIND FIELD
+   RENDER FORM
 ========================================================= */
 
-export function findField(
-    name
+export function renderGenerateForm(
+    modelArgument = null
 ) {
 
     const container =
@@ -754,343 +549,169 @@ export function findField(
         !container
     ) {
 
-        return null;
+        console.error(
+            "[GEN-Z.AI][Generate Form] #dynamicFields tidak ditemukan."
+        );
+
+
+        return false;
 
     }
 
 
-    const escaped =
-        typeof CSS !==
-            "undefined" &&
-        typeof CSS.escape ===
-            "function"
-
-            ? CSS.escape(
-                name
-            )
-
-            : String(
-                name
-            )
-                .replace(
-                    /"/g,
-                    '\\"'
-                );
+    const model =
+        resolveModel(
+            modelArgument
+        );
 
 
-    return (
-        container.querySelector(
-            `[data-parameter="${escaped}"]`
-        ) ||
-        null
+    if (
+        !model
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][Generate Form] Model tidak tersedia."
+        );
+
+
+        return false;
+
+    }
+
+
+    container.innerHTML =
+        "";
+
+
+    const definitions =
+        getParameterDefinitions(
+            model
+        );
+
+
+    const names =
+        getOrderedParameterNames(
+            definitions
+        );
+
+
+    console.log(
+        "[GEN-Z.AI][Generate Form] MODEL:",
+        model.model_id ||
+        model.id ||
+        "-"
     );
 
-}
 
-
-/* =========================================================
-   READ FIELD
-========================================================= */
-
-export function readFieldValue(
-    field
-) {
-
-    if (
-        !field
-    ) {
-
-        return undefined;
-
-    }
-
-
-    const imageInput =
-        field.querySelector(
-            ".generate-image-input"
-        );
+    console.log(
+        "[GEN-Z.AI][Generate Form] PARAMETER NAMES:",
+        names
+    );
 
 
     if (
-        imageInput
+        names.length ===
+        0
     ) {
 
-        const mode =
-            typeof imageInput.getInputMode ===
-            "function"
-
-                ? imageInput.getInputMode()
-
-                : (
-                    imageInput.dataset.imageMode ||
-                    "url"
-                );
-
-
-        if (
-            mode ===
-            "upload"
-        ) {
-
-            return (
-                typeof imageInput.getUploadedUrl ===
-                "function"
-
-                    ? imageInput.getUploadedUrl()
-
-                    : String(
-                        imageInput.dataset.uploadedUrl ||
-                        ""
-                    ).trim()
-            );
-
-        }
-
-
-        const urlInput =
-            typeof imageInput.getUrlInput ===
-            "function"
-
-                ? imageInput.getUrlInput()
-
-                : field.querySelector(
-                    'input[type="url"]'
-                );
-
-
-        return String(
-            urlInput?.value ||
-            ""
-        ).trim();
-
-    }
-
-
-    const audioInput =
-        field.querySelector(
-            ".generate-audio-input"
-        );
-
-
-    if (
-        audioInput
-    ) {
-
-        const mode =
-            typeof audioInput.getInputMode ===
-            "function"
-
-                ? audioInput.getInputMode()
-
-                : (
-                    audioInput.dataset.audioMode ||
-                    "url"
-                );
-
-
-        if (
-            mode ===
-            "upload"
-        ) {
-
-            return (
-                typeof audioInput.getUploadedUrl ===
-                "function"
-
-                    ? audioInput.getUploadedUrl()
-
-                    : String(
-                        audioInput.dataset.uploadedUrl ||
-                        ""
-                    ).trim()
-            );
-
-        }
-
-
-        const urlInput =
-            typeof audioInput.getUrlInput ===
-            "function"
-
-                ? audioInput.getUrlInput()
-
-                : field.querySelector(
-                    'input[type="url"]'
-                );
-
-
-        return String(
-            urlInput?.value ||
-            ""
-        ).trim();
-
-    }
-
-
-    const radio =
-        field.querySelector(
-            'input[type="radio"]:checked'
-        );
-
-
-    if (
-        radio
-    ) {
-
-        return radio.value;
-
-    }
-
-
-    const checkbox =
-        field.querySelector(
-            'input[type="checkbox"]'
-        );
-
-
-    if (
-        checkbox
-    ) {
-
-        return checkbox.checked;
-
-    }
-
-
-    const input =
-        field.querySelector(
-            "input, textarea, select"
-        );
-
-
-    if (
-        !input
-    ) {
-
-        return undefined;
-
-    }
-
-
-    return input.value;
-
-}
-
-
-/* =========================================================
-   NORMALIZE VALUE
-========================================================= */
-
-export function normalizeParameterValue(
-    name,
-    value,
-    definition
-) {
-
-    const type =
-        String(
-            definition?.type ||
-            ""
-        )
-            .trim()
-            .toLowerCase();
-
-
-    if (
-        name ===
-            "image_urls" ||
-        name ===
-            "image_url"
-    ) {
-
-        if (
-            Array.isArray(
-                value
-            )
-        ) {
-
-            return value;
-
-        }
-
-
-        return String(
-            value ||
-            ""
-        )
-            .split(",")
-            .map(
-                item =>
-                    item.trim()
-            )
-            .filter(Boolean);
-
-    }
-
-
-    if (
-        name ===
-        "audio_url"
-    ) {
-
-        return String(
-            value ||
-            ""
-        ).trim();
-
-    }
-
-
-    if (
-        type ===
-        "boolean"
-    ) {
-
-        return Boolean(
-            value
-        );
-
-    }
-
-
-    if (
-        type ===
-            "number" ||
-        type ===
-            "integer"
-    ) {
-
-        const number =
-            Number(
-                value
+        const empty =
+            document.createElement(
+                "div"
             );
 
 
-        if (
-            !Number.isFinite(
-                number
-            )
-        ) {
-
-            return value;
-
-        }
+        empty.className =
+            "generate-empty-parameters";
 
 
-        return (
-            type ===
-            "integer"
-        )
+        empty.textContent =
+            "Parameter model belum tersedia.";
 
-            ? Math.round(
-                number
-            )
 
-            : number;
+        container.appendChild(
+            empty
+        );
+
+
+        forceContainerVisible(
+            container
+        );
+
+
+        return false;
 
     }
 
 
-    return value;
+    let renderedCount =
+        0;
+
+
+    names.forEach(
+        name => {
+
+            try {
+
+                const field =
+                    renderParameter(
+                        name,
+                        definitions[name]
+                    );
+
+
+                if (
+                    field
+                ) {
+
+                    container.appendChild(
+                        field
+                    );
+
+
+                    renderedCount +=
+                        1;
+
+                }
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Parameter gagal dirender:",
+                    name,
+                    error
+                );
+
+            }
+
+        }
+    );
+
+
+    forceContainerVisible(
+        container
+    );
+
+
+    console.log(
+        "[GEN-Z.AI][Generate Form] RENDER SELESAI:",
+        {
+            model:
+                model.model_id ||
+                model.id ||
+                "-",
+
+            fields:
+                renderedCount,
+
+            parameters:
+                names
+        }
+    );
+
+
+    return renderedCount >
+        0;
 
 }
