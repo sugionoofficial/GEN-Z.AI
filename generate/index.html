@@ -159,6 +159,19 @@
 
 
     <!-- =====================================================
+         PREMIUM GENERATION LOADING — CSS
+         Overlay fullscreen dengan kartu progress premium.
+         Dimuat SETELAH genz-premium supaya bisa override
+         style yang dibutuhkan.
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="./assets/css/generation-loading.css"
+    >
+
+
+    <!-- =====================================================
          SHARED NAVIGATION
     ====================================================== -->
 
@@ -584,6 +597,25 @@
 
 
     <!-- =========================================================
+         PREMIUM GENERATION LOADING — JS
+         ---------------------------------------------------------
+         Dimuat sebagai script NON-MODULE supaya:
+         1. Tersedia di window.GENZLoading sebelum
+            generate-app.js (module) berjalan.
+         2. Bisa dipanggil dari mana saja tanpa import.
+
+         Pemakaian dari generate-app.js:
+             window.GENZLoading.show({ ... });
+             window.GENZLoading.update({ percent, step });
+             window.GENZLoading.success("Selesai!");
+             window.GENZLoading.error("Gagal.");
+             window.GENZLoading.hide();
+    ========================================================== -->
+
+    <script src="./assets/js/generation-loading.js"></script>
+
+
+    <!-- =========================================================
          GENERATE APPLICATION
     ========================================================== -->
 
@@ -592,13 +624,5 @@
         src="./assets/js/generate-app.js"
     ></script>
 
-
-        <script
-        type="module"
-        src="./assets/js/generate-app.js"
-    ></script>
-
-    
-</body>
 </body>
 </html>
