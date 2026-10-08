@@ -604,6 +604,11 @@
             generate-app.js (module) berjalan.
          2. Bisa dipanggil dari mana saja tanpa import.
 
+         URUTAN WAJIB:
+         1. generation-loading.js    → define window.GENZLoading
+         2. generation-loading-bridge.js → hook ke form submit
+         3. generate-app.js          → module utama
+
          Pemakaian dari generate-app.js:
              window.GENZLoading.show({ ... });
              window.GENZLoading.update({ percent, step });
@@ -613,6 +618,8 @@
     ========================================================== -->
 
     <script src="./assets/js/generation-loading.js"></script>
+
+    <script src="./assets/js/generation-loading-bridge.js"></script>
 
 
     <!-- =========================================================
@@ -624,30 +631,21 @@
         src="./assets/js/generate-app.js"
     ></script>
 
-    <script>
-setInterval(function () {
-    const el = document.getElementById("generateCreditValue");
-    const dbg = document.getElementById("creditDebug");
-    if (!el) return;
-    if (!dbg) {
-        const d = document.createElement("div");
-        d.id = "creditDebug";
-        d.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:#000;color:#0f0;font-family:monospace;font-size:11px;padding:8px;z-index:99999;max-height:30vh;overflow:auto;white-space:pre-wrap;";
-        document.body.appendChild(d);
-    }
-    const model = window.GENZGenerateApp?.getCurrentModel?.();
-    const raw = model ? {
-        id: model.model_id || model.id,
-        credit_576p: model.credit_576p,
-        credit_720p: model.credit_720p,
-        credit_480p: model.credit_480p,
-        discount_percent: model.discount_percent
-    } : "MODEL NULL";
-    document.getElementById("creditDebug").textContent =
-        "CREDIT TEXT: " + el.textContent +
-        "\nMODEL: " + JSON.stringify(raw, null, 2);
-}, 1500);
-</script>
+
+    <!-- =========================================================
+         CATATAN PENTING TENTANG INLINE SCRIPT
+         ---------------------------------------------------------
+         CSP di halaman ini: script-src 'self' (tanpa
+         'unsafe-inline'), jadi semua <script> inline TANPA
+         atribut src AKAN DIBLOKIR oleh browser.
+
+         Jika butuh script tambahan (debug, helper, dll),
+         WAJIB ditaruh di file terpisah, contoh:
+
+             <script src="./assets/js/debug-helper.js"></script>
+
+         dan HAPUS inline <script>...</script> dari HTML.
+    ========================================================== -->
 
 </body>
 </html>
