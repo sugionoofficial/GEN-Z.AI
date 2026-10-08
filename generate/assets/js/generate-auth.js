@@ -94,7 +94,7 @@ import {
  */
 
 const SUPABASE_CDN =
-    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js";
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js";
 
 
 const SUPABASE_SCRIPT_TIMEOUT_MS =
