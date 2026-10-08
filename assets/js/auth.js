@@ -1,4 +1,4 @@
-//auth.js?v=2.7
+//auth.js?v=2.8
 // ========================================
 // GEN-Z.AI - SUPABASE AUTHENTICATION
 // ========================================
@@ -6,6 +6,16 @@
 (function () {
 
     "use strict";
+
+
+    /* =========================================================
+       PATCH v2.8 (FIX DEADLOCK):
+       - autoRefreshToken: false  (sebelumnya true)
+       - lock: no-op              (bypass Web Locks API)
+       - detectSessionInUrl: false
+       - Expose client ke window.GENZ_SUPABASE
+       - Refresh token manual via fetch
+       ========================================================= */
 
 
     // =========================================================
@@ -63,6 +73,11 @@
 
     // =========================================================
     // SUPABASE CLIENT
+    // ---------------------------------------------------------
+    // FIX DEADLOCK:
+    // - autoRefreshToken: false
+    // - lock: no-op (langsung jalankan callback)
+    // - detectSessionInUrl: false
     // =========================================================
 
     const supabaseClient =
@@ -72,11 +87,30 @@
             {
                 auth: {
                     persistSession: true,
-                    autoRefreshToken: true,
-                    detectSessionInUrl: true
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false,
+                    lock: async (_name, _acquireTimeout, fn) => {
+
+                        return await fn();
+
+                    }
                 }
             }
         );
+
+
+    /* =========================================================
+       EXPOSE CLIENT GLOBAL
+       ---------------------------------------------------------
+       Supaya halaman lain (navigation.js, generate-auth.js)
+       pakai client yang sama, tidak bikin client baru.
+       ========================================================= */
+
+    window.GENZ_SUPABASE =
+        supabaseClient;
+
+    window.supabaseClient =
+        supabaseClient;
 
 
     // =========================================================
@@ -272,14 +306,6 @@
 
     // =========================================================
     // SET LOADING
-    // ---------------------------------------------------------
-    // PENTING:
-    // Jangan menggunakan:
-    //
-    // loginButton.textContent
-    //
-    // karena itu akan menghapus seluruh child element
-    // tombol, termasuk hologram.
     // =========================================================
 
     function setLoading(loading) {
@@ -293,10 +319,6 @@
             loading;
 
 
-        // -----------------------------------------------------
-        // BUTTON TEXT
-        // -----------------------------------------------------
-
         if (loginButtonText) {
 
             loginButtonText.textContent =
@@ -306,10 +328,6 @@
         }
 
 
-        // -----------------------------------------------------
-        // SPINNER
-        // -----------------------------------------------------
-
         if (loginSpinner) {
 
             loginSpinner.classList.toggle(
@@ -318,10 +336,6 @@
             );
         }
 
-
-        // -----------------------------------------------------
-        // BUTTON STATE
-        // -----------------------------------------------------
 
         loginButton.classList.toggle(
             "loading",
@@ -347,10 +361,6 @@
             ).toLowerCase();
 
 
-        // -----------------------------------------------------
-        // INVALID LOGIN
-        // -----------------------------------------------------
-
         if (
             message.includes(
                 "invalid login credentials"
@@ -362,10 +372,6 @@
             );
         }
 
-
-        // -----------------------------------------------------
-        // EMAIL NOT CONFIRMED
-        // -----------------------------------------------------
 
         if (
             message.includes(
@@ -379,10 +385,6 @@
         }
 
 
-        // -----------------------------------------------------
-        // TOO MANY REQUESTS
-        // -----------------------------------------------------
-
         if (
             message.includes(
                 "too many requests"
@@ -395,10 +397,6 @@
         }
 
 
-        // -----------------------------------------------------
-        // NETWORK ERROR
-        // -----------------------------------------------------
-
         if (
             message.includes("network") ||
             message.includes("fetch")
@@ -409,10 +407,6 @@
             );
         }
 
-
-        // -----------------------------------------------------
-        // DEFAULT
-        // -----------------------------------------------------
 
         return (
             error.message ||
@@ -446,10 +440,6 @@
         document.getElementById("password");
 
 
-    // =========================================================
-    // HIDE HOLOGRAM SAAT USER MENGETIK EMAIL
-    // =========================================================
-
     if (emailInput) {
 
         emailInput.addEventListener(
@@ -462,10 +452,6 @@
         );
     }
 
-
-    // =========================================================
-    // HIDE HOLOGRAM SAAT USER MENGETIK PASSWORD
-    // =========================================================
 
     if (passwordInput) {
 
@@ -491,20 +477,12 @@
             event.preventDefault();
 
 
-            // =================================================
-            // AMBIL ELEMENT
-            // =================================================
-
             const emailElement =
                 document.getElementById("email");
 
             const passwordElement =
                 document.getElementById("password");
 
-
-            // =================================================
-            // CEK ELEMENT FORM
-            // =================================================
 
             if (
                 !emailElement ||
@@ -521,10 +499,6 @@
             }
 
 
-            // =================================================
-            // AMBIL INPUT
-            // =================================================
-
             const email =
                 emailElement.value
                     .trim()
@@ -533,10 +507,6 @@
             const password =
                 passwordElement.value;
 
-
-            // =================================================
-            // VALIDASI INPUT
-            // =================================================
 
             if (
                 !email ||
@@ -552,10 +522,6 @@
                 return;
             }
 
-
-            // =================================================
-            // LOGIN BARU
-            // =================================================
 
             hideLoginStatusHologram();
 
@@ -592,10 +558,6 @@
                     throw authError;
                 }
 
-
-                // =================================================
-                // VALIDASI USER
-                // =================================================
 
                 if (
                     !authData ||
@@ -648,10 +610,6 @@
                     sessionData.session.user;
 
 
-                // =================================================
-                // VALIDASI SESSION USER
-                // =================================================
-
                 if (
                     sessionUser.id !== userId
                 ) {
@@ -697,10 +655,6 @@
                 }
 
 
-                // =================================================
-                // PROFILE TIDAK DITEMUKAN
-                // =================================================
-
                 if (
                     !Array.isArray(profiles) ||
                     profiles.length === 0
@@ -722,10 +676,6 @@
                 const profile =
                     profiles[0];
 
-
-                // =================================================
-                // VALIDASI PROFILE ID
-                // =================================================
 
                 if (
                     profile.id !== userId
@@ -765,26 +715,14 @@
                     "suspended"
                 ) {
 
-                    // -------------------------------------------------
-                    // HENTIKAN SESSION
-                    // -------------------------------------------------
-
                     await supabaseClient.auth
                         .signOut();
 
-
-                    // -------------------------------------------------
-                    // TAMPILKAN CAP HOLOGRAM
-                    // -------------------------------------------------
 
                     showLoginStatusHologram(
                         "suspended"
                     );
 
-
-                    // -------------------------------------------------
-                    // PESAN
-                    // -------------------------------------------------
 
                     throw new Error(
                         "Akun Anda sedang ditangguhkan."
@@ -801,26 +739,14 @@
                     "banned"
                 ) {
 
-                    // -------------------------------------------------
-                    // HENTIKAN SESSION
-                    // -------------------------------------------------
-
                     await supabaseClient.auth
                         .signOut();
 
-
-                    // -------------------------------------------------
-                    // TAMPILKAN CAP HOLOGRAM
-                    // -------------------------------------------------
 
                     showLoginStatusHologram(
                         "banned"
                     );
 
-
-                    // -------------------------------------------------
-                    // PESAN
-                    // -------------------------------------------------
 
                     throw new Error(
                         "Akun Anda telah diblokir."
@@ -862,10 +788,6 @@
                         .toUpperCase();
 
 
-                // =================================================
-                // USER
-                // =================================================
-
                 if (
                     role === "USER"
                 ) {
@@ -885,10 +807,6 @@
                     return;
                 }
 
-
-                // =================================================
-                // ADMIN / OWNER
-                // =================================================
 
                 if (
                     role === "ADMIN" ||
@@ -911,10 +829,6 @@
                 }
 
 
-                // =================================================
-                // ROLE TIDAK VALID
-                // =================================================
-
                 await supabaseClient.auth
                     .signOut();
 
@@ -929,10 +843,6 @@
             }
 
 
-            // =====================================================
-            // CATCH LOGIN ERROR
-            // =====================================================
-
             catch (error) {
 
                 console.error(
@@ -941,32 +851,10 @@
                 );
 
 
-                // -------------------------------------------------
-                // TAMPILKAN PESAN
-                // -------------------------------------------------
-
                 showMessage(
                     getFriendlyAuthError(error)
                 );
 
-
-                // -------------------------------------------------
-                // RESET LOADING
-                // -------------------------------------------------
-                //
-                // Penting:
-                // setLoading(false) hanya mengubah span text,
-                // spinner, dan class loading.
-                //
-                // Hologram TIDAK disentuh.
-                //
-                // Jadi untuk:
-                //
-                // SUSPENDED
-                // BANNED
-                //
-                // cap tetap tampil di atas tombol.
-                // -------------------------------------------------
 
                 setLoading(false);
 
@@ -982,14 +870,6 @@
 
     supabaseClient.auth.onAuthStateChange(
         function (event, session) {
-
-            /*
-             * Jangan melakukan redirect otomatis
-             * di sini.
-             *
-             * Redirect tetap dikontrol oleh proses login
-             * agar role USER / ADMIN / OWNER tidak tertukar.
-             */
 
             if (
                 event === "SIGNED_OUT"
