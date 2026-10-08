@@ -12,6 +12,7 @@
    - Authorization Bearer
    - Normalisasi response
    - Normalisasi error
+   - Debug log response motiongen (untuk troubleshooting)
 
    Provider:
      motiongen
@@ -142,6 +143,129 @@ async function parseResponseBody(
 
 
 /* =========================================================
+   REDACT SENSITIVE
+   ---------------------------------------------------------
+   Redact API key & token dari log supaya tidak bocor ke
+   Vercel Functions Log.
+========================================================= */
+
+function redactSecrets(
+    value
+) {
+
+    if (
+        value ===
+            null ||
+        value ===
+            undefined
+    ) {
+
+        return value;
+
+    }
+
+
+    if (
+        typeof value ===
+            "string"
+    ) {
+
+        return value
+
+            .replace(
+                /Bearer\s+[A-Za-z0-9_\-.]+/gi,
+                "Bearer [REDACTED]"
+            )
+
+            .replace(
+                /\bmg_live_[A-Za-z0-9]{6,}\b/gi,
+                "mg_live_[REDACTED]"
+            )
+
+            .replace(
+                /\bsk_live_[A-Za-z0-9]{6,}\b/gi,
+                "sk_live_[REDACTED]"
+            );
+
+    }
+
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return value.map(
+            redactSecrets
+        );
+
+    }
+
+
+    if (
+        typeof value ===
+            "object"
+    ) {
+
+        const out = {};
+
+        for (
+            const [
+                key,
+                item
+            ] of Object.entries(
+                value
+            )
+        ) {
+
+            const lower =
+                String(
+                    key
+                ).toLowerCase();
+
+            const isSecret =
+                lower.includes(
+                    "api_key"
+                ) ||
+                lower.includes(
+                    "apikey"
+                ) ||
+                lower === "token" ||
+                lower.includes(
+                    "authorization"
+                ) ||
+                lower.includes(
+                    "access_token"
+                ) ||
+                lower.includes(
+                    "refresh_token"
+                ) ||
+                lower === "secret" ||
+                lower.includes(
+                    "password"
+                );
+
+            out[key] =
+                isSecret
+                    ? "[REDACTED]"
+                    : redactSecrets(
+                        item
+                    );
+
+        }
+
+        return out;
+
+    }
+
+
+    return value;
+
+}
+
+
+/* =========================================================
    ERROR MESSAGE
 ========================================================= */
 
@@ -241,34 +365,6 @@ function createProviderError(
         data;
 
 
-    /*
-     * Motiongen documented error codes:
-     *
-     * 401
-     * MISSING_API_KEY
-     * INVALID_API_KEY
-     *
-     * 403
-     * DEVELOPER_NOT_APPROVED
-     *
-     * 402
-     * INSUFFICIENT_CREDITS
-     *
-     * 400
-     * INVALID_PAYLOAD
-     * INVALID_MODEL_INPUT
-     *
-     * 404
-     * JOB_NOT_FOUND
-     * MODEL_NOT_FOUND
-     *
-     * 503
-     * MODEL_MAINTENANCE
-     *
-     * 500
-     * INTERNAL_SERVER_ERROR
-     */
-
     if (
         data &&
         typeof data ===
@@ -364,6 +460,17 @@ function createProviderError(
 
 /* =========================================================
    GENERIC REQUEST
+   ---------------------------------------------------------
+   PATCH (2026-10-09):
+   - Tambah DEBUG LOG sebelum throw createProviderError.
+   - Log berisi:
+       * URL yang di-hit
+       * HTTP method
+       * HTTP status motiongen
+       * Payload yang dikirim (secret di-redact)
+       * Response body motiongen (secret di-redact)
+   - Log ini muncul di Vercel Functions Log.
+   - Setelah masalah selesai, log bisa dihapus.
 ========================================================= */
 
 async function request(
@@ -446,6 +553,92 @@ async function request(
         await parseResponseBody(
             response
         );
+
+
+    /* =====================================================
+       DEBUG LOG — HANYA MUNCUL DI VERCEL LOG
+       ===================================================== */
+
+    if (
+        !response.ok
+    ) {
+
+        /* ---------------------------------------------
+           Parse body yang dikirim (kalau JSON string)
+        --------------------------------------------- */
+
+        let sentPayload =
+            null;
+
+        try {
+
+            if (
+                typeof requestOptions.body ===
+                    "string"
+            ) {
+
+                sentPayload =
+                    JSON.parse(
+                        requestOptions.body
+                    );
+
+            }
+
+        } catch {
+
+            sentPayload =
+                "[unparsable body]";
+
+        }
+
+
+        console.error(
+            "[MOTIONGEN DEBUG] ================================"
+        );
+
+        console.error(
+            "[MOTIONGEN DEBUG] URL:",
+            url
+        );
+
+        console.error(
+            "[MOTIONGEN DEBUG] METHOD:",
+            method
+        );
+
+        console.error(
+            "[MOTIONGEN DEBUG] STATUS:",
+            response.status,
+            response.statusText
+        );
+
+        console.error(
+            "[MOTIONGEN DEBUG] PAYLOAD SENT:",
+            JSON.stringify(
+                redactSecrets(
+                    sentPayload
+                ),
+                null,
+                2
+            )
+        );
+
+        console.error(
+            "[MOTIONGEN DEBUG] RESPONSE BODY:",
+            JSON.stringify(
+                redactSecrets(
+                    data
+                ),
+                null,
+                2
+            )
+        );
+
+        console.error(
+            "[MOTIONGEN DEBUG] ================================"
+        );
+
+    }
 
 
     if (
@@ -544,7 +737,7 @@ async function createGeneration(
         response?.credits_held ??
 
         response?.data?.credits_held ??
-
+        
         null;
 
 
