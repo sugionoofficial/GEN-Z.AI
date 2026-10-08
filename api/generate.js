@@ -3250,7 +3250,7 @@ function validateAdapterInput(
    HANDLER
    ========================================================= */
 export const config = {
-    runtime: "nodejs20.x"
+    runtime: "nodejs"
 };
 
 export default async function handler(
