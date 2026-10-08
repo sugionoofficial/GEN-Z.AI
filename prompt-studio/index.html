@@ -13,53 +13,36 @@
 
 <style>
 
-/* =========================================================
-   RESET & TOKENS
-========================================================= */
-
 :root {
-
     --bg-0: #030407;
-    --bg-1: #060810;
-    --bg-2: #0a0d16;
-
     --surface-1: rgba(255,255,255,.024);
     --surface-2: rgba(255,255,255,.045);
     --surface-3: rgba(255,255,255,.075);
-
     --line-1: rgba(255,255,255,.06);
     --line-2: rgba(255,255,255,.10);
     --line-3: rgba(255,255,255,.16);
-
     --text-0: #ffffff;
     --text-1: #e6e9ef;
     --text-2: #a8b0bd;
     --text-3: #6b7382;
     --text-4: #454c58;
-
     --accent: #ff3355;
     --accent-2: #ff6a7a;
     --accent-soft: rgba(255,51,85,.12);
     --accent-line: rgba(255,51,85,.32);
-
     --emerald: #00e676;
     --amber: #ffb020;
     --violet: #a970ff;
-
     --radius-xs: 6px;
     --radius-sm: 10px;
     --radius-md: 14px;
     --radius-lg: 20px;
     --radius-xl: 28px;
-
     --ease: cubic-bezier(.4,0,.2,1);
     --ease-out: cubic-bezier(0,0,.2,1);
-    --ease-spring: cubic-bezier(.34,1.56,.64,1);
-
     --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --font-display: "Fraunces", "Inter", serif;
     --font-mono: "JetBrains Mono", ui-monospace, monospace;
-
 }
 
 *,
@@ -79,966 +62,558 @@ html {
 }
 
 body {
-
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
-
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.5;
     color: var(--text-1);
-
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv11", "ss01", "ss03", "tnum", "calt";
     letter-spacing: -.011em;
-
     background: var(--bg-0);
-
     position: relative;
-
 }
 
-/* =========================================================
-   AURORA BACKGROUND (animated)
-========================================================= */
-
 body::before {
-
     content: "";
     position: fixed;
     inset: -20%;
     z-index: 0;
     pointer-events: none;
-
     background:
-
-        radial-gradient(
-            ellipse 40% 30% at 15% 20%,
-            rgba(255,51,85,.16),
-            transparent 70%
-        ),
-
-        radial-gradient(
-            ellipse 40% 30% at 85% 15%,
-            rgba(169,112,255,.12),
-            transparent 70%
-        ),
-
-        radial-gradient(
-            ellipse 50% 40% at 50% 100%,
-            rgba(255,176,32,.08),
-            transparent 70%
-        );
-
+        radial-gradient(ellipse 40% 30% at 15% 20%, rgba(255,51,85,.16), transparent 70%),
+        radial-gradient(ellipse 40% 30% at 85% 15%, rgba(169,112,255,.12), transparent 70%),
+        radial-gradient(ellipse 50% 40% at 50% 100%, rgba(255,176,32,.08), transparent 70%);
     filter: blur(40px);
-
     animation: auroraShift 24s ease-in-out infinite;
-
 }
 
 @keyframes auroraShift {
-
-    0%, 100% {
-        transform: translate(0, 0) rotate(0deg) scale(1);
-    }
-
-    33% {
-        transform: translate(3%, -2%) rotate(2deg) scale(1.05);
-    }
-
-    66% {
-        transform: translate(-2%, 3%) rotate(-2deg) scale(1.02);
-    }
-
+    0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+    33% { transform: translate(3%, -2%) rotate(2deg) scale(1.05); }
+    66% { transform: translate(-2%, 3%) rotate(-2deg) scale(1.02); }
 }
 
-/* Grain */
 body::after {
-
     content: "";
     position: fixed;
     inset: 0;
     z-index: 1;
     pointer-events: none;
     opacity: .5;
-
-    background-image:
-        url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.035 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
-
+    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.035 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
     mix-blend-mode: overlay;
-
 }
 
 .menu-button,
 .sidebar,
-.overlay {
-    display: none !important;
-}
-
-/* =========================================================
-   MAIN CONTAINER
-========================================================= */
+.overlay { display: none !important; }
 
 .main {
-
     position: relative;
     z-index: 2;
-
     width: 100%;
     max-width: 1440px;
-
     margin: 0 auto;
-
     padding: 72px 56px 80px;
-
 }
 
-/* =========================================================
-   HERO
-========================================================= */
-
 .hero {
-
     position: relative;
-
     margin-bottom: 56px;
-
     padding-bottom: 44px;
-
     border-bottom: 1px solid var(--line-1);
-
 }
 
 .hero-grid {
-
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 56px;
     align-items: end;
-
 }
 
 .hero-kicker {
-
     display: inline-flex;
     align-items: center;
     gap: 12px;
-
     margin-bottom: 26px;
-
     color: var(--accent-2);
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 3px;
     text-transform: uppercase;
-
     padding: 6px 14px;
-
     border: 1px solid var(--accent-line);
     border-radius: 999px;
-
     background: var(--accent-soft);
-
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-
 }
 
 .hero-kicker-dot {
-
     width: 6px;
     height: 6px;
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 0 12px var(--accent);
-
     animation: kickerPulse 2s ease-in-out infinite;
-
 }
 
 @keyframes kickerPulse {
-
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: .5; transform: scale(1.4); }
-
 }
 
 .hero-title {
-
     font-family: var(--font-display);
     font-size: clamp(46px, 6vw, 84px);
     font-weight: 800;
     line-height: .94;
     letter-spacing: -3.4px;
-
     color: var(--text-0);
-
     margin-bottom: 22px;
-
     max-width: 800px;
-
 }
 
 .hero-title em {
-
     font-style: italic;
     font-weight: 400;
-
-    background: linear-gradient(
-        100deg,
-        #ff3355 0%,
-        #ff6a7a 35%,
-        #ffb84d 65%,
-        #ff3355 100%
-    );
-
+    background: linear-gradient(100deg, #ff3355 0%, #ff6a7a 35%, #ffb84d 65%, #ff3355 100%);
     background-size: 250% 100%;
-
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-
     animation: heroGradient 8s ease infinite;
-
 }
 
 @keyframes heroGradient {
-
     0%, 100% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
-
 }
 
 .hero-subtitle {
-
     max-width: 520px;
-
     color: var(--text-2);
     font-size: 15px;
     line-height: 1.7;
     font-weight: 400;
-
 }
 
 .hero-meta {
-
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: 8px;
     text-align: right;
-
 }
 
 .hero-meta-value {
-
     font-family: var(--font-display);
     font-size: 56px;
     font-weight: 800;
     line-height: .9;
     letter-spacing: -3px;
-
     color: var(--text-0);
-
 }
 
 .hero-meta-label {
-
     color: var(--text-3);
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 2.4px;
     text-transform: uppercase;
-
 }
 
-/* =========================================================
-   WORKSPACE
-========================================================= */
-
 .workspace {
-
     display: grid;
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
     gap: 32px;
     align-items: start;
-
 }
 
 .left-col,
 .right-col {
-
     display: flex;
     flex-direction: column;
     gap: 22px;
-
     min-width: 0;
-
 }
-
-/* =========================================================
-   PANEL — PREMIUM GLASS CARD
-========================================================= */
 
 .panel {
-
     position: relative;
-
     padding: 26px;
-
     border: 1px solid var(--line-2);
     border-radius: var(--radius-lg);
-
-    background:
-
-        linear-gradient(
-            180deg,
-            rgba(255,255,255,.032) 0%,
-            rgba(255,255,255,.008) 100%
-        );
-
+    background: linear-gradient(180deg, rgba(255,255,255,.032) 0%, rgba(255,255,255,.008) 100%);
     backdrop-filter: blur(24px) saturate(160%);
     -webkit-backdrop-filter: blur(24px) saturate(160%);
-
-    box-shadow:
-
-        inset 0 1px 0 rgba(255,255,255,.06),
-
-        0 12px 32px rgba(0,0,0,.28),
-
-        0 2px 6px rgba(0,0,0,.16);
-
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 12px 32px rgba(0,0,0,.28), 0 2px 6px rgba(0,0,0,.16);
     isolation: isolate;
-
     overflow: hidden;
-
     transition: border-color .3s var(--ease);
-
 }
 
-.panel:hover {
-    border-color: var(--line-3);
-}
+.panel:hover { border-color: var(--line-3); }
 
 .panel-header {
-
     display: flex;
     align-items: center;
     justify-content: space-between;
-
     gap: 14px;
-
     margin-bottom: 20px;
-
 }
 
 .panel-title {
-
     display: flex;
     align-items: center;
     gap: 12px;
-
     font-size: 13px;
     font-weight: 800;
     letter-spacing: -.2px;
     color: var(--text-0);
-
 }
 
 .panel-number {
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     width: 22px;
     height: 22px;
-
     border-radius: 50%;
-
     background: var(--accent-soft);
     border: 1px solid var(--accent-line);
-
     color: var(--accent-2);
     font-size: 10px;
     font-weight: 900;
     font-variant-numeric: tabular-nums;
-
 }
 
 .panel-hint {
-
     color: var(--text-3);
     font-size: 11px;
     font-weight: 500;
-
 }
 
-/* =========================================================
-   SEGMENT CONTROL
-========================================================= */
-
 .segment {
-
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 4px;
-
     padding: 5px;
-
     border: 1px solid var(--line-1);
     border-radius: var(--radius-md);
-
     background: rgba(0,0,0,.28);
-
     position: relative;
-
 }
 
 .segment-btn {
-
     position: relative;
     z-index: 1;
-
     padding: 14px 20px;
-
     border: 0;
     border-radius: var(--radius-sm);
-
     background: transparent;
-
     color: var(--text-3);
-
     font-family: inherit;
     font-size: 13px;
     font-weight: 700;
     letter-spacing: -.005em;
-
     cursor: pointer;
-
     transition: all .25s var(--ease);
-
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-
 }
 
-.segment-btn:hover {
-    color: var(--text-1);
-}
+.segment-btn:hover { color: var(--text-1); }
 
 .segment-btn.active {
-
     color: #fff;
-
-    background: linear-gradient(
-        180deg,
-        rgba(255,51,85,.95) 0%,
-        rgba(220,35,68,.95) 100%
-    );
-
-    box-shadow:
-
-        inset 0 1px 0 rgba(255,255,255,.20),
-
-        0 6px 20px rgba(255,51,85,.32);
-
+    background: linear-gradient(180deg, rgba(255,51,85,.95) 0%, rgba(220,35,68,.95) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.20), 0 6px 20px rgba(255,51,85,.32);
 }
 
-.segment-btn svg {
-
-    width: 16px;
-    height: 16px;
-
-}
-
-/* =========================================================
-   UPLOAD ZONE — PREMIUM
-========================================================= */
+.segment-btn svg { width: 16px; height: 16px; }
 
 .upload-zone {
-
     position: relative;
-
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 12px;
-
     padding: 36px 20px;
-
     border: 1.5px dashed var(--line-2);
     border-radius: var(--radius-md);
-
-    background:
-
-        radial-gradient(
-            circle at 50% 0%,
-            rgba(255,51,85,.05),
-            transparent 70%
-        ),
-        rgba(0,0,0,.18);
-
+    background: radial-gradient(circle at 50% 0%, rgba(255,51,85,.05), transparent 70%), rgba(0,0,0,.18);
     color: var(--text-3);
-
     cursor: pointer;
-
     transition: all .3s var(--ease);
-
     text-align: center;
-
     overflow: hidden;
-
 }
 
 .upload-zone::before {
-
     content: "";
     position: absolute;
     inset: 0;
-
-    background: linear-gradient(
-        120deg,
-        transparent 30%,
-        rgba(255,255,255,.04) 50%,
-        transparent 70%
-    );
-
+    background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.04) 50%, transparent 70%);
     transform: translateX(-100%);
-
     transition: transform .8s var(--ease);
-
 }
 
-.upload-zone:hover::before {
-    transform: translateX(100%);
-}
+.upload-zone:hover::before { transform: translateX(100%); }
 
 .upload-zone:hover {
-
     border-color: var(--accent-line);
-
-    background:
-
-        radial-gradient(
-            circle at 50% 0%,
-            rgba(255,51,85,.10),
-            transparent 70%
-        ),
-        rgba(0,0,0,.28);
-
+    background: radial-gradient(circle at 50% 0%, rgba(255,51,85,.10), transparent 70%), rgba(0,0,0,.28);
     color: var(--text-2);
-
 }
 
 .upload-zone.dragover {
-
     border-color: var(--accent);
-
     background: var(--accent-soft);
-
     transform: scale(1.01);
-
 }
 
 .upload-icon {
-
     width: 44px;
     height: 44px;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     border: 1px solid var(--line-2);
     border-radius: 50%;
-
     background: rgba(255,255,255,.03);
-
     color: var(--text-2);
-
     transition: all .3s var(--ease);
-
 }
 
 .upload-zone:hover .upload-icon {
-
     border-color: var(--accent-line);
-
     color: var(--accent-2);
-
     background: var(--accent-soft);
-
     transform: translateY(-2px);
-
 }
 
-.upload-icon svg {
-    width: 20px;
-    height: 20px;
-}
+.upload-icon svg { width: 20px; height: 20px; }
 
 .upload-text {
-
     font-size: 13px;
     font-weight: 600;
     color: var(--text-1);
-
 }
 
 .upload-hint {
-
     color: var(--text-4);
     font-size: 11px;
     font-weight: 500;
-
 }
 
-.upload-input {
-    display: none;
-}
+.upload-input { display: none; }
 
 .upload-preview {
-
     display: none;
-
     margin-top: 14px;
-
     padding: 12px;
-
     border: 1px solid var(--line-2);
     border-radius: var(--radius-md);
-
     background: rgba(0,0,0,.24);
-
     align-items: center;
     gap: 14px;
-
     animation: slideDown .4s var(--ease-out);
-
 }
 
-.upload-preview.show {
-    display: flex;
-}
+.upload-preview.show { display: flex; }
 
 @keyframes slideDown {
-
-    from {
-        opacity: 0;
-        transform: translateY(-6px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .upload-preview img {
-
     width: 64px;
     height: 64px;
-
     border-radius: var(--radius-sm);
-
     object-fit: cover;
-
     border: 1px solid var(--line-2);
-
 }
 
-.upload-info {
-    flex: 1;
-    min-width: 0;
-}
+.upload-info { flex: 1; min-width: 0; }
 
 .upload-name {
-
     color: var(--text-0);
     font-size: 13px;
     font-weight: 600;
-
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-
 }
 
 .upload-size {
-
     margin-top: 4px;
     color: var(--text-3);
     font-size: 11px;
     font-weight: 500;
-
 }
 
 .upload-remove {
-
     flex: 0 0 auto;
-
     width: 34px;
     height: 34px;
-
     border: 1px solid var(--line-2);
     border-radius: var(--radius-sm);
-
     background: transparent;
-
     color: var(--text-3);
-
     font-size: 18px;
     line-height: 1;
-
     cursor: pointer;
-
     transition: all .2s var(--ease);
-
 }
 
 .upload-remove:hover {
-
     color: #fff;
     border-color: rgba(255,85,102,.55);
     background: rgba(220,38,38,.15);
-
 }
 
-/* =========================================================
-   CATEGORY GRID
-========================================================= */
-
 .category-grid {
-
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
-
 }
 
 .category-tile {
-
     position: relative;
-
     display: flex;
     align-items: center;
     gap: 12px;
-
     padding: 14px 16px;
-
     border: 1px solid var(--line-1);
     border-radius: var(--radius-sm);
-
     background: rgba(0,0,0,.18);
-
     color: var(--text-2);
-
     font-family: inherit;
     font-size: 13px;
     font-weight: 600;
-
     cursor: pointer;
-
     transition: all .2s var(--ease);
-
     text-align: left;
-
     overflow: hidden;
-
 }
 
 .category-tile::before {
-
     content: "";
     position: absolute;
     left: 0;
     top: 0;
     bottom: 0;
     width: 2px;
-
     background: var(--accent);
-
     transform: scaleY(0);
     transform-origin: center;
-
     transition: transform .25s var(--ease);
-
 }
 
 .category-tile:hover {
-
     color: var(--text-0);
     border-color: var(--line-2);
     background: var(--surface-2);
-
     transform: translateX(2px);
-
 }
 
 .category-tile.active {
-
     color: #fff;
     border-color: var(--accent-line);
     background: var(--accent-soft);
-
 }
 
-.category-tile.active::before {
-    transform: scaleY(1);
-}
+.category-tile.active::before { transform: scaleY(1); }
 
 .category-emoji {
-
     font-size: 20px;
     line-height: 1;
-
     filter: grayscale(.2);
-
 }
 
-.category-tile.active .category-emoji {
-    filter: grayscale(0);
-}
-
-/* =========================================================
-   CHIP GRID
-========================================================= */
+.category-tile.active .category-emoji { filter: grayscale(0); }
 
 .chip-grid {
-
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-
 }
 
 .chip {
-
     padding: 9px 16px;
-
     border: 1px solid var(--line-1);
     border-radius: 999px;
-
     background: rgba(0,0,0,.16);
-
     color: var(--text-3);
-
     font-family: inherit;
     font-size: 12px;
     font-weight: 600;
     letter-spacing: -.005em;
-
     cursor: pointer;
-
     transition: all .2s var(--ease);
-
     white-space: nowrap;
-
 }
 
 .chip:hover {
-
     color: var(--text-0);
     border-color: var(--line-2);
     background: var(--surface-2);
-
     transform: translateY(-1px);
-
 }
 
 .chip.active {
-
     color: #fff;
     border-color: var(--accent);
-
-    background: linear-gradient(
-        180deg,
-        rgba(255,51,85,.22) 0%,
-        rgba(255,51,85,.10) 100%
-    );
-
-    box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.08),
-        0 4px 12px rgba(255,51,85,.20);
-
+    background: linear-gradient(180deg, rgba(255,51,85,.22) 0%, rgba(255,51,85,.10) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 4px 12px rgba(255,51,85,.20);
 }
 
-/* =========================================================
-   INPUTS
-========================================================= */
-
-.field {
-    margin-bottom: 20px;
-}
-
-.field:last-child {
-    margin-bottom: 0;
-}
+.field { margin-bottom: 20px; }
+.field:last-child { margin-bottom: 0; }
 
 .field-label {
-
     display: block;
-
     margin-bottom: 10px;
-
     color: var(--text-3);
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 1.6px;
     text-transform: uppercase;
-
 }
 
 .input,
 .textarea {
-
     width: 100%;
-
     padding: 13px 18px;
-
     border: 1px solid var(--line-1);
     border-radius: var(--radius-sm);
-
     background: rgba(0,0,0,.24);
-
     color: var(--text-0);
-
     font-family: inherit;
     font-size: 13px;
     font-weight: 500;
     line-height: 1.5;
-
     outline: none;
-
     transition: all .2s var(--ease);
-
     resize: vertical;
-
 }
 
 .input::placeholder,
-.textarea::placeholder {
-    color: var(--text-4);
-}
+.textarea::placeholder { color: var(--text-4); }
 
 .input:focus,
 .textarea:focus {
-
     border-color: var(--accent);
-
     background: rgba(0,0,0,.34);
-
-    box-shadow:
-        0 0 0 3px var(--accent-soft),
-        0 0 24px rgba(255,51,85,.08);
-
+    box-shadow: 0 0 0 3px var(--accent-soft), 0 0 24px rgba(255,51,85,.08);
 }
 
 .textarea {
@@ -1046,556 +621,324 @@ body::after {
     font-family: inherit;
 }
 
-/* =========================================================
-   PREVIEW PANEL
-========================================================= */
+.action-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 16px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,.02);
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: -.005em;
+    cursor: pointer;
+    transition: all .2s var(--ease);
+    white-space: nowrap;
+}
+
+.action-btn:hover {
+    color: var(--text-0);
+    border-color: var(--line-3);
+    background: var(--surface-2);
+    transform: translateY(-1px);
+}
+
+.action-btn svg { width: 14px; height: 14px; }
+
+.action-btn.danger:hover {
+    color: #ff5566;
+    border-color: rgba(220,38,38,.35);
+    background: rgba(220,38,38,.10);
+}
 
 .preview-panel {
-
     position: sticky;
     top: 24px;
-
 }
 
 .preview-card {
-
     position: relative;
-
     padding: 26px;
-
     border: 1px solid var(--line-2);
     border-radius: var(--radius-xl);
-
-    background:
-
-        linear-gradient(
-            180deg,
-            rgba(255,255,255,.04) 0%,
-            rgba(255,255,255,.012) 100%
-        );
-
+    background: linear-gradient(180deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.012) 100%);
     backdrop-filter: blur(28px) saturate(160%);
     -webkit-backdrop-filter: blur(28px) saturate(160%);
-
-    box-shadow:
-
-        inset 0 1px 0 rgba(255,255,255,.06),
-
-        0 32px 80px rgba(0,0,0,.40),
-
-        0 0 60px rgba(255,51,85,.06);
-
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 32px 80px rgba(0,0,0,.40), 0 0 60px rgba(255,51,85,.06);
     overflow: hidden;
-
 }
 
-/* Gradient border top */
 .preview-card::before {
-
     content: "";
     position: absolute;
     top: 0;
     left: 12%;
     right: 12%;
     height: 1px;
-
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(255,51,85,.85) 50%,
-        transparent 100%
-    );
-
+    background: linear-gradient(90deg, transparent 0%, rgba(255,51,85,.85) 50%, transparent 100%);
 }
 
-/* Corner glow */
 .preview-card::after {
-
     content: "";
     position: absolute;
-
     top: -60px;
     right: -60px;
-
     width: 220px;
     height: 220px;
-
-    background: radial-gradient(
-        circle,
-        rgba(255,51,85,.14),
-        transparent 70%
-    );
-
+    background: radial-gradient(circle, rgba(255,51,85,.14), transparent 70%);
     pointer-events: none;
-
     z-index: 0;
-
 }
 
 .preview-header {
-
     position: relative;
     z-index: 1;
-
     display: flex;
     justify-content: space-between;
     align-items: center;
-
     gap: 14px;
-
     margin-bottom: 20px;
-
 }
 
 .preview-title {
-
     display: flex;
     align-items: center;
     gap: 10px;
-
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 2px;
     text-transform: uppercase;
-
     color: var(--text-2);
-
 }
 
 .preview-live {
-
     width: 8px;
     height: 8px;
-
     border-radius: 50%;
-
     background: var(--emerald);
-
     box-shadow: 0 0 12px rgba(0,230,118,.8);
-
     animation: livePulse 1.8s ease-in-out infinite;
-
 }
 
 @keyframes livePulse {
-
-    0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-        box-shadow: 0 0 12px rgba(0,230,118,.8);
-    }
-
-    50% {
-        opacity: .5;
-        transform: scale(1.15);
-        box-shadow: 0 0 20px rgba(0,230,118,.4);
-    }
-
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 12px rgba(0,230,118,.8); }
+    50% { opacity: .5; transform: scale(1.15); box-shadow: 0 0 20px rgba(0,230,118,.4); }
 }
 
 .preview-badge {
-
     padding: 5px 12px;
-
     border: 1px solid var(--accent-line);
     border-radius: 999px;
-
     background: var(--accent-soft);
-
     color: var(--accent-2);
-
     font-size: 9px;
     font-weight: 900;
     letter-spacing: 2px;
-
     transition: all .3s var(--ease);
-
 }
 
 .preview-badge.video {
-
     border-color: rgba(169,112,255,.35);
     background: rgba(169,112,255,.12);
     color: #c99aff;
-
 }
 
 .preview-body {
-
     position: relative;
     z-index: 1;
-
     min-height: 340px;
     max-height: 560px;
-
     overflow-y: auto;
-
     padding: 20px 22px;
-
     border: 1px solid var(--line-1);
     border-radius: var(--radius-md);
-
     background: rgba(0,0,0,.32);
-
     color: var(--text-1);
-
     font-family: var(--font-mono);
     font-size: 12.5px;
     line-height: 1.85;
-
     white-space: pre-wrap;
     word-break: break-word;
-
     transition: all .3s var(--ease);
-
 }
 
-.preview-body::-webkit-scrollbar {
-    width: 6px;
-}
-
-.preview-body::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.preview-body::-webkit-scrollbar-thumb {
-    background: var(--line-2);
-    border-radius: 10px;
-}
-
-.preview-body::-webkit-scrollbar-thumb:hover {
-    background: var(--line-3);
-}
+.preview-body::-webkit-scrollbar { width: 6px; }
+.preview-body::-webkit-scrollbar-track { background: transparent; }
+.preview-body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 10px; }
+.preview-body::-webkit-scrollbar-thumb:hover { background: var(--line-3); }
 
 .preview-placeholder {
-
     color: var(--text-4);
-
     font-style: italic;
-
     font-family: var(--font-sans);
     font-size: 13px;
-
 }
 
-/* =========================================================
-   PREVIEW FOOTER
-========================================================= */
-
 .preview-footer {
-
     position: relative;
     z-index: 1;
-
     margin-top: 20px;
-
 }
 
 .btn-primary {
-
     width: 100%;
-
     display: inline-flex;
     align-items: center;
     justify-content: center;
-
     gap: 10px;
-
     padding: 16px 24px;
-
     border: 1px solid var(--accent);
     border-radius: var(--radius-md);
-
-    background: linear-gradient(
-        180deg,
-        #ff3355 0%,
-        #d61f3e 100%
-    );
-
+    background: linear-gradient(180deg, #ff3355 0%, #d61f3e 100%);
     color: #fff;
-
     font-family: inherit;
     font-size: 13px;
     font-weight: 800;
     letter-spacing: .6px;
-
     cursor: pointer;
-
     transition: all .25s var(--ease);
-
-    box-shadow:
-
-        inset 0 1px 0 rgba(255,255,255,.18),
-
-        0 12px 32px rgba(255,51,85,.32);
-
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 12px 32px rgba(255,51,85,.32);
     position: relative;
-
     overflow: hidden;
-
 }
 
 .btn-primary::before {
-
     content: "";
     position: absolute;
     inset: 0;
-
-    background: linear-gradient(
-        120deg,
-        transparent 30%,
-        rgba(255,255,255,.20) 50%,
-        transparent 70%
-    );
-
+    background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.20) 50%, transparent 70%);
     transform: translateX(-100%);
-
 }
 
 .btn-primary:hover {
-
     transform: translateY(-2px);
-
-    box-shadow:
-
-        inset 0 1px 0 rgba(255,255,255,.22),
-
-        0 18px 40px rgba(255,51,85,.45);
-
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 18px 40px rgba(255,51,85,.45);
 }
 
-.btn-primary:hover::before {
-
-    animation: btnShine .8s ease;
-
-}
+.btn-primary:hover::before { animation: btnShine .8s ease; }
 
 @keyframes btnShine {
-
     from { transform: translateX(-100%); }
     to { transform: translateX(100%); }
-
 }
 
-.btn-primary:active {
-    transform: translateY(0);
-}
+.btn-primary:active { transform: translateY(0); }
 
-.btn-primary:disabled {
-
-    opacity: .5;
-    cursor: not-allowed;
-    transform: none;
-
-}
-
-.btn-primary svg {
-    width: 16px;
-    height: 16px;
-}
+.btn-primary svg { width: 16px; height: 16px; }
 
 .btn-primary.copied {
-
-    background: linear-gradient(
-        180deg,
-        #00e676 0%,
-        #00a854 100%
-    );
-
+    background: linear-gradient(180deg, #00e676 0%, #00a854 100%);
     border-color: var(--emerald);
-
-    box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.25),
-        0 12px 32px rgba(0,230,118,.35);
-
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 12px 32px rgba(0,230,118,.35);
 }
 
-/* =========================================================
-   PREVIEW STATS
-========================================================= */
-
 .preview-stats {
-
     position: relative;
     z-index: 1;
-
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
-
     margin-top: 20px;
-
     padding-top: 20px;
-
     border-top: 1px solid var(--line-1);
-
 }
 
 .stat-item {
-
     display: flex;
     flex-direction: column;
     gap: 4px;
-
 }
 
 .stat-value {
-
     font-family: var(--font-display);
     font-size: 24px;
     font-weight: 800;
     letter-spacing: -1px;
     line-height: 1;
-
     color: var(--text-0);
-
     font-variant-numeric: tabular-nums;
-
 }
 
 .stat-label {
-
     color: var(--text-3);
     font-size: 9px;
     font-weight: 800;
     letter-spacing: 1.6px;
     text-transform: uppercase;
-
 }
 
-/* =========================================================
-   LOADING SHIMMER
-========================================================= */
-
-.skeleton {
-
-    background: linear-gradient(
-        90deg,
-        rgba(255,255,255,.04) 0%,
-        rgba(255,255,255,.08) 50%,
-        rgba(255,255,255,.04) 100%
-    );
-
-    background-size: 200% 100%;
-
-    animation: skeleton 1.4s ease-in-out infinite;
-
-    border-radius: 4px;
-
-    height: 14px;
-
-    margin-bottom: 8px;
-
+.toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    z-index: 9999;
+    padding: 14px 24px;
+    border: 1px solid var(--emerald);
+    border-radius: 999px;
+    background: rgba(0,230,118,.12);
+    color: #7dffb0;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .5px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 20px 60px rgba(0,230,118,.20);
+    opacity: 0;
+    transition: all .4s var(--ease-out);
+    pointer-events: none;
 }
 
-@keyframes skeleton {
-
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
 }
 
-/* =========================================================
-   RESPONSIVE
-========================================================= */
+.toast.error {
+    border-color: rgba(220,38,38,.55);
+    background: rgba(220,38,38,.12);
+    color: #ff8794;
+    box-shadow: 0 20px 60px rgba(220,38,38,.20);
+}
 
 @media (max-width: 1100px) {
-
-    .main {
-        padding: 56px 32px 64px;
-    }
-
-    .workspace {
-        grid-template-columns: 1fr;
-        gap: 24px;
-    }
-
-    .preview-panel {
-        position: static;
-    }
-
-    .hero-grid {
-        grid-template-columns: 1fr;
-        gap: 24px;
-        align-items: start;
-    }
-
-    .hero-meta {
-        align-items: flex-start;
-        text-align: left;
-        flex-direction: row;
-        align-items: baseline;
-        gap: 12px;
-    }
-
-    .hero-meta-value {
-        font-size: 42px;
-    }
-
+    .main { padding: 56px 32px 64px; }
+    .workspace { grid-template-columns: 1fr; gap: 24px; }
+    .preview-panel { position: static; }
+    .hero-grid { grid-template-columns: 1fr; gap: 24px; align-items: start; }
+    .hero-meta { align-items: flex-start; text-align: left; flex-direction: row; align-items: baseline; gap: 12px; }
+    .hero-meta-value { font-size: 42px; }
 }
 
 @media (max-width: 640px) {
-
-    .main {
-        padding: 32px 16px 40px;
-    }
-
-    .hero {
-        margin-bottom: 36px;
-        padding-bottom: 32px;
-    }
-
-    .hero-title {
-        font-size: 38px;
-        letter-spacing: -1.6px;
-    }
-
-    .hero-subtitle {
-        font-size: 14px;
-    }
-
-    .hero-meta-value {
-        font-size: 34px;
-    }
-
-    .panel,
-    .preview-card {
-        padding: 20px;
-    }
-
-    .category-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .segment-btn {
-        padding: 12px 14px;
-        font-size: 12px;
-    }
-
-    .preview-body {
-        min-height: 240px;
-        font-size: 12px;
-    }
-
-    .stat-value {
-        font-size: 20px;
-    }
-
+    .main { padding: 32px 16px 40px; }
+    .hero { margin-bottom: 36px; padding-bottom: 32px; }
+    .hero-title { font-size: 38px; letter-spacing: -1.6px; }
+    .hero-subtitle { font-size: 14px; }
+    .hero-meta-value { font-size: 34px; }
+    .panel, .preview-card { padding: 20px; }
+    .category-grid { grid-template-columns: 1fr; }
+    .segment-btn { padding: 12px 14px; font-size: 12px; }
+    .preview-body { min-height: 240px; font-size: 12px; }
+    .stat-value { font-size: 20px; }
+    .action-bar { grid-template-columns: 1fr; }
 }
 
-/* =========================================================
-   REDUCED MOTION
-========================================================= */
-
 @media (prefers-reduced-motion: reduce) {
-
-    *,
-    *::before,
-    *::after {
+    *, *::before, *::after {
         animation-duration: .01ms !important;
         transition-duration: .01ms !important;
     }
-
 }
 
 </style>
@@ -1605,609 +948,311 @@ body::after {
 
 <body>
 
-
 <div id="genz-navigation"></div>
-
 
 <main class="main">
 
-
-    <!-- =====================================================
-         HERO
-    ===================================================== -->
-
     <header class="hero">
-
         <div class="hero-grid">
-
             <div>
-
                 <div class="hero-kicker">
-
                     <span class="hero-kicker-dot"></span>
-
                     PROMPT STUDIO
-
                 </div>
-
                 <h1 class="hero-title">
                     Craft your <em>perfect</em> prompt
                 </h1>
-
                 <p class="hero-subtitle">
-                    Bangun prompt AI berkualitas studio dengan
-                    struktur profesional. Pilih kategori, atur
-                    parameter, dan salin prompt yang siap
-                    digunakan untuk image atau video generation.
+                    Bangun prompt AI berkualitas studio dengan struktur profesional.
+                    Pilih kategori, atur parameter, simpan preset, dan salin prompt
+                    yang siap digunakan untuk image atau video generation.
                 </p>
-
             </div>
-
             <div class="hero-meta">
-
                 <div class="hero-meta-value">10</div>
-
-                <div class="hero-meta-label">
-                    Kategori
-                </div>
-
+                <div class="hero-meta-label">Kategori</div>
             </div>
-
         </div>
-
     </header>
-
-
-    <!-- =====================================================
-         WORKSPACE
-    ===================================================== -->
 
     <div class="workspace">
 
-
-        <!-- =================================================
-             LEFT: FORM
-        ================================================= -->
-
+        <!-- LEFT COLUMN -->
         <div class="left-col">
 
-
-            <!-- =============================================
-                 OUTPUT TYPE
-            ============================================= -->
-
+            <!-- 01 OUTPUT TYPE + LANGUAGE -->
             <div class="panel">
-
                 <div class="panel-header">
-
                     <div class="panel-title">
-
                         <span class="panel-number">01</span>
-                        Output Type
-
+                        Output & Language
                     </div>
-
-                    <div class="panel-hint">
-                        Image atau Video
-                    </div>
-
+                    <div class="panel-hint">Image / Video • EN / ID</div>
                 </div>
 
-                <div
-                    class="segment"
-                    id="outputTypeSegment"
-                >
-
-                    <button
-                        class="segment-btn active"
-                        data-output="image"
-                        type="button"
-                    >
-
-                        <svg viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-
+                <div class="segment" id="outputTypeSegment">
+                    <button class="segment-btn active" data-output="image" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="3" width="18" height="18" rx="2"/>
                             <circle cx="9" cy="9" r="2"/>
                             <path d="m21 15-3.5-3.5L9 20"/>
-
                         </svg>
-
                         Image
-
                     </button>
-
-                    <button
-                        class="segment-btn"
-                        data-output="video"
-                        type="button"
-                    >
-
-                        <svg viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-
+                    <button class="segment-btn" data-output="video" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="2" y="5" width="14" height="14" rx="2"/>
                             <path d="m22 8-6 4 6 4V8Z"/>
-
                         </svg>
-
                         Video
-
                     </button>
-
                 </div>
 
+                <div class="field" style="margin-top:20px;">
+                    <label class="field-label">Prompt Language</label>
+                    <div class="segment" id="languageSegment" style="grid-template-columns:1fr 1fr;">
+                        <button class="segment-btn active" data-lang="en" type="button">
+                            🇬🇧 English
+                        </button>
+                        <button class="segment-btn" data-lang="id" type="button">
+                            🇮🇩 Indonesia
+                        </button>
+                    </div>
+                </div>
             </div>
 
-
-            <!-- =============================================
-                 REFERENCE IMAGE
-            ============================================= -->
-
+            <!-- 02 REFERENCE -->
             <div class="panel">
-
                 <div class="panel-header">
-
                     <div class="panel-title">
-
                         <span class="panel-number">02</span>
                         Reference Image
-
                     </div>
-
-                    <div class="panel-hint">
-                        Optional
-                    </div>
-
+                    <div class="panel-hint">Optional</div>
                 </div>
 
-                <div
-                    class="upload-zone"
-                    id="uploadZone"
-                >
-
+                <div class="upload-zone" id="uploadZone">
                     <div class="upload-icon">
-
-                        <svg viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                             <polyline points="17 8 12 3 7 8"/>
                             <line x1="12" y1="3" x2="12" y2="15"/>
-
                         </svg>
-
                     </div>
-
-                    <div class="upload-text">
-                        Drop atau klik untuk upload
-                    </div>
-
-                    <div class="upload-hint">
-                        JPG, PNG, WebP • max 5 MB
-                    </div>
-
-                    <input
-                        class="upload-input"
-                        id="uploadInput"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                    >
-
+                    <div class="upload-text">Drop atau klik untuk upload</div>
+                    <div class="upload-hint">JPG, PNG, WebP • max 5 MB</div>
+                    <input class="upload-input" id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp">
                 </div>
 
-                <div
-                    class="upload-preview"
-                    id="uploadPreview"
-                >
-
+                <div class="upload-preview" id="uploadPreview">
                     <img id="uploadPreviewImg" alt="preview">
-
                     <div class="upload-info">
-
-                        <div
-                            class="upload-name"
-                            id="uploadName"
-                        ></div>
-
-                        <div
-                            class="upload-size"
-                            id="uploadSize"
-                        ></div>
-
+                        <div class="upload-name" id="uploadName"></div>
+                        <div class="upload-size" id="uploadSize"></div>
                     </div>
-
-                    <button
-                        class="upload-remove"
-                        id="uploadRemove"
-                        type="button"
-                        aria-label="Hapus"
-                    >
-                        ×
-                    </button>
-
+                    <button class="upload-remove" id="uploadRemove" type="button" aria-label="Hapus">×</button>
                 </div>
-
             </div>
 
-
-            <!-- =============================================
-                 CATEGORY
-            ============================================= -->
-
+            <!-- 03 CATEGORY -->
             <div class="panel">
-
                 <div class="panel-header">
-
                     <div class="panel-title">
-
                         <span class="panel-number">03</span>
                         Prompt Category
-
                     </div>
-
-                    <div class="panel-hint">
-                        Pilih satu
-                    </div>
-
+                    <div class="panel-hint">Pilih satu</div>
                 </div>
-
-                <div
-                    class="category-grid"
-                    id="categoryGrid"
-                ></div>
-
+                <div class="category-grid" id="categoryGrid"></div>
             </div>
 
-
-            <!-- =============================================
-                 SUBJECT & ACTION
-            ============================================= -->
-
+            <!-- 04 SCENE -->
             <div class="panel">
-
                 <div class="panel-header">
-
                     <div class="panel-title">
-
                         <span class="panel-number">04</span>
                         Scene Description
-
                     </div>
-
-                    <div class="panel-hint">
-                        Detail subjek
-                    </div>
-
+                    <div class="panel-hint">Detail subjek</div>
                 </div>
 
                 <div class="field">
-
-                    <label
-                        class="field-label"
-                        for="subjectInput"
-                    >
-                        Subject / Karakter
-                    </label>
-
-                    <input
-                        class="input"
-                        id="subjectInput"
-                        type="text"
-                        placeholder="Contoh: wanita 25 tahun, rambut panjang, hoodie putih"
-                    >
-
+                    <label class="field-label" for="subjectInput">Subject / Karakter</label>
+                    <input class="input" id="subjectInput" type="text" placeholder="Contoh: wanita 25 tahun, rambut panjang, hoodie putih">
                 </div>
 
                 <div class="field">
-
-                    <label
-                        class="field-label"
-                        for="actionInput"
-                    >
-                        Aksi / Aktivitas
-                    </label>
-
-                    <input
-                        class="input"
-                        id="actionInput"
-                        type="text"
-                        placeholder="Contoh: bercerita sambil tersenyum ke kamera"
-                    >
-
+                    <label class="field-label" for="actionInput">Aksi / Aktivitas</label>
+                    <input class="input" id="actionInput" type="text" placeholder="Contoh: bercerita sambil tersenyum ke kamera">
                 </div>
 
                 <div class="field">
-
-                    <label
-                        class="field-label"
-                        for="notesInput"
-                    >
-                        Catatan Tambahan
-                    </label>
-
-                    <textarea
-                        class="textarea"
-                        id="notesInput"
-                        placeholder="Contoh: gaya bahasa santai, warna cerah, mood ceria"
-                    ></textarea>
-
+                    <label class="field-label" for="notesInput">Catatan Tambahan</label>
+                    <textarea class="textarea" id="notesInput" placeholder="Contoh: gaya bahasa santai, warna cerah, mood ceria"></textarea>
                 </div>
-
             </div>
 
-
-            <!-- =============================================
-                 CAMERA ANGLE
-            ============================================= -->
-
+            <!-- 05 ASPECT RATIO -->
             <div class="panel">
-
                 <div class="panel-header">
-
                     <div class="panel-title">
-
                         <span class="panel-number">05</span>
-                        Camera Angle
-
+                        Aspect Ratio
                     </div>
-
                 </div>
-
-                <div
-                    class="chip-grid"
-                    id="angleGrid"
-                ></div>
-
+                <div class="chip-grid" id="aspectGrid"></div>
             </div>
 
-
-            <!-- =============================================
-                 LOCATION
-            ============================================= -->
-
+            <!-- 06 CAMERA ANGLE -->
             <div class="panel">
-
                 <div class="panel-header">
-
                     <div class="panel-title">
-
                         <span class="panel-number">06</span>
-                        Location
-
+                        Camera Angle
                     </div>
-
                 </div>
-
-                <div
-                    class="chip-grid"
-                    id="locationGrid"
-                ></div>
-
+                <div class="chip-grid" id="angleGrid"></div>
             </div>
 
-
-            <!-- =============================================
-                 LIGHTING
-            ============================================= -->
-
+            <!-- 07 LOCATION -->
             <div class="panel">
-
                 <div class="panel-header">
-
                     <div class="panel-title">
-
                         <span class="panel-number">07</span>
-                        Lighting
-
+                        Location
                     </div>
-
                 </div>
-
-                <div
-                    class="chip-grid"
-                    id="lightingGrid"
-                ></div>
-
+                <div class="chip-grid" id="locationGrid"></div>
             </div>
 
-
-            <!-- =============================================
-                 MOOD
-            ============================================= -->
-
+            <!-- 08 LIGHTING -->
             <div class="panel">
-
                 <div class="panel-header">
-
                     <div class="panel-title">
-
                         <span class="panel-number">08</span>
-                        Mood & Style
-
+                        Lighting
                     </div>
-
                 </div>
-
-                <div
-                    class="chip-grid"
-                    id="moodGrid"
-                ></div>
-
+                <div class="chip-grid" id="lightingGrid"></div>
             </div>
 
-
-            <!-- =============================================
-                 DURATION (VIDEO ONLY)
-            ============================================= -->
-
-            <div
-                class="panel"
-                id="durationCard"
-                style="display:none;"
-            >
-
+            <!-- 09 MOOD -->
+            <div class="panel">
                 <div class="panel-header">
-
                     <div class="panel-title">
-
                         <span class="panel-number">09</span>
-                        Duration
-
+                        Mood & Style
                     </div>
-
-                    <div class="panel-hint">
-                        Video only
-                    </div>
-
                 </div>
-
-                <div
-                    class="chip-grid"
-                    id="durationGrid"
-                ></div>
-
+                <div class="chip-grid" id="moodGrid"></div>
             </div>
 
+            <!-- 10 DURATION (VIDEO ONLY) -->
+            <div class="panel" id="durationCard" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="panel-number">10</span>
+                        Duration
+                    </div>
+                    <div class="panel-hint">Video only</div>
+                </div>
+                <div class="chip-grid" id="durationGrid"></div>
+            </div>
+
+            <!-- ACTIONS -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        Actions
+                    </div>
+                </div>
+
+                <div class="action-bar">
+                    <button class="action-btn" id="savePresetBtn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        Save Preset
+                    </button>
+
+                    <button class="action-btn" id="loadPresetBtn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Load Preset
+                    </button>
+
+                    <button class="action-btn danger" id="resetBtn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 3-6.7"/>
+                            <path d="M3 3v6h6"/>
+                        </svg>
+                        Reset
+                    </button>
+                </div>
+            </div>
 
         </div>
 
-
-        <!-- =================================================
-             RIGHT: PREVIEW
-        ================================================= -->
-
+        <!-- RIGHT COLUMN -->
         <div class="right-col">
-
             <div class="preview-panel">
-
                 <div class="preview-card">
 
                     <div class="preview-header">
-
                         <div class="preview-title">
-
                             <span class="preview-live"></span>
                             Live Preview
-
                         </div>
-
-                        <span
-                            class="preview-badge"
-                            id="previewBadge"
-                        >
-                            IMAGE
-                        </span>
-
+                        <span class="preview-badge" id="previewBadge">IMAGE</span>
                     </div>
 
-
-                    <div
-                        class="preview-body"
-                        id="previewBody"
-                    >
-
+                    <div class="preview-body" id="previewBody">
                         <span class="preview-placeholder">
                             Pilih kategori di sebelah kiri untuk memulai...
                         </span>
-
                     </div>
-
 
                     <div class="preview-footer">
-
-                        <button
-                            class="btn-primary"
-                            id="copyBtn"
-                            type="button"
-                        >
-
-                            <svg viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-
+                        <button class="btn-primary" id="copyBtn" type="button">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <rect x="9" y="9" width="13" height="13" rx="2"/>
                                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-
                             </svg>
-
-                            <span id="copyLabel">
-                                Copy Prompt
-                            </span>
-
+                            <span id="copyLabel">Copy Prompt</span>
                         </button>
-
                     </div>
 
-
                     <div class="preview-stats">
-
                         <div class="stat-item">
-
-                            <div
-                                class="stat-value"
-                                id="charCount"
-                            >
-                                0
-                            </div>
-
-                            <div class="stat-label">
-                                Characters
-                            </div>
-
+                            <div class="stat-value" id="charCount">0</div>
+                            <div class="stat-label">Characters</div>
                         </div>
-
                         <div class="stat-item">
-
-                            <div
-                                class="stat-value"
-                                id="wordCount"
-                            >
-                                0
-                            </div>
-
-                            <div class="stat-label">
-                                Words
-                            </div>
-
+                            <div class="stat-value" id="wordCount">0</div>
+                            <div class="stat-label">Words</div>
                         </div>
-
                         <div class="stat-item">
-
-                            <div
-                                class="stat-value"
-                                id="tokensCount"
-                            >
-                                0
-                            </div>
-
-                            <div class="stat-label">
-                                ~Tokens
-                            </div>
-
+                            <div class="stat-value" id="tokensCount">0</div>
+                            <div class="stat-label">~Tokens</div>
                         </div>
-
                     </div>
 
                 </div>
-
             </div>
-
         </div>
 
-
     </div>
-
 </main>
 
+<div class="toast" id="toast"></div>
 
 <script src="../assets/js/config.js"></script>
-
 <script src="/navigation/navigation.js"></script>
-
 
 <script>
 
@@ -2215,45 +1260,50 @@ body::after {
 
     "use strict";
 
-
     /* =====================================================
        DATA
     ===================================================== */
 
     var CATEGORIES = [
-
         { id: "ugc", label: "UGC Content", emoji: "🎥",
-          prompt: "Authentic user-generated content style, shot like a real phone recording, casual and relatable, natural feel with slight imperfections that make it genuine." },
+          prompt: { en: "Authentic user-generated content style, shot like a real phone recording, casual and relatable, natural feel with slight imperfections that make it genuine.", id: "Gaya konten UGC autentik, direkam seperti video ponsel, santai dan relatable, terasa natural dengan sedikit ketidaksempurnaan yang membuatnya asli." } },
 
         { id: "vlog", label: "Vlog Selfie", emoji: "🤳",
-          prompt: "Vlog selfie style, shot in selfie camera mode, personal storytelling tone, direct eye contact with camera as if talking to followers, vlog-like vibe." },
+          prompt: { en: "Vlog selfie style, shot in selfie camera mode, personal storytelling tone, direct eye contact with camera as if talking to followers, vlog-like vibe.", id: "Gaya vlog selfie, menggunakan mode kamera depan, tone storytelling personal, kontak mata langsung dengan kamera seolah bicara ke followers, suasana vlog." } },
 
         { id: "talking-head", label: "Talking Head", emoji: "🎙",
-          prompt: "Talking head video, subject speaking directly to camera with clear articulation, medium close-up framing, focused on facial expressions and hand gestures." },
+          prompt: { en: "Talking head video, subject speaking directly to camera with clear articulation, medium close-up framing, focused on facial expressions and hand gestures.", id: "Video talking head, subjek berbicara langsung ke kamera dengan artikulasi jelas, framing medium close-up, fokus pada ekspresi wajah dan gerakan tangan." } },
 
         { id: "product", label: "Product Showcase", emoji: "📦",
-          prompt: "Polished product showcase, commercial advertising style, hero shot of the product, clean composition with aesthetic background." },
+          prompt: { en: "Polished product showcase, commercial advertising style, hero shot of the product, clean composition with aesthetic background.", id: "Showcase produk yang polish, gaya iklan komersial, hero shot produk, komposisi bersih dengan background estetis." } },
 
         { id: "lifestyle", label: "Lifestyle", emoji: "✨",
-          prompt: "Lifestyle content, aspirational and aesthetic, elevated everyday moments captured cinematically, warm and inviting atmosphere." },
+          prompt: { en: "Lifestyle content, aspirational and aesthetic, elevated everyday moments captured cinematically, warm and inviting atmosphere.", id: "Konten lifestyle, aspirational dan estetis, momen sehari-hari diangkat sinematik, suasana hangat dan mengundang." } },
 
         { id: "tutorial", label: "Tutorial", emoji: "📚",
-          prompt: "Educational tutorial style, step-by-step clear demonstration, subject explaining process to camera, focus on clarity and precision." },
+          prompt: { en: "Educational tutorial style, step-by-step clear demonstration, subject explaining process to camera, focus on clarity and precision.", id: "Gaya tutorial edukatif, demonstrasi langkah demi langkah yang jelas, subjek menjelaskan proses ke kamera, fokus pada kejelasan dan presisi." } },
 
         { id: "review", label: "Review / Unboxing", emoji: "🔍",
-          prompt: "Review style with hands-on demonstration, first-person perspective unboxing and inspecting details, honest and informative tone." },
+          prompt: { en: "Review style with hands-on demonstration, first-person perspective unboxing and inspecting details, honest and informative tone.", id: "Gaya review dengan demonstrasi hands-on, perspektif orang pertama saat unboxing dan memeriksa detail, tone jujur dan informatif." } },
 
         { id: "cinematic", label: "Cinematic", emoji: "🎬",
-          prompt: "Cinematic film style, dramatic composition with rich colors and deep contrast, professional camera movement, emotionally impactful." },
+          prompt: { en: "Cinematic film style, dramatic composition with rich colors and deep contrast, professional camera movement, emotionally impactful.", id: "Gaya film sinematik, komposisi dramatis dengan warna kaya dan kontras dalam, gerakan kamera profesional, berkesan emosional." } },
 
         { id: "fashion", label: "Fashion", emoji: "👗",
-          prompt: "Fashion editorial style, runway-quality look, model showcasing outfit with confident poses, editorial magazine aesthetic." },
+          prompt: { en: "Fashion editorial style, runway-quality look, model showcasing outfit with confident poses, editorial magazine aesthetic.", id: "Gaya fashion editorial, look kualitas runway, model memamerkan outfit dengan pose percaya diri, estetika majalah editorial." } },
 
         { id: "food", label: "Food / Culinary", emoji: "🍽",
-          prompt: "Food cinematography, appetizing close-ups, sizzling textures and steam, mouth-watering presentation, chef-quality plating." }
-
+          prompt: { en: "Food cinematography, appetizing close-ups, sizzling textures and steam, mouth-watering presentation, chef-quality plating.", id: "Sinematografi makanan, close-up menggugah selera, tekstur mendesis dan uap, presentasi mouth-watering, plating kualitas chef." } }
     ];
 
+    var ASPECTS = [
+        { id: "16:9", label: "16:9 Landscape" },
+        { id: "9:16", label: "9:16 Vertical" },
+        { id: "1:1", label: "1:1 Square" },
+        { id: "4:3", label: "4:3 Classic" },
+        { id: "3:4", label: "3:4 Portrait" },
+        { id: "21:9", label: "21:9 Cinema" }
+    ];
 
     var ANGLES = [
         { id: "selfie", label: "Selfie" },
@@ -2267,7 +1317,6 @@ body::after {
         { id: "dutch", label: "Dutch Angle" },
         { id: "tracking", label: "Tracking" }
     ];
-
 
     var LOCATIONS = [
         { id: "bedroom", label: "Bedroom" },
@@ -2288,7 +1337,6 @@ body::after {
         { id: "mall", label: "Mall" }
     ];
 
-
     var LIGHTINGS = [
         { id: "natural", label: "Natural Daylight" },
         { id: "golden", label: "Golden Hour" },
@@ -2301,7 +1349,6 @@ body::after {
         { id: "cool", label: "Cool Indoor" },
         { id: "candle", label: "Candle Light" }
     ];
-
 
     var MOODS = [
         { id: "energetic", label: "Energetic" },
@@ -2316,7 +1363,6 @@ body::after {
         { id: "trendy", label: "Trendy" }
     ];
 
-
     var DURATIONS = [
         { id: "5", label: "5 seconds" },
         { id: "10", label: "10 seconds" },
@@ -2325,6 +1371,8 @@ body::after {
         { id: "60", label: "60 seconds" }
     ];
 
+    var PRESET_KEY = "genzai_prompt_studio_preset";
+
 
     /* =====================================================
        STATE
@@ -2332,13 +1380,18 @@ body::after {
 
     var state = {
         output: "image",
+        language: "en",
         category: null,
+        aspect: null,
         angle: null,
         location: null,
         lighting: null,
         mood: null,
         duration: null,
-        referenceFile: null
+        referenceFile: null,
+        subject: "",
+        action: "",
+        notes: ""
     };
 
 
@@ -2354,6 +1407,7 @@ body::after {
     var copyBtn = document.getElementById("copyBtn");
     var copyLabel = document.getElementById("copyLabel");
     var durationCard = document.getElementById("durationCard");
+    var toast = document.getElementById("toast");
 
 
     /* =====================================================
@@ -2365,6 +1419,19 @@ body::after {
             if (arr[i].id === id) return arr[i];
         }
         return null;
+    }
+
+
+    function showToast(msg, isError) {
+
+        toast.textContent = msg;
+        toast.classList.toggle("error", !!isError);
+        toast.classList.add("show");
+
+        setTimeout(function () {
+            toast.classList.remove("show");
+        }, 2400);
+
     }
 
 
@@ -2386,7 +1453,6 @@ body::after {
             btn.addEventListener("click", function () {
 
                 var chips = container.querySelectorAll(".chip");
-
                 for (var i = 0; i < chips.length; i++) {
                     chips[i].classList.remove("active");
                 }
@@ -2435,7 +1501,6 @@ body::after {
             btn.addEventListener("click", function () {
 
                 var tiles = container.querySelectorAll(".category-tile");
-
                 for (var i = 0; i < tiles.length; i++) {
                     tiles[i].classList.remove("active");
                 }
@@ -2454,9 +1519,9 @@ body::after {
     }
 
 
-    function bindOutputType() {
+    function bindSegment(segmentId, stateKey, afterChange) {
 
-        var segment = document.getElementById("outputTypeSegment");
+        var segment = document.getElementById(segmentId);
         if (!segment) return;
 
         var btns = segment.querySelectorAll(".segment-btn");
@@ -2470,18 +1535,13 @@ body::after {
                 }
 
                 this.classList.add("active");
-                state.output = this.getAttribute("data-output");
 
-                durationCard.style.display =
-                    state.output === "video" ? "block" : "none";
+                var val = this.getAttribute("data-output") ||
+                          this.getAttribute("data-lang");
 
-                previewBadge.textContent =
-                    state.output === "video" ? "VIDEO" : "IMAGE";
+                state[stateKey] = val;
 
-                previewBadge.classList.toggle(
-                    "video",
-                    state.output === "video"
-                );
+                if (afterChange) afterChange(val);
 
                 render();
 
@@ -2515,12 +1575,12 @@ body::after {
             if (!file) return;
 
             if (!file.type.startsWith("image/")) {
-                alert("File harus berupa gambar.");
+                showToast("File harus berupa gambar", true);
                 return;
             }
 
             if (file.size > 5 * 1024 * 1024) {
-                alert("Ukuran gambar maksimal 5 MB.");
+                showToast("Ukuran gambar maksimal 5 MB", true);
                 return;
             }
 
@@ -2583,54 +1643,142 @@ body::after {
     }
 
 
+    /* =====================================================
+       BUILD PROMPT
+    ===================================================== */
+
     function buildPrompt() {
 
         var cat = findById(CATEGORIES, state.category);
         if (!cat) return "";
 
+        var lang = state.language;
         var parts = [];
 
-        var intro = state.output === "video"
-            ? "Generate a high-quality video: "
-            : "Generate a high-quality image: ";
+        /* Intro */
+        var intro;
 
-        if (state.referenceFile) {
-            intro += "using the provided reference image as subject identity and physical appearance. ";
+        if (lang === "id") {
+
+            intro = state.output === "video"
+                ? "Buat video berkualitas tinggi: "
+                : "Buat gambar berkualitas tinggi: ";
+
+            if (state.referenceFile) {
+                intro += "gunakan gambar referensi yang diberikan sebagai identitas dan penampilan subjek. ";
+            }
+
+        } else {
+
+            intro = state.output === "video"
+                ? "Generate a high-quality video: "
+                : "Generate a high-quality image: ";
+
+            if (state.referenceFile) {
+                intro += "using the provided reference image as subject identity and physical appearance. ";
+            }
+
         }
 
         parts.push(intro);
-        parts.push(cat.prompt);
+        parts.push(cat.prompt[lang]);
 
-        var subject = document.getElementById("subjectInput").value.trim();
-        if (subject) parts.push("Subject: " + subject + ".");
-
-        var action = document.getElementById("actionInput").value.trim();
-        if (action) parts.push("Action: " + action + ".");
-
-        var angle = findById(ANGLES, state.angle);
-        if (angle) parts.push("Camera angle: " + angle.label + ".");
-
-        var loc = findById(LOCATIONS, state.location);
-        if (loc) parts.push("Location: " + loc.label + ".");
-
-        var light = findById(LIGHTINGS, state.lighting);
-        if (light) parts.push("Lighting: " + light.label + ".");
-
-        var mood = findById(MOODS, state.mood);
-        if (mood) parts.push("Mood: " + mood.label + ".");
-
-        if (state.output === "video" && state.duration) {
-            var dur = findById(DURATIONS, state.duration);
-            if (dur) parts.push("Duration: " + dur.label + ".");
+        /* Subject */
+        if (state.subject) {
+            parts.push(
+                (lang === "id" ? "Subjek: " : "Subject: ") +
+                state.subject + "."
+            );
         }
 
-        var notes = document.getElementById("notesInput").value.trim();
-        if (notes) parts.push("Additional details: " + notes + ".");
+        /* Action */
+        if (state.action) {
+            parts.push(
+                (lang === "id" ? "Aksi: " : "Action: ") +
+                state.action + "."
+            );
+        }
 
+        /* Aspect */
+        if (state.aspect) {
+            parts.push(
+                (lang === "id" ? "Rasio aspek: " : "Aspect ratio: ") +
+                state.aspect + "."
+            );
+        }
+
+        /* Angle */
+        var angle = findById(ANGLES, state.angle);
+        if (angle) {
+            parts.push(
+                (lang === "id" ? "Sudut kamera: " : "Camera angle: ") +
+                angle.label + "."
+            );
+        }
+
+        /* Location */
+        var loc = findById(LOCATIONS, state.location);
+        if (loc) {
+            parts.push(
+                (lang === "id" ? "Lokasi: " : "Location: ") +
+                loc.label + "."
+            );
+        }
+
+        /* Lighting */
+        var light = findById(LIGHTINGS, state.lighting);
+        if (light) {
+            parts.push(
+                (lang === "id" ? "Pencahayaan: " : "Lighting: ") +
+                light.label + "."
+            );
+        }
+
+        /* Mood */
+        var mood = findById(MOODS, state.mood);
+        if (mood) {
+            parts.push(
+                (lang === "id" ? "Mood: " : "Mood: ") +
+                mood.label + "."
+            );
+        }
+
+        /* Duration (video) */
+        if (state.output === "video" && state.duration) {
+            var dur = findById(DURATIONS, state.duration);
+            if (dur) {
+                parts.push(
+                    (lang === "id" ? "Durasi: " : "Duration: ") +
+                    dur.label + "."
+                );
+            }
+        }
+
+        /* Notes */
+        if (state.notes) {
+            parts.push(
+                (lang === "id" ? "Detail tambahan: " : "Additional details: ") +
+                state.notes + "."
+            );
+        }
+
+        /* Quality */
         if (state.output === "video") {
-            parts.push("Cinematic quality, smooth motion, natural color grading, 4K, high detail, professional composition.");
+
+            parts.push(
+                lang === "id"
+                    ? "Kualitas sinematik, gerakan halus, color grading natural, 4K, detail tinggi, komposisi profesional."
+                    : "Cinematic quality, smooth motion, natural color grading, 4K, high detail, professional composition."
+            );
+
         } else {
-            parts.push("Ultra-high resolution, sharp focus, professional lighting, photorealistic quality, 4K.");
+
+            parts.push(
+                lang === "id"
+                    ? "Resolusi ultra-tinggi, fokus tajam, pencahayaan profesional, kualitas fotorealistis, 4K."
+                    : "Ultra-high resolution, sharp focus, professional lighting, photorealistic quality, 4K."
+            );
+
         }
 
         return parts.join(" ");
@@ -2660,11 +1808,14 @@ body::after {
         var words = prompt.trim().split(/\s+/).filter(Boolean);
         wordCount.textContent = words.length;
 
-        /* Rough token estimation: ~0.75 words per token */
         tokensCount.textContent = Math.round(words.length / 0.75);
 
     }
 
+
+    /* =====================================================
+       COPY
+    ===================================================== */
 
     function bindCopy() {
 
@@ -2673,6 +1824,7 @@ body::after {
             var text = previewBody.textContent;
 
             if (!text || previewBody.querySelector(".preview-placeholder")) {
+                showToast("Belum ada prompt untuk dicopy", true);
                 return;
             }
 
@@ -2680,6 +1832,7 @@ body::after {
 
                 copyBtn.classList.add("copied");
                 copyLabel.textContent = "Copied!";
+                showToast("Prompt tersalin ke clipboard");
 
                 setTimeout(function () {
                     copyBtn.classList.remove("copied");
@@ -2715,12 +1868,13 @@ body::after {
             document.execCommand("copy");
             copyBtn.classList.add("copied");
             copyLabel.textContent = "Copied!";
+            showToast("Prompt tersalin");
             setTimeout(function () {
                 copyBtn.classList.remove("copied");
                 copyLabel.textContent = "Copy Prompt";
             }, 1800);
         } catch (e) {
-            alert("Gagal copy. Silakan copy manual.");
+            showToast("Gagal copy, coba manual", true);
         }
 
         document.body.removeChild(ta);
@@ -2728,30 +1882,233 @@ body::after {
     }
 
 
-    function bindInputs() {
+    /* =====================================================
+       PRESET
+    ===================================================== */
 
-        ["subjectInput", "actionInput", "notesInput"].forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el) el.addEventListener("input", render);
+    function savePreset() {
+
+        try {
+
+            var data = {
+                output: state.output,
+                language: state.language,
+                category: state.category,
+                aspect: state.aspect,
+                angle: state.angle,
+                location: state.location,
+                lighting: state.lighting,
+                mood: state.mood,
+                duration: state.duration,
+                subject: state.subject,
+                action: state.action,
+                notes: state.notes
+            };
+
+            localStorage.setItem(PRESET_KEY, JSON.stringify(data));
+            showToast("Preset tersimpan");
+
+        } catch (e) {
+            showToast("Gagal menyimpan preset", true);
+        }
+
+    }
+
+
+    function loadPreset() {
+
+        try {
+
+            var raw = localStorage.getItem(PRESET_KEY);
+
+            if (!raw) {
+                showToast("Belum ada preset tersimpan", true);
+                return;
+            }
+
+            var data = JSON.parse(raw);
+
+            Object.keys(data).forEach(function (k) {
+                if (data[k] !== undefined && data[k] !== null) {
+                    state[k] = data[k];
+                }
+            });
+
+            /* Update UI */
+            syncUIFromState();
+            render();
+            showToast("Preset dimuat");
+
+        } catch (e) {
+            showToast("Gagal memuat preset", true);
+        }
+
+    }
+
+
+    function syncUIFromState() {
+
+        /* Output */
+        var segOutput = document.getElementById("outputTypeSegment");
+        segOutput.querySelectorAll(".segment-btn").forEach(function (b) {
+            b.classList.toggle(
+                "active",
+                b.getAttribute("data-output") === state.output
+            );
+        });
+
+        /* Language */
+        var segLang = document.getElementById("languageSegment");
+        segLang.querySelectorAll(".segment-btn").forEach(function (b) {
+            b.classList.toggle(
+                "active",
+                b.getAttribute("data-lang") === state.language
+            );
+        });
+
+        /* Duration card */
+        durationCard.style.display =
+            state.output === "video" ? "block" : "none";
+
+        /* Badge */
+        previewBadge.textContent =
+            state.output === "video" ? "VIDEO" : "IMAGE";
+        previewBadge.classList.toggle("video", state.output === "video");
+
+        /* Chips */
+        syncChips("aspectGrid", state.aspect);
+        syncChips("angleGrid", state.angle);
+        syncChips("locationGrid", state.location);
+        syncChips("lightingGrid", state.lighting);
+        syncChips("moodGrid", state.mood);
+        syncChips("durationGrid", state.duration);
+
+        /* Category */
+        var catContainer = document.getElementById("categoryGrid");
+        catContainer.querySelectorAll(".category-tile").forEach(function (t) {
+            var emoji = t.querySelector(".category-emoji");
+            var label = t.querySelector("span:not(.category-emoji)");
+            /* Cek berdasarkan state category id, tidak bisa lewat DOM value karena tidak diset */
+            /* Fallback: reset all, nanti render akan set lagi kalau perlu */
+        });
+
+        /* Inputs */
+        document.getElementById("subjectInput").value = state.subject || "";
+        document.getElementById("actionInput").value = state.action || "";
+        document.getElementById("notesInput").value = state.notes || "";
+
+    }
+
+
+    function syncChips(containerId, activeId) {
+
+        var container = document.getElementById(containerId);
+        if (!container) return;
+
+        container.querySelectorAll(".chip").forEach(function (chip) {
+            chip.classList.toggle(
+                "active",
+                chip.getAttribute("data-value") === activeId
+            );
         });
 
     }
 
 
+    function resetAll() {
+
+        state.output = "image";
+        state.language = "en";
+        state.category = null;
+        state.aspect = null;
+        state.angle = null;
+        state.location = null;
+        state.lighting = null;
+        state.mood = null;
+        state.duration = null;
+        state.referenceFile = null;
+        state.subject = "";
+        state.action = "";
+        state.notes = "";
+
+        /* Reset UI */
+        document.getElementById("subjectInput").value = "";
+        document.getElementById("actionInput").value = "";
+        document.getElementById("notesInput").value = "";
+
+        /* Reset upload */
+        var preview = document.getElementById("uploadPreview");
+        var previewImg = document.getElementById("uploadPreviewImg");
+        var input = document.getElementById("uploadInput");
+
+        preview.classList.remove("show");
+        previewImg.src = "";
+        input.value = "";
+
+        /* Reset category tiles */
+        document.querySelectorAll(".category-tile").forEach(function (t) {
+            t.classList.remove("active");
+        });
+
+        syncUIFromState();
+        render();
+        showToast("Semua reset");
+
+    }
+
+
+    /* =====================================================
+       BIND
+    ===================================================== */
+
+    function bindInputs() {
+
+        ["subjectInput", "actionInput", "notesInput"].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+
+            el.addEventListener("input", function () {
+
+                var key = id.replace("Input", "");
+                state[key] = el.value;
+                render();
+
+            });
+        });
+
+    }
+
+
+    /* =====================================================
+       INIT
+    ===================================================== */
+
     function init() {
 
         buildCategoryGrid();
 
+        buildChipGrid("aspectGrid", ASPECTS, "aspect");
         buildChipGrid("angleGrid", ANGLES, "angle");
         buildChipGrid("locationGrid", LOCATIONS, "location");
         buildChipGrid("lightingGrid", LIGHTINGS, "lighting");
         buildChipGrid("moodGrid", MOODS, "mood");
         buildChipGrid("durationGrid", DURATIONS, "duration");
 
-        bindOutputType();
+        bindSegment("outputTypeSegment", "output", function (val) {
+            durationCard.style.display = val === "video" ? "block" : "none";
+            previewBadge.textContent = val === "video" ? "VIDEO" : "IMAGE";
+            previewBadge.classList.toggle("video", val === "video");
+        });
+
+        bindSegment("languageSegment", "language");
+
         bindUpload();
         bindCopy();
         bindInputs();
+
+        document.getElementById("savePresetBtn").addEventListener("click", savePreset);
+        document.getElementById("loadPresetBtn").addEventListener("click", loadPreset);
+        document.getElementById("resetBtn").addEventListener("click", resetAll);
 
         render();
 
@@ -2767,7 +2124,6 @@ body::after {
 })();
 
 </script>
-
 
 </body>
 </html>
