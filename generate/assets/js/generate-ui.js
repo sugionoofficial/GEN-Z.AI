@@ -1655,7 +1655,7 @@ function clearDirectCreditTextNodes(
     }
 
 
-        const numericCreditPattern =
+   const numericCreditPattern =
         /^(?=[\d.,]*\d)[\d.,]+\s*(?:credit)?$/i;
 
 
@@ -3067,22 +3067,20 @@ export function renderModelCredit(
 
     }
 
-       /*
+           /*
      * -----------------------------------------------------
      * EARLY EXIT — SKIP REDUNDANT DOM WORK
      * -----------------------------------------------------
-     * renderModelCredit() dipanggil dari banyak tempat
-     * (setLoading, enableGeneration, resetUI, dll).
-     *
-     * Jika nilai credit + resolution yang ditampilkan
-     * sudah sama dengan yang akan dirender, tidak perlu
-     * menjalankan deduplicateModelCreditDOM() yang
-     * relatif mahal.
-     *
-     * Tetap panggil forceVisible untuk memastikan
-     * canonical value tidak tersembunyi oleh sisa DOM.
+     * renderModelCredit() dipanggil dari banyak tempat.
+     * Jika nilai credit + resolution sudah sama,
+     * lewati deduplicateModelCreditDOM() yang mahal.
      * -----------------------------------------------------
      */
+
+    const targetText =
+        `${formatNumber(
+            credit
+        )} Credit`;
 
     const currentCreditData =
         canonicalValue.dataset.credit;
@@ -3092,11 +3090,6 @@ export function renderModelCredit(
 
     const currentText =
         canonicalValue.textContent;
-
-    const targetText =
-        `${formatNumber(
-            credit
-        )} Credit`;
 
 
     if (
@@ -3135,18 +3128,6 @@ export function renderModelCredit(
 
     canonicalValue.textContent =
         targetText;
-
-
-    /*
-     * -----------------------------------------------------
-     * RENDER SATU VALUE
-     * -----------------------------------------------------
- */
-
-    canonicalValue.textContent =
-        `${formatNumber(
-            credit
-        )} Credit`;
 
 
     canonicalValue.dataset.credit =
