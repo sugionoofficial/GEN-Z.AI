@@ -54,6 +54,14 @@
    - Navigation profile hanya cache/sinkronisasi
    - Navigation tidak boleh menjadi source of truth
    - TIDAK bergantung pada generate-utils.js
+
+   PATCH:
+   - SUPABASE_CDN dipin ke versi 2.39.7 (sesuai index.html)
+   - Timeout script loader di hoist ke module-level
+   - Debug log di-gate via window.GENZ_DEBUG
+   - getProfileSelectColumns di-hoist jadi konstanta
+   - Tambah helper getUserId() / getUserEmail()
+   - Tidak mengubah API / signature / alur
 ========================================================= */
 
 import {
@@ -71,8 +79,24 @@ import {
    CONSTANT
 ========================================================= */
 
+/*
+ * Pin versi Supabase JS agar:
+ * - Tidak terpengaruh update tak terduga dari jsDelivr
+ * - Konsisten dengan versi yang dimuat di generate/index.html
+ * - Menghindari supply-chain attack via floating tag @2
+ */
+
 const SUPABASE_CDN =
-    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js";
+
+
+const SUPABASE_SCRIPT_TIMEOUT_MS =
+    15000;
+
+
+const SUPABASE_SCRIPT_POLL_MS =
+    50;
+
 
 const VALID_ROLES = Object.freeze([
     "USER",
@@ -80,8 +104,67 @@ const VALID_ROLES = Object.freeze([
     "OWNER"
 ]);
 
+
 const ACTIVE_STATUS =
     "active";
+
+
+const PROFILE_SELECT_COLUMNS_WITH_STATUS =
+    "id,email,name,role,credits,status";
+
+
+const PROFILE_SELECT_COLUMNS_WITHOUT_STATUS =
+    "id,email,name,role,credits";
+
+
+/* =========================================================
+   DEBUG HELPER
+========================================================= */
+
+function isDebugEnabled() {
+
+    return (
+        typeof window !== "undefined" &&
+        window.GENZ_DEBUG === true
+    );
+
+}
+
+
+function debugLog(...args) {
+
+    if (
+        isDebugEnabled()
+    ) {
+
+        console.log(...args);
+
+    }
+
+}
+
+
+function debugWarn(...args) {
+
+    /*
+     * Warning selalu ditampilkan untuk hal yang berkaitan
+     * dengan konfigurasi / auth.
+     */
+
+    console.warn(...args);
+
+}
+
+
+function debugError(...args) {
+
+    /*
+     * Error selalu ditampilkan.
+     */
+
+    console.error(...args);
+
+}
 
 
 /* =========================================================
@@ -212,9 +295,6 @@ function loadSupabaseScript() {
                 const startedAt =
                     Date.now();
 
-                const timeout =
-                    15000;
-
 
                 const check =
                     () => {
@@ -238,7 +318,7 @@ function loadSupabaseScript() {
                         if (
                             Date.now() -
                                 startedAt >=
-                            timeout
+                            SUPABASE_SCRIPT_TIMEOUT_MS
                         ) {
 
                             reject(
@@ -254,7 +334,7 @@ function loadSupabaseScript() {
 
                         window.setTimeout(
                             check,
-                            50
+                            SUPABASE_SCRIPT_POLL_MS
                         );
 
                     };
@@ -995,24 +1075,6 @@ function updateAuthBadges(
 
 
 /* =========================================================
-   PROFILE SELECTOR
-========================================================= */
-
-function getProfileSelectColumns() {
-
-    return [
-        "id",
-        "email",
-        "name",
-        "role",
-        "credits",
-        "status"
-    ];
-
-}
-
-
-/* =========================================================
    LOAD PROFILE WITH STATUS
 ========================================================= */
 
@@ -1024,7 +1086,7 @@ async function queryProfileWithStatus(
     return await client
         .from("profiles")
         .select(
-            getProfileSelectColumns().join(",")
+            PROFILE_SELECT_COLUMNS_WITH_STATUS
         )
         .eq(
             "id",
@@ -1047,7 +1109,7 @@ async function queryProfileWithoutStatus(
     return await client
         .from("profiles")
         .select(
-            "id,email,name,role,credits"
+            PROFILE_SELECT_COLUMNS_WITHOUT_STATUS
         )
         .eq(
             "id",
@@ -1445,7 +1507,7 @@ export async function safeSignOut() {
 
     } catch (error) {
 
-        console.error(
+        debugError(
             "GEN-Z.AI signOut error:",
             error
         );
@@ -1553,6 +1615,75 @@ export function getCurrentAccountCredit() {
 
 
 /* =========================================================
+   GET USER ID
+   ---------------------------------------------------------
+   Helper untuk konsistensi pembacaan user ID.
+   Menghandle bentuk user object dari berbagai sumber.
+========================================================= */
+
+export function getUserId() {
+
+    const user =
+        getCurrentUser();
+
+
+    if (
+        !user
+    ) {
+
+        return "";
+
+    }
+
+
+    return String(
+
+        user.id ||
+
+        user.user?.id ||
+
+        ""
+
+    ).trim();
+
+}
+
+
+/* =========================================================
+   GET USER EMAIL
+   ---------------------------------------------------------
+   Helper untuk konsistensi pembacaan email user.
+========================================================= */
+
+export function getUserEmail() {
+
+    const user =
+        getCurrentUser();
+
+
+    if (
+        !user
+    ) {
+
+        return "";
+
+    }
+
+
+    return String(
+
+        user.email ||
+
+        user.user?.email ||
+
+        ""
+
+    ).trim();
+
+}
+
+
+/* =========================================================
    REFRESH ACCOUNT CREDIT
    ---------------------------------------------------------
    Dipakai jika setelah generate credit akun
@@ -1597,6 +1728,10 @@ export const generateAuth =
         hasRole,
 
         getCurrentAccountCredit,
+
+        getUserId,
+
+        getUserEmail,
 
         refreshAccountCredit
 
