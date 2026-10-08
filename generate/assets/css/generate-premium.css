@@ -3071,3 +3071,161 @@ textarea,
     visibility: visible !important;
     opacity: 1 !important;
 }
+
+/* =========================================================
+   FIX: TOPBAR BADGE OVERFLOW DI MOBILE
+   ---------------------------------------------------------
+   Masalah:
+   - Topbar pakai flex row, isi (brand + title + 2 badge)
+     melebihi lebar viewport di HP
+   - Badge role & credit keluar layar ke arah kanan
+
+   Solusi:
+   - Topbar jadi flex-wrap di mobile
+   - Topbar-actions turun ke baris kedua
+   - Badge bisa shrink + text ellipsis
+   - Padding dikurangi supaya muat
+========================================================= */
+
+/* ===== TABLET (<= 900px) ===== */
+
+@media (max-width: 900px) {
+
+    .topbar,
+    .generate-topbar {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        gap: 12px !important;
+        row-gap: 14px !important;
+    }
+
+    .topbar-title {
+        /* Title ambil sisa ruang, dorong actions ke baris baru */
+        flex: 1 1 200px !important;
+        min-width: 0 !important;
+    }
+
+    .topbar-actions {
+        /* Turun ke baris baru, full width */
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+
+        /* Align kiri di mobile supaya tidak mepet kanan */
+        justify-content: flex-start !important;
+    }
+
+    .header-badge {
+        /* Badge boleh shrink, tapi tidak keluar layar */
+        flex: 0 1 auto !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+
+        /* Padding lebih kecil di mobile */
+        padding: 6px 12px !important;
+        font-size: 11px !important;
+    }
+
+    .header-badge > span:last-child {
+        /* Text di dalam badge pakai ellipsis kalau kepanjangan */
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        min-width: 0 !important;
+    }
+}
+
+
+/* ===== HP (<= 480px) ===== */
+
+@media (max-width: 480px) {
+
+    .topbar,
+    .generate-topbar {
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+        gap: 10px !important;
+    }
+
+    .topbar-title h1 {
+        font-size: 18px !important;
+        letter-spacing: -0.5px !important;
+        line-height: 1.2 !important;
+    }
+
+    .topbar-title p {
+        font-size: 11px !important;
+        line-height: 1.4 !important;
+    }
+
+    .topbar-title .topbar-eyebrow {
+        font-size: 9px !important;
+        letter-spacing: 1.5px !important;
+    }
+
+    .topbar-actions {
+        gap: 6px !important;
+    }
+
+    .header-badge {
+        padding: 5px 10px !important;
+        font-size: 10px !important;
+        border-radius: 999px !important;
+    }
+
+    .header-badge-dot {
+        width: 5px !important;
+        height: 5px !important;
+    }
+
+    .credit-icon {
+        font-size: 10px !important;
+    }
+}
+
+
+/* ===== HP SANGAT KECIL (<= 360px) ===== */
+
+@media (max-width: 360px) {
+
+    .topbar,
+    .generate-topbar {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+
+    .header-badge {
+        padding: 4px 8px !important;
+        font-size: 9.5px !important;
+    }
+
+    .topbar-title h1 {
+        font-size: 16px !important;
+    }
+}
+
+
+/* ===== SAFETY NET =====
+   Paksa topbar dan actions tidak pernah overflow viewport
+*/
+
+.topbar,
+.generate-topbar {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+}
+
+.topbar-actions,
+.header-badge {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+}
+
+/* Brand hologram tidak boleh dorong layout keluar */
+.brand-hologram {
+    flex-shrink: 0 !important;
+}
