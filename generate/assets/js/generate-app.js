@@ -43,6 +43,11 @@
      dapat melakukan reconciliation generation_history
    - HASIL POLLING TIDAK BOLEH DIANGGAP COMPLETED
      jika status task masih processing/pending/running
+
+   PATCH:
+   - Hoist Set constants (secretKeys, state sets) ke module
+   - Extend sanitizeKieResponse pattern detection
+   - Tidak mengubah perilaku / signature / alur
 ========================================================= */
 
 "use strict";
@@ -87,6 +92,125 @@ const POLLING_MODULE =
 
 const CANCELLATION_MODULE =
     "./generate-cancellation.js";
+
+
+/* =========================================================
+   MODULE-LEVEL CONSTANT SETS
+   ---------------------------------------------------------
+   Hoisted dari dalam fungsi untuk mencegah alokasi berulang.
+   Isi tetap identik dengan versi sebelumnya.
+========================================================= */
+
+const KIE_SECRET_KEYS =
+    new Set([
+
+        "apiKey",
+
+        "api_key",
+
+        "apikey",
+
+        "authorization",
+
+        "Authorization",
+
+        "access_token",
+
+        "accessToken",
+
+        "refresh_token",
+
+        "refreshToken",
+
+        "token",
+
+        "secret",
+
+        "password",
+
+        "credential",
+
+        "credentials",
+
+        "api_key_ciphertext",
+
+        "api_key_iv",
+
+        "api_key_tag"
+
+    ]);
+
+
+const POLLING_FAILED_STATES =
+    new Set([
+
+        "fail",
+
+        "failed",
+
+        "failure",
+
+        "error",
+
+        "rejected",
+
+        "terminated"
+
+    ]);
+
+
+const POLLING_PROCESSING_STATES =
+    new Set([
+
+        "waiting",
+
+        "pending",
+
+        "queued",
+
+        "queue",
+
+        "processing",
+
+        "running",
+
+        "generating",
+
+        "in_progress",
+
+        "in-progress",
+
+        "created",
+
+        "submitted",
+
+        "starting",
+
+        "started"
+
+    ]);
+
+
+const POLLING_COMPLETED_STATES =
+    new Set([
+
+        "success",
+
+        "succeeded",
+
+        "successful",
+
+        "completed",
+
+        "complete",
+
+        "done",
+
+        "finished",
+
+        "successfully_completed"
+
+    ]);
 
 
 /* =========================================================
@@ -3915,6 +4039,11 @@ async function handleModelChange(
 
 /* =========================================================
    KIE.AI RESPONSE SANITIZER
+   ---------------------------------------------------------
+   PATCH:
+   - Gunakan KIE_SECRET_KEYS module-level
+   - Pattern detection diperluas (mg_live_, sk_live_,
+     AKIA, ghp_, dst.)
 ========================================================= */
 
 function sanitizeKieResponse(
@@ -3931,45 +4060,6 @@ function sanitizeKieResponse(
         return "[MAX_DEPTH]";
 
     }
-
-    const secretKeys =
-        new Set([
-
-            "apiKey",
-
-            "api_key",
-
-            "apikey",
-
-            "authorization",
-
-            "Authorization",
-
-            "access_token",
-
-            "accessToken",
-
-            "refresh_token",
-
-            "refreshToken",
-
-            "token",
-
-            "secret",
-
-            "password",
-
-            "credential",
-
-            "credentials",
-
-            "api_key_ciphertext",
-
-            "api_key_iv",
-
-            "api_key_tag"
-
-        ]);
 
     if (
         Array.isArray(
@@ -3991,7 +4081,7 @@ function sanitizeKieResponse(
     if (
         value &&
         typeof value ===
-        "object"
+            "object"
     ) {
 
         if (
@@ -4022,7 +4112,7 @@ function sanitizeKieResponse(
         ) {
 
             if (
-                secretKeys.has(
+                KIE_SECRET_KEYS.has(
                     key
                 )
             ) {
@@ -4049,18 +4139,55 @@ function sanitizeKieResponse(
 
     if (
         typeof value ===
-        "string"
+            "string"
     ) {
 
         return value
+
+            /* Bearer token */
 
             .replace(
                 /Bearer\s+[^\s"']+/gi,
                 "Bearer [REDACTED]"
             )
 
+            /* OpenAI / generic sk- / sk_ */
+
             .replace(
-                /sk-[A-Za-z0-9_-]+/g,
+                /\bsk_[a-zA-Z0-9_-]{8,}\b/g,
+                "[REDACTED]"
+            )
+
+            .replace(
+                /\bsk-[A-Za-z0-9_-]{8,}\b/g,
+                "[REDACTED]"
+            )
+
+            /* Stripe live / test */
+
+            .replace(
+                /\b(pk|rk)_(live|test)_[a-zA-Z0-9]{8,}\b/gi,
+                "[REDACTED]"
+            )
+
+            /* KIE.AI live key */
+
+            .replace(
+                /\bmg_live_[a-zA-Z0-9]{8,}\b/gi,
+                "[REDACTED]"
+            )
+
+            /* AWS Access Key ID */
+
+            .replace(
+                /\bAKIA[0-9A-Z]{16}\b/g,
+                "[REDACTED]"
+            )
+
+            /* GitHub token */
+
+            .replace(
+                /\bgh[pousr]_[a-zA-Z0-9]{36,}\b/g,
                 "[REDACTED]"
             );
 
@@ -4597,25 +4724,8 @@ function isPollingCompleted(
             value
         );
 
-    const failedStates =
-        new Set([
-
-            "fail",
-
-            "failed",
-
-            "failure",
-
-            "error",
-
-            "rejected",
-
-            "terminated"
-
-        ]);
-
     if (
-        failedStates.has(
+        POLLING_FAILED_STATES.has(
             state
         )
     ) {
@@ -4624,39 +4734,8 @@ function isPollingCompleted(
 
     }
 
-    const processingStates =
-        new Set([
-
-            "waiting",
-
-            "pending",
-
-            "queued",
-
-            "queue",
-
-            "processing",
-
-            "running",
-
-            "generating",
-
-            "in_progress",
-
-            "in-progress",
-
-            "created",
-
-            "submitted",
-
-            "starting",
-
-            "started"
-
-        ]);
-
     if (
-        processingStates.has(
+        POLLING_PROCESSING_STATES.has(
             state
         )
     ) {
@@ -4665,29 +4744,8 @@ function isPollingCompleted(
 
     }
 
-    const completedStates =
-        new Set([
-
-            "success",
-
-            "succeeded",
-
-            "successful",
-
-            "completed",
-
-            "complete",
-
-            "done",
-
-            "finished",
-
-            "successfully_completed"
-
-        ]);
-
     if (
-        completedStates.has(
+        POLLING_COMPLETED_STATES.has(
             state
         )
     ) {
@@ -4795,21 +4853,7 @@ function isPollingFailed(
         );
 
 
-    return [
-
-        "fail",
-
-        "failed",
-
-        "failure",
-
-        "error",
-
-        "rejected",
-
-        "terminated"
-
-    ].includes(
+    return POLLING_FAILED_STATES.has(
         state
     );
 
