@@ -1,3 +1,4 @@
+// history/assets/js/history-config.js?v=1.1
 /* =========================================================
    GEN-Z.AI
    HISTORY CONFIG MODULE
