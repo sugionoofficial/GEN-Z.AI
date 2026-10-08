@@ -111,7 +111,7 @@
  * =========================================================
  */
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 
 import grokImagineImageToVideo
@@ -3249,6 +3249,9 @@ function validateAdapterInput(
 /* =========================================================
    HANDLER
    ========================================================= */
+export const config = {
+    runtime: "nodejs20.x"
+};
 
 export default async function handler(
     req,
