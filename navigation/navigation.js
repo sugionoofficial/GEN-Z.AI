@@ -1,4 +1,4 @@
-//navigation.js?v=1.8
+//navigation.js?v=1.9
 /* =========================================================
    GEN-Z.AI
    SHARED NAVIGATION
@@ -6,50 +6,21 @@
    File:
    navigation/navigation.js
 
-   Logo:
-   - GEN-Z.AI neon logo
-   - Menjadi satu-satunya logo navigation
-   - Tidak menggunakan fixed logo terpisah di halaman
-   - Tetap terlihat saat sidebar melakukan scroll
-
-   Fungsi:
-   - Supabase authentication
-   - Profile loading
-   - Role detection
-   - User/Admin/Owner navigation
-   - Global compatibility bridge
-   - Logout
-   - Mobile navigation
-   - Active menu
-
-   Vision:
-   - Vision Image
-   - Vision Video
-
-   PATCH:
-   - Keydown listener tidak menumpuk saat render diulang
-   - authSubscription unsubscribe saat page unload
-   - Supabase client pakai auth config eksplisit
-   - console.error di-gate via window.GENZ_DEBUG
-
-   PATCH (FIX DEADLOCK):
-   - autoRefreshToken: false
-     autoRefreshToken: true bikin background refresh
-     memegang Web Lock dan tidak pernah melepasnya,
-     sehingga getSession() / signOut() / upload() hang.
-   - Tambah custom lock (no-op) untuk bypass Web Locks API.
-   - Tambah ensureFreshToken() untuk refresh token manual
-     sebelum getSession() dipanggil.
+   PATCH v1.9 (FIX DEADLOCK TOTAL):
+   - BYPASS GoTrueClient SEPENUHNYA untuk auth operations.
+   - Method client.auth.* (getSession/getUser/refreshSession/
+     signOut) hang pada client yang dibuat saat page load
+     di Supabase v2.58.0.
+   - Session dibaca langsung dari localStorage.
+   - Refresh token via fetch langsung ke /auth/v1/token.
+   - Logout via clear localStorage + redirect.
+   - onAuthStateChange dinonaktifkan.
    ========================================================= */
 
 (() => {
 
     "use strict";
 
-
-    /* =====================================================
-       DEBUG HELPER
-    ===================================================== */
 
     function isDebugEnabled() {
 
@@ -63,22 +34,10 @@
 
     function debugError(...args) {
 
-        /*
-         * Error selalu ditampilkan karena berkaitan
-         * dengan authentication / navigation.
-         *
-         * Tetapi dibungkus helper agar mudah di-gate
-         * di masa depan.
-         */
-
         console.error(...args);
 
     }
 
-
-    /* =====================================================
-       PREVENT DOUBLE INITIALIZATION
-    ===================================================== */
 
     if (
         window.__GENZ_NAVIGATION_STARTED
@@ -90,10 +49,6 @@
 
     window.__GENZ_NAVIGATION_STARTED = true;
 
-
-    /* =====================================================
-       CONFIG
-    ===================================================== */
 
     const STYLE_ID =
         "genz-shared-navigation-style";
@@ -110,14 +65,6 @@
         "/index.html";
 
 
-    const SESSION_RETRY_COUNT =
-        5;
-
-
-    const SESSION_RETRY_DELAY =
-        500;
-
-
     const PROFILE_RETRY_COUNT =
         3;
 
@@ -126,18 +73,9 @@
         500;
 
 
-    /*
-     * Buffer waktu (detik) sebelum token expired.
-     * Kalau sisa waktu < buffer, refresh manual.
-     */
-
     const TOKEN_REFRESH_BUFFER_SEC =
         60;
 
-
-    /* =====================================================
-       STATE
-    ===================================================== */
 
     let currentUser = null;
 
@@ -145,17 +83,11 @@
 
     let currentRole = "user";
 
-    let authSubscription = null;
-
-    let authListenerReady = false;
-
     let navigationReady = false;
 
     let navigationReadyResolve;
 
     let documentKeydownBound = false;
-
-    let cleanupDone = false;
 
 
     const navigationReadyPromise =
@@ -170,7 +102,7 @@
 
 
     /* =====================================================
-       GLOBAL COMPATIBILITY BRIDGE
+       GLOBAL BRIDGE
     ===================================================== */
 
     function syncNavigationGlobals() {
@@ -178,57 +110,35 @@
         window.GENZ_NAVIGATION_USER =
             currentUser || null;
 
-
         window.GENZ_NAVIGATION_PROFILE =
             currentProfile || null;
 
-
         window.GENZ_NAVIGATION_ROLE =
-            normalizeRole(
-                currentRole
-            );
+            normalizeRole(currentRole);
 
-
-        if (
-            currentProfile
-        ) {
-
-            window.GENZ_CURRENT_PROFILE =
-                currentProfile;
-
-        } else {
-
-            window.GENZ_CURRENT_PROFILE =
-                null;
-
-        }
+        window.GENZ_CURRENT_PROFILE =
+            currentProfile || null;
 
     }
 
 
     /* =====================================================
-       SUPABASE
+       SUPABASE CLIENT (untuk storage & database saja)
        -----------------------------------------------------
-       FIX DEADLOCK:
-       - autoRefreshToken: false
-       - lock: no-op (langsung jalankan callback)
-       - refresh manual via ensureFreshToken()
+       Tidak dipakai untuk auth operations.
+       Auth dibaca langsung dari localStorage.
     ===================================================== */
 
     function getSupabaseClient() {
 
-        if (
-            window.GENZ_SUPABASE
-        ) {
+        if (window.GENZ_SUPABASE) {
 
             return window.GENZ_SUPABASE;
 
         }
 
 
-        if (
-            window.supabaseClient
-        ) {
+        if (window.supabaseClient) {
 
             return window.supabaseClient;
 
@@ -237,7 +147,6 @@
 
         const supabaseGlobal =
             window.supabase;
-
 
         const config =
             window.GENZ_CONFIG;
@@ -249,10 +158,6 @@
                 "function"
         ) {
 
-            debugError(
-                "[GEN-Z.AI] Supabase library tidak tersedia."
-            );
-
             return null;
 
         }
@@ -262,10 +167,6 @@
             !config ||
             !config.SUPABASE_URL
         ) {
-
-            debugError(
-                "[GEN-Z.AI] SUPABASE_URL tidak tersedia."
-            );
 
             return null;
 
@@ -277,13 +178,7 @@
             config.SUPABASE_ANON_KEY;
 
 
-        if (
-            !supabaseKey
-        ) {
-
-            debugError(
-                "[GEN-Z.AI] SUPABASE_KEY tidak tersedia."
-            );
+        if (!supabaseKey) {
 
             return null;
 
@@ -298,59 +193,14 @@
                     supabaseKey,
                     {
                         auth: {
-
-                            persistSession:
-                                true,
-
-                            /*
-                             * autoRefreshToken HARUS false.
-                             *
-                             * Kalau true, Supabase client akan
-                             * menjalankan background refresh
-                             * yang memegang Web Lock dan tidak
-                             * melepasnya → getSession() /
-                             * signOut() / storage.upload()
-                             * hang selamanya.
-                             *
-                             * Refresh token dilakukan manual
-                             * di ensureFreshToken().
-                             */
-
-                            autoRefreshToken:
-                                false,
-
-                            detectSessionInUrl:
-                                true,
-
-                            /*
-                             * Bypass Web Locks API.
-                             * Callback langsung dijalankan
-                             * tanpa menunggu lock.
-                             */
-
-                            lock:
-                                async (
-                                    _name,
-                                    _acquireTimeout,
-                                    fn
-                                ) => {
-
-                                    return await fn();
-
-                                }
-
+                            persistSession: false,
+                            autoRefreshToken: false,
+                            detectSessionInUrl: false,
+                            lock: async (_n, _t, fn) => await fn()
                         }
                     }
                 );
 
-
-            /*
-             * Simpan ke global.
-             *
-             * Sekaligus set GENZ_SUPABASE agar
-             * generate-auth.js / generate-state.js
-             * tidak bikin client kedua.
-             */
 
             window.GENZ_SUPABASE =
                 client;
@@ -361,9 +211,7 @@
 
             return client;
 
-        } catch (
-            error
-        ) {
+        } catch (error) {
 
             debugError(
                 "[GEN-Z.AI] Supabase client error:",
@@ -378,40 +226,143 @@
 
 
     /* =====================================================
-       ENSURE FRESH TOKEN
+       READ SESSION FROM LOCALSTORAGE
        -----------------------------------------------------
-       Karena autoRefreshToken dimatikan, kita refresh
-       token manual sebelum getSession().
+       FIX DEADLOCK:
+       Baca session langsung dari localStorage, bypass
+       GoTrueClient sepenuhnya.
 
-       Ini menghindari hang di getSession() ketika token
-       sudah hampir expired.
+       Format key: sb-<project-ref>-auth-token
+    ===================================================== */
+
+    function readSessionFromStorage() {
+
+        try {
+
+            const config =
+                window.GENZ_CONFIG;
+
+            if (
+                !config ||
+                !config.SUPABASE_URL
+            ) {
+
+                return null;
+
+            }
+
+            const match =
+                config.SUPABASE_URL.match(
+                    /https:\/\/([^.]+)/
+                );
+
+            const projectRef =
+                match && match[1];
+
+            if (!projectRef) {
+
+                return null;
+
+            }
+
+            const key =
+                "sb-" + projectRef + "-auth-token";
+
+            const raw =
+                localStorage.getItem(key);
+
+            if (!raw) {
+
+                return null;
+
+            }
+
+            const session =
+                JSON.parse(raw);
+
+            if (
+                !session ||
+                !session.access_token
+            ) {
+
+                return null;
+
+            }
+
+            return session;
+
+        } catch (error) {
+
+            return null;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       CLEAR SESSION STORAGE
+    ===================================================== */
+
+    function clearSessionStorage() {
+
+        try {
+
+            const config =
+                window.GENZ_CONFIG;
+
+            if (
+                !config ||
+                !config.SUPABASE_URL
+            ) {
+
+                return;
+
+            }
+
+            const match =
+                config.SUPABASE_URL.match(
+                    /https:\/\/([^.]+)/
+                );
+
+            const projectRef =
+                match && match[1];
+
+            if (!projectRef) {
+
+                return;
+
+            }
+
+            const key =
+                "sb-" + projectRef + "-auth-token";
+
+            localStorage.removeItem(key);
+
+        } catch (error) {
+
+            /* ignore */
+
+        }
+
+    }
+
+
+    /* =====================================================
+       ENSURE FRESH TOKEN (via fetch langsung)
+       -----------------------------------------------------
+       FIX DEADLOCK:
+       Refresh token via fetch ke /auth/v1/token,
+       TIDAK memanggil client.auth.refreshSession()
+       yang hang.
     ===================================================== */
 
     async function ensureFreshToken() {
 
-        const supabase =
-            getSupabaseClient();
-
-
-        if (
-            !supabase ||
-            !supabase.auth
-        ) {
-
-            return;
-
-        }
-
-
         try {
 
-            const sessionResult =
-                await supabase.auth.getSession();
-
-
             const session =
-                sessionResult?.data?.session;
-
+                readSessionFromStorage();
 
             if (
                 !session ||
@@ -422,88 +373,122 @@
 
             }
 
-
             const nowSec =
                 Math.floor(
                     Date.now() / 1000
                 );
 
-
             const secondsUntilExpiry =
                 session.expires_at -
                 nowSec;
-
 
             if (
                 secondsUntilExpiry >=
                 TOKEN_REFRESH_BUFFER_SEC
             ) {
 
+                return;
+
+            }
+
+            if (
+                secondsUntilExpiry < 0
+            ) {
+
                 /*
-                 * Token masih valid, tidak perlu
-                 * refresh.
+                 * Sudah expired. Tidak bisa refresh
+                 * tanpa valid refresh_token.
                  */
 
                 return;
 
             }
 
+            if (!session.refresh_token) {
+
+                return;
+
+            }
+
+            const config =
+                window.GENZ_CONFIG;
+
+            const res =
+                await fetch(
+                    `${config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "apikey": config.SUPABASE_KEY
+                        },
+                        body: JSON.stringify({
+                            refresh_token: session.refresh_token
+                        })
+                    }
+                );
+
+            if (!res.ok) {
+
+                if (isDebugEnabled()) {
+
+                    console.warn(
+                        "[GEN-Z.AI] Refresh token HTTP error:",
+                        res.status
+                    );
+
+                }
+
+                return;
+
+            }
+
+            const newSession =
+                await res.json();
 
             if (
-                isDebugEnabled()
+                !newSession ||
+                !newSession.access_token
             ) {
 
-                console.log(
-                    "[GEN-Z.AI][Navigation] Refresh token manual " +
-                    "(expired in " +
-                    secondsUntilExpiry +
-                    "s)..."
+                return;
+
+            }
+
+            const match =
+                config.SUPABASE_URL.match(
+                    /https:\/\/([^.]+)/
+                );
+
+            const projectRef =
+                match && match[1];
+
+            if (projectRef) {
+
+                const key =
+                    "sb-" + projectRef + "-auth-token";
+
+                localStorage.setItem(
+                    key,
+                    JSON.stringify(newSession)
                 );
 
             }
 
+            if (isDebugEnabled()) {
 
-            const refreshResult =
-                await supabase.auth.refreshSession();
-
-
-            if (
-                refreshResult?.error
-            ) {
-
-                if (
-                    isDebugEnabled()
-                ) {
-
-                    console.warn(
-                        "[GEN-Z.AI][Navigation] Refresh token gagal:",
-                        refreshResult.error.message
-                    );
-
-                }
-
-            } else {
-
-                if (
-                    isDebugEnabled()
-                ) {
-
-                    console.log(
-                        "[GEN-Z.AI][Navigation] Refresh token berhasil."
-                    );
-
-                }
+                console.log(
+                    "[GEN-Z.AI] Refresh token berhasil."
+                );
 
             }
 
         } catch (error) {
 
-            if (
-                isDebugEnabled()
-            ) {
+            if (isDebugEnabled()) {
 
                 console.warn(
-                    "[GEN-Z.AI][Navigation] ensureFreshToken error:",
+                    "[GEN-Z.AI] ensureFreshToken error:",
                     error
                 );
 
@@ -514,49 +499,24 @@
     }
 
 
-    /* =====================================================
-       DELAY
-    ===================================================== */
+    function delay(ms) {
 
-    function delay(
-        milliseconds
-    ) {
-
-        return new Promise(
-            resolve =>
-                setTimeout(
-                    resolve,
-                    milliseconds
-                )
-        );
+        return new Promise(r => setTimeout(r, ms));
 
     }
 
-
-    /* =====================================================
-       CURRENT PATH
-    ===================================================== */
 
     function getCurrentPath() {
 
-        return (
-            window.location.pathname ||
-            "/"
-        );
+        return window.location.pathname || "/";
 
     }
 
-
-    /* =====================================================
-       LOGIN PATH CHECK
-    ===================================================== */
 
     function isLoginPage() {
 
         const path =
-            getCurrentPath()
-                .toLowerCase();
-
+            getCurrentPath().toLowerCase();
 
         return (
             path === LOGIN_PATH ||
@@ -567,30 +527,18 @@
     }
 
 
-    /* =====================================================
-       ROLE NORMALIZATION
-    ===================================================== */
-
-    function normalizeRole(
-        role
-    ) {
+    function normalizeRole(role) {
 
         const value =
-            String(
-                role || ""
-            )
+            String(role || "")
                 .trim()
                 .toLowerCase();
 
-
-        if (
-            value === "owner"
-        ) {
+        if (value === "owner") {
 
             return "owner";
 
         }
-
 
         if (
             value === "admin" ||
@@ -601,51 +549,33 @@
 
         }
 
-
         return "user";
 
     }
 
 
-    /* =====================================================
-       PROFILE ACTIVE CHECK
-    ===================================================== */
+    function isProfileActive(profile) {
 
-    function isProfileActive(
-        profile
-    ) {
-
-        if (
-            !profile
-        ) {
+        if (!profile) {
 
             return false;
 
         }
 
-
         if (
-            profile.status ===
-                undefined ||
-            profile.status ===
-                null ||
-            String(
-                profile.status
-            ).trim() === ""
+            profile.status === undefined ||
+            profile.status === null ||
+            String(profile.status).trim() === ""
         ) {
 
             return true;
 
         }
 
-
         const status =
-            String(
-                profile.status
-            )
+            String(profile.status)
                 .trim()
                 .toLowerCase();
-
 
         return (
             status === "active" ||
@@ -657,21 +587,31 @@
 
 
     /* =====================================================
-       SESSION
-       -----------------------------------------------------
-       FIX: Panggil ensureFreshToken() sebelum getSession()
-       untuk refresh token manual.
+       GET SESSION (BYPASS GoTrueClient)
     ===================================================== */
 
     async function getSessionWithRetry() {
 
-        const supabase =
-            getSupabaseClient();
+        await ensureFreshToken();
 
+        const session =
+            readSessionFromStorage();
+
+        if (!session) {
+
+            return {
+                session: null,
+                user: null
+            };
+
+        }
+
+        const nowSec =
+            Math.floor(Date.now() / 1000);
 
         if (
-            !supabase ||
-            !supabase.auth
+            session.expires_at &&
+            session.expires_at < nowSec
         ) {
 
             return {
@@ -681,120 +621,31 @@
 
         }
 
-
-        /*
-         * -------------------------------------------------
-         * REFRESH TOKEN MANUAL
-         * -------------------------------------------------
-         * Karena autoRefreshToken dimatikan, kita refresh
-         * manual kalau token sudah hampir expired.
-         */
-
-        await ensureFreshToken();
-
-
-        for (
-            let attempt = 0;
-            attempt < SESSION_RETRY_COUNT;
-            attempt++
-        ) {
-
-            try {
-
-                const {
-                    data,
-                    error
-                } =
-                    await supabase.auth.getSession();
-
-
-                if (
-                    !error &&
-                    data &&
-                    data.session
-                ) {
-
-                    return {
-                        session:
-                            data.session,
-
-                        user:
-                            data.session.user
-                    };
-
-                }
-
-
-                if (
-                    attempt <
-                    SESSION_RETRY_COUNT - 1
-                ) {
-
-                    await delay(
-                        SESSION_RETRY_DELAY
-                    );
-
-                }
-
-            } catch (
-                error
-            ) {
-
-                debugError(
-                    "[GEN-Z.AI] Session error:",
-                    error
-                );
-
-
-                if (
-                    attempt <
-                    SESSION_RETRY_COUNT - 1
-                ) {
-
-                    await delay(
-                        SESSION_RETRY_DELAY
-                    );
-
-                }
-
-            }
-
-        }
-
-
         return {
-            session: null,
-            user: null
+            session,
+            user: session.user
         };
 
     }
 
 
     /* =====================================================
-       LOAD PROFILE
+       LOAD PROFILE (masih via Supabase database client,
+       BUKAN auth — aman karena database client tidak hang)
     ===================================================== */
 
-    async function loadProfile(
-        userId
-    ) {
+    async function loadProfile(userId) {
 
         const supabase =
             getSupabaseClient();
 
-
-        if (
-            !supabase ||
-            !userId
-        ) {
+        if (!supabase || !userId) {
 
             return null;
 
         }
 
-
-        let lastError =
-            null;
-
+        let lastError = null;
 
         for (
             let attempt = 0;
@@ -810,30 +661,18 @@
                         .select(
                             "id,email,name,role,credits,status"
                         )
-                        .eq(
-                            "id",
-                            userId
-                        )
+                        .eq("id", userId)
                         .maybeSingle();
-
 
                 if (
                     result.error &&
                     (
-                        String(
-                            result.error.message || ""
-                        )
+                        String(result.error.message || "")
                             .toLowerCase()
-                            .includes(
-                                "status"
-                            ) ||
-                        String(
-                            result.error.message || ""
-                        )
+                            .includes("status") ||
+                        String(result.error.message || "")
                             .toLowerCase()
-                            .includes(
-                                "schema cache"
-                            )
+                            .includes("schema cache")
                     )
                 ) {
 
@@ -843,57 +682,37 @@
                             .select(
                                 "id,email,name,role,credits"
                             )
-                            .eq(
-                                "id",
-                                userId
-                            )
+                            .eq("id", userId)
                             .maybeSingle();
 
                 }
 
+                if (!result.error) {
 
-                if (
-                    !result.error
-                ) {
-
-                    return (
-                        result.data ||
-                        null
-                    );
+                    return result.data || null;
 
                 }
 
+                lastError = result.error;
 
-                lastError =
-                    result.error;
+            } catch (error) {
 
-            } catch (
-                error
-            ) {
-
-                lastError =
-                    error;
+                lastError = error;
 
             }
-
 
             if (
                 attempt <
                 PROFILE_RETRY_COUNT - 1
             ) {
 
-                await delay(
-                    PROFILE_RETRY_DELAY
-                );
+                await delay(PROFILE_RETRY_DELAY);
 
             }
 
         }
 
-
-        if (
-            lastError
-        ) {
+        if (lastError) {
 
             debugError(
                 "[GEN-Z.AI] Profile load error:",
@@ -902,350 +721,67 @@
 
         }
 
-
         return null;
 
     }
 
 
     /* =====================================================
-       NAVIGATION CONFIG
+       NAVIGATION CONFIG (ICONS + ITEMS)
     ===================================================== */
 
-    function getNavigationConfig(
-        role
-    ) {
-
-        /* =================================================
-           NAVIGATION ICONS
-           -------------------------------------------------
-           - Inline SVG
-           - Tidak menggunakan warna hardcoded
-           - Mengikuti warna dari .genz-nav-item
-           - Ikon disesuaikan dengan nama fitur
-           ================================================= */
+    function getNavigationConfig(role) {
 
         const ICONS = Object.freeze({
 
-            dashboard: `
-                <svg
-                    viewBox="0 0 24 24"
-                    width="19"
-                    height="19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
-                    <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
-                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
-                    <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
-                </svg>
-            `,
+            dashboard: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>`,
 
-            generate: `
-                <svg
-                    viewBox="0 0 24 24"
-                    width="19"
-                    height="19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <path d="M15.5 4.5l4 4"></path>
-                    <path d="M13.8 6.2L4 16l-1 4 4-1 9.8-9.8"></path>
-                    <path d="M18.5 2.5v4"></path>
-                    <path d="M20.5 4.5h-4"></path>
-                </svg>
-            `,
+            generate: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 4.5l4 4"></path><path d="M13.8 6.2L4 16l-1 4 4-1 9.8-9.8"></path><path d="M18.5 2.5v4"></path><path d="M20.5 4.5h-4"></path></svg>`,
 
-            visionImage: `
-                <svg
-                    viewBox="0 0 24 24"
-                    width="19"
-                    height="19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path>
-                    <circle cx="12" cy="12" r="2.7"></circle>
-                </svg>
-            `,
+            visionImage: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path><circle cx="12" cy="12" r="2.7"></circle></svg>`,
 
-            visionVideo: `
-                <svg
-                    viewBox="0 0 24 24"
-                    width="19"
-                    height="19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <rect x="3" y="5" width="13" height="14" rx="2"></rect>
-                    <path d="M16 10l5-3v10l-5-3z"></path>
-                </svg>
-            `,
+            visionVideo: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"></rect><path d="M16 10l5-3v10l-5-3z"></path></svg>`,
 
-            viddra: `
-                <svg
-                    viewBox="0 0 24 24"
-                    width="19"
-                    height="19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-                    <path d="M10 9l5 3-5 3z"></path>
-                    <path d="M7 2l2 2"></path>
-                    <path d="M17 2l-2 2"></path>
-                </svg>
-            `,
+            viddra: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M10 9l5 3-5 3z"></path><path d="M7 2l2 2"></path><path d="M17 2l-2 2"></path></svg>`,
 
-            history: `
-                <svg
-                    viewBox="0 0 24 24"
-                    width="19"
-                    height="19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"></path>
-                    <path d="M3.5 4.5v5h5"></path>
-                    <path d="M12 7.5v5l3.5 2"></path>
-                </svg>
-            `,
+            history: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"></path><path d="M3.5 4.5v5h5"></path><path d="M12 7.5v5l3.5 2"></path></svg>`,
 
-            metadataCleaner: `
-                <svg
-                    viewBox="0 0 24 24"
-                    width="19"
-                    height="19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <path d="M5 3h9l5 5v13H5z"></path>
-                    <path d="M14 3v5h5"></path>
-                    <path d="M8.5 15l2.2 2.2 4.8-5"></path>
-                </svg>
-            `,
+            metadataCleaner: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h9l5 5v13H5z"></path><path d="M14 3v5h5"></path><path d="M8.5 15l2.2 2.2 4.8-5"></path></svg>`,
 
-            topUp: `
-                <svg
-                    viewBox="0 0 24 24"
-                    width="19"
-                    height="19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                    <path d="M3 9h18"></path>
-                    <path d="M12 12v5"></path>
-                    <path d="M9.5 14.5h5"></path>
-                </svg>
-            `,
+            topUp: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 9h18"></path><path d="M12 12v5"></path><path d="M9.5 14.5h5"></path></svg>`,
 
-            hubAdmin: `
-                <svg
-                    viewBox="0 0 24 24"
-                    width="19"
-                    height="19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <path d="M4 21V9l8-5 8 5v12"></path>
-                    <path d="M2 21h20"></path>
-                    <path d="M8 21v-6h8v6"></path>
-                    <path d="M8 10h.01"></path>
-                    <path d="M12 10h.01"></path>
-                    <path d="M16 10h.01"></path>
-                </svg>
-            `,
+            hubAdmin: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V9l8-5 8 5v12"></path><path d="M2 21h20"></path><path d="M8 21v-6h8v6"></path><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path></svg>`,
 
-            adminPanel: `
-                <svg
-                    viewBox="0 0 24 24"
-                    width="19"
-                    height="19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <path d="M12 3l8 3v5c0 5.2-3.4 8.7-8 10-4.6-1.3-8-4.8-8-10V6z"></path>
-                    <path d="M8.5 12l2.2 2.2 4.8-4.8"></path>
-                </svg>
-            `
+            adminPanel: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v5c0 5.2-3.4 8.7-8 10-4.6-1.3-8-4.8-8-10V6z"></path><path d="M8.5 12l2.2 2.2 4.8-4.8"></path></svg>`
 
         });
 
 
         const commonUserItems = [
 
-            {
-                label: "Dashboard",
-                href: "/user/dashboard.html",
-                icon: ICONS.dashboard
-            },
-
-            {
-                label: "Generate",
-                href: "/generate/index.html",
-                icon: ICONS.generate
-            },
-
-            /*
-             * =================================================
-             * VISION IMAGE
-             * =================================================
-             */
-
-            {
-                label: "Vision Image",
-                href: "/vision/index.html",
-                icon: ICONS.visionImage
-            },
-
-            /*
-             * =================================================
-             * VISION VIDEO
-             * =================================================
-             */
-
-            {
-                label: "Vision Video",
-                href: "/vision-video/index.html",
-                icon: ICONS.visionVideo
-            },
-
-            {
-                label: "VidDra FREE",
-                href: "/viddra/index.html",
-                icon: ICONS.viddra
-            },
-
-            {
-                label: "History",
-                href: "/history/index.html",
-                icon: ICONS.history
-            },
-
-            {
-                label: "AI Metadata Cleaner",
-                href: "/metadata-cleaner/index.html",
-                icon: ICONS.metadataCleaner
-            },
-
-            {
-                label: "Top Up",
-                href: "/user/topup.html",
-                icon: ICONS.topUp
-            },
-
-            {
-                label: "Hub Admin",
-                href: "/user/hub-admin.html",
-                icon: ICONS.hubAdmin
-            }
+            { label: "Dashboard", href: "/user/dashboard.html", icon: ICONS.dashboard },
+            { label: "Generate", href: "/generate/index.html", icon: ICONS.generate },
+            { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
+            { label: "Vision Video", href: "/vision-video/index.html", icon: ICONS.visionVideo },
+            { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
+            { label: "History", href: "/history/index.html", icon: ICONS.history },
+            { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
+            { label: "Top Up", href: "/user/topup.html", icon: ICONS.topUp },
+            { label: "Hub Admin", href: "/user/hub-admin.html", icon: ICONS.hubAdmin }
 
         ];
 
 
         const adminItems = [
 
-            {
-                label: "Dashboard",
-                href: "/admin/dashboard/index.html",
-                icon: ICONS.dashboard
-            },
-
-            {
-                label: "Generate",
-                href: "/generate/index.html",
-                icon: ICONS.generate
-            },
-
-            /*
-             * =================================================
-             * VISION IMAGE
-             * =================================================
-             */
-
-            {
-                label: "Vision Image",
-                href: "/vision/index.html",
-                icon: ICONS.visionImage
-            },
-
-            /*
-             * =================================================
-             * VISION VIDEO
-             * =================================================
-             */
-
-            {
-                label: "Vision Video",
-                href: "/vision-video/index.html",
-                icon: ICONS.visionVideo
-            },
-
-            {
-                label: "VidDra FREE",
-                href: "/viddra/index.html",
-                icon: ICONS.viddra
-            },
-
-            {
-                label: "History",
-                href: "/history/index.html",
-                icon: ICONS.history
-            },
-
-            {
-                label: "AI Metadata Cleaner",
-                href: "/metadata-cleaner/index.html",
-                icon: ICONS.metadataCleaner
-            },
-
-            {
-                label: "Admin Panel",
-                href: "/admin-control/admin-panel.html",
-                icon: ICONS.adminPanel
-            }
+            { label: "Dashboard", href: "/admin/dashboard/index.html", icon: ICONS.dashboard },
+            { label: "Generate", href: "/generate/index.html", icon: ICONS.generate },
+            { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
+            { label: "Vision Video", href: "/vision-video/index.html", icon: ICONS.visionVideo },
+            { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
+            { label: "History", href: "/history/index.html", icon: ICONS.history },
+            { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
+            { label: "Admin Panel", href: "/admin-control/admin-panel.html", icon: ICONS.adminPanel }
 
         ];
 
@@ -1259,32 +795,19 @@
 
         }
 
-
         return commonUserItems;
 
     }
 
 
-    /* =====================================================
-       NAVIGATION CONTAINER
-    ===================================================== */
-
     function getNavigationContainer() {
 
-        for (
-            const id of
-            NAVIGATION_CONTAINER_IDS
-        ) {
+        for (const id of NAVIGATION_CONTAINER_IDS) {
 
             const existing =
-                document.getElementById(
-                    id
-                );
+                document.getElementById(id);
 
-
-            if (
-                existing
-            ) {
+            if (existing) {
 
                 return existing;
 
@@ -1292,82 +815,47 @@
 
         }
 
-
         const container =
-            document.createElement(
-                "div"
-            );
+            document.createElement("div");
 
+        container.id = "genz-navigation";
 
-        container.id =
-            "genz-navigation";
-
-
-        document.body.prepend(
-            container
-        );
-
+        document.body.prepend(container);
 
         return container;
 
     }
 
 
-    /* =====================================================
-       ACTIVE LINK
-    ===================================================== */
+    function isActiveLink(href) {
 
-    function isActiveLink(
-        href
-    ) {
+        const currentPath = getCurrentPath();
 
-        const currentPath =
-            getCurrentPath();
-
-
-        if (
-            href ===
-            currentPath
-        ) {
+        if (href === currentPath) {
 
             return true;
 
         }
 
-
         try {
 
             const target =
-                new URL(
-                    href,
-                    window.location.origin
-                );
+                new URL(href, window.location.origin);
 
+            const targetPath = target.pathname;
 
-            const targetPath =
-                target.pathname;
-
-
-            if (
-                targetPath ===
-                currentPath
-            ) {
+            if (targetPath === currentPath) {
 
                 return true;
 
             }
 
-
             return (
-                currentPath.startsWith(
-                    targetPath
-                ) &&
+                currentPath.startsWith(targetPath) &&
                 targetPath !== "/"
             );
 
-        } catch (
-            error
-        ) {
+        } catch (error) {
 
             return false;
 
@@ -1376,173 +864,36 @@
     }
 
 
-    /* =====================================================
-       ESCAPE HTML
-    ===================================================== */
+    function escapeHTML(value) {
 
-    function escapeHTML(
-        value
-    ) {
-
-        return String(
-            value ??
-            ""
-        )
-            .replace(
-                /&/g,
-                "&amp;"
-            )
-            .replace(
-                /</g,
-                "&lt;"
-            )
-            .replace(
-                />/g,
-                "&gt;"
-            )
-            .replace(
-                /"/g,
-                "&quot;"
-            )
-            .replace(
-                /'/g,
-                "&#039;"
-            );
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
 
     }
 
-
-    /* =====================================================
-       DISPLAY NAME
-    ===================================================== */
-
-    function getDisplayName() {
-
-        const profile =
-            currentProfile;
-
-
-        if (
-            profile &&
-            profile.name &&
-            String(
-                profile.name
-            ).trim()
-        ) {
-
-            return String(
-                profile.name
-            ).trim();
-
-        }
-
-
-        if (
-            currentUser &&
-            currentUser.user_metadata
-        ) {
-
-            const metadata =
-                currentUser.user_metadata;
-
-
-            if (
-                metadata.full_name
-            ) {
-
-                return String(
-                    metadata.full_name
-                ).trim();
-
-            }
-
-
-            if (
-                metadata.name
-            ) {
-
-                return String(
-                    metadata.name
-                ).trim();
-
-            }
-
-        }
-
-
-        if (
-            currentUser &&
-            currentUser.email
-        ) {
-
-            return String(
-                currentUser.email
-            )
-                .split("@")[0];
-
-        }
-
-
-        return "User";
-
-    }
-
-
-    /* =====================================================
-       AVATAR LETTER
-       -----------------------------------------------------
-       Dipertahankan untuk compatibility internal.
-       Tidak lagi ditampilkan pada navigation.
-       ===================================================== */
-
-    function getAvatarLetter() {
-
-        const name =
-            getDisplayName()
-                .trim();
-
-
-        return (
-            name
-                .charAt(0)
-                .toUpperCase() ||
-            "U"
-        );
-
-    }
-
-
-    /* =====================================================
-       RENDER NAVIGATION
-    ===================================================== */
 
     function renderNavigation() {
 
         const container =
             getNavigationContainer();
 
-
-        if (
-            !container
-        ) {
+        if (!container) {
 
             return;
 
         }
 
-
         syncNavigationGlobals();
 
-
         const items =
-            getNavigationConfig(
-                currentRole
-            );
-
+            getNavigationConfig(currentRole);
 
         const email =
-            currentUser &&
-            currentUser.email
+            currentUser && currentUser.email
                 ? currentUser.email
                 : (
                     currentProfile &&
@@ -1551,7 +902,6 @@
                         : ""
                 );
 
-
         const roleLabel =
             currentRole === "owner"
                 ? "OWNER"
@@ -1559,511 +909,171 @@
                     ? "ADMIN"
                     : "USER";
 
-
         const navigationItems =
-            items
-                .map(
-                    item => {
+            items.map(item => {
 
-                        const active =
-                            isActiveLink(
-                                item.href
-                            );
+                const active =
+                    isActiveLink(item.href);
 
+                return `
+                    <a class="genz-nav-item${active ? " active" : ""}" href="${escapeHTML(item.href)}" data-genz-nav-link="true">
+                        <span class="genz-nav-icon">${item.icon || ""}</span>
+                        <span class="genz-nav-label">${escapeHTML(item.label)}</span>
+                    </a>
+                `;
 
-                        return `
-                            <a
-                                class="genz-nav-item${active ? " active" : ""}"
-                                href="${escapeHTML(item.href)}"
-                                data-genz-nav-link="true"
-                            >
-                                <span class="genz-nav-icon">
-                                    ${item.icon || ""}
-                                </span>
-
-                                <span class="genz-nav-label">
-                                    ${escapeHTML(item.label)}
-                                </span>
-                            </a>
-                        `;
-
-                    }
-                )
-                .join("");
+            }).join("");
 
 
         container.innerHTML = `
-            <aside
-                class="genz-sidebar"
-                id="genz-sidebar"
-                aria-label="GEN-Z.AI Navigation"
-            >
-
-                <!-- =================================================
-                     SIDEBAR HEADER
-                     ================================================= -->
-
+            <aside class="genz-sidebar" id="genz-sidebar" aria-label="GEN-Z.AI Navigation">
                 <div class="genz-sidebar-header">
-
                     <div class="genz-brand">
-
-                        <div
-                            class="genz-logo"
-                            aria-label="GEN-Z.AI"
-                            title="GEN-Z.AI"
-                        >
-
-                            <div
-                                class="genz-logo-mark"
-                                aria-hidden="true"
-                            >
-                                AI
-                            </div>
-
+                        <div class="genz-logo" aria-label="GEN-Z.AI" title="GEN-Z.AI">
+                            <div class="genz-logo-mark" aria-hidden="true">AI</div>
                             <div class="genz-logo-text">
-
-                                <span class="genz-logo-main">
-                                    GEN-<strong>Z</strong>
-                                </span>
-
-                                <span class="genz-logo-ai">
-                                    .AI
-                                </span>
-
+                                <span class="genz-logo-main">GEN-<strong>Z</strong></span>
+                                <span class="genz-logo-ai">.AI</span>
                             </div>
-
                         </div>
-
-                        <div class="genz-brand-subtitle">
-                            AI Platform
-                        </div>
-
+                        <div class="genz-brand-subtitle">AI Platform</div>
                     </div>
-
-
-                    <button
-                        type="button"
-                        class="genz-mobile-close"
-                        id="genz-mobile-close"
-                        aria-label="Close menu"
-                    >
-                        ×
-                    </button>
-
+                    <button type="button" class="genz-mobile-close" id="genz-mobile-close" aria-label="Close menu">×</button>
                 </div>
-
-
-                <!-- =================================================
-                     NAVIGATION
-                     ================================================= -->
-
-                <nav
-                    class="genz-nav"
-                    aria-label="Main navigation"
-                >
-
-                    ${navigationItems}
-
-                </nav>
-
-
-                <!-- =================================================
-                     ACCOUNT + LOGOUT
-                     ================================================= -->
-
+                <nav class="genz-nav" aria-label="Main navigation">${navigationItems}</nav>
                 <div class="genz-sidebar-footer">
-
                     <div class="genz-account-box">
-
-                        <div class="genz-account-label">
-                            ACCOUNT
-                        </div>
-
-                        <div class="genz-account-email">
-                            ${escapeHTML(
-                                email
-                            )}
-                        </div>
-
-                        <div class="genz-account-role">
-                            ${escapeHTML(
-                                roleLabel
-                            )}
-                        </div>
-
+                        <div class="genz-account-label">ACCOUNT</div>
+                        <div class="genz-account-email">${escapeHTML(email)}</div>
+                        <div class="genz-account-role">${escapeHTML(roleLabel)}</div>
                     </div>
-
-
-                    <button
-                        type="button"
-                        class="genz-logout-button"
-                        id="genz-logout-button"
-                    >
-                        LOG OUT
-                    </button>
-
+                    <button type="button" class="genz-logout-button" id="genz-logout-button">LOG OUT</button>
                 </div>
-
             </aside>
-
-
-            <!-- =====================================================
-                 MOBILE TOGGLE
-                 ===================================================== -->
-
-            <button
-                type="button"
-                class="genz-mobile-toggle"
-                id="genz-mobile-toggle"
-                aria-label="Open menu"
-                aria-controls="genz-sidebar"
-                aria-expanded="false"
-            >
-                <span></span>
-                <span></span>
-                <span></span>
+            <button type="button" class="genz-mobile-toggle" id="genz-mobile-toggle" aria-label="Open menu" aria-controls="genz-sidebar" aria-expanded="false">
+                <span></span><span></span><span></span>
             </button>
-
-
-            <!-- =====================================================
-                 MOBILE OVERLAY
-                 ===================================================== -->
-
-            <div
-                class="genz-sidebar-overlay"
-                id="genz-sidebar-overlay"
-            ></div>
+            <div class="genz-sidebar-overlay" id="genz-sidebar-overlay"></div>
         `;
-
 
         bindNavigationEvents();
 
+        navigationReady = true;
 
-        navigationReady =
-            true;
+        if (navigationReadyResolve) {
 
-
-        if (
-            navigationReadyResolve
-        ) {
-
-            navigationReadyResolve(
-                true
-            );
-
-            navigationReadyResolve =
-                null;
+            navigationReadyResolve(true);
+            navigationReadyResolve = null;
 
         }
 
     }
 
-
-    /* =====================================================
-       NAVIGATION EVENTS
-    ===================================================== */
 
     function bindNavigationEvents() {
 
-        const sidebar =
-            document.getElementById(
-                "genz-sidebar"
-            );
-
-
-        const toggle =
-            document.getElementById(
-                "genz-mobile-toggle"
-            );
-
-
-        const closeButton =
-            document.getElementById(
-                "genz-mobile-close"
-            );
-
-
-        const overlay =
-            document.getElementById(
-                "genz-sidebar-overlay"
-            );
-
-
-        const logoutButton =
-            document.getElementById(
-                "genz-logout-button"
-            );
-
+        const sidebar = document.getElementById("genz-sidebar");
+        const toggle = document.getElementById("genz-mobile-toggle");
+        const closeButton = document.getElementById("genz-mobile-close");
+        const overlay = document.getElementById("genz-sidebar-overlay");
+        const logoutButton = document.getElementById("genz-logout-button");
 
         function openMobileNavigation() {
 
-            if (
-                !sidebar
-            ) {
+            if (!sidebar) return;
 
-                return;
-
-            }
-
-
-            sidebar.classList.add(
-                "open"
-            );
-
-
-            if (
-                overlay
-            ) {
-
-                overlay.classList.add(
-                    "active"
-                );
-
-            }
-
-
-            if (
-                toggle
-            ) {
-
-                toggle.setAttribute(
-                    "aria-expanded",
-                    "true"
-                );
-
-            }
-
-
-            document.body.classList.add(
-                "genz-nav-open"
-            );
+            sidebar.classList.add("open");
+            if (overlay) overlay.classList.add("active");
+            if (toggle) toggle.setAttribute("aria-expanded", "true");
+            document.body.classList.add("genz-nav-open");
 
         }
-
 
         function closeMobileNavigation() {
 
-            if (
-                sidebar
-            ) {
-
-                sidebar.classList.remove(
-                    "open"
-                );
-
-            }
-
-
-            if (
-                overlay
-            ) {
-
-                overlay.classList.remove(
-                    "active"
-                );
-
-            }
-
-
-            if (
-                toggle
-            ) {
-
-                toggle.setAttribute(
-                    "aria-expanded",
-                    "false"
-                );
-
-            }
-
-
-            document.body.classList.remove(
-                "genz-nav-open"
-            );
+            if (sidebar) sidebar.classList.remove("open");
+            if (overlay) overlay.classList.remove("active");
+            if (toggle) toggle.setAttribute("aria-expanded", "false");
+            document.body.classList.remove("genz-nav-open");
 
         }
 
+        if (toggle) {
 
-        if (
-            toggle
-        ) {
+            toggle.addEventListener("click", event => {
 
-            toggle.addEventListener(
-                "click",
-                event => {
+                event.preventDefault();
 
-                    event.preventDefault();
-
-
-                    if (
-                        sidebar &&
-                        sidebar.classList.contains(
-                            "open"
-                        )
-                    ) {
-
-                        closeMobileNavigation();
-
-                    } else {
-
-                        openMobileNavigation();
-
-                    }
-
-                }
-            );
-
-        }
-
-
-        if (
-            closeButton
-        ) {
-
-            closeButton.addEventListener(
-                "click",
-                event => {
-
-                    event.preventDefault();
+                if (sidebar && sidebar.classList.contains("open")) {
 
                     closeMobileNavigation();
 
+                } else {
+
+                    openMobileNavigation();
+
                 }
-            );
+
+            });
 
         }
 
+        if (closeButton) {
 
-        if (
-            overlay
-        ) {
+            closeButton.addEventListener("click", event => {
 
-            overlay.addEventListener(
-                "click",
-                closeMobileNavigation
-            );
+                event.preventDefault();
+                closeMobileNavigation();
+
+            });
 
         }
 
+        if (overlay) {
+
+            overlay.addEventListener("click", closeMobileNavigation);
+
+        }
 
         document
-            .querySelectorAll(
-                "[data-genz-nav-link='true']"
-            )
-            .forEach(
-                link => {
+            .querySelectorAll("[data-genz-nav-link='true']")
+            .forEach(link => {
 
-                    link.addEventListener(
-                        "click",
-                        () => {
+                link.addEventListener("click", () => {
 
-                            closeMobileNavigation();
+                    closeMobileNavigation();
 
-                        }
-                    );
+                });
 
-                }
-            );
+            });
 
+        if (logoutButton) {
 
-        if (
-            logoutButton
-        ) {
-
-            logoutButton.addEventListener(
-                "click",
-                logoutUser
-            );
+            logoutButton.addEventListener("click", logoutUser);
 
         }
 
+        if (!documentKeydownBound) {
 
-        /* =================================================
-           DOCUMENT KEYDOWN — GUARD AGAR TIDAK MENUMPUK
-           -------------------------------------------------
-           renderNavigation() bisa dipanggil berkali-kali
-           (setiap perubahan auth state). Tanpa guard,
-           listener akan menumpuk dan setiap Escape
-           memicu closeMobileNavigation() N kali.
-        ================================================= */
+            documentKeydownBound = true;
 
-        if (
-            !documentKeydownBound
-        ) {
+            document.addEventListener("keydown", event => {
 
-            documentKeydownBound =
-                true;
+                if (event.key === "Escape") {
 
+                    const currentSidebar = document.getElementById("genz-sidebar");
+                    const currentOverlay = document.getElementById("genz-sidebar-overlay");
+                    const currentToggle = document.getElementById("genz-mobile-toggle");
 
-            document.addEventListener(
-                "keydown",
-                event => {
+                    if (currentSidebar) currentSidebar.classList.remove("open");
+                    if (currentOverlay) currentOverlay.classList.remove("active");
+                    if (currentToggle) currentToggle.setAttribute("aria-expanded", "false");
 
-                    if (
-                        event.key ===
-                        "Escape"
-                    ) {
-
-                        const currentSidebar =
-                            document.getElementById(
-                                "genz-sidebar"
-                            );
-
-
-                        const currentOverlay =
-                            document.getElementById(
-                                "genz-sidebar-overlay"
-                            );
-
-
-                        const currentToggle =
-                            document.getElementById(
-                                "genz-mobile-toggle"
-                            );
-
-
-                        if (
-                            currentSidebar
-                        ) {
-
-                            currentSidebar.classList.remove(
-                                "open"
-                            );
-
-                        }
-
-
-                        if (
-                            currentOverlay
-                        ) {
-
-                            currentOverlay.classList.remove(
-                                "active"
-                            );
-
-                        }
-
-
-                        if (
-                            currentToggle
-                        ) {
-
-                            currentToggle.setAttribute(
-                                "aria-expanded",
-                                "false"
-                            );
-
-                        }
-
-
-                        document.body.classList.remove(
-                            "genz-nav-open"
-                        );
-
-                    }
+                    document.body.classList.remove("genz-nav-open");
 
                 }
-            );
+
+            });
 
         }
 
@@ -2071,59 +1081,27 @@
 
 
     /* =====================================================
-       LOGOUT
+       LOGOUT (BYPASS GoTrueClient)
     ===================================================== */
 
     async function logoutUser() {
 
-        const supabase =
-            getSupabaseClient();
+        /*
+         * Jangan panggil supabase.auth.signOut() karena hang.
+         * Cukup hapus session dari localStorage.
+         */
 
+        clearSessionStorage();
 
-        try {
-
-            if (
-                supabase &&
-                supabase.auth
-            ) {
-
-                await supabase.auth.signOut();
-
-            }
-
-        } catch (
-            error
-        ) {
-
-            debugError(
-                "[GEN-Z.AI] Logout error:",
-                error
-            );
-
-        }
-
-
-        currentUser =
-            null;
-
-
-        currentProfile =
-            null;
-
-
-        currentRole =
-            "user";
-
+        currentUser = null;
+        currentProfile = null;
+        currentRole = "user";
 
         syncNavigationGlobals();
 
+        if (!isLoginPage()) {
 
-        if (
-            !isLoginPage()
-        ) {
-
-            window.location.href =
-                LOGIN_PATH;
+            window.location.href = LOGIN_PATH;
 
         }
 
@@ -2131,218 +1109,16 @@
 
 
     /* =====================================================
-       AUTH STATE
+       AUTH LISTENER (DINONAKTIFKAN)
+       -----------------------------------------------------
+       FIX: onAuthStateChange ditiadakan karena method auth.*
+       pada client yang rusak akan hang.
+       Perubahan auth ditangani secara manual.
     ===================================================== */
 
     function setupAuthListener() {
 
-        if (
-            authListenerReady
-        ) {
-
-            return;
-
-        }
-
-
-        const supabase =
-            getSupabaseClient();
-
-
-        if (
-            !supabase ||
-            !supabase.auth
-        ) {
-
-            return;
-
-        }
-
-
-        authListenerReady =
-            true;
-
-
-        const result =
-            supabase.auth.onAuthStateChange(
-                async (
-                    event,
-                    session
-                ) => {
-
-                    /*
-                     * =================================================
-                     * SIGNED OUT
-                     * =================================================
-                     */
-
-                    if (
-                        event ===
-                        "SIGNED_OUT"
-                    ) {
-
-                        currentUser =
-                            null;
-
-
-                        currentProfile =
-                            null;
-
-
-                        currentRole =
-                            "user";
-
-
-                        syncNavigationGlobals();
-
-
-                        if (
-                            !isLoginPage()
-                        ) {
-
-                            window.location.href =
-                                LOGIN_PATH;
-
-                        }
-
-
-                        return;
-
-                    }
-
-
-                    /*
-                     * =================================================
-                     * SESSION TIDAK TERSEDIA
-                     * =================================================
-                     */
-
-                    if (
-                        !session ||
-                        !session.user
-                    ) {
-
-                        return;
-
-                    }
-
-
-                    /*
-                     * =================================================
-                     * CURRENT USER
-                     * -------------------------------------------------
-                     * Gunakan session.user.
-                     * Tidak ada variabel "user" yang berdiri sendiri
-                     * di dalam callback ini.
-                     * =================================================
-                     */
-
-                    currentUser =
-                        session.user;
-
-
-                    /*
-                     * =================================================
-                     * LOAD PROFILE
-                     * =================================================
-                     */
-
-                    const profile =
-                        await loadProfile(
-                            session.user.id
-                        );
-
-
-                    /*
-                     * =================================================
-                     * PROFILE TERSEDIA
-                     * =================================================
-                     */
-
-                    if (
-                        profile
-                    ) {
-
-                        currentProfile =
-                            profile;
-
-
-                        currentRole =
-                            normalizeRole(
-                                profile.role
-                            );
-
-
-                        syncNavigationGlobals();
-
-
-                        /*
-                         * =============================================
-                         * PROFILE TIDAK AKTIF
-                         * =============================================
-                         */
-
-                        if (
-                            !isProfileActive(
-                                profile
-                            )
-                        ) {
-
-                            await logoutUser();
-
-                            return;
-
-                        }
-
-                    } else {
-
-                        /*
-                         * =============================================
-                         * PROFILE TIDAK DITEMUKAN
-                         * =============================================
-                         */
-
-                        currentProfile =
-                            null;
-
-
-                        currentRole =
-                            "user";
-
-
-                        syncNavigationGlobals();
-
-                    }
-
-
-                    /*
-                     * =================================================
-                     * RENDER NAVIGATION
-                     * =================================================
-                     */
-
-                    renderNavigation();
-
-                }
-            );
-
-
-        /*
-         * =========================================================
-         * SIMPAN SUBSCRIPTION
-         * =========================================================
-         */
-
-        if (
-            result &&
-            result.data &&
-            result.data.subscription
-        ) {
-
-            authSubscription =
-                result.data.subscription;
-
-        }
+        /* no-op */
 
     }
 
@@ -2353,101 +1129,54 @@
 
     async function validateAuthentication() {
 
-        const {
-            session,
-            user
-        } =
+        const { session, user } =
             await getSessionWithRetry();
 
+        if (!session || !user) {
 
-        if (
-            !session ||
-            !user
-        ) {
-
-            currentUser =
-                null;
-
-
-            currentProfile =
-                null;
-
-
-            currentRole =
-                "user";
-
+            currentUser = null;
+            currentProfile = null;
+            currentRole = "user";
 
             syncNavigationGlobals();
 
+            if (!isLoginPage()) {
 
-            if (
-                !isLoginPage()
-            ) {
-
-                window.location.href =
-                    LOGIN_PATH;
+                window.location.href = LOGIN_PATH;
 
             }
-
 
             return false;
 
         }
 
-
-        currentUser =
-            user;
-
+        currentUser = user;
 
         const profile =
-            await loadProfile(
-                user.id
-            );
+            await loadProfile(user.id);
 
+        if (profile) {
 
-        if (
-            profile
-        ) {
-
-            currentProfile =
-                profile;
-
-
-            currentRole =
-                normalizeRole(
-                    profile.role
-                );
-
+            currentProfile = profile;
+            currentRole = normalizeRole(profile.role);
 
             syncNavigationGlobals();
 
-
-            if (
-                !isProfileActive(
-                    profile
-                )
-            ) {
+            if (!isProfileActive(profile)) {
 
                 await logoutUser();
-
                 return false;
 
             }
 
         } else {
 
-            currentProfile =
-                null;
-
-
-            currentRole =
-                "user";
-
+            currentProfile = null;
+            currentRole = "user";
 
             syncNavigationGlobals();
 
         }
-
 
         return true;
 
@@ -2460,1360 +1189,321 @@
 
     function injectStyles() {
 
-        if (
-            document.getElementById(
-                STYLE_ID
-            )
-        ) {
+        if (document.getElementById(STYLE_ID)) {
 
             return;
 
         }
 
-
         const style =
-            document.createElement(
-                "style"
-            );
+            document.createElement("style");
 
-
-        style.id =
-            STYLE_ID;
-
+        style.id = STYLE_ID;
 
         style.textContent = `
 
             :root {
-
-                --genz-sidebar-width:
-                    248px;
-
-                --genz-red:
-                    #ff3030;
-
-                --genz-red-bright:
-                    #ff4a4a;
-
-                --genz-bg:
-                    #08090d;
-
-                --genz-panel:
-                    #0c0e13;
-
-                --genz-border:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .06
-                    );
-
+                --genz-sidebar-width: 248px;
+                --genz-red: #ff3030;
+                --genz-red-bright: #ff4a4a;
             }
 
-
-            * {
-                box-sizing:
-                    border-box;
-            }
-
+            * { box-sizing: border-box; }
 
             .genz-sidebar {
-
-                position:
-                    fixed;
-
-                top:
-                    0;
-
-                left:
-                    0;
-
-                bottom:
-                    0;
-
-                width:
-                    var(
-                        --genz-sidebar-width
-                    );
-
-                z-index:
-                    10000;
-
-                display:
-                    flex;
-
-                flex-direction:
-                    column;
-
-                overflow:
-                    hidden;
-
-                background:
-                    linear-gradient(
-                        180deg,
-                        #090a0f 0%,
-                        #07080b 100%
-                    );
-
-                border-right:
-                    1px solid
-                    rgba(
-                        255,
-                        40,
-                        40,
-                        .12
-                    );
-
-                box-shadow:
-                    8px 0 30px
-                    rgba(
-                        0,
-                        0,
-                        0,
-                        .32
-                    );
-
-                color:
-                    #ffffff;
-
-                font-family:
-                    Inter,
-                    ui-sans-serif,
-                    system-ui,
-                    -apple-system,
-                    BlinkMacSystemFont,
-                    "Segoe UI",
-                    sans-serif;
-
+                position: fixed;
+                top: 0; left: 0; bottom: 0;
+                width: var(--genz-sidebar-width);
+                z-index: 10000;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                background: linear-gradient(180deg, #090a0f 0%, #07080b 100%);
+                border-right: 1px solid rgba(255, 40, 40, .12);
+                box-shadow: 8px 0 30px rgba(0, 0, 0, .32);
+                color: #ffffff;
+                font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             }
-
 
             .genz-sidebar-header {
-
-                min-height:
-                    82px;
-
-                display:
-                    flex;
-
-                align-items:
-                    center;
-
-                justify-content:
-                    space-between;
-
-                padding:
-                    15px 13px;
-
-                border-bottom:
-                    1px solid
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .05
-                    );
-
+                min-height: 82px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 15px 13px;
+                border-bottom: 1px solid rgba(255, 255, 255, .05);
             }
 
-
-            .genz-brand {
-
-                min-width:
-                    0;
-
-            }
-
+            .genz-brand { min-width: 0; }
 
             .genz-logo {
-
-                display:
-                    inline-flex;
-
-                align-items:
-                    center;
-
-                gap:
-                    9px;
-
-                min-height:
-                    43px;
-
-                padding:
-                    6px 10px 6px 6px;
-
-                border:
-                    1px solid
-                    rgba(
-                        255,
-                        50,
-                        50,
-                        .24
-                    );
-
-                border-radius:
-                    11px;
-
-                background:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .025
-                    );
-
-                box-shadow:
-                    inset 0 0 18px
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .025
-                    ),
-                    0 0 16px
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .06
-                    );
-
+                display: inline-flex;
+                align-items: center;
+                gap: 9px;
+                min-height: 43px;
+                padding: 6px 10px 6px 6px;
+                border: 1px solid rgba(255, 50, 50, .24);
+                border-radius: 11px;
+                background: rgba(255, 255, 255, .025);
             }
-
 
             .genz-logo-mark {
-
-                width:
-                    34px;
-
-                height:
-                    34px;
-
-                flex:
-                    0 0 34px;
-
-                display:
-                    flex;
-
-                align-items:
-                    center;
-
-                justify-content:
-                    center;
-
-                border:
-                    1px solid
-                    rgba(
-                        255,
-                        70,
-                        70,
-                        .4
-                    );
-
-                border-radius:
-                    9px;
-
-                color:
-                    #ffffff;
-
-                background:
-                    radial-gradient(
-                        circle at 35% 30%,
-                        rgba(
-                            255,
-                            70,
-                            70,
-                            .25
-                        ),
-                        rgba(
-                            255,
-                            0,
-                            0,
-                            .05
-                        ) 60%,
-                        rgba(
-                            0,
-                            0,
-                            0,
-                            .1
-                        )
-                    );
-
-                box-shadow:
-                    0 0 14px
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .16
-                    );
-
-                font-size:
-                    11px;
-
-                line-height:
-                    1;
-
-                font-weight:
-                    900;
-
-                letter-spacing:
-                    .5px;
-
+                width: 34px; height: 34px;
+                flex: 0 0 34px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid rgba(255, 70, 70, .4);
+                border-radius: 9px;
+                color: #ffffff;
+                background: radial-gradient(circle at 35% 30%, rgba(255, 70, 70, .25), rgba(255, 0, 0, .05) 60%, rgba(0, 0, 0, .1));
+                font-size: 11px;
+                font-weight: 900;
+                letter-spacing: .5px;
             }
-
 
             .genz-logo-text {
-
-                display:
-                    flex;
-
-                align-items:
-                    baseline;
-
-                color:
-                    #ffffff;
-
-                font-size:
-                    18px;
-
-                line-height:
-                    1;
-
-                font-weight:
-                    800;
-
-                letter-spacing:
-                    .4px;
-
+                display: flex;
+                align-items: baseline;
+                color: #ffffff;
+                font-size: 18px;
+                font-weight: 800;
+                letter-spacing: .4px;
             }
-
 
             .genz-logo-main strong {
-
-                color:
-                    #ff3d3d;
-
-                text-shadow:
-                    0 0 9px
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .75
-                    );
-
+                color: #ff3d3d;
+                text-shadow: 0 0 9px rgba(255, 0, 0, .75);
             }
-
 
             .genz-logo-ai {
-
-                margin-left:
-                    1px;
-
-                color:
-                    #ff4a4a;
-
-                text-shadow:
-                    0 0 8px
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .55
-                    );
-
+                margin-left: 1px;
+                color: #ff4a4a;
+                text-shadow: 0 0 8px rgba(255, 0, 0, .55);
             }
-
 
             .genz-brand-subtitle {
-
-                padding-left:
-                    4px;
-
-                color:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .45
-                    );
-
-                font-size:
-                    10px;
-
-                line-height:
-                    1;
-
-                font-weight:
-                    600;
-
-                letter-spacing:
-                    1.2px;
-
-                text-transform:
-                    uppercase;
-
+                padding-left: 4px;
+                color: rgba(255, 255, 255, .45);
+                font-size: 10px;
+                font-weight: 600;
+                letter-spacing: 1.2px;
+                text-transform: uppercase;
             }
-
-
-            /* =================================================
-               MOBILE CLOSE
-               ================================================= */
 
             .genz-mobile-close {
-
-                display:
-                    none;
-
-                width:
-                    36px;
-
-                height:
-                    36px;
-
-                padding:
-                    0;
-
-                border:
-                    0;
-
-                border-radius:
-                    10px;
-
-                background:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .05
-                    );
-
-                color:
-                    #ffffff;
-
-                font-size:
-                    25px;
-
-                line-height:
-                    1;
-
-                cursor:
-                    pointer;
-
+                display: none;
+                width: 36px; height: 36px;
+                padding: 0;
+                border: 0;
+                border-radius: 10px;
+                background: rgba(255, 255, 255, .05);
+                color: #ffffff;
+                font-size: 25px;
+                cursor: pointer;
             }
-
 
             .genz-mobile-close:hover {
-
-                background:
-                    rgba(
-                        255,
-                        40,
-                        40,
-                        .15
-                    );
-
-                color:
-                    var(
-                        --genz-red-bright
-                    );
-
+                background: rgba(255, 40, 40, .15);
+                color: var(--genz-red-bright);
             }
-
-
-            /* =================================================
-               NAVIGATION
-               ================================================= */
 
             .genz-nav {
-
-                display:
-                    flex;
-
-                flex-direction:
-                    column;
-
-                gap:
-                    4px;
-
-                padding:
-                    8px 10px 16px;
-
-                box-sizing:
-                    border-box;
-
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                padding: 8px 10px 16px;
             }
-
 
             .genz-nav-item {
-
-                position:
-                    relative;
-
-                display:
-                    flex;
-
-                align-items:
-                    center;
-
-                gap:
-                    10px;
-
-                min-height:
-                    44px;
-
-                padding:
-                    9px 11px;
-
-                box-sizing:
-                    border-box;
-
-                border:
-                    1px solid
-                    transparent;
-
-                border-radius:
-                    10px;
-
-                color:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .66
-                    );
-
-                background:
-                    transparent;
-
-                text-decoration:
-                    none;
-
-                transition:
-                    background .18s ease,
-                    border-color .18s ease,
-                    color .18s ease,
-                    box-shadow .18s ease,
-                    transform .18s ease;
-
+                position: relative;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                min-height: 44px;
+                padding: 9px 11px;
+                border: 1px solid transparent;
+                border-radius: 10px;
+                color: rgba(255, 255, 255, .66);
+                text-decoration: none;
+                transition: all .18s ease;
             }
-
 
             .genz-nav-item:hover {
-
-                color:
-                    #ffffff;
-
-                background:
-                    rgba(
-                        255,
-                        35,
-                        35,
-                        .07
-                    );
-
-                border-color:
-                    rgba(
-                        255,
-                        45,
-                        45,
-                        .16
-                    );
-
-                transform:
-                    translateX(2px);
-
+                color: #ffffff;
+                background: rgba(255, 35, 35, .07);
+                border-color: rgba(255, 45, 45, .16);
+                transform: translateX(2px);
             }
-
 
             .genz-nav-item.active {
-
-                color:
-                    #ffffff;
-
-                background:
-                    linear-gradient(
-                        90deg,
-                        rgba(
-                            255,
-                            35,
-                            35,
-                            .15
-                        ),
-                        rgba(
-                            255,
-                            35,
-                            35,
-                            .04
-                        )
-                    );
-
-                border-color:
-                    rgba(
-                        255,
-                        50,
-                        50,
-                        .28
-                    );
-
-                box-shadow:
-                    inset 3px 0 0
-                    var(
-                        --genz-red
-                    ),
-                    0 0 14px
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .05
-                    );
-
+                color: #ffffff;
+                background: linear-gradient(90deg, rgba(255, 35, 35, .15), rgba(255, 35, 35, .04));
+                border-color: rgba(255, 50, 50, .28);
+                box-shadow: inset 3px 0 0 var(--genz-red), 0 0 14px rgba(255, 0, 0, .05);
             }
-
 
             .genz-nav-icon {
-
-                width:
-                    23px;
-
-                flex:
-                    0 0 23px;
-
-                display:
-                    flex;
-
-                align-items:
-                    center;
-
-                justify-content:
-                    center;
-
-                font-size:
-                    15px;
-
-                line-height:
-                    1;
-
-                color:
-                    currentColor;
-
+                width: 23px;
+                flex: 0 0 23px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: currentColor;
             }
-
 
             .genz-nav-icon svg {
-
-                display:
-                    block;
-
-                width:
-                    19px;
-
-                height:
-                    19px;
-
-                flex:
-                    0 0 19px;
-
-                color:
-                    currentColor;
-
+                display: block;
+                width: 19px; height: 19px;
+                color: currentColor;
             }
-
 
             .genz-nav-label {
-
-                min-width:
-                    0;
-
-                font-size:
-                    12px;
-
-                font-weight:
-                    600;
-
-                line-height:
-                    1.3;
-
+                min-width: 0;
+                font-size: 12px;
+                font-weight: 600;
+                line-height: 1.3;
             }
-
-
-            /* =================================================
-               ACCOUNT + LOGOUT
-               ================================================= */
 
             .genz-sidebar-footer {
-
-                margin-top:
-                    auto;
-
-                padding:
-                    10px 10px 14px;
-
-                box-sizing:
-                    border-box;
-
-                border-top:
-                    1px solid
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .05
-                    );
-
+                margin-top: auto;
+                padding: 10px 10px 14px;
+                border-top: 1px solid rgba(255, 255, 255, .05);
             }
-
 
             .genz-account-box {
-
-                width:
-                    100%;
-
-                margin:
-                    0 0 10px;
-
-                padding:
-                    10px 11px;
-
-                box-sizing:
-                    border-box;
-
-                border:
-                    1px solid
-                    rgba(
-                        255,
-                        50,
-                        50,
-                        .18
-                    );
-
-                border-radius:
-                    10px;
-
-                background:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .025
-                    );
-
+                width: 100%;
+                margin: 0 0 10px;
+                padding: 10px 11px;
+                border: 1px solid rgba(255, 50, 50, .18);
+                border-radius: 10px;
+                background: rgba(255, 255, 255, .025);
             }
-
 
             .genz-account-label {
-
-                margin-bottom:
-                    5px;
-
-                color:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .45
-                    );
-
-                font-size:
-                    9px;
-
-                line-height:
-                    1.2;
-
-                font-weight:
-                    800;
-
-                letter-spacing:
-                    1.2px;
-
+                margin-bottom: 5px;
+                color: rgba(255, 255, 255, .45);
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: 1.2px;
             }
-
 
             .genz-account-email {
-
-                overflow:
-                    hidden;
-
-                color:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .72
-                    );
-
-                font-size:
-                    10px;
-
-                line-height:
-                    1.35;
-
-                font-weight:
-                    600;
-
-                text-overflow:
-                    ellipsis;
-
-                white-space:
-                    nowrap;
-
+                overflow: hidden;
+                color: rgba(255, 255, 255, .72);
+                font-size: 10px;
+                font-weight: 600;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
-
 
             .genz-account-role {
-
-                display:
-                    inline-block;
-
-                margin-top:
-                    5px;
-
-                padding:
-                    2px 6px;
-
-                border:
-                    1px solid
-                    rgba(
-                        255,
-                        50,
-                        50,
-                        .28
-                    );
-
-                border-radius:
-                    5px;
-
-                color:
-                    #ff6565;
-
-                background:
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .06
-                    );
-
-                font-size:
-                    8px;
-
-                line-height:
-                    1.3;
-
-                font-weight:
-                    800;
-
-                letter-spacing:
-                    .8px;
-
+                display: inline-block;
+                margin-top: 5px;
+                padding: 2px 6px;
+                border: 1px solid rgba(255, 50, 50, .28);
+                border-radius: 5px;
+                color: #ff6565;
+                background: rgba(255, 0, 0, .06);
+                font-size: 8px;
+                font-weight: 800;
+                letter-spacing: .8px;
             }
-
 
             .genz-logout-button {
-
-                width:
-                    100%;
-
-                min-height:
-                    42px;
-
-                display:
-                    flex;
-
-                align-items:
-                    center;
-
-                justify-content:
-                    center;
-
-                padding:
-                    9px 11px;
-
-                box-sizing:
-                    border-box;
-
-                border:
-                    1px solid
-                    rgba(
-                        255,
-                        50,
-                        50,
-                        .25
-                    );
-
-                border-radius:
-                    10px;
-
-                color:
-                    #ff3b3b;
-
-                background:
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .025
-                    );
-
-                font:
-                    inherit;
-
-                font-size:
-                    12px;
-
-                font-weight:
-                    800;
-
-                letter-spacing:
-                    .8px;
-
-                cursor:
-                    pointer;
-
-                transition:
-                    background .18s ease,
-                    border-color .18s ease,
-                    color .18s ease,
-                    box-shadow .18s ease;
-
+                width: 100%;
+                min-height: 42px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 9px 11px;
+                border: 1px solid rgba(255, 50, 50, .25);
+                border-radius: 10px;
+                color: #ff3b3b;
+                background: rgba(255, 0, 0, .025);
+                font: inherit;
+                font-size: 12px;
+                font-weight: 800;
+                letter-spacing: .8px;
+                cursor: pointer;
+                transition: all .18s ease;
             }
-
 
             .genz-logout-button:hover {
-
-                color:
-                    #ff5555;
-
-                background:
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .08
-                    );
-
-                border-color:
-                    rgba(
-                        255,
-                        50,
-                        50,
-                        .45
-                    );
-
-                box-shadow:
-                    0 0 12px
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .12
-                    );
-
+                color: #ff5555;
+                background: rgba(255, 0, 0, .08);
+                border-color: rgba(255, 50, 50, .45);
+                box-shadow: 0 0 12px rgba(255, 0, 0, .12);
             }
-
-
-            /* =================================================
-               MOBILE TOGGLE
-               ================================================= */
 
             .genz-mobile-toggle {
-
-                display:
-                    none;
-
-                position:
-                    fixed;
-
-                top:
-                    12px;
-
-                left:
-                    12px;
-
-                z-index:
-                    10001;
-
-                width:
-                    44px;
-
-                height:
-                    44px;
-
-                padding:
-                    9px;
-
-                box-sizing:
-                    border-box;
-
-                flex-direction:
-                    column;
-
-                align-items:
-                    center;
-
-                justify-content:
-                    center;
-
-                gap:
-                    5px;
-
-                border:
-                    1px solid
-                    rgba(
-                        255,
-                        50,
-                        50,
-                        .32
-                    );
-
-                border-radius:
-                    11px;
-
-                background:
-                    rgba(
-                        10,
-                        11,
-                        15,
-                        .94
-                    );
-
-                box-shadow:
-                    0 0 18px
-                    rgba(
-                        255,
-                        0,
-                        0,
-                        .12
-                    );
-
-                cursor:
-                    pointer;
-
-                backdrop-filter:
-                    blur(12px);
-
+                display: none;
+                position: fixed;
+                top: 12px; left: 12px;
+                z-index: 10001;
+                width: 44px; height: 44px;
+                padding: 9px;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 5px;
+                border: 1px solid rgba(255, 50, 50, .32);
+                border-radius: 11px;
+                background: rgba(10, 11, 15, .94);
+                box-shadow: 0 0 18px rgba(255, 0, 0, .12);
+                cursor: pointer;
+                backdrop-filter: blur(12px);
             }
-
 
             .genz-mobile-toggle span {
-
-                display:
-                    block;
-
-                width:
-                    20px;
-
-                height:
-                    2px;
-
-                border-radius:
-                    2px;
-
-                background:
-                    #ffffff;
-
+                display: block;
+                width: 20px; height: 2px;
+                border-radius: 2px;
+                background: #ffffff;
             }
-
-
-            /* =================================================
-               OVERLAY
-               ================================================= */
 
             .genz-sidebar-overlay {
-
-                display:
-                    none;
-
-                position:
-                    fixed;
-
-                inset:
-                    0;
-
-                z-index:
-                    9998;
-
-                background:
-                    rgba(
-                        0,
-                        0,
-                        0,
-                        .62
-                    );
-
-                backdrop-filter:
-                    blur(2px);
-
+                display: none;
+                position: fixed;
+                inset: 0;
+                z-index: 9998;
+                background: rgba(0, 0, 0, .62);
+                backdrop-filter: blur(2px);
             }
 
+            .genz-sidebar-overlay.active { display: block; }
 
-            .genz-sidebar-overlay.active {
-
-                display:
-                    block;
-
+            @media (min-width: 769px) {
+                body { padding-left: var(--genz-sidebar-width); }
             }
 
-
-            /* =================================================
-               DESKTOP BODY OFFSET
-               ================================================= */
-
-            @media (
-                min-width: 769px
-            ) {
-
-                body {
-
-                    padding-left:
-                        var(
-                            --genz-sidebar-width
-                        );
-
-                }
-
-            }
-
-
-            /* =================================================
-               MOBILE
-               ================================================= */
-
-            @media (
-                max-width: 768px
-            ) {
-
+            @media (max-width: 768px) {
                 .genz-sidebar {
-
-                    width:
-                        min(
-                            290px,
-                            86vw
-                        );
-
-                    transform:
-                        translateX(-105%);
-
-                    transition:
-                        transform .22s
-                        ease;
-
-                    z-index:
-                        10000;
-
+                    width: min(290px, 86vw);
+                    transform: translateX(-105%);
+                    transition: transform .22s ease;
+                    z-index: 10000;
                 }
-
-
-                .genz-sidebar.open {
-
-                    transform:
-                        translateX(0);
-
-                }
-
-
-                .genz-sidebar-header {
-
-                    min-height:
-                        72px;
-
-                }
-
-
-                .genz-mobile-close {
-
-                    display:
-                        flex;
-
-                    align-items:
-                        center;
-
-                    justify-content:
-                        center;
-
-                }
-
-
-                .genz-mobile-toggle {
-
-                    display:
-                        flex;
-
-                }
-
-
-                body {
-
-                    padding-left:
-                        0 !important;
-
-                }
-
-
-                body.genz-nav-open {
-
-                    overflow:
-                        hidden;
-
-                }
-
+                .genz-sidebar.open { transform: translateX(0); }
+                .genz-sidebar-header { min-height: 72px; }
+                .genz-mobile-close { display: flex; align-items: center; justify-content: center; }
+                .genz-mobile-toggle { display: flex; }
+                body { padding-left: 0 !important; }
+                body.genz-nav-open { overflow: hidden; }
             }
 
-
-            /* =================================================
-               SMALL MOBILE
-               ================================================= */
-
-            @media (
-                max-width: 480px
-            ) {
-
-                .genz-sidebar-header {
-
-                    padding:
-                        13px 11px;
-
-                }
-
-
-                .genz-logo {
-
-                    gap:
-                        8px;
-
-                    min-height:
-                        40px;
-
-                    padding:
-                        5px 9px 5px 6px;
-
-                }
-
-
-                .genz-logo-mark {
-
-                    width:
-                        32px;
-
-                    height:
-                        32px;
-
-                    flex-basis:
-                        32px;
-
-                    border-radius:
-                        8px;
-
-                    font-size:
-                        11px;
-
-                }
-
-
-                .genz-logo-text {
-
-                    font-size:
-                        17px;
-
-                }
-
-
-                .genz-nav {
-
-                    padding:
-                        7px 8px 14px;
-
-                }
-
-
-                .genz-sidebar-footer {
-
-                    padding:
-                        9px 8px 12px;
-
-                }
-
-
-                .genz-account-box {
-
-                    margin-bottom:
-                        9px;
-
-                }
-
+            @media (max-width: 480px) {
+                .genz-sidebar-header { padding: 13px 11px; }
+                .genz-logo { gap: 8px; min-height: 40px; padding: 5px 9px 5px 6px; }
+                .genz-logo-mark { width: 32px; height: 32px; flex-basis: 32px; border-radius: 8px; font-size: 11px; }
+                .genz-logo-text { font-size: 17px; }
+                .genz-nav { padding: 7px 8px 14px; }
+                .genz-sidebar-footer { padding: 9px 8px 12px; }
+                .genz-account-box { margin-bottom: 9px; }
             }
-
         `;
 
-
-        document.head.appendChild(
-            style
-        );
-
-    }
-
-
-    /* =====================================================
-       CLEANUP
-       -----------------------------------------------------
-       Membersihkan subscription auth dan listener saat
-       page unload untuk mencegah memory leak dan
-       listener menumpuk.
-    ===================================================== */
-
-    function cleanup() {
-
-        if (
-            cleanupDone
-        ) {
-
-            return;
-
-        }
-
-        cleanupDone =
-            true;
-
-
-        if (
-            authSubscription &&
-            typeof authSubscription.unsubscribe ===
-                "function"
-        ) {
-
-            try {
-
-                authSubscription.unsubscribe();
-
-            } catch {
-                /* ignore */
-            }
-
-
-            authSubscription =
-                null;
-
-        }
-
-    }
-
-
-    if (
-        typeof window !==
-            "undefined"
-    ) {
-
-        window.addEventListener(
-            "pagehide",
-            cleanup
-        );
-
-        window.addEventListener(
-            "beforeunload",
-            cleanup
-        );
+        document.head.appendChild(style);
 
     }
 
@@ -3826,120 +1516,68 @@
 
         injectStyles();
 
+        if (isLoginPage()) {
 
-        if (
-            isLoginPage()
-        ) {
+            navigationReady = true;
 
-            navigationReady =
-                true;
+            if (navigationReadyResolve) {
 
-
-            if (
-                navigationReadyResolve
-            ) {
-
-                navigationReadyResolve(
-                    true
-                );
-
-                navigationReadyResolve =
-                    null;
+                navigationReadyResolve(true);
+                navigationReadyResolve = null;
 
             }
-
 
             return;
 
         }
-
 
         try {
 
             const authenticated =
                 await validateAuthentication();
 
+            if (!authenticated) {
 
-            if (
-                !authenticated
-            ) {
+                navigationReady = false;
 
-                navigationReady =
-                    false;
+                if (navigationReadyResolve) {
 
-
-                if (
-                    navigationReadyResolve
-                ) {
-
-                    navigationReadyResolve(
-                        false
-                    );
-
-                    navigationReadyResolve =
-                        null;
+                    navigationReadyResolve(false);
+                    navigationReadyResolve = null;
 
                 }
-
 
                 return;
 
             }
 
-
             syncNavigationGlobals();
-
-
             renderNavigation();
-
-
             setupAuthListener();
 
+            navigationReady = true;
 
-            navigationReady =
-                true;
+            if (navigationReadyResolve) {
 
-
-            if (
-                navigationReadyResolve
-            ) {
-
-                navigationReadyResolve(
-                    true
-                );
-
-                navigationReadyResolve =
-                    null;
+                navigationReadyResolve(true);
+                navigationReadyResolve = null;
 
             }
 
-        } catch (
-            error
-        ) {
+        } catch (error) {
 
             debugError(
                 "[GEN-Z.AI] Navigation initialization error:",
                 error
             );
 
-
-            navigationReady =
-                false;
-
-
+            navigationReady = false;
             syncNavigationGlobals();
 
+            if (navigationReadyResolve) {
 
-            if (
-                navigationReadyResolve
-            ) {
-
-                navigationReadyResolve(
-                    false
-                );
-
-                navigationReadyResolve =
-                    null;
+                navigationReadyResolve(false);
+                navigationReadyResolve = null;
 
             }
 
@@ -3954,29 +1592,23 @@
 
     window.GENZNavigation = {
 
-        init:
-            initialize,
+        init: initialize,
 
-        render:
-            renderNavigation,
+        render: renderNavigation,
 
-        logout:
-            logoutUser,
+        logout: logoutUser,
 
-        getUser:
-            () => currentUser,
+        getUser: () => currentUser,
 
-        getProfile:
-            () => currentProfile,
+        getProfile: () => currentProfile,
 
-        getRole:
-            () => currentRole,
+        getRole: () => currentRole,
 
-        cleanup:
-            cleanup,
+        readSession: readSessionFromStorage,
 
-        ready:
-            navigationReadyPromise
+        cleanup: () => { /* no-op */ },
+
+        ready: navigationReadyPromise
 
     };
 
@@ -3988,21 +1620,12 @@
     syncNavigationGlobals();
 
 
-    /* =====================================================
-       DOM READY
-    ===================================================== */
-
-    if (
-        document.readyState ===
-        "loading"
-    ) {
+    if (document.readyState === "loading") {
 
         document.addEventListener(
             "DOMContentLoaded",
             initialize,
-            {
-                once: true
-            }
+            { once: true }
         );
 
     } else {
