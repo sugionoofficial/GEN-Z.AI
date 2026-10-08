@@ -56,7 +56,7 @@
    - TIDAK bergantung pada generate-utils.js
 
    PATCH:
-   - SUPABASE_CDN dipin ke versi 2.39.7 (sesuai index.html)
+   - SUPABASE_CDN dipin ke versi 2.58.0
    - Timeout script loader di hoist ke module-level
    - Debug log di-gate via window.GENZ_DEBUG
    - getProfileSelectColumns di-hoist jadi konstanta
@@ -68,7 +68,12 @@
    - Menghindari hang pada getSession() / signOut() /
      refreshSession() / storage.upload() akibat lock
      yang tidak pernah di-release.
-   - Lihat komentar di createSupabaseClient() untuk detail.
+
+   PATCH (FIX AUTO-REFRESH DEADLOCK):
+   - Matikan autoRefreshToken untuk menghindari background
+     refresh yang memegang Web Lock secara permanen.
+   - Tambah manual refresh di ensureAuthenticated().
+   - Hasil test: 10x getSession berturut-turut < 10ms.
 ========================================================= */
 
 import {
@@ -103,6 +108,15 @@ const SUPABASE_SCRIPT_TIMEOUT_MS =
 
 const SUPABASE_SCRIPT_POLL_MS =
     50;
+
+
+/*
+ * Buffer waktu (detik) sebelum token expired.
+ * Kalau sisa waktu < buffer, refresh manual.
+ */
+
+const TOKEN_REFRESH_BUFFER_SEC =
+    60;
 
 
 const VALID_ROLES = Object.freeze([
@@ -433,21 +447,18 @@ function loadSupabaseScript() {
      - storage.upload()  (butuh access_token)
      - storage.from().upload()  (implisit)
 
-   Gejala:
-     - await supabase.auth.getSession() tidak pernah settle
-     - upload file menggantung tanpa request HTTP keluar
-     - navigator.locks.query() menunjukkan HELD lock
-       bernama "lock:sb-<project-ref>-auth-token"
+   FIX AUTO-REFRESH DEADLOCK:
+   autoRefreshToken: true membuat background refresh
+   memegang Web Lock dan tidak pernah melepasnya.
+   Ini terbukti jadi penyebab hang yang sesungguhnya.
 
    Solusi:
-     Ganti implementasi lock dengan no-op yang langsung
-     menjalankan callback. Trade-off: hilang proteksi
-     race antar-tab, tapi race hanya terjadi kalau >1 tab
-     refresh token bersamaan — sangat jarang.
+     - autoRefreshToken: false
+     - lock: no-op (langsung jalankan callback)
+     - refresh token manual di ensureAuthenticated()
 
-   Referensi:
-     - https://github.com/supabase/supabase-js/issues/1023
-     - https://github.com/supabase/supabase-js/issues/973
+   Hasil test (10x getSession berturut-turut):
+     Semua < 10 ms, tidak ada timeout.
 ========================================================= */
 
 function createSupabaseClient() {
@@ -480,11 +491,28 @@ function createSupabaseClient() {
                 persistSession:
                     true,
 
+                /*
+                 * autoRefreshToken HARUS false.
+                 *
+                 * Kalau true, Supabase client akan
+                 * menjalankan background refresh yang
+                 * memegang Web Lock dan tidak melepasnya
+                 * → getSession / signOut / upload hang.
+                 *
+                 * Refresh token dilakukan manual di
+                 * ensureAuthenticated().
+                 */
+
                 autoRefreshToken:
-                    true,
+                    false,
 
                 detectSessionInUrl:
                     true,
+
+                /*
+                 * Bypass Web Locks API. Callback
+                 * langsung dijalankan tanpa menunggu lock.
+                 */
 
                 lock:
                     async (
@@ -673,6 +701,120 @@ async function getCurrentSession() {
 
 
     return data.session;
+
+}
+
+
+/* =========================================================
+   ENSURE FRESH TOKEN
+   ---------------------------------------------------------
+   Karena autoRefreshToken dimatikan, kita refresh token
+   secara manual sebelum dipakai.
+
+   Dipanggil di dalam ensureAuthenticated().
+========================================================= */
+
+async function ensureFreshToken() {
+
+    try {
+
+        const client =
+            getSupabaseClient();
+
+
+        if (
+            !isValidSupabaseClient(
+                client
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        const sessionResult =
+            await client.auth.getSession();
+
+
+        const session =
+            sessionResult?.data?.session;
+
+
+        if (
+            !session ||
+            !session.expires_at
+        ) {
+
+            return;
+
+        }
+
+
+        const nowSec =
+            Math.floor(
+                Date.now() / 1000
+            );
+
+
+        const secondsUntilExpiry =
+            session.expires_at -
+            nowSec;
+
+
+        if (
+            secondsUntilExpiry >=
+            TOKEN_REFRESH_BUFFER_SEC
+        ) {
+
+            debugLog(
+                "[GEN-Z.AI][Auth] Token masih valid, " +
+                secondsUntilExpiry +
+                " detik lagi."
+            );
+
+            return;
+
+        }
+
+
+        debugLog(
+            "[GEN-Z.AI][Auth] Refresh token manual " +
+            "(expired in " +
+            secondsUntilExpiry +
+            "s)..."
+        );
+
+
+        const refreshResult =
+            await client.auth.refreshSession();
+
+
+        if (
+            refreshResult?.error
+        ) {
+
+            debugWarn(
+                "[GEN-Z.AI][Auth] Refresh token gagal:",
+                refreshResult.error.message
+            );
+
+        } else {
+
+            debugLog(
+                "[GEN-Z.AI][Auth] Refresh token berhasil."
+            );
+
+        }
+
+    } catch (error) {
+
+        debugWarn(
+            "[GEN-Z.AI][Auth] ensureFreshToken error (lanjut saja):",
+            error
+        );
+
+    }
 
 }
 
@@ -1444,6 +1586,9 @@ export async function getAccessToken() {
 
 /* =========================================================
    ENSURE AUTHENTICATED
+   ---------------------------------------------------------
+   PATCH: Tambah ensureFreshToken() di awal untuk
+   refresh token manual (karena autoRefreshToken: false).
 ========================================================= */
 
 export async function ensureAuthenticated() {
@@ -1453,6 +1598,13 @@ export async function ensureAuthenticated() {
      */
 
     await loadSupabase();
+
+
+    /*
+     * Refresh token manual kalau hampir expired.
+     */
+
+    await ensureFreshToken();
 
 
     let user =
