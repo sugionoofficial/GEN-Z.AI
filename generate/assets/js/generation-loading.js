@@ -1,20 +1,16 @@
 /* =========================================================
    GEN-Z.AI
-   PREMIUM GENERATION LOADING CONTROLLER
+   PREMIUM GENERATION LOADING CONTROLLER v5
    ---------------------------------------------------------
    File:
    generate/assets/js/generation-loading.js
 
-   API:
-   - GENZLoading.show(options)
-   - GENZLoading.update({ percent, step, message, eta })
-   - GENZLoading.success(message)
-   - GENZLoading.error(message)
-   - GENZLoading.hide()
-   - GENZLoading.isVisible()
+   FIX v5:
+   - Bug: display:none important tidak bisa di-override
+     oleh display:flex non-important
+   - Fix: show() dan hide() juga pakai important
 
-   Events:
-   - gen-loading:cancel
+   Style semua inline via JS — bypass cache CSS.
 ========================================================= */
 
 (function (window) {
@@ -32,15 +28,13 @@
     let card = null;
     let kickerText = null;
     let titleEl = null;
-    let subtitleEl = null;
+    let messageEl = null;
     let progressFill = null;
     let percentEl = null;
     let etaEl = null;
     let stepsEl = null;
     let cancelBtn = null;
 
-    let currentStepIndex = -1;
-    let currentPercent = 0;
     let steps = DEFAULT_STEPS.slice();
     let visible = false;
     let cancelHandler = null;
@@ -53,12 +47,6 @@
         const num = Number(value);
         if (!Number.isFinite(num)) return 0;
         return Math.max(0, Math.min(100, num));
-    }
-
-    function safeText(el, text) {
-        if (el && typeof text === "string") {
-            el.textContent = text;
-        }
     }
 
     /* =====================================================
@@ -74,42 +62,172 @@
         overlay.setAttribute("role", "dialog");
         overlay.setAttribute("aria-modal", "true");
         overlay.setAttribute("aria-labelledby", "genLoadingTitle");
-        overlay.setAttribute("aria-live", "polite");
+
+        /* ---------- OVERLAY: FIXED, TOP-CENTER ---------- */
+        overlay.style.cssText = [
+            "position:fixed",
+            "top:0",
+            "left:0",
+            "right:0",
+            "bottom:0",
+            "display:none",
+            "align-items:flex-start",
+            "justify-content:center",
+            "padding:70px 14px 14px",
+            "box-sizing:border-box",
+            "background:rgba(2,4,8,0.78)",
+            "-webkit-backdrop-filter:blur(14px)",
+            "backdrop-filter:blur(14px)",
+            "z-index:99999",
+            "overflow-y:auto"
+        ].join(";") + ";";
+
+        /* Set display:none pakai important supaya default hidden */
+        overlay.style.setProperty("display", "none", "important");
 
         overlay.innerHTML = `
-            <div class="gen-card" id="genLoadingCard">
+            <div class="gen-card" id="genLoadingCard"
+                 style="
+                    position: relative;
+                    width: 100%;
+                    max-width: 320px;
+                    padding: 16px 16px 14px;
+                    margin: 0;
+                    border: 1px solid rgba(255, 255, 255, 0.10);
+                    border-radius: 15px;
+                    background: #0a0d13;
+                    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.70);
+                    box-sizing: border-box;
+                    max-height: 68vh;
+                    overflow-y: auto;
+                 ">
 
-                <div class="gen-kicker">
-                    <span class="gen-kicker-dot" aria-hidden="true"></span>
+                <div class="gen-kicker"
+                     style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 3px 9px;
+                        margin: 0 0 10px;
+                        border: 1px solid rgba(255, 51, 85, 0.28);
+                        border-radius: 999px;
+                        background: rgba(255, 51, 85, 0.10);
+                        color: #ff8fa3;
+                        font-size: 8px;
+                        font-weight: 800;
+                        letter-spacing: 1.4px;
+                        text-transform: uppercase;
+                     ">
+                    <span class="gen-kicker-dot"
+                          style="
+                            width: 5px;
+                            height: 5px;
+                            border-radius: 50%;
+                            background: #ff3355;
+                            box-shadow: 0 0 8px rgba(255, 51, 85, 0.85);
+                          "></span>
                     <span id="genLoadingKicker">GENERATING</span>
                 </div>
 
-                <h2 class="gen-title" id="genLoadingTitle">
-                    Sedang <em>membuat video</em> kamu
+                <h2 class="gen-title" id="genLoadingTitle"
+                    style="
+                        margin: 0 0 4px;
+                        color: #f0f2f7;
+                        font-size: 14px;
+                        font-weight: 900;
+                        line-height: 1.2;
+                        letter-spacing: -0.2px;
+                    ">
+                    Sedang <em style="
+                        font-style: normal;
+                        color: #ff6a7a;
+                    ">membuat video</em> kamu
                 </h2>
 
-                <p class="gen-subtitle" id="genLoadingSubtitle">
-                    Jangan tutup halaman ini. Proses biasanya selesai dalam 1&ndash;3 menit.
-                </p>
-
-                <div class="gen-progress" role="progressbar"
-                     aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
-                     id="genLoadingProgress">
-                    <div class="gen-progress-fill" id="genLoadingFill"></div>
+                <div class="gen-progress" id="genLoadingProgress"
+                     role="progressbar"
+                     aria-valuemin="0"
+                     aria-valuemax="100"
+                     aria-valuenow="0"
+                     style="
+                        position: relative;
+                        height: 3px;
+                        margin: 12px 0 5px;
+                        border-radius: 999px;
+                        background: rgba(255, 255, 255, 0.06);
+                        overflow: hidden;
+                     ">
+                    <div class="gen-progress-fill" id="genLoadingFill"
+                         style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            height: 100%;
+                            width: 0%;
+                            border-radius: 999px;
+                            background: linear-gradient(90deg, #ff3355, #ff6a7a, #ff3355);
+                            box-shadow: 0 0 14px rgba(255, 51, 85, 0.55);
+                            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+                         "></div>
                 </div>
 
-                <div class="gen-meta">
-                    <span class="gen-percent" id="genLoadingPercent">0%</span>
+                <div class="gen-meta"
+                     style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin: 0 0 10px;
+                        color: #5c6570;
+                        font-size: 9px;
+                        font-weight: 700;
+                     ">
+                    <span class="gen-percent" id="genLoadingPercent"
+                          style="
+                            color: #f0f2f7;
+                            font-size: 11px;
+                            font-weight: 800;
+                          ">0%</span>
                     <span class="gen-eta" id="genLoadingEta"></span>
                 </div>
 
-                <div class="gen-steps" id="genLoadingSteps"></div>
+                <div class="gen-steps" id="genLoadingSteps"
+                     style="
+                        display: flex;
+                        flex-direction: column;
+                        gap: 1px;
+                        margin: 0 0 10px;
+                     "></div>
 
-                <button
-                    type="button"
-                    class="gen-cancel"
-                    id="genLoadingCancel"
-                >
+                <div class="gen-message" id="genLoadingMessage"
+                     hidden
+                     style="
+                        display: none;
+                        margin: 6px 0 0;
+                        padding: 6px 10px;
+                        border: 1px solid rgba(255, 255, 255, 0.08);
+                        border-radius: 7px;
+                        background: rgba(0, 0, 0, 0.25);
+                        color: rgba(240, 242, 247, 0.72);
+                        font-size: 10px;
+                        line-height: 1.4;
+                        text-align: center;
+                     "></div>
+
+                <button type="button" class="gen-cancel" id="genLoadingCancel"
+                        style="
+                            width: 100%;
+                            padding: 7px 12px;
+                            margin-top: 4px;
+                            border: 1px solid rgba(255, 255, 255, 0.10);
+                            border-radius: 9px;
+                            background: transparent;
+                            color: #9ba3b0;
+                            font-family: inherit;
+                            font-size: 10px;
+                            font-weight: 700;
+                            letter-spacing: 0.4px;
+                            cursor: pointer;
+                        ">
                     Batalkan Generate
                 </button>
 
@@ -121,7 +239,7 @@
         card         = overlay.querySelector("#genLoadingCard");
         kickerText   = overlay.querySelector("#genLoadingKicker");
         titleEl      = overlay.querySelector("#genLoadingTitle");
-        subtitleEl   = overlay.querySelector("#genLoadingSubtitle");
+        messageEl    = overlay.querySelector("#genLoadingMessage");
         progressFill = overlay.querySelector("#genLoadingFill");
         percentEl    = overlay.querySelector("#genLoadingPercent");
         etaEl        = overlay.querySelector("#genLoadingEta");
@@ -136,13 +254,47 @@
         });
     }
 
+    /* =====================================================
+       RENDER STEPS
+    ===================================================== */
+
     function renderSteps() {
         if (!stepsEl) return;
         stepsEl.innerHTML = steps.map(function (step, i) {
             return `
-                <div class="gen-step" data-step-index="${i}">
-                    <span class="gen-step-icon" aria-hidden="true"></span>
-                    <span class="gen-step-label">${step.label}</span>
+                <div class="gen-step" data-step-index="${i}"
+                     style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 5px 8px;
+                        border-radius: 6px;
+                        color: #5c6570;
+                        font-size: 10.5px;
+                        font-weight: 600;
+                     ">
+                    <span class="gen-step-icon" aria-hidden="true"
+                          style="
+                            flex: 0 0 auto;
+                            width: 13px;
+                            height: 13px;
+                            border: 1.5px solid rgba(255, 255, 255, 0.14);
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 7px;
+                            font-weight: 900;
+                            color: transparent;
+                          "></span>
+                    <span class="gen-step-label"
+                          style="
+                            flex: 1 1 auto;
+                            min-width: 0;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                          ">${step.label}</span>
                 </div>
             `;
         }).join("");
@@ -151,14 +303,54 @@
     function setActiveStep(index) {
         if (!stepsEl) return;
         const items = stepsEl.querySelectorAll(".gen-step");
+
         items.forEach(function (el, i) {
-            el.classList.remove("active", "done");
+            const icon = el.querySelector(".gen-step-icon");
+
+            el.style.background = "transparent";
+            el.style.border = "1px solid transparent";
+            el.style.color = "#5c6570";
+
+            if (icon) {
+                icon.style.background = "transparent";
+                icon.style.borderColor = "rgba(255, 255, 255, 0.14)";
+                icon.style.color = "transparent";
+                icon.style.boxShadow = "none";
+                icon.textContent = "";
+            }
+
             if (i < index) {
-                el.classList.add("done");
+                el.style.color = "#66ffa6";
+                if (icon) {
+                    icon.style.borderColor = "#2ed573";
+                    icon.style.background = "#2ed573";
+                    icon.style.color = "#041008";
+                    icon.textContent = "✓";
+                }
             } else if (i === index) {
-                el.classList.add("active");
+                el.style.background = "rgba(255, 51, 85, 0.08)";
+                el.style.border = "1px solid rgba(255, 51, 85, 0.22)";
+                el.style.color = "#f0f2f7";
+                if (icon) {
+                    icon.style.borderColor = "#ff3355";
+                    icon.style.background = "rgba(255, 51, 85, 0.15)";
+                    icon.style.boxShadow = "0 0 14px rgba(255, 51, 85, 0.55)";
+                }
             }
         });
+    }
+
+    function setMessage(text) {
+        if (!messageEl) return;
+        if (typeof text === "string" && text.trim()) {
+            messageEl.textContent = text;
+            messageEl.hidden = false;
+            messageEl.style.display = "block";
+        } else {
+            messageEl.textContent = "";
+            messageEl.hidden = true;
+            messageEl.style.display = "none";
+        }
     }
 
     /* =====================================================
@@ -170,8 +362,6 @@
         options = options || {};
         buildDom();
 
-        currentStepIndex = -1;
-        currentPercent = 0;
         steps = Array.isArray(options.steps) && options.steps.length
             ? options.steps
             : DEFAULT_STEPS.slice();
@@ -180,37 +370,30 @@
             ? options.onCancel
             : null;
 
-        card.classList.remove("success", "error");
-        card.classList.add("loading");
+        if (card) {
+            card.style.borderColor = "rgba(255, 255, 255, 0.10)";
+            card.style.boxShadow = "0 40px 100px rgba(0, 0, 0, 0.70)";
+        }
 
-        safeText(kickerText, "GENERATING");
-        safeText(
-            titleEl,
-            options.title || "Sedang membuat video kamu"
-        );
-        safeText(
-            subtitleEl,
-            options.subtitle ||
-            "Jangan tutup halaman ini. Proses biasanya selesai dalam 1\u20133 menit."
-        );
+        if (kickerText) kickerText.textContent = "GENERATING";
+        if (titleEl) titleEl.textContent = options.title || "Sedang membuat video kamu";
+        if (percentEl) percentEl.textContent = "0%";
+        if (etaEl) etaEl.textContent = "";
+        if (progressFill) progressFill.style.width = "0%";
 
-        progressFill.style.width = "0%";
-        safeText(percentEl, "0%");
-        safeText(etaEl, "");
-
+        setMessage(options.message || "");
         renderSteps();
 
-        overlay.classList.remove("closing");
-        overlay.classList.add("show");
-        overlay.style.display = "flex";
-
-        void overlay.offsetHeight;
+        /* ============================================
+           FIX v5 — WAJIB pakai important
+           karena initial style "display: none" juga important
+        ============================================ */
+        overlay.style.setProperty("display", "flex", "important");
 
         visible = true;
 
         if (steps.length) {
             setActiveStep(0);
-            currentStepIndex = 0;
         }
 
         document.body.style.overflow = "hidden";
@@ -230,37 +413,27 @@
         state = state || {};
 
         if (typeof state.percent === "number") {
-            currentPercent = clampPercent(state.percent);
-            progressFill.style.width = currentPercent + "%";
-            safeText(percentEl, Math.round(currentPercent) + "%");
-
-            const progressWrap = overlay.querySelector("#genLoadingProgress");
-            if (progressWrap) {
-                progressWrap.setAttribute(
-                    "aria-valuenow",
-                    String(Math.round(currentPercent))
-                );
-            }
+            const pct = clampPercent(state.percent);
+            if (progressFill) progressFill.style.width = pct + "%";
+            if (percentEl) percentEl.textContent = Math.round(pct) + "%";
+            const wrap = overlay.querySelector("#genLoadingProgress");
+            if (wrap) wrap.setAttribute("aria-valuenow", String(Math.round(pct)));
         }
 
         if (typeof state.step === "number") {
             const idx = Math.max(0, Math.min(steps.length - 1, state.step));
             setActiveStep(idx);
-            currentStepIndex = idx;
         } else if (typeof state.step === "string") {
             const idx = steps.findIndex(function (s) { return s.id === state.step; });
-            if (idx >= 0) {
-                setActiveStep(idx);
-                currentStepIndex = idx;
-            }
+            if (idx >= 0) setActiveStep(idx);
         }
 
         if (typeof state.message === "string") {
-            safeText(subtitleEl, state.message);
+            setMessage(state.message);
         }
 
         if (typeof state.eta === "string") {
-            etaEl.textContent = state.eta ? "\u2022 " + state.eta : "";
+            if (etaEl) etaEl.textContent = state.eta ? "\u2022 " + state.eta : "";
         }
     }
 
@@ -270,23 +443,24 @@
 
     function success(message) {
 
-        if (!overlay) return;
+        if (!overlay || !card) return;
 
-        card.classList.remove("loading", "error");
-        card.classList.add("success");
+        card.style.borderColor = "rgba(46, 213, 115, 0.40)";
+        card.style.boxShadow = "0 40px 100px rgba(0, 0, 0, 0.70), 0 0 26px rgba(46, 213, 115, 0.30)";
 
-        safeText(kickerText, "SELESAI");
-        safeText(titleEl, "Video berhasil dibuat!");
-        safeText(subtitleEl, message || "Mengarahkan ke hasil...");
-
-        progressFill.style.width = "100%";
-        safeText(percentEl, "100%");
-        safeText(etaEl, "");
+        if (kickerText) kickerText.textContent = "SELESAI";
+        if (titleEl) titleEl.textContent = "Video berhasil dibuat!";
+        if (progressFill) progressFill.style.width = "100%";
+        if (percentEl) percentEl.textContent = "100%";
+        if (etaEl) etaEl.textContent = "";
 
         setActiveStep(steps.length);
+        setMessage(message || "");
 
-        cancelBtn.disabled = true;
-        cancelBtn.textContent = "Membuka hasil...";
+        if (cancelBtn) {
+            cancelBtn.disabled = true;
+            cancelBtn.textContent = "Membuka hasil...";
+        }
     }
 
     /* =====================================================
@@ -295,17 +469,20 @@
 
     function error(message) {
 
-        if (!overlay) return;
+        if (!overlay || !card) return;
 
-        card.classList.remove("loading", "success");
-        card.classList.add("error");
+        card.style.borderColor = "rgba(220, 38, 38, 0.50)";
+        card.style.boxShadow = "0 40px 100px rgba(0, 0, 0, 0.70), 0 0 26px rgba(220, 38, 38, 0.30)";
 
-        safeText(kickerText, "GAGAL");
-        safeText(titleEl, "Generate gagal");
-        safeText(subtitleEl, message || "Terjadi kesalahan. Silakan coba lagi.");
+        if (kickerText) kickerText.textContent = "GAGAL";
+        if (titleEl) titleEl.textContent = "Generate gagal";
 
-        cancelBtn.disabled = false;
-        cancelBtn.textContent = "Tutup";
+        setMessage(message || "Terjadi kesalahan. Silakan coba lagi.");
+
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = "Tutup";
+        }
         cancelHandler = null;
     }
 
@@ -314,21 +491,10 @@
     ===================================================== */
 
     function hide() {
-
         if (!overlay || !visible) return;
-
-        overlay.classList.add("closing");
-
-        setTimeout(function () {
-            overlay.classList.remove("show", "closing");
-            overlay.style.display = "none";
-            visible = false;
-            document.body.style.overflow = "";
-
-            if (card) {
-                card.classList.remove("success", "error", "loading");
-            }
-        }, 320);
+        overlay.style.setProperty("display", "none", "important");
+        visible = false;
+        document.body.style.overflow = "";
     }
 
     function isVisible() {
