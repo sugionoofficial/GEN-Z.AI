@@ -1,207 +1,565 @@
 /* =========================================================
    GEN-Z.AI
-   PREMIUM LOADING BRIDGE v3
+   PREMIUM GENERATION LOADING CONTROLLER v4
    ---------------------------------------------------------
    File:
-   generate/assets/js/generation-loading-bridge.js
+   generate/assets/js/generation-loading.js
 
-   Hook ke:
-   1. Form submit event (capture: true, paling awal)
-   2. Button click event (fallback)
+   PERUBAHAN v4:
+   - Semua style di-set INLINE via JS (bukan via CSS)
+   - Bypass cache CSS + specificity konflik
+   - Posisi: TOP-CENTER (di atas layar)
+   - Ukuran: COMPACT (perkecil)
+   - Subtitle DIHAPUS
 
-   Deteksi selesai:
-   1. Custom event "gen:success" / "gen:error"
-   2. #loading.hidden transition (visible -> hidden)
-   3. #status text change
-   4. #generateButton enabled transition
-   5. Timeout 3 menit
+   API:
+   - GENZLoading.show(options)
+   - GENZLoading.update({ percent, step, message, eta })
+   - GENZLoading.success(message)
+   - GENZLoading.error(message)
+   - GENZLoading.hide()
+   - GENZLoading.isVisible()
 ========================================================= */
 
-(function () {
+(function (window) {
 
     "use strict";
 
-    let isGenerating = false;
-    let activeCleanup = null;
+    const DEFAULT_STEPS = [
+        { id: "queued",     label: "Menghubungi server..." },
+        { id: "processing", label: "Memproses prompt" },
+        { id: "rendering",  label: "Merender video" },
+        { id: "finalizing", label: "Menyelesaikan" }
+    ];
 
-    function isSuccessText(text) {
-        return /berhasil|success|selesai|sukses|completed/i.test(text);
+    let overlay = null;
+    let card = null;
+    let kickerText = null;
+    let titleEl = null;
+    let messageEl = null;
+    let progressFill = null;
+    let percentEl = null;
+    let etaEl = null;
+    let stepsEl = null;
+    let cancelBtn = null;
+
+    let steps = DEFAULT_STEPS.slice();
+    let visible = false;
+    let cancelHandler = null;
+
+    /* =====================================================
+       UTIL
+    ===================================================== */
+
+    function clampPercent(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return 0;
+        return Math.max(0, Math.min(100, num));
     }
 
-    function isErrorText(text) {
-        return /gagal|error|failed|ditolak|tolak/i.test(text);
+    function applyStyle(el, styles) {
+        if (!el) return;
+        Object.keys(styles).forEach(function (key) {
+            el.style.setProperty(
+                key.replace(/[A-Z]/g, function (m) {
+                    return "-" + m.toLowerCase();
+                }),
+                styles[key],
+                "important"
+            );
+        });
     }
 
-    function startLoading() {
+    /* =====================================================
+       BUILD DOM (sekali saja)
+    ===================================================== */
 
-        if (isGenerating) return;
+    function buildDom() {
 
-        if (!window.GENZLoading) {
-            console.warn("[LoadingBridge] GENZLoading tidak tersedia.");
-            return;
-        }
+        if (overlay) return;
 
-        isGenerating = true;
+        overlay = document.createElement("div");
+        overlay.className = "gen-loading";
+        overlay.setAttribute("role", "dialog");
+        overlay.setAttribute("aria-modal", "true");
+        overlay.setAttribute("aria-labelledby", "genLoadingTitle");
 
-        window.GENZLoading.show({
-            title: "Sedang membuat video kamu",
-            subtitle: "Jangan tutup halaman ini. Proses biasanya selesai dalam 1\u20133 menit.",
-            steps: [
-                { id: "queued",     label: "Menghubungi server..." },
-                { id: "processing", label: "Memproses prompt" },
-                { id: "rendering",  label: "Merender video" },
-                { id: "finalizing", label: "Menyelesaikan" }
-            ],
-            onCancel: function () {
-                if (activeCleanup) activeCleanup();
-                isGenerating = false;
-            }
+        /* ---------- OVERLAY: FIXED, TOP-CENTER ---------- */
+        applyStyle(overlay, {
+            position: "fixed",
+            top: "0",
+            left: "0",
+            right: "0",
+            bottom: "0",
+            display: "none",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            paddingTop: "70px",
+            paddingLeft: "14px",
+            paddingRight: "14px",
+            paddingBottom: "14px",
+            boxSizing: "border-box",
+            background: "rgba(2, 4, 8, 0.78)",
+            backdropFilter: "blur(14px)",
+            webkitBackdropFilter: "blur(14px)",
+            zIndex: "99999",
+            overflowY: "auto"
         });
 
-        /* ------ SIMULASI PROGRESS ------ */
-        let percent = 5;
-        const progressTimer = setInterval(function () {
-            percent += Math.random() * 3 + 0.5;
-            if (percent > 92) percent = 92;
+        overlay.innerHTML = `
+            <div class="gen-card" id="genLoadingCard"
+                 style="
+                    position: relative;
+                    width: 100%;
+                    max-width: 320px;
+                    padding: 16px 16px 14px;
+                    margin: 0;
+                    border: 1px solid rgba(255, 255, 255, 0.10);
+                    border-radius: 15px;
+                    background: #0a0d13;
+                    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.70);
+                    box-sizing: border-box;
+                    max-height: 68vh;
+                    overflow-y: auto;
+                 ">
 
-            window.GENZLoading.update({
-                percent: percent,
-                step: Math.min(3, Math.floor(percent / 25)),
-                eta: "~" + Math.max(1, Math.round((100 - percent) / 8)) + " menit lagi"
-            });
-        }, 700);
+                <div class="gen-kicker"
+                     style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 3px 9px;
+                        margin: 0 0 10px;
+                        border: 1px solid rgba(255, 51, 85, 0.28);
+                        border-radius: 999px;
+                        background: rgba(255, 51, 85, 0.10);
+                        color: #ff8fa3;
+                        font-size: 8px;
+                        font-weight: 800;
+                        letter-spacing: 1.4px;
+                        text-transform: uppercase;
+                     ">
+                    <span class="gen-kicker-dot"
+                          style="
+                            width: 5px;
+                            height: 5px;
+                            border-radius: 50%;
+                            background: #ff3355;
+                            box-shadow: 0 0 8px rgba(255, 51, 85, 0.85);
+                            animation: genDotPulse 1.4s ease-in-out infinite;
+                          "></span>
+                    <span id="genLoadingKicker">GENERATING</span>
+                </div>
 
-        /* ------ ELEMEN YANG DIPANTAU ------ */
-        const loadingEl = document.getElementById("loading");
-        const statusEl = document.getElementById("status");
-        const buttonEl = document.getElementById("generateButton");
+                <h2 class="gen-title" id="genLoadingTitle"
+                    style="
+                        margin: 0 0 4px;
+                        color: #f0f2f7;
+                        font-size: 14px;
+                        font-weight: 900;
+                        line-height: 1.2;
+                        letter-spacing: -0.2px;
+                    ">
+                    Sedang <em style="
+                        font-style: normal;
+                        color: #ff6a7a;
+                    ">membuat video</em> kamu
+                </h2>
 
-        let wasLoadingVisible = false;
-        let finished = false;
+                <div class="gen-progress" id="genLoadingProgress"
+                     role="progressbar"
+                     aria-valuemin="0"
+                     aria-valuemax="100"
+                     aria-valuenow="0"
+                     style="
+                        position: relative;
+                        height: 3px;
+                        margin: 12px 0 5px;
+                        border-radius: 999px;
+                        background: rgba(255, 255, 255, 0.06);
+                        overflow: hidden;
+                     ">
+                    <div class="gen-progress-fill" id="genLoadingFill"
+                         style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            height: 100%;
+                            width: 0%;
+                            border-radius: 999px;
+                            background: linear-gradient(90deg, #ff3355, #ff6a7a, #ff3355);
+                            box-shadow: 0 0 14px rgba(255, 51, 85, 0.55);
+                            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+                         "></div>
+                </div>
 
-        function finish(isError, message) {
-            if (finished) return;
-            finished = true;
+                <div class="gen-meta"
+                     style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin: 0 0 10px;
+                        color: #5c6570;
+                        font-size: 9px;
+                        font-weight: 700;
+                     ">
+                    <span class="gen-percent" id="genLoadingPercent"
+                          style="
+                            color: #f0f2f7;
+                            font-size: 11px;
+                            font-weight: 800;
+                          ">0%</span>
+                    <span class="gen-eta" id="genLoadingEta"></span>
+                </div>
 
-            clearInterval(progressTimer);
-            clearInterval(detectTimer);
-            document.removeEventListener("gen:success", onSuccess);
-            document.removeEventListener("gen:error", onError);
+                <div class="gen-steps" id="genLoadingSteps"
+                     style="
+                        display: flex;
+                        flex-direction: column;
+                        gap: 1px;
+                        margin: 0 0 10px;
+                     "></div>
 
-            if (isError) {
-                window.GENZLoading.error(message || "Generate gagal.");
-                setTimeout(function () {
-                    window.GENZLoading.hide();
-                    isGenerating = false;
-                }, 3000);
-            } else {
-                window.GENZLoading.success("Video berhasil dibuat! Cek di History.");
-                setTimeout(function () {
-                    window.GENZLoading.hide();
-                    isGenerating = false;
-                }, 1800);
-            }
+                <div class="gen-message" id="genLoadingMessage"
+                     hidden
+                     style="
+                        display: none;
+                        margin: 6px 0 0;
+                        padding: 6px 10px;
+                        border: 1px solid rgba(255, 255, 255, 0.08);
+                        border-radius: 7px;
+                        background: rgba(0, 0, 0, 0.25);
+                        color: rgba(240, 242, 247, 0.72);
+                        font-size: 10px;
+                        line-height: 1.4;
+                        text-align: center;
+                     "></div>
+
+                <button type="button" class="gen-cancel" id="genLoadingCancel"
+                        style="
+                            width: 100%;
+                            padding: 7px 12px;
+                            margin-top: 4px;
+                            border: 1px solid rgba(255, 255, 255, 0.10);
+                            border-radius: 9px;
+                            background: transparent;
+                            color: #9ba3b0;
+                            font-family: inherit;
+                            font-size: 10px;
+                            font-weight: 700;
+                            letter-spacing: 0.4px;
+                            cursor: pointer;
+                        ">
+                    Batalkan Generate
+                </button>
+
+            </div>
+        `;
+
+        /* ---------- ANIMASI KICKER DOT ---------- */
+        if (!document.getElementById("genDotPulseStyles")) {
+            const styleEl = document.createElement("style");
+            styleEl.id = "genDotPulseStyles";
+            styleEl.textContent = `
+                @keyframes genDotPulse {
+                    0%, 100% { transform: scale(0.85); opacity: 0.85; }
+                    50%      { transform: scale(1.2);  opacity: 1; }
+                }
+                @keyframes genSpinnerRotate {
+                    to { transform: rotate(360deg); }
+                }
+                @keyframes genShimmerMove {
+                    0%   { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+                    15%  { opacity: 1; }
+                    55%, 100% { transform: translateX(220%) skewX(-18deg); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(styleEl);
         }
 
-        function onSuccess(e) { finish(false, e && e.detail ? e.detail.message : ""); }
-        function onError(e)   { finish(true,  e && e.detail ? e.detail.message : ""); }
+        document.body.appendChild(overlay);
 
-        document.addEventListener("gen:success", onSuccess);
-        document.addEventListener("gen:error", onError);
+        card         = overlay.querySelector("#genLoadingCard");
+        kickerText   = overlay.querySelector("#genLoadingKicker");
+        titleEl      = overlay.querySelector("#genLoadingTitle");
+        messageEl    = overlay.querySelector("#genLoadingMessage");
+        progressFill = overlay.querySelector("#genLoadingFill");
+        percentEl    = overlay.querySelector("#genLoadingPercent");
+        etaEl        = overlay.querySelector("#genLoadingEta");
+        stepsEl      = overlay.querySelector("#genLoadingSteps");
+        cancelBtn    = overlay.querySelector("#genLoadingCancel");
 
-        /* ------ DETEKSI VIA POLLING ------ */
-        const detectTimer = setInterval(function () {
+        cancelBtn.addEventListener("click", function () {
+            if (typeof cancelHandler === "function") {
+                cancelHandler();
+            }
+            document.dispatchEvent(new CustomEvent("gen-loading:cancel"));
+        });
+    }
 
-            /* 1. Loading lama visible -> hidden */
-            if (loadingEl) {
-                const isVisible =
-                    !loadingEl.hidden &&
-                    loadingEl.style.display !== "none";
+    /* =====================================================
+       RENDER STEPS
+    ===================================================== */
 
-                if (isVisible) wasLoadingVisible = true;
+    function renderSteps() {
+        if (!stepsEl) return;
+        stepsEl.innerHTML = steps.map(function (step, i) {
+            return `
+                <div class="gen-step" data-step-index="${i}"
+                     style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 5px 8px;
+                        border-radius: 6px;
+                        color: #5c6570;
+                        font-size: 10.5px;
+                        font-weight: 600;
+                     ">
+                    <span class="gen-step-icon" aria-hidden="true"
+                          style="
+                            flex: 0 0 auto;
+                            width: 13px;
+                            height: 13px;
+                            border: 1.5px solid rgba(255, 255, 255, 0.14);
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 7px;
+                            font-weight: 900;
+                            color: transparent;
+                          "></span>
+                    <span class="gen-step-label"
+                          style="
+                            flex: 1 1 auto;
+                            min-width: 0;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                          ">${step.label}</span>
+                </div>
+            `;
+        }).join("");
+    }
 
-                if (wasLoadingVisible && !isVisible) {
-                    setTimeout(function () {
-                        const txt = statusEl ? statusEl.textContent.trim() : "";
-                        const isErr = isErrorText(txt);
-                        finish(isErr, txt);
-                    }, 300);
-                    return;
-                }
+    function setActiveStep(index) {
+        if (!stepsEl) return;
+        const items = stepsEl.querySelectorAll(".gen-step");
+
+        items.forEach(function (el, i) {
+            const icon = el.querySelector(".gen-step-icon");
+
+            /* Reset */
+            el.style.background = "transparent";
+            el.style.border = "1px solid transparent";
+            el.style.color = "#5c6570";
+
+            if (icon) {
+                icon.style.background = "transparent";
+                icon.style.borderColor = "rgba(255, 255, 255, 0.14)";
+                icon.style.color = "transparent";
+                icon.style.boxShadow = "none";
+                icon.style.animation = "none";
+                icon.textContent = "";
             }
 
-            /* 2. Status text berubah */
-            if (statusEl && wasLoadingVisible) {
-                const txt = statusEl.textContent.trim();
-                if (txt && isErrorText(txt)) {
-                    finish(true, txt);
-                    return;
+            if (i < index) {
+                /* DONE */
+                el.style.color = "#66ffa6";
+                if (icon) {
+                    icon.style.borderColor = "#2ed573";
+                    icon.style.background = "#2ed573";
+                    icon.style.color = "#041008";
+                    icon.textContent = "✓";
                 }
-                if (txt && isSuccessText(txt)) {
-                    finish(false, txt);
-                    return;
+            } else if (i === index) {
+                /* ACTIVE */
+                el.style.background = "rgba(255, 51, 85, 0.08)";
+                el.style.border = "1px solid rgba(255, 51, 85, 0.22)";
+                el.style.color = "#f0f2f7";
+                if (icon) {
+                    icon.style.borderColor = "#ff3355";
+                    icon.style.background = "rgba(255, 51, 85, 0.15)";
+                    icon.style.boxShadow = "0 0 14px rgba(255, 51, 85, 0.55)";
                 }
             }
+        });
+    }
 
-            /* 3. Button re-enabled */
-            if (buttonEl && wasLoadingVisible && !buttonEl.disabled) {
-                finish(false, "Generate selesai.");
-            }
+    function setMessage(text) {
+        if (!messageEl) return;
+        if (typeof text === "string" && text.trim()) {
+            messageEl.textContent = text;
+            messageEl.hidden = false;
+            messageEl.style.display = "block";
+        } else {
+            messageEl.textContent = "";
+            messageEl.hidden = true;
+            messageEl.style.display = "none";
+        }
+    }
 
-        }, 500);
+    /* =====================================================
+       SHOW
+    ===================================================== */
 
-        activeCleanup = function () {
-            clearInterval(progressTimer);
-            clearInterval(detectTimer);
-            document.removeEventListener("gen:success", onSuccess);
-            document.removeEventListener("gen:error", onError);
-        };
+    function show(options) {
 
-        /* ------ SAFETY TIMEOUT 3 MENIT ------ */
+        options = options || {};
+        buildDom();
+
+        steps = Array.isArray(options.steps) && options.steps.length
+            ? options.steps
+            : DEFAULT_STEPS.slice();
+
+        cancelHandler = typeof options.onCancel === "function"
+            ? options.onCancel
+            : null;
+
+        /* Reset card style */
+        if (card) {
+            card.style.borderColor = "rgba(255, 255, 255, 0.10)";
+            card.style.boxShadow = "0 40px 100px rgba(0, 0, 0, 0.70)";
+        }
+
+        if (kickerText) kickerText.textContent = "GENERATING";
+        if (titleEl) titleEl.textContent = options.title || "Sedang membuat video kamu";
+        if (percentEl) percentEl.textContent = "0%";
+        if (etaEl) etaEl.textContent = "";
+        if (progressFill) progressFill.style.width = "0%";
+
+        setMessage(options.message || "");
+        renderSteps();
+
+        /* Show overlay */
+        if (overlay) {
+            overlay.style.display = "flex";
+            overlay.style.opacity = "1";
+        }
+
+        visible = true;
+
+        if (steps.length) {
+            setActiveStep(0);
+        }
+
+        document.body.style.overflow = "hidden";
+
         setTimeout(function () {
-            if (!finished && isGenerating) {
-                if (activeCleanup) activeCleanup();
-                window.GENZLoading.error("Proses memakan waktu lebih lama. Cek History untuk status.");
-                setTimeout(function () {
-                    window.GENZLoading.hide();
-                    isGenerating = false;
-                }, 3000);
-            }
-        }, 3 * 60 * 1000);
+            if (cancelBtn) cancelBtn.focus();
+        }, 200);
     }
 
-    function boot() {
+    /* =====================================================
+       UPDATE
+    ===================================================== */
 
-        const form = document.getElementById("generateForm");
-        const button = document.getElementById("generateButton");
+    function update(state) {
 
-        if (!form && !button) {
-            console.warn("[LoadingBridge] #generateForm / #generateButton tidak ditemukan.");
-            return;
+        if (!visible || !overlay) return;
+        state = state || {};
+
+        if (typeof state.percent === "number") {
+            const pct = clampPercent(state.percent);
+            if (progressFill) progressFill.style.width = pct + "%";
+            if (percentEl) percentEl.textContent = Math.round(pct) + "%";
+            const wrap = overlay.querySelector("#genLoadingProgress");
+            if (wrap) wrap.setAttribute("aria-valuenow", String(Math.round(pct)));
         }
 
-        /* Hook 1: form submit (capture = true supaya paling awal) */
-        if (form) {
-            form.addEventListener("submit", function () {
-                setTimeout(startLoading, 10);
-            }, true);
+        if (typeof state.step === "number") {
+            const idx = Math.max(0, Math.min(steps.length - 1, state.step));
+            setActiveStep(idx);
+        } else if (typeof state.step === "string") {
+            const idx = steps.findIndex(function (s) { return s.id === state.step; });
+            if (idx >= 0) setActiveStep(idx);
         }
 
-        /* Hook 2: button click (fallback) */
-        if (button) {
-            button.addEventListener("click", function () {
-                if (button.disabled) return;
-                /* Kalau form ada, biarkan submit event yang handle */
-                if (form) return;
-                setTimeout(startLoading, 10);
-            }, true);
+        if (typeof state.message === "string") {
+            setMessage(state.message);
+        }
+
+        if (typeof state.eta === "string") {
+            if (etaEl) etaEl.textContent = state.eta ? "\u2022 " + state.eta : "";
         }
     }
 
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", boot);
-    } else {
-        boot();
+    /* =====================================================
+       SUCCESS
+    ===================================================== */
+
+    function success(message) {
+
+        if (!overlay || !card) return;
+
+        card.style.borderColor = "rgba(46, 213, 115, 0.40)";
+        card.style.boxShadow = "0 40px 100px rgba(0, 0, 0, 0.70), 0 0 26px rgba(46, 213, 115, 0.30)";
+
+        if (kickerText) kickerText.textContent = "SELESAI";
+        if (titleEl) titleEl.textContent = "Video berhasil dibuat!";
+        if (progressFill) progressFill.style.width = "100%";
+        if (percentEl) percentEl.textContent = "100%";
+        if (etaEl) etaEl.textContent = "";
+
+        setActiveStep(steps.length);
+        setMessage(message || "");
+
+        if (cancelBtn) {
+            cancelBtn.disabled = true;
+            cancelBtn.textContent = "Membuka hasil...";
+        }
     }
 
-})();
+    /* =====================================================
+       ERROR
+    ===================================================== */
+
+    function error(message) {
+
+        if (!overlay || !card) return;
+
+        card.style.borderColor = "rgba(220, 38, 38, 0.50)";
+        card.style.boxShadow = "0 40px 100px rgba(0, 0, 0, 0.70), 0 0 26px rgba(220, 38, 38, 0.30)";
+
+        if (kickerText) kickerText.textContent = "GAGAL";
+        if (titleEl) titleEl.textContent = "Generate gagal";
+
+        setMessage(message || "Terjadi kesalahan. Silakan coba lagi.");
+
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = "Tutup";
+        }
+        cancelHandler = null;
+    }
+
+    /* =====================================================
+       HIDE
+    ===================================================== */
+
+    function hide() {
+        if (!overlay || !visible) return;
+        overlay.style.display = "none";
+        visible = false;
+        document.body.style.overflow = "";
+    }
+
+    function isVisible() {
+        return visible;
+    }
+
+    /* =====================================================
+       EXPORT
+    ===================================================== */
+
+    window.GENZLoading = {
+        show: show,
+        update: update,
+        success: success,
+        error: error,
+        hide: hide,
+        isVisible: isVisible
+    };
+
+})(window);
