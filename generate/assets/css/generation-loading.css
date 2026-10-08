@@ -1,0 +1,542 @@
+/* =========================================================
+   GEN-Z.AI
+   PREMIUM GENERATION LOADING OVERLAY
+   ---------------------------------------------------------
+   File:
+   generate/assets/css/generation-loading.css
+
+   Fitur:
+   - Fullscreen overlay dengan backdrop blur
+   - Kartu progress premium
+   - Animasi step & progress bar
+   - Responsive desktop & mobile
+   - Mendukung prefers-reduced-motion
+========================================================= */
+
+/* =====================================================
+   ROOT OVERLAY
+===================================================== */
+
+.gen-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(2, 4, 8, .78);
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+    opacity: 0;
+    transition: opacity .35s cubic-bezier(.4, 0, .2, 1);
+    overflow-y: auto;
+}
+
+.gen-loading.show {
+    display: flex;
+    opacity: 1;
+}
+
+.gen-loading.closing {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* =====================================================
+   AMBIENT GLOW BACKGROUND
+===================================================== */
+
+.gen-loading::before,
+.gen-loading::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.gen-loading::before {
+    width: 480px;
+    height: 480px;
+    top: -120px;
+    left: -120px;
+    background: radial-gradient(
+        circle,
+        rgba(255, 51, 85, .28),
+        transparent 70%
+    );
+    animation: genPulse 6s ease-in-out infinite;
+}
+
+.gen-loading::after {
+    width: 420px;
+    height: 420px;
+    bottom: -100px;
+    right: -100px;
+    background: radial-gradient(
+        circle,
+        rgba(169, 112, 255, .22),
+        transparent 70%
+    );
+    animation: genPulse 8s ease-in-out infinite reverse;
+}
+
+@keyframes genPulse {
+    0%, 100% { transform: scale(1); opacity: .85; }
+    50%      { transform: scale(1.15); opacity: 1; }
+}
+
+/* =====================================================
+   CARD
+===================================================== */
+
+.gen-card {
+    position: relative;
+    z-index: 1;
+    width: min(520px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow: hidden;
+    padding: 40px 36px 32px;
+    border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 24px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, .045) 0%,
+            rgba(255, 255, 255, .015) 100%
+        ),
+        #0a0d13;
+    box-shadow:
+        0 40px 100px rgba(0, 0, 0, .70),
+        0 0 0 1px rgba(255, 255, 255, .02) inset;
+    transform: translateY(12px) scale(.98);
+    opacity: 0;
+    transition:
+        transform .45s cubic-bezier(.34, 1.56, .64, 1),
+        opacity .35s cubic-bezier(.4, 0, .2, 1);
+}
+
+.gen-loading.show .gen-card {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+
+/* =====================================================
+   TOP KICKER
+===================================================== */
+
+.gen-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    margin-bottom: 22px;
+    border: 1px solid rgba(255, 51, 85, .28);
+    border-radius: 999px;
+    background: rgba(255, 51, 85, .10);
+    color: #ff8fa3;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2.2px;
+    text-transform: uppercase;
+}
+
+.gen-kicker-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ff3355;
+    box-shadow: 0 0 10px rgba(255, 51, 85, .85);
+    animation: genDotPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes genDotPulse {
+    0%, 100% { transform: scale(.85); opacity: .85; }
+    50%      { transform: scale(1.2);  opacity: 1; }
+}
+
+/* =====================================================
+   TITLE
+===================================================== */
+
+.gen-title {
+    margin: 0 0 10px;
+    color: #f0f2f7;
+    font-size: 26px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -.8px;
+}
+
+.gen-title em {
+    font-style: normal;
+    background: linear-gradient(
+        100deg,
+        #ff3355 0%,
+        #ff6a7a 45%,
+        #ffb84d 80%,
+        #ff3355 100%
+    );
+    background-size: 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: genGradient 6s ease infinite;
+}
+
+@keyframes genGradient {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+}
+
+.gen-subtitle {
+    margin: 0 0 32px;
+    color: #9ba3b0;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.6;
+}
+
+/* =====================================================
+   PROGRESS BAR
+===================================================== */
+
+.gen-progress {
+    position: relative;
+    height: 6px;
+    margin-bottom: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .06);
+    overflow: hidden;
+}
+
+.gen-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(
+        90deg,
+        #ff3355 0%,
+        #ff6a7a 50%,
+        #ff3355 100%
+    );
+    background-size: 200% 100%;
+    box-shadow:
+        0 0 20px rgba(255, 51, 85, .55),
+        0 0 40px rgba(255, 51, 85, .25);
+    transition: width .6s cubic-bezier(.4, 0, .2, 1);
+    animation: genBarShift 2.4s linear infinite;
+}
+
+@keyframes genBarShift {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+.gen-progress-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, .55),
+        transparent
+    );
+    transform: skewX(-18deg);
+    animation: genShimmer 2s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+
+@keyframes genShimmer {
+    0%   { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+    15%  { opacity: 1; }
+    55%, 100% { transform: translateX(220%) skewX(-18deg); opacity: 0; }
+}
+
+/* =====================================================
+   PROGRESS META
+===================================================== */
+
+.gen-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    color: #5c6570;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .4px;
+}
+
+.gen-percent {
+    color: #f0f2f7;
+    font-size: 13px;
+    font-weight: 800;
+    font-feature-settings: "tnum";
+}
+
+.gen-eta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gen-eta svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* =====================================================
+   STEPS
+===================================================== */
+
+.gen-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 30px;
+}
+
+.gen-step {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: transparent;
+    color: #5c6570;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all .35s cubic-bezier(.4, 0, .2, 1);
+}
+
+.gen-step.active {
+    background: rgba(255, 51, 85, .08);
+    color: #f0f2f7;
+    border: 1px solid rgba(255, 51, 85, .22);
+}
+
+.gen-step.done {
+    color: #66ffa6;
+}
+
+.gen-step-icon {
+    position: relative;
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border: 2px solid rgba(255, 255, 255, .14);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 900;
+    color: transparent;
+    transition: all .35s cubic-bezier(.4, 0, .2, 1);
+}
+
+.gen-step.active .gen-step-icon {
+    border-color: #ff3355;
+    background: rgba(255, 51, 85, .15);
+    box-shadow: 0 0 16px rgba(255, 51, 85, .55);
+    animation: genStepPulse 1.6s ease-in-out infinite;
+}
+
+.gen-step.active .gen-step-icon::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 51, 85, .35);
+    animation: genStepRing 1.6s ease-out infinite;
+}
+
+@keyframes genStepPulse {
+    0%, 100% { transform: scale(.92); }
+    50%      { transform: scale(1.06); }
+}
+
+@keyframes genStepRing {
+    0%   { transform: scale(.8); opacity: 1; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+.gen-step.done .gen-step-icon {
+    border-color: #2ed573;
+    background: #2ed573;
+    color: #041008;
+}
+
+.gen-step.done .gen-step-icon::before {
+    content: "✓";
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.gen-step-label {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* =====================================================
+   CANCEL BUTTON
+===================================================== */
+
+.gen-cancel {
+    width: 100%;
+    padding: 12px 20px;
+    border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 12px;
+    background: transparent;
+    color: #9ba3b0;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    cursor: pointer;
+    transition: all .25s cubic-bezier(.4, 0, .2, 1);
+}
+
+.gen-cancel:hover:not(:disabled) {
+    color: #ff8fa3;
+    border-color: rgba(255, 51, 85, .45);
+    background: rgba(255, 51, 85, .08);
+}
+
+.gen-cancel:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+/* =====================================================
+   SUCCESS / ERROR STATE
+===================================================== */
+
+.gen-card.success .gen-kicker {
+    background: rgba(46, 213, 115, .10);
+    border-color: rgba(46, 213, 115, .30);
+    color: #66ffa6;
+}
+
+.gen-card.success .gen-kicker-dot {
+    background: #2ed573;
+    box-shadow: 0 0 10px rgba(46, 213, 115, .85);
+}
+
+.gen-card.success .gen-progress-fill {
+    background: linear-gradient(90deg, #2ed573, #66ffa6, #2ed573);
+    box-shadow: 0 0 20px rgba(46, 213, 115, .55);
+}
+
+.gen-card.error .gen-kicker {
+    background: rgba(220, 38, 38, .10);
+    border-color: rgba(220, 38, 38, .30);
+    color: #ff8794;
+}
+
+.gen-card.error .gen-kicker-dot {
+    background: #ff5566;
+    box-shadow: 0 0 10px rgba(255, 85, 102, .85);
+}
+
+.gen-card.error .gen-progress-fill {
+    background: linear-gradient(90deg, #dc2626, #ff5566, #dc2626);
+    box-shadow: 0 0 20px rgba(220, 38, 38, .55);
+}
+
+/* =====================================================
+   MOBILE
+===================================================== */
+
+@media (max-width: 640px) {
+
+    .gen-loading {
+        padding: 16px;
+        align-items: flex-start;
+        padding-top: max(16px, env(safe-area-inset-top));
+    }
+
+    .gen-card {
+        padding: 28px 22px 24px;
+        border-radius: 20px;
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+    }
+
+    .gen-title {
+        font-size: 21px;
+        letter-spacing: -.6px;
+    }
+
+    .gen-subtitle {
+        font-size: 12px;
+        margin-bottom: 26px;
+    }
+
+    .gen-kicker {
+        font-size: 9px;
+        letter-spacing: 1.8px;
+        padding: 5px 10px;
+    }
+
+    .gen-step {
+        padding: 10px 12px;
+        font-size: 12px;
+        gap: 12px;
+    }
+
+    .gen-step-icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    .gen-meta {
+        font-size: 10px;
+    }
+
+    .gen-percent {
+        font-size: 12px;
+    }
+
+    .gen-cancel {
+        padding: 11px 18px;
+        font-size: 11px;
+    }
+
+    .gen-loading::before,
+    .gen-loading::after {
+        filter: blur(60px);
+    }
+}
+
+@media (max-width: 400px) {
+
+    .gen-card {
+        padding: 24px 18px 20px;
+    }
+
+    .gen-title {
+        font-size: 19px;
+    }
+}
+
+/* =====================================================
+   REDUCED MOTION
+===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .gen-loading *,
+    .gen-loading *::before,
+    .gen-loading *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+}
