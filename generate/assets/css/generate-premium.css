@@ -686,10 +686,6 @@ body {
 }
 
 
-/*
- * Inner architectural frame.
- */
-
 .generate-neon-block::before {
 
     content:
@@ -715,10 +711,6 @@ body {
         0;
 }
 
-
-/*
- * Ambient light.
- */
 
 .generate-neon-block::after {
 
@@ -989,10 +981,6 @@ body {
 }
 
 
-/*
- * Model selector moves to right side.
- */
-
 .generate-model-field .generate-model-select-wrap {
 
     grid-column:
@@ -1195,10 +1183,6 @@ body {
         0 !important;
 }
 
-
-/*
- * Override inline JS layout.
- */
 
 #dynamicFields > .generate-field {
 
@@ -1766,10 +1750,6 @@ textarea {
 }
 
 
-/*
- * The actual Seedance form becomes the grid.
- */
-
 #dynamicFields
 > .seedance-form {
 
@@ -1887,10 +1867,6 @@ textarea {
         1 / -1 !important;
 }
 
-
-/*
- * Reference audio should be full width.
- */
 
 #dynamicFields
 > .seedance-form
@@ -2749,11 +2725,6 @@ textarea,
     }
 
 
-    /*
-     * Normal dynamic form remains 2 columns.
-     * This is intentional for compact professional UI.
-     */
-
     #dynamicFields {
 
         grid-template-columns:
@@ -2791,10 +2762,6 @@ textarea,
             110px;
     }
 
-
-    /*
-     * Seedance explicitly remains 2 columns.
-     */
 
     #dynamicFields:has(> .seedance-form)
     > .seedance-form {
@@ -2956,12 +2923,12 @@ textarea,
             repeat(2, minmax(0,1fr));
     }
 
-
-    .generate-button-credit {
-
-        display:
-            none;
-    }
+    /*
+     * CATATAN:
+     * Rule ".generate-button-credit { display: none }" DIHAPUS.
+     * Credit harus tetap terlihat di HP kecil.
+     * Pengaturan responsive credit ada di FIX di bawah.
+     */
 }
 
 
@@ -2989,368 +2956,530 @@ textarea,
     }
 }
 
-/* =========================================================
-   FIX: CREDIT VISIBLE ON MOBILE
-   ---------------------------------------------------------
-   Masalah: tombol Generate pakai flex row dan credit
-   terpotong / hilang di layar < 640px.
 
-   Solusi:
-   - Mobile: tombol jadi column, credit turun baris kedua
-   - Teks tetap center
-   - Credit full width dengan border-top sebagai pembatas
+/* =========================================================
+   41. FIX: RESPONSIVE TOPBAR + CREDIT VISIBILITY
+   ---------------------------------------------------------
+   KONSOLIDASI FINAL
+   
+   Menggantikan 3 blok fix sebelumnya yang saling override.
+   Strategi:
+   - BASE rules: aman untuk semua ukuran
+   - @media (min-width: 769px): desktop-only (topbar nowrap)
+   - @media (max-width: 768px): mobile-only (topbar wrap)
+   
+   Media query TIDAK OVERLAP → tidak ada konflik.
 ========================================================= */
 
-/* ===== TABLET / MOBILE (<= 768px) ===== */
+
+/* =========================================================
+   41A. BASE — BERLAKU UNTUK SEMUA UKURAN
+   ---------------------------------------------------------
+   Ini fondasi aman. Tidak mengubah layout, hanya mencegah
+   overflow horizontal di semua ukuran layar.
+========================================================= */
+
+.topbar,
+.generate-topbar {
+
+    width:
+        100% !important;
+
+    max-width:
+        100% !important;
+
+    box-sizing:
+        border-box !important;
+}
+
+
+.topbar-title {
+
+    min-width:
+        0 !important;
+
+    max-width:
+        100% !important;
+}
+
+
+.topbar-title h1,
+.topbar-title p,
+.topbar-title .topbar-eyebrow {
+
+    max-width:
+        100% !important;
+
+    overflow:
+        hidden !important;
+
+    text-overflow:
+        ellipsis !important;
+}
+
+
+.topbar-actions {
+
+    max-width:
+        100% !important;
+
+    min-width:
+        0 !important;
+}
+
+
+.brand-hologram {
+
+    flex-shrink:
+        0 !important;
+
+    max-width:
+        100% !important;
+}
+
+
+.header-badge {
+
+    flex:
+        0 1 auto !important;
+
+    min-width:
+        0 !important;
+
+    max-width:
+        100% !important;
+
+    box-sizing:
+        border-box !important;
+
+    white-space:
+        nowrap !important;
+
+    display:
+        inline-flex !important;
+
+    visibility:
+        visible !important;
+
+    opacity:
+        1 !important;
+}
+
+
+.header-badge > span:last-child {
+
+    overflow:
+        hidden !important;
+
+    text-overflow:
+        ellipsis !important;
+
+    min-width:
+        0 !important;
+}
+
+
+/* =========================================================
+   41B. DESKTOP — HANYA ≥ 769px
+   ---------------------------------------------------------
+   Di desktop, topbar tetap dalam 1 baris (nowrap).
+   Title boleh shrink, badge tetap di kanan.
+========================================================= */
+
+@media (min-width: 769px) {
+
+    .topbar,
+    .generate-topbar {
+
+        flex-wrap:
+            nowrap !important;
+
+        gap:
+            24px !important;
+
+        justify-content:
+            space-between !important;
+    }
+
+
+    .topbar-title {
+
+        flex:
+            1 1 auto !important;
+    }
+
+
+    .topbar-actions {
+
+        flex:
+            0 0 auto !important;
+
+        justify-content:
+            flex-end !important;
+    }
+}
+
+
+/* Desktop sempit (769px – 1024px) */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+
+    .topbar,
+    .generate-topbar {
+
+        padding-left:
+            24px !important;
+
+        padding-right:
+            24px !important;
+
+        gap:
+            16px !important;
+    }
+
+
+    .topbar-title h1 {
+
+        font-size:
+            20px !important;
+
+        letter-spacing:
+            -0.6px !important;
+    }
+
+
+    .topbar-title p {
+
+        font-size:
+            12px !important;
+
+        line-height:
+            1.5 !important;
+    }
+
+
+    .header-badge {
+
+        padding:
+            6px 12px !important;
+
+        font-size:
+            11px !important;
+    }
+}
+
+
+/* =========================================================
+   41C. MOBILE — HANYA ≤ 768px
+   ---------------------------------------------------------
+   Di mobile, topbar wrap. Badge turun ke baris kedua.
+   Credit tetap terlihat di dalam tombol generate.
+========================================================= */
 
 @media (max-width: 768px) {
 
-    #generateButton {
-        display: flex !important;
-        flex-wrap: wrap !important;
-        justify-content: center !important;
-        align-items: center !important;
-        gap: 8px !important;
-        padding: 14px 20px !important;
-        overflow: visible !important;
-    }
-
-    #generateCreditCost {
-        display: inline-flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-
-        /* Turun ke baris kedua — full width */
-        flex-basis: 100% !important;
-        justify-content: center !important;
-
-        margin-top: 6px !important;
-        padding-top: 10px !important;
-
-        /* Border pemisah halus */
-        border-top: 1px solid rgba(255, 255, 255, 0.14) !important;
-
-        /* Font sedikit lebih kecil */
-        font-size: 11px !important;
-        line-height: 1.3 !important;
-
-        /* Tidak terpotong */
-        max-width: 100% !important;
-        white-space: nowrap !important;
-        overflow: visible !important;
-        text-overflow: clip !important;
-    }
-
-    #generateCreditCost > * {
-        display: inline-flex !important;
-        align-items: center !important;
-    }
-}
-
-/* ===== HP KECIL (<= 480px) ===== */
-
-@media (max-width: 480px) {
-
-    #generateButton {
-        font-size: 13px !important;
-        padding: 12px 16px !important;
-    }
-
-    #generateCreditCost {
-        font-size: 10px !important;
-        padding-top: 8px !important;
-        margin-top: 4px !important;
-    }
-}
-
-/* ===== FALLBACK: PAKSA SELALU VISIBLE ===== */
-
-.generate-button-credit,
-#generateCreditCost {
-    display: inline-flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-/* =========================================================
-   FIX: TOPBAR BADGE OVERFLOW DI MOBILE
-   ---------------------------------------------------------
-   Masalah:
-   - Topbar pakai flex row, isi (brand + title + 2 badge)
-     melebihi lebar viewport di HP
-   - Badge role & credit keluar layar ke arah kanan
-
-   Solusi:
-   - Topbar jadi flex-wrap di mobile
-   - Topbar-actions turun ke baris kedua
-   - Badge bisa shrink + text ellipsis
-   - Padding dikurangi supaya muat
-========================================================= */
-
-/* ===== TABLET (<= 900px) ===== */
-
-@media (max-width: 900px) {
+    /* ---- TOPBAR LAYOUT ---- */
 
     .topbar,
     .generate-topbar {
-        display: flex !important;
-        flex-wrap: wrap !important;
-        align-items: center !important;
-        gap: 12px !important;
-        row-gap: 14px !important;
+
+        flex-wrap:
+            wrap !important;
+
+        gap:
+            12px !important;
+
+        row-gap:
+            14px !important;
     }
+
 
     .topbar-title {
-        /* Title ambil sisa ruang, dorong actions ke baris baru */
-        flex: 1 1 200px !important;
-        min-width: 0 !important;
+
+        flex:
+            1 1 200px !important;
     }
+
 
     .topbar-actions {
-        /* Turun ke baris baru, full width */
-        flex: 1 1 100% !important;
-        width: 100% !important;
-        display: flex !important;
-        flex-wrap: wrap !important;
-        gap: 8px !important;
 
-        /* Align kiri di mobile supaya tidak mepet kanan */
-        justify-content: flex-start !important;
+        flex:
+            1 1 100% !important;
+
+        width:
+            100% !important;
+
+        justify-content:
+            flex-start !important;
+
+        gap:
+            8px !important;
     }
+
 
     .header-badge {
-        /* Badge boleh shrink, tapi tidak keluar layar */
-        flex: 0 1 auto !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
 
-        /* Padding lebih kecil di mobile */
-        padding: 6px 12px !important;
-        font-size: 11px !important;
+        padding:
+            6px 12px !important;
+
+        font-size:
+            11px !important;
     }
 
-    .header-badge > span:last-child {
-        /* Text di dalam badge pakai ellipsis kalau kepanjangan */
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        white-space: nowrap !important;
-        min-width: 0 !important;
+
+    /* ---- CREDIT DI TOMBOL GENERATE ---- */
+
+    #generateButton {
+
+        display:
+            flex !important;
+
+        flex-wrap:
+            wrap !important;
+
+        justify-content:
+            center !important;
+
+        align-items:
+            center !important;
+
+        gap:
+            8px !important;
+
+        padding:
+            14px 20px !important;
+
+        overflow:
+            visible !important;
+    }
+
+
+    #generateCreditCost {
+
+        display:
+            inline-flex !important;
+
+        visibility:
+            visible !important;
+
+        opacity:
+            1 !important;
+
+        flex-basis:
+            100% !important;
+
+        justify-content:
+            center !important;
+
+        margin-top:
+            6px !important;
+
+        padding-top:
+            10px !important;
+
+        border-top:
+            1px solid
+            rgba(255, 255, 255, 0.14) !important;
+
+        font-size:
+            11px !important;
+
+        line-height:
+            1.3 !important;
+
+        max-width:
+            100% !important;
+
+        white-space:
+            nowrap !important;
+
+        overflow:
+            visible !important;
+
+        text-overflow:
+            clip !important;
+    }
+
+
+    #generateCreditCost > * {
+
+        display:
+            inline-flex !important;
+
+        align-items:
+            center !important;
     }
 }
 
 
-/* ===== HP (<= 480px) ===== */
+/* =========================================================
+   41D. MOBILE KECIL — HANYA ≤ 480px
+========================================================= */
 
 @media (max-width: 480px) {
 
+    /* ---- TOPBAR ---- */
+
     .topbar,
     .generate-topbar {
-        padding-left: 14px !important;
-        padding-right: 14px !important;
-        gap: 10px !important;
+
+        padding-left:
+            14px !important;
+
+        padding-right:
+            14px !important;
+
+        gap:
+            10px !important;
     }
+
 
     .topbar-title h1 {
-        font-size: 18px !important;
-        letter-spacing: -0.5px !important;
-        line-height: 1.2 !important;
+
+        font-size:
+            18px !important;
+
+        letter-spacing:
+            -0.5px !important;
+
+        line-height:
+            1.2 !important;
     }
+
 
     .topbar-title p {
-        font-size: 11px !important;
-        line-height: 1.4 !important;
+
+        font-size:
+            11px !important;
+
+        line-height:
+            1.4 !important;
     }
+
 
     .topbar-title .topbar-eyebrow {
-        font-size: 9px !important;
-        letter-spacing: 1.5px !important;
+
+        font-size:
+            9px !important;
+
+        letter-spacing:
+            1.5px !important;
     }
+
 
     .topbar-actions {
-        gap: 6px !important;
+
+        gap:
+            6px !important;
     }
+
 
     .header-badge {
-        padding: 5px 10px !important;
-        font-size: 10px !important;
-        border-radius: 999px !important;
+
+        padding:
+            5px 10px !important;
+
+        font-size:
+            10px !important;
+
+        border-radius:
+            999px !important;
     }
+
 
     .header-badge-dot {
-        width: 5px !important;
-        height: 5px !important;
+
+        width:
+            5px !important;
+
+        height:
+            5px !important;
     }
 
+
     .credit-icon {
-        font-size: 10px !important;
+
+        font-size:
+            10px !important;
+    }
+
+
+    /* ---- CREDIT DI TOMBOL ---- */
+
+    #generateButton {
+
+        font-size:
+            13px !important;
+
+        padding:
+            12px 16px !important;
+    }
+
+
+    #generateCreditCost {
+
+        font-size:
+            10px !important;
+
+        padding-top:
+            8px !important;
+
+        margin-top:
+            4px !important;
     }
 }
 
 
-/* ===== HP SANGAT KECIL (<= 360px) ===== */
+/* =========================================================
+   41E. MOBILE SANGAT KECIL — HANYA ≤ 360px
+========================================================= */
 
 @media (max-width: 360px) {
 
     .topbar,
     .generate-topbar {
-        padding-left: 10px !important;
-        padding-right: 10px !important;
+
+        padding-left:
+            10px !important;
+
+        padding-right:
+            10px !important;
     }
+
 
     .header-badge {
-        padding: 4px 8px !important;
-        font-size: 9.5px !important;
+
+        padding:
+            4px 8px !important;
+
+        font-size:
+            9.5px !important;
     }
+
 
     .topbar-title h1 {
-        font-size: 16px !important;
+
+        font-size:
+            16px !important;
     }
 }
 
-
-/* ===== SAFETY NET =====
-   Paksa topbar dan actions tidak pernah overflow viewport
-*/
-
-.topbar,
-.generate-topbar {
-    max-width: 100% !important;
-    overflow-x: hidden !important;
-    box-sizing: border-box !important;
-}
-
-.topbar-actions,
-.header-badge {
-    box-sizing: border-box !important;
-    max-width: 100% !important;
-}
-
-/* Brand hologram tidak boleh dorong layout keluar */
-.brand-hologram {
-    flex-shrink: 0 !important;
-}
 
 /* =========================================================
-   FIX: TOPBAR OVERFLOW DI DESKTOP
+   41F. FALLBACK — CREDIT SELALU VISIBLE
    ---------------------------------------------------------
-   Masalah:
-   - Badge role & credit keluar dari viewport di desktop
-   - Topbar pakai flex row tanpa min-width: 0 pada title
-   - Kemungkinan container pakai 100vw (bikin overflow)
-   
-   Solusi:
-   - Paksa topbar pakai max-width: 100%
-   - Izinkan title shrink (min-width: 0)
-   - Badge tidak pernah keluar viewport
-   - Padding adaptif sesuai lebar layar
+   Safety net kalau ada rule lain yang menyembunyikan credit.
 ========================================================= */
 
-/* ===== SAFETY NET: TOPBAR TIDAK PERNAH OVERFLOW ===== */
+.generate-button-credit,
+#generateCreditCost {
 
-.topbar,
-.generate-topbar {
-    /* Ganti 100vw jadi 100% supaya tidak ada scroll horizontal */
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    overflow: visible !important;
+    display:
+        inline-flex !important;
 
-    /* Flex row dengan wrap untuk safety */
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 24px !important;
+    visibility:
+        visible !important;
+
+    opacity:
+        1 !important;
 }
-
-/* Title izinkan shrink — ini kunci utama */
-.topbar-title {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-}
-
-.topbar-title h1,
-.topbar-title p,
-.topbar-title .topbar-eyebrow {
-    max-width: 100% !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-}
-
-/* Actions jangan pernah lebih besar dari container */
-.topbar-actions {
-    flex: 0 0 auto !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 10px !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-}
-
-/* Brand hologram tidak boleh menggelembung */
-.brand-hologram {
-    flex: 0 0 auto !important;
-    max-width: 100% !important;
-}
-
-/* Badge aman dari overflow */
-.header-badge {
-    flex: 0 1 auto !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    white-space: nowrap !important;
-}
-
-.header-badge > span:last-child {
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    min-width: 0 !important;
-}
-
-
-/* ===== DESKTOP LAYAR SEMPIT (1024px – 1280px) ===== */
-
-@media (max-width: 1280px) {
-
-    .topbar,
-    .generate-topbar {
-        gap: 18px !important;
-    }
-}
-
-
-/* ===== TABLET LANDSCAPE / LAPTOP KECIL (900px – 1024px) ===== */
-
-@media (max-width: 1024px) {
-
-    .topbar,
-    .generate-topbar {
-        padding-left: 24px !important;
-        padding-right: 24px !important;
-        gap: 16px !important;
-    }
-
-    .topbar-title h1 {
-        font-size: 20px !important;
-        letter-spacing: -0.6px !important;
-    }
-
-    .topbar-title p {
-        font-size: 12px !important;
-        line-height: 1.5 !important;
-    }
-
-    .header-badge {
-        padding: 6px 12px !important;
-        font-size: 11px !important;
-    }
-}
-
-
-/* ===== NOTE:
-   Media queries 900px ke bawah sudah ditangani
-   oleh fix mobile sebelumnya (badge turun ke baris 2).
-========================================================= */
