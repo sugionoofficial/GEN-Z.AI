@@ -37,6 +37,7 @@
    - failed
    - cancelled
    ========================================================= */
+import crypto from "node:crypto";
 
 import grokImagineImageToVideo
     from "../models/grok-imagine-image-to-video/index.js";
@@ -3909,6 +3910,9 @@ function getRequestBody(
 /* =========================================================
    MAIN HANDLER
    ========================================================= */
+export const config = {
+    runtime: "nodejs20.x"
+};
 
 export default async function handler(
     req,
