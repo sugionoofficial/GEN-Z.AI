@@ -1,18 +1,17 @@
 /* =========================================================
    GEN-Z.AI
-   PREMIUM GENERATION LOADING CONTROLLER v6
+   PREMIUM GENERATION LOADING CONTROLLER v7
    ---------------------------------------------------------
    File:
    generate/assets/js/generation-loading.js
 
-   v6 — ALL-IN-ONE:
-   - Define API GENZLoading
-   - AUTO-ATTACH ke form submit (#generateForm)
-   - Style inline via JS (bypass cache CSS)
-   - Fix bug display important
-   - Posisi TOP-CENTER, compact
-
-   Tidak butuh generation-loading-bridge.js terpisah.
+   v7 — ROBUST DETECTION + EMERGENCY UNLOCK:
+   - Deteksi selesai pakai getComputedStyle (bukan .hidden)
+   - Emergency timeout: 60 detik stuck → force finish
+   - Force unlock body di semua jalur
+   - API forceUnlock() untuk panggil manual
+   - Auto-attach ke form submit
+   - Semua style inline via JS
 ========================================================= */
 
 (function (window) {
@@ -25,6 +24,9 @@
         { id: "rendering",  label: "Merender video" },
         { id: "finalizing", label: "Menyelesaikan" }
     ];
+
+    const EMERGENCY_TIMEOUT_MS = 60 * 1000;      // 60 detik stuck → force finish
+    const HARD_TIMEOUT_MS      = 5 * 60 * 1000;  // 5 menit total → force finish
 
     let overlay = null;
     let card = null;
@@ -49,6 +51,39 @@
         const num = Number(value);
         if (!Number.isFinite(num)) return 0;
         return Math.max(0, Math.min(100, num));
+    }
+
+    function isElementReallyHidden(el) {
+        if (!el) return true;
+        if (el.hidden === true) return true;
+
+        const style = window.getComputedStyle(el);
+
+        if (style.display === "none") return true;
+        if (style.visibility === "hidden") return true;
+        if (style.opacity === "0") return true;
+
+        /* Cek width/height 0 (dipakai #loading di generate-premium.css) */
+        const w = parseFloat(style.width);
+        const h = parseFloat(style.height);
+
+        if (w === 0 && h === 0) return true;
+
+        return false;
+    }
+
+    /* =====================================================
+       FORCE UNLOCK — RESET BODY
+    ===================================================== */
+
+    function forceUnlockBody() {
+        try {
+            document.body.style.overflow = "";
+            document.body.style.position = "";
+            document.documentElement.style.overflow = "";
+        } catch (e) {
+            /* ignore */
+        }
     }
 
     /* =====================================================
@@ -121,7 +156,7 @@
 
                 <button type="button" class="gen-cancel" id="genLoadingCancel"
                         style="width:100%;padding:7px 12px;margin-top:4px;border:1px solid rgba(255,255,255,0.10);border-radius:9px;background:transparent;color:#9ba3b0;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:0.4px;cursor:pointer;">
-                    Batalkan Generate
+                    Tutup
                 </button>
 
             </div>
@@ -140,7 +175,12 @@
         cancelBtn    = overlay.querySelector("#genLoadingCancel");
 
         cancelBtn.addEventListener("click", function () {
-            if (typeof cancelHandler === "function") cancelHandler();
+            /* PRIORITAS: unlock dulu, baru panggil handler */
+            hide();
+            forceUnlockBody();
+            if (typeof cancelHandler === "function") {
+                try { cancelHandler(); } catch (e) { /* ignore */ }
+            }
             document.dispatchEvent(new CustomEvent("gen-loading:cancel"));
         });
     }
@@ -254,6 +294,7 @@
 
         if (steps.length) setActiveStep(0);
 
+        /* LOCK SCROLL */
         document.body.style.overflow = "hidden";
 
         setTimeout(function () {
@@ -312,8 +353,8 @@
         setMessage(message || "");
 
         if (cancelBtn) {
-            cancelBtn.disabled = true;
-            cancelBtn.textContent = "Membuka hasil...";
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = "Tutup";
         }
     }
 
@@ -336,18 +377,20 @@
             cancelBtn.disabled = false;
             cancelBtn.textContent = "Tutup";
         }
-        cancelHandler = null;
     }
 
     /* =====================================================
-       HIDE
+       HIDE — FORCE UNLOCK BODY
     ===================================================== */
 
     function hide() {
-        if (!overlay || !visible) return;
+        if (!overlay) return;
+
         overlay.style.setProperty("display", "none", "important");
         visible = false;
-        document.body.style.overflow = "";
+
+        /* WAJIB: unlock body, apapun yang terjadi */
+        forceUnlockBody();
     }
 
     function isVisible() { return visible; }
@@ -362,14 +405,12 @@
         success: success,
         error: error,
         hide: hide,
-        isVisible: isVisible
+        isVisible: isVisible,
+        forceUnlock: forceUnlockBody
     };
 
     /* =====================================================
        AUTO-ATTACH KE FORM SUBMIT
-       -----------------------------------------------------
-       Ini pengganti generation-loading-bridge.js.
-       Otomatis jalan saat DOM ready, tidak perlu bridge.
     ===================================================== */
 
     let isGenerating = false;
@@ -401,6 +442,7 @@
             onCancel: function () {
                 if (activeCleanup) activeCleanup();
                 isGenerating = false;
+                forceUnlockBody();
             }
         });
 
@@ -416,13 +458,14 @@
             });
         }, 700);
 
-        /* Elemen yang dipantau */
+        /* Elemen dipantau */
         const loadingEl = document.getElementById("loading");
         const statusEl = document.getElementById("status");
         const buttonEl = document.getElementById("generateButton");
 
-        let wasLoadingVisible = false;
         let finished = false;
+        let lastStatusText = "";
+        const startTime = Date.now();
 
         function finish(isError, message) {
             if (finished) return;
@@ -438,13 +481,13 @@
                 setTimeout(function () {
                     window.GENZLoading.hide();
                     isGenerating = false;
-                }, 3000);
+                }, 2500);
             } else {
                 window.GENZLoading.success(message || "Video berhasil dibuat! Cek di History.");
                 setTimeout(function () {
                     window.GENZLoading.hide();
                     isGenerating = false;
-                }, 1800);
+                }, 1500);
             }
         }
 
@@ -454,36 +497,68 @@
         document.addEventListener("gen:success", onSuccess);
         document.addEventListener("gen:error", onError);
 
-        /* Polling deteksi selesai */
+        /* =================================================
+           DETEKSI VIA POLLING — LEBIH AGRESIF
+        ================================================= */
+
         const detectTimer = setInterval(function () {
 
-            if (loadingEl) {
-                const isVisible = !loadingEl.hidden && loadingEl.style.display !== "none";
-                if (isVisible) wasLoadingVisible = true;
+            const elapsed = Date.now() - startTime;
 
-                if (wasLoadingVisible && !isVisible) {
+            /* ---- 1. Deteksi status text berubah ---- */
+            if (statusEl) {
+                const txt = statusEl.textContent.trim();
+
+                if (txt && txt !== lastStatusText) {
+                    lastStatusText = txt;
+
+                    /* Skip pesan loading umum */
+                    const isNeutral =
+                        /memproses|memuat|loading|menunggu|mengirim/i.test(txt);
+
+                    if (!isNeutral) {
+                        if (isErrorText(txt)) {
+                            finish(true, txt);
+                            return;
+                        }
+                        if (isSuccessText(txt)) {
+                            finish(false, txt);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            /* ---- 2. Deteksi #loading benar-benar hidden ---- */
+            if (loadingEl && elapsed > 3000) {
+                if (isElementReallyHidden(loadingEl)) {
+                    /* Beri jeda kecil supaya status final ter-set */
                     setTimeout(function () {
                         const txt = statusEl ? statusEl.textContent.trim() : "";
-                        finish(isErrorText(txt), txt);
-                    }, 300);
+                        finish(isErrorText(txt), txt || "Generate selesai.");
+                    }, 500);
                     return;
                 }
             }
 
-            if (statusEl && wasLoadingVisible) {
-                const txt = statusEl.textContent.trim();
-                if (txt && isErrorText(txt)) {
-                    finish(true, txt);
-                    return;
-                }
-                if (txt && isSuccessText(txt)) {
-                    finish(false, txt);
+            /* ---- 3. Deteksi tombol re-enabled ---- */
+            if (buttonEl && elapsed > 5000) {
+                if (!buttonEl.disabled) {
+                    finish(false, "Generate selesai.");
                     return;
                 }
             }
 
-            if (buttonEl && wasLoadingVisible && !buttonEl.disabled) {
-                finish(false, "Generate selesai.");
+            /* ---- 4. EMERGENCY: stuck > 60 detik ---- */
+            if (elapsed > EMERGENCY_TIMEOUT_MS) {
+                finish(false, "Proses selesai. Cek History untuk hasil.");
+                return;
+            }
+
+            /* ---- 5. HARD: stuck > 5 menit ---- */
+            if (elapsed > HARD_TIMEOUT_MS) {
+                finish(true, "Timeout. Cek History untuk status.");
+                return;
             }
 
         }, 500);
@@ -493,19 +568,8 @@
             clearInterval(detectTimer);
             document.removeEventListener("gen:success", onSuccess);
             document.removeEventListener("gen:error", onError);
+            forceUnlockBody();
         };
-
-        /* Safety timeout 3 menit */
-        setTimeout(function () {
-            if (!finished && isGenerating) {
-                if (activeCleanup) activeCleanup();
-                window.GENZLoading.error("Proses memakan waktu lebih lama. Cek History untuk status.");
-                setTimeout(function () {
-                    window.GENZLoading.hide();
-                    isGenerating = false;
-                }, 3000);
-            }
-        }, 3 * 60 * 1000);
     }
 
     /* =====================================================
@@ -518,7 +582,6 @@
         const button = document.getElementById("generateButton");
 
         if (!form && !button) {
-            /* Coba lagi nanti — DOM mungkin belum siap */
             setTimeout(attachFormListener, 500);
             return;
         }
@@ -528,17 +591,15 @@
                 setTimeout(startLoading, 10);
             }, true);
             form.dataset.genzLoadingAttached = "true";
-            console.log("[GENZLoading] Attached to form submit ✅");
         }
 
         if (button && button.dataset.genzLoadingAttached !== "true") {
             button.addEventListener("click", function () {
                 if (button.disabled) return;
-                if (form) return; /* biar submit event yang handle */
+                if (form) return;
                 setTimeout(startLoading, 10);
             }, true);
             button.dataset.genzLoadingAttached = "true";
-            console.log("[GENZLoading] Attached to button click ✅");
         }
     }
 
@@ -553,5 +614,13 @@
     } else {
         attachFormListener();
     }
+
+    /* =====================================================
+       EMERGENCY: UNLOCK BODY SAAT PAGE UNLOAD
+    ===================================================== */
+
+    window.addEventListener("beforeunload", function () {
+        forceUnlockBody();
+    });
 
 })(window);
