@@ -3229,3 +3229,128 @@ textarea,
 .brand-hologram {
     flex-shrink: 0 !important;
 }
+
+/* =========================================================
+   FIX: TOPBAR OVERFLOW DI DESKTOP
+   ---------------------------------------------------------
+   Masalah:
+   - Badge role & credit keluar dari viewport di desktop
+   - Topbar pakai flex row tanpa min-width: 0 pada title
+   - Kemungkinan container pakai 100vw (bikin overflow)
+   
+   Solusi:
+   - Paksa topbar pakai max-width: 100%
+   - Izinkan title shrink (min-width: 0)
+   - Badge tidak pernah keluar viewport
+   - Padding adaptif sesuai lebar layar
+========================================================= */
+
+/* ===== SAFETY NET: TOPBAR TIDAK PERNAH OVERFLOW ===== */
+
+.topbar,
+.generate-topbar {
+    /* Ganti 100vw jadi 100% supaya tidak ada scroll horizontal */
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+
+    /* Flex row dengan wrap untuk safety */
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 24px !important;
+}
+
+/* Title izinkan shrink — ini kunci utama */
+.topbar-title {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+.topbar-title h1,
+.topbar-title p,
+.topbar-title .topbar-eyebrow {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Actions jangan pernah lebih besar dari container */
+.topbar-actions {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* Brand hologram tidak boleh menggelembung */
+.brand-hologram {
+    flex: 0 0 auto !important;
+    max-width: 100% !important;
+}
+
+/* Badge aman dari overflow */
+.header-badge {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+}
+
+.header-badge > span:last-child {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+}
+
+
+/* ===== DESKTOP LAYAR SEMPIT (1024px – 1280px) ===== */
+
+@media (max-width: 1280px) {
+
+    .topbar,
+    .generate-topbar {
+        gap: 18px !important;
+    }
+}
+
+
+/* ===== TABLET LANDSCAPE / LAPTOP KECIL (900px – 1024px) ===== */
+
+@media (max-width: 1024px) {
+
+    .topbar,
+    .generate-topbar {
+        padding-left: 24px !important;
+        padding-right: 24px !important;
+        gap: 16px !important;
+    }
+
+    .topbar-title h1 {
+        font-size: 20px !important;
+        letter-spacing: -0.6px !important;
+    }
+
+    .topbar-title p {
+        font-size: 12px !important;
+        line-height: 1.5 !important;
+    }
+
+    .header-badge {
+        padding: 6px 12px !important;
+        font-size: 11px !important;
+    }
+}
+
+
+/* ===== NOTE:
+   Media queries 900px ke bawah sudah ditangani
+   oleh fix mobile sebelumnya (badge turun ke baris 2).
+========================================================= */
