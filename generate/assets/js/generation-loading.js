@@ -1,16 +1,18 @@
 /* =========================================================
    GEN-Z.AI
-   PREMIUM GENERATION LOADING CONTROLLER v5
+   PREMIUM GENERATION LOADING CONTROLLER v6
    ---------------------------------------------------------
    File:
    generate/assets/js/generation-loading.js
 
-   FIX v5:
-   - Bug: display:none important tidak bisa di-override
-     oleh display:flex non-important
-   - Fix: show() dan hide() juga pakai important
+   v6 — ALL-IN-ONE:
+   - Define API GENZLoading
+   - AUTO-ATTACH ke form submit (#generateForm)
+   - Style inline via JS (bypass cache CSS)
+   - Fix bug display important
+   - Posisi TOP-CENTER, compact
 
-   Style semua inline via JS — bypass cache CSS.
+   Tidak butuh generation-loading-bridge.js terpisah.
 ========================================================= */
 
 (function (window) {
@@ -50,7 +52,7 @@
     }
 
     /* =====================================================
-       BUILD DOM (sekali saja)
+       BUILD DOM
     ===================================================== */
 
     function buildDom() {
@@ -63,14 +65,12 @@
         overlay.setAttribute("aria-modal", "true");
         overlay.setAttribute("aria-labelledby", "genLoadingTitle");
 
-        /* ---------- OVERLAY: FIXED, TOP-CENTER ---------- */
         overlay.style.cssText = [
             "position:fixed",
             "top:0",
             "left:0",
             "right:0",
             "bottom:0",
-            "display:none",
             "align-items:flex-start",
             "justify-content:center",
             "padding:70px 14px 14px",
@@ -82,152 +82,45 @@
             "overflow-y:auto"
         ].join(";") + ";";
 
-        /* Set display:none pakai important supaya default hidden */
         overlay.style.setProperty("display", "none", "important");
 
         overlay.innerHTML = `
             <div class="gen-card" id="genLoadingCard"
-                 style="
-                    position: relative;
-                    width: 100%;
-                    max-width: 320px;
-                    padding: 16px 16px 14px;
-                    margin: 0;
-                    border: 1px solid rgba(255, 255, 255, 0.10);
-                    border-radius: 15px;
-                    background: #0a0d13;
-                    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.70);
-                    box-sizing: border-box;
-                    max-height: 68vh;
-                    overflow-y: auto;
-                 ">
+                 style="position:relative;width:100%;max-width:320px;padding:16px 16px 14px;margin:0;border:1px solid rgba(255,255,255,0.10);border-radius:15px;background:#0a0d13;box-shadow:0 40px 100px rgba(0,0,0,0.70);box-sizing:border-box;max-height:68vh;overflow-y:auto;">
 
                 <div class="gen-kicker"
-                     style="
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 8px;
-                        padding: 3px 9px;
-                        margin: 0 0 10px;
-                        border: 1px solid rgba(255, 51, 85, 0.28);
-                        border-radius: 999px;
-                        background: rgba(255, 51, 85, 0.10);
-                        color: #ff8fa3;
-                        font-size: 8px;
-                        font-weight: 800;
-                        letter-spacing: 1.4px;
-                        text-transform: uppercase;
-                     ">
-                    <span class="gen-kicker-dot"
-                          style="
-                            width: 5px;
-                            height: 5px;
-                            border-radius: 50%;
-                            background: #ff3355;
-                            box-shadow: 0 0 8px rgba(255, 51, 85, 0.85);
-                          "></span>
+                     style="display:inline-flex;align-items:center;gap:8px;padding:3px 9px;margin:0 0 10px;border:1px solid rgba(255,51,85,0.28);border-radius:999px;background:rgba(255,51,85,0.10);color:#ff8fa3;font-size:8px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;">
+                    <span style="width:5px;height:5px;border-radius:50%;background:#ff3355;box-shadow:0 0 8px rgba(255,51,85,0.85);"></span>
                     <span id="genLoadingKicker">GENERATING</span>
                 </div>
 
                 <h2 class="gen-title" id="genLoadingTitle"
-                    style="
-                        margin: 0 0 4px;
-                        color: #f0f2f7;
-                        font-size: 14px;
-                        font-weight: 900;
-                        line-height: 1.2;
-                        letter-spacing: -0.2px;
-                    ">
-                    Sedang <em style="
-                        font-style: normal;
-                        color: #ff6a7a;
-                    ">membuat video</em> kamu
+                    style="margin:0 0 4px;color:#f0f2f7;font-size:14px;font-weight:900;line-height:1.2;letter-spacing:-0.2px;">
+                    Sedang <em style="font-style:normal;color:#ff6a7a;">membuat video</em> kamu
                 </h2>
 
                 <div class="gen-progress" id="genLoadingProgress"
-                     role="progressbar"
-                     aria-valuemin="0"
-                     aria-valuemax="100"
-                     aria-valuenow="0"
-                     style="
-                        position: relative;
-                        height: 3px;
-                        margin: 12px 0 5px;
-                        border-radius: 999px;
-                        background: rgba(255, 255, 255, 0.06);
-                        overflow: hidden;
-                     ">
+                     role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+                     style="position:relative;height:3px;margin:12px 0 5px;border-radius:999px;background:rgba(255,255,255,0.06);overflow:hidden;">
                     <div class="gen-progress-fill" id="genLoadingFill"
-                         style="
-                            position: absolute;
-                            top: 0;
-                            left: 0;
-                            height: 100%;
-                            width: 0%;
-                            border-radius: 999px;
-                            background: linear-gradient(90deg, #ff3355, #ff6a7a, #ff3355);
-                            box-shadow: 0 0 14px rgba(255, 51, 85, 0.55);
-                            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-                         "></div>
+                         style="position:absolute;top:0;left:0;height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#ff3355,#ff6a7a,#ff3355);box-shadow:0 0 14px rgba(255,51,85,0.55);transition:width 0.6s cubic-bezier(0.4,0,0.2,1);"></div>
                 </div>
 
                 <div class="gen-meta"
-                     style="
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        margin: 0 0 10px;
-                        color: #5c6570;
-                        font-size: 9px;
-                        font-weight: 700;
-                     ">
+                     style="display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;color:#5c6570;font-size:9px;font-weight:700;">
                     <span class="gen-percent" id="genLoadingPercent"
-                          style="
-                            color: #f0f2f7;
-                            font-size: 11px;
-                            font-weight: 800;
-                          ">0%</span>
+                          style="color:#f0f2f7;font-size:11px;font-weight:800;">0%</span>
                     <span class="gen-eta" id="genLoadingEta"></span>
                 </div>
 
                 <div class="gen-steps" id="genLoadingSteps"
-                     style="
-                        display: flex;
-                        flex-direction: column;
-                        gap: 1px;
-                        margin: 0 0 10px;
-                     "></div>
+                     style="display:flex;flex-direction:column;gap:1px;margin:0 0 10px;"></div>
 
                 <div class="gen-message" id="genLoadingMessage"
-                     hidden
-                     style="
-                        display: none;
-                        margin: 6px 0 0;
-                        padding: 6px 10px;
-                        border: 1px solid rgba(255, 255, 255, 0.08);
-                        border-radius: 7px;
-                        background: rgba(0, 0, 0, 0.25);
-                        color: rgba(240, 242, 247, 0.72);
-                        font-size: 10px;
-                        line-height: 1.4;
-                        text-align: center;
-                     "></div>
+                     style="display:none;margin:6px 0 0;padding:6px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;background:rgba(0,0,0,0.25);color:rgba(240,242,247,0.72);font-size:10px;line-height:1.4;text-align:center;"></div>
 
                 <button type="button" class="gen-cancel" id="genLoadingCancel"
-                        style="
-                            width: 100%;
-                            padding: 7px 12px;
-                            margin-top: 4px;
-                            border: 1px solid rgba(255, 255, 255, 0.10);
-                            border-radius: 9px;
-                            background: transparent;
-                            color: #9ba3b0;
-                            font-family: inherit;
-                            font-size: 10px;
-                            font-weight: 700;
-                            letter-spacing: 0.4px;
-                            cursor: pointer;
-                        ">
+                        style="width:100%;padding:7px 12px;margin-top:4px;border:1px solid rgba(255,255,255,0.10);border-radius:9px;background:transparent;color:#9ba3b0;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:0.4px;cursor:pointer;">
                     Batalkan Generate
                 </button>
 
@@ -247,9 +140,7 @@
         cancelBtn    = overlay.querySelector("#genLoadingCancel");
 
         cancelBtn.addEventListener("click", function () {
-            if (typeof cancelHandler === "function") {
-                cancelHandler();
-            }
+            if (typeof cancelHandler === "function") cancelHandler();
             document.dispatchEvent(new CustomEvent("gen-loading:cancel"));
         });
     }
@@ -263,38 +154,11 @@
         stepsEl.innerHTML = steps.map(function (step, i) {
             return `
                 <div class="gen-step" data-step-index="${i}"
-                     style="
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        padding: 5px 8px;
-                        border-radius: 6px;
-                        color: #5c6570;
-                        font-size: 10.5px;
-                        font-weight: 600;
-                     ">
+                     style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;color:#5c6570;font-size:10.5px;font-weight:600;">
                     <span class="gen-step-icon" aria-hidden="true"
-                          style="
-                            flex: 0 0 auto;
-                            width: 13px;
-                            height: 13px;
-                            border: 1.5px solid rgba(255, 255, 255, 0.14);
-                            border-radius: 50%;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-size: 7px;
-                            font-weight: 900;
-                            color: transparent;
-                          "></span>
+                          style="flex:0 0 auto;width:13px;height:13px;border:1.5px solid rgba(255,255,255,0.14);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:900;color:transparent;"></span>
                     <span class="gen-step-label"
-                          style="
-                            flex: 1 1 auto;
-                            min-width: 0;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                            white-space: nowrap;
-                          ">${step.label}</span>
+                          style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${step.label}</span>
                 </div>
             `;
         }).join("");
@@ -384,17 +248,11 @@
         setMessage(options.message || "");
         renderSteps();
 
-        /* ============================================
-           FIX v5 — WAJIB pakai important
-           karena initial style "display: none" juga important
-        ============================================ */
         overlay.style.setProperty("display", "flex", "important");
 
         visible = true;
 
-        if (steps.length) {
-            setActiveStep(0);
-        }
+        if (steps.length) setActiveStep(0);
 
         document.body.style.overflow = "hidden";
 
@@ -408,7 +266,6 @@
     ===================================================== */
 
     function update(state) {
-
         if (!visible || !overlay) return;
         state = state || {};
 
@@ -428,9 +285,7 @@
             if (idx >= 0) setActiveStep(idx);
         }
 
-        if (typeof state.message === "string") {
-            setMessage(state.message);
-        }
+        if (typeof state.message === "string") setMessage(state.message);
 
         if (typeof state.eta === "string") {
             if (etaEl) etaEl.textContent = state.eta ? "\u2022 " + state.eta : "";
@@ -442,7 +297,6 @@
     ===================================================== */
 
     function success(message) {
-
         if (!overlay || !card) return;
 
         card.style.borderColor = "rgba(46, 213, 115, 0.40)";
@@ -468,7 +322,6 @@
     ===================================================== */
 
     function error(message) {
-
         if (!overlay || !card) return;
 
         card.style.borderColor = "rgba(220, 38, 38, 0.50)";
@@ -497,12 +350,10 @@
         document.body.style.overflow = "";
     }
 
-    function isVisible() {
-        return visible;
-    }
+    function isVisible() { return visible; }
 
     /* =====================================================
-       EXPORT
+       EXPORT API
     ===================================================== */
 
     window.GENZLoading = {
@@ -513,5 +364,194 @@
         hide: hide,
         isVisible: isVisible
     };
+
+    /* =====================================================
+       AUTO-ATTACH KE FORM SUBMIT
+       -----------------------------------------------------
+       Ini pengganti generation-loading-bridge.js.
+       Otomatis jalan saat DOM ready, tidak perlu bridge.
+    ===================================================== */
+
+    let isGenerating = false;
+    let activeCleanup = null;
+
+    function isErrorText(text) {
+        return /gagal|error|failed|ditolak|tolak/i.test(text);
+    }
+
+    function isSuccessText(text) {
+        return /berhasil|success|selesai|sukses|completed/i.test(text);
+    }
+
+    function startLoading() {
+
+        if (isGenerating) return;
+        if (typeof window.GENZLoading.show !== "function") return;
+
+        isGenerating = true;
+
+        window.GENZLoading.show({
+            title: "Sedang membuat video kamu",
+            steps: [
+                { id: "queued",     label: "Menghubungi server..." },
+                { id: "processing", label: "Memproses prompt" },
+                { id: "rendering",  label: "Merender video" },
+                { id: "finalizing", label: "Menyelesaikan" }
+            ],
+            onCancel: function () {
+                if (activeCleanup) activeCleanup();
+                isGenerating = false;
+            }
+        });
+
+        /* Simulasi progress */
+        let percent = 5;
+        const progressTimer = setInterval(function () {
+            percent += Math.random() * 3 + 0.5;
+            if (percent > 92) percent = 92;
+            window.GENZLoading.update({
+                percent: percent,
+                step: Math.min(3, Math.floor(percent / 25)),
+                eta: "~" + Math.max(1, Math.round((100 - percent) / 8)) + " menit lagi"
+            });
+        }, 700);
+
+        /* Elemen yang dipantau */
+        const loadingEl = document.getElementById("loading");
+        const statusEl = document.getElementById("status");
+        const buttonEl = document.getElementById("generateButton");
+
+        let wasLoadingVisible = false;
+        let finished = false;
+
+        function finish(isError, message) {
+            if (finished) return;
+            finished = true;
+
+            clearInterval(progressTimer);
+            clearInterval(detectTimer);
+            document.removeEventListener("gen:success", onSuccess);
+            document.removeEventListener("gen:error", onError);
+
+            if (isError) {
+                window.GENZLoading.error(message || "Generate gagal.");
+                setTimeout(function () {
+                    window.GENZLoading.hide();
+                    isGenerating = false;
+                }, 3000);
+            } else {
+                window.GENZLoading.success(message || "Video berhasil dibuat! Cek di History.");
+                setTimeout(function () {
+                    window.GENZLoading.hide();
+                    isGenerating = false;
+                }, 1800);
+            }
+        }
+
+        function onSuccess(e) { finish(false, e && e.detail ? e.detail.message : ""); }
+        function onError(e)   { finish(true,  e && e.detail ? e.detail.message : ""); }
+
+        document.addEventListener("gen:success", onSuccess);
+        document.addEventListener("gen:error", onError);
+
+        /* Polling deteksi selesai */
+        const detectTimer = setInterval(function () {
+
+            if (loadingEl) {
+                const isVisible = !loadingEl.hidden && loadingEl.style.display !== "none";
+                if (isVisible) wasLoadingVisible = true;
+
+                if (wasLoadingVisible && !isVisible) {
+                    setTimeout(function () {
+                        const txt = statusEl ? statusEl.textContent.trim() : "";
+                        finish(isErrorText(txt), txt);
+                    }, 300);
+                    return;
+                }
+            }
+
+            if (statusEl && wasLoadingVisible) {
+                const txt = statusEl.textContent.trim();
+                if (txt && isErrorText(txt)) {
+                    finish(true, txt);
+                    return;
+                }
+                if (txt && isSuccessText(txt)) {
+                    finish(false, txt);
+                    return;
+                }
+            }
+
+            if (buttonEl && wasLoadingVisible && !buttonEl.disabled) {
+                finish(false, "Generate selesai.");
+            }
+
+        }, 500);
+
+        activeCleanup = function () {
+            clearInterval(progressTimer);
+            clearInterval(detectTimer);
+            document.removeEventListener("gen:success", onSuccess);
+            document.removeEventListener("gen:error", onError);
+        };
+
+        /* Safety timeout 3 menit */
+        setTimeout(function () {
+            if (!finished && isGenerating) {
+                if (activeCleanup) activeCleanup();
+                window.GENZLoading.error("Proses memakan waktu lebih lama. Cek History untuk status.");
+                setTimeout(function () {
+                    window.GENZLoading.hide();
+                    isGenerating = false;
+                }, 3000);
+            }
+        }, 3 * 60 * 1000);
+    }
+
+    /* =====================================================
+       AUTO-ATTACH LISTENER
+    ===================================================== */
+
+    function attachFormListener() {
+
+        const form = document.getElementById("generateForm");
+        const button = document.getElementById("generateButton");
+
+        if (!form && !button) {
+            /* Coba lagi nanti — DOM mungkin belum siap */
+            setTimeout(attachFormListener, 500);
+            return;
+        }
+
+        if (form && form.dataset.genzLoadingAttached !== "true") {
+            form.addEventListener("submit", function () {
+                setTimeout(startLoading, 10);
+            }, true);
+            form.dataset.genzLoadingAttached = "true";
+            console.log("[GENZLoading] Attached to form submit ✅");
+        }
+
+        if (button && button.dataset.genzLoadingAttached !== "true") {
+            button.addEventListener("click", function () {
+                if (button.disabled) return;
+                if (form) return; /* biar submit event yang handle */
+                setTimeout(startLoading, 10);
+            }, true);
+            button.dataset.genzLoadingAttached = "true";
+            console.log("[GENZLoading] Attached to button click ✅");
+        }
+    }
+
+    /* =====================================================
+       BOOT
+    ===================================================== */
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", function () {
+            attachFormListener();
+        });
+    } else {
+        attachFormListener();
+    }
 
 })(window);
