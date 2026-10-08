@@ -13,6 +13,19 @@
    - Menunggu upload promise (DENGAN TIMEOUT)
    - Fallback upload dari file input (DENGAN TIMEOUT)
    - Normalisasi return value uploader (string ATAU object)
+
+   Changelog (audit fix):
+   - FIX #1 : awaitWithTimeout sekarang MENGEMBALIKAN hasil promise
+             (sebelumnya selalu undefined -> fallback upload mati)
+   - FIX #2 : Error upload tidak lagi di-swallow; dikembalikan / dicatat
+   - FIX #3 : Mode "both" / "mixed" ditangani eksplisit
+   - FIX #4 : Normalisasi mode (trim + lowercase + fallback)
+   - FIX #5 : Timeout diekstrak ke konstanta
+   - FIX #6 : Cache URL pakai properti internal (bukan dataset JSON)
+   - FIX #7 : Logging bisa dimatikan lewat flag DEBUG
+   - FIX #8 : Validasi MIME + fallback selector file input
+   - FIX #9 : Deduplikasi URL hasil upload
+   - FIX #10: Timeout sentinel (Symbol) dibedakan dari hasil valid
 ========================================================= */
 
 "use strict";
@@ -24,15 +37,80 @@ import {
 
 
 /* =========================================================
+   KONFIGURASI
+========================================================= */
+
+const UPLOAD_TIMEOUT_MS =
+    30000;
+
+const DEBUG =
+    false;
+
+
+/* =========================================================
+   LOGGER
+========================================================= */
+
+function debugLog(
+    ...args
+) {
+
+    if (
+        DEBUG
+    ) {
+
+        console.debug(
+            "[GEN-Z.AI][MediaReader]",
+            ...args
+        );
+
+    }
+
+}
+
+
+function warnLog(
+    ...args
+) {
+
+    console.warn(
+        "[GEN-Z.AI][MediaReader]",
+        ...args
+    );
+
+}
+
+
+function errorLog(
+    ...args
+) {
+
+    console.error(
+        "[GEN-Z.AI][MediaReader]",
+        ...args
+    );
+
+}
+
+
+/* =========================================================
+   TIMEOUT SENTINEL
+   ---------------------------------------------------------
+   Dibedakan dari `undefined` / `null` supaya pemanggil bisa
+   membedakan antara "timeout" dan "hasil kosong".
+========================================================= */
+
+const TIMEOUT_SENTINEL =
+    Symbol(
+        "GENZAI_MEDIA_TIMEOUT"
+    );
+
+
+/* =========================================================
    HELPER: NORMALIZE UPLOAD RESULT
    ---------------------------------------------------------
-   uploadImageFile() / uploadAudioFile() mengembalikan
-   OBJECT { path, url } di versi saat ini.
-
-   Kode lama mengharapkan STRING.
-
-   Helper ini menerima kedua bentuk dan mengembalikan
-   string URL yang benar.
+   uploadImageFile() / uploadAudioFile() bisa mengembalikan
+   STRING ATAU OBJECT { path, url }.
 ========================================================= */
 
 function extractUploadUrl(
@@ -65,50 +143,35 @@ function extractUploadUrl(
         "object"
     ) {
 
-        if (
-            typeof result.url ===
-            "string"
+        const candidateKeys = [
+
+            "url",
+            "publicUrl",
+            "public_url",
+            "href",
+            "path"
+
+        ];
+
+
+        for (
+            const key of candidateKeys
         ) {
 
-            return String(
-                result.url
-            ).trim();
-
-        }
+            const value =
+                result[key];
 
 
-        if (
-            typeof result.publicUrl ===
-            "string"
-        ) {
+            if (
+                typeof value ===
+                "string" &&
+                value.trim() !==
+                ""
+            ) {
 
-            return String(
-                result.publicUrl
-            ).trim();
+                return value.trim();
 
-        }
-
-
-        if (
-            typeof result.public_url ===
-            "string"
-        ) {
-
-            return String(
-                result.public_url
-            ).trim();
-
-        }
-
-
-        if (
-            typeof result.href ===
-            "string"
-        ) {
-
-            return String(
-                result.href
-            ).trim();
+            }
 
         }
 
@@ -123,15 +186,20 @@ function extractUploadUrl(
 /* =========================================================
    HELPER: AWAIT WITH TIMEOUT
    ---------------------------------------------------------
-   Mencegah hang total ketika promise tidak pernah
-   settle (resolve/reject). Setelah timeout, eksekusi
-   dilanjutkan seolah-olah promise sudah selesai.
+   Mengembalikan hasil promise, atau TIMEOUT_SENTINEL kalau
+   melewati batas ms. Error promise juga dikembalikan sebagai
+   { __error } supaya caller bisa memutuskan.
+
+   Return:
+   - hasil promise (bisa apa saja)
+   - TIMEOUT_SENTINEL
+   - undefined kalau bukan thenable
 ========================================================= */
 
 async function awaitWithTimeout(
     promise,
     label,
-    ms = 30000
+    ms = UPLOAD_TIMEOUT_MS
 ) {
 
     if (
@@ -140,7 +208,11 @@ async function awaitWithTimeout(
         "function"
     ) {
 
-        return;
+        warnLog(
+            `${label}: bukan thenable, dilewati.`
+        );
+
+        return undefined;
 
     }
 
@@ -149,7 +221,7 @@ async function awaitWithTimeout(
         null;
 
 
-    const timeout =
+    const timeoutPromise =
         new Promise(
             resolve => {
 
@@ -157,11 +229,13 @@ async function awaitWithTimeout(
                     setTimeout(
                         () => {
 
-                            console.warn(
-                                `[GEN-Z.AI][MediaReader] TIMEOUT ${ms}ms pada ${label}. Melanjutkan tanpa menunggu promise.`
+                            warnLog(
+                                `TIMEOUT ${ms}ms pada ${label}.`
                             );
 
-                            resolve();
+                            resolve(
+                                TIMEOUT_SENTINEL
+                            );
 
                         },
                         ms
@@ -173,15 +247,33 @@ async function awaitWithTimeout(
 
     try {
 
-        await Promise.race([
+        const winner =
+            await Promise.race([
 
-            promise.catch(
-                () => {}
-            ),
+                promise,
 
-            timeout
+                timeoutPromise
 
-        ]);
+            ]);
+
+
+        return winner;
+
+    } catch (
+        error
+    ) {
+
+        errorLog(
+            `${label} gagal:`,
+            error
+        );
+
+        return {
+
+            __error:
+                error
+
+        };
 
     } finally {
 
@@ -201,6 +293,310 @@ async function awaitWithTimeout(
 
 
 /* =========================================================
+   HELPER: NORMALIZE MODE
+========================================================= */
+
+function resolveMode(
+    input,
+    datasetKey,
+    defaultMode = "url"
+) {
+
+    let raw;
+
+
+    if (
+        input &&
+        typeof input.getInputMode ===
+        "function"
+    ) {
+
+        try {
+
+            raw =
+                input.getInputMode();
+
+        } catch (
+            error
+        ) {
+
+            warnLog(
+                "getInputMode() error:",
+                error
+            );
+
+            raw =
+                undefined;
+
+        }
+
+    }
+
+
+    if (
+        !raw &&
+        input?.dataset
+    ) {
+
+        raw =
+            input.dataset[datasetKey];
+
+    }
+
+
+    const normalized =
+        String(
+            raw ||
+            defaultMode
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return normalized ||
+        defaultMode;
+
+}
+
+
+/* =========================================================
+   HELPER: STATE CACHE (bukan dataset JSON)
+========================================================= */
+
+function setUploadedUrlsCache(
+    input,
+    urls
+) {
+
+    if (
+        !input ||
+        !Array.isArray(urls)
+    ) {
+
+        return;
+
+    }
+
+
+    Object.defineProperty(
+        input,
+        "_genzaiUploadedUrls",
+        {
+
+            value:
+                urls.slice(),
+
+            writable:
+                true,
+
+            configurable:
+                true,
+
+            enumerable:
+                false
+
+        }
+    );
+
+}
+
+
+function getUploadedUrlsCache(
+    input
+) {
+
+    if (
+        !input ||
+        !Array.isArray(
+            input._genzaiUploadedUrls
+        )
+    ) {
+
+        return [];
+
+    }
+
+
+    return input
+        ._genzaiUploadedUrls
+        .slice();
+
+}
+
+
+/* =========================================================
+   HELPER: DEDUPE
+========================================================= */
+
+function dedupe(
+    arr
+) {
+
+    if (
+        !Array.isArray(arr)
+    ) {
+
+        return [];
+
+    }
+
+
+    const seen =
+        new Set();
+
+
+    const out =
+        [];
+
+
+    for (
+        const item of arr
+    ) {
+
+        const key =
+            String(
+                item ||
+                ""
+            ).trim();
+
+
+        if (
+            !key ||
+            seen.has(
+                key
+            )
+        ) {
+
+            continue;
+
+        }
+
+
+        seen.add(
+            key
+        );
+
+        out.push(
+            key
+        );
+
+    }
+
+
+    return out;
+
+}
+
+
+/* =========================================================
+   HELPER: FILE INPUT RESOLVER
+========================================================= */
+
+function getFileInput(
+    container,
+    preferredSelector,
+    acceptPrefix
+) {
+
+    if (
+        !container ||
+        typeof container.querySelector !==
+        "function"
+    ) {
+
+        return null;
+
+    }
+
+
+    let el =
+        container.querySelector(
+            preferredSelector
+        );
+
+
+    if (
+        !el
+    ) {
+
+        el =
+            container.querySelector(
+                'input[type="file"]'
+            );
+
+    }
+
+
+    if (
+        el &&
+        acceptPrefix &&
+        el.accept &&
+        !String(
+            el.accept
+        ).includes(
+            acceptPrefix
+        )
+    ) {
+
+        debugLog(
+            `File input accept="${el.accept}" tidak match prefix "${acceptPrefix}", tapi tetap dipakai.`
+        );
+
+    }
+
+
+    return el;
+
+}
+
+
+/* =========================================================
+   HELPER: VALIDASI TIPE FILE
+========================================================= */
+
+function isFileTypeOk(
+    file,
+    prefix
+) {
+
+    if (
+        !file
+    ) {
+
+        return false;
+
+    }
+
+
+    const type =
+        String(
+            file.type ||
+            ""
+        ).toLowerCase();
+
+
+    if (
+        !type
+    ) {
+
+        /*
+         * Sebagian browser lama tidak mengisi .type,
+         * jangan blokir di kasus itu.
+         */
+
+        return true;
+
+    }
+
+
+    return type.startsWith(
+        prefix
+    );
+
+}
+
+
+/* =========================================================
    IMAGE
 ========================================================= */
 
@@ -213,8 +609,8 @@ export async function resolveImageParameterValue(
         !imageInput
     ) {
 
-        console.debug(
-            "[GEN-Z.AI][MediaReader] Image input kosong."
+        debugLog(
+            "Image input kosong."
         );
 
         return [];
@@ -223,81 +619,122 @@ export async function resolveImageParameterValue(
 
 
     const mode =
-        typeof imageInput.getInputMode ===
-        "function"
-
-            ? imageInput.getInputMode()
-
-            : (
-                imageInput.dataset.imageMode ||
-                "url"
-            );
+        resolveMode(
+            imageInput,
+            "imageMode",
+            "url"
+        );
 
 
-    console.debug(
-        "[GEN-Z.AI][MediaReader] Image mode:",
+    debugLog(
+        "Image mode:",
         mode
     );
 
 
     /* -----------------------------------------------------
-       URL MODE
+       URL MODE (dan "both" -> prioritaskan URL dulu)
     ----------------------------------------------------- */
 
     if (
         mode ===
-        "url"
+        "url" ||
+        mode ===
+        "both" ||
+        mode ===
+        "mixed"
     ) {
+
+        let urls =
+            [];
+
 
         if (
             typeof imageInput.getUrls ===
             "function"
         ) {
 
-            const urls =
+            const result =
                 imageInput.getUrls();
 
 
             if (
-                Array.isArray(urls)
+                Array.isArray(
+                    result
+                )
             ) {
 
-                return urls
-                    .map(
-                        value =>
-                            String(
-                                value ||
-                                ""
-                            ).trim()
-                    )
-                    .filter(Boolean);
+                urls =
+                    result;
 
             }
 
         }
 
 
-        const urlInput =
-            typeof imageInput.getUrlInput ===
-            "function"
+        if (
+            urls.length ===
+            0
+        ) {
 
-                ? imageInput.getUrlInput()
+            const urlInput =
+                typeof imageInput.getUrlInput ===
+                "function"
 
-                : imageInput.querySelector(
-                    'input[type="url"]'
-                );
+                    ? imageInput.getUrlInput()
 
-
-        const value =
-            String(
-                urlInput?.value ||
-                ""
-            ).trim();
+                    : imageInput.querySelector(
+                        'input[type="url"]'
+                    );
 
 
-        return value
-            ? [value]
-            : [];
+            const value =
+                String(
+                    urlInput?.value ||
+                    ""
+                ).trim();
+
+
+            if (
+                value
+            ) {
+
+                urls =
+                    [
+                        value
+                    ];
+
+            }
+
+        }
+
+
+        const cleaned =
+            dedupe(
+                urls
+            );
+
+
+        if (
+            cleaned.length >
+            0
+        ) {
+
+            return cleaned;
+
+        }
+
+
+        if (
+            mode ===
+            "url"
+        ) {
+
+            return [];
+
+        }
+
+        /* mode both/mixed -> lanjut ke upload path */
 
     }
 
@@ -312,27 +749,41 @@ export async function resolveImageParameterValue(
         "function"
     ) {
 
-        console.debug(
-            "[GEN-Z.AI][MediaReader] Menunggu _imageUploadPromise (max 30s)..."
+        debugLog(
+            `Menunggu _imageUploadPromise (max ${UPLOAD_TIMEOUT_MS}ms)...`
         );
 
 
-        await awaitWithTimeout(
-            imageInput._imageUploadPromise,
-            "image upload",
-            30000
-        );
+        const result =
+            await awaitWithTimeout(
+                imageInput._imageUploadPromise,
+                "image upload",
+                UPLOAD_TIMEOUT_MS
+            );
 
 
-        console.debug(
-            "[GEN-Z.AI][MediaReader] _imageUploadPromise selesai atau timeout."
-        );
+        if (
+            result ===
+            TIMEOUT_SENTINEL
+        ) {
+
+            warnLog(
+                "_imageUploadPromise timeout, lanjut cek cache/file."
+            );
+
+        } else {
+
+            debugLog(
+                "_imageUploadPromise selesai."
+            );
+
+        }
 
     }
 
 
     /* -----------------------------------------------------
-       EXISTING UPLOADED URLS
+       EXISTING UPLOADED URLS (via method)
     ----------------------------------------------------- */
 
     if (
@@ -345,22 +796,60 @@ export async function resolveImageParameterValue(
 
 
         if (
-            Array.isArray(uploadedUrls) &&
-            uploadedUrls.length > 0
+            Array.isArray(
+                uploadedUrls
+            ) &&
+            uploadedUrls.length >
+            0
         ) {
 
-            return uploadedUrls
+            const cleaned =
+                dedupe(
+                    uploadedUrls.map(
+                        value =>
+                            extractUploadUrl(
+                                value
+                            )
+                    )
+                );
 
-                .map(
-                    value =>
-                        extractUploadUrl(
-                            value
-                        )
-                )
 
-                .filter(Boolean);
+            if (
+                cleaned.length >
+                0
+            ) {
+
+                setUploadedUrlsCache(
+                    imageInput,
+                    cleaned
+                );
+
+
+                return cleaned;
+
+            }
 
         }
+
+    }
+
+
+    /* -----------------------------------------------------
+       EXISTING UPLOADED URL (via cache internal)
+    ----------------------------------------------------- */
+
+    const cachedUrls =
+        getUploadedUrlsCache(
+            imageInput
+        );
+
+
+    if (
+        cachedUrls.length >
+        0
+    ) {
+
+        return cachedUrls;
 
     }
 
@@ -384,6 +873,14 @@ export async function resolveImageParameterValue(
             uploadedUrl
         ) {
 
+            setUploadedUrlsCache(
+                imageInput,
+                [
+                    uploadedUrl
+                ]
+            );
+
+
             return [
                 uploadedUrl
             ];
@@ -398,8 +895,10 @@ export async function resolveImageParameterValue(
     ----------------------------------------------------- */
 
     const fileInput =
-        imageInput.querySelector(
-            ".generate-image-file"
+        getFileInput(
+            imageInput,
+            ".generate-image-file",
+            "image/"
         );
 
 
@@ -413,8 +912,8 @@ export async function resolveImageParameterValue(
         0
     ) {
 
-        console.debug(
-            "[GEN-Z.AI][MediaReader] Tidak ada file image untuk di-upload."
+        debugLog(
+            "Tidak ada file image untuk di-upload."
         );
 
         return [];
@@ -422,8 +921,8 @@ export async function resolveImageParameterValue(
     }
 
 
-    console.debug(
-        "[GEN-Z.AI][MediaReader] Fallback upload image:",
+    debugLog(
+        "Fallback upload image:",
         files.length,
         "file"
     );
@@ -446,58 +945,126 @@ export async function resolveImageParameterValue(
         }
 
 
+        if (
+            !isFileTypeOk(
+                file,
+                "image/"
+            )
+        ) {
+
+            warnLog(
+                `Skip file non-image: ${file.name} (${file.type})`
+            );
+
+            continue;
+
+        }
+
+
+        const result =
+            await awaitWithTimeout(
+
+                uploadImageFile(
+                    file
+                ),
+
+                "uploadImageFile:" +
+                (
+                    file?.name ||
+                    "?"
+                ),
+
+                UPLOAD_TIMEOUT_MS
+
+            );
+
+
+        if (
+            result ===
+            TIMEOUT_SENTINEL
+        ) {
+
+            errorLog(
+                `Upload image timeout: ${file.name}`
+            );
+
+            continue;
+
+        }
+
+
+        if (
+            result &&
+            result.__error
+        ) {
+
+            errorLog(
+                `Upload image gagal: ${file.name}`,
+                result.__error
+            );
+
+            continue;
+
+        }
+
+
+        const url =
+            extractUploadUrl(
+                result
+            );
+
+
+        if (
+            url
+        ) {
+
+            uploaded.push(
+                url
+            );
+
+        }
+
+    }
+
+
+    const finalUrls =
+        dedupe(
+            uploaded
+        );
+
+
+    if (
+        finalUrls.length >
+        0
+    ) {
+
+        setUploadedUrlsCache(
+            imageInput,
+            finalUrls
+        );
+
+
+        /* -------------------------------------------------
+           Backward-compat: isi dataset juga supaya kode
+           lama yang membaca dataset tetap dapat nilai.
+        ------------------------------------------------- */
+
         try {
 
-            /*
-             * -------------------------------------------------
-             * uploadImageFile() bisa mengembalikan:
-             *   - STRING URL   (kompatibel lama)
-             *   - OBJECT { path, url }  (versi sekarang)
-             *
-             * extractUploadUrl() menangani keduanya.
-             * -------------------------------------------------
-             */
+            imageInput.dataset.uploadedUrl =
+                finalUrls[0];
 
-            const result =
-                await awaitWithTimeout(
-
-                    uploadImageFile(
-                        file
-                    ),
-
-                    "uploadImageFile:" +
-                    (
-                        file?.name ||
-                        "?"
-                    ),
-
-                    30000
-
+            imageInput.dataset.uploadedUrls =
+                JSON.stringify(
+                    finalUrls
                 );
-
-
-            const url =
-                extractUploadUrl(
-                    result
-                );
-
-
-            if (
-                url
-            ) {
-
-                uploaded.push(
-                    url
-                );
-
-            }
 
         } catch (
             error
         ) {
 
-            console.error(
-                "[GEN-Z.AI][Generate Form] Upload image gagal:",
+            debugLog(
+                "Gagal menulis dataset cache:",
                 error
             );
 
@@ -506,22 +1073,7 @@ export async function resolveImageParameterValue(
     }
 
 
-    if (
-        uploaded.length > 0
-    ) {
-
-        imageInput.dataset.uploadedUrl =
-            uploaded[0];
-
-        imageInput.dataset.uploadedUrls =
-            JSON.stringify(
-                uploaded
-            );
-
-    }
-
-
-    return uploaded;
+    return finalUrls;
 
 }
 
@@ -538,8 +1090,8 @@ export async function resolveAudioParameterValue(
         !audioInput
     ) {
 
-        console.debug(
-            "[GEN-Z.AI][MediaReader] Audio input kosong."
+        debugLog(
+            "Audio input kosong."
         );
 
         return "";
@@ -548,30 +1100,30 @@ export async function resolveAudioParameterValue(
 
 
     const mode =
-        typeof audioInput.getInputMode ===
-        "function"
-
-            ? audioInput.getInputMode()
-
-            : (
-                audioInput.dataset.audioMode ||
-                "url"
-            );
+        resolveMode(
+            audioInput,
+            "audioMode",
+            "url"
+        );
 
 
-    console.debug(
-        "[GEN-Z.AI][MediaReader] Audio mode:",
+    debugLog(
+        "Audio mode:",
         mode
     );
 
 
     /* -----------------------------------------------------
-       URL MODE
+       URL MODE (dan both/mixed -> cek URL dulu)
     ----------------------------------------------------- */
 
     if (
         mode ===
-        "url"
+        "url" ||
+        mode ===
+        "both" ||
+        mode ===
+        "mixed"
     ) {
 
         const urlInput =
@@ -585,10 +1137,32 @@ export async function resolveAudioParameterValue(
                 );
 
 
-        return String(
-            urlInput?.value ||
-            ""
-        ).trim();
+        const value =
+            String(
+                urlInput?.value ||
+                ""
+            ).trim();
+
+
+        if (
+            value
+        ) {
+
+            return value;
+
+        }
+
+
+        if (
+            mode ===
+            "url"
+        ) {
+
+            return "";
+
+        }
+
+        /* mode both/mixed -> lanjut ke upload path */
 
     }
 
@@ -603,21 +1177,35 @@ export async function resolveAudioParameterValue(
         "function"
     ) {
 
-        console.debug(
-            "[GEN-Z.AI][MediaReader] Menunggu _audioUploadPromise (max 30s)..."
+        debugLog(
+            `Menunggu _audioUploadPromise (max ${UPLOAD_TIMEOUT_MS}ms)...`
         );
 
 
-        await awaitWithTimeout(
-            audioInput._audioUploadPromise,
-            "audio upload",
-            30000
-        );
+        const result =
+            await awaitWithTimeout(
+                audioInput._audioUploadPromise,
+                "audio upload",
+                UPLOAD_TIMEOUT_MS
+            );
 
 
-        console.debug(
-            "[GEN-Z.AI][MediaReader] _audioUploadPromise selesai atau timeout."
-        );
+        if (
+            result ===
+            TIMEOUT_SENTINEL
+        ) {
+
+            warnLog(
+                "_audioUploadPromise timeout, lanjut cek cache/file."
+            );
+
+        } else {
+
+            debugLog(
+                "_audioUploadPromise selesai."
+            );
+
+        }
 
     }
 
@@ -653,8 +1241,10 @@ export async function resolveAudioParameterValue(
     ----------------------------------------------------- */
 
     const fileInput =
-        audioInput.querySelector(
-            ".generate-audio-file"
+        getFileInput(
+            audioInput,
+            ".generate-audio-file",
+            "audio/"
         );
 
 
@@ -666,8 +1256,8 @@ export async function resolveAudioParameterValue(
         !file
     ) {
 
-        console.debug(
-            "[GEN-Z.AI][MediaReader] Tidak ada file audio untuk di-upload."
+        debugLog(
+            "Tidak ada file audio untuk di-upload."
         );
 
         return "";
@@ -675,72 +1265,105 @@ export async function resolveAudioParameterValue(
     }
 
 
-    console.debug(
-        "[GEN-Z.AI][MediaReader] Fallback upload audio:",
+    if (
+        !isFileTypeOk(
+            file,
+            "audio/"
+        )
+    ) {
+
+        warnLog(
+            `Skip file non-audio: ${file.name} (${file.type})`
+        );
+
+        return "";
+
+    }
+
+
+    debugLog(
+        "Fallback upload audio:",
         file.name
     );
 
 
-    try {
+    const result =
+        await awaitWithTimeout(
 
-        /*
-         * -------------------------------------------------
-         * uploadAudioFile() bisa mengembalikan:
-         *   - STRING URL   (kompatibel lama)
-         *   - OBJECT { path, url }  (versi sekarang)
-         *
-         * extractUploadUrl() menangani keduanya.
-         * -------------------------------------------------
-         */
+            uploadAudioFile(
+                file
+            ),
 
-        const result =
-            await awaitWithTimeout(
+            "uploadAudioFile:" +
+            (
+                file?.name ||
+                "?"
+            ),
 
-                uploadAudioFile(
-                    file
-                ),
+            UPLOAD_TIMEOUT_MS
 
-                "uploadAudioFile:" +
-                (
-                    file?.name ||
-                    "?"
-                ),
-
-                30000
-
-            );
+        );
 
 
-        const url =
-            extractUploadUrl(
-                result
-            );
-
-
-        if (
-            url
-        ) {
-
-            audioInput.dataset.uploadedUrl =
-                url;
-
-        }
-
-
-        return url;
-
-    } catch (
-        error
+    if (
+        result ===
+        TIMEOUT_SENTINEL
     ) {
 
-        console.error(
-            "[GEN-Z.AI][Generate Form] Upload audio gagal:",
-            error
+        errorLog(
+            `Upload audio timeout: ${file.name}`
         );
 
         return "";
 
     }
+
+
+    if (
+        result &&
+        result.__error
+    ) {
+
+        errorLog(
+            `Upload audio gagal: ${file.name}`,
+            result.__error
+        );
+
+        return "";
+
+    }
+
+
+    const url =
+        extractUploadUrl(
+            result
+        );
+
+
+    if (
+        url
+    ) {
+
+        try {
+
+            audioInput.dataset.uploadedUrl =
+                url;
+
+        } catch (
+            error
+        ) {
+
+            debugLog(
+                "Gagal menulis dataset cache audio:",
+                error
+            );
+
+        }
+
+    }
+
+
+    return url;
 
 }
 
