@@ -988,3 +988,143 @@
         font-size: 9.5px !important;
     }
 }
+
+/* =========================================================
+   NUCLEAR OVERRIDE — TOP POSITION + COMPACT
+   ---------------------------------------------------------
+   Selector pakai spesifisitas tinggi + ID + atribut supaya
+   tidak bisa dikalahkan CSS lain.
+========================================================= */
+
+html body .gen-loading,
+html body div.gen-loading[role="dialog"] {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+
+    display: none !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+
+    padding: 60px 14px 14px !important;
+    box-sizing: border-box !important;
+
+    background: rgba(2, 4, 8, .78) !important;
+    z-index: 9999 !important;
+
+    overflow-y: auto !important;
+}
+
+html body .gen-loading.show,
+html body div.gen-loading[role="dialog"].show {
+    display: flex !important;
+}
+
+html body .gen-loading .gen-card,
+html body div.gen-card#genLoadingCard {
+    width: min(320px, 100%) !important;
+    max-width: 320px !important;
+
+    padding: 16px 16px 14px !important;
+    margin: 0 !important;
+
+    border-radius: 15px !important;
+
+    max-height: 68vh !important;
+    overflow-y: auto !important;
+
+    position: relative !important;
+    top: auto !important;
+    transform: none !important;
+}
+
+html body .gen-loading .gen-title {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    margin: 0 0 4px !important;
+    letter-spacing: -0.2px !important;
+}
+
+html body .gen-loading .gen-kicker {
+    padding: 3px 8px !important;
+    margin: 0 0 10px !important;
+    font-size: 8px !important;
+    letter-spacing: 1.4px !important;
+}
+
+html body .gen-loading .gen-progress {
+    height: 3px !important;
+    margin: 10px 0 5px !important;
+}
+
+html body .gen-loading .gen-meta {
+    margin: 0 0 10px !important;
+    font-size: 9px !important;
+}
+
+html body .gen-loading .gen-percent {
+    font-size: 11px !important;
+}
+
+html body .gen-loading .gen-steps {
+    gap: 1px !important;
+    margin: 0 0 10px !important;
+}
+
+html body .gen-loading .gen-step {
+    padding: 5px 8px !important;
+    font-size: 10.5px !important;
+    gap: 8px !important;
+    border-radius: 6px !important;
+}
+
+html body .gen-loading .gen-step-icon {
+    width: 13px !important;
+    height: 13px !important;
+    border-width: 1.5px !important;
+}
+
+html body .gen-loading .gen-cancel {
+    padding: 7px 12px !important;
+    font-size: 10px !important;
+    border-radius: 9px !important;
+}
+
+
+/* ===== HP SANGAT KECIL ===== */
+
+@media (max-width: 400px) {
+    html body .gen-loading,
+    html body div.gen-loading[role="dialog"] {
+        padding: 56px 12px 12px !important;
+    }
+
+    html body .gen-loading .gen-card,
+    html body div.gen-card#genLoadingCard {
+        width: min(295px, 100%) !important;
+        max-width: 295px !important;
+        padding: 14px 13px 12px !important;
+    }
+
+    html body .gen-loading .gen-title {
+        font-size: 13px !important;
+    }
+
+    html body .gen-loading .gen-step {
+        padding: 4px 7px !important;
+        font-size: 10px !important;
+        gap: 7px !important;
+    }
+
+    html body .gen-loading .gen-step-icon {
+        width: 12px !important;
+        height: 12px !important;
+    }
+
+    html body .gen-loading .gen-cancel {
+        padding: 6px 10px !important;
+        font-size: 9.5px !important;
+    }
+}
