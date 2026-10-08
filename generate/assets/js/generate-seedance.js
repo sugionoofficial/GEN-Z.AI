@@ -32,6 +32,11 @@
        credit_480p
        credit_720p
        credit_1080p
+
+   PATCH:
+   - Hapus unused import getSupabaseClient
+   - Gate console.warn via window.GENZ_DEBUG
+   - Scope binder event ke #dynamicFields
 ========================================================= */
 
 "use strict";
@@ -39,8 +44,7 @@
 
 import {
     getGenerateElements,
-    getCurrentModel,
-    getSupabaseClient
+    getCurrentModel
 } from "./generate-state.js";
 
 import mediaModule
@@ -1637,12 +1641,36 @@ function resetReferenceFileState() {
 
 
 /* =========================================================
+   BIND ROOT HELPER
+   ---------------------------------------------------------
+   Membatasi query selector ke container form Seedance
+   (#dynamicFields) supaya tidak bertabrakan dengan
+   elemen ber-class sama di tempat lain pada halaman.
+========================================================= */
+
+function getBindRoot() {
+
+    return (
+        document.getElementById(
+            "dynamicFields"
+        ) ||
+        document
+    );
+
+}
+
+
+/* =========================================================
    SOURCE TABS
 ========================================================= */
 
 function bindSourceTabs() {
 
-    document
+    const root =
+        getBindRoot();
+
+
+    root
         .querySelectorAll(
             ".seedance-source-tab"
         )
@@ -1754,7 +1782,11 @@ function bindSourceTabs() {
 
 function bindAddButtons() {
 
-    document
+    const root =
+        getBindRoot();
+
+
+    root
         .querySelectorAll(
             "[data-seedance-add]"
         )
@@ -2318,7 +2350,11 @@ function updateReferenceLimit(
 
 function bindFileInputs() {
 
-    document
+    const root =
+        getBindRoot();
+
+
+    root
         .querySelectorAll(
             ".seedance-file-input"
         )
@@ -2622,10 +2658,16 @@ function renderReferencePreview(
                 error
             ) {
 
-                console.warn(
-                    "[Seedance] Preview gagal:",
-                    error
-                );
+                if (
+                    window.GENZ_DEBUG === true
+                ) {
+
+                    console.warn(
+                        "[Seedance] Preview gagal:",
+                        error
+                    );
+
+                }
 
             }
 
@@ -2704,10 +2746,16 @@ function renderFilePreview(
                 error
             ) {
 
-                console.warn(
-                    "[Seedance] Preview gagal:",
-                    error
-                );
+                if (
+                    window.GENZ_DEBUG === true
+                ) {
+
+                    console.warn(
+                        "[Seedance] Preview gagal:",
+                        error
+                    );
+
+                }
 
             }
 
@@ -2723,7 +2771,11 @@ function renderFilePreview(
 
 function bindUrlInputs() {
 
-    document
+    const root =
+        getBindRoot();
+
+
+    root
         .querySelectorAll(
             ".seedance-url-input"
         )
@@ -2903,8 +2955,7 @@ function bindPromptCounter() {
 
 
     if (
-        !input ||
-        !counter
+        !input || !counter
     ) {
 
         return;
@@ -2972,8 +3023,7 @@ function bindDuration() {
 
 
     if (
-        !input ||
-        !output
+        !input || !output
     ) {
 
         return;
@@ -3145,9 +3195,15 @@ function showSeedanceFileMessage(
     message
 ) {
 
-    console.warn(
-        `[Seedance] ${message}`
-    );
+    if (
+        window.GENZ_DEBUG === true
+    ) {
+
+        console.warn(
+            `[Seedance] ${message}`
+        );
+
+    }
 
 }
 
