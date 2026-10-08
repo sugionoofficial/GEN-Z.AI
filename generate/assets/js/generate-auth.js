@@ -412,7 +412,7 @@ function createSupabaseClient() {
         key,
         {
             auth: {
-                persistSession: false,
+                persistSession: true,
                 autoRefreshToken: false,
                 detectSessionInUrl: false,
                 lock: async (_n, _t, fn) => await fn()
