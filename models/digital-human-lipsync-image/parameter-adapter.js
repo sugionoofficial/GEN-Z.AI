@@ -16,17 +16,55 @@
    - image_urls WAJIB
    - audio_url WAJIB
    - prompt WAJIB
-   - duration dari parameters.js
-   - aspect_ratio dari parameters.js
-   - resolution tidak dikirim dari adapter
-   - credit tidak dikirim dari adapter
-   - nsfw_checker tidak digunakan
+   - duration dari parameters.js (dikirim sebagai STRING)
+   - aspect_ratio TIDAK dikirim (tidak didukung Motiongen)
+   - resolution TIDAK dikirim (provider pakai default)
+   - credit TIDAK dikirim
+   - nsfw_checker TIDAK digunakan
    - Tidak ada KIE fallback
+
+   PATCH (2026-10-08):
+   - HAPUS `aspect_ratio` dari payload Motiongen.
+     Motiongen strict schema — field ilegal menyebabkan
+     job FAILED setelah queue atau 500 di initiate.
+   - duration dikirim sebagai STRING ("10","15","20","25","30")
+     sesuai spec Motiongen, bukan number.
+   - Tambah whitelist field (MOTIONGEN_ALLOWED_FIELDS)
+     sebagai safety net di buildPayload.
 ========================================================= */
 
 import {
     validate
 } from "./parameters.js";
+
+
+/* =========================================================
+   ALLOWED FIELDS — sesuai spec Motiongen
+   https://app.motiongenai.pro/api/v1/generate
+========================================================= */
+
+const MOTIONGEN_ALLOWED_FIELDS = new Set([
+    "model",
+    "prompt",
+    "duration",
+    "resolution",
+    "image_urls",
+    "audio_url",
+    "webhook_url"
+]);
+
+
+/* =========================================================
+   DURATION — nilai valid menurut Motiongen
+========================================================= */
+
+const MOTIONGEN_DURATION_VALUES = new Set([
+    "10",
+    "15",
+    "20",
+    "25",
+    "30"
+]);
 
 
 /* =========================================================
@@ -135,6 +173,9 @@ function normalizeImageUrls(
 
 /* =========================================================
    NORMALIZE DURATION
+   ---------------------------------------------------------
+   Motiongen menerima string: "10","15","20","25","30".
+   Nilai di luar daftar akan fallback ke "10".
 ========================================================= */
 
 function normalizeDuration(
@@ -150,24 +191,66 @@ function normalizeDuration(
             ""
     ) {
 
-        return 10;
+        return "10";
 
     }
 
 
-    const duration =
-        Number(
+    const str =
+        String(
             value
+        ).trim();
+
+
+    if (
+        MOTIONGEN_DURATION_VALUES.has(
+            str
+        )
+    ) {
+
+        return str;
+
+    }
+
+
+    /*
+     * Kalau user kirim "30.0" atau number 30,
+     * parseInt dulu sebelum cek.
+     */
+
+    const parsed =
+        Number.parseInt(
+            str,
+            10
         );
 
 
-    return Number.isFinite(
-        duration
-    )
+    if (
+        Number.isFinite(
+            parsed
+        )
+    ) {
 
-        ? duration
+        const parsedStr =
+            String(
+                parsed
+            );
 
-        : value;
+
+        if (
+            MOTIONGEN_DURATION_VALUES.has(
+                parsedStr
+            )
+        ) {
+
+            return parsedStr;
+
+        }
+
+    }
+
+
+    return "10";
 
 }
 
@@ -203,19 +286,18 @@ function getParameters(
                 source.audio_url
             ),
 
-        aspect_ratio:
-            source.aspect_ratio == null
-
-                ? "16:9"
-
-                : normalizeString(
-                    source.aspect_ratio
-                ),
-
         duration:
             normalizeDuration(
                 source.duration
             )
+
+        /*
+         * NOTE:
+         * aspect_ratio SENGAJA TIDAK dimasukkan.
+         * Motiongen model digital-human-lipsync-image-s3
+         * tidak mendukung field aspect_ratio.
+         * Rasio output ditentukan oleh gambar input.
+         */
 
     };
 
@@ -300,33 +382,10 @@ function sanitizeParameters(
         );
 
 
-    /*
-     * -----------------------------------------------------
-     * PROVIDER DEFAULTS
-     * -----------------------------------------------------
-     */
-
-    if (
-        !parameters.aspect_ratio
-    ) {
-
-        parameters.aspect_ratio =
-            "16:9";
-
-    }
-
-
-    if (
-        parameters.duration ===
-            undefined ||
-        parameters.duration ===
-            null
-    ) {
-
-        parameters.duration =
-            10;
-
-    }
+    parameters.duration =
+        normalizeDuration(
+            parameters.duration
+        );
 
 
     /*
@@ -336,7 +395,8 @@ function sanitizeParameters(
      *
      * Jangan menambahkan:
      *
-     * - resolution
+     * - aspect_ratio     (tidak didukung Motiongen)
+     * - resolution       (provider pakai default)
      * - credit
      * - credit_final
      * - credit_480p
@@ -376,16 +436,49 @@ function buildPayload(
         normalizeString(
             modelId
         ) ||
-        "digital-human-lipsync-image";
+        "digital-human-lipsync-image-s3";
 
 
-    return {
+    const payload = {
 
         model,
 
         ...parameters
 
     };
+
+
+    /*
+     * -----------------------------------------------------
+     * SAFETY NET
+     * -----------------------------------------------------
+     * Buang semua field yang tidak ada di whitelist.
+     * Mencegah field liar lolos ke Motiongen.
+     */
+
+    for (
+        const key of
+        Object.keys(
+            payload
+        )
+    ) {
+
+        if (
+            !MOTIONGEN_ALLOWED_FIELDS.has(
+                key
+            )
+        ) {
+
+            delete payload[
+                key
+            ];
+
+        }
+
+    }
+
+
+    return payload;
 
 }
 
