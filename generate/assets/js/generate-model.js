@@ -41,6 +41,11 @@
    - Tidak mengubah profiles.credits
    - Tidak membuat parameter palsu
    - Tidak membuat model palsu
+
+   PATCH:
+   - fetch() dibungkus timeout via AbortController (60 detik)
+   - updateModelLogo() dipanggil dalam try/catch
+     supaya kegagalan logo tidak merusak flow select model
 ========================================================= */
 
 "use strict";
@@ -86,6 +91,10 @@ const SELECTED_MODEL_STORAGE_KEY =
     "genz_generate_selected_model";
 
 
+const MODEL_CONFIG_TIMEOUT_MS =
+    60000;
+
+
 /* =========================================================
    CREDIT RESOLUTIONS
 ========================================================= */
@@ -95,6 +104,67 @@ const CREDIT_RESOLUTIONS = [
     "720p",
     "1080p"
 ];
+
+
+/* =========================================================
+   FETCH WITH TIMEOUT
+   ---------------------------------------------------------
+   Membungkus fetch() dengan AbortController supaya
+   request tidak menggantung tanpa batas.
+========================================================= */
+
+async function fetchWithTimeout(
+    url,
+    options = {},
+    timeoutMs = MODEL_CONFIG_TIMEOUT_MS
+) {
+
+    const controller =
+        new AbortController();
+
+
+    const timer =
+        setTimeout(
+            () => {
+
+                try {
+
+                    controller.abort(
+                        new Error(
+                            `Request timeout setelah ${timeoutMs}ms.`
+                        )
+                    );
+
+                } catch {
+                    /* ignore */
+                }
+
+            },
+            timeoutMs
+        );
+
+
+    try {
+
+        return await fetch(
+            url,
+            {
+                ...options,
+
+                signal:
+                    controller.signal
+            }
+        );
+
+    } finally {
+
+        clearTimeout(
+            timer
+        );
+
+    }
+
+}
 
 
 /* =========================================================
@@ -2579,6 +2649,8 @@ function mergeModelConfiguration(
 
 /* =========================================================
    REQUEST MODEL CONFIG
+   ---------------------------------------------------------
+   PATCH: fetch dibungkus timeout 60 detik.
 ========================================================= */
 
 async function requestModelConfig(
@@ -2598,29 +2670,65 @@ async function requestModelConfig(
     }
 
 
-    const response =
-        await fetch(
-            url,
-            {
+    let response;
 
-                method:
-                    "GET",
 
-                headers: {
+    try {
 
-                    Accept:
-                        "application/json",
+        response =
+            await fetchWithTimeout(
+                url,
+                {
 
-                    Authorization:
-                        `Bearer ${accessToken}`
+                    method:
+                        "GET",
+
+                    headers: {
+
+                        Accept:
+                            "application/json",
+
+                        Authorization:
+                            `Bearer ${accessToken}`
+
+                    },
+
+                    credentials:
+                        "same-origin"
 
                 },
+                MODEL_CONFIG_TIMEOUT_MS
+            );
 
-                credentials:
-                    "same-origin"
+    } catch (
+        error
+    ) {
 
-            }
+        const isAbort =
+            error?.name ===
+                "AbortError" ||
+            /abort/i.test(
+                String(
+                    error?.message ||
+                    ""
+                )
+            );
+
+
+        const message =
+            isAbort
+                ? `Request model config timeout setelah ${MODEL_CONFIG_TIMEOUT_MS}ms.`
+                : (
+                    error?.message ||
+                    "Tidak dapat terhubung ke server model config."
+                );
+
+
+        throw new Error(
+            message
         );
+
+    }
 
 
     let data =
@@ -3742,6 +3850,9 @@ export async function loadModelConfig(
 
 /* =========================================================
    SELECT MODEL
+   ---------------------------------------------------------
+   PATCH: updateModelLogo dibungkus try/catch supaya
+   kegagalan logo tidak merusak flow select model.
 ========================================================= */
 
 export async function selectModel(
@@ -3792,19 +3903,40 @@ export async function selectModel(
     }
 
 
-    const model = await loadModelConfig(
-    normalizedId
-);
+    const model =
+        await loadModelConfig(
+            normalizedId
+        );
 
-updateModelLogo(model);
 
-return model;
+    try {
+
+        updateModelLogo(
+            model
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate Model] updateModelLogo gagal (tidak fatal):",
+            error?.message ||
+            error
+        );
+
+    }
+
+
+    return model;
 
 }
 
 
 /* =========================================================
    RESOLVE INITIAL MODEL
+   ---------------------------------------------------------
+   PATCH: updateModelLogo dibungkus try/catch.
 ========================================================= */
 
 export async function resolveInitialModel() {
@@ -3815,7 +3947,7 @@ export async function resolveInitialModel() {
 
     const models =
         await loadAvailableModels();
-   
+
 
     let selectedModelId =
         null;
@@ -3905,9 +4037,24 @@ export async function resolveInitialModel() {
             selectedModelId
         );
 
-   updateModelLogo(
-    model
-);
+
+    try {
+
+        updateModelLogo(
+            model
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate Model] updateModelLogo gagal (tidak fatal):",
+            error?.message ||
+            error
+        );
+
+    }
 
 
     const elements =
@@ -4051,10 +4198,25 @@ export async function refreshModels(
         await loadModelConfig(
             selectedModelId
         );
-   
-   updateModelLogo(
-    model
-);
+
+
+    try {
+
+        updateModelLogo(
+            model
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate Model] updateModelLogo gagal (tidak fatal):",
+            error?.message ||
+            error
+        );
+
+    }
 
 
     return {
