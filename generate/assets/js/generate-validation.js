@@ -29,6 +29,12 @@
    - Provider
    - Credit calculation
    - Render UI
+
+   PATCH:
+   - INTERNAL_PARAMETERS disinkronkan dengan
+     HARD_FORBIDDEN_PARAMETERS di generate-form-data.js
+   - validateArray tidak lagi early-return saat
+     array kosong, sehingga minItems tetap dicek
 ========================================================= */
 
 import {
@@ -38,11 +44,30 @@ import {
 
 /* =========================================================
    INTERNAL PARAMETERS
+   ---------------------------------------------------------
+   Daftar ini WAJIB sinkron dengan
+   HARD_FORBIDDEN_PARAMETERS di generate-form-data.js.
+
+   Parameter di daftar ini:
+   - Tidak ditampilkan di form
+   - Tidak dikirim dari client
+   - Tidak divalidasi sebagai input user
+   - Dikontrol sepenuhnya oleh backend
 ========================================================= */
 
 const INTERNAL_PARAMETERS =
     new Set([
-        "task_id"
+
+        "task_id",
+
+        "index",
+
+        "nsfw_checker",
+
+        "webhook_url",
+
+        "webhook"
+
     ]);
 
 
@@ -787,6 +812,10 @@ function validateStringLength(
 
 /* =========================================================
    VALIDATE ARRAY
+   ---------------------------------------------------------
+   PATCH:
+   - Tidak lagi early-return saat array kosong.
+   - minItems tetap divalidasi untuk array kosong.
 ========================================================= */
 
 function validateArray(
@@ -803,16 +832,6 @@ function validateArray(
 
     if (
         type !== "array"
-    ) {
-
-        return;
-    }
-
-
-    if (
-        isEmpty(
-            value
-        )
     ) {
 
         return;
@@ -1484,7 +1503,8 @@ function validateDefinitions(
 
 
             /*
-             * task_id bukan input Generate.
+             * task_id dan parameter internal lain
+             * bukan input Generate.
              */
             if (
                 INTERNAL_PARAMETERS.has(
