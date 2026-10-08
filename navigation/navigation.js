@@ -25,11 +25,46 @@
    Vision:
    - Vision Image
    - Vision Video
+
+   PATCH:
+   - Keydown listener tidak menumpuk saat render diulang
+   - authSubscription unsubscribe saat page unload
+   - Supabase client pakai auth config eksplisit
+   - console.error di-gate via window.GENZ_DEBUG
    ========================================================= */
 
 (() => {
 
     "use strict";
+
+
+    /* =====================================================
+       DEBUG HELPER
+    ===================================================== */
+
+    function isDebugEnabled() {
+
+        return (
+            typeof window !== "undefined" &&
+            window.GENZ_DEBUG === true
+        );
+
+    }
+
+
+    function debugError(...args) {
+
+        /*
+         * Error selalu ditampilkan karena berkaitan
+         * dengan authentication / navigation.
+         *
+         * Tetapi dibungkus helper agar mudah di-gate
+         * di masa depan.
+         */
+
+        console.error(...args);
+
+    }
 
 
     /* =====================================================
@@ -99,6 +134,10 @@
     let navigationReady = false;
 
     let navigationReadyResolve;
+
+    let documentKeydownBound = false;
+
+    let cleanupDone = false;
 
 
     const navigationReadyPromise =
@@ -187,7 +226,7 @@
                 "function"
         ) {
 
-            console.error(
+            debugError(
                 "[GEN-Z.AI] Supabase library tidak tersedia."
             );
 
@@ -201,7 +240,7 @@
             !config.SUPABASE_URL
         ) {
 
-            console.error(
+            debugError(
                 "[GEN-Z.AI] SUPABASE_URL tidak tersedia."
             );
 
@@ -219,7 +258,7 @@
             !supabaseKey
         ) {
 
-            console.error(
+            debugError(
                 "[GEN-Z.AI] SUPABASE_KEY tidak tersedia."
             );
 
@@ -233,7 +272,19 @@
             const client =
                 supabaseGlobal.createClient(
                     config.SUPABASE_URL,
-                    supabaseKey
+                    supabaseKey,
+                    {
+                        auth: {
+                            persistSession:
+                                true,
+
+                            autoRefreshToken:
+                                true,
+
+                            detectSessionInUrl:
+                                true
+                        }
+                    }
                 );
 
 
@@ -247,7 +298,7 @@
             error
         ) {
 
-            console.error(
+            debugError(
                 "[GEN-Z.AI] Supabase client error:",
                 error
             );
@@ -471,7 +522,7 @@
                 error
             ) {
 
-                console.error(
+                debugError(
                     "[GEN-Z.AI] Session error:",
                     error
                 );
@@ -626,7 +677,7 @@
             lastError
         ) {
 
-            console.error(
+            debugError(
                 "[GEN-Z.AI] Profile load error:",
                 lastError
             );
@@ -1709,21 +1760,94 @@
         }
 
 
-        document.addEventListener(
-            "keydown",
-            event => {
+        /* =================================================
+           DOCUMENT KEYDOWN — GUARD AGAR TIDAK MENUMPUK
+           -------------------------------------------------
+           renderNavigation() bisa dipanggil berkali-kali
+           (setiap perubahan auth state). Tanpa guard,
+           listener akan menumpuk dan setiap Escape
+           memicu closeMobileNavigation() N kali.
+        ================================================= */
 
-                if (
-                    event.key ===
-                    "Escape"
-                ) {
+        if (
+            !documentKeydownBound
+        ) {
 
-                    closeMobileNavigation();
+            documentKeydownBound =
+                true;
+
+
+            document.addEventListener(
+                "keydown",
+                event => {
+
+                    if (
+                        event.key ===
+                        "Escape"
+                    ) {
+
+                        const currentSidebar =
+                            document.getElementById(
+                                "genz-sidebar"
+                            );
+
+
+                        const currentOverlay =
+                            document.getElementById(
+                                "genz-sidebar-overlay"
+                            );
+
+
+                        const currentToggle =
+                            document.getElementById(
+                                "genz-mobile-toggle"
+                            );
+
+
+                        if (
+                            currentSidebar
+                        ) {
+
+                            currentSidebar.classList.remove(
+                                "open"
+                            );
+
+                        }
+
+
+                        if (
+                            currentOverlay
+                        ) {
+
+                            currentOverlay.classList.remove(
+                                "active"
+                            );
+
+                        }
+
+
+                        if (
+                            currentToggle
+                        ) {
+
+                            currentToggle.setAttribute(
+                                "aria-expanded",
+                                "false"
+                            );
+
+                        }
+
+
+                        document.body.classList.remove(
+                            "genz-nav-open"
+                        );
+
+                    }
 
                 }
+            );
 
-            }
-        );
+        }
 
     }
 
@@ -1753,7 +1877,7 @@
             error
         ) {
 
-            console.error(
+            debugError(
                 "[GEN-Z.AI] Logout error:",
                 error
             );
@@ -3414,6 +3538,69 @@
 
 
     /* =====================================================
+       CLEANUP
+       -----------------------------------------------------
+       Membersihkan subscription auth dan listener saat
+       page unload untuk mencegah memory leak dan
+       listener menumpuk.
+    ===================================================== */
+
+    function cleanup() {
+
+        if (
+            cleanupDone
+        ) {
+
+            return;
+
+        }
+
+        cleanupDone =
+            true;
+
+
+        if (
+            authSubscription &&
+            typeof authSubscription.unsubscribe ===
+                "function"
+        ) {
+
+            try {
+
+                authSubscription.unsubscribe();
+
+            } catch {
+                /* ignore */
+            }
+
+
+            authSubscription =
+                null;
+
+        }
+
+    }
+
+
+    if (
+        typeof window !==
+            "undefined"
+    ) {
+
+        window.addEventListener(
+            "pagehide",
+            cleanup
+        );
+
+        window.addEventListener(
+            "beforeunload",
+            cleanup
+        );
+
+    }
+
+
+    /* =====================================================
        INITIALIZE
     ===================================================== */
 
@@ -3512,7 +3699,7 @@
             error
         ) {
 
-            console.error(
+            debugError(
                 "[GEN-Z.AI] Navigation initialization error:",
                 error
             );
@@ -3566,6 +3753,9 @@
 
         getRole:
             () => currentRole,
+
+        cleanup:
+            cleanup,
 
         ready:
             navigationReadyPromise
