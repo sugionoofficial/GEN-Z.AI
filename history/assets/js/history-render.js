@@ -1360,6 +1360,16 @@ App.copyHistoryPrompt =
 
     /* =====================================================
        STATUS DISPLAY
+       -----------------------------------------------------
+       FIX:
+       Class harus "status <status>" (dipisah spasi),
+       BUKAN "history-status status-success".
+
+       Alasan:
+       1. CSS di index.html mendefinisikan .status.success,
+          .status.processing, dst.
+       2. Script polling di index.html mencari ".status"
+          lalu cek classList.contains("success"/"processing"/"failed").
     ===================================================== */
 
     function getStatusDisplay(
@@ -1376,14 +1386,11 @@ App.copyHistoryPrompt =
                 status
             );
 
-        const className =
-            getStatusClass(
-                status
-            );
-
         return `
             <span
-                class="history-status ${className}"
+                class="status ${escapeHtml(
+                    status
+                )}"
                 data-status="${escapeHtml(
                     status
                 )}"
