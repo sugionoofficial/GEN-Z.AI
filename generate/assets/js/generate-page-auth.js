@@ -12,6 +12,13 @@
    - Fallback membaca profile dari Supabase
    - Sinkronisasi auth awal
    - Tidak melakukan polling render tanpa perubahan
+
+   PATCH:
+   - Debug log di-gate via window.GENZ_DEBUG
+   - Email user di-mask (PII) sebelum di-log
+   - Verifikasi profile.id === user.id di loadProfileDirectly
+   - Cleanup safetyTimer saat page unload
+   - Tidak mengubah API / signature / alur
 ========================================================= */
 
 "use strict";
@@ -21,18 +28,147 @@
    CONFIG
 ========================================================= */
 
-const MAX_WAIT = 15000;
+const MAX_WAIT =
+    15000;
 
-const INTERVAL = 150;
+const INTERVAL =
+    150;
+
+
+/* =========================================================
+   DEBUG HELPER
+========================================================= */
+
+function isDebugEnabled() {
+
+    return (
+        typeof window !== "undefined" &&
+        window.GENZ_DEBUG === true
+    );
+
+}
+
+
+function debugLog(...args) {
+
+    if (
+        isDebugEnabled()
+    ) {
+
+        console.log(...args);
+
+    }
+
+}
+
+
+function debugWarn(...args) {
+
+    if (
+        isDebugEnabled()
+    ) {
+
+        console.warn(...args);
+
+    }
+
+}
+
+
+function debugError(...args) {
+
+    /*
+     * Error selalu ditampilkan karena menyangkut auth flow.
+     */
+
+    console.error(...args);
+
+}
+
+
+/* =========================================================
+   EMAIL MASK
+   ---------------------------------------------------------
+   Mencegah PII (email) bocor ke console / screenshot.
+   Format: u***@domain.tld
+========================================================= */
+
+function maskEmail(
+    email
+) {
+
+    const value =
+        String(
+            email ||
+            ""
+        ).trim();
+
+
+    if (
+        !value
+    ) {
+
+        return "";
+
+    }
+
+
+    const atIndex =
+        value.indexOf(
+            "@"
+        );
+
+
+    if (
+        atIndex <=
+        0
+    ) {
+
+        return "***";
+
+    }
+
+
+    const localPart =
+        value.slice(
+            0,
+            atIndex
+        );
+
+    const domainPart =
+        value.slice(
+            atIndex
+        );
+
+
+    if (
+        localPart.length <=
+        1
+    ) {
+
+        return "*" + domainPart;
+
+    }
+
+
+    return (
+        localPart[0] +
+        "***" +
+        domainPart
+    );
+
+}
 
 
 /* =========================================================
    INTERNAL STATE
 ========================================================= */
 
-let lastRenderedAuthKey = "";
+let lastRenderedAuthKey =
+    "";
 
-let safetyTimer = null;
+let safetyTimer =
+    null;
 
 
 /* =========================================================
@@ -348,11 +484,18 @@ function renderAuth(profile) {
         authKey;
 
 
-    console.log(
+    /*
+     * Email di-mask untuk mencegah PII bocor
+     * ke console / screenshot.
+     */
+
+    debugLog(
         "[GEN-Z.AI][Generate] AUTH BADGE:",
         {
             email:
-                profile.email,
+                maskEmail(
+                    profile.email
+                ),
 
             role:
                 profile.role,
@@ -390,7 +533,9 @@ function getSupabaseClient() {
 
         if (
             client &&
+
             client.auth &&
+
             typeof client.auth.getSession ===
                 "function"
         ) {
@@ -478,9 +623,11 @@ async function loadProfileDirectly() {
                 message.includes(
                     "status"
                 ) ||
+
                 message.includes(
                     "schema cache"
                 ) ||
+
                 message.includes(
                     "column"
                 )
@@ -507,7 +654,7 @@ async function loadProfileDirectly() {
             result?.error
         ) {
 
-            console.warn(
+            debugWarn(
                 "[GEN-Z.AI][Generate] Profile fallback gagal:",
                 result.error
             );
@@ -523,6 +670,27 @@ async function loadProfileDirectly() {
 
 
         if (!profile) {
+
+            return null;
+
+        }
+
+
+        /* =================================================
+           VERIFIKASI PROFILE MILIK USER
+           -------------------------------------------------
+           Mencegah profile spoofing jika
+           result.data tidak sesuai dengan session user.
+        ================================================= */
+
+        if (
+            String(profile.id || "") !==
+            String(user.id)
+        ) {
+
+            debugWarn(
+                "[GEN-Z.AI][Generate] Profile ID tidak sesuai dengan user session."
+            );
 
             return null;
 
@@ -549,7 +717,7 @@ async function loadProfileDirectly() {
 
     } catch (error) {
 
-        console.warn(
+        debugWarn(
             "[GEN-Z.AI][Generate] Profile fallback exception:",
             error
         );
@@ -590,6 +758,7 @@ async function hydrate() {
      */
     if (
         window.GENZNavigationReady &&
+
         typeof window.GENZNavigationReady.then ===
             "function"
     ) {
@@ -665,9 +834,11 @@ async function hydrate() {
    Tidak melakukan render/log ulang jika profile sama.
 ========================================================= */
 
-function startSafetySync() {
+function stopSafetySync() {
 
-    if (safetyTimer) {
+    if (
+        safetyTimer
+    ) {
 
         clearInterval(
             safetyTimer
@@ -677,6 +848,13 @@ function startSafetySync() {
             null;
 
     }
+
+}
+
+
+function startSafetySync() {
+
+    stopSafetySync();
 
 
     const started =
@@ -706,12 +884,7 @@ function startSafetySync() {
                     MAX_WAIT
                 ) {
 
-                    clearInterval(
-                        safetyTimer
-                    );
-
-                    safetyTimer =
-                        null;
+                    stopSafetySync();
 
                 }
 
@@ -732,7 +905,7 @@ function boot() {
         .catch(
             function (error) {
 
-                console.error(
+                debugError(
                     "[GEN-Z.AI][Generate] Early auth bridge:",
                     error
                 );
@@ -742,6 +915,40 @@ function boot() {
 
 
     startSafetySync();
+
+}
+
+
+/* =========================================================
+   PAGE UNLOAD CLEANUP
+   ---------------------------------------------------------
+   Mencegah safetyTimer terus berjalan di background
+   ketika user navigasi ke halaman lain.
+========================================================= */
+
+if (
+    typeof window !==
+        "undefined"
+) {
+
+    window.addEventListener(
+        "pagehide",
+        stopSafetySync,
+        {
+            once:
+                false
+        }
+    );
+
+
+    window.addEventListener(
+        "beforeunload",
+        stopSafetySync,
+        {
+            once:
+                false
+        }
+    );
 
 }
 
@@ -760,6 +967,7 @@ export {
     loadProfileDirectly,
     hydrate,
     startSafetySync,
+    stopSafetySync,
     boot
 };
 
