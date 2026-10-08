@@ -21,6 +21,13 @@
 
    CREDIT:
      3.5 Credit / PER_VIDEO
+
+   PATCH:
+   - Payload yang dikirim ke Motiongen memakai
+     `config.motiongenModelId` (slug resmi -s3),
+     bukan `config.id` (nama internal).
+   - Safety check disesuaikan agar menerima slug
+     yang benar.
 ========================================================= */
 
 import {
@@ -66,6 +73,32 @@ function buildInput(
 
 
 /* =========================================================
+   RESOLVE MOTIONGEN MODEL SLUG
+   ---------------------------------------------------------
+   Prioritas:
+   1. config.motiongenModelId (slug resmi Motiongen)
+   2. config.id (fallback)
+========================================================= */
+
+function resolveMotiongenModelId() {
+
+    const slug =
+        String(
+            config.motiongenModelId ||
+            config.id ||
+            ""
+        ).trim();
+
+
+    return (
+        slug ||
+        "digital-human-lipsync-image-s3"
+    );
+
+}
+
+
+/* =========================================================
    BUILD MOTIONGEN PAYLOAD
 ========================================================= */
 
@@ -81,7 +114,7 @@ function buildMotiongenPayload(
 
     return buildPayload(
         input,
-        config.id
+        resolveMotiongenModelId()
     );
 
 }
@@ -226,12 +259,6 @@ async function createTask(
      * -----------------------------------------------------
      * HARD REQUIRED VALIDATION
      * -----------------------------------------------------
-     *
-     * Jangan pernah membiarkan request tanpa:
-     *
-     * - prompt
-     * - 1 image
-     * - audio
      */
 
     const requiredErrors =
@@ -289,12 +316,19 @@ async function createTask(
      * -----------------------------------------------------
      * FINAL PAYLOAD SAFETY CHECK
      * -----------------------------------------------------
+     * Model yang dikirim ke Motiongen harus sama
+     * dengan config.motiongenModelId (atau config.id
+     * sebagai fallback).
      */
+
+    const expectedModelId =
+        resolveMotiongenModelId();
+
 
     if (
         !payload ||
         payload.model !==
-            config.id
+            expectedModelId
     ) {
 
         const error =
@@ -313,6 +347,14 @@ async function createTask(
 
         error.model =
             config.id;
+
+
+        error.expected =
+            expectedModelId;
+
+
+        error.actual =
+            payload?.model;
 
 
         throw error;
@@ -384,14 +426,6 @@ async function createTask(
      * -----------------------------------------------------
      * SUBMIT TO MOTIONGEN
      * -----------------------------------------------------
-     *
-     * apiKey diberikan dari server.
-     *
-     * Tidak ada:
-     *
-     * - KIE client
-     * - KIE API key
-     * - fallback provider
      */
 
     const response =
@@ -472,6 +506,9 @@ async function createTask(
 
         model:
             config.id,
+
+        motiongen_model:
+            expectedModelId,
 
         taskId:
             jobId,
