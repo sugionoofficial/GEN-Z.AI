@@ -624,5 +624,30 @@
         src="./assets/js/generate-app.js"
     ></script>
 
+    <script>
+setInterval(function () {
+    const el = document.getElementById("generateCreditValue");
+    const dbg = document.getElementById("creditDebug");
+    if (!el) return;
+    if (!dbg) {
+        const d = document.createElement("div");
+        d.id = "creditDebug";
+        d.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:#000;color:#0f0;font-family:monospace;font-size:11px;padding:8px;z-index:99999;max-height:30vh;overflow:auto;white-space:pre-wrap;";
+        document.body.appendChild(d);
+    }
+    const model = window.GENZGenerateApp?.getCurrentModel?.();
+    const raw = model ? {
+        id: model.model_id || model.id,
+        credit_576p: model.credit_576p,
+        credit_720p: model.credit_720p,
+        credit_480p: model.credit_480p,
+        discount_percent: model.discount_percent
+    } : "MODEL NULL";
+    document.getElementById("creditDebug").textContent =
+        "CREDIT TEXT: " + el.textContent +
+        "\nMODEL: " + JSON.stringify(raw, null, 2);
+}, 1500);
+</script>
+
 </body>
 </html>
