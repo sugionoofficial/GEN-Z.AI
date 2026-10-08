@@ -62,6 +62,13 @@
    - getProfileSelectColumns di-hoist jadi konstanta
    - Tambah helper getUserId() / getUserEmail()
    - Tidak mengubah API / signature / alur
+
+   PATCH (FIX DEADLOCK):
+   - Tambah opsi auth.lock untuk bypass Web Locks API
+   - Menghindari hang pada getSession() / signOut() /
+     refreshSession() / storage.upload() akibat lock
+     yang tidak pernah di-release.
+   - Lihat komentar di createSupabaseClient() untuk detail.
 ========================================================= */
 
 import {
@@ -412,6 +419,35 @@ function loadSupabaseScript() {
 
 /* =========================================================
    CREATE SUPABASE CLIENT
+   ---------------------------------------------------------
+   FIX DEADLOCK:
+   Supabase JS v2 memakai Web Locks API
+   (navigator.locks.request) untuk sinkronisasi auth
+   antar-tab. Di beberapa kondisi (tab crash, service
+   worker aktif, ekstensi browser, refresh token macet),
+   lock tidak pernah di-release sehingga SEMUA operasi
+   auth hang tanpa error:
+     - getSession()
+     - signOut()
+     - refreshSession()
+     - storage.upload()  (butuh access_token)
+     - storage.from().upload()  (implisit)
+
+   Gejala:
+     - await supabase.auth.getSession() tidak pernah settle
+     - upload file menggantung tanpa request HTTP keluar
+     - navigator.locks.query() menunjukkan HELD lock
+       bernama "lock:sb-<project-ref>-auth-token"
+
+   Solusi:
+     Ganti implementasi lock dengan no-op yang langsung
+     menjalankan callback. Trade-off: hilang proteksi
+     race antar-tab, tapi race hanya terjadi kalau >1 tab
+     refresh token bersamaan — sangat jarang.
+
+   Referensi:
+     - https://github.com/supabase/supabase-js/issues/1023
+     - https://github.com/supabase/supabase-js/issues/973
 ========================================================= */
 
 function createSupabaseClient() {
@@ -448,7 +484,18 @@ function createSupabaseClient() {
                     true,
 
                 detectSessionInUrl:
-                    true
+                    true,
+
+                lock:
+                    async (
+                        _name,
+                        _acquireTimeout,
+                        fn
+                    ) => {
+
+                        return await fn();
+
+                    }
             }
         }
     );
