@@ -14,9 +14,39 @@
    - Delegasi validation
    - Delegasi upload
    - Menjaga compatibility dengan generate-form.js lama
+
+   Patch UX:
+   - Error upload tampil di UI (bukan hanya Console)
+   - Indikator state upload (uploading / done / failed)
+   - Race condition token untuk multi upload
+   - aria-pressed pada tombol mode
+   - role="status" aria-live untuk status upload
+   - Clear dataset.uploadError saat sukses
 ========================================================= */
 
 "use strict";
+
+
+/* =========================================================
+   DEBUG FLAG
+========================================================= */
+
+function isDebugEnabled() {
+
+    return window.GENZ_DEBUG === true;
+
+}
+
+
+function debugLog(...args) {
+
+    if (isDebugEnabled()) {
+
+        console.debug(...args);
+
+    }
+
+}
 
 
 /* =========================================================
@@ -28,6 +58,216 @@ let audioUploadHandler = null;
 
 let imageValidator = null;
 let audioValidator = null;
+
+
+/* =========================================================
+   UI FEEDBACK HELPERS
+   ---------------------------------------------------------
+   Semua elemen tambahan pakai class unik:
+     - .generate-media-status
+     - .generate-media-error
+
+   Class ini TIDAK dipakai oleh CSS lama, jadi aman.
+========================================================= */
+
+function setUploadState(
+    wrapper,
+    state,
+    message = ""
+) {
+
+    const normalized =
+        String(
+            state ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        normalized
+    ) {
+
+        wrapper.dataset.uploadState =
+            normalized;
+
+    } else {
+
+        delete wrapper.dataset.uploadState;
+
+    }
+
+
+    let statusEl =
+        wrapper.querySelector(
+            ".generate-media-status"
+        );
+
+
+    if (
+        !statusEl
+    ) {
+
+        statusEl =
+            document.createElement(
+                "div"
+            );
+
+
+        statusEl.className =
+            "generate-media-status";
+
+
+        statusEl.setAttribute(
+            "role",
+            "status"
+        );
+
+        statusEl.setAttribute(
+            "aria-live",
+            "polite"
+        );
+
+
+        statusEl.style.cssText =
+            "font-size:12px;margin-top:6px;line-height:1.4;";
+
+
+        wrapper.appendChild(
+            statusEl
+        );
+
+    }
+
+
+    if (
+        normalized ===
+        "uploading"
+    ) {
+
+        statusEl.textContent =
+            message ||
+            "Mengunggah...";
+
+        statusEl.style.color =
+            "#8ab4ff";
+
+    }
+
+    else if (
+        normalized ===
+        "done"
+    ) {
+
+        statusEl.textContent =
+            message ||
+            "✓ Berhasil diunggah";
+
+        statusEl.style.color =
+            "#6fdd8b";
+
+    }
+
+    else if (
+        normalized ===
+        "failed"
+    ) {
+
+        statusEl.textContent =
+            message ||
+            "✗ Gagal diunggah";
+
+        statusEl.style.color =
+            "#ff7a7a";
+
+    }
+
+    else {
+
+        statusEl.textContent =
+            "";
+
+    }
+
+}
+
+
+function showUploadError(
+    wrapper,
+    message
+) {
+
+    let errEl =
+        wrapper.querySelector(
+            ".generate-media-error"
+        );
+
+
+    if (
+        !errEl
+    ) {
+
+        errEl =
+            document.createElement(
+                "div"
+            );
+
+
+        errEl.className =
+            "generate-media-error";
+
+
+        errEl.setAttribute(
+            "role",
+            "alert"
+        );
+
+
+        errEl.style.cssText =
+            "color:#ff7a7a;font-size:13px;margin-top:6px;" +
+            "padding:6px 10px;background:rgba(255,60,60,.08);" +
+            "border-left:3px solid #ff7a7a;border-radius:4px;";
+
+
+        wrapper.appendChild(
+            errEl
+        );
+
+    }
+
+
+    errEl.textContent =
+        String(
+            message ||
+            "Upload gagal."
+        );
+
+}
+
+
+function clearUploadError(
+    wrapper
+) {
+
+    const errEl =
+        wrapper.querySelector(
+            ".generate-media-error"
+        );
+
+
+    if (
+        errEl
+    ) {
+
+        errEl.remove();
+
+    }
+
+
+    delete wrapper.dataset.uploadError;
+
+}
 
 
 /* =========================================================
@@ -251,6 +491,98 @@ async function uploadAudio(
 
 
 /* =========================================================
+   EXTRACT UPLOAD URL
+   ---------------------------------------------------------
+   Uploader bisa mengembalikan string ATAU object.
+   Helper ini menangani keduanya.
+========================================================= */
+
+function extractUploadUrl(
+    result
+) {
+
+    if (
+        !result
+    ) {
+
+        return "";
+
+    }
+
+
+    if (
+        typeof result ===
+        "string"
+    ) {
+
+        return String(
+            result
+        ).trim();
+
+    }
+
+
+    if (
+        typeof result ===
+        "object"
+    ) {
+
+        if (
+            typeof result.url ===
+            "string"
+        ) {
+
+            return String(
+                result.url
+            ).trim();
+
+        }
+
+
+        if (
+            typeof result.publicUrl ===
+            "string"
+        ) {
+
+            return String(
+                result.publicUrl
+            ).trim();
+
+        }
+
+
+        if (
+            typeof result.public_url ===
+            "string"
+        ) {
+
+            return String(
+                result.public_url
+            ).trim();
+
+        }
+
+
+        if (
+            typeof result.href ===
+            "string"
+        ) {
+
+            return String(
+                result.href
+            ).trim();
+
+        }
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
    IMAGE PREVIEW
 ========================================================= */
 
@@ -465,6 +797,14 @@ export function createImageField(
 
 
     /* =====================================================
+       RACE CONDITION TOKEN
+    ===================================================== */
+
+    let uploadToken =
+        0;
+
+
+    /* =====================================================
        MODE SELECTOR
     ===================================================== */
 
@@ -506,6 +846,11 @@ export function createImageField(
     urlButton.style.cursor =
         "pointer";
 
+    urlButton.setAttribute(
+        "aria-pressed",
+        "true"
+    );
+
 
     const uploadButton =
         document.createElement(
@@ -524,6 +869,11 @@ export function createImageField(
 
     uploadButton.style.cursor =
         "pointer";
+
+    uploadButton.setAttribute(
+        "aria-pressed",
+        "false"
+    );
 
 
     modeSelector.appendChild(
@@ -728,6 +1078,17 @@ export function createImageField(
             );
 
 
+            urlButton.setAttribute(
+                "aria-pressed",
+                "false"
+            );
+
+            uploadButton.setAttribute(
+                "aria-pressed",
+                "true"
+            );
+
+
             if (
                 fileInput.files &&
                 fileInput.files.length
@@ -759,6 +1120,17 @@ export function createImageField(
 
             urlButton.classList.add(
                 "active"
+            );
+
+
+            urlButton.setAttribute(
+                "aria-pressed",
+                "true"
+            );
+
+            uploadButton.setAttribute(
+                "aria-pressed",
+                "false"
             );
 
         }
@@ -820,6 +1192,19 @@ export function createImageField(
                 );
 
 
+            /* =============================================
+               CLEAR OLD STATE
+            ============================================= */
+
+            clearUploadError(
+                wrapper
+            );
+
+
+            /* =============================================
+               EMPTY SELECTION
+            ============================================= */
+
             if (
                 !files.length
             ) {
@@ -829,6 +1214,11 @@ export function createImageField(
 
                 wrapper._imageUploadPromise =
                     null;
+
+                setUploadState(
+                    wrapper,
+                    ""
+                );
 
                 renderImagePreview(
                     preview,
@@ -890,6 +1280,21 @@ export function createImageField(
                     );
 
 
+                /* =========================================
+                   RACE TOKEN
+                ========================================= */
+
+                const myToken =
+                    ++uploadToken;
+
+
+                setUploadState(
+                    wrapper,
+                    "uploading",
+                    "Mengunggah gambar..."
+                );
+
+
                 wrapper._imageUploadPromise =
                     (async () => {
 
@@ -909,10 +1314,9 @@ export function createImageField(
 
 
                             const uploadedUrl =
-                                String(
-                                    uploaded?.url ||
-                                    ""
-                                ).trim();
+                                extractUploadUrl(
+                                    uploaded
+                                );
 
 
                             if (
@@ -924,6 +1328,28 @@ export function createImageField(
                                 );
 
                             }
+
+                        }
+
+
+                        /* =================================
+                           STALE CHECK
+                           -------------------------------------------------
+                           Kalau ada upload baru dimulai
+                           setelah ini, jangan timpa dataset.
+                        ================================= */
+
+                        if (
+                            myToken !==
+                            uploadToken
+                        ) {
+
+                            debugLog(
+                                "[GEN-Z.AI][Generate Form] Upload image stale diabaikan (race condition)."
+                            );
+
+
+                            return uploadedUrls;
 
                         }
 
@@ -949,7 +1375,7 @@ export function createImageField(
                             );
 
 
-                        console.debug(
+                        debugLog(
                             "[GEN-Z.AI][Generate Form] Image upload ready:",
                             uploadedUrls
                         );
@@ -961,6 +1387,20 @@ export function createImageField(
 
 
                 await wrapper._imageUploadPromise;
+
+
+                if (
+                    myToken ===
+                    uploadToken
+                ) {
+
+                    setUploadState(
+                        wrapper,
+                        "done",
+                        "✓ Gambar berhasil diunggah"
+                    );
+
+                }
 
             } catch (
                 error
@@ -992,11 +1432,28 @@ export function createImageField(
                 );
 
 
-                wrapper.dataset.uploadError =
+                const errorMessage =
                     String(
                         error?.message ||
                         "Gagal mengupload gambar."
                     );
+
+
+                wrapper.dataset.uploadError =
+                    errorMessage;
+
+
+                showUploadError(
+                    wrapper,
+                    errorMessage
+                );
+
+
+                setUploadState(
+                    wrapper,
+                    "failed",
+                    "✗ Gagal mengunggah gambar"
+                );
 
             } finally {
 
@@ -1143,9 +1600,26 @@ export function createImageField(
             delete wrapper.dataset.uploadedUrl;
             delete wrapper.dataset.uploadedUrls;
 
+            delete wrapper.dataset.uploadState;
+
+
+            clearUploadError(
+                wrapper
+            );
+
+            setUploadState(
+                wrapper,
+                ""
+            );
+
 
             wrapper._imageUploadPromise =
                 null;
+
+
+            /* Invalidate stale uploads */
+            uploadToken +=
+                1;
 
 
             setMode(
@@ -1227,6 +1701,14 @@ export function createAudioField(
 
 
     /* =====================================================
+       RACE CONDITION TOKEN
+    ===================================================== */
+
+    let uploadToken =
+        0;
+
+
+    /* =====================================================
        MODE SELECTOR
     ===================================================== */
 
@@ -1268,6 +1750,11 @@ export function createAudioField(
     urlButton.style.cursor =
         "pointer";
 
+    urlButton.setAttribute(
+        "aria-pressed",
+        "true"
+    );
+
 
     const uploadButton =
         document.createElement(
@@ -1286,6 +1773,11 @@ export function createAudioField(
 
     uploadButton.style.cursor =
         "pointer";
+
+    uploadButton.setAttribute(
+        "aria-pressed",
+        "false"
+    );
 
 
     modeSelector.appendChild(
@@ -1572,6 +2064,17 @@ export function createAudioField(
             );
 
 
+            urlButton.setAttribute(
+                "aria-pressed",
+                "false"
+            );
+
+            uploadButton.setAttribute(
+                "aria-pressed",
+                "true"
+            );
+
+
             if (
                 fileInput.files &&
                 fileInput.files.length
@@ -1601,6 +2104,17 @@ export function createAudioField(
 
             urlButton.classList.add(
                 "active"
+            );
+
+
+            urlButton.setAttribute(
+                "aria-pressed",
+                "true"
+            );
+
+            uploadButton.setAttribute(
+                "aria-pressed",
+                "false"
             );
 
         }
@@ -1662,6 +2176,19 @@ export function createAudioField(
                 );
 
 
+            /* =============================================
+               CLEAR OLD STATE
+            ============================================= */
+
+            clearUploadError(
+                wrapper
+            );
+
+
+            /* =============================================
+               EMPTY SELECTION
+            ============================================= */
+
             if (
                 !files.length
             ) {
@@ -1670,6 +2197,11 @@ export function createAudioField(
 
                 wrapper._audioUploadPromise =
                     null;
+
+                setUploadState(
+                    wrapper,
+                    ""
+                );
 
                 clearPreview();
 
@@ -1697,6 +2229,21 @@ export function createAudioField(
                 delete wrapper.dataset.uploadedUrl;
 
 
+                /* =========================================
+                   RACE TOKEN
+                ========================================= */
+
+                const myToken =
+                    ++uploadToken;
+
+
+                setUploadState(
+                    wrapper,
+                    "uploading",
+                    "Mengunggah audio..."
+                );
+
+
                 wrapper._audioUploadPromise =
                     (async () => {
 
@@ -1707,10 +2254,24 @@ export function createAudioField(
 
 
                         const uploadedUrl =
-                            String(
-                                uploaded?.url ||
-                                ""
-                            ).trim();
+                            extractUploadUrl(
+                                uploaded
+                            );
+
+
+                        if (
+                            myToken !==
+                            uploadToken
+                        ) {
+
+                            debugLog(
+                                "[GEN-Z.AI][Generate Form] Upload audio stale diabaikan (race condition)."
+                            );
+
+
+                            return uploadedUrl;
+
+                        }
 
 
                         if (
@@ -1728,7 +2289,7 @@ export function createAudioField(
                             uploadedUrl;
 
 
-                        console.debug(
+                        debugLog(
                             "[GEN-Z.AI][Generate Form] Audio upload ready:",
                             uploadedUrl
                         );
@@ -1740,6 +2301,20 @@ export function createAudioField(
 
 
                 await wrapper._audioUploadPromise;
+
+
+                if (
+                    myToken ===
+                    uploadToken
+                ) {
+
+                    setUploadState(
+                        wrapper,
+                        "done",
+                        "✓ Audio berhasil diunggah"
+                    );
+
+                }
 
             } catch (
                 error
@@ -1767,11 +2342,28 @@ export function createAudioField(
                 clearPreview();
 
 
-                wrapper.dataset.uploadError =
+                const errorMessage =
                     String(
                         error?.message ||
                         "Gagal mengupload audio."
                     );
+
+
+                wrapper.dataset.uploadError =
+                    errorMessage;
+
+
+                showUploadError(
+                    wrapper,
+                    errorMessage
+                );
+
+
+                setUploadState(
+                    wrapper,
+                    "failed",
+                    "✗ Gagal mengunggah audio"
+                );
 
             } finally {
 
@@ -1866,10 +2458,26 @@ export function createAudioField(
 
 
             delete wrapper.dataset.uploadedUrl;
+            delete wrapper.dataset.uploadState;
+
+
+            clearUploadError(
+                wrapper
+            );
+
+            setUploadState(
+                wrapper,
+                ""
+            );
 
 
             wrapper._audioUploadPromise =
                 null;
+
+
+            /* Invalidate stale uploads */
+            uploadToken +=
+                1;
 
 
             setMode(
