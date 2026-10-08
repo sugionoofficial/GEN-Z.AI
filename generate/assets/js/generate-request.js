@@ -23,6 +23,14 @@
    - Credit calculation
    - Model configuration
    - Pengumpulan parameter form
+
+   Patch:
+   - Timeout fetch via AbortController (60 detik)
+   - Sanitize diagnostic lebih lengkap (string pattern + length limit)
+   - Safe handling untuk non-plain object
+   - Sanitasi access token
+   - credentials: same-origin
+   - Limit key count saat sanitize
  ========================================================= */
 
 import {
@@ -44,6 +52,30 @@ import {
 
 const GENERATE_ENDPOINT =
     "/api/generate";
+
+
+/* Timeout fetch dalam milidetik (60 detik). */
+
+const REQUEST_TIMEOUT_MS =
+    60 * 1000;
+
+
+/* Batas panjang string yang boleh diteruskan ke UI. */
+
+const MAX_DIAGNOSTIC_STRING_LENGTH =
+    2000;
+
+
+/* Batas jumlah key per object yang diproses sanitize. */
+
+const MAX_DIAGNOSTIC_KEYS =
+    100;
+
+
+/* Batas kedalaman rekursi sanitize. */
+
+const MAX_DIAGNOSTIC_DEPTH =
+    6;
 
 
 /* =========================================================
@@ -101,6 +133,187 @@ export class GenerateRequestError extends Error {
             options.taskId ??
             null;
     }
+}
+
+
+/* =========================================================
+   AUTH HEADER SANITIZE
+   ---------------------------------------------------------
+   Supabase token selalu base64url, tetapi kita tetap
+   membersihkan karakter kontrol untuk mencegah
+   header injection yang tidak disengaja.
+ ========================================================= */
+
+function sanitizeAccessToken(
+    token
+) {
+
+    if (
+        token ===
+            null ||
+        token ===
+            undefined
+    ) {
+
+        return "";
+
+    }
+
+
+    return String(
+        token
+    )
+        .replace(
+            /[\r\n\t]/g,
+            ""
+        )
+        .trim();
+
+}
+
+
+/* =========================================================
+   FETCH WITH TIMEOUT
+   ---------------------------------------------------------
+   Membungkus fetch() dengan AbortController supaya
+   request tidak menggantung tanpa batas.
+
+   Error yang di-throw tetap Error biasa sehingga
+   ditangani oleh catch NETWORK_ERROR di pemanggil.
+ ========================================================= */
+
+async function fetchWithTimeout(
+    url,
+    options = {},
+    timeoutMs =
+        REQUEST_TIMEOUT_MS
+) {
+
+    const controller =
+        new AbortController();
+
+
+    const externalSignal =
+        options.signal;
+
+
+    const timer =
+        setTimeout(
+            () => {
+
+                try {
+
+                    controller.abort(
+                        new Error(
+                            `Request timeout setelah ${timeoutMs}ms.`
+                        )
+                    );
+
+                } catch {
+                    /* ignore */
+                }
+
+            },
+            timeoutMs
+        );
+
+
+    /* =====================================================
+       EXTERNAL SIGNAL FORWARDING
+       -----------------------------------------------------
+       Jika caller memberikan signal sendiri, forward
+       abort-nya ke controller internal.
+    ===================================================== */
+
+    let onExternalAbort =
+        null;
+
+
+    if (
+        externalSignal &&
+        typeof externalSignal.addEventListener ===
+            "function"
+    ) {
+
+        onExternalAbort =
+            () => {
+
+                try {
+
+                    controller.abort(
+                        externalSignal.reason
+                    );
+
+                } catch {
+                    /* ignore */
+                }
+
+            };
+
+
+        if (
+            externalSignal.aborted
+        ) {
+
+            onExternalAbort();
+
+        } else {
+
+            externalSignal.addEventListener(
+                "abort",
+                onExternalAbort,
+                {
+                    once:
+                        true
+                }
+            );
+
+        }
+
+    }
+
+
+    try {
+
+        return await fetch(
+            url,
+            {
+                ...options,
+
+                signal:
+                    controller.signal
+            }
+        );
+
+    } finally {
+
+        clearTimeout(
+            timer
+        );
+
+
+        if (
+            externalSignal &&
+            onExternalAbort &&
+            typeof externalSignal.removeEventListener ===
+                "function"
+        ) {
+
+            try {
+
+                externalSignal.removeEventListener(
+                    "abort",
+                    onExternalAbort
+                );
+
+            } catch {
+                /* ignore */
+            }
+
+        }
+
+    }
+
 }
 
 
@@ -570,93 +783,24 @@ function extractTaskId(
    ---------------------------------------------------------
    Backend seharusnya sudah melakukan sanitasi.
    Fungsi ini tetap mencegah credential masuk ke UI.
+
+   Patch:
+   - Daftar sensitive keys diperluas
+   - Deteksi string pattern (mg_live_, sk_live_, dll.)
+   - Batas panjang string
+   - Batas jumlah key per object
+   - Handling untuk non-plain object
  ========================================================= */
 
-function sanitizeDiagnostic(
-    value,
-    depth = 0
-) {
+/* ---------------------------------------------------------
+   SENSITIVE KEY NAMES
+--------------------------------------------------------- */
 
-    if (
-        depth >
-        6
-    ) {
+const SENSITIVE_KEYS =
+    new Set([
 
-        return "[truncated]";
-    }
+        /* Existing */
 
-
-    if (
-        value ===
-            null ||
-        value ===
-            undefined
-    ) {
-
-        return value;
-    }
-
-
-    if (
-        typeof value ===
-            "string"
-    ) {
-
-        const lower =
-            value.toLowerCase();
-
-        /*
-         * Jangan pernah meneruskan credential
-         * yang secara tidak sengaja dikirim backend.
-         */
-        if (
-            lower.includes(
-                "bearer "
-            ) &&
-            value.length >
-                80
-        ) {
-
-            return "[redacted]";
-        }
-
-        return value;
-    }
-
-
-    if (
-        typeof value !==
-            "object"
-    ) {
-
-        return value;
-    }
-
-
-    if (
-        Array.isArray(
-            value
-        )
-    ) {
-
-        return value
-            .slice(
-                0,
-                50
-            )
-            .map(
-                item =>
-                    sanitizeDiagnostic(
-                        item,
-                        depth + 1
-                    )
-            );
-    }
-
-
-    const result = {};
-
-    const sensitiveKeys = new Set([
         "api_key",
         "apikey",
         "apiKey",
@@ -669,22 +813,387 @@ function sanitizeDiagnostic(
         "ciphertext",
         "api_key_ciphertext",
         "api_key_iv",
-        "api_key_tag"
+        "api_key_tag",
+
+        /* Additional common sensitive keys */
+
+        "refresh_token",
+        "refreshToken",
+        "id_token",
+        "idToken",
+        "session",
+        "session_token",
+        "sessionToken",
+        "jwt",
+        "bearer",
+        "auth",
+        "auth_token",
+        "authToken",
+        "private_key",
+        "privateKey",
+        "secret_key",
+        "secretKey",
+        "client_secret",
+        "clientSecret",
+        "signing_key",
+        "signingKey",
+        "encryption_key",
+        "encryptionKey"
+
     ]);
 
 
+/* ---------------------------------------------------------
+   SENSITIVE STRING PATTERNS
+--------------------------------------------------------- */
+
+const SENSITIVE_STRING_PATTERNS = [
+
+    /* Bearer token */
+
+    /^bearer\s+[a-z0-9\-_\.=]+/i,
+
+    /* KIE-style live API keys */
+
+    /\bmg_live_[a-z0-9]{8,}\b/i,
+
+    /* Stripe-style */
+
+    /\b(sk|pk|rk)_live_[a-z0-9]{8,}\b/i,
+
+    /\b(sk|pk|rk)_test_[a-z0-9]{8,}\b/i,
+
+    /* SendGrid */
+
+    /\bsg\.[a-z0-9\-_]{16,}\.[a-z0-9\-_]{16,}\b/i,
+
+    /* Slack */
+
+    /\bxox[abposr]-[a-z0-9\-]{10,}\b/i,
+
+    /* AWS */
+
+    /\bAKIA[0-9A-Z]{16}\b/,
+
+    /* GitHub */
+
+    /\bgh[pousr]_[a-zA-Z0-9]{36,}\b/,
+
+    /* JWT */
+
+    /\beyJ[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+\b/
+
+];
+
+
+/* ---------------------------------------------------------
+   IS SENSITIVE STRING
+--------------------------------------------------------- */
+
+function isSensitiveString(
+    value
+) {
+
+    if (
+        typeof value !==
+            "string"
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        !value
+    ) {
+
+        return false;
+
+    }
+
+
     for (
-        const [
-            key,
-            item
-        ]
-        of Object.entries(
+        const pattern
+        of SENSITIVE_STRING_PATTERNS
+    ) {
+
+        if (
+            pattern.test(
+                value
+            )
+        ) {
+
+            return true;
+
+        }
+
+    }
+
+
+    return false;
+
+}
+
+
+/* ---------------------------------------------------------
+   IS PLAIN OBJECT
+--------------------------------------------------------- */
+
+function isPlainObject(
+    value
+) {
+
+    if (
+        value ===
+            null ||
+        typeof value !==
+            "object"
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        Array.isArray(
             value
         )
     ) {
 
+        return false;
+
+    }
+
+
+    return Object.prototype.toString.call(
+        value
+    ) ===
+        "[object Object]";
+
+}
+
+
+/* ---------------------------------------------------------
+   SANITIZE DIAGNOSTIC
+--------------------------------------------------------- */
+
+function sanitizeDiagnostic(
+    value,
+    depth = 0
+) {
+
+    if (
+        depth >
+        MAX_DIAGNOSTIC_DEPTH
+    ) {
+
+        return "[truncated]";
+
+    }
+
+
+    if (
+        value ===
+            null ||
+        value ===
+            undefined
+    ) {
+
+        return value;
+
+    }
+
+
+    /* -----------------------------------------------------
+       STRING
+    ----------------------------------------------------- */
+
+    if (
+        typeof value ===
+            "string"
+    ) {
+
+        /* Sensitive string pattern */
+
         if (
-            sensitiveKeys.has(
+            isSensitiveString(
+                value
+            )
+        ) {
+
+            return "[redacted]";
+
+        }
+
+
+        /* Length limit */
+
+        if (
+            value.length >
+            MAX_DIAGNOSTIC_STRING_LENGTH
+        ) {
+
+            return (
+                value.slice(
+                    0,
+                    MAX_DIAGNOSTIC_STRING_LENGTH
+                ) +
+                "…[truncated]"
+            );
+
+        }
+
+
+        return value;
+
+    }
+
+
+    /* -----------------------------------------------------
+       PRIMITIVE (number, boolean, bigint, symbol)
+    ----------------------------------------------------- */
+
+    if (
+        typeof value !==
+            "object"
+    ) {
+
+        return value;
+
+    }
+
+
+    /* -----------------------------------------------------
+       ARRAY
+    ----------------------------------------------------- */
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return value
+
+            .slice(
+                0,
+                50
+            )
+
+            .map(
+                item =>
+                    sanitizeDiagnostic(
+                        item,
+                        depth + 1
+                    )
+            );
+
+    }
+
+
+    /* -----------------------------------------------------
+       NON-PLAIN OBJECT
+       -----------------------------------------------------
+       Date, Map, Set, Error, Blob, File, dll. — jangan
+       iterasi keys-nya, ubah menjadi representasi aman.
+    ----------------------------------------------------- */
+
+    if (
+        !isPlainObject(
+            value
+        )
+    ) {
+
+        try {
+
+            if (
+                value instanceof
+                Date
+            ) {
+
+                return value.toISOString();
+
+            }
+
+
+            if (
+                value instanceof
+                Error
+            ) {
+
+                return {
+                    name:
+                        value.name,
+
+                    message:
+                        sanitizeDiagnostic(
+                            value.message,
+                            depth + 1
+                        )
+                };
+
+            }
+
+
+            const tag =
+                Object.prototype.toString.call(
+                    value
+                );
+
+
+            return tag;
+
+        } catch {
+
+            return "[non-plain-object]";
+
+        }
+
+    }
+
+
+    /* -----------------------------------------------------
+       PLAIN OBJECT
+    ----------------------------------------------------- */
+
+    const result =
+        {};
+
+
+    const entries =
+        Object.entries(
+            value
+        );
+
+
+    const limit =
+        Math.min(
+            entries.length,
+            MAX_DIAGNOSTIC_KEYS
+        );
+
+
+    for (
+        let index = 0;
+        index < limit;
+        index += 1
+    ) {
+
+        const [
+            key,
+            item
+        ] =
+            entries[index];
+
+
+        /* -------------------------------------------------
+           SENSITIVE KEY
+        ------------------------------------------------- */
+
+        if (
+            SENSITIVE_KEYS.has(
                 key
             )
         ) {
@@ -693,18 +1202,37 @@ function sanitizeDiagnostic(
                 "[redacted]";
 
             continue;
+
         }
 
+
+        /* -------------------------------------------------
+           RECURSE
+        ------------------------------------------------- */
 
         result[key] =
             sanitizeDiagnostic(
                 item,
                 depth + 1
             );
+
+    }
+
+
+    if (
+        entries.length >
+        MAX_DIAGNOSTIC_KEYS
+    ) {
+
+        result.__truncatedKeys__ =
+            entries.length -
+            MAX_DIAGNOSTIC_KEYS;
+
     }
 
 
     return result;
+
 }
 
 
@@ -772,6 +1300,7 @@ export function buildGeneratePayload(
                 : {}
 
     };
+
 }
 
 
@@ -939,8 +1468,14 @@ export async function generateVideo(
        3. Ambil Supabase access token
     ----------------------------------------------------- */
 
-    const accessToken =
+    const rawAccessToken =
         await getAccessToken();
+
+
+    const accessToken =
+        sanitizeAccessToken(
+            rawAccessToken
+        );
 
 
     if (!accessToken) {
@@ -972,13 +1507,13 @@ export async function generateVideo(
 
 
     /* -----------------------------------------------------
-       5. POST ke backend GEN-Z.AI
+       5. POST ke backend GEN-Z.AI (dengan timeout)
     ----------------------------------------------------- */
 
     try {
 
         response =
-            await fetch(
+            await fetchWithTimeout(
                 GENERATE_ENDPOINT,
                 {
                     method:
@@ -997,20 +1532,49 @@ export async function generateVideo(
                     body:
                         JSON.stringify(
                             payload
-                        )
-                }
+                        ),
+
+                    credentials:
+                        "same-origin"
+
+                },
+                REQUEST_TIMEOUT_MS
             );
 
     } catch (
         error
     ) {
 
+        const isAbort =
+            error?.name ===
+                "AbortError" ||
+            /abort/i.test(
+                String(
+                    error?.message ||
+                    ""
+                )
+            );
+
+
+        const code =
+            isAbort
+                ? "REQUEST_TIMEOUT"
+                : "NETWORK_ERROR";
+
+
+        const message =
+            isAbort
+                ? `Request ke server generate timeout setelah ${REQUEST_TIMEOUT_MS}ms.`
+                : (
+                    error?.message ||
+                    "Tidak dapat terhubung ke server generate."
+                );
+
+
         throw new GenerateRequestError(
-            error?.message ||
-            "Tidak dapat terhubung ke server generate.",
+            message,
             {
-                code:
-                    "NETWORK_ERROR",
+                code,
 
                 details:
                     {
@@ -1026,6 +1590,7 @@ export async function generateVideo(
                     }
             }
         );
+
     }
 
 
@@ -1287,6 +1852,7 @@ export async function requestGenerate(
     return generateVideo(
         parameters
     );
+
 }
 
 
