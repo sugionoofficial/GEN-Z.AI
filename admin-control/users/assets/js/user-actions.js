@@ -1,4 +1,4 @@
-//admin-control/users/assets/js/user-actions.js?v=1.1
+//admin-control/users/assets/js/user-actions.js?v=1.2
 /* =========================================================
    GEN-Z.AI
    USER MANAGEMENT ACTIONS
