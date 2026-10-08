@@ -2097,16 +2097,14 @@ function normalizeProviderResult(
 
 
     const explicitCompleted =
-        findDeepValue(
-            raw,
-            [
-                "completed",
-                "is_completed",
-                "isCompleted",
-                "success",
-                "succeeded"
-            ]
-        );
+    findDeepValue(
+        raw,
+        [
+            "completed",
+            "is_completed",
+            "isCompleted"
+        ]
+    );
 
 
     const explicitFailed =
