@@ -69,6 +69,15 @@
    - Polling TIDAK boleh berhenti sebelum terminal task
      sudah direkonsiliasi oleh backend
    - cancelled berbeda dari failed
+
+   PATCH:
+   - Timeout fetch per request (AbortController, 30 detik)
+   - Cache access token (30 detik TTL)
+   - Retry + exponential backoff untuk network error
+   - Forward signal ke fetch
+   - Abortable sleep
+   - Gate debug log via window.GENZ_DEBUG
+   - Batas maksimum history reconciliation
 ========================================================= */
 
 
@@ -94,6 +103,45 @@ const DEFAULT_TIMEOUT =
 
 
 /*
+ * Timeout per request fetch ke /api/generate-status.
+ *
+ * Berbeda dari timeout polling total. Ini untuk
+ * mencegah 1 request hang menghentikan seluruh polling.
+ */
+
+const STATUS_REQUEST_TIMEOUT_MS =
+    30 * 1000;
+
+
+/*
+ * Konfigurasi retry untuk network error.
+ *
+ * Retry HANYA untuk network error / timeout, bukan
+ * untuk HTTP error (4xx/5xx) yang merupakan respons
+ * valid dari backend.
+ */
+
+const MAX_NETWORK_RETRIES =
+    3;
+
+
+const RETRY_BASE_DELAY_MS =
+    1000;
+
+
+/*
+ * Batas maksimum history reconciliation berturut-turut.
+ *
+ * Jika melewati batas ini, polling return result apa
+ * adanya agar tidak loop selamanya bila backend memiliki
+ * bug sinkronisasi.
+ */
+
+const MAX_HISTORY_RECONCILIATION_COUNT =
+    60;
+
+
+/*
  * Setelah provider sudah completed tetapi History belum
  * tersinkron, kita tetap meminta backend melakukan
  * reconciliation pada polling berikutnya.
@@ -104,6 +152,42 @@ const DEFAULT_TIMEOUT =
 
 const HISTORY_RECONCILIATION_LOG_INTERVAL =
     3;
+
+
+/*
+ * TTL cache untuk access token.
+ *
+ * Mengurangi panggilan getAccessToken() dari ~300×
+ * (15 menit polling × 3 detik) menjadi ~30×.
+ *
+ * Token Supabase biasanya valid 1 jam, jadi 30 detik
+ * sangat aman.
+ */
+
+const TOKEN_CACHE_TTL_MS =
+    30 * 1000;
+
+
+/* =========================================================
+   DEBUG FLAG
+========================================================= */
+
+function isDebugEnabled() {
+
+    return window.GENZ_DEBUG === true;
+
+}
+
+
+function debugLog(...args) {
+
+    if (isDebugEnabled()) {
+
+        console.debug(...args);
+
+    }
+
+}
 
 
 /* =========================================================
@@ -142,6 +226,206 @@ export class GeneratePollingError
             options.response ||
             null;
     }
+}
+
+
+/* =========================================================
+   TOKEN CACHE
+   ---------------------------------------------------------
+   Mengurangi jumlah panggilan getAccessToken() saat
+   polling berjalan lama.
+
+   Cache di-invalidate otomatis setelah TTL.
+========================================================= */
+
+let _cachedAccessToken =
+    null;
+
+
+let _cachedAccessTokenExpiry =
+    0;
+
+
+async function getCachedAccessToken() {
+
+    const now =
+        Date.now();
+
+
+    if (
+        _cachedAccessToken &&
+        now <
+            _cachedAccessTokenExpiry
+    ) {
+
+        return _cachedAccessToken;
+
+    }
+
+
+    const token =
+        await getAccessToken();
+
+
+    if (
+        token
+    ) {
+
+        _cachedAccessToken =
+            token;
+
+        _cachedAccessTokenExpiry =
+            now +
+            TOKEN_CACHE_TTL_MS;
+
+    } else {
+
+        _cachedAccessToken =
+            null;
+
+        _cachedAccessTokenExpiry =
+            0;
+
+    }
+
+
+    return token;
+
+}
+
+
+/* =========================================================
+   FETCH WITH TIMEOUT
+   ---------------------------------------------------------
+   Membungkus fetch() dengan AbortController supaya
+   request tidak menggantung tanpa batas.
+========================================================= */
+
+async function fetchWithTimeout(
+    url,
+    options = {},
+    timeoutMs =
+        STATUS_REQUEST_TIMEOUT_MS
+) {
+
+    const controller =
+        new AbortController();
+
+
+    const externalSignal =
+        options.signal;
+
+
+    const timer =
+        setTimeout(
+            () => {
+
+                try {
+
+                    controller.abort(
+                        new Error(
+                            `Request timeout setelah ${timeoutMs}ms.`
+                        )
+                    );
+
+                } catch {
+                    /* ignore */
+                }
+
+            },
+            timeoutMs
+        );
+
+
+    let onExternalAbort =
+        null;
+
+
+    if (
+        externalSignal &&
+        typeof externalSignal.addEventListener ===
+            "function"
+    ) {
+
+        onExternalAbort =
+            () => {
+
+                try {
+
+                    controller.abort(
+                        externalSignal.reason
+                    );
+
+                } catch {
+                    /* ignore */
+                }
+
+            };
+
+
+        if (
+            externalSignal.aborted
+        ) {
+
+            onExternalAbort();
+
+        } else {
+
+            externalSignal.addEventListener(
+                "abort",
+                onExternalAbort,
+                {
+                    once:
+                        true
+                }
+            );
+
+        }
+
+    }
+
+
+    try {
+
+        return await fetch(
+            url,
+            {
+                ...options,
+
+                signal:
+                    controller.signal
+            }
+        );
+
+    } finally {
+
+        clearTimeout(
+            timer
+        );
+
+
+        if (
+            externalSignal &&
+            onExternalAbort &&
+            typeof externalSignal.removeEventListener ===
+                "function"
+        ) {
+
+            try {
+
+                externalSignal.removeEventListener(
+                    "abort",
+                    onExternalAbort
+                );
+
+            } catch {
+                /* ignore */
+            }
+
+        }
+
+    }
+
 }
 
 
@@ -1656,11 +1940,20 @@ export function normalizePollingResult(
    /api/generate-status membutuhkan:
       task_id
       model_id
+
+   Parameter options (OPSIONAL):
+      signal  : AbortSignal untuk membatalkan fetch
+      token   : access token yang sudah tersedia
+                (mengurangi pemanggilan getAccessToken)
+
+   Signature lama tetap kompatibel:
+      requestTaskStatus(taskId, modelId)
 ========================================================= */
 
 export async function requestTaskStatus(
     taskId,
-    modelId
+    modelId,
+    options = {}
 ) {
 
     const normalizedTaskId =
@@ -1699,8 +1992,20 @@ export async function requestTaskStatus(
     }
 
 
-    const accessToken =
-        await getAccessToken();
+    let accessToken =
+        normalizeString(
+            options?.token
+        );
+
+
+    if (
+        !accessToken
+    ) {
+
+        accessToken =
+            await getCachedAccessToken();
+
+    }
 
 
     if (!accessToken) {
@@ -1724,7 +2029,7 @@ export async function requestTaskStatus(
     try {
 
         response =
-            await fetch(
+            await fetchWithTimeout(
                 STATUS_ENDPOINT,
                 {
                     method:
@@ -1755,24 +2060,47 @@ export async function requestTaskStatus(
                             model_id:
                                 normalizedModelId
 
-                        })
-                }
+                        }),
+
+                    signal:
+                        options?.signal ||
+                        null
+
+                },
+                STATUS_REQUEST_TIMEOUT_MS
             );
 
     } catch (
         error
     ) {
 
+        const isAbort =
+            error?.name ===
+                "AbortError" ||
+            /abort/i.test(
+                String(
+                    error?.message ||
+                    ""
+                )
+            );
+
+
+        const code =
+            isAbort
+                ? "REQUEST_TIMEOUT"
+                : "NETWORK_ERROR";
+
+
         throw new GeneratePollingError(
             "Tidak dapat terhubung ke server status task.",
             {
-                code:
-                    "NETWORK_ERROR",
+                code,
 
                 details:
                     error
             }
         );
+
     }
 
 
@@ -1891,7 +2219,12 @@ export async function requestTaskStatus(
 
 
 /* =========================================================
-   SLEEP
+   SLEEP (ABORTABLE)
+   ---------------------------------------------------------
+   Versi lama tetap dipertahankan sebagai helper internal
+   agar tidak memutus kode lain. Versi baru
+   sleepWithSignal memungkinkan abort untuk menghentikan
+   sleep segera.
 ========================================================= */
 
 function sleep(
@@ -1905,6 +2238,108 @@ function sleep(
                 milliseconds
             )
     );
+}
+
+
+function sleepWithSignal(
+    milliseconds,
+    signal
+) {
+
+    if (
+        !signal
+    ) {
+
+        return sleep(
+            milliseconds
+        );
+    }
+
+
+    return new Promise(
+        (resolve, reject) => {
+
+            if (
+                signal.aborted
+            ) {
+
+                reject(
+                    new GeneratePollingError(
+                        "Polling dibatalkan.",
+                        {
+                            code:
+                                "POLLING_ABORTED"
+                        }
+                    )
+                );
+
+                return;
+            }
+
+
+            const timer =
+                setTimeout(
+                    () => {
+
+                        if (
+                            typeof signal.removeEventListener ===
+                                "function"
+                        ) {
+
+                            signal.removeEventListener(
+                                "abort",
+                                onAbort
+                            );
+
+                        }
+
+
+                        resolve();
+
+                    },
+                    milliseconds
+                );
+
+
+            function onAbort() {
+
+                clearTimeout(
+                    timer
+                );
+
+
+                reject(
+                    new GeneratePollingError(
+                        "Polling dibatalkan.",
+                        {
+                            code:
+                                "POLLING_ABORTED"
+                        }
+                    )
+                );
+
+            }
+
+
+            if (
+                typeof signal.addEventListener ===
+                    "function"
+            ) {
+
+                signal.addEventListener(
+                    "abort",
+                    onAbort,
+                    {
+                        once:
+                            true
+                    }
+                );
+
+            }
+
+        }
+    );
+
 }
 
 
@@ -1994,6 +2429,7 @@ function checkAbort(
             }
         );
     }
+
 }
 
 
@@ -2062,6 +2498,33 @@ function isHistorySynchronized(
 
 
     return false;
+}
+
+
+/* =========================================================
+   IS RETRYABLE ERROR
+   ---------------------------------------------------------
+   Hanya network error & timeout yang layak di-retry.
+
+   HTTP error (4xx/5xx) adalah respons valid backend,
+   tidak boleh di-retry.
+========================================================= */
+
+function isRetryableError(
+    error
+) {
+
+    const code =
+        error?.code;
+
+
+    return (
+        code ===
+            "NETWORK_ERROR" ||
+        code ===
+            "REQUEST_TIMEOUT"
+    );
+
 }
 
 
@@ -2136,6 +2599,34 @@ export async function pollTask(
         0;
 
 
+    /* =====================================================
+       CACHE ACCESS TOKEN PER POLL TASK
+       -----------------------------------------------------
+       Mengurangi panggilan getAccessToken() dari
+       ~300× menjadi ~30× untuk polling 15 menit.
+    ===================================================== */
+
+    let accessToken =
+        null;
+
+
+    try {
+
+        accessToken =
+            await getCachedAccessToken();
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Gagal mengambil access token awal:",
+            error
+        );
+
+    }
+
+
     while (true) {
 
         /*
@@ -2196,70 +2687,180 @@ export async function pollTask(
         let result;
 
 
-        try {
+        /* =================================================
+           RETRY LOOP UNTUK NETWORK ERROR
+           -------------------------------------------------
+           Maksimum MAX_NETWORK_RETRIES percobaan ulang
+           dengan exponential backoff.
 
-            result =
-                await requestTaskStatus(
+           Cancellation tetap diprioritaskan.
+        ================================================= */
 
-                    normalizedTaskId,
+        let retryCount =
+            0;
 
-                    polling.modelId
 
-                );
+        while (true) {
 
-        } catch (
-            error
-        ) {
-
-            /*
-             * Jika error membawa informasi cancellation,
-             * jangan meneruskannya sebagai failure.
-             */
-
-            if (
-                isGloballyCancelled(
-                    error
-                ) ||
-                isGloballyCancelled(
-                    error?.details
-                ) ||
-                isGloballyCancelled(
-                    error?.response
-                )
-            ) {
-
-                const cancellationSource =
-                    error?.details ||
-                    error?.response ||
-                    error;
-
+            try {
 
                 result =
-                    normalizePollingResult(
-                        cancellationSource
+                    await requestTaskStatus(
+
+                        normalizedTaskId,
+
+                        polling.modelId,
+
+                        {
+                            signal:
+                                polling.signal,
+
+                            token:
+                                accessToken
+                        }
+
                     );
 
-            } else {
 
-                /*
-                 * Error request status tetap diteruskan.
-                 *
-                 * Jangan menganggap error sebagai completed.
-                 */
+                break;
+
+            } catch (
+                error
+            ) {
+
+                /* =========================================
+                   CANCELLATION CHECK
+                ========================================= */
+
+                if (
+                    isGloballyCancelled(
+                        error
+                    ) ||
+                    isGloballyCancelled(
+                        error?.details
+                    ) ||
+                    isGloballyCancelled(
+                        error?.response
+                    )
+                ) {
+
+                    const cancellationSource =
+                        error?.details ||
+                        error?.response ||
+                        error;
+
+
+                    result =
+                        normalizePollingResult(
+                            cancellationSource
+                        );
+
+
+                    break;
+
+                }
+
+
+                /* =========================================
+                   RETRY UNTUK NETWORK ERROR
+                ========================================= */
+
+                if (
+                    isRetryableError(
+                        error
+                    ) &&
+                    retryCount <
+                        MAX_NETWORK_RETRIES
+                ) {
+
+                    retryCount +=
+                        1;
+
+
+                    const delay =
+                        RETRY_BASE_DELAY_MS *
+                        Math.pow(
+                            2,
+                            retryCount - 1
+                        );
+
+
+                    debugLog(
+                        "[GEN-Z.AI] Polling retry",
+                        retryCount,
+                        "/",
+                        MAX_NETWORK_RETRIES,
+                        "setelah",
+                        delay,
+                        "ms. Kode:",
+                        error?.code
+                    );
+
+
+                    /* Cek timeout sebelum sleep */
+
+                    if (
+                        Date.now() -
+                            startedAt >=
+                        polling.timeout
+                    ) {
+
+                        throw new GeneratePollingError(
+                            "Waktu tunggu generate telah habis.",
+                            {
+                                code:
+                                    "POLLING_TIMEOUT",
+
+                                details:
+                                    {
+                                        task_id:
+                                            normalizedTaskId,
+
+                                        model_id:
+                                            polling.modelId,
+
+                                        elapsed:
+                                            Date.now() -
+                                            startedAt,
+
+                                        poll_count:
+                                            pollCount
+                                    }
+                            }
+                        );
+
+                    }
+
+
+                    await sleepWithSignal(
+                        delay,
+                        polling.signal
+                    );
+
+
+                    continue;
+
+                }
+
+
+                /* =========================================
+                   ERROR TIDAK BISA DI-RETRY ATAU
+                   SUDAH HABIS RETRY → LEMPAR
+                ========================================= */
 
                 throw error;
+
             }
+
         }
 
 
-        /*
-         * =================================================
-         * NORMALIZE SEKALI LAGI
-         * =================================================
-         *
-         * Memastikan cancellation dari response apa pun
-         * menjadi bentuk terminal yang konsisten.
-         */
+        /* =================================================
+           NORMALIZE SEKALI LAGI
+           -------------------------------------------------
+           Memastikan cancellation dari response apa pun
+           menjadi bentuk terminal yang konsisten.
+        ================================================= */
 
         result =
             normalizePollingResult(
@@ -2446,14 +3047,11 @@ export async function pollTask(
                 );
 
 
-            /*
-             * =================================================
-             * CASE 1:
-             * Provider completed + History completed
-             *
-             * Ini kondisi terminal sebenarnya.
-             * =================================================
-             */
+            /* =============================================
+               CASE 1:
+               Provider completed + History completed
+               → terminal sebenarnya
+            ============================================= */
 
             if (
                 historySynchronized
@@ -2463,23 +3061,26 @@ export async function pollTask(
             }
 
 
-            /*
-             * =================================================
-             * CASE 2:
-             * Provider completed tetapi History belum update.
-             *
-             * JANGAN langsung return.
-             *
-             * Kita panggil /api/generate-status lagi sehingga
-             * backend memiliki kesempatan melakukan PATCH ulang.
-             * =================================================
-             */
+            /* =============================================
+               CASE 2:
+               Provider completed tetapi History belum update.
 
-            historyReconciliationCount += 1;
+               JANGAN langsung return. Panggil lagi
+               /api/generate-status agar backend bisa
+               melakukan reconciliation ulang.
+
+               Ada batas MAX_HISTORY_RECONCILIATION_COUNT
+               untuk mencegah loop tak berujung bila backend
+               mengalami bug sinkronisasi.
+            ============================================= */
+
+            historyReconciliationCount +=
+                1;
 
 
             if (
-                historyReconciliationCount === 1 ||
+                historyReconciliationCount ===
+                    1 ||
                 historyReconciliationCount %
                     HISTORY_RECONCILIATION_LOG_INTERVAL ===
                     0
@@ -2522,17 +3123,47 @@ export async function pollTask(
             }
 
 
+            /* =========================================
+               SAFETY LIMIT
+            ========================================= */
+
+            if (
+                historyReconciliationCount >=
+                MAX_HISTORY_RECONCILIATION_COUNT
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI] Batas maksimum history reconciliation tercapai. Mengembalikan hasil apa adanya.",
+                    {
+                        task_id:
+                            normalizedTaskId,
+
+                        model_id:
+                            polling.modelId,
+
+                        history_reconciliation_count:
+                            historyReconciliationCount
+                    }
+                );
+
+
+                return result;
+
+            }
+
+
             /*
              * Jangan sleep terlalu lama ketika provider sudah
              * selesai. Backend perlu segera mendapat request
              * berikutnya untuk reconciliation.
              */
 
-            await sleep(
+            await sleepWithSignal(
                 Math.min(
                     polling.interval,
                     2000
-                )
+                ),
+                polling.signal
             );
 
 
@@ -2542,17 +3173,14 @@ export async function pollTask(
 
         /* =================================================
            PROCESSING
+           -------------------------------------------------
+           Selama belum completed / failed / cancelled,
+           task tetap dipolling.
         ================================================= */
 
-        /*
-         * Selama belum completed / failed / cancelled,
-         * task tetap dipolling.
-         *
-         * Result URL saja tidak mengakhiri polling.
-         */
-
-        await sleep(
-            polling.interval
+        await sleepWithSignal(
+            polling.interval,
+            polling.signal
         );
     }
 }
