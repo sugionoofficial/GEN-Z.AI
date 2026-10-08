@@ -10,6 +10,18 @@ const MODEL_LOGO_BASE_PATH =
     "./assets/models/";
 
 
+/*
+ * Logo file name validation.
+ *
+ * Defense-in-depth: LOGO_MAP sudah di-freeze, tetapi
+ * tetap ada lapisan tambahan agar nama file tidak
+ * pernah mengandung path traversal atau protokol.
+ */
+
+const LOGO_FILE_PATTERN =
+    /^[a-z0-9._-]+$/i;
+
+
 /* =========================================================
    PROVIDER / MODEL LOGO MAP
 ========================================================= */
@@ -272,7 +284,12 @@ export function clearModelLogo() {
     }
 
 
-    container.innerHTML = "";
+    /*
+     * replaceChildren lebih modern dan lebih cepat
+     * dibanding innerHTML = "".
+     */
+
+    container.replaceChildren();
 
     container.hidden = true;
 
@@ -298,6 +315,41 @@ export function updateModelLogo(
     }
 
 
+    const normalized =
+        normalizeModel(
+            model
+        );
+
+
+    /* =====================================================
+       GUARD: SKIP RE-RENDER JIKA MODEL SAMA
+       -----------------------------------------------------
+       Kalau logo untuk model yang sama sudah ter-render
+       sebelumnya, tidak perlu ganti gambar.
+    ===================================================== */
+
+    const currentModelId =
+        String(
+            container.dataset.modelId ||
+            ""
+        );
+
+
+    if (
+        currentModelId &&
+        normalized.modelId &&
+        currentModelId === normalized.modelId
+    ) {
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       RESOLVE LOGO FILE
+    ===================================================== */
+
     const logoFile =
         getModelLogoFile(
             model
@@ -313,11 +365,36 @@ export function updateModelLogo(
     }
 
 
-    const normalized =
-        normalizeModel(
-            model
-        );
+    /* =====================================================
+       VALIDASI NAMA FILE
+       -----------------------------------------------------
+       Mencegah path traversal meskipun LOGO_MAP
+       sudah di-freeze.
+    ===================================================== */
 
+    if (
+        !LOGO_FILE_PATTERN.test(
+            logoFile
+        )
+    ) {
+
+        clearModelLogo();
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       CLEAR LOGO LAMA SEBELUM RENDER BARU
+    ===================================================== */
+
+    container.replaceChildren();
+
+
+    /* =====================================================
+       CREATE IMAGE
+    ===================================================== */
 
     const image =
         document.createElement(
@@ -361,13 +438,29 @@ export function updateModelLogo(
     );
 
 
-    container.innerHTML = "";
-
     container.appendChild(
         image
     );
 
 
-    container.hidden = false;
+    container.hidden =
+        false;
+
+
+    /*
+     * Simpan modelId agar guard re-render bekerja
+     * pada pemanggilan berikutnya.
+     */
+
+    if (normalized.modelId) {
+
+        container.dataset.modelId =
+            normalized.modelId;
+
+    } else {
+
+        delete container.dataset.modelId;
+
+    }
 
 }
