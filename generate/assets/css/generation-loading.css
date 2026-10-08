@@ -776,3 +776,215 @@
         font-size: 9.5px !important;
     }
 }
+
+/* =========================================================
+   COMPACT + TOP POSITION OVERRIDE
+   ---------------------------------------------------------
+   - Perkecil kartu loading
+   - Posisi di ATAS layar (align-items: flex-start)
+   - Center horizontal
+   - Padding atas menyesuaikan safe-area HP
+========================================================= */
+
+/* ===== BASE — SEMUA UKURAN ===== */
+
+.gen-loading {
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding-top: max(70px, env(safe-area-inset-top, 0px) + 60px) !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-bottom: 16px !important;
+}
+
+.gen-card {
+    width: min(360px, 100%) !important;
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+    padding: 22px 22px 18px !important;
+    border-radius: 18px !important;
+    margin-top: 0 !important;
+}
+
+.gen-kicker {
+    padding: 4px 10px !important;
+    margin-bottom: 12px !important;
+    font-size: 9px !important;
+    letter-spacing: 1.8px !important;
+}
+
+.gen-title {
+    font-size: 17px !important;
+    margin-bottom: 4px !important;
+    letter-spacing: -0.4px !important;
+    line-height: 1.2 !important;
+}
+
+.gen-progress {
+    height: 4px !important;
+    margin-bottom: 6px !important;
+    margin-top: 14px !important;
+}
+
+.gen-meta {
+    margin-bottom: 14px !important;
+    font-size: 10px !important;
+}
+
+.gen-percent {
+    font-size: 12px !important;
+}
+
+.gen-steps {
+    gap: 2px !important;
+    margin-bottom: 14px !important;
+}
+
+.gen-step {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+    gap: 9px !important;
+    border-radius: 8px !important;
+}
+
+.gen-step-icon {
+    width: 15px !important;
+    height: 15px !important;
+    border-width: 1.5px !important;
+}
+
+.gen-step.done .gen-step-icon::before {
+    font-size: 8px !important;
+}
+
+.gen-step-label {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+}
+
+.gen-message {
+    margin-top: 6px !important;
+    padding: 6px 10px !important;
+    font-size: 10px !important;
+}
+
+.gen-cancel {
+    padding: 8px 14px !important;
+    font-size: 10.5px !important;
+    letter-spacing: 0.4px !important;
+    border-radius: 9px !important;
+    margin-top: 4px !important;
+}
+
+
+/* ===== MOBILE (≤ 640px) ===== */
+
+@media (max-width: 640px) {
+
+    .gen-loading {
+        padding-top: max(60px, env(safe-area-inset-top, 0px) + 50px) !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+    }
+
+    .gen-card {
+        width: min(320px, 100%) !important;
+        max-height: 68vh !important;
+        padding: 16px 16px 14px !important;
+        border-radius: 15px !important;
+    }
+
+    .gen-kicker {
+        padding: 3px 8px !important;
+        margin-bottom: 10px !important;
+        font-size: 8px !important;
+        letter-spacing: 1.4px !important;
+    }
+
+    .gen-title {
+        font-size: 14px !important;
+        margin-bottom: 2px !important;
+        letter-spacing: -0.2px !important;
+    }
+
+    .gen-progress {
+        height: 3px !important;
+        margin-top: 10px !important;
+        margin-bottom: 5px !important;
+    }
+
+    .gen-meta {
+        margin-bottom: 10px !important;
+        font-size: 9px !important;
+    }
+
+    .gen-percent {
+        font-size: 11px !important;
+    }
+
+    .gen-steps {
+        gap: 1px !important;
+        margin-bottom: 10px !important;
+    }
+
+    .gen-step {
+        padding: 5px 8px !important;
+        font-size: 10.5px !important;
+        gap: 8px !important;
+        border-radius: 6px !important;
+    }
+
+    .gen-step-icon {
+        width: 13px !important;
+        height: 13px !important;
+    }
+
+    .gen-step.done .gen-step-icon::before {
+        font-size: 7px !important;
+    }
+
+    .gen-cancel {
+        padding: 7px 12px !important;
+        font-size: 10px !important;
+    }
+}
+
+
+/* ===== HP KECIL (≤ 400px) ===== */
+
+@media (max-width: 400px) {
+
+    .gen-loading {
+        padding-top: max(56px, env(safe-area-inset-top, 0px) + 44px) !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+
+    .gen-card {
+        width: min(295px, 100%) !important;
+        padding: 14px 13px 12px !important;
+        border-radius: 14px !important;
+    }
+
+    .gen-title {
+        font-size: 13px !important;
+    }
+
+    .gen-step {
+        padding: 4px 7px !important;
+        font-size: 10px !important;
+        gap: 7px !important;
+    }
+
+    .gen-step-icon {
+        width: 12px !important;
+        height: 12px !important;
+    }
+
+    .gen-cancel {
+        padding: 6px 10px !important;
+        font-size: 9.5px !important;
+    }
+}
