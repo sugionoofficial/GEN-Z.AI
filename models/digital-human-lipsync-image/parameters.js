@@ -23,13 +23,25 @@
    IMPORTANT:
    - image_urls WAJIB, tepat 1 image
    - audio_url WAJIB
-   - prompt WAJIB
-   - duration mengikuti parameter Motiongen
-   - aspect_ratio mengikuti parameter Motiongen
-   - resolution digunakan GEN-Z.AI untuk menentukan credit
-   - resolution TIDAK dikirim ke Motiongen API
+   - prompt WAJIB (untuk UX, walau API opsional)
+   - duration DIKIRIM ke Motiongen API sebagai STRING
+     Pilihan: "10", "15", "20", "25", "30"
+   - aspect_ratio DIKIRIM ke Motiongen API
+   - resolution DIKIRIM ke Motiongen API
+     Pilihan: "576p", "720p"
+   - resolution juga dipakai GEN-Z.AI untuk hitung credit
    - credit TIDAK didefinisikan di sini
    - nsfw_checker TIDAK digunakan
+
+   API CONTRACT (motiongen.pro):
+   {
+       "model": "digital-human-lipsync-image-s3",
+       "prompt": "...",
+       "duration": "10",
+       "resolution": "576p",
+       "image_urls": ["..."],
+       "audio_url": "..."
+   }
 ========================================================= */
 
 
@@ -41,6 +53,9 @@ const parameters = [
 
     /* =====================================================
        PROMPT
+       -----------------------------------------------------
+       Wajib di UI (untuk UX).
+       API motiongen menerima sebagai field opsional.
     ===================================================== */
 
     {
@@ -63,6 +78,9 @@ const parameters = [
 
     /* =====================================================
        IMAGE
+       -----------------------------------------------------
+       Motiongen API: image_urls (array).
+       Saat ini API hanya mendukung 1 image.
     ===================================================== */
 
     {
@@ -88,6 +106,8 @@ const parameters = [
 
     /* =====================================================
        AUDIO
+       -----------------------------------------------------
+       Wajib. Dikirim ke Motiongen sebagai audio_url.
     ===================================================== */
 
     {
@@ -107,7 +127,9 @@ const parameters = [
 
     /* =====================================================
        ASPECT RATIO
-       Provider-owned parameter
+       -----------------------------------------------------
+       Provider-owned parameter.
+       Dikirim ke Motiongen sebagai aspect_ratio.
     ===================================================== */
 
     {
@@ -136,7 +158,12 @@ const parameters = [
 
     /* =====================================================
        DURATION
-       Provider-owned parameter
+       -----------------------------------------------------
+       Dikirim ke Motiongen sebagai STRING (bukan number).
+       Contoh: "10", bukan 10.
+
+       Values di enum sudah dalam bentuk STRING supaya
+       payload ke API langsung valid tanpa konversi.
     ===================================================== */
 
     {
@@ -144,21 +171,21 @@ const parameters = [
             "duration",
 
         type:
-            "number",
+            "string",
 
         required:
             false,
 
         enum: [
-            10,
-            15,
-            20,
-            25,
-            30
+            "10",
+            "15",
+            "20",
+            "25",
+            "30"
         ],
 
         default:
-            10,
+            "10",
 
         description:
             "Durasi video dalam detik yang didukung Motiongen-AI."
@@ -167,13 +194,15 @@ const parameters = [
 
     /* =====================================================
        RESOLUTION
-       GEN-Z.AI CREDIT PARAMETER
+       -----------------------------------------------------
+       Dikirim ke Motiongen API.
 
-       IMPORTANT:
-       - 576P     -> credit_480p
-       - 720P HD  -> credit_720p
-       - Tidak dikirim ke provider Motiongen
-       - Dirender oleh generic Generate Form
+       Pilihan: "576p", "720p"
+
+       Resolution juga dipakai GEN-Z.AI untuk menentukan
+       credit:
+       - 576p -> credit_480p (fallback)
+       - 720p -> credit_720p
     ===================================================== */
 
     {
@@ -187,26 +216,24 @@ const parameters = [
             true,
 
         enum: [
-            "576P",
-            "720P HD"
+            "576p",
+            "720p"
         ],
 
         default:
-            "720P HD",
+            "720p",
 
         description:
-            "Resolusi video untuk menentukan kredit GEN-Z.AI."
+            "Resolusi video (dikirim ke Motiongen-AI) dan dipakai untuk menghitung kredit GEN-Z.AI."
     },
 
 
     /* =====================================================
        WEBHOOK
-       Provider parameter
-
-       IMPORTANT:
-       Parameter ini tetap tersedia untuk kebutuhan backend,
-       tetapi Generate Form akan membuangnya sebelum request
-       dikirim dari sisi client.
+       -----------------------------------------------------
+       Parameter internal.
+       Sudah otomatis dibuang oleh generate-form-data.js
+       sebelum request dikirim dari browser.
     ===================================================== */
 
     {
@@ -312,10 +339,6 @@ function validate(
     const errors = [];
 
 
-    /* =====================================================
-       INPUT OBJECT
-    ===================================================== */
-
     if (
         !input ||
         typeof input !==
@@ -415,7 +438,6 @@ function validate(
 
     /* =====================================================
        AUDIO
-       HARD REQUIRED
     ===================================================== */
 
     const audioUrl =
@@ -435,17 +457,18 @@ function validate(
 
     /* =====================================================
        RESOLUTION
-       GEN-Z.AI CREDIT PARAMETER
     ===================================================== */
 
     const resolution =
         input.resolution == null
 
-            ? "720P HD"
+            ? "720p"
 
             : String(
                 input.resolution
-            ).trim();
+            )
+                .trim()
+                .toLowerCase();
 
 
     const resolutionDefinition =
@@ -510,16 +533,19 @@ function validate(
 
     /* =====================================================
        DURATION
+       -----------------------------------------------------
+       Sekarang String, bukan Number.
+       Validasi: harus ada di enum.
     ===================================================== */
 
     const duration =
         input.duration == null
 
-            ? 10
+            ? "10"
 
-            : Number(
+            : String(
                 input.duration
-            );
+            ).trim();
 
 
     const durationDefinition =
@@ -529,27 +555,13 @@ function validate(
 
 
     if (
-        !Number.isFinite(
-            duration
-        )
-    ) {
-
-        errors.push(
-            "Duration harus berupa angka."
-        );
-
-    } else if (
-
         durationDefinition &&
-
         Array.isArray(
             durationDefinition.enum
         ) &&
-
         !durationDefinition.enum.includes(
             duration
         )
-
     ) {
 
         errors.push(
