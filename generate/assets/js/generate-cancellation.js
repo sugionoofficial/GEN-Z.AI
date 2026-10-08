@@ -21,6 +21,12 @@
    Cancellation aktual dilakukan oleh backend/admin.
    Module ini hanya menangani hasil/status cancellation
    yang diterima oleh frontend.
+
+   PATCH:
+   - State sets di-hoist ke module-level (perf)
+   - renderGenerateCancellation menambahkan class
+     genz-status-cancelled (semantic clarity)
+   - Tidak mengubah API / signature / alur
 ========================================================= */
 
 "use strict";
@@ -33,6 +39,59 @@
 const GENZ_CANCELLED_STATES = Object.freeze([
     "cancelled",
     "canceled"
+]);
+
+
+/* =========================================================
+   MODULE-LEVEL STATE SETS
+   ---------------------------------------------------------
+   Di-hoist dari dalam fungsi untuk mencegah alokasi
+   berulang setiap pemanggilan.
+========================================================= */
+
+const FAILED_STATES = Object.freeze([
+
+    "fail",
+    "failed",
+    "failure",
+    "error",
+    "rejected",
+    "terminated",
+    "aborted"
+
+]);
+
+
+const COMPLETED_STATES = Object.freeze([
+
+    "success",
+    "succeeded",
+    "successful",
+    "completed",
+    "complete",
+    "done",
+    "finished",
+    "finish",
+    "successfully_completed"
+
+]);
+
+
+const PROCESSING_STATES = Object.freeze([
+
+    "waiting",
+    "pending",
+    "queued",
+    "queue",
+    "processing",
+    "running",
+    "generating",
+    "in_progress",
+    "created",
+    "submitted",
+    "starting",
+    "started"
+
 ]);
 
 
@@ -340,19 +399,7 @@ function isGenerateFailed(
     const state =
         getCancellationState(value);
 
-    const failedStates = [
-
-        "fail",
-        "failed",
-        "failure",
-        "error",
-        "rejected",
-        "terminated",
-        "aborted"
-
-    ];
-
-    return failedStates.includes(
+    return FAILED_STATES.includes(
         state
     );
 
@@ -412,22 +459,8 @@ function isGenerateCompleted(
     const state =
         getCancellationState(value);
 
-    const completedStates = [
-
-        "success",
-        "succeeded",
-        "successful",
-        "completed",
-        "complete",
-        "done",
-        "finished",
-        "finish",
-        "successfully_completed"
-
-    ];
-
     if (
-        completedStates.includes(state)
+        COMPLETED_STATES.includes(state)
     ) {
 
         return true;
@@ -485,24 +518,7 @@ function isGenerateProcessing(
     const state =
         getCancellationState(value);
 
-    const processingStates = [
-
-        "waiting",
-        "pending",
-        "queued",
-        "queue",
-        "processing",
-        "running",
-        "generating",
-        "in_progress",
-        "created",
-        "submitted",
-        "starting",
-        "started"
-
-    ];
-
-    return processingStates.includes(
+    return PROCESSING_STATES.includes(
         state
     );
 
@@ -1003,11 +1019,20 @@ function renderGenerateCancellation(
         "genz-status-processing",
         "genz-status-success",
         "genz-status-failed",
+        "genz-status-cancelled",
         "genz-status-hidden"
     );
 
+    /*
+     * Cancellation memiliki warna yang sama dengan failed
+     * (merah) untuk kompatibilitas CSS, tetapi ditandai
+     * dengan class genz-status-cancelled agar konsumen lain
+     * dapat membedakan secara semantik.
+     */
+
     element.classList.add(
-        "genz-status-failed"
+        "genz-status-failed",
+        "genz-status-cancelled"
     );
 
 
