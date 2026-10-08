@@ -23,18 +23,43 @@
    - Tidak ada fallback provider
    - Resolution dan credit dikelola registry/admin model
    - Duration dan aspect ratio mengikuti parameters.js
+
+   PATCH:
+   - Tambah `motiongenModelId` untuk mengirim slug yang
+     benar ke Motiongen API.
+   - `id` tetap "digital-human-lipsync-image" agar tidak
+     merusak: Supabase models table, credit lookup,
+     generation_history, dan frontend option value.
+   - Motiongen slug resmi: "digital-human-lipsync-image-s3"
 ========================================================= */
 
 const config = {
 
     /*
      * =====================================================
-     * MODEL ID
+     * MODEL ID (internal, GEN-Z.AI)
      * =====================================================
+     * Nilai ini dipakai untuk:
+     * - Registry lookup
+     * - Supabase models.model_id
+     * - Frontend option value
+     * - generation_history.model_id
      */
 
     id:
         "digital-human-lipsync-image",
+
+
+    /*
+     * =====================================================
+     * MOTIONGEN MODEL ID (external slug)
+     * =====================================================
+     * Slug yang dikirim ke Motiongen API.
+     * Berbeda dari id internal.
+     */
+
+    motiongenModelId:
+        "digital-human-lipsync-image-s3",
 
 
     /*
