@@ -308,6 +308,10 @@ body::after {
     position: relative;
 }
 
+.segment.segment-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
 .segment-btn {
     position: relative;
     z-index: 1;
@@ -337,6 +341,10 @@ body::after {
 }
 
 .segment-btn svg { width: 16px; height: 16px; }
+
+/* =====================================================
+   UPLOAD ZONE (MULTI)
+===================================================== */
 
 .upload-zone {
     position: relative;
@@ -379,6 +387,12 @@ body::after {
     transform: scale(1.01);
 }
 
+.upload-zone.disabled {
+    opacity: .5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .upload-icon {
     width: 44px;
     height: 44px;
@@ -413,72 +427,102 @@ body::after {
     font-weight: 500;
 }
 
-.upload-input { display: none; }
-
-.upload-preview {
-    display: none;
-    margin-top: 14px;
-    padding: 12px;
-    border: 1px solid var(--line-2);
-    border-radius: var(--radius-md);
-    background: rgba(0,0,0,.24);
-    align-items: center;
-    gap: 14px;
-    animation: slideDown .4s var(--ease-out);
+.upload-counter {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.4);
+    border: 1px solid var(--line-1);
+    color: var(--text-3);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.4px;
 }
 
-.upload-preview.show { display: flex; }
+.upload-counter.warn {
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+    color: var(--accent-2);
+}
+
+.upload-input { display: none; }
+
+/* GRID THUMBNAILS */
+
+.upload-grid {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.upload-grid.show { display: grid; }
+
+.upload-thumb {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: rgba(0,0,0,.4);
+    animation: slideDown .35s var(--ease-out);
+}
+
+.upload-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.upload-thumb-index {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.7);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .6px;
+    backdrop-filter: blur(4px);
+}
+
+.upload-thumb-remove {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(220,38,38,.9);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.4);
+    transition: all .2s var(--ease);
+}
+
+.upload-thumb-remove:hover {
+    background: #ff3355;
+    transform: scale(1.1);
+}
 
 @keyframes slideDown {
     from { opacity: 0; transform: translateY(-6px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-.upload-preview img {
-    width: 64px;
-    height: 64px;
-    border-radius: var(--radius-sm);
-    object-fit: cover;
-    border: 1px solid var(--line-2);
-}
-
-.upload-info { flex: 1; min-width: 0; }
-
-.upload-name {
-    color: var(--text-0);
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.upload-size {
-    margin-top: 4px;
-    color: var(--text-3);
-    font-size: 11px;
-    font-weight: 500;
-}
-
-.upload-remove {
-    flex: 0 0 auto;
-    width: 34px;
-    height: 34px;
-    border: 1px solid var(--line-2);
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-3);
-    font-size: 18px;
-    line-height: 1;
-    cursor: pointer;
-    transition: all .2s var(--ease);
-}
-
-.upload-remove:hover {
-    color: #fff;
-    border-color: rgba(255,85,102,.55);
-    background: rgba(220,38,38,.15);
-}
+/* =====================================================
+   CATEGORY / CHIPS / FIELDS
+===================================================== */
 
 .category-grid {
     display: grid;
@@ -589,6 +633,12 @@ body::after {
     text-transform: uppercase;
 }
 
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
 .input,
 .textarea {
     width: 100%;
@@ -660,6 +710,10 @@ body::after {
     border-color: rgba(220,38,38,.35);
     background: rgba(220,38,38,.10);
 }
+
+/* =====================================================
+   PREVIEW PANEL
+===================================================== */
 
 .preview-panel {
     position: sticky;
@@ -765,17 +819,36 @@ body::after {
     background: rgba(0,0,0,.32);
     color: var(--text-1);
     font-family: var(--font-mono);
-    font-size: 12.5px;
-    line-height: 1.85;
+    font-size: 12px;
+    line-height: 1.75;
     white-space: pre-wrap;
     word-break: break-word;
-    transition: all .3s var(--ease);
 }
 
 .preview-body::-webkit-scrollbar { width: 6px; }
 .preview-body::-webkit-scrollbar-track { background: transparent; }
 .preview-body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 10px; }
 .preview-body::-webkit-scrollbar-thumb:hover { background: var(--line-3); }
+
+.preview-body .prompt-section {
+    display: block;
+    margin: 14px 0 6px;
+    color: var(--accent-2);
+    font-weight: 800;
+    letter-spacing: 1.4px;
+    font-size: 10.5px;
+    text-transform: uppercase;
+}
+
+.preview-body .prompt-section:first-child {
+    margin-top: 0;
+}
+
+.preview-body .prompt-text {
+    display: block;
+    color: var(--text-1);
+    margin-bottom: 4px;
+}
 
 .preview-placeholder {
     color: var(--text-4);
@@ -788,6 +861,9 @@ body::after {
     position: relative;
     z-index: 1;
     margin-top: 20px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
 }
 
 .btn-primary {
@@ -841,6 +917,35 @@ body::after {
     border-color: var(--emerald);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 12px 32px rgba(0,230,118,.35);
 }
+
+.btn-secondary {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 13px 22px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-md);
+    background: rgba(255,255,255,.03);
+    color: var(--text-1);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .5px;
+    cursor: pointer;
+    transition: all .25s var(--ease);
+}
+
+.btn-secondary:hover {
+    color: #fff;
+    border-color: var(--violet);
+    background: rgba(169,112,255,.10);
+    box-shadow: 0 8px 24px rgba(169,112,255,.20);
+    transform: translateY(-1px);
+}
+
+.btn-secondary svg { width: 14px; height: 14px; }
 
 .preview-stats {
     position: relative;
@@ -929,9 +1034,12 @@ body::after {
     .panel, .preview-card { padding: 20px; }
     .category-grid { grid-template-columns: 1fr; }
     .segment-btn { padding: 12px 14px; font-size: 12px; }
-    .preview-body { min-height: 240px; font-size: 12px; }
+    .segment.segment-4 { grid-template-columns: repeat(2, 1fr); }
+    .preview-body { min-height: 240px; font-size: 11.5px; }
     .stat-value { font-size: 20px; }
     .action-bar { grid-template-columns: 1fr; }
+    .field-row { grid-template-columns: 1fr; }
+    .upload-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -964,13 +1072,13 @@ body::after {
                 </h1>
                 <p class="hero-subtitle">
                     Bangun prompt AI berkualitas studio dengan struktur profesional.
-                    Pilih kategori, atur parameter, simpan preset, dan salin prompt
-                    yang siap digunakan untuk image atau video generation.
+                    Upload hingga <strong>5 gambar referensi</strong>, atur parameter
+                    detail, dan dapatkan prompt siap pakai yang ekstra detail.
                 </p>
             </div>
             <div class="hero-meta">
-                <div class="hero-meta-value">10</div>
-                <div class="hero-meta-label">Kategori</div>
+                <div class="hero-meta-value">14</div>
+                <div class="hero-meta-label">Parameter</div>
             </div>
         </div>
     </header>
@@ -980,7 +1088,7 @@ body::after {
         <!-- LEFT COLUMN -->
         <div class="left-col">
 
-            <!-- 01 OUTPUT TYPE + LANGUAGE -->
+            <!-- 01 OUTPUT TYPE + LANGUAGE + DEPTH -->
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title">
@@ -1019,16 +1127,34 @@ body::after {
                         </button>
                     </div>
                 </div>
+
+                <div class="field">
+                    <label class="field-label">Prompt Depth</label>
+                    <div class="segment segment-4" id="depthSegment">
+                        <button class="segment-btn" data-depth="simple" type="button">
+                            Simple
+                        </button>
+                        <button class="segment-btn active" data-depth="detailed" type="button">
+                            Detailed
+                        </button>
+                        <button class="segment-btn" data-depth="cinematic" type="button">
+                            Cinematic
+                        </button>
+                        <button class="segment-btn" data-depth="ultra" type="button">
+                            Ultra
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- 02 REFERENCE -->
+            <!-- 02 REFERENCE IMAGES (MAX 5) -->
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title">
                         <span class="panel-number">02</span>
-                        Reference Image
+                        Reference Images
                     </div>
-                    <div class="panel-hint">Optional</div>
+                    <div class="panel-hint">Maks 5 gambar</div>
                 </div>
 
                 <div class="upload-zone" id="uploadZone">
@@ -1039,19 +1165,13 @@ body::after {
                             <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
                     </div>
-                    <div class="upload-text">Drop atau klik untuk upload</div>
-                    <div class="upload-hint">JPG, PNG, WebP • max 5 MB</div>
-                    <input class="upload-input" id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp">
+                    <div class="upload-text">Drop atau klik untuk upload (bisa banyak)</div>
+                    <div class="upload-hint">JPG, PNG, WebP • max 5 MB / gambar</div>
+                    <div class="upload-counter" id="uploadCounter">0 / 5 GAMBAR</div>
+                    <input class="upload-input" id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp" multiple>
                 </div>
 
-                <div class="upload-preview" id="uploadPreview">
-                    <img id="uploadPreviewImg" alt="preview">
-                    <div class="upload-info">
-                        <div class="upload-name" id="uploadName"></div>
-                        <div class="upload-size" id="uploadSize"></div>
-                    </div>
-                    <button class="upload-remove" id="uploadRemove" type="button" aria-label="Hapus">×</button>
-                </div>
+                <div class="upload-grid" id="uploadGrid"></div>
             </div>
 
             <!-- 03 CATEGORY -->
@@ -1078,73 +1198,126 @@ body::after {
 
                 <div class="field">
                     <label class="field-label" for="subjectInput">Subject / Karakter</label>
-                    <input class="input" id="subjectInput" type="text" placeholder="Contoh: wanita 25 tahun, rambut panjang, hoodie putih">
+                    <input class="input" id="subjectInput" type="text" placeholder="Contoh: wanita 25 tahun, rambut panjang">
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label class="field-label" for="wardrobeInput">Wardrobe / Kostum</label>
+                        <input class="input" id="wardrobeInput" type="text" placeholder="Contoh: hoodie putih oversized">
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="actionInput">Aksi / Aktivitas</label>
+                        <input class="input" id="actionInput" type="text" placeholder="Contoh: tersenyum ke kamera">
+                    </div>
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="actionInput">Aksi / Aktivitas</label>
-                    <input class="input" id="actionInput" type="text" placeholder="Contoh: bercerita sambil tersenyum ke kamera">
+                    <label class="field-label">Emotion / Expression</label>
+                    <div class="chip-grid" id="emotionGrid"></div>
                 </div>
 
                 <div class="field">
                     <label class="field-label" for="notesInput">Catatan Tambahan</label>
-                    <textarea class="textarea" id="notesInput" placeholder="Contoh: gaya bahasa santai, warna cerah, mood ceria"></textarea>
+                    <textarea class="textarea" id="notesInput" placeholder="Contoh: warna cerah, mood ceria, tanpa teks di layar"></textarea>
                 </div>
             </div>
 
-            <!-- 05 ASPECT RATIO -->
+            <!-- 05 CAMERA -->
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title">
                         <span class="panel-number">05</span>
-                        Aspect Ratio
+                        Camera
                     </div>
+                    <div class="panel-hint">Angle • Movement • Lens</div>
                 </div>
-                <div class="chip-grid" id="aspectGrid"></div>
+
+                <div class="field">
+                    <label class="field-label">Camera Angle</label>
+                    <div class="chip-grid" id="angleGrid"></div>
+                </div>
+
+                <div class="field">
+                    <label class="field-label">Camera Movement</label>
+                    <div class="chip-grid" id="movementGrid"></div>
+                </div>
+
+                <div class="field">
+                    <label class="field-label">Lens / Focal Length</label>
+                    <div class="chip-grid" id="lensGrid"></div>
+                </div>
             </div>
 
-            <!-- 06 CAMERA ANGLE -->
+            <!-- 06 ENVIRONMENT -->
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title">
                         <span class="panel-number">06</span>
-                        Camera Angle
+                        Environment
                     </div>
                 </div>
-                <div class="chip-grid" id="angleGrid"></div>
+
+                <div class="field">
+                    <label class="field-label">Location</label>
+                    <div class="chip-grid" id="locationGrid"></div>
+                </div>
+
+                <div class="field">
+                    <label class="field-label">Time of Day</label>
+                    <div class="chip-grid" id="timeGrid"></div>
+                </div>
             </div>
 
-            <!-- 07 LOCATION -->
+            <!-- 07 LIGHTING & MOOD -->
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title">
                         <span class="panel-number">07</span>
-                        Location
+                        Lighting & Mood
                     </div>
                 </div>
-                <div class="chip-grid" id="locationGrid"></div>
+
+                <div class="field">
+                    <label class="field-label">Lighting</label>
+                    <div class="chip-grid" id="lightingGrid"></div>
+                </div>
+
+                <div class="field">
+                    <label class="field-label">Mood</label>
+                    <div class="chip-grid" id="moodGrid"></div>
+                </div>
             </div>
 
-            <!-- 08 LIGHTING -->
+            <!-- 08 STYLE & COLOR -->
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title">
                         <span class="panel-number">08</span>
-                        Lighting
+                        Style & Color
                     </div>
                 </div>
-                <div class="chip-grid" id="lightingGrid"></div>
+
+                <div class="field">
+                    <label class="field-label">Style Preset</label>
+                    <div class="chip-grid" id="styleGrid"></div>
+                </div>
+
+                <div class="field">
+                    <label class="field-label">Color Grading</label>
+                    <div class="chip-grid" id="colorGrid"></div>
+                </div>
             </div>
 
-            <!-- 09 MOOD -->
+            <!-- 09 ASPECT RATIO -->
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title">
                         <span class="panel-number">09</span>
-                        Mood & Style
+                        Aspect Ratio
                     </div>
                 </div>
-                <div class="chip-grid" id="moodGrid"></div>
+                <div class="chip-grid" id="aspectGrid"></div>
             </div>
 
             <!-- 10 DURATION (VIDEO ONLY) -->
@@ -1225,6 +1398,20 @@ body::after {
                             </svg>
                             <span id="copyLabel">Copy Prompt</span>
                         </button>
+
+                        <button class="btn-secondary" id="enhanceBtn" type="button">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 3v3"/>
+                                <path d="M12 18v3"/>
+                                <path d="M3 12h3"/>
+                                <path d="M18 12h3"/>
+                                <path d="m5.6 5.6 2.1 2.1"/>
+                                <path d="m16.3 16.3 2.1 2.1"/>
+                                <path d="m5.6 18.4 2.1-2.1"/>
+                                <path d="m16.3 7.7 2.1-2.1"/>
+                            </svg>
+                            <span>Enhance Prompt</span>
+                        </button>
                     </div>
 
                     <div class="preview-stats">
@@ -1261,8 +1448,11 @@ body::after {
     "use strict";
 
     /* =====================================================
-       DATA
+       CONSTANTS
     ===================================================== */
+
+    var MAX_REFERENCE = 5;
+    var MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
     var CATEGORIES = [
         { id: "ugc", label: "UGC Content", emoji: "🎥",
@@ -1308,21 +1498,44 @@ body::after {
     var ANGLES = [
         { id: "selfie", label: "Selfie" },
         { id: "close-up", label: "Close-up" },
+        { id: "extreme-close-up", label: "Extreme Close-up" },
         { id: "medium", label: "Medium" },
         { id: "wide", label: "Wide" },
         { id: "pov", label: "POV" },
         { id: "over-shoulder", label: "Over Shoulder" },
         { id: "low-angle", label: "Low Angle" },
         { id: "high-angle", label: "High Angle" },
-        { id: "dutch", label: "Dutch Angle" },
-        { id: "tracking", label: "Tracking" }
+        { id: "dutch", label: "Dutch Angle" }
+    ];
+
+    var MOVEMENTS = [
+        { id: "static", label: "Static" },
+        { id: "slow-pan", label: "Slow Pan" },
+        { id: "tilt", label: "Tilt" },
+        { id: "dolly-in", label: "Dolly In" },
+        { id: "dolly-out", label: "Dolly Out" },
+        { id: "zoom-in", label: "Zoom In" },
+        { id: "zoom-out", label: "Zoom Out" },
+        { id: "tracking", label: "Tracking" },
+        { id: "handheld", label: "Handheld" },
+        { id: "drone-orbit", label: "Drone Orbit" }
+    ];
+
+    var LENSES = [
+        { id: "14mm", label: "14mm Ultra-Wide" },
+        { id: "24mm", label: "24mm Wide" },
+        { id: "35mm", label: "35mm Standard" },
+        { id: "50mm", label: "50mm Prime" },
+        { id: "85mm", label: "85mm Portrait" },
+        { id: "135mm", label: "135mm Tele" },
+        { id: "macro", label: "Macro" },
+        { id: "fisheye", label: "Fisheye" }
     ];
 
     var LOCATIONS = [
         { id: "bedroom", label: "Bedroom" },
         { id: "living-room", label: "Living Room" },
         { id: "kitchen", label: "Kitchen" },
-        { id: "bathroom", label: "Bathroom" },
         { id: "car", label: "Car" },
         { id: "cafe", label: "Café" },
         { id: "restaurant", label: "Restaurant" },
@@ -1334,7 +1547,20 @@ body::after {
         { id: "mountain", label: "Mountain" },
         { id: "rooftop", label: "Rooftop" },
         { id: "studio", label: "Studio" },
-        { id: "mall", label: "Mall" }
+        { id: "forest", label: "Forest" },
+        { id: "desert", label: "Desert" }
+    ];
+
+    var TIMES = [
+        { id: "dawn", label: "Dawn" },
+        { id: "morning", label: "Morning" },
+        { id: "midday", label: "Midday" },
+        { id: "afternoon", label: "Afternoon" },
+        { id: "golden-hour", label: "Golden Hour" },
+        { id: "blue-hour", label: "Blue Hour" },
+        { id: "sunset", label: "Sunset" },
+        { id: "night", label: "Night" },
+        { id: "midnight", label: "Midnight" }
     ];
 
     var LIGHTINGS = [
@@ -1363,6 +1589,43 @@ body::after {
         { id: "trendy", label: "Trendy" }
     ];
 
+    var EMOTIONS = [
+        { id: "smiling", label: "Smiling" },
+        { id: "laughing", label: "Laughing" },
+        { id: "neutral", label: "Neutral" },
+        { id: "serious", label: "Serious" },
+        { id: "surprised", label: "Surprised" },
+        { id: "thoughtful", label: "Thoughtful" },
+        { id: "excited", label: "Excited" },
+        { id: "calm", label: "Calm" }
+    ];
+
+    var STYLES = [
+        { id: "photorealistic", label: "Photorealistic" },
+        { id: "cinematic-film", label: "Cinematic Film" },
+        { id: "documentary", label: "Documentary" },
+        { id: "editorial", label: "Editorial" },
+        { id: "commercial", label: "Commercial" },
+        { id: "anime", label: "Anime" },
+        { id: "3d-render", label: "3D Render" },
+        { id: "film-grain", label: "Film Grain" },
+        { id: "vintage", label: "Vintage" },
+        { id: "modern-minimal", label: "Modern Minimal" }
+    ];
+
+    var COLORS = [
+        { id: "teal-orange", label: "Teal & Orange" },
+        { id: "warm", label: "Warm Tones" },
+        { id: "cool", label: "Cool Tones" },
+        { id: "high-contrast", label: "High Contrast" },
+        { id: "pastel", label: "Pastel" },
+        { id: "monochrome", label: "Monochrome" },
+        { id: "vibrant", label: "Vibrant" },
+        { id: "muted", label: "Muted" },
+        { id: "sepia", label: "Sepia" },
+        { id: "neon", label: "Neon Pop" }
+    ];
+
     var DURATIONS = [
         { id: "5", label: "5 seconds" },
         { id: "10", label: "10 seconds" },
@@ -1371,7 +1634,7 @@ body::after {
         { id: "60", label: "60 seconds" }
     ];
 
-    var PRESET_KEY = "genzai_prompt_studio_preset";
+    var PRESET_KEY = "genzai_prompt_studio_preset_v2";
 
 
     /* =====================================================
@@ -1381,17 +1644,26 @@ body::after {
     var state = {
         output: "image",
         language: "en",
+        depth: "detailed",
         category: null,
         aspect: null,
         angle: null,
+        movement: null,
+        lens: null,
         location: null,
+        time: null,
         lighting: null,
         mood: null,
+        emotion: null,
+        style: null,
+        color: null,
         duration: null,
-        referenceFile: null,
+        referenceFiles: [], // array of { file, dataUrl, name, size }
         subject: "",
+        wardrobe: "",
         action: "",
-        notes: ""
+        notes: "",
+        enhanced: false
     };
 
 
@@ -1422,28 +1694,33 @@ body::after {
     }
 
 
-    function showToast(msg, isError) {
+    function escapeHtml(text) {
+        return String(text || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
+
+    function showToast(msg, isError) {
         toast.textContent = msg;
         toast.classList.toggle("error", !!isError);
         toast.classList.add("show");
-
         setTimeout(function () {
             toast.classList.remove("show");
         }, 2400);
-
     }
 
 
     function buildChipGrid(containerId, items, stateKey) {
-
         var container = document.getElementById(containerId);
         if (!container) return;
 
         container.innerHTML = "";
 
         items.forEach(function (item) {
-
             var btn = document.createElement("button");
             btn.type = "button";
             btn.className = "chip";
@@ -1451,7 +1728,6 @@ body::after {
             btn.setAttribute("data-value", item.id);
 
             btn.addEventListener("click", function () {
-
                 var chips = container.querySelectorAll(".chip");
                 for (var i = 0; i < chips.length; i++) {
                     chips[i].classList.remove("active");
@@ -1465,28 +1741,24 @@ body::after {
                 }
 
                 render();
-
             });
 
             container.appendChild(btn);
-
         });
-
     }
 
 
     function buildCategoryGrid() {
-
         var container = document.getElementById("categoryGrid");
         if (!container) return;
 
         container.innerHTML = "";
 
         CATEGORIES.forEach(function (cat) {
-
             var btn = document.createElement("button");
             btn.type = "button";
             btn.className = "category-tile";
+            btn.setAttribute("data-cat", cat.id);
 
             var emojiSpan = document.createElement("span");
             emojiSpan.className = "category-emoji";
@@ -1499,130 +1771,200 @@ body::after {
             btn.appendChild(labelSpan);
 
             btn.addEventListener("click", function () {
-
                 var tiles = container.querySelectorAll(".category-tile");
                 for (var i = 0; i < tiles.length; i++) {
                     tiles[i].classList.remove("active");
                 }
-
                 btn.classList.add("active");
                 state.category = cat.id;
-
                 render();
-
             });
 
             container.appendChild(btn);
-
         });
-
     }
 
 
     function bindSegment(segmentId, stateKey, afterChange) {
-
         var segment = document.getElementById(segmentId);
         if (!segment) return;
 
         var btns = segment.querySelectorAll(".segment-btn");
 
         for (var i = 0; i < btns.length; i++) {
-
             btns[i].addEventListener("click", function () {
-
                 for (var j = 0; j < btns.length; j++) {
                     btns[j].classList.remove("active");
                 }
-
                 this.classList.add("active");
 
                 var val = this.getAttribute("data-output") ||
-                          this.getAttribute("data-lang");
+                          this.getAttribute("data-lang") ||
+                          this.getAttribute("data-depth");
 
                 state[stateKey] = val;
-
                 if (afterChange) afterChange(val);
-
                 render();
-
             });
+        }
+    }
 
+
+    /* =====================================================
+       MULTI UPLOAD
+    ===================================================== */
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+
+    function updateUploadUI() {
+        var zone = document.getElementById("uploadZone");
+        var counter = document.getElementById("uploadCounter");
+        var grid = document.getElementById("uploadGrid");
+        var input = document.getElementById("uploadInput");
+
+        var count = state.referenceFiles.length;
+        counter.textContent = count + " / " + MAX_REFERENCE + " GAMBAR";
+        counter.classList.toggle("warn", count >= MAX_REFERENCE);
+        zone.classList.toggle("disabled", count >= MAX_REFERENCE);
+        input.disabled = count >= MAX_REFERENCE;
+
+        if (count === 0) {
+            grid.classList.remove("show");
+            grid.innerHTML = "";
+            return;
         }
 
+        grid.classList.add("show");
+        grid.innerHTML = "";
+
+        state.referenceFiles.forEach(function (item, index) {
+            var thumb = document.createElement("div");
+            thumb.className = "upload-thumb";
+
+            var img = document.createElement("img");
+            img.src = item.dataUrl;
+            img.alt = item.name;
+
+            var idx = document.createElement("span");
+            idx.className = "upload-thumb-index";
+            idx.textContent = "#" + (index + 1);
+
+            var remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "upload-thumb-remove";
+            remove.setAttribute("aria-label", "Hapus gambar " + (index + 1));
+            remove.textContent = "×";
+            remove.addEventListener("click", function (e) {
+                e.stopPropagation();
+                state.referenceFiles.splice(index, 1);
+                updateUploadUI();
+                render();
+            });
+
+            thumb.appendChild(img);
+            thumb.appendChild(idx);
+            thumb.appendChild(remove);
+            grid.appendChild(thumb);
+        });
+    }
+
+
+    function handleFiles(files) {
+        var list = Array.prototype.slice.call(files || []);
+        if (!list.length) return;
+
+        var remaining = MAX_REFERENCE - state.referenceFiles.length;
+        if (remaining <= 0) {
+            showToast("Maksimal " + MAX_REFERENCE + " gambar sudah tercapai", true);
+            return;
+        }
+
+        if (list.length > remaining) {
+            showToast(
+                "Hanya " + remaining + " gambar lagi yang bisa ditambahkan",
+                true
+            );
+            list = list.slice(0, remaining);
+        }
+
+        var validFiles = [];
+
+        list.forEach(function (file) {
+            if (!file.type.startsWith("image/")) {
+                showToast("File harus gambar: " + file.name, true);
+                return;
+            }
+            if (file.size > MAX_FILE_SIZE) {
+                showToast("Maks 5 MB: " + file.name, true);
+                return;
+            }
+            validFiles.push(file);
+        });
+
+        if (!validFiles.length) return;
+
+        var pending = validFiles.length;
+        var results = [];
+
+        validFiles.forEach(function (file, i) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                results[i] = {
+                    file: file,
+                    dataUrl: e.target.result,
+                    name: file.name,
+                    size: file.size
+                };
+                pending--;
+                if (pending === 0) {
+                    // Push in original order
+                    results.forEach(function (r) {
+                        if (r) state.referenceFiles.push(r);
+                    });
+                    updateUploadUI();
+                    render();
+                    showToast(state.referenceFiles.length + " gambar siap");
+                }
+            };
+            reader.onerror = function () {
+                pending--;
+                if (pending === 0) {
+                    updateUploadUI();
+                    render();
+                }
+            };
+            reader.readAsDataURL(file);
+        });
     }
 
 
     function bindUpload() {
-
         var zone = document.getElementById("uploadZone");
         var input = document.getElementById("uploadInput");
-        var preview = document.getElementById("uploadPreview");
-        var previewImg = document.getElementById("uploadPreviewImg");
-        var nameEl = document.getElementById("uploadName");
-        var sizeEl = document.getElementById("uploadSize");
-        var removeBtn = document.getElementById("uploadRemove");
 
         if (!zone || !input) return;
 
-        function formatSize(bytes) {
-            if (bytes < 1024) return bytes + " B";
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-            return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-        }
-
-        function handleFile(file) {
-
-            if (!file) return;
-
-            if (!file.type.startsWith("image/")) {
-                showToast("File harus berupa gambar", true);
-                return;
-            }
-
-            if (file.size > 5 * 1024 * 1024) {
-                showToast("Ukuran gambar maksimal 5 MB", true);
-                return;
-            }
-
-            state.referenceFile = file;
-
-            var reader = new FileReader();
-
-            reader.onload = function (e) {
-                previewImg.src = e.target.result;
-                nameEl.textContent = file.name;
-                sizeEl.textContent = formatSize(file.size);
-                preview.classList.add("show");
-            };
-
-            reader.readAsDataURL(file);
-
-            render();
-
-        }
-
         zone.addEventListener("click", function () {
+            if (state.referenceFiles.length >= MAX_REFERENCE) return;
             input.click();
         });
 
         input.addEventListener("change", function () {
-            if (input.files && input.files[0]) {
-                handleFile(input.files[0]);
+            if (input.files) {
+                handleFiles(input.files);
+                input.value = "";
             }
-        });
-
-        removeBtn.addEventListener("click", function (e) {
-            e.stopPropagation();
-            state.referenceFile = null;
-            preview.classList.remove("show");
-            previewImg.src = "";
-            input.value = "";
-            render();
         });
 
         ["dragenter", "dragover"].forEach(function (evt) {
             zone.addEventListener(evt, function (e) {
                 e.preventDefault();
+                if (state.referenceFiles.length >= MAX_REFERENCE) return;
                 zone.classList.add("dragover");
             });
         });
@@ -1635,162 +1977,284 @@ body::after {
         });
 
         zone.addEventListener("drop", function (e) {
-            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
-                handleFile(e.dataTransfer.files[0]);
+            if (state.referenceFiles.length >= MAX_REFERENCE) return;
+            if (e.dataTransfer && e.dataTransfer.files) {
+                handleFiles(e.dataTransfer.files);
             }
         });
-
     }
 
 
     /* =====================================================
-       BUILD PROMPT
+       PROMPT BUILDER
+       -----------------------------------------------------
+       Output terstruktur dengan section header.
+       Depth mengontrol jumlah detail yang disertakan.
     ===================================================== */
 
-    function buildPrompt() {
+    function sectionsFor() {
+        var d = state.depth;
+        if (d === "simple") return ["SCENE"];
+        if (d === "detailed") return ["SCENE", "CAMERA", "ENVIRONMENT", "LIGHTING", "STYLE", "TECHNICAL"];
+        if (d === "cinematic") return ["SCENE", "CHARACTER", "CAMERA", "ENVIRONMENT", "LIGHTING", "STYLE", "COLOR", "TECHNICAL"];
+        // ultra
+        return ["SCENE", "CHARACTER", "CAMERA", "ENVIRONMENT", "LIGHTING", "STYLE", "COLOR", "TECHNICAL", "REFERENCE", "QUALITY"];
+    }
 
-        var cat = findById(CATEGORIES, state.category);
-        if (!cat) return "";
 
+    function buildPromptSections() {
         var lang = state.language;
-        var parts = [];
+        var isVideo = state.output === "video";
+        var sections = [];
+        var included = sectionsFor();
 
-        /* Intro */
-        var intro;
+        var t = {
+            scene: lang === "id" ? "SCENE" : "SCENE",
+            character: lang === "id" ? "KARAKTER" : "CHARACTER",
+            camera: lang === "id" ? "KAMERA" : "CAMERA",
+            environment: lang === "id" ? "LINGKUNGAN" : "ENVIRONMENT",
+            lighting: lang === "id" ? "PENCAHAYAAN" : "LIGHTING",
+            style: lang === "id" ? "STYLE" : "STYLE",
+            color: lang === "id" ? "WARNA" : "COLOR",
+            technical: lang === "id" ? "TEKNIS" : "TECHNICAL",
+            reference: lang === "id" ? "REFERENSI" : "REFERENCE",
+            quality: lang === "id" ? "KUALITAS" : "QUALITY"
+        };
 
-        if (lang === "id") {
+        /* ---------------- SCENE ---------------- */
+        var sceneLines = [];
+        var cat = findById(CATEGORIES, state.category);
 
-            intro = state.output === "video"
-                ? "Buat video berkualitas tinggi: "
-                : "Buat gambar berkualitas tinggi: ";
-
-            if (state.referenceFile) {
-                intro += "gunakan gambar referensi yang diberikan sebagai identitas dan penampilan subjek. ";
-            }
-
-        } else {
-
-            intro = state.output === "video"
-                ? "Generate a high-quality video: "
-                : "Generate a high-quality image: ";
-
-            if (state.referenceFile) {
-                intro += "using the provided reference image as subject identity and physical appearance. ";
-            }
-
+        if (cat) {
+            sceneLines.push(cat.prompt[lang]);
+        } else if (state.subject || state.action) {
+            sceneLines.push(
+                lang === "id"
+                    ? "Deskripsi scene berkualitas tinggi."
+                    : "High-quality scene description."
+            );
         }
 
-        parts.push(intro);
-        parts.push(cat.prompt[lang]);
-
-        /* Subject */
+        var sceneDetails = [];
         if (state.subject) {
-            parts.push(
-                (lang === "id" ? "Subjek: " : "Subject: ") +
-                state.subject + "."
+            sceneDetails.push(
+                (lang === "id" ? "Subjek: " : "Subject: ") + state.subject
             );
         }
-
-        /* Action */
         if (state.action) {
-            parts.push(
-                (lang === "id" ? "Aksi: " : "Action: ") +
-                state.action + "."
+            sceneDetails.push(
+                (lang === "id" ? "Aksi: " : "Action: ") + state.action
             );
         }
-
-        /* Aspect */
-        if (state.aspect) {
-            parts.push(
-                (lang === "id" ? "Rasio aspek: " : "Aspect ratio: ") +
-                state.aspect + "."
-            );
+        if (sceneDetails.length) {
+            sceneLines.push(sceneDetails.join(". ") + ".");
         }
-
-        /* Angle */
-        var angle = findById(ANGLES, state.angle);
-        if (angle) {
-            parts.push(
-                (lang === "id" ? "Sudut kamera: " : "Camera angle: ") +
-                angle.label + "."
-            );
-        }
-
-        /* Location */
-        var loc = findById(LOCATIONS, state.location);
-        if (loc) {
-            parts.push(
-                (lang === "id" ? "Lokasi: " : "Location: ") +
-                loc.label + "."
-            );
-        }
-
-        /* Lighting */
-        var light = findById(LIGHTINGS, state.lighting);
-        if (light) {
-            parts.push(
-                (lang === "id" ? "Pencahayaan: " : "Lighting: ") +
-                light.label + "."
-            );
-        }
-
-        /* Mood */
-        var mood = findById(MOODS, state.mood);
-        if (mood) {
-            parts.push(
-                (lang === "id" ? "Mood: " : "Mood: ") +
-                mood.label + "."
-            );
-        }
-
-        /* Duration (video) */
-        if (state.output === "video" && state.duration) {
-            var dur = findById(DURATIONS, state.duration);
-            if (dur) {
-                parts.push(
-                    (lang === "id" ? "Durasi: " : "Duration: ") +
-                    dur.label + "."
-                );
-            }
-        }
-
-        /* Notes */
         if (state.notes) {
-            parts.push(
+            sceneLines.push(
                 (lang === "id" ? "Detail tambahan: " : "Additional details: ") +
                 state.notes + "."
             );
         }
 
-        /* Quality */
-        if (state.output === "video") {
-
-            parts.push(
-                lang === "id"
-                    ? "Kualitas sinematik, gerakan halus, color grading natural, 4K, detail tinggi, komposisi profesional."
-                    : "Cinematic quality, smooth motion, natural color grading, 4K, high detail, professional composition."
-            );
-
-        } else {
-
-            parts.push(
-                lang === "id"
-                    ? "Resolusi ultra-tinggi, fokus tajam, pencahayaan profesional, kualitas fotorealistis, 4K."
-                    : "Ultra-high resolution, sharp focus, professional lighting, photorealistic quality, 4K."
-            );
-
+        if (sceneLines.length) {
+            sections.push({ title: t.scene, lines: sceneLines });
         }
 
-        return parts.join(" ");
+        /* ---------------- CHARACTER ---------------- */
+        var charLines = [];
+        if (state.wardrobe) {
+            charLines.push(
+                (lang === "id" ? "Kostum/wardrobe: " : "Wardrobe: ") + state.wardrobe + "."
+            );
+        }
+        if (state.emotion) {
+            var emo = findById(EMOTIONS, state.emotion);
+            if (emo) {
+                charLines.push(
+                    (lang === "id" ? "Ekspresi: " : "Facial expression: ") +
+                    emo.label.toLowerCase() + "."
+                );
+            }
+        }
+        if (charLines.length && included.indexOf("CHARACTER") !== -1) {
+            sections.push({ title: t.character, lines: charLines });
+        }
 
+        /* ---------------- CAMERA ---------------- */
+        var camLines = [];
+        var angle = findById(ANGLES, state.angle);
+        var movement = findById(MOVEMENTS, state.movement);
+        var lens = findById(LENSES, state.lens);
+
+        if (angle) {
+            camLines.push(
+                (lang === "id" ? "Sudut: " : "Angle: ") + angle.label + "."
+            );
+        }
+        if (movement) {
+            camLines.push(
+                (lang === "id" ? "Gerakan kamera: " : "Camera movement: ") +
+                movement.label + "."
+            );
+        }
+        if (lens) {
+            camLines.push(
+                (lang === "id" ? "Lensa: " : "Lens: ") + lens.label + "."
+            );
+        }
+        if (camLines.length) {
+            sections.push({ title: t.camera, lines: camLines });
+        }
+
+        /* ---------------- ENVIRONMENT ---------------- */
+        var envLines = [];
+        var loc = findById(LOCATIONS, state.location);
+        var time = findById(TIMES, state.time);
+
+        if (loc) {
+            envLines.push(
+                (lang === "id" ? "Lokasi: " : "Location: ") + loc.label + "."
+            );
+        }
+        if (time) {
+            envLines.push(
+                (lang === "id" ? "Waktu: " : "Time of day: ") + time.label + "."
+            );
+        }
+        if (envLines.length) {
+            sections.push({ title: t.environment, lines: envLines });
+        }
+
+        /* ---------------- LIGHTING ---------------- */
+        var lightLines = [];
+        var light = findById(LIGHTINGS, state.lighting);
+        if (light) {
+            lightLines.push(
+                (lang === "id" ? "Pencahayaan: " : "Lighting: ") + light.label + "."
+            );
+        }
+        if (lightLines.length) {
+            sections.push({ title: t.lighting, lines: lightLines });
+        }
+
+        /* ---------------- STYLE ---------------- */
+        var styleLines = [];
+        var style = findById(STYLES, state.style);
+        var mood = findById(MOODS, state.mood);
+
+        if (style) {
+            styleLines.push(
+                (lang === "id" ? "Gaya visual: " : "Visual style: ") + style.label + "."
+            );
+        }
+        if (mood) {
+            styleLines.push(
+                (lang === "id" ? "Mood: " : "Mood: ") + mood.label + "."
+            );
+        }
+        if (styleLines.length) {
+            sections.push({ title: t.style, lines: styleLines });
+        }
+
+        /* ---------------- COLOR ---------------- */
+        var colorLines = [];
+        var color = findById(COLORS, state.color);
+        if (color) {
+            colorLines.push(
+                (lang === "id" ? "Color grading: " : "Color grading: ") +
+                color.label + "."
+            );
+        }
+        if (colorLines.length && included.indexOf("COLOR") !== -1) {
+            sections.push({ title: t.color, lines: colorLines });
+        }
+
+        /* ---------------- TECHNICAL ---------------- */
+        var techLines = [];
+        if (state.aspect) {
+            techLines.push(
+                (lang === "id" ? "Rasio aspek: " : "Aspect ratio: ") + state.aspect + "."
+            );
+        }
+        if (isVideo && state.duration) {
+            var dur = findById(DURATIONS, state.duration);
+            if (dur) {
+                techLines.push(
+                    (lang === "id" ? "Durasi: " : "Duration: ") + dur.label + " at 24 fps."
+                );
+            }
+        }
+        techLines.push(
+            lang === "id"
+                ? (isVideo
+                    ? "Resolusi 4K, gerakan halus, tidak ada artefak."
+                    : "Resolusi ultra-tinggi 4K, fokus tajam, tidak ada artefak.")
+                : (isVideo
+                    ? "4K resolution, smooth motion, no artifacts."
+                    : "Ultra-high resolution 4K, sharp focus, no artifacts.")
+        );
+        sections.push({ title: t.technical, lines: techLines });
+
+        /* ---------------- REFERENCE ---------------- */
+        if (included.indexOf("REFERENCE") !== -1 && state.referenceFiles.length > 0) {
+            var refLines = [
+                lang === "id"
+                    ? ("Gunakan " + state.referenceFiles.length +
+                       " gambar referensi yang diberikan sebagai panduan visual: " +
+                       "identitas subjek, wardrobe, dan gaya keseluruhan. " +
+                       "Pertahankan konsistensi wajah, proporsi, dan ciri khas subjek.")
+                    : ("Use the " + state.referenceFiles.length +
+                       " provided reference images as visual guide: " +
+                       "subject identity, wardrobe, and overall style. " +
+                       "Maintain facial consistency, proportions, and distinctive features.")
+            ];
+            sections.push({ title: t.reference, lines: refLines });
+        }
+
+        /* ---------------- QUALITY ---------------- */
+        if (included.indexOf("QUALITY") !== -1) {
+            var qLines = [
+                lang === "id"
+                    ? "Kualitas sinematik premium, detail tekstur tinggi, pencahayaan realistis, komposisi seimbang, color grading profesional."
+                    : "Premium cinematic quality, high texture detail, realistic lighting, balanced composition, professional color grading."
+            ];
+            sections.push({ title: t.quality, lines: qLines });
+        }
+
+        return sections;
     }
 
 
-    function render() {
+    function buildPlainPrompt() {
+        var sections = buildPromptSections();
+        if (!sections.length) return "";
 
-        var prompt = buildPrompt();
+        var lines = [];
+        lines.push("═══════════════════════════════════════");
+        lines.push(
+            "GEN-Z.AI — " +
+            (state.output === "video" ? "VIDEO" : "IMAGE") +
+            " PROMPT" +
+            (state.enhanced ? " (ENHANCED)" : "")
+        );
+        lines.push("═══════════════════════════════════════");
+        lines.push("");
 
-        if (!prompt) {
+        sections.forEach(function (sec) {
+            lines.push("[" + sec.title + "]");
+            sec.lines.forEach(function (line) {
+                lines.push(line);
+            });
+            lines.push("");
+        });
+
+        return lines.join("\n").trim();
+    }
+
+
+    function renderPreview() {
+        var sections = buildPromptSections();
+        if (!sections.length) {
             previewBody.innerHTML =
                 '<span class="preview-placeholder">' +
                 "Pilih kategori di sebelah kiri untuk memulai..." +
@@ -1801,15 +2265,76 @@ body::after {
             return;
         }
 
-        previewBody.textContent = prompt;
+        var html = "";
+        html += '<span class="prompt-section">═══ GEN-Z.AI — ' +
+                (state.output === "video" ? "VIDEO" : "IMAGE") + " PROMPT" +
+                (state.enhanced ? " • ENHANCED" : "") + " ═══</span>";
 
-        charCount.textContent = prompt.length;
+        sections.forEach(function (sec) {
+            html += '<span class="prompt-section">[' + escapeHtml(sec.title) + ']</span>';
+            sec.lines.forEach(function (line) {
+                html += '<span class="prompt-text">' + escapeHtml(line) + '</span>';
+            });
+        });
 
-        var words = prompt.trim().split(/\s+/).filter(Boolean);
+        previewBody.innerHTML = html;
+
+        var plain = buildPlainPrompt();
+        charCount.textContent = plain.length;
+        var words = plain.trim().split(/\s+/).filter(Boolean);
         wordCount.textContent = words.length;
-
         tokensCount.textContent = Math.round(words.length / 0.75);
+    }
 
+
+    function render() {
+        renderPreview();
+    }
+
+
+    /* =====================================================
+       ENHANCE
+    ===================================================== */
+
+    function enhancePrompt() {
+        // Auto-fill apa pun yang kosong dengan default berkualitas tinggi
+        var filled = [];
+
+        if (!state.subject) {
+            state.subject = "a compelling main subject";
+            filled.push("subject");
+        }
+        if (!state.style) {
+            state.style = "cinematic-film";
+            filled.push("style");
+        }
+        if (!state.lighting) {
+            state.lighting = "natural";
+            filled.push("lighting");
+        }
+        if (!state.color) {
+            state.color = "teal-orange";
+            filled.push("color");
+        }
+        if (!state.aspect) {
+            state.aspect = "16:9";
+            filled.push("aspect");
+        }
+        if (!state.depth || state.depth === "simple") {
+            state.depth = "ultra";
+            filled.push("depth");
+        }
+
+        // Sync UI
+        syncUIFromState();
+        state.enhanced = true;
+        render();
+
+        if (filled.length) {
+            showToast("Prompt diperkaya: " + filled.length + " field auto-terisi");
+        } else {
+            showToast("Prompt sudah optimal (Ultra mode)");
+        }
     }
 
 
@@ -1818,27 +2343,22 @@ body::after {
     ===================================================== */
 
     function bindCopy() {
-
         copyBtn.addEventListener("click", function () {
+            var text = buildPlainPrompt();
 
-            var text = previewBody.textContent;
-
-            if (!text || previewBody.querySelector(".preview-placeholder")) {
+            if (!text) {
                 showToast("Belum ada prompt untuk dicopy", true);
                 return;
             }
 
             function showCopied() {
-
                 copyBtn.classList.add("copied");
                 copyLabel.textContent = "Copied!";
                 showToast("Prompt tersalin ke clipboard");
-
                 setTimeout(function () {
                     copyBtn.classList.remove("copied");
                     copyLabel.textContent = "Copy Prompt";
                 }, 1800);
-
             }
 
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1848,19 +2368,15 @@ body::after {
             } else {
                 fallbackCopy(text);
             }
-
         });
-
     }
 
 
     function fallbackCopy(text) {
-
         var ta = document.createElement("textarea");
         ta.value = text;
         ta.style.position = "fixed";
         ta.style.left = "-9999px";
-
         document.body.appendChild(ta);
         ta.select();
 
@@ -1878,7 +2394,6 @@ body::after {
         }
 
         document.body.removeChild(ta);
-
     }
 
 
@@ -1887,38 +2402,41 @@ body::after {
     ===================================================== */
 
     function savePreset() {
-
         try {
-
             var data = {
                 output: state.output,
                 language: state.language,
+                depth: state.depth,
                 category: state.category,
                 aspect: state.aspect,
                 angle: state.angle,
+                movement: state.movement,
+                lens: state.lens,
                 location: state.location,
+                time: state.time,
                 lighting: state.lighting,
                 mood: state.mood,
+                emotion: state.emotion,
+                style: state.style,
+                color: state.color,
                 duration: state.duration,
                 subject: state.subject,
+                wardrobe: state.wardrobe,
                 action: state.action,
-                notes: state.notes
+                notes: state.notes,
+                enhanced: state.enhanced
             };
 
             localStorage.setItem(PRESET_KEY, JSON.stringify(data));
             showToast("Preset tersimpan");
-
         } catch (e) {
             showToast("Gagal menyimpan preset", true);
         }
-
     }
 
 
     function loadPreset() {
-
         try {
-
             var raw = localStorage.getItem(PRESET_KEY);
 
             if (!raw) {
@@ -1934,148 +2452,133 @@ body::after {
                 }
             });
 
-            /* Update UI */
             syncUIFromState();
             render();
             showToast("Preset dimuat");
-
         } catch (e) {
             showToast("Gagal memuat preset", true);
         }
-
     }
 
 
     function syncUIFromState() {
-
-        /* Output */
+        // Segments
         var segOutput = document.getElementById("outputTypeSegment");
         segOutput.querySelectorAll(".segment-btn").forEach(function (b) {
-            b.classList.toggle(
-                "active",
-                b.getAttribute("data-output") === state.output
-            );
+            b.classList.toggle("active", b.getAttribute("data-output") === state.output);
         });
 
-        /* Language */
         var segLang = document.getElementById("languageSegment");
         segLang.querySelectorAll(".segment-btn").forEach(function (b) {
-            b.classList.toggle(
-                "active",
-                b.getAttribute("data-lang") === state.language
-            );
+            b.classList.toggle("active", b.getAttribute("data-lang") === state.language);
         });
 
-        /* Duration card */
-        durationCard.style.display =
-            state.output === "video" ? "block" : "none";
+        var segDepth = document.getElementById("depthSegment");
+        segDepth.querySelectorAll(".segment-btn").forEach(function (b) {
+            b.classList.toggle("active", b.getAttribute("data-depth") === state.depth);
+        });
 
-        /* Badge */
-        previewBadge.textContent =
-            state.output === "video" ? "VIDEO" : "IMAGE";
+        // Duration card
+        durationCard.style.display = state.output === "video" ? "block" : "none";
+
+        // Badge
+        previewBadge.textContent = state.output === "video" ? "VIDEO" : "IMAGE";
         previewBadge.classList.toggle("video", state.output === "video");
 
-        /* Chips */
+        // Chips
         syncChips("aspectGrid", state.aspect);
         syncChips("angleGrid", state.angle);
+        syncChips("movementGrid", state.movement);
+        syncChips("lensGrid", state.lens);
         syncChips("locationGrid", state.location);
+        syncChips("timeGrid", state.time);
         syncChips("lightingGrid", state.lighting);
         syncChips("moodGrid", state.mood);
+        syncChips("emotionGrid", state.emotion);
+        syncChips("styleGrid", state.style);
+        syncChips("colorGrid", state.color);
         syncChips("durationGrid", state.duration);
 
-        /* Category */
+        // Category
         var catContainer = document.getElementById("categoryGrid");
         catContainer.querySelectorAll(".category-tile").forEach(function (t) {
-            var emoji = t.querySelector(".category-emoji");
-            var label = t.querySelector("span:not(.category-emoji)");
-            /* Cek berdasarkan state category id, tidak bisa lewat DOM value karena tidak diset */
-            /* Fallback: reset all, nanti render akan set lagi kalau perlu */
+            t.classList.toggle("active", t.getAttribute("data-cat") === state.category);
         });
 
-        /* Inputs */
+        // Inputs
         document.getElementById("subjectInput").value = state.subject || "";
+        document.getElementById("wardrobeInput").value = state.wardrobe || "";
         document.getElementById("actionInput").value = state.action || "";
         document.getElementById("notesInput").value = state.notes || "";
-
     }
 
 
     function syncChips(containerId, activeId) {
-
         var container = document.getElementById(containerId);
         if (!container) return;
-
         container.querySelectorAll(".chip").forEach(function (chip) {
-            chip.classList.toggle(
-                "active",
-                chip.getAttribute("data-value") === activeId
-            );
+            chip.classList.toggle("active", chip.getAttribute("data-value") === activeId);
         });
-
     }
 
 
     function resetAll() {
-
         state.output = "image";
         state.language = "en";
+        state.depth = "detailed";
         state.category = null;
         state.aspect = null;
         state.angle = null;
+        state.movement = null;
+        state.lens = null;
         state.location = null;
+        state.time = null;
         state.lighting = null;
         state.mood = null;
+        state.emotion = null;
+        state.style = null;
+        state.color = null;
         state.duration = null;
-        state.referenceFile = null;
+        state.referenceFiles = [];
         state.subject = "";
+        state.wardrobe = "";
         state.action = "";
         state.notes = "";
+        state.enhanced = false;
 
-        /* Reset UI */
         document.getElementById("subjectInput").value = "";
+        document.getElementById("wardrobeInput").value = "";
         document.getElementById("actionInput").value = "";
         document.getElementById("notesInput").value = "";
+        document.getElementById("uploadInput").value = "";
 
-        /* Reset upload */
-        var preview = document.getElementById("uploadPreview");
-        var previewImg = document.getElementById("uploadPreviewImg");
-        var input = document.getElementById("uploadInput");
-
-        preview.classList.remove("show");
-        previewImg.src = "";
-        input.value = "";
-
-        /* Reset category tiles */
-        document.querySelectorAll(".category-tile").forEach(function (t) {
-            t.classList.remove("active");
-        });
-
+        updateUploadUI();
         syncUIFromState();
         render();
         showToast("Semua reset");
-
     }
 
 
     /* =====================================================
-       BIND
+       BIND INPUTS
     ===================================================== */
 
     function bindInputs() {
+        var map = {
+            subjectInput: "subject",
+            wardrobeInput: "wardrobe",
+            actionInput: "action",
+            notesInput: "notes"
+        };
 
-        ["subjectInput", "actionInput", "notesInput"].forEach(function (id) {
+        Object.keys(map).forEach(function (id) {
             var el = document.getElementById(id);
             if (!el) return;
-
             el.addEventListener("input", function () {
-
-                var key = id.replace("Input", "");
-                state[key] = el.value;
+                state[map[id]] = el.value;
                 render();
-
             });
         });
-
     }
 
 
@@ -2084,14 +2587,19 @@ body::after {
     ===================================================== */
 
     function init() {
-
         buildCategoryGrid();
 
         buildChipGrid("aspectGrid", ASPECTS, "aspect");
         buildChipGrid("angleGrid", ANGLES, "angle");
+        buildChipGrid("movementGrid", MOVEMENTS, "movement");
+        buildChipGrid("lensGrid", LENSES, "lens");
         buildChipGrid("locationGrid", LOCATIONS, "location");
+        buildChipGrid("timeGrid", TIMES, "time");
         buildChipGrid("lightingGrid", LIGHTINGS, "lighting");
         buildChipGrid("moodGrid", MOODS, "mood");
+        buildChipGrid("emotionGrid", EMOTIONS, "emotion");
+        buildChipGrid("styleGrid", STYLES, "style");
+        buildChipGrid("colorGrid", COLORS, "color");
         buildChipGrid("durationGrid", DURATIONS, "duration");
 
         bindSegment("outputTypeSegment", "output", function (val) {
@@ -2101,6 +2609,7 @@ body::after {
         });
 
         bindSegment("languageSegment", "language");
+        bindSegment("depthSegment", "depth");
 
         bindUpload();
         bindCopy();
@@ -2109,9 +2618,9 @@ body::after {
         document.getElementById("savePresetBtn").addEventListener("click", savePreset);
         document.getElementById("loadPresetBtn").addEventListener("click", loadPreset);
         document.getElementById("resetBtn").addEventListener("click", resetAll);
+        document.getElementById("enhanceBtn").addEventListener("click", enhancePrompt);
 
         render();
-
     }
 
 
