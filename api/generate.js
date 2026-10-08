@@ -3554,7 +3554,7 @@ export default async function handler(
      * =====================================================
      */
 
-    const rawParameters =
+        const rawParameters =
     adapter.getParameters(
         body
     );
@@ -3563,6 +3563,41 @@ const parameters =
     adapter.sanitizeParameters(
         rawParameters
     );
+
+    /*
+     * -----------------------------------------------------
+     * FIX: SALIN RESOLUTION DARI BODY
+     * -----------------------------------------------------
+     * Adapter Motiongen sengaja tidak menyertakan
+     * `resolution` di sanitized parameters (karena
+     * bukan payload Motiongen).
+     *
+     * Tapi `resolveGenerationCredit()` membutuhkan
+     * `parameters.resolution` untuk:
+     *
+     *   - Validasi resolution (576P / 720P HD)
+     *   - Lookup credit_480p / credit_720p
+     *
+     * Salin dari body supaya tidak `undefined`.
+     * Nilai ini TIDAK akan dikirim ke Motiongen
+     * karena adapter akan membersihkannya lagi
+     * di buildPayload().
+     * -----------------------------------------------------
+     */
+
+    if (!parameters.resolution) {
+
+        const bodyResolution =
+            body?.resolution ??
+            body?.parameters?.resolution;
+
+        if (bodyResolution !== undefined && bodyResolution !== null) {
+
+            parameters.resolution = bodyResolution;
+
+        }
+
+    }
 
 
     /*
