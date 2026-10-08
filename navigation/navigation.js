@@ -1,4 +1,4 @@
-//navigation.js?v=1.9
+//navigation.js?v=2.0
 /* =========================================================
    GEN-Z.AI
    SHARED NAVIGATION
@@ -15,7 +15,12 @@
    - Refresh token via fetch langsung ke /auth/v1/token.
    - Logout via clear localStorage + redirect.
    - onAuthStateChange dinonaktifkan.
-   ========================================================= */
+
+   PATCH v2.0:
+   - Tambah menu "Prompt Studio" ke commonUserItems.
+   - Tambah menu "Prompt Studio" ke adminItems.
+   - Tambah icon promptStudio.
+========================================================= */
 
 (() => {
 
@@ -738,6 +743,8 @@
 
             generate: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 4.5l4 4"></path><path d="M13.8 6.2L4 16l-1 4 4-1 9.8-9.8"></path><path d="M18.5 2.5v4"></path><path d="M20.5 4.5h-4"></path></svg>`,
 
+            promptStudio: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v3"></path><path d="m19 5-2 2"></path><path d="M22 12h-3"></path><path d="m19 19-2-2"></path><path d="M12 22v-3"></path><path d="m5 19 2-2"></path><path d="M2 12h3"></path><path d="m5 5 2 2"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
+
             visionImage: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path><circle cx="12" cy="12" r="2.7"></circle></svg>`,
 
             visionVideo: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"></rect><path d="M16 10l5-3v10l-5-3z"></path></svg>`,
@@ -760,13 +767,23 @@
         const commonUserItems = [
 
             { label: "Dashboard", href: "/user/dashboard.html", icon: ICONS.dashboard },
+
             { label: "Generate", href: "/generate/index.html", icon: ICONS.generate },
+
+            { label: "Prompt Studio", href: "/prompt-studio/index.html", icon: ICONS.promptStudio },
+
             { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
+
             { label: "Vision Video", href: "/vision-video/index.html", icon: ICONS.visionVideo },
+
             { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
+
             { label: "History", href: "/history/index.html", icon: ICONS.history },
+
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
+
             { label: "Top Up", href: "/user/topup.html", icon: ICONS.topUp },
+
             { label: "Hub Admin", href: "/user/hub-admin.html", icon: ICONS.hubAdmin }
 
         ];
@@ -775,12 +792,21 @@
         const adminItems = [
 
             { label: "Dashboard", href: "/admin/dashboard/index.html", icon: ICONS.dashboard },
+
             { label: "Generate", href: "/generate/index.html", icon: ICONS.generate },
+
+            { label: "Prompt Studio", href: "/prompt-studio/index.html", icon: ICONS.promptStudio },
+
             { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
+
             { label: "Vision Video", href: "/vision-video/index.html", icon: ICONS.visionVideo },
+
             { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
+
             { label: "History", href: "/history/index.html", icon: ICONS.history },
+
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
+
             { label: "Admin Panel", href: "/admin-control/admin-panel.html", icon: ICONS.adminPanel }
 
         ];
