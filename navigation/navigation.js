@@ -1,4 +1,4 @@
-//navigation.js?v=1.7
+//navigation.js?v=1.8
 /* =========================================================
    GEN-Z.AI
    SHARED NAVIGATION
@@ -31,6 +31,15 @@
    - authSubscription unsubscribe saat page unload
    - Supabase client pakai auth config eksplisit
    - console.error di-gate via window.GENZ_DEBUG
+
+   PATCH (FIX DEADLOCK):
+   - autoRefreshToken: false
+     autoRefreshToken: true bikin background refresh
+     memegang Web Lock dan tidak pernah melepasnya,
+     sehingga getSession() / signOut() / upload() hang.
+   - Tambah custom lock (no-op) untuk bypass Web Locks API.
+   - Tambah ensureFreshToken() untuk refresh token manual
+     sebelum getSession() dipanggil.
    ========================================================= */
 
 (() => {
@@ -117,6 +126,15 @@
         500;
 
 
+    /*
+     * Buffer waktu (detik) sebelum token expired.
+     * Kalau sisa waktu < buffer, refresh manual.
+     */
+
+    const TOKEN_REFRESH_BUFFER_SEC =
+        60;
+
+
     /* =====================================================
        STATE
     ===================================================== */
@@ -190,6 +208,11 @@
 
     /* =====================================================
        SUPABASE
+       -----------------------------------------------------
+       FIX DEADLOCK:
+       - autoRefreshToken: false
+       - lock: no-op (langsung jalankan callback)
+       - refresh manual via ensureFreshToken()
     ===================================================== */
 
     function getSupabaseClient() {
@@ -275,18 +298,62 @@
                     supabaseKey,
                     {
                         auth: {
+
                             persistSession:
                                 true,
 
+                            /*
+                             * autoRefreshToken HARUS false.
+                             *
+                             * Kalau true, Supabase client akan
+                             * menjalankan background refresh
+                             * yang memegang Web Lock dan tidak
+                             * melepasnya → getSession() /
+                             * signOut() / storage.upload()
+                             * hang selamanya.
+                             *
+                             * Refresh token dilakukan manual
+                             * di ensureFreshToken().
+                             */
+
                             autoRefreshToken:
-                                true,
+                                false,
 
                             detectSessionInUrl:
-                                true
+                                true,
+
+                            /*
+                             * Bypass Web Locks API.
+                             * Callback langsung dijalankan
+                             * tanpa menunggu lock.
+                             */
+
+                            lock:
+                                async (
+                                    _name,
+                                    _acquireTimeout,
+                                    fn
+                                ) => {
+
+                                    return await fn();
+
+                                }
+
                         }
                     }
                 );
 
+
+            /*
+             * Simpan ke global.
+             *
+             * Sekaligus set GENZ_SUPABASE agar
+             * generate-auth.js / generate-state.js
+             * tidak bikin client kedua.
+             */
+
+            window.GENZ_SUPABASE =
+                client;
 
             window.supabaseClient =
                 client;
@@ -304,6 +371,143 @@
             );
 
             return null;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       ENSURE FRESH TOKEN
+       -----------------------------------------------------
+       Karena autoRefreshToken dimatikan, kita refresh
+       token manual sebelum getSession().
+
+       Ini menghindari hang di getSession() ketika token
+       sudah hampir expired.
+    ===================================================== */
+
+    async function ensureFreshToken() {
+
+        const supabase =
+            getSupabaseClient();
+
+
+        if (
+            !supabase ||
+            !supabase.auth
+        ) {
+
+            return;
+
+        }
+
+
+        try {
+
+            const sessionResult =
+                await supabase.auth.getSession();
+
+
+            const session =
+                sessionResult?.data?.session;
+
+
+            if (
+                !session ||
+                !session.expires_at
+            ) {
+
+                return;
+
+            }
+
+
+            const nowSec =
+                Math.floor(
+                    Date.now() / 1000
+                );
+
+
+            const secondsUntilExpiry =
+                session.expires_at -
+                nowSec;
+
+
+            if (
+                secondsUntilExpiry >=
+                TOKEN_REFRESH_BUFFER_SEC
+            ) {
+
+                /*
+                 * Token masih valid, tidak perlu
+                 * refresh.
+                 */
+
+                return;
+
+            }
+
+
+            if (
+                isDebugEnabled()
+            ) {
+
+                console.log(
+                    "[GEN-Z.AI][Navigation] Refresh token manual " +
+                    "(expired in " +
+                    secondsUntilExpiry +
+                    "s)..."
+                );
+
+            }
+
+
+            const refreshResult =
+                await supabase.auth.refreshSession();
+
+
+            if (
+                refreshResult?.error
+            ) {
+
+                if (
+                    isDebugEnabled()
+                ) {
+
+                    console.warn(
+                        "[GEN-Z.AI][Navigation] Refresh token gagal:",
+                        refreshResult.error.message
+                    );
+
+                }
+
+            } else {
+
+                if (
+                    isDebugEnabled()
+                ) {
+
+                    console.log(
+                        "[GEN-Z.AI][Navigation] Refresh token berhasil."
+                    );
+
+                }
+
+            }
+
+        } catch (error) {
+
+            if (
+                isDebugEnabled()
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI][Navigation] ensureFreshToken error:",
+                    error
+                );
+
+            }
 
         }
 
@@ -454,6 +658,9 @@
 
     /* =====================================================
        SESSION
+       -----------------------------------------------------
+       FIX: Panggil ensureFreshToken() sebelum getSession()
+       untuk refresh token manual.
     ===================================================== */
 
     async function getSessionWithRetry() {
@@ -473,6 +680,17 @@
             };
 
         }
+
+
+        /*
+         * -------------------------------------------------
+         * REFRESH TOKEN MANUAL
+         * -------------------------------------------------
+         * Karena autoRefreshToken dimatikan, kita refresh
+         * manual kalau token sudah hampir expired.
+         */
+
+        await ensureFreshToken();
 
 
         for (
