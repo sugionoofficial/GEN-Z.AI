@@ -1,0 +1,236 @@
+name: Upscale Photo (Real-ESRGAN)
+
+on:
+  workflow_dispatch:
+    inputs:
+      history_id:
+        description: "ID row generation_history"
+        required: true
+        type: string
+      source_url:
+        description: "URL foto sumber"
+        required: true
+        type: string
+      user_id:
+        description: "User ID (untuk refund)"
+        required: true
+        type: string
+      credit_cost:
+        description: "Credit yang dipotong"
+        required: true
+        type: string
+        default: "1"
+      target_resolution:
+        description: "Target: 2k atau 4k"
+        required: true
+        type: string
+        default: "2k"
+
+jobs:
+  upscale-photo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-real-esrgan
+
+      - name: Cache Real-ESRGAN model
+        id: cache-model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/realesrgan
+          key: realesrgan-x4plus-v1
+
+      - name: Install Python dependencies
+        run: |
+          pip install --quiet --upgrade pip
+          pip install --quiet torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet realesrgan basicsr opencv-python-headless pillow
+
+      - name: Download Real-ESRGAN model (if not cached)
+        if: steps.cache-model.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.cache/realesrgan
+          cd ~/.cache/realesrgan
+          curl -L --fail --retry 3 \
+            -o RealESRGAN_x4plus.pth \
+            https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/RealESRGAN_x4plus.pth
+          ls -lh RealESRGAN_x4plus.pth
+
+      - name: Download source photo
+        run: |
+          curl -L --fail --retry 3 -o input.jpg "${{ inputs.source_url }}"
+          ls -lh input.jpg
+
+      - name: Upscale with Real-ESRGAN
+        run: |
+          python << 'PYEOF'
+          import os
+          import cv2
+          from basicsr.archs.rrdbnet_arch import RRDBNet
+          from realesrgan import RealESRGANer
+
+          model_path = os.path.expanduser("~/.cache/realesrgan/RealESRGAN_x4plus.pth")
+
+          model = RRDBNet(
+              num_in_ch=3,
+              num_out_ch=3,
+              num_feat=64,
+              num_block=23,
+              num_grow_ch=32,
+              scale=4
+          )
+
+          upsampler = RealESRGANer(
+              scale=4,
+              model_path=model_path,
+              model=model,
+              tile=0,
+              tile_pad=10,
+              pre_pad=0,
+              half=False
+          )
+
+          img = cv2.imread("input.jpg", cv2.IMREAD_UNCHANGED)
+
+          if img is None:
+              raise SystemExit("Gagal baca input.jpg")
+
+          output, _ = upsampler.enhance(img, outscale=4)
+
+          os.makedirs("output_folder", exist_ok=True)
+          cv2.imwrite("output_folder/upscaled.png", output)
+
+          h, w = output.shape[:2]
+          print(f"Upscaled size: {w}x{h}")
+          PYEOF
+          ls -lh output_folder/
+
+      - name: Resize to target resolution
+        run: |
+          TARGET="${{ inputs.target_resolution }}"
+
+          if [ "$TARGET" = "4k" ]; then
+            MAX_W=3840; MAX_H=2160
+          else
+            MAX_W=2560; MAX_H=1440
+          fi
+
+          SOURCE_FILE=$(find output_folder -name "*.png" -o -name "*.jpg" | head -n1)
+
+          W=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$SOURCE_FILE")
+          H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$SOURCE_FILE")
+
+          echo "Source after ESRGAN: ${W}x${H}"
+
+          if [ "$W" -lt "$H" ]; then
+            TARGET_W=$MAX_H
+            TARGET_H=$MAX_W
+          else
+            TARGET_W=$MAX_W
+            TARGET_H=$MAX_H
+          fi
+
+          ffmpeg -y -i "$SOURCE_FILE" \
+            -vf "scale='min(${TARGET_W},iw)':'min(${TARGET_H},ih)':force_original_aspect_ratio=decrease" \
+            -q:v 2 \
+            final.jpg
+
+          ls -lh final.jpg
+
+      - name: Upload to Supabase Storage
+        id: upload
+        env:
+          SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          HISTORY_ID: ${{ inputs.history_id }}
+        run: |
+          FILENAME="upscale-photo-${HISTORY_ID}-$(date +%s).jpg"
+          BUCKET="dashboard-upscales"
+          KEY="photos/outputs/${FILENAME}"
+
+          HTTP_CODE=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
+            -X POST \
+            "${SUPABASE_URL}/storage/v1/object/${BUCKET}/${KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: image/jpeg" \
+            -H "x-upsert: true" \
+            --data-binary @final.jpg)
+
+          echo "HTTP: ${HTTP_CODE}"
+
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+            cat /tmp/resp.txt
+            exit 1
+          fi
+
+          PUBLIC_URL="${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${KEY}"
+          echo "public_url=$PUBLIC_URL" >> $GITHUB_OUTPUT
+          echo "Uploaded: $PUBLIC_URL"
+
+      - name: Update history row (success)
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          HISTORY_ID: ${{ inputs.history_id }}
+          PUBLIC_URL: ${{ steps.upload.outputs.public_url }}
+        run: |
+          curl --fail -X PATCH \
+            "${SUPABASE_URL}/rest/v1/generation_history?id=eq.${HISTORY_ID}" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "{
+              \"status\": \"success\",
+              \"result_url\": \"${PUBLIC_URL}\",
+              \"completed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+            }"
+
+      - name: Refund on failure
+        if: failure()
+        env:
+          SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          HISTORY_ID: ${{ inputs.history_id }}
+          USER_ID: ${{ inputs.user_id }}
+          CREDIT_COST: ${{ inputs.credit_cost }}
+        run: |
+          curl -X PATCH \
+            "${SUPABASE_URL}/rest/v1/generation_history?id=eq.${HISTORY_ID}" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "{
+              \"status\": \"failed\",
+              \"error_message\": \"Upscale foto gagal di GitHub Actions\"
+            }"
+
+          curl -X POST \
+            "${SUPABASE_URL}/rest/v1/rpc/refund_generate_credits" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"p_user_id\": \"${USER_ID}\",
+              \"p_amount\": ${CREDIT_COST}
+            }"
+
+          echo "Refund done."
