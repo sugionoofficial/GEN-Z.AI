@@ -1706,6 +1706,11 @@
 
         /* =========================================================
            ANTI-DOWNLOAD — VIDEO PROTECTION
+           ---------------------------------------------------------
+           FIX: pointer-events tidak di-none, overlay dihapus,
+           z-index tidak diubah. Tombol play/mute tetap bisa diklik.
+           Proteksi klik kanan tetap aktif via JS + atribut
+           oncontextmenu + controlslist.
         ========================================================= */
 
         .landing-video {
@@ -1720,28 +1725,6 @@
             -o-user-drag: none;
 
             -webkit-touch-callout: none;
-
-            pointer-events: none;
-        }
-
-        .video-shell {
-            position: relative;
-        }
-
-        .video-shell::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            z-index: 5;
-            background: transparent;
-            pointer-events: auto;
-        }
-
-        .video-controls,
-        .video-control,
-        .video-status {
-            position: relative;
-            z-index: 10;
         }
 
     </style>
