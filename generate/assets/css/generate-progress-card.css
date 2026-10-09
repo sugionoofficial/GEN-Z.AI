@@ -1,0 +1,329 @@
+/* =========================================================
+   GEN-Z.AI — GENERATE PROGRESS CARD
+========================================================= */
+
+.genz-progress-card {
+    --gpc-accent: #ff3355;
+    --gpc-emerald: #2ed573;
+
+    position: relative;
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr) 36px;
+    align-items: center;
+    gap: 16px;
+
+    width: 100%;
+    max-width: 100%;
+    margin-top: 16px;
+    padding: 14px 14px 14px 16px;
+    box-sizing: border-box;
+
+    background: linear-gradient(180deg, rgba(20,10,14,.72) 0%, rgba(8,8,10,.72) 100%);
+    border: 1px solid rgba(255,51,85,.35);
+    border-radius: 16px;
+
+    box-shadow:
+        0 0 0 1px rgba(255,51,85,.08),
+        0 10px 32px rgba(0,0,0,.45),
+        0 0 24px rgba(255,51,85,.08);
+
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    overflow: hidden;
+    isolation: isolate;
+
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+        opacity .35s cubic-bezier(.4,0,.2,1),
+        transform .35s cubic-bezier(.4,0,.2,1);
+}
+
+.genz-progress-card::before {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,51,85,.75), transparent);
+    opacity: .8;
+}
+
+.genz-progress-card[hidden] { display: none !important; }
+
+.genz-progress-card.is-enter {
+    opacity: 0;
+    transform: translateY(6px);
+}
+.genz-progress-card.is-exit {
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+}
+
+.genz-progress-card[data-state="success"] {
+    border-color: rgba(46,213,115,.45);
+    box-shadow: 0 10px 32px rgba(0,0,0,.45), 0 0 24px rgba(46,213,115,.12);
+}
+.genz-progress-card[data-state="success"]::before {
+    background: linear-gradient(90deg, transparent, rgba(46,213,115,.75), transparent);
+}
+
+.genz-progress-card[data-state="failed"] {
+    border-color: rgba(220,38,38,.5);
+}
+.genz-progress-card[data-state="failed"]::before {
+    background: linear-gradient(90deg, transparent, rgba(220,38,38,.75), transparent);
+}
+
+/* ===== THUMB ===== */
+.gpc-thumb {
+    position: relative;
+    width: 88px;
+    height: 88px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #030509;
+    border: 1px solid rgba(255,255,255,.08);
+    flex-shrink: 0;
+}
+.gpc-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.gpc-thumb-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,.55));
+    pointer-events: none;
+}
+.gpc-thumb-spinner {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.12);
+    border-top-color: var(--gpc-accent);
+    animation: gpcSpin .8s linear infinite;
+    opacity: 0;
+    transition: opacity .25s ease;
+}
+.genz-progress-card[data-state="processing"] .gpc-thumb-spinner,
+.genz-progress-card[data-state="queued"] .gpc-thumb-spinner {
+    opacity: 1;
+}
+.genz-progress-card[data-state="success"] .gpc-thumb-spinner,
+.genz-progress-card[data-state="failed"] .gpc-thumb-spinner {
+    opacity: 0;
+}
+@keyframes gpcSpin { to { transform: rotate(360deg); } }
+
+/* ===== BODY ===== */
+.gpc-body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.gpc-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.gpc-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: rgba(255,255,255,.55);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.gpc-pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--gpc-accent);
+    box-shadow: 0 0 10px rgba(255,51,85,.85);
+    animation: gpcPulse 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+}
+.genz-progress-card[data-state="success"] .gpc-pulse {
+    background: var(--gpc-emerald);
+    box-shadow: 0 0 10px rgba(46,213,115,.85);
+    animation: none;
+}
+.genz-progress-card[data-state="failed"] .gpc-pulse {
+    background: #ff5566;
+    box-shadow: 0 0 10px rgba(255,85,102,.85);
+    animation: none;
+}
+@keyframes gpcPulse {
+    0%, 100% { transform: scale(.85); opacity: .85; }
+    50% { transform: scale(1.25); opacity: 1; }
+}
+
+.gpc-timer {
+    color: rgba(255,255,255,.45);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    font-feature-settings: "tnum";
+    white-space: nowrap;
+}
+.gpc-title {
+    color: #f0f2f7;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+.gpc-bar {
+    position: relative;
+    width: 100%;
+    height: 4px;
+    border-radius: 4px;
+    background: rgba(255,255,255,.06);
+    overflow: hidden;
+}
+.gpc-bar-fill {
+    position: relative;
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #ff3355, #ff6a7a, #ffb84d);
+    box-shadow: 0 0 12px rgba(255,51,85,.55);
+    transition: width .45s cubic-bezier(.4,0,.2,1);
+}
+.gpc-bar-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.65) 50%, transparent 100%);
+    transform: translateX(-100%);
+    animation: gpcShimmer 1.6s ease-in-out infinite;
+}
+.genz-progress-card[data-state="success"] .gpc-bar-fill {
+    background: linear-gradient(90deg, #2ed573, #66ffa6);
+    box-shadow: 0 0 12px rgba(46,213,115,.55);
+}
+.genz-progress-card[data-state="success"] .gpc-bar-fill::after,
+.genz-progress-card[data-state="failed"] .gpc-bar-fill::after {
+    display: none;
+}
+.genz-progress-card[data-state="failed"] .gpc-bar-fill {
+    background: linear-gradient(90deg, #dc2626, #ff5566);
+    box-shadow: 0 0 12px rgba(220,38,38,.55);
+}
+@keyframes gpcShimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+.gpc-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+}
+.gpc-model {
+    color: rgba(255,255,255,.4);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+.gpc-status {
+    color: #ff8fa3;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.genz-progress-card[data-state="success"] .gpc-status { color: #66ffa6; }
+.genz-progress-card[data-state="failed"] .gpc-status { color: #ff8794; }
+
+.gpc-close {
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 9px;
+    background: transparent;
+    color: rgba(255,255,255,.55);
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all .2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: start;
+    margin-top: 4px;
+    padding: 0;
+}
+.gpc-close:hover {
+    color: #f0f2f7;
+    border-color: #ff3355;
+    background: rgba(255,51,85,.12);
+}
+.gpc-close:focus-visible {
+    outline: 2px solid #ff3355;
+    outline-offset: 2px;
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 560px) {
+    .genz-progress-card {
+        grid-template-columns: 64px minmax(0, 1fr) 30px;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 14px;
+    }
+    .gpc-thumb {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
+    }
+    .gpc-thumb-spinner {
+        width: 18px;
+        height: 18px;
+    }
+    .gpc-kicker { font-size: 8px; letter-spacing: 1.4px; }
+    .gpc-timer { font-size: 10px; }
+    .gpc-title { font-size: 12px; }
+    .gpc-meta { font-size: 9px; letter-spacing: 1px; }
+    .gpc-model { font-size: 9px; }
+    .gpc-close {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .genz-progress-card,
+    .gpc-bar-fill,
+    .gpc-thumb-spinner,
+    .gpc-pulse {
+        transition: none !important;
+        animation: none !important;
+    }
+}
