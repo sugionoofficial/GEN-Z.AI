@@ -1,17 +1,93 @@
 /* =========================================================
-   GEN-Z.AI — UPSCALE BUTTON
+   GEN-Z.AI — ACTION BUTTONS (Download + Upscale)
 ========================================================= */
 
-.detail-upscale-row .detail-value {
+/* Wrapper untuk 2 tombol action */
+.detail-action-row .detail-value {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     align-items: flex-start;
 }
+
+.detail-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+}
+
+
+/* =========================================================
+   DOWNLOAD BUTTON
+========================================================= */
+
+.download-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    padding: 10px 16px;
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    border-radius: 10px;
+
+    background: linear-gradient(180deg, rgba(56,189,248,.14), rgba(56,189,248,.06));
+    color: #7dd3fc;
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    white-space: nowrap;
+}
+
+.download-button:hover {
+    color: #fff;
+    border-color: #38bdf8;
+    background: linear-gradient(180deg, rgba(56,189,248,.26), rgba(56,189,248,.12));
+    box-shadow: 0 0 18px rgba(56,189,248,.24);
+    transform: translateY(-1px);
+}
+
+.download-button:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+.download-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.download-button-success {
+    border-color: rgba(46, 213, 115, 0.55);
+    background: linear-gradient(180deg, rgba(46,213,115,.16), rgba(46,213,115,.06));
+    color: #66ffa6;
+}
+
+.download-icon {
+    font-size: 14px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+}
+
+
+/* =========================================================
+   UPSCALE BUTTON
+========================================================= */
 
 .upscale-button {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
 
     padding: 10px 16px;
@@ -70,10 +146,56 @@
     color: #66ffa6;
 }
 
+.upscale-icon {
+    font-size: 14px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+}
+
+.upscale-already-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(46, 213, 115, 0.08);
+    border: 1px solid rgba(46, 213, 115, 0.30);
+    color: #66ffa6;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
 .upscale-hint {
     margin: 0;
     color: #5c6570;
     font-size: 11px;
     line-height: 1.5;
     max-width: 420px;
+}
+
+
+/* =========================================================
+   RESPONSIVE — MOBILE
+========================================================= */
+
+@media (max-width: 560px) {
+    .detail-action-buttons {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .detail-action-buttons > .download-button,
+    .detail-action-buttons > .upscale-button,
+    .detail-action-buttons > .upscale-already-text {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .upscale-button-cost {
+        margin-left: auto;
+    }
 }
