@@ -15,11 +15,14 @@
     const App = window.GENZHistory;
 
     App.state = App.state || {};
-    if (!Array.isArray(App.state.historyData)) App.state.historyData = [];
-    if (typeof App.state.currentFilter !== "string") App.state.currentFilter = "all";
-    if (!Object.prototype.hasOwnProperty.call(App.state, "currentModalHistoryId")) {
-        App.state.currentModalHistoryId = null;
-    }
+if (!Array.isArray(App.state.historyData)) App.state.historyData = [];
+if (typeof App.state.currentFilter !== "string") App.state.currentFilter = "all";
+if (!Object.prototype.hasOwnProperty.call(App.state, "currentModalHistoryId")) {
+    App.state.currentModalHistoryId = null;
+}
+
+/* Timer runtime untuk modal — 1 instance global */
+App.state.modalRuntimeTimerId = null;
 
     App.elements = App.elements || {};
 
@@ -230,6 +233,86 @@
         `;
     }
 
+   /* =====================================================
+   MODAL RUNTIME COUNTER
+   -----------------------------------------------------
+   Muncul di modal detail saja. Update tiap 1 detik.
+   Auto-stop saat modal ditutup.
+===================================================== */
+
+function pad2(n) {
+    return n < 10 ? "0" + n : String(n);
+}
+
+function formatRuntime(ms) {
+    if (!Number.isFinite(ms) || ms < 0) return "00:00";
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return h + ":" + pad2(m) + ":" + pad2(s);
+    return pad2(m) + ":" + pad2(s);
+}
+
+function stopModalRuntime() {
+    const st = getState();
+    if (st.modalRuntimeTimerId) {
+        clearInterval(st.modalRuntimeTimerId);
+        st.modalRuntimeTimerId = null;
+    }
+}
+
+function startModalRuntime(createdAtIso) {
+    stopModalRuntime();
+
+    if (!createdAtIso) return;
+
+    const startTime = new Date(createdAtIso).getTime();
+    if (!Number.isFinite(startTime)) return;
+
+    const el = document.getElementById("modalRuntime");
+    if (!el) return;
+
+    const tick = function () {
+        const target = document.getElementById("modalRuntime");
+        if (!target) {
+            stopModalRuntime();
+            return;
+        }
+        const elapsed = Date.now() - startTime;
+        target.textContent = formatRuntime(elapsed);
+    };
+
+    tick();
+    getState().modalRuntimeTimerId = setInterval(tick, 1000);
+}
+
+function renderRuntimeRow(item) {
+    const status = normalizeStatus(item?.status);
+    const isActive = status === "processing" || status === "pending";
+
+    if (!isActive) return "";
+
+    const createdAt =
+        item?.created_at ||
+        item?.createdAt ||
+        "";
+
+    if (!createdAt) return "";
+
+    return `
+        <div class="detail-row detail-runtime-row">
+            <div class="detail-label">Runtime</div>
+            <div class="detail-value">
+                <span class="modal-runtime-badge">
+                    <span class="modal-runtime-dot" aria-hidden="true"></span>
+                    <span id="modalRuntime" data-created-at="${escapeHtml(String(createdAt))}">--:--</span>
+                </span>
+            </div>
+        </div>
+    `;
+}
+
 
     /* =====================================================
        RESULT
@@ -414,6 +497,7 @@
         body.innerHTML = `
             ${renderVideoPreview(item)}
             ${renderStatus(item)}
+            ${renderRuntimeRow(item)}
             ${renderField("Provider", provider)}
             ${renderField("Model", modelName)}
             ${renderField("Model ID", modelId, { mono: true })}
@@ -666,33 +750,40 @@
     ===================================================== */
 
     function openDetailModal(id) {
-        const targetId = String(id || "").trim();
-        if (!targetId) return;
+    const targetId = String(id || "").trim();
+    if (!targetId) return;
 
-        const item = getHistoryById(targetId);
-        if (!item) {
-            console.warn("[GEN-Z.AI History] History detail tidak ditemukan:", targetId);
-            return;
-        }
-
-        getState().currentModalHistoryId = targetId;
-        renderModalBody(item);
-        setupModalBodyEvents();
-
-        const elements = getElements();
-        const modal = elements.detailModal || document.getElementById("detailModal");
-        if (!modal) return;
-
-        modal.style.display = "flex";
-        modal.classList.add("show");
-        modal.setAttribute("aria-hidden", "false");
-        document.body.classList.add("history-modal-open");
-
-        const closeBtn = elements.closeModal || document.getElementById("closeModal");
-        if (closeBtn) {
-            try { closeBtn.focus(); } catch (e) {}
-        }
+    const item = getHistoryById(targetId);
+    if (!item) {
+        console.warn("[GEN-Z.AI History] History detail tidak ditemukan:", targetId);
+        return;
     }
+
+    getState().currentModalHistoryId = targetId;
+    renderModalBody(item);
+    setupModalBodyEvents();
+
+    /* ===== START RUNTIME TIMER ===== */
+    const createdAt =
+        item?.created_at ||
+        item?.createdAt ||
+        "";
+    startModalRuntime(createdAt);
+
+    const elements = getElements();
+    const modal = elements.detailModal || document.getElementById("detailModal");
+    if (!modal) return;
+
+    modal.style.display = "flex";
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("history-modal-open");
+
+    const closeBtn = elements.closeModal || document.getElementById("closeModal");
+    if (closeBtn) {
+        try { closeBtn.focus(); } catch (e) {}
+    }
+}
 
     App.openDetailModal = openDetailModal;
 
@@ -702,6 +793,8 @@
     ===================================================== */
 
     function closeDetailModal() {
+        /* ===== STOP RUNTIME TIMER ===== */
+    stopModalRuntime();
         const elements = getElements();
         const modal = elements.detailModal || document.getElementById("detailModal");
         if (!modal) return;
@@ -748,6 +841,9 @@
     function refreshOpenModal() {
         const id = getState().currentModalHistoryId;
         if (!id) return;
+       /* Reset timer biar tidak dobel */
+    stopModalRuntime();
+
 
         const item = getHistoryById(id);
         if (!item) {
