@@ -8,9 +8,11 @@
    Tanggung jawab:
    - Image field
    - Audio field
+   - Video field
    - URL / Upload mode
    - Preview image
    - Preview audio
+   - Preview video
    - Delegasi validation
    - Delegasi upload
    - Menjaga compatibility dengan generate-form.js lama
@@ -55,9 +57,11 @@ function debugLog(...args) {
 
 let imageUploadHandler = null;
 let audioUploadHandler = null;
+let videoUploadHandler = null;
 
 let imageValidator = null;
 let audioValidator = null;
+let videoValidator = null;
 
 
 /* =========================================================
@@ -355,6 +359,48 @@ export function registerAudioMediaHandlers({
 
 
 /* =========================================================
+   REGISTER VIDEO HANDLERS
+========================================================= */
+
+export function registerVideoMediaHandlers({
+    upload = null,
+    validate = null
+} = {}) {
+
+    if (
+        upload !== null &&
+        typeof upload !== "function"
+    ) {
+
+        throw new TypeError(
+            "Video upload handler must be a function"
+        );
+
+    }
+
+
+    if (
+        validate !== null &&
+        typeof validate !== "function"
+    ) {
+
+        throw new TypeError(
+            "Video validator must be a function"
+        );
+
+    }
+
+
+    videoUploadHandler =
+        upload;
+
+    videoValidator =
+        validate;
+
+}
+
+
+/* =========================================================
    VALIDATE IMAGE
 ========================================================= */
 
@@ -427,6 +473,42 @@ function validateAudio(
 
 
 /* =========================================================
+   VALIDATE VIDEO
+========================================================= */
+
+function validateVideo(
+    file
+) {
+
+    if (
+        typeof videoValidator ===
+        "function"
+    ) {
+
+        return videoValidator(
+            file
+        );
+
+    }
+
+
+    if (
+        !file
+    ) {
+
+        throw new Error(
+            "File video tidak ditemukan."
+        );
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
    UPLOAD IMAGE
 ========================================================= */
 
@@ -484,6 +566,38 @@ async function uploadAudio(
 
 
     return await audioUploadHandler(
+        file
+    );
+
+}
+
+
+/* =========================================================
+   UPLOAD VIDEO
+========================================================= */
+
+async function uploadVideo(
+    file
+) {
+
+    validateVideo(
+        file
+    );
+
+
+    if (
+        typeof videoUploadHandler !==
+        "function"
+    ) {
+
+        throw new Error(
+            "Video upload handler is not registered"
+        );
+
+    }
+
+
+    return await videoUploadHandler(
         file
     );
 
@@ -752,6 +866,55 @@ function createAudioPreview(
 
 
     return audio;
+
+}
+
+
+/* =========================================================
+   VIDEO PREVIEW
+========================================================= */
+
+function createVideoPreview(
+    preview
+) {
+
+    const video =
+        document.createElement(
+            "video"
+        );
+
+
+    video.controls =
+        true;
+
+    video.preload =
+        "metadata";
+
+    video.muted =
+        true;
+
+    video.playsInline =
+        true;
+
+    video.style.width =
+        "100%";
+
+    video.style.maxWidth =
+        "500px";
+
+    video.style.borderRadius =
+        "10px";
+
+    video.style.border =
+        "1px solid rgba(255,255,255,.12)";
+
+
+    preview.appendChild(
+        video
+    );
+
+
+    return video;
 
 }
 
@@ -1334,9 +1497,6 @@ export function createImageField(
 
                         /* =================================
                            STALE CHECK
-                           -------------------------------------------------
-                           Kalau ada upload baru dimulai
-                           setelah ini, jangan timpa dataset.
                         ================================= */
 
                         if (
@@ -2519,12 +2679,902 @@ export function createAudioField(
 
 
 /* =========================================================
+   VIDEO FIELD
+========================================================= */
+
+export function createVideoField(
+    definition = {},
+    parameterName = "video_urls"
+) {
+
+    const wrapper =
+        document.createElement(
+            "div"
+        );
+
+
+    wrapper.className =
+        "generate-video-input";
+
+
+    wrapper.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
+
+
+    if (
+        parameterName
+    ) {
+
+        wrapper.dataset.parameter =
+            parameterName;
+
+    }
+
+
+    wrapper.dataset.videoMode =
+        "url";
+
+
+    /* =====================================================
+       RACE CONDITION TOKEN
+    ===================================================== */
+
+    let uploadToken =
+        0;
+
+
+    /* =====================================================
+       MODE SELECTOR
+    ===================================================== */
+
+    const modeSelector =
+        document.createElement(
+            "div"
+        );
+
+
+    modeSelector.className =
+        "generate-video-mode-selector";
+
+
+    modeSelector.style.display =
+        "flex";
+
+    modeSelector.style.gap =
+        "8px";
+
+    modeSelector.style.marginBottom =
+        "10px";
+
+
+    const urlButton =
+        document.createElement(
+            "button"
+        );
+
+
+    urlButton.type =
+        "button";
+
+    urlButton.textContent =
+        "Gunakan URL";
+
+    urlButton.className =
+        "generate-video-mode-button active";
+
+    urlButton.style.cursor =
+        "pointer";
+
+    urlButton.setAttribute(
+        "aria-pressed",
+        "true"
+    );
+
+
+    const uploadButton =
+        document.createElement(
+            "button"
+        );
+
+
+    uploadButton.type =
+        "button";
+
+    uploadButton.textContent =
+        "Upload Video";
+
+    uploadButton.className =
+        "generate-video-mode-button";
+
+    uploadButton.style.cursor =
+        "pointer";
+
+    uploadButton.setAttribute(
+        "aria-pressed",
+        "false"
+    );
+
+
+    modeSelector.appendChild(
+        urlButton
+    );
+
+    modeSelector.appendChild(
+        uploadButton
+    );
+
+
+    /* =====================================================
+       URL
+    ===================================================== */
+
+    const urlContainer =
+        document.createElement(
+            "div"
+        );
+
+
+    urlContainer.className =
+        "generate-video-url-container";
+
+
+    const urlInput =
+        document.createElement(
+            "input"
+        );
+
+
+    urlInput.type =
+        "url";
+
+    urlInput.className =
+        "generate-video-url";
+
+    urlInput.placeholder =
+        definition.placeholder ||
+        "Masukkan URL video MP4/WebM";
+
+    urlInput.autocomplete =
+        "off";
+
+
+    urlInput.style.setProperty(
+        "width",
+        "100%",
+        "important"
+    );
+
+
+    const defaultValue =
+        definition.default ??
+        definition.default_value ??
+        definition.value;
+
+
+    if (
+        defaultValue !== undefined &&
+        defaultValue !== null
+    ) {
+
+        urlInput.value =
+            String(
+                Array.isArray(
+                    defaultValue
+                )
+                    ? (
+                        defaultValue[0] ||
+                        ""
+                    )
+                    : defaultValue
+            );
+
+    }
+
+
+    urlContainer.appendChild(
+        urlInput
+    );
+
+
+    /* =====================================================
+       UPLOAD
+    ===================================================== */
+
+    const uploadContainer =
+        document.createElement(
+            "div"
+        );
+
+
+    uploadContainer.className =
+        "generate-video-upload-container";
+
+
+    uploadContainer.style.display =
+        "none";
+
+
+    const fileInput =
+        document.createElement(
+            "input"
+        );
+
+
+    fileInput.type =
+        "file";
+
+    fileInput.accept =
+        definition.accept ||
+        "video/mp4,video/webm,.mp4,.webm";
+
+    fileInput.multiple =
+        false;
+
+    fileInput.className =
+        "generate-video-file";
+
+
+    uploadContainer.appendChild(
+        fileInput
+    );
+
+
+    /* =====================================================
+       PREVIEW
+    ===================================================== */
+
+    const preview =
+        document.createElement(
+            "div"
+        );
+
+
+    preview.className =
+        "generate-video-preview";
+
+
+    preview.style.display =
+        "none";
+
+    preview.style.marginTop =
+        "10px";
+
+
+    const video =
+        createVideoPreview(
+            preview
+        );
+
+
+    function renderPreview(
+        file
+    ) {
+
+        video.removeAttribute(
+            "src"
+        );
+
+        video.load();
+
+
+        if (
+            !file
+        ) {
+
+            preview.style.display =
+                "none";
+
+            return;
+
+        }
+
+
+        const previousUrl =
+            video.dataset.objectUrl;
+
+
+        if (
+            previousUrl
+        ) {
+
+            try {
+
+                URL.revokeObjectURL(
+                    previousUrl
+                );
+
+            } catch {
+                /* ignore */
+            }
+
+        }
+
+
+        const objectUrl =
+            URL.createObjectURL(
+                file
+            );
+
+
+        video.src =
+            objectUrl;
+
+        video.dataset.objectUrl =
+            objectUrl;
+
+
+        preview.style.display =
+            "block";
+
+    }
+
+
+    function clearPreview() {
+
+        const objectUrl =
+            video.dataset.objectUrl;
+
+
+        if (
+            objectUrl
+        ) {
+
+            try {
+
+                URL.revokeObjectURL(
+                    objectUrl
+                );
+
+            } catch {
+                /* ignore */
+            }
+
+        }
+
+
+        delete video.dataset.objectUrl;
+
+
+        video.removeAttribute(
+            "src"
+        );
+
+        video.load();
+
+
+        preview.style.display =
+            "none";
+
+    }
+
+
+    /* =====================================================
+       MODE
+    ===================================================== */
+
+    function setMode(
+        mode
+    ) {
+
+        const uploadMode =
+            mode === "upload";
+
+
+        if (
+            uploadMode
+        ) {
+
+            urlContainer.style.display =
+                "none";
+
+            uploadContainer.style.display =
+                "block";
+
+
+            urlButton.classList.remove(
+                "active"
+            );
+
+            uploadButton.classList.add(
+                "active"
+            );
+
+
+            urlButton.setAttribute(
+                "aria-pressed",
+                "false"
+            );
+
+            uploadButton.setAttribute(
+                "aria-pressed",
+                "true"
+            );
+
+
+            if (
+                fileInput.files &&
+                fileInput.files.length
+            ) {
+
+                renderPreview(
+                    fileInput.files[0]
+                );
+
+            }
+
+        } else {
+
+            urlContainer.style.display =
+                "block";
+
+            uploadContainer.style.display =
+                "none";
+
+
+            clearPreview();
+
+
+            uploadButton.classList.remove(
+                "active"
+            );
+
+            urlButton.classList.add(
+                "active"
+            );
+
+
+            urlButton.setAttribute(
+                "aria-pressed",
+                "true"
+            );
+
+            uploadButton.setAttribute(
+                "aria-pressed",
+                "false"
+            );
+
+        }
+
+
+        wrapper.dataset.videoMode =
+            uploadMode
+                ? "upload"
+                : "url";
+
+    }
+
+
+    /* =====================================================
+       BUTTON EVENTS
+    ===================================================== */
+
+    urlButton.addEventListener(
+        "click",
+        event => {
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            setMode(
+                "url"
+            );
+
+        }
+    );
+
+
+    uploadButton.addEventListener(
+        "click",
+        event => {
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            setMode(
+                "upload"
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       FILE CHANGE
+    ===================================================== */
+
+    fileInput.addEventListener(
+        "change",
+        async () => {
+
+            const files =
+                Array.from(
+                    fileInput.files || []
+                );
+
+
+            /* =============================================
+               CLEAR OLD STATE
+            ============================================= */
+
+            clearUploadError(
+                wrapper
+            );
+
+
+            /* =============================================
+               EMPTY SELECTION
+            ============================================= */
+
+            if (
+                !files.length
+            ) {
+
+                delete wrapper.dataset.uploadedUrl;
+
+                wrapper._videoUploadPromise =
+                    null;
+
+                setUploadState(
+                    wrapper,
+                    ""
+                );
+
+                clearPreview();
+
+                return;
+
+            }
+
+
+            const file =
+                files[0];
+
+
+            try {
+
+                validateVideo(
+                    file
+                );
+
+
+                renderPreview(
+                    file
+                );
+
+
+                delete wrapper.dataset.uploadedUrl;
+
+
+                /* =========================================
+                   RACE TOKEN
+                ========================================= */
+
+                const myToken =
+                    ++uploadToken;
+
+
+                setUploadState(
+                    wrapper,
+                    "uploading",
+                    "Mengunggah video..."
+                );
+
+
+                wrapper._videoUploadPromise =
+                    (async () => {
+
+                        const uploaded =
+                            await uploadVideo(
+                                file
+                            );
+
+
+                        const uploadedUrl =
+                            extractUploadUrl(
+                                uploaded
+                            );
+
+
+                        if (
+                            myToken !==
+                            uploadToken
+                        ) {
+
+                            debugLog(
+                                "[GEN-Z.AI][Generate Form] Upload video stale diabaikan (race condition)."
+                            );
+
+
+                            return uploadedUrl;
+
+                        }
+
+
+                        if (
+                            !uploadedUrl
+                        ) {
+
+                            throw new Error(
+                                "Upload video berhasil tetapi URL video tidak tersedia."
+                            );
+
+                        }
+
+
+                        wrapper.dataset.uploadedUrl =
+                            uploadedUrl;
+
+
+                        debugLog(
+                            "[GEN-Z.AI][Generate Form] Video upload ready:",
+                            uploadedUrl
+                        );
+
+
+                        return uploadedUrl;
+
+                    })();
+
+
+                await wrapper._videoUploadPromise;
+
+
+                if (
+                    myToken ===
+                    uploadToken
+                ) {
+
+                    setUploadState(
+                        wrapper,
+                        "done",
+                        "✓ Video berhasil diunggah"
+                    );
+
+                }
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Video upload gagal:",
+                    error
+                );
+
+
+                delete wrapper.dataset.uploadedUrl;
+
+
+                try {
+
+                    fileInput.value =
+                        "";
+
+                } catch {
+                    /* ignore */
+                }
+
+
+                clearPreview();
+
+
+                const errorMessage =
+                    String(
+                        error?.message ||
+                        "Gagal mengupload video."
+                    );
+
+
+                wrapper.dataset.uploadError =
+                    errorMessage;
+
+
+                showUploadError(
+                    wrapper,
+                    errorMessage
+                );
+
+
+                setUploadState(
+                    wrapper,
+                    "failed",
+                    "✗ Gagal mengunggah video"
+                );
+
+            } finally {
+
+                wrapper._videoUploadPromise =
+                    null;
+
+            }
+
+        }
+    );
+
+
+    urlInput.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key ===
+                "Enter"
+            ) {
+
+                event.preventDefault();
+
+            }
+
+        }
+    );
+
+
+    /* =====================================================
+       HELPERS
+    ===================================================== */
+
+    wrapper._videoUploadPromise =
+        null;
+
+    wrapper._videoMode =
+        () =>
+            wrapper.dataset.videoMode ||
+            "url";
+
+    wrapper._urlInput =
+        urlInput;
+
+    wrapper._fileInput =
+        fileInput;
+
+    wrapper._preview =
+        preview;
+
+
+    wrapper.getInputMode =
+        () =>
+            wrapper.dataset.videoMode ||
+            "url";
+
+
+    wrapper.getUrlInput =
+        () =>
+            urlInput;
+
+
+    wrapper.getFileInput =
+        () =>
+            fileInput;
+
+
+    wrapper.getUploadedUrl =
+        () =>
+            String(
+                wrapper.dataset.uploadedUrl ||
+                ""
+            ).trim();
+
+
+    wrapper.getVideoMode =
+        () =>
+            wrapper.dataset.videoMode ||
+            "url";
+
+
+    wrapper.setUploadedUrl =
+        url => {
+
+            const normalized =
+                String(
+                    url ||
+                    ""
+                ).trim();
+
+
+            if (
+                normalized
+            ) {
+
+                wrapper.dataset.uploadedUrl =
+                    normalized;
+
+            } else {
+
+                delete wrapper.dataset.uploadedUrl;
+
+            }
+
+
+            return normalized;
+
+        };
+
+
+    wrapper.clearUploadedFile =
+        async () => {
+
+            fileInput.value =
+                "";
+
+            urlInput.value =
+                "";
+
+            clearPreview();
+
+
+            delete wrapper.dataset.uploadedUrl;
+            delete wrapper.dataset.uploadState;
+
+
+            clearUploadError(
+                wrapper
+            );
+
+            setUploadState(
+                wrapper,
+                ""
+            );
+
+
+            wrapper._videoUploadPromise =
+                null;
+
+
+            /* Invalidate stale uploads */
+            uploadToken +=
+                1;
+
+
+            setMode(
+                "url"
+            );
+
+        };
+
+
+    /* =====================================================
+       APPEND
+    ===================================================== */
+
+    wrapper.appendChild(
+        modeSelector
+    );
+
+    wrapper.appendChild(
+        urlContainer
+    );
+
+    wrapper.appendChild(
+        uploadContainer
+    );
+
+    wrapper.appendChild(
+        preview
+    );
+
+
+    setMode(
+        "url"
+    );
+
+
+    return wrapper;
+
+}
+
+
+/* =========================================================
    PUBLIC API
 ========================================================= */
 
 export default Object.freeze({
     registerImageMediaHandlers,
     registerAudioMediaHandlers,
+    registerVideoMediaHandlers,
     createImageField,
-    createAudioField
+    createAudioField,
+    createVideoField
 });
