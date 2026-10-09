@@ -3247,6 +3247,351 @@ function validateAdapterInput(
 }
 
 /* =========================================================
+   UPSCALE — CONSTANTS
+========================================================= */
+
+const GITHUB_PAT =
+    String(process.env.GITHUB_PAT || "").trim();
+
+const GITHUB_OWNER =
+    String(process.env.GITHUB_OWNER || "").trim();
+
+const GITHUB_REPO =
+    String(process.env.GITHUB_REPO || "").trim();
+
+const GITHUB_WORKFLOW_FILE =
+    String(process.env.GITHUB_WORKFLOW_FILE || "upscale.yml").trim();
+
+const GITHUB_REF =
+    String(process.env.GITHUB_REF || "main").trim();
+
+const UPSCALE_CREDIT_COST = 1;
+const UPSCALE_TARGET_LABEL = "1440p";
+
+
+/* =========================================================
+   UPSCALE — FETCH HISTORY ROW
+========================================================= */
+
+async function fetchUpscaleParentHistory(historyId) {
+    const params = new URLSearchParams();
+    params.set("select", "*");
+    params.set("id", `eq.${historyId}`);
+    params.set("limit", "1");
+
+    const rows = await supabaseRequest(
+        `/rest/v1/generation_history?${params.toString()}`,
+        { method: "GET" }
+    );
+
+    if (!Array.isArray(rows) || !rows.length) return null;
+    return rows[0];
+}
+
+
+/* =========================================================
+   UPSCALE — CHECK ALREADY UPSCALED
+========================================================= */
+
+async function hasActiveOrSuccessfulUpscale(historyId) {
+    const params = new URLSearchParams();
+    params.set("select", "id,status");
+    params.set("upscale_of_history_id", `eq.${historyId}`);
+    params.set("status", "in.(pending,processing,success)");
+    params.set("limit", "1");
+
+    const rows = await supabaseRequest(
+        `/rest/v1/generation_history?${params.toString()}`,
+        { method: "GET" }
+    );
+
+    return Array.isArray(rows) && rows.length > 0;
+}
+
+
+/* =========================================================
+   UPSCALE — GENERATE TASK ID
+========================================================= */
+
+function generateUpscaleTaskId() {
+    const rand = Math.random().toString(36).slice(2, 10);
+    return `upscale_${Date.now()}_${rand}`;
+}
+
+
+/* =========================================================
+   UPSCALE — CREATE HISTORY ROW
+========================================================= */
+
+async function createUpscaleHistoryRow({
+    user,
+    parent,
+    sourceUrl,
+    taskId
+}) {
+    const payload = {
+        user_id: user.id,
+        user_email: user.email || null,
+        provider_id: parent.provider_id || null,
+        provider_name: parent.provider_name || null,
+        model_id: parent.model_id || null,
+        model_name: parent.model_name || null,
+        prompt: parent.prompt || null,
+        image_reference_url: parent.image_reference_url || null,
+        video_reference_url: parent.video_reference_url || null,
+        ratio: parent.ratio || null,
+        duration: parent.duration || null,
+        resolution: UPSCALE_TARGET_LABEL,
+        status: "processing",
+        task_id: taskId,
+        result_url: null,
+        error_message: null,
+        credit_cost: UPSCALE_CREDIT_COST,
+        upscale_of_history_id: parent.id,
+        upscale_source_url: sourceUrl,
+        upscale_target: UPSCALE_TARGET_LABEL
+    };
+
+    const rows = await supabaseRequest(
+        "/rest/v1/generation_history?select=*",
+        {
+            method: "POST",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify([payload])
+        }
+    );
+
+    if (!Array.isArray(rows) || !rows.length) {
+        throw new Error("Failed to create upscale history row");
+    }
+
+    return rows[0];
+}
+
+
+/* =========================================================
+   UPSCALE — MARK FAILED + REFUND
+========================================================= */
+
+async function markUpscaleFailedAndRefund({
+    historyId,
+    userId,
+    errorMessage
+}) {
+    try {
+        await supabaseRequest(
+            `/rest/v1/generation_history?id=eq.${historyId}`,
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify({
+                    status: "failed",
+                    error_message: errorMessage
+                })
+            }
+        );
+    } catch (e) {
+        console.error("[upscale] Failed to mark history row:", e);
+    }
+
+    try {
+        await refundGenerateCredits(userId, UPSCALE_CREDIT_COST);
+    } catch (e) {
+        console.error("[upscale] Refund failed:", e);
+    }
+}
+
+
+/* =========================================================
+   UPSCALE — TRIGGER GITHUB WORKFLOW
+========================================================= */
+
+async function triggerUpscaleWorkflow({
+    historyId,
+    sourceUrl,
+    userId
+}) {
+    if (!GITHUB_PAT || !GITHUB_OWNER || !GITHUB_REPO) {
+        throw new Error("GitHub Actions configuration is incomplete");
+    }
+
+    const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/${GITHUB_WORKFLOW_FILE}/dispatches`;
+
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${GITHUB_PAT}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json",
+            "User-Agent": "GENZ-AI-Upscale"
+        },
+        body: JSON.stringify({
+            ref: GITHUB_REF,
+            inputs: {
+                history_id: String(historyId),
+                source_url: String(sourceUrl),
+                user_id: String(userId),
+                credit_cost: String(UPSCALE_CREDIT_COST)
+            }
+        })
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(
+            `GitHub Actions dispatch failed (${response.status}): ${text}`
+        );
+    }
+
+    return true;
+}
+
+
+/* =========================================================
+   UPSCALE — MAIN HANDLER
+   ---------------------------------------------------------
+   Dipanggil dari handler utama ketika:
+     body.action === "upscale"
+   ---------------------------------------------------------
+   Body:
+     {
+       action: "upscale",
+       history_id: string
+     }
+========================================================= */
+
+async function handleUpscaleAction(req, res, body, user) {
+
+    const historyId = String(body?.history_id || "").trim();
+
+    if (!historyId) {
+        return failure(res, 400, "history_id is required");
+    }
+
+    /* ===== FETCH PARENT ===== */
+
+    let parent;
+    try {
+        parent = await fetchUpscaleParentHistory(historyId);
+    } catch (err) {
+        console.error("[upscale] Failed to fetch history:", err);
+        return failure(res, 500, "Failed to fetch history");
+    }
+
+    if (!parent) {
+        return failure(res, 404, "History tidak ditemukan");
+    }
+
+    if (String(parent.user_id) !== String(user.id)) {
+        return failure(res, 403, "Tidak boleh mengakses history user lain");
+    }
+
+    if (String(parent.status).toLowerCase() !== "success") {
+        return failure(res, 409, "Hanya video dengan status success yang bisa diupscale");
+    }
+
+    const sourceUrl = String(parent.result_url || "").trim();
+    if (!sourceUrl) {
+        return failure(res, 409, "Video sumber tidak punya result_url");
+    }
+
+    /* ===== CEK SUDAH PERNAH DIUPSCALE ===== */
+
+    try {
+        const already = await hasActiveOrSuccessfulUpscale(historyId);
+        if (already) {
+            return failure(res, 409, "Video ini sudah pernah diupscale atau sedang diproses");
+        }
+    } catch (err) {
+        console.error("[upscale] Failed to check upscale status:", err);
+        return failure(res, 500, "Failed to check upscale status");
+    }
+
+    /* ===== DEDUCT CREDIT ===== */
+
+    let remainingCredits = null;
+
+    try {
+        remainingCredits = await deductGenerateCredits(
+            user.id,
+            UPSCALE_CREDIT_COST
+        );
+    } catch (err) {
+        console.error("[upscale] Credit deduction failed:", err);
+
+        const combined = String(err?.message || "").toUpperCase();
+        const insufficient = combined.includes("INSUFFICIENT_CREDITS");
+
+        return failure(
+            res,
+            insufficient ? 402 : 500,
+            insufficient ? "Kredit tidak cukup" : "Gagal potong kredit",
+            {
+                code: insufficient
+                    ? "INSUFFICIENT_CREDITS"
+                    : "CREDIT_DEDUCTION_FAILED"
+            }
+        );
+    }
+
+    /* ===== CREATE HISTORY ROW ===== */
+
+    const taskId = generateUpscaleTaskId();
+    let upscaleRow;
+
+    try {
+        upscaleRow = await createUpscaleHistoryRow({
+            user,
+            parent,
+            sourceUrl,
+            taskId
+        });
+    } catch (err) {
+        console.error("[upscale] Failed to create history row:", err);
+
+        try {
+            await refundGenerateCredits(user.id, UPSCALE_CREDIT_COST);
+        } catch (e) {
+            console.error("[upscale] Refund failed:", e);
+        }
+
+        return failure(res, 500, "Gagal membuat catatan history");
+    }
+
+    /* ===== TRIGGER GITHUB ===== */
+
+    try {
+        await triggerUpscaleWorkflow({
+            historyId: upscaleRow.id,
+            sourceUrl,
+            userId: user.id
+        });
+    } catch (err) {
+        console.error("[upscale] GitHub dispatch failed:", err);
+
+        await markUpscaleFailedAndRefund({
+            historyId: upscaleRow.id,
+            userId: user.id,
+            errorMessage: "Gagal memulai upscale di GitHub Actions"
+        });
+
+        return failure(res, 502, "Gagal memulai upscale di GitHub Actions");
+    }
+
+    /* ===== SUCCESS ===== */
+
+    return success(res, {
+        upscale_history_id: upscaleRow.id,
+        task_id: taskId,
+        status: "processing",
+        credit_used: UPSCALE_CREDIT_COST,
+        remaining_credits: remainingCredits,
+        target: UPSCALE_TARGET_LABEL
+    });
+}
+
+/* =========================================================
    HANDLER
    ========================================================= */
 export const config = {
@@ -3359,6 +3704,35 @@ export default async function handler(
 
             error.message ||
                 "Invalid request body"
+        );
+
+    }
+
+        /*
+     * =====================================================
+     * ACTION ROUTER — UPSCALE
+     * -----------------------------------------------------
+     * Kalau body.action === "upscale":
+     *   - pakai handler upscale, BUKAN generate biasa
+     *   - tidak butuh model_id
+     *
+     * Kalau tidak ada action atau action lain:
+     *   - lanjut ke flow generate biasa
+     * =====================================================
+     */
+
+    const action =
+        String(body?.action || "")
+            .trim()
+            .toLowerCase();
+
+    if (action === "upscale") {
+
+        return await handleUpscaleAction(
+            req,
+            res,
+            body,
+            user
         );
 
     }
