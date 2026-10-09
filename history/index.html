@@ -1486,6 +1486,44 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
     0%, 100% { transform: scale(0.85); opacity: 0.85; }
     50% { transform: scale(1.2); opacity: 1; }
 }
+
+   /* =========================================================
+   RUNTIME BADGE — STATIC (no animation, light)
+========================================================= */
+
+.history-status-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.runtime-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(255,167,38,.10);
+    border: 1px solid rgba(255,167,38,.30);
+    color: #ffc266;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+    .history-status-wrap {
+        gap: 4px;
+    }
+    .runtime-badge {
+        font-size: 9px;
+        padding: 3px 7px;
+    }
+}
    
 </style>
 
