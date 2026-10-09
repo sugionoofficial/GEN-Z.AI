@@ -67,6 +67,11 @@
  *
  *   CREDIT TIDAK DIPENGARUHI DURATION
  *
+ * PATCH (2026-10-09):
+ *   - Tambah klingMotionControl30Pro ke MODEL_REGISTRY
+ *   - Tambah flag `flat_credit` dan `has_resolution` untuk
+ *     model yang tidak punya resolution (mis. Kling)
+ *
  * =========================================================
  */
 
@@ -84,6 +89,9 @@ import seedance25
 import digitalHumanLipSyncImage
     from "../models/digital-human-lipsync-image/index.js";
 
+import klingMotionControl30Pro
+    from "../models/kling-motion-control-30-pro/index.js";
+
 
 /* =========================================================
    MODEL REGISTRY
@@ -93,7 +101,8 @@ const MODEL_REGISTRY = Object.freeze([
 
    grokImagineImageToVideo,
    seedance25,
-   digitalHumanLipSyncImage
+   digitalHumanLipSyncImage,
+   klingMotionControl30Pro
 
 ]);
 
@@ -930,15 +939,6 @@ async function loadDatabaseModel(
             new URLSearchParams();
 
 
-        /*
-         * SELECT *
-         *
-         * Sengaja mempertahankan seluruh kolom
-         * supaya credit_480p / credit_720p /
-         * credit_1080p dan kolom konfigurasi
-         * lainnya tidak terpotong dari response.
-         */
-
         params.set(
             "select",
             "*"
@@ -1016,11 +1016,6 @@ async function loadDatabaseModels() {
         const params =
             new URLSearchParams();
 
-
-        /*
-         * Semua kolom tetap dibaca.
-         * Termasuk credit per resolution.
-         */
 
         params.set(
             "select",
@@ -1518,31 +1513,56 @@ function buildModelConfig(
 
 
     const databaseResolutions =
-    normalizeArray(
-        databaseModel?.supported_resolutions
-    );
+        normalizeArray(
+            databaseModel?.supported_resolutions
+        );
 
 
-const hasDatabaseResolutions =
-    databaseModel &&
-    Object.prototype.hasOwnProperty.call(
-        databaseModel,
-        "supported_resolutions"
-    ) &&
-    databaseModel.supported_resolutions !== null &&
-    databaseModel.supported_resolutions !== undefined;
+    const hasDatabaseResolutions =
+        databaseModel &&
+        Object.prototype.hasOwnProperty.call(
+            databaseModel,
+            "supported_resolutions"
+        ) &&
+        databaseModel.supported_resolutions !== null &&
+        databaseModel.supported_resolutions !== undefined;
 
 
-const finalRatios =
-    databaseRatios.length
-        ? databaseRatios
-        : folderRatios;
+    const finalRatios =
+        databaseRatios.length
+            ? databaseRatios
+            : folderRatios;
 
 
-const finalResolutions =
-    hasDatabaseResolutions
-        ? databaseResolutions
-        : folderResolutions;
+    /* =====================================================
+       FLAT CREDIT MODEL
+       -----------------------------------------------------
+       Model seperti Kling Motion Control tidak punya
+       parameter resolution.
+
+       Flag `flat_credit` = true menandakan ke admin panel
+       & generate UI bahwa model ini tidak butuh
+       resolution saat generate.
+
+       Flag `has_resolution` = kebalikannya.
+       ===================================================== */
+
+    const hasFolderResolutions =
+        folderResolutions.length > 0;
+
+    const hasAnyResolutions =
+        hasDatabaseResolutions
+            ? databaseResolutions.length > 0
+            : hasFolderResolutions;
+
+    const isFlatCreditModel =
+        !hasAnyResolutions;
+
+
+    const finalResolutions =
+        hasDatabaseResolutions
+            ? databaseResolutions
+            : folderResolutions;
 
 
     /* =====================================================
@@ -1562,14 +1582,6 @@ const finalResolutions =
             durationParameter?.max
         );
 
-
-    /*
-     * Nilai duration dari database hanya dianggap
-     * sebagai override jika nilainya valid.
-     *
-     * 0 / negatif = tidak valid sebagai batas
-     * duration video.
-     */
 
     const databaseMinDurationRaw =
         normalizeNumber(
@@ -1601,12 +1613,6 @@ const finalResolutions =
             : null;
 
 
-    /*
-     * Repository menjadi fallback/source
-     * ketika database tidak mempunyai
-     * override duration yang valid.
-     */
-
     const minDuration =
         databaseMinDuration !== null
 
@@ -1625,19 +1631,6 @@ const finalResolutions =
 
     /* =====================================================
        CREDIT
-       -----------------------------------------------------
-       SOURCE OF TRUTH:
-         credit_480p
-         credit_720p
-         credit_1080p
-         discount_percent
-
-       PENTING:
-         - Tidak menggunakan credit_cost.
-         - Tidak menggunakan credit_final.
-         - Tidak dipengaruhi duration.
-         - Final credit dihitung runtime setelah
-           resolution dipilih.
        ===================================================== */
 
     const credit480p =
@@ -1757,13 +1750,6 @@ const finalResolutions =
 
         /* =================================================
            PRICING
-           -------------------------------------------------
-           Per-resolution credit diteruskan apa adanya
-           dari database.
-
-           Final credit BELUM dihitung di sini karena
-           endpoint ini belum mengetahui resolution yang
-           dipilih user.
            ================================================= */
 
         pricing: {
@@ -1785,10 +1771,6 @@ const finalResolutions =
 
         /* =================================================
            CREDIT
-           -------------------------------------------------
-           Disediakan dalam object tersendiri agar modul
-           Generate dapat membaca source credit tanpa
-           bergantung pada credit_cost global.
            ================================================= */
 
         credit: {
@@ -1813,9 +1795,6 @@ const finalResolutions =
 
         /* =================================================
            FLAT CREDIT FIELDS
-           -------------------------------------------------
-           Dipertahankan untuk kompatibilitas modul yang
-           membaca model secara langsung.
            ================================================= */
 
         credit_480p:
@@ -1867,6 +1846,21 @@ const finalResolutions =
 
         supported_resolutions:
             finalResolutions,
+
+
+        /* =================================================
+           FLAT CREDIT FLAGS
+           -------------------------------------------------
+           true  = model tidak pakai resolution (mis. Kling)
+           false = model pakai resolution (default)
+           ================================================= */
+
+        flat_credit:
+            isFlatCreditModel,
+
+
+        has_resolution:
+            !isFlatCreditModel,
 
 
         /* =================================================
@@ -2014,16 +2008,6 @@ async function resolveModel(
         );
 
 
-    /*
-     * Repository adapter saja TIDAK berarti model tersedia.
-     *
-     * Model baru boleh masuk Generate hanya setelah dibuat
-     * melalui Admin Models dan mempunyai record di Supabase.
-     *
-     * Ini mencegah adapter Seedance/Grok yang sudah ada di
-     * repository tampil otomatis sebelum diaktifkan admin.
-     */
-
     if (!databaseModel) {
 
         return {
@@ -2055,12 +2039,6 @@ async function resolveModel(
             .trim()
             .toLowerCase();
 
-
-    /*
-     * Model harus secara eksplisit berstatus active.
-     *
-     * Status kosong/null TIDAK dianggap aktif.
-     */
 
     if (
         status !==
@@ -2099,11 +2077,6 @@ async function resolveModel(
         );
 
 
-    /*
-     * Model tanpa provider valid tidak boleh
-     * dikirim ke Generate.
-     */
-
     if (!provider) {
 
         return {
@@ -2139,13 +2112,6 @@ async function resolveModel(
             .trim()
             .toLowerCase();
 
-
-    /*
-     * Provider harus secara eksplisit active.
-     *
-     * Tidak menggunakan providers.is_active karena
-     * schema provider saat ini menggunakan status.
-     */
 
     if (
         providerStatus !==
@@ -2300,14 +2266,6 @@ async function loadAllModels() {
         }
 
 
-        /*
-         * Registry hanya menyediakan adapter teknis.
-         *
-         * Tanpa record Admin Models di Supabase,
-         * model belum terdaftar dan tidak boleh
-         * dikirim ke Generate.
-         */
-
         const databaseModel =
             databaseMap.get(
                 modelId
@@ -2334,10 +2292,6 @@ async function loadAllModels() {
                 .trim()
                 .toLowerCase();
 
-
-        /*
-         * Model harus secara eksplisit active.
-         */
 
         if (
             status !==
@@ -2375,10 +2329,6 @@ async function loadAllModels() {
         }
 
 
-        /* =================================================
-           PROVIDER NOT FOUND
-           ================================================= */
-
         if (!provider) {
 
             console.warn(
@@ -2402,10 +2352,6 @@ async function loadAllModels() {
                 .trim()
                 .toLowerCase();
 
-
-        /*
-         * Provider harus secara eksplisit active.
-         */
 
         if (
             providerStatus !==
