@@ -16,8 +16,8 @@
 
 
 const CONFIG = Object.freeze({
-    bucket: "dashboard-upscales",
-    photoInputFolder: "photos/inputs",
+    bucket: "dashboard-videos",
+    photoInputFolder: "upscale-photos/inputs",
     apiEndpoint: "/api/generate",
     maxFileSize: 20 * 1024 * 1024,
     allowedTypes: ["image/jpeg", "image/png", "image/webp"],
