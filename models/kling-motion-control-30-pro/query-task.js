@@ -7,10 +7,13 @@
      models/kling-motion-control-30-pro/query-task.js
 
    Polling status job Motiongen.
+
+   PATCH:
+   - Pakai getJob() dari client.js (bukan queryGeneration)
 ========================================================= */
 
 import {
-    queryGeneration
+    getJob
 } from "../../provider/motiongen-ai/client.js";
 
 import config
@@ -34,7 +37,7 @@ async function queryTask(
 
 
     const response =
-        await queryGeneration(
+        await getJob(
             jobId,
             apiKey
         );
@@ -59,22 +62,22 @@ async function queryTask(
             ? response.output_urls
 
             : Array.isArray(
-                response?.data?.output_urls
+                response?.outputUrls
             )
 
-                ? response.data.output_urls
+                ? response.outputUrls
 
                 : Array.isArray(
-                    response?.result_urls
+                    response?.data?.output_urls
                 )
 
-                    ? response.result_urls
+                    ? response.data.output_urls
 
                     : Array.isArray(
-                        response?.data?.result_urls
+                        response?.data?.outputUrls
                     )
 
-                        ? response.data.result_urls
+                        ? response.data.outputUrls
 
                         : [];
 
