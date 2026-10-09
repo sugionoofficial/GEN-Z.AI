@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GEN-Z.AI Upscale Studio — Tingkatkan resolusi foto hingga 4K dengan AI Real-ESRGAN.">
+    <meta name="theme-color" content="#06070c">
+    <meta name="color-scheme" content="dark">
+    <title>GEN-Z.AI — Upscale Studio</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+    <script src="../assets/js/config.js"></script>
+
+    <link rel="stylesheet" href="../assets/css/genz-premium.css">
+    <link rel="stylesheet" href="./assets/css/upscale.css">
+</head>
+
+<body>
+
+<div id="navigation"></div>
+
+<main class="upscale-page">
+
+    <header class="upscale-hero">
+        <div class="hero-content">
+            <span class="hero-kicker">GEN-Z.AI STUDIO</span>
+            <h1 class="hero-title">
+                Upscale <em>Foto</em> Anda
+            </h1>
+            <p class="hero-subtitle">
+                Tingkatkan resolusi foto hingga 2K atau 4K dengan mesin AI Real-ESRGAN.
+                Hasil upscale otomatis tersimpan di halaman History.
+            </p>
+        </div>
+
+        <div class="credit-badge" id="creditBadge">
+            <span class="credit-label">CREDIT</span>
+            <strong class="credit-value" id="creditValue">--</strong>
+        </div>
+    </header>
+
+    <div class="upscale-workspace">
+
+        <!-- ==============================
+             LEFT COLUMN
+             ============================== -->
+        <div class="workspace-left">
+
+            <!-- STEP 01: UPLOAD -->
+            <section class="upscale-card">
+                <div class="card-header">
+                    <span class="card-step">STEP 01</span>
+                    <h2>Upload Foto</h2>
+                    <p>JPG, PNG, atau WebP — maksimum 20 MB.</p>
+                </div>
+
+                <div id="dropzone" class="dropzone">
+                    <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden>
+
+                    <div id="uploadState" class="upload-state">
+                        <div class="upload-icon" aria-hidden="true">+</div>
+                        <h3>DROP FOTO DI SINI</h3>
+                        <p>atau klik untuk memilih file</p>
+                        <button type="button" id="browseBtn" class="btn-secondary">PILIH FOTO</button>
+                        <small>JPG, PNG, WebP • Maks 20 MB</small>
+                    </div>
+
+                    <div id="previewState" class="preview-state" hidden>
+                        <div class="preview-image-wrap">
+                            <img id="previewImg" alt="Preview foto">
+                        </div>
+                        <div class="preview-info">
+                            <strong id="fileName">-</strong>
+                            <span id="fileSize">-</span>
+                        </div>
+                        <button type="button" id="removeBtn" class="btn-remove" aria-label="Hapus foto">HAPUS FOTO</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STEP 02: TARGET -->
+            <section class="upscale-card">
+                <div class="card-header">
+                    <span class="card-step">STEP 02</span>
+                    <h2>Target Resolusi</h2>
+                    <p>Pilih resolusi output upscale.</p>
+                </div>
+
+                <div class="target-grid" id="targetGrid">
+                    <button type="button" class="target-option active" data-target="2k">
+                        <span class="target-badge">2K</span>
+                        <strong>1440p</strong>
+                        <small>2560 × 1440</small>
+                    </button>
+
+                    <button type="button" class="target-option" data-target="4k">
+                        <span class="target-badge">4K</span>
+                        <strong>2160p</strong>
+                        <small>3840 × 2160</small>
+                    </button>
+                </div>
+            </section>
+
+            <!-- STEP 03: ACTION -->
+            <section class="upscale-card action-card">
+                <div class="credit-notice">
+                    <div class="credit-notice-row">
+                        <span>Biaya Upscale</span>
+                        <strong>1 credit</strong>
+                    </div>
+                    <small>Refund otomatis jika proses gagal</small>
+                </div>
+
+                <button type="button" id="upscaleBtn" class="btn-primary" disabled>
+                    <span id="upscaleBtnText">MULAI UPSCALE</span>
+                    <span id="upscaleSpinner" class="btn-spinner" hidden></span>
+                </button>
+
+                <div id="statusMessage" class="status-message" hidden></div>
+            </section>
+
+        </div>
+
+        <!-- ==============================
+             RIGHT COLUMN
+             ============================== -->
+        <div class="workspace-right">
+
+            <section class="upscale-card result-card">
+                <div class="card-header">
+                    <span class="card-step">RESULT</span>
+                    <h2>Hasil Upscale</h2>
+                    <p>Foto hasil upscale akan muncul di halaman History.</p>
+                </div>
+
+                <div id="resultArea" class="result-area">
+                    <div class="result-placeholder">
+                        <div class="placeholder-icon" aria-hidden="true">◇</div>
+                        <h3>BELUM ADA HASIL</h3>
+                        <p>Upload foto lalu klik Mulai Upscale untuk memproses.</p>
+                    </div>
+                </div>
+
+                <div id="resultActions" class="result-actions" hidden>
+                    <a href="/history/index.html" class="btn-secondary btn-block">LIHAT DI HISTORY</a>
+                </div>
+            </section>
+
+            <!-- INFO CARDS -->
+            <div class="info-grid">
+                <div class="info-card">
+                    <span>ENGINE</span>
+                    <strong>Real-ESRGAN</strong>
+                    <small>AI upscaling 4× + downscale ke target</small>
+                </div>
+
+                <div class="info-card">
+                    <span>WAKTU PROSES</span>
+                    <strong>~2-4 menit</strong>
+                    <small>Proses berjalan di server GPU/CPU</small>
+                </div>
+
+                <div class="info-card">
+                    <span>OUTPUT</span>
+                    <strong>JPG Premium</strong>
+                    <small>Kualitas tinggi, siap pakai</small>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</main>
+
+<!-- ==============================
+     PREMIUM LOADING OVERLAY
+     ============================== -->
+<div id="loadingOverlay" class="loading-overlay" hidden>
+    <div class="loading-card">
+        <div class="loading-orbit">
+            <div class="loading-ring"></div>
+            <div class="loading-ring-secondary"></div>
+            <div class="loading-core"></div>
+        </div>
+        <h3 id="loadingTitle">Memproses upscale...</h3>
+        <p id="loadingText">Jangan tutup halaman ini</p>
+    </div>
+</div>
+
+<script src="/navigation/navigation.js"></script>
+<script type="module" src="./assets/js/upscale-app.js"></script>
+
+</body>
+</html>
