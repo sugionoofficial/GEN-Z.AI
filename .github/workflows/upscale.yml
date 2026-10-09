@@ -1,20 +1,93 @@
+name: Upscale + Smooth Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      history_id:
+        description: "ID row generation_history yang mau diupscale"
+        required: true
+        type: string
+      source_url:
+        description: "URL video sumber"
+        required: true
+        type: string
+      user_id:
+        description: "User ID (untuk refund kalau gagal)"
+        required: true
+        type: string
+      credit_cost:
+        description: "Credit yang sudah dipotong (untuk refund)"
+        required: true
+        type: string
+        default: "1"
+
+jobs:
+  upscale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Download source video
+        run: |
+          echo "Downloading video..."
+          curl -L --fail --retry 3 -o input.mp4 "${{ inputs.source_url }}"
+          ls -lh input.mp4
+
+      - name: Probe source video
+        id: probe
+        run: |
+          WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 input.mp4)
+          HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 input.mp4)
+          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 input.mp4)
+          echo "width=$WIDTH" >> $GITHUB_OUTPUT
+          echo "height=$HEIGHT" >> $GITHUB_OUTPUT
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          echo "Source: ${WIDTH}x${HEIGHT}, ${DURATION}s"
+
+      - name: Calculate target resolution
+        id: target
+        run: |
+          W="${{ steps.probe.outputs.width }}"
+          H="${{ steps.probe.outputs.height }}"
+
+          if [ "$W" -gt "$H" ]; then
+            TW=2560
+            TH=1440
+            ORIENT="landscape"
+          else
+            TW=1440
+            TH=2560
+            ORIENT="portrait"
+          fi
+
+          echo "target_width=$TW" >> $GITHUB_OUTPUT
+          echo "target_height=$TH" >> $GITHUB_OUTPUT
+          echo "Target: ${TW}x${TH} (${ORIENT})"
+
       - name: Upscale + Interpolate (2-pass, target < 45MB)
         run: |
           DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 input.mp4)
           DURATION_INT=$(printf "%.0f" "$DURATION")
 
-          # Target 45 MB (buffer 5 MB dari limit 50 MB Supabase)
+          # Target 45 MB (buffer 5 MB dari limit 50 MB Supabase free)
           TARGET_MB=45
           AUDIO_KBPS=128
           TOTAL_KBPS=$(( TARGET_MB * 8 * 1024 / DURATION_INT ))
           VIDEO_KBPS=$(( TOTAL_KBPS - AUDIO_KBPS ))
 
           echo "Duration: ${DURATION_INT}s"
+          echo "Target total bitrate: ${TOTAL_KBPS} kbps"
           echo "Target video bitrate: ${VIDEO_KBPS} kbps"
 
-          # PASS 1
+          # PASS 1 — analyze
+          echo "=== PASS 1 ==="
           ffmpeg -y -i input.mp4 \
-            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=48:mi_mode=mci:mc_mode=aobmc:vsbmc=1" \
+            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=48:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32" \
             -c:v libx264 \
             -preset medium \
             -b:v ${VIDEO_KBPS}k \
@@ -23,9 +96,10 @@
             -f mp4 \
             -y /dev/null
 
-          # PASS 2
+          # PASS 2 — final encode
+          echo "=== PASS 2 ==="
           ffmpeg -y -i input.mp4 \
-            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=48:mi_mode=mci:mc_mode=aobmc:vsbmc=1" \
+            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=48:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32" \
             -c:v libx264 \
             -preset medium \
             -b:v ${VIDEO_KBPS}k \
@@ -63,13 +137,69 @@
             --data-binary @output.mp4)
 
           echo "HTTP status: ${HTTP_CODE}"
+          echo "Response body:"
           cat /tmp/resp.txt
+          echo ""
 
           if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-            echo "❌ Upload gagal: ${HTTP_CODE}"
+            echo "❌ Upload gagal dengan status ${HTTP_CODE}"
             exit 1
           fi
 
           PUBLIC_URL="${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${KEY}"
           echo "public_url=$PUBLIC_URL" >> $GITHUB_OUTPUT
           echo "✅ Uploaded: $PUBLIC_URL"
+
+      - name: Update history row — success
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          HISTORY_ID: ${{ inputs.history_id }}
+          PUBLIC_URL: ${{ steps.upload.outputs.public_url }}
+        run: |
+          curl --fail -X PATCH \
+            "${SUPABASE_URL}/rest/v1/generation_history?id=eq.${HISTORY_ID}" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "{
+              \"status\": \"success\",
+              \"result_url\": \"${PUBLIC_URL}\",
+              \"completed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+            }"
+
+          echo "History row updated (success)."
+
+      - name: Refund credit and mark failed
+        if: failure()
+        env:
+          SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          HISTORY_ID: ${{ inputs.history_id }}
+          USER_ID: ${{ inputs.user_id }}
+          CREDIT_COST: ${{ inputs.credit_cost }}
+        run: |
+          curl -X PATCH \
+            "${SUPABASE_URL}/rest/v1/generation_history?id=eq.${HISTORY_ID}" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "{
+              \"status\": \"failed\",
+              \"error_message\": \"Upscale gagal di GitHub Actions\"
+            }"
+
+          curl -X POST \
+            "${SUPABASE_URL}/rest/v1/rpc/refund_generate_credits" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"p_user_id\": \"${USER_ID}\",
+              \"p_amount\": ${CREDIT_COST}
+            }"
+
+          echo "Refund done."
