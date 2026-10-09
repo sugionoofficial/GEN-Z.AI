@@ -1444,6 +1444,70 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
         font-size: 14px;
     }
 }
+
+   /* =========================================================
+   RUNTIME COUNTER
+   ---------------------------------------------------------
+   Live timer untuk row processing/pending.
+========================================================= */
+
+.history-status-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.runtime-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(255,167,38,.10);
+    border: 1px solid rgba(255,167,38,.30);
+    color: #ffc266;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    white-space: nowrap;
+    animation: runtimePulse 2s ease-in-out infinite;
+}
+
+.runtime-badge::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #ffa726;
+    box-shadow: 0 0 8px rgba(255,167,38,.85);
+    animation: runtimeDotPulse 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes runtimePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.78; }
+}
+
+@keyframes runtimeDotPulse {
+    0%, 100% { transform: scale(0.85); opacity: 0.85; }
+    50% { transform: scale(1.2); opacity: 1; }
+}
+
+@media (max-width: 560px) {
+    .history-status-wrap {
+        gap: 4px;
+    }
+    .runtime-badge {
+        font-size: 9px;
+        padding: 3px 7px;
+    }
+}
+   
 </style>
 
 <!-- ===== UPSCALE BUTTON — CSS ===== -->
