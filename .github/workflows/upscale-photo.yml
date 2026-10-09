@@ -29,7 +29,7 @@ on:
 jobs:
   upscale-photo:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     steps:
       - name: Setup Python
@@ -59,26 +59,20 @@ jobs:
         run: |
           pip install --quiet --upgrade pip
 
-          # Torch versi lama (kompatibel dengan basicsr)
           pip install --quiet \
             torch==2.0.1 \
             torchvision==0.15.2 \
             --index-url https://download.pytorch.org/whl/cpu
 
-          # Force numpy<2 (torch 2.0.1 tidak support numpy 2.x)
           pip install --quiet "numpy<2"
 
-          # Other dependencies
           pip install --quiet opencv-python-headless==4.8.0.76
           pip install --quiet pillow
           pip install --quiet basicsr==1.4.2
           pip install --quiet realesrgan==0.3.0
 
-          # WAJIB: Force numpy<2 lagi setelah semua install
-          # (beberapa package mungkin upgrade numpy)
           pip install --quiet --force-reinstall "numpy<2"
 
-          # Verify
           python -c "import numpy; print('NumPy version:', numpy.__version__)"
           python -c "import torch; print('Torch version:', torch.__version__)"
 
@@ -153,6 +147,49 @@ jobs:
           curl -L --fail --retry 3 -o input.jpg "${{ inputs.source_url }}"
           ls -lh input.jpg
 
+      - name: Get input photo dimensions
+        id: input-probe
+        run: |
+          W=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 input.jpg)
+          H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 input.jpg)
+          echo "Input size: ${W}x${H}"
+          echo "width=$W" >> $GITHUB_OUTPUT
+          echo "height=$H" >> $GITHUB_OUTPUT
+
+          # Hitung total pixel untuk limit
+          TOTAL=$(( W * H ))
+          echo "total_pixels=$TOTAL" >> $GITHUB_OUTPUT
+
+      - name: Pre-resize if too large (safety)
+        run: |
+          W=${{ steps.input-probe.outputs.width }}
+          H=${{ steps.input-probe.outputs.height }}
+          TOTAL=${{ steps.input-probe.outputs.total_pixels }}
+
+          # Kalau input > 2 megapixel (2000x1000), resize dulu ke max 1200px sisi terpanjang
+          # supaya Real-ESRGAN tidak OOM
+          MAX_DIM=1200
+
+          if [ "$TOTAL" -gt 2000000 ] || [ "$W" -gt "$MAX_DIM" ] || [ "$H" -gt "$MAX_DIM" ]; then
+            echo "Input terlalu besar, pre-resize ke max ${MAX_DIM}px..."
+
+            if [ "$W" -gt "$H" ]; then
+              SCALE="scale=${MAX_DIM}:-1"
+            else
+              SCALE="scale=-1:${MAX_DIM}"
+            fi
+
+            ffmpeg -y -i input.jpg -vf "$SCALE" -q:v 2 input_resized.jpg
+            mv input_resized.jpg input.jpg
+            ls -lh input.jpg
+
+            W2=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 input.jpg)
+            H2=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 input.jpg)
+            echo "After pre-resize: ${W2}x${H2}"
+          else
+            echo "Input size OK, no pre-resize needed"
+          fi
+
       - name: Upscale with Real-ESRGAN
         run: |
           python << 'PYEOF'
@@ -177,11 +214,12 @@ jobs:
               scale=4
           )
 
+          # PATCH: tile=400 untuk hemat RAM, hindari OOM
           upsampler = RealESRGANer(
               scale=4,
               model_path=model_path,
               model=model,
-              tile=0,
+              tile=400,
               tile_pad=10,
               pre_pad=0,
               half=False
@@ -192,13 +230,16 @@ jobs:
           if img is None:
               raise SystemExit("Gagal baca input.jpg")
 
+          h, w = img.shape[:2]
+          print(f"Input size: {w}x{h}")
+
           output, _ = upsampler.enhance(img, outscale=4)
 
           os.makedirs("output_folder", exist_ok=True)
           cv2.imwrite("output_folder/upscaled.png", output)
 
-          h, w = output.shape[:2]
-          print(f"Upscaled size: {w}x{h}")
+          h2, w2 = output.shape[:2]
+          print(f"Upscaled size: {w2}x{h2}")
           PYEOF
           ls -lh output_folder/
 
