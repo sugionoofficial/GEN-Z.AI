@@ -1096,9 +1096,26 @@ async function handleGenerateSubmit(
     );
 
 
-    showLoading(
-        "Menyiapkan request..."
-    );
+            showLoading(
+            "Menyiapkan request..."
+        );
+
+        /* ===== GENZ PROGRESS CARD — SHOW ===== */
+        try {
+            if (window.GenzProgress) {
+                var _gpcParams = parameters;
+                var _gpcImage =
+                    (_gpcParams && Array.isArray(_gpcParams.image_urls))
+                        ? _gpcParams.image_urls[0]
+                        : "";
+
+                window.GenzProgress.show({
+                    imageUrl: _gpcImage,
+                    model: modelId,
+                    title: "Mengirim permintaan ke server..."
+                });
+            }
+        } catch (_e) { /* ignore */ }
 
 
     try {
@@ -1309,9 +1326,19 @@ async function handleGenerateSubmit(
         }
 
 
-        showLoading(
+                showLoading(
             `KIE.AI menerima task ${taskId}. Menunggu hasil...`
         );
+
+        /* ===== GENZ PROGRESS CARD — QUEUED ===== */
+        try {
+            if (window.GenzProgress) {
+                window.GenzProgress.update({
+                    status: "QUEUED",
+                    message: "Task diterima. Menunggu antrean..."
+                });
+            }
+        } catch (_e) { /* ignore */ }
 
 
         setGenerateStatus(
@@ -1400,11 +1427,27 @@ async function handleGenerateSubmit(
 
                             }
 
-                            else {
-
+                                                        else {
                                 showLoading(
                                     `KIE.AI sedang memproses task ${taskId}...`
                                 );
+
+                                /* ===== GENZ PROGRESS CARD — UPDATE ===== */
+                                try {
+                                    if (window.GenzProgress) {
+                                        var _gpcSt = String(
+                                            update?.state ||
+                                            update?.provider_state ||
+                                            update?.status ||
+                                            ""
+                                        ).toUpperCase();
+
+                                        window.GenzProgress.update({
+                                            status: _gpcSt || "PROCESSING",
+                                            message: "Sedang diproses oleh AI..."
+                                        });
+                                    }
+                                } catch (_e) { /* ignore */ }
 
 
                                 setGenerateStatus(
@@ -1623,10 +1666,21 @@ async function handleGenerateSubmit(
         }
 
 
-        setGenerateStatus(
+                setGenerateStatus(
             "success",
             "Check Hasil Generate di History...!!!"
         );
+
+        hideLoading();
+
+        /* ===== GENZ PROGRESS CARD — SUCCESS ===== */
+        try {
+            if (window.GenzProgress) {
+                window.GenzProgress.success({
+                    message: "Video selesai dibuat!"
+                });
+            }
+        } catch (_e) { /* ignore */ }
 
 
         hideLoading();
@@ -1701,25 +1755,29 @@ async function handleGenerateSubmit(
         }
 
 
-        setGenerateStatus(
+                setGenerateStatus(
             "failed",
             errorMessage
         );
 
+        /* ===== GENZ PROGRESS CARD — FAIL ===== */
+        try {
+            if (window.GenzProgress) {
+                window.GenzProgress.fail({
+                    message: errorMessage
+                });
+            }
+        } catch (_e) { /* ignore */ }
 
         if (
             elements.status
         ) {
-
             elements.status.textContent =
                 "Generate error: " +
                 errorMessage;
-
             elements.status.hidden =
                 false;
-
         }
-
 
     } finally {
 
