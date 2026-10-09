@@ -5,22 +5,11 @@
    File:
    history/assets/js/history-render.js
 
-   Tanggung jawab:
-   - Render history table
-   - Render thumbnail
-   - Render status
-   - Render count
-   - Render empty/loading state
-   - Escape HTML
-   - Format tanggal
-   - Video thumbnail interaction helper
-   - Prompt table hanya 1 baris
-   - Prompt detail tetap menggunakan data asli
-
-   PATCH (2026-10-10):
-   - Fix thumbnail: deteksi image vs video.
-   - Kalau URL berakhiran .jpg/.png/.webp → render <img>, TANPA play button.
-   - Kalau video → render <video> + play button (existing).
+   PATCH v3 (2026-10-10):
+   - Deteksi image vs video untuk thumbnail.
+   - Thumbnail image pakai struktur <img> dengan class
+     thumbnail-media yang CSS-nya diatur di index.html.
+   - Tidak ada play button untuk image.
 ========================================================= */
 
 (function () {
@@ -320,8 +309,6 @@
 
     /* =====================================================
        MEDIA TYPE DETECTION
-       -----------------------------------------------------
-       Cek ekstensi URL untuk bedakan image vs video.
     ===================================================== */
 
     const IMAGE_EXTENSIONS = [
@@ -667,9 +654,9 @@
         /* =================================================
            IMAGE RESULT
            -------------------------------------------------
-           Kalau URL adalah gambar (.jpg/.png/.webp):
-           - Render <img> tanpa play button
-           - Tanpa class video-ready
+           Thumbnail image pakai <img> dengan class
+           thumbnail-media. CSS di index.html yang atur
+           object-fit: contain supaya tidak zoom.
         ================================================= */
 
         if (isImageResultUrl(url)) {
@@ -684,9 +671,8 @@
 
                     <img
                         src="${safeUrl}"
-                        alt="Hasil upscale"
-                        loading="lazy"
-                        decoding="async"
+                        alt="Hasil"
+                        class="thumbnail-media"
                     >
 
                     <span class="thumbnail-success">
@@ -698,7 +684,7 @@
         }
 
         /* =================================================
-           VIDEO RESULT (EXISTING)
+           VIDEO RESULT
         ================================================= */
 
         return `
@@ -716,6 +702,7 @@
                     muted
                     playsinline
                     preload="metadata"
+                    class="thumbnail-media"
                 ></video>
 
                 <span class="thumbnail-play">
@@ -781,6 +768,7 @@
                     muted
                     playsinline
                     preload="metadata"
+                    class="thumbnail-media"
                 ></video>
 
                 <span class="thumbnail-play">
@@ -1443,9 +1431,6 @@
 
     /* =====================================================
        STATUS DISPLAY
-       -----------------------------------------------------
-       Status badge + runtime badge (untuk processing/pending).
-       Runtime badge akan di-update oleh history-runtime.js.
     ===================================================== */
 
     function getStatusDisplay(
@@ -1479,7 +1464,6 @@
         `;
 
 
-        /* Runtime counter hanya untuk status aktif */
         const isActive =
             status === "processing" ||
             status === "pending";
@@ -1806,10 +1790,6 @@
 
         }
 
-
-        /* =================================================
-           START RUNTIME COUNTER
-        ================================================= */
 
         if (
             typeof App.startRuntimeCounter ===
