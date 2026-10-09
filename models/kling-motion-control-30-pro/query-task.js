@@ -6,10 +6,8 @@
    File:
      models/kling-motion-control-30-pro/query-task.js
 
-   Polling status job Motiongen.
-
    PATCH:
-   - Pakai getJob() dari client.js (bukan queryGeneration)
+   - Pakai getJob() dari client.js
 ========================================================= */
 
 import {
@@ -25,14 +23,8 @@ async function queryTask(
     apiKey
 ) {
 
-    if (
-        !jobId
-    ) {
-
-        throw new Error(
-            "Job ID is required"
-        );
-
+    if (!jobId) {
+        throw new Error("Job ID is required");
     }
 
 
@@ -58,25 +50,21 @@ async function queryTask(
         Array.isArray(
             response?.output_urls
         )
-
             ? response.output_urls
 
             : Array.isArray(
                 response?.outputUrls
             )
-
                 ? response.outputUrls
 
                 : Array.isArray(
                     response?.data?.output_urls
                 )
-
                     ? response.data.output_urls
 
                     : Array.isArray(
                         response?.data?.outputUrls
                     )
-
                         ? response.data.outputUrls
 
                         : [];
