@@ -1711,6 +1711,81 @@
 
 }
 
+        /* =========================================================
+   ANTI-DOWNLOAD — VIDEO PROTECTION
+========================================================= */
+
+/*
+ * Semua video di landing page:
+ * - Tidak bisa di-select
+ * - Tidak bisa di-drag
+ * - Tidak muncul context menu
+ */
+
+.landing-video {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+
+    -webkit-touch-callout: none;
+
+    pointer-events: none;
+}
+
+/*
+ * Overlay transparan di atas video — blok klik kanan
+ * & long-press. Tetap allow kontrol di bawahnya.
+ */
+
+.video-shell {
+    position: relative;
+}
+
+.video-shell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+
+    /* Transparan, tapi menerima event klik */
+    background: transparent;
+
+    /* Blok konteks */
+    pointer-events: auto;
+
+    /* Jangan blok kontrol video */
+    /* Kontrol ada di z-index 10 di atasnya */
+}
+
+/*
+ * Pastikan kontrol masih bisa di-klik.
+ * Kontrol ada di z-index 10, overlay di z-index 5.
+ */
+
+.video-controls,
+.video-control,
+.video-status {
+    position: relative;
+    z-index: 10;
+}
+
+/*
+ * Nonaktifkan seleksi di area landing page.
+ * (Opsional — kalau ingin seluruh page tidak bisa di-select)
+ */
+
+.hero-video-shell,
+.showcase-video-wrap {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+}
+
     </style>
 </head>
 
@@ -1831,15 +1906,18 @@
                 >
 
                     <video
-                        class="landing-video hero-video"
-                        autoplay
-                        muted
-                        loop
-                        playsinline
-                        preload="auto"
-                        poster=""
-                        aria-label="GEN-Z.AI showcase video"
-                    >
+    class="landing-video hero-video"
+    autoplay
+    muted
+    loop
+    playsinline
+    preload="auto"
+    poster=""
+    aria-label="GEN-Z.AI showcase video"
+    controlslist="nodownload noplaybackrate noremoteplayback"
+    disablepictureinpicture
+    oncontextmenu="return false;"
+>
                         <source
                             src="/assets/showcase/hero-video.mp4"
                             type="video/mp4"
