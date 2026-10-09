@@ -153,16 +153,15 @@ jobs:
           ls -lh final.jpg
 
       - name: Upload to Supabase Storage
-        id: upload
-        env:
-          SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
-          HISTORY_ID: ${{ inputs.history_id }}
-        run: |
-          FILENAME="upscale-photo-${HISTORY_ID}-$(date +%s).jpg"
-          BUCKET="dashboard-upscales"
-          KEY="photos/outputs/${FILENAME}"
-
+  id: upload
+  env:
+    SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+    SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+    HISTORY_ID: ${{ inputs.history_id }}
+  run: |
+    FILENAME="upscale-photo-${HISTORY_ID}-$(date +%s).jpg"
+    BUCKET="dashboard-videos"
+    KEY="upscale-photos/outputs/${FILENAME}"
           HTTP_CODE=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
             -X POST \
             "${SUPABASE_URL}/storage/v1/object/${BUCKET}/${KEY}" \
