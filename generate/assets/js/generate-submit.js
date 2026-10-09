@@ -16,6 +16,15 @@
    - Menjaga state tombol Generate
    - Tidak merender form
    - Tidak menangani pemilihan model
+
+   PATCH (progress card):
+   - GenzProgress.show() dipanggil TANPA parameters
+     (parameters belum ada di titik ini)
+   - GenzProgress.setThumbnail() dipanggil setelah
+     parameters berhasil didapat dari getModelParameters
+   - GenzProgress.update() saat queued & processing
+   - GenzProgress.success() saat selesai
+   - GenzProgress.fail() saat error
 ========================================================= */
 
 "use strict";
@@ -857,6 +866,207 @@ function isCancelled(
 
 
 /* =========================================================
+   GENZ PROGRESS CARD — SAFE WRAPPERS
+   ---------------------------------------------------------
+   Semua helper ini mencegah error pada flow generate
+   apabila window.GenzProgress tidak tersedia.
+========================================================= */
+
+function progressShow(
+    options
+) {
+
+    try {
+
+        if (
+            window.GenzProgress &&
+            typeof window.GenzProgress.show ===
+                "function"
+        ) {
+
+            window.GenzProgress.show(
+                options || {}
+            );
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GENZ] progressShow error:",
+            error
+        );
+
+    }
+
+}
+
+
+function progressSetThumbnail(
+    url
+) {
+
+    try {
+
+        if (
+            window.GenzProgress &&
+            typeof window.GenzProgress.setThumbnail ===
+                "function" &&
+            url
+        ) {
+
+            window.GenzProgress.setThumbnail(
+                url
+            );
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GENZ] progressSetThumbnail error:",
+            error
+        );
+
+    }
+
+}
+
+
+function progressSetModel(
+    name
+) {
+
+    try {
+
+        if (
+            window.GenzProgress &&
+            typeof window.GenzProgress.setModel ===
+                "function" &&
+            name
+        ) {
+
+            window.GenzProgress.setModel(
+                name
+            );
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GENZ] progressSetModel error:",
+            error
+        );
+
+    }
+
+}
+
+
+function progressUpdate(
+    options
+) {
+
+    try {
+
+        if (
+            window.GenzProgress &&
+            typeof window.GenzProgress.update ===
+                "function"
+        ) {
+
+            window.GenzProgress.update(
+                options || {}
+            );
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GENZ] progressUpdate error:",
+            error
+        );
+
+    }
+
+}
+
+
+function progressSuccess(
+    options
+) {
+
+    try {
+
+        if (
+            window.GenzProgress &&
+            typeof window.GenzProgress.success ===
+                "function"
+        ) {
+
+            window.GenzProgress.success(
+                options || {}
+            );
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GENZ] progressSuccess error:",
+            error
+        );
+
+    }
+
+}
+
+
+function progressFail(
+    options
+) {
+
+    try {
+
+        if (
+            window.GenzProgress &&
+            typeof window.GenzProgress.fail ===
+                "function"
+        ) {
+
+            window.GenzProgress.fail(
+                options || {}
+            );
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GENZ] progressFail error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
    HANDLE GENERATE SUBMIT
 ========================================================= */
 
@@ -1096,26 +1306,31 @@ async function handleGenerateSubmit(
     );
 
 
-            showLoading(
-            "Menyiapkan request..."
-        );
+    showLoading(
+        "Menyiapkan request..."
+    );
 
-        /* ===== GENZ PROGRESS CARD — SHOW ===== */
-        try {
-            if (window.GenzProgress) {
-                var _gpcParams = parameters;
-                var _gpcImage =
-                    (_gpcParams && Array.isArray(_gpcParams.image_urls))
-                        ? _gpcParams.image_urls[0]
-                        : "";
 
-                window.GenzProgress.show({
-                    imageUrl: _gpcImage,
-                    model: modelId,
-                    title: "Mengirim permintaan ke server..."
-                });
-            }
-        } catch (_e) { /* ignore */ }
+    /* =====================================================
+       GENZ PROGRESS CARD — SHOW
+       -----------------------------------------------------
+       PENTING: JANGAN akses `parameters` di sini.
+       Variabel `parameters` didefinisikan di dalam try
+       block di bawah setelah getModelParameters selesai.
+
+       Thumbnail akan di-set belakangan lewat
+       progressSetThumbnail() setelah parameters ada.
+    ===================================================== */
+
+    progressShow({
+
+        model:
+            modelId,
+
+        title:
+            "Menyiapkan permintaan..."
+
+    });
 
 
     try {
@@ -1165,6 +1380,46 @@ async function handleGenerateSubmit(
         setDiagStage(
             "3. Setelah getModelParameters OK"
         );
+
+
+        /* =================================================
+           GENZ PROGRESS CARD — SET THUMBNAIL
+           -------------------------------------------------
+           parameters baru tersedia di sini.
+           Ambil image_url pertama sebagai thumbnail.
+        ================================================= */
+
+        try {
+
+            const imageUrls =
+                parameters &&
+                Array.isArray(
+                    parameters.image_urls
+                )
+                    ? parameters.image_urls
+                    : [];
+
+            if (
+                imageUrls.length &&
+                imageUrls[0]
+            ) {
+
+                progressSetThumbnail(
+                    imageUrls[0]
+                );
+
+            }
+
+        } catch (
+            thumbError
+        ) {
+
+            console.warn(
+                "[GENZ] thumbnail setup error:",
+                thumbError
+            );
+
+        }
 
 
         /*
@@ -1326,19 +1581,22 @@ async function handleGenerateSubmit(
         }
 
 
-                showLoading(
+        showLoading(
             `KIE.AI menerima task ${taskId}. Menunggu hasil...`
         );
 
+
         /* ===== GENZ PROGRESS CARD — QUEUED ===== */
-        try {
-            if (window.GenzProgress) {
-                window.GenzProgress.update({
-                    status: "QUEUED",
-                    message: "Task diterima. Menunggu antrean..."
-                });
-            }
-        } catch (_e) { /* ignore */ }
+
+        progressUpdate({
+
+            status:
+                "QUEUED",
+
+            message:
+                "Task diterima. Menunggu antrean..."
+
+        });
 
 
         setGenerateStatus(
@@ -1409,6 +1667,16 @@ async function handleGenerateSubmit(
                                     failedMessage
                                 );
 
+
+                                /* ===== GENZ PROGRESS CARD — FAIL (polling) ===== */
+
+                                progressFail({
+
+                                    message:
+                                        failedMessage
+
+                                });
+
                             }
 
                             else if (
@@ -1425,29 +1693,51 @@ async function handleGenerateSubmit(
                                     "Generate selesai. Sedang memverifikasi hasil..."
                                 );
 
+
+                                /* ===== GENZ PROGRESS CARD — VERIFY ===== */
+
+                                progressUpdate({
+
+                                    status:
+                                        "PROCESSING",
+
+                                    message:
+                                        "Memverifikasi hasil..."
+
+                                });
+
                             }
 
-                                                        else {
+                            else {
+
                                 showLoading(
                                     `KIE.AI sedang memproses task ${taskId}...`
                                 );
 
-                                /* ===== GENZ PROGRESS CARD — UPDATE ===== */
-                                try {
-                                    if (window.GenzProgress) {
-                                        var _gpcSt = String(
-                                            update?.state ||
-                                            update?.provider_state ||
-                                            update?.status ||
-                                            ""
-                                        ).toUpperCase();
 
-                                        window.GenzProgress.update({
-                                            status: _gpcSt || "PROCESSING",
-                                            message: "Sedang diproses oleh AI..."
-                                        });
-                                    }
-                                } catch (_e) { /* ignore */ }
+                                /* ===== GENZ PROGRESS CARD — UPDATE ===== */
+
+                                const progressState =
+                                    String(
+                                        update?.state ||
+                                        update?.provider_state ||
+                                        update?.status ||
+                                        ""
+                                    )
+                                        .trim()
+                                        .toUpperCase();
+
+
+                                progressUpdate({
+
+                                    status:
+                                        progressState ||
+                                        "PROCESSING",
+
+                                    message:
+                                        "Sedang diproses oleh AI..."
+
+                                });
 
 
                                 setGenerateStatus(
@@ -1666,21 +1956,20 @@ async function handleGenerateSubmit(
         }
 
 
-                setGenerateStatus(
+        setGenerateStatus(
             "success",
             "Check Hasil Generate di History...!!!"
         );
 
-        hideLoading();
 
         /* ===== GENZ PROGRESS CARD — SUCCESS ===== */
-        try {
-            if (window.GenzProgress) {
-                window.GenzProgress.success({
-                    message: "Video selesai dibuat!"
-                });
-            }
-        } catch (_e) { /* ignore */ }
+
+        progressSuccess({
+
+            message:
+                "Video selesai dibuat! Cek History."
+
+        });
 
 
         hideLoading();
@@ -1750,33 +2039,49 @@ async function handleGenerateSubmit(
                 false;
 
 
+            /* ===== GENZ PROGRESS CARD — CANCELLED ===== */
+
+            progressFail({
+
+                message:
+                    cancelledResult.message ||
+                    "Generate dibatalkan."
+
+            });
+
+
             return cancelledResult;
 
         }
 
 
-                setGenerateStatus(
+        setGenerateStatus(
             "failed",
             errorMessage
         );
 
+
         /* ===== GENZ PROGRESS CARD — FAIL ===== */
-        try {
-            if (window.GenzProgress) {
-                window.GenzProgress.fail({
-                    message: errorMessage
-                });
-            }
-        } catch (_e) { /* ignore */ }
+
+        progressFail({
+
+            message:
+                errorMessage
+
+        });
+
 
         if (
             elements.status
         ) {
+
             elements.status.textContent =
                 "Generate error: " +
                 errorMessage;
+
             elements.status.hidden =
                 false;
+
         }
 
     } finally {
