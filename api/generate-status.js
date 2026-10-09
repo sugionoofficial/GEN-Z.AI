@@ -53,6 +53,9 @@ import seedance25
 import digitalHumanLipSyncImage
     from "../models/digital-human-lipsync-image/index.js";
 
+import klingMotionControl30Pro
+    from "../models/kling-motion-control-30-pro/index.js";
+
 /* =========================================================
    CONSTANTS
    ========================================================= */
