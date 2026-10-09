@@ -1559,11 +1559,19 @@ function buildModelConfig(
         !hasAnyResolutions;
 
 
+        /*
+     * Prioritas:
+     *   1. DB punya array TIDAK KOSONG → pakai DB
+     *   2. DB kosong ATAU tidak ada field → pakai folder
+     *
+     * JANGAN pakai "field ada di DB" sebagai penentu,
+     * karena DB bisa punya array kosong.
+     */
+
     const finalResolutions =
-        hasDatabaseResolutions
+        databaseResolutions.length > 0
             ? databaseResolutions
             : folderResolutions;
-
 
     /* =====================================================
        DURATION
