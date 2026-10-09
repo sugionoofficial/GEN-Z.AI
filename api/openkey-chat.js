@@ -1,3 +1,4 @@
+//api/openkey-chat.js?v=2.1
 /* =========================================================
    GEN-Z.AI
    OPENKEY CHAT API
