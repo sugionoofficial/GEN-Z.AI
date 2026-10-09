@@ -1444,6 +1444,49 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
         font-size: 14px;
     }
 }
+
+   /* =========================================================
+   MODAL RUNTIME BADGE
+========================================================= */
+
+.detail-runtime-row .detail-value {
+    display: flex;
+    align-items: center;
+}
+
+.modal-runtime-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,167,38,.10);
+    border: 1px solid rgba(255,167,38,.30);
+    color: #ffc266;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    white-space: nowrap;
+}
+
+.modal-runtime-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffa726;
+    box-shadow: 0 0 10px rgba(255,167,38,.85);
+    flex-shrink: 0;
+    animation: modalRuntimeDotPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes modalRuntimeDotPulse {
+    0%, 100% { transform: scale(0.85); opacity: 0.85; }
+    50% { transform: scale(1.2); opacity: 1; }
+}
+   
 </style>
 
 <!-- ===== UPSCALE BUTTON — CSS ===== -->
