@@ -1,4 +1,4 @@
-//generate-status.js?v=0001.1
+//generate-status.js?v=0001.2
 /* =========================================================
    GEN-Z.AI
    GENERATE STATUS API
@@ -36,6 +36,11 @@
    - success
    - failed
    - cancelled
+
+   PATCH (auto-fail stale):
+   - Task > 1 jam yang masih processing/pending akan
+     di-auto-fail TANPA query provider.
+   - Mencegah spam 502 ke /api/generate-status.
    ========================================================= */
 import crypto from "node:crypto";
 
@@ -252,11 +257,6 @@ function safeJson(
 
 /* =========================================================
    SUPABASE REQUEST
-   ---------------------------------------------------------
-   PENTING:
-   - Empty response body dianggap valid.
-   - Error Supabase dipertahankan lengkap.
-   - Tidak pernah mengembalikan API key.
    ========================================================= */
 
 async function supabaseRequest(
@@ -378,9 +378,6 @@ async function supabaseRequest(
         null;
 
 
-    /*
-     * Empty body adalah response yang valid.
-     */
     if (
         responseText &&
         responseText.trim()
@@ -796,9 +793,7 @@ async function loadProviderByDatabaseId(
             return providers[0];
         }
     } catch {
-        /*
-         * Fallback ke provider_id.
-         */
+        /* fallback */
     }
 
 
@@ -826,10 +821,6 @@ async function loadProviderByCode(
     }
 
 
-    /*
-     * PRIMARY:
-     * providers.provider_id
-     */
     try {
         const params =
             new URLSearchParams();
@@ -872,16 +863,10 @@ async function loadProviderByCode(
             return providers[0];
         }
     } catch {
-        /*
-         * Lanjut fallback.
-         */
+        /* lanjut */
     }
 
 
-    /*
-     * SECONDARY:
-     * providers.provider_name
-     */
     try {
         const params =
             new URLSearchParams();
@@ -924,9 +909,7 @@ async function loadProviderByCode(
             return providers[0];
         }
     } catch {
-        /*
-         * Tidak ditemukan.
-         */
+        /* tidak ditemukan */
     }
 
 
@@ -1340,9 +1323,6 @@ function decodeBuffer(
     }
 
 
-    /*
-     * Hex.
-     */
     if (
         /^[0-9a-fA-F]+$/.test(
             text
@@ -1356,16 +1336,11 @@ function decodeBuffer(
                 "hex"
             );
         } catch {
-            /*
-             * fallback base64
-             */
+            /* fallback */
         }
     }
 
 
-    /*
-     * Base64.
-     */
     try {
         const buffer =
             Buffer.from(
@@ -1380,9 +1355,7 @@ function decodeBuffer(
             return buffer;
         }
     } catch {
-        /*
-         * invalid
-         */
+        /* invalid */
     }
 
 
@@ -1431,9 +1404,7 @@ function getEncryptionKey() {
             return buffer;
         }
     } catch {
-        /*
-         * fallback
-         */
+        /* fallback */
     }
 
 
@@ -1623,9 +1594,6 @@ function findAdapter(
     }
 
 
-    /*
-     * Direct match.
-     */
     for (
         const adapter
         of MODEL_REGISTRY
@@ -1659,9 +1627,6 @@ function findAdapter(
     }
 
 
-    /*
-     * Explicit Grok mapping.
-     */
     if (
         target ===
         normalizeIdentifier(
@@ -1678,9 +1643,6 @@ function findAdapter(
     }
 
 
-    /*
-     * Compact fallback.
-     */
     const compactTarget =
         target.replace(
             /[^a-z0-9]/g,
@@ -2059,16 +2021,6 @@ function uniqueUrls(
 
 /* =========================================================
    NORMALIZE PROVIDER RESULT
-   ---------------------------------------------------------
-   INTERNAL STATUS:
-   - completed
-   - failed
-   - processing
-
-   Catatan:
-   "completed" di sini adalah status provider/KIE.
-   Saat disimpan ke generation_history akan dipetakan
-   menjadi "success".
    ========================================================= */
 
 function normalizeProviderResult(
@@ -2097,14 +2049,14 @@ function normalizeProviderResult(
 
 
     const explicitCompleted =
-    findDeepValue(
-        raw,
-        [
-            "completed",
-            "is_completed",
-            "isCompleted"
-        ]
-    );
+        findDeepValue(
+            raw,
+            [
+                "completed",
+                "is_completed",
+                "isCompleted"
+            ]
+        );
 
 
     const explicitFailed =
@@ -2198,9 +2150,6 @@ function normalizeProviderResult(
     }
 
 
-    /*
-     * Result URL adalah bukti terminal completed.
-     */
     if (
         resultUrls.length > 0 &&
         !failed
@@ -2370,24 +2319,133 @@ async function findGenerationHistory(
 
 
 /* =========================================================
-   UPDATE GENERATION HISTORY
+   AUTO-FAIL STALE HISTORY
    ---------------------------------------------------------
-   DATABASE STATUS YANG VALID:
+   Task > 1 jam yang masih processing/pending dianggap
+   expired. Tandai failed TANPA query provider.
 
-       queued
-       processing
-       success
-       failed
-       cancelled
+   Ini mencegah spam 502 ke /api/generate-status karena
+   provider sudah tidak bisa dihubungi.
+========================================================= */
 
-   PENTING:
-   normalized.completed = true
-   TIDAK berarti payload status = "completed".
+async function autoFailStaleHistory(
+    userId,
+    taskId
+) {
 
-   Mapping:
-       provider completed
-              ↓
-       database success
+    const history =
+        await findGenerationHistory(
+            userId,
+            taskId
+        );
+
+
+    if (!history) {
+        return false;
+    }
+
+
+    const currentStatus =
+        lower(
+            history.status
+        );
+
+
+    if (
+        currentStatus !== "processing" &&
+        currentStatus !== "pending"
+    ) {
+        return false;
+    }
+
+
+    const createdAt =
+        new Date(
+            history.created_at
+        ).getTime();
+
+
+    if (!Number.isFinite(createdAt)) {
+        return false;
+    }
+
+
+    const ageMs =
+        Date.now() - createdAt;
+
+
+    const ONE_HOUR =
+        60 * 60 * 1000;
+
+
+    if (ageMs < ONE_HOUR) {
+        return false;
+    }
+
+
+    try {
+
+        await supabaseRequest(
+            `/rest/v1/generation_history?id=eq.${history.id}`,
+            {
+                method:
+                    "PATCH",
+
+                headers: {
+                    Prefer:
+                        "return=minimal"
+                },
+
+                body:
+                    JSON.stringify({
+                        status:
+                            "failed",
+
+                        error_message:
+                            "Task expired (provider tidak dapat dihubungi)",
+
+                        completed_at:
+                            new Date().toISOString()
+                    })
+            }
+        );
+
+
+        console.info(
+            "[generate-status] Auto-failed stale task:",
+            {
+                task_id:
+                    taskId,
+
+                history_id:
+                    history.id,
+
+                age_hours:
+                    Math.round(
+                        ageMs / ONE_HOUR * 10
+                    ) / 10
+            }
+        );
+
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "[generate-status] Auto-fail failed:",
+            serializeError(
+                error
+            )
+        );
+
+        return false;
+    }
+}
+
+
+/* =========================================================
+   UPDATE GENERATION HISTORY
    ========================================================= */
 
 async function updateGenerationHistory(
@@ -2431,12 +2489,6 @@ async function updateGenerationHistory(
     }
 
 
-    /*
-     * -------------------------------------------------------
-     * RESULT URL
-     * -------------------------------------------------------
-     */
-
     const resultUrl =
         normalized.result_urls &&
         normalized.result_urls.length
@@ -2444,20 +2496,9 @@ async function updateGenerationHistory(
             : null;
 
 
-    /*
-     * -------------------------------------------------------
-     * BUILD PAYLOAD
-     * -------------------------------------------------------
-     */
-
     let payload;
 
 
-    /*
-     * PROVIDER COMPLETED
-     *
-     * Database harus menggunakan "success".
-     */
     if (
         normalized.completed
     ) {
@@ -2477,9 +2518,6 @@ async function updateGenerationHistory(
     }
 
 
-    /*
-     * PROVIDER FAILED
-     */
     else if (
         normalized.failed
     ) {
@@ -2498,9 +2536,6 @@ async function updateGenerationHistory(
             );
 
 
-        /*
-         * Hindari [object Object].
-         */
         let providerError;
 
 
@@ -2534,9 +2569,6 @@ async function updateGenerationHistory(
     }
 
 
-    /*
-     * TASK MASIH PROCESSING
-     */
     else {
         payload = {
             status:
@@ -2544,19 +2576,6 @@ async function updateGenerationHistory(
         };
     }
 
-
-    /*
-     * -------------------------------------------------------
-     * FILTER
-     * -------------------------------------------------------
-     *
-     * Gunakan:
-     * - id
-     * - user_id
-     * - task_id
-     *
-     * Ini mencegah update row milik user/task lain.
-     */
 
     const filters =
         new URLSearchParams();
@@ -2592,12 +2611,6 @@ async function updateGenerationHistory(
         `/rest/v1/generation_history?${filters.toString()}`;
 
 
-    /*
-     * -------------------------------------------------------
-     * PATCH HELPER
-     * -------------------------------------------------------
-     */
-
     async function patchHistory(
         patchPayload,
         strategy
@@ -2622,13 +2635,6 @@ async function updateGenerationHistory(
             );
 
 
-        /*
-         * Supabase dapat mengembalikan:
-         *
-         * []
-         *
-         * jika tidak ada row yang cocok.
-         */
         if (
             Array.isArray(rows) &&
             rows.length === 0
@@ -2669,11 +2675,6 @@ async function updateGenerationHistory(
         }
 
 
-        /*
-         * Empty response bukan otomatis gagal.
-         *
-         * Verifikasi database dilakukan setelah ini.
-         */
         return {
             payload:
                 patchPayload,
@@ -2688,12 +2689,6 @@ async function updateGenerationHistory(
     }
 
 
-    /*
-     * -------------------------------------------------------
-     * PRIMARY PATCH
-     * -------------------------------------------------------
-     */
-
     try {
         return await patchHistory(
             payload,
@@ -2707,16 +2702,6 @@ async function updateGenerationHistory(
             )
         );
 
-
-        /*
-         * ---------------------------------------------------
-         * COMPLETED FALLBACK #1
-         * ---------------------------------------------------
-         *
-         * Tanpa error_message:null.
-         *
-         * STATUS TETAP "success".
-         */
 
         if (
             normalized.completed
@@ -2755,14 +2740,6 @@ async function updateGenerationHistory(
                     )
                 );
 
-
-                /*
-                 * ------------------------------------------------
-                 * COMPLETED FALLBACK #2
-                 * ------------------------------------------------
-                 *
-                 * Hanya status + result_url.
-                 */
 
                 const minimalPayload = {
                     status:
@@ -2900,12 +2877,6 @@ async function updateGenerationHistory(
         }
 
 
-        /*
-         * ---------------------------------------------------
-         * FAILED FALLBACK
-         * ---------------------------------------------------
-         */
-
         if (
             normalized.failed
         ) {
@@ -3042,9 +3013,6 @@ async function updateGenerationHistory(
         }
 
 
-        /*
-         * Processing tidak membutuhkan fallback.
-         */
         throw primaryError;
     }
 }
@@ -3245,26 +3213,6 @@ async function syncGenerationHistory(
         };
     }
 
-       /*
-     * -------------------------------------------------------
-     * TASK SUDAH DIBATALKAN OLEH SISTEM / ADMIN
-     * -------------------------------------------------------
-     *
-     * CANCELLED adalah terminal database state.
-     *
-     * Jika Admin sudah membatalkan generation:
-     *
-     *     processing
-     *          ↓
-     *     cancelled
-     *
-     * polling provider TIDAK BOLEH mengubahnya kembali
-     * menjadi processing / success / failed.
-     *
-     * Provider mungkin masih mengembalikan status lama,
-     * tetapi database cancellation adalah keputusan lokal
-     * yang harus dihormati.
-     */
 
     if (
         lower(
@@ -3342,12 +3290,6 @@ async function syncGenerationHistory(
         };
     }
 
-
-    /*
-     * -------------------------------------------------------
-     * TASK MASIH BERJALAN
-     * -------------------------------------------------------
-     */
 
     if (
         normalized.processing &&
@@ -3430,12 +3372,6 @@ async function syncGenerationHistory(
 
     let updateResult;
 
-
-    /*
-     * -------------------------------------------------------
-     * UPDATE
-     * -------------------------------------------------------
-     */
 
     try {
         updateResult =
@@ -3535,12 +3471,6 @@ async function syncGenerationHistory(
         };
     }
 
-
-    /*
-     * -------------------------------------------------------
-     * VERIFY DATABASE
-     * -------------------------------------------------------
-     */
 
     let verified;
 
@@ -3649,20 +3579,6 @@ async function syncGenerationHistory(
     }
 
 
-    /*
-     * -------------------------------------------------------
-     * EXPECTED DATABASE STATUS
-     * -------------------------------------------------------
-     *
-     * IMPORTANT:
-     *
-     * Provider:
-     *     completed
-     *
-     * Database:
-     *     success
-     */
-
     const expectedStatus =
         normalized.completed
             ? "success"
@@ -3684,12 +3600,6 @@ async function syncGenerationHistory(
         );
 
 
-    /*
-     * -------------------------------------------------------
-     * RESULT URL VERIFICATION
-     * -------------------------------------------------------
-     */
-
     const verifiedResultUrl =
         cleanString(
             verified?.result_url
@@ -3701,12 +3611,6 @@ async function syncGenerationHistory(
             verified?.completed_at
         );
 
-
-    /*
-     * -------------------------------------------------------
-     * RESULT
-     * -------------------------------------------------------
-     */
 
     return {
         history_updated:
@@ -3808,11 +3712,6 @@ async function syncGenerationHistoryWithRetry(
         );
 
 
-    /*
-     * Jika task sudah terminal tetapi update
-     * belum berhasil/terverifikasi, retry sekali.
-     */
-
     if (
         (
             normalized.completed ||
@@ -3837,9 +3736,6 @@ async function syncGenerationHistoryWithRetry(
             );
 
 
-        /*
-         * Jangan kehilangan diagnostik dari percobaan pertama.
-         */
         result = {
             ...retryResult,
 
@@ -3916,12 +3812,6 @@ export default async function handler(
     req,
     res
 ) {
-    /*
-     * -------------------------------------------------------
-     * METHOD
-     * -------------------------------------------------------
-     */
-
     if (
         req.method !==
         "POST"
@@ -3946,12 +3836,6 @@ export default async function handler(
     }
 
 
-    /*
-     * -------------------------------------------------------
-     * ENVIRONMENT
-     * -------------------------------------------------------
-     */
-
     if (
         !SUPABASE_URL ||
         !SUPABASE_SERVICE_ROLE_KEY
@@ -3971,23 +3855,11 @@ export default async function handler(
 
 
     try {
-        /*
-         * ---------------------------------------------------
-         * AUTH
-         * ---------------------------------------------------
-         */
-
         const user =
             await authenticateUser(
                 req
             );
 
-
-        /*
-         * ---------------------------------------------------
-         * BODY
-         * ---------------------------------------------------
-         */
 
         const body =
             getRequestBody(
@@ -4047,21 +3919,6 @@ export default async function handler(
             );
         }
 
-               /*
-         * ---------------------------------------------------
-         * CHECK LOCAL CANCELLATION
-         * ---------------------------------------------------
-         *
-         * Admin dapat membatalkan generation melalui
-         * generation_history.
-         *
-         * Jika status sudah cancelled:
-         *
-         * - jangan query provider
-         * - jangan menjalankan adapter
-         * - jangan mengubah status kembali
-         * - langsung kembalikan cancelled
-         */
 
         const existingHistory =
             await findGenerationHistory(
@@ -4183,23 +4040,114 @@ export default async function handler(
         }
 
 
-        /*
-         * ---------------------------------------------------
-         * MODEL
-         * ---------------------------------------------------
-         */
+        /* =================================================
+           AUTO-FAIL STALE HISTORY
+           -------------------------------------------------
+           Task > 1 jam yang masih processing dianggap
+           expired. Tandai failed tanpa query provider.
+        ================================================= */
+
+        const staleAutoFailed =
+            await autoFailStaleHistory(
+                user.id,
+                taskId
+            );
+
+
+        if (staleAutoFailed) {
+
+            return json(
+                res,
+                200,
+                {
+                    success:
+                        true,
+
+                    user_id:
+                        user.id,
+
+                    model_id:
+                        modelId,
+
+                    task_id:
+                        taskId,
+
+                    taskId:
+                        taskId,
+
+                    state:
+                        "failed",
+
+                    provider_state:
+                        "expired",
+
+                    processing:
+                        false,
+
+                    completed:
+                        false,
+
+                    failed:
+                        true,
+
+                    has_result:
+                        false,
+
+                    hasResult:
+                        false,
+
+                    result_urls:
+                        [],
+
+                    resultUrls:
+                        [],
+
+                    result:
+                        null,
+
+                    history_updated:
+                        true,
+
+                    history_matched:
+                        true,
+
+                    history_status:
+                        "failed",
+
+                    history_reason:
+                        "stale_task_auto_failed",
+
+                    history_row_id:
+                        existingHistory?.id ||
+                        null,
+
+                    history_database_status:
+                        "failed",
+
+                    history_result_url:
+                        null,
+
+                    history_completed_at:
+                        new Date().toISOString(),
+
+                    adapter_found:
+                        false,
+
+                    credential_resolved:
+                        false,
+
+                    auto_expired:
+                        true
+                }
+            );
+        }
+
 
         const model =
             await loadModel(
                 modelId
             );
 
-
-        /*
-         * ---------------------------------------------------
-         * ADAPTER
-         * ---------------------------------------------------
-         */
 
         const adapter =
             findAdapter(
@@ -4229,12 +4177,6 @@ export default async function handler(
             );
         }
 
-
-        /*
-         * ---------------------------------------------------
-         * PROVIDER
-         * ---------------------------------------------------
-         */
 
         const providerResult =
             await resolveProvider(
@@ -4278,25 +4220,6 @@ export default async function handler(
             providerResult.provider;
 
 
-        /*
-         * ---------------------------------------------------
-         * PROVIDER CODE
-         * ---------------------------------------------------
-         *
-         * HARUS:
-         *
-         *     provider.provider_id
-         *
-         * Contoh:
-         *
-         *     kie
-         *
-         * BUKAN:
-         *
-         *     GEN-Z.AI
-         * ---------------------------------------------------
-         */
-
         const providerCode =
             cleanString(
                 firstDefined(
@@ -4331,12 +4254,6 @@ export default async function handler(
             );
         }
 
-
-        /*
-         * ---------------------------------------------------
-         * PROVIDER CREDENTIAL
-         * ---------------------------------------------------
-         */
 
         let providerApiKey;
 
@@ -4385,12 +4302,6 @@ export default async function handler(
             );
         }
 
-
-        /*
-         * ---------------------------------------------------
-         * QUERY PROVIDER
-         * ---------------------------------------------------
-         */
 
         let providerRaw;
 
@@ -4456,24 +4367,12 @@ export default async function handler(
         }
 
 
-        /*
-         * ---------------------------------------------------
-         * NORMALIZE PROVIDER RESPONSE
-         * ---------------------------------------------------
-         */
-
         const normalized =
             normalizeProviderResult(
                 providerRaw,
                 taskId
             );
 
-
-        /*
-         * ---------------------------------------------------
-         * UPDATE HISTORY
-         * ---------------------------------------------------
-         */
 
         const history =
             await syncGenerationHistoryWithRetry(
@@ -4482,12 +4381,6 @@ export default async function handler(
                 normalized
             );
 
-
-        /*
-         * ---------------------------------------------------
-         * RESPONSE
-         * ---------------------------------------------------
-         */
 
         return json(
             res,
@@ -4527,9 +4420,6 @@ export default async function handler(
                     normalized.task_id ||
                     taskId,
 
-                /*
-                 * Provider/KIE status.
-                 */
                 state:
                     normalized.state,
 
@@ -4570,26 +4460,12 @@ export default async function handler(
                             : null
                     ),
 
-                /*
-                 * ------------------------------------------------
-                 * HISTORY
-                 * ------------------------------------------------
-                 */
-
                 history_updated:
                     history.history_updated,
 
                 history_matched:
                     history.history_matched,
 
-                /*
-                 * Ini adalah status DATABASE.
-                 *
-                 * completed provider
-                 * akan menghasilkan:
-                 *
-                 * success database
-                 */
                 history_status:
                     history.history_status,
 
@@ -4626,12 +4502,6 @@ export default async function handler(
                 history_update_payload:
                     history.history_update_payload ||
                     null,
-
-                /*
-                 * ------------------------------------------------
-                 * HISTORY ERROR DIAGNOSTICS
-                 * ------------------------------------------------
-                 */
 
                 history_error:
                     history.history_error ||
@@ -4673,19 +4543,9 @@ export default async function handler(
                     history.history_error_body ??
                     null,
 
-                /*
-                 * First attempt diagnostics jika retry
-                 * diperlukan.
-                 */
                 history_first_attempt:
                     history.history_first_attempt ||
                     null,
-
-                /*
-                 * ------------------------------------------------
-                 * ADAPTER
-                 * ------------------------------------------------
-                 */
 
                 adapter_found:
                     true,
@@ -4697,14 +4557,6 @@ export default async function handler(
                 adapter_has_createTask:
                     typeof adapter?.createTask ===
                         "function",
-
-                /*
-                 * ------------------------------------------------
-                 * CREDENTIAL DIAGNOSTICS
-                 * ------------------------------------------------
-                 *
-                 * Tidak pernah mengembalikan API key.
-                 */
 
                 credential_provider_id:
                     providerCode,
