@@ -1,0 +1,79 @@
+/* =========================================================
+   GEN-Z.AI — UPSCALE BUTTON
+========================================================= */
+
+.detail-upscale-row .detail-value {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.upscale-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 10px 16px;
+    border: 1px solid rgba(255, 51, 85, 0.45);
+    border-radius: 10px;
+
+    background: linear-gradient(180deg, rgba(255,51,85,.14), rgba(255,51,85,.06));
+    color: #ff8fa3;
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    white-space: nowrap;
+}
+
+.upscale-button:hover {
+    color: #fff;
+    border-color: #ff3355;
+    background: linear-gradient(180deg, rgba(255,51,85,.26), rgba(255,51,85,.12));
+    box-shadow: 0 0 18px rgba(255,51,85,.24);
+    transform: translateY(-1px);
+}
+
+.upscale-button:focus-visible {
+    outline: 2px solid #ff3355;
+    outline-offset: 2px;
+}
+
+.upscale-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.upscale-button-cost {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #ffb84d;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+}
+
+.upscale-button-success {
+    border-color: rgba(46, 213, 115, 0.55);
+    background: linear-gradient(180deg, rgba(46,213,115,.16), rgba(46,213,115,.06));
+    color: #66ffa6;
+}
+
+.upscale-hint {
+    margin: 0;
+    color: #5c6570;
+    font-size: 11px;
+    line-height: 1.5;
+    max-width: 420px;
+}
