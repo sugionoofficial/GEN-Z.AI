@@ -1,4 +1,4 @@
-//vision-video/assets/js/vision-video-api.js?V=1.1
+//vision-video/assets/js/vision-video-api.js?V=1.2
 /* =========================================================
    GEN-Z.AI VISION VIDEO
    ---------------------------------------------------------
@@ -17,6 +17,12 @@
    - Tidak menangani upload
    - Tidak menangani frame extraction
    - Tidak menangani rendering UI
+
+   PATCH (2026-10-09):
+   - Fix 413 Payload Too Large dari OpenKey.
+   - Turunkan kompresi frame + character reference.
+   - Kurangi jumlah frame yang dikirim.
+   - Default image detail "low" untuk hemat payload.
 ========================================================= */
 
 (function () {
@@ -51,24 +57,30 @@
          * dikirim ke OpenKey.
          *
          * Tujuannya mencegah request body terlalu besar.
+         *
+         * PATCH: 12 -> 6
          */
         maxRequestFrames:
-            12,
+            6,
 
         /*
          * Ukuran maksimum sisi frame yang dikirim
          * ke API.
+         *
+         * PATCH: 960 -> 640
          */
         maxImageDimension:
-            960,
+            640,
 
         /*
          * JPEG quality untuk request API.
          *
          * Frame asli tidak pernah diubah.
+         *
+         * PATCH: 0.55 -> 0.45
          */
         imageQuality:
-            0.55,
+            0.45,
 
         /*
          * =================================================
@@ -78,13 +90,18 @@
          * Character reference diproses terpisah dari
          * frame video karena detail wajah dan identitas
          * lebih penting daripada ukuran frame timeline.
+         *
+         * PATCH: 1024 -> 768
          */
 
         characterMaxImageDimension:
-            1024,
+            768,
 
+        /*
+         * PATCH: 0.78 -> 0.65
+         */
         characterImageQuality:
-            0.78,
+            0.65,
 
         /*
          * Jika character image sudah cukup kecil,
@@ -99,9 +116,11 @@
          * Base64 memiliki overhead sekitar 33%.
          * Karena itu kita menjaga payload cukup jauh
          * dari batas server.
+         *
+         * PATCH: 2500000 -> 1500000
          */
         maxRequestPayloadBytes:
-            2500000,
+            1500000,
 
         /*
          * =================================================
@@ -987,9 +1006,9 @@
        Memilih frame secara merata dari seluruh timeline.
 
        Contoh:
-       32 frame -> 12 frame
+       32 frame -> 6 frame
 
-       Tidak hanya mengambil 12 frame pertama.
+       Tidak hanya mengambil 6 frame pertama.
        ===================================================== */
 
     function selectFramesForRequest(
@@ -1125,7 +1144,7 @@
 
     /* =====================================================
        LOAD IMAGE
-       ===================================================== */
+    ===================================================== */
 
     function loadImage(
         dataURL
@@ -1517,7 +1536,7 @@
 
     /* =====================================================
        CHARACTER FILE ACCESS
-       ===================================================== */
+    ===================================================== */
 
     function getCharacterFile() {
 
@@ -2207,7 +2226,7 @@
 
     /* =====================================================
        MESSAGE BUILDER
-       ===================================================== */
+    ===================================================== */
 
     async function buildMessages(
         payload,
@@ -2427,6 +2446,8 @@
 
     /* =====================================================
        IMAGE DETAIL
+       -----------------------------------------------------
+       PATCH: default "high" -> "low" untuk hemat payload.
     ===================================================== */
 
     function resolveImageDetail(
@@ -2470,11 +2491,11 @@
          * OpenAI-compatible multimodal APIs
          * umumnya menerima low/high.
          *
-         * "standard" dipetakan ke high agar
-         * analisis frame tetap detail.
+         * Default low untuk mengurangi payload
+         * dan menghindari 413 dari OpenKey.
          */
 
-        return "high";
+        return "low";
     }
 
 
