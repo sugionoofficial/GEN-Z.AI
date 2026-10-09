@@ -27,10 +27,11 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - name: Install FFmpeg
+      - name: Install FFmpeg + AWS CLI
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
+          pip install --quiet awscli
 
       - name: Download source video
         run: |
@@ -44,12 +45,10 @@ jobs:
           WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 input.mp4)
           HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 input.mp4)
           DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 input.mp4)
-          FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 input.mp4)
           echo "width=$WIDTH" >> $GITHUB_OUTPUT
           echo "height=$HEIGHT" >> $GITHUB_OUTPUT
           echo "duration=$DURATION" >> $GITHUB_OUTPUT
-          echo "fps=$FPS" >> $GITHUB_OUTPUT
-          echo "Source: ${WIDTH}x${HEIGHT}, ${FPS} fps, ${DURATION}s"
+          echo "Source: ${WIDTH}x${HEIGHT}, ${DURATION}s"
 
       - name: Calculate target resolution
         id: target
@@ -69,15 +68,14 @@ jobs:
 
           echo "target_width=$TW" >> $GITHUB_OUTPUT
           echo "target_height=$TH" >> $GITHUB_OUTPUT
-          echo "orientation=$ORIENT" >> $GITHUB_OUTPUT
           echo "Target: ${TW}x${TH} (${ORIENT})"
 
       - name: Upscale + Interpolate
         run: |
-          echo "Upscaling to 2K and interpolating 24 -> 48 fps..."
+          echo "Upscaling to 2K and interpolating to 48 fps..."
 
           ffmpeg -y -i input.mp4 \
-            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=60:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32" \
+            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=48:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32" \
             -c:v libx264 \
             -preset slow \
             -crf 18 \
@@ -89,30 +87,70 @@ jobs:
           ls -lh output.mp4
           echo "Upscale + interpolate selesai."
 
-      - name: Upload to Supabase Storage
+      - name: Upload to Filebase
         id: upload
         env:
-          SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.FILEBASE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.FILEBASE_SECRET_ACCESS_KEY }}
+          FILEBASE_BUCKET: ${{ secrets.FILEBASE_BUCKET }}
+          FILEBASE_GATEWAY: ${{ secrets.FILEBASE_GATEWAY }}
           HISTORY_ID: ${{ inputs.history_id }}
         run: |
           FILENAME="upscale-${HISTORY_ID}-$(date +%s).mp4"
-          BUCKET="dashboard-upscales"
-          PATH_IN_BUCKET="outputs/${FILENAME}"
+          KEY="outputs/${FILENAME}"
+          ENDPOINT="https://s3.filebase.io"
 
-          echo "Uploading to ${BUCKET}/${PATH_IN_BUCKET}..."
+          echo "Uploading to Filebase: ${FILEBASE_BUCKET}/${KEY}..."
+          ls -lh output.mp4
 
-          curl --fail -X POST \
-            "${SUPABASE_URL}/storage/v1/object/${BUCKET}/${PATH_IN_BUCKET}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
-            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
-            -H "Content-Type: video/mp4" \
-            -H "x-upsert: true" \
-            --data-binary @output.mp4
+          # Upload — Filebase otomatis pin ke IPFS
+          aws s3 cp output.mp4 "s3://${FILEBASE_BUCKET}/${KEY}" \
+            --endpoint-url "${ENDPOINT}" \
+            --content-type "video/mp4" \
+            --cache-control "public, max-age=31536000"
 
-          PUBLIC_URL="${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${PATH_IN_BUCKET}"
+          echo "✅ Uploaded to Filebase"
+
+          # Tunggu IPFS pinning selesai
+          sleep 8
+
+          # Query CID via head-object
+          CID=$(aws s3api head-object \
+            --bucket "${FILEBASE_BUCKET}" \
+            --key "${KEY}" \
+            --endpoint-url "${ENDPOINT}" \
+            --query 'Metadata.cid' \
+            --output text 2>/dev/null || echo "")
+
+          # Fallback: coba strip quotes
+          CID=$(echo "$CID" | tr -d '"')
+
+          if [ -z "$CID" ] || [ "$CID" = "None" ] || [ "$CID" = "null" ]; then
+            echo "⚠️ CID tidak tersedia via metadata, coba via list-objects..."
+
+            # Coba list-objects (kadang CID muncul di ETag IPFS gateway)
+            CID=$(aws s3api list-objects-v2 \
+              --bucket "${FILEBASE_BUCKET}" \
+              --prefix "${KEY}" \
+              --endpoint-url "${ENDPOINT}" \
+              --query "Contents[0].ETag" \
+              --output text 2>/dev/null | tr -d '"')
+          fi
+
+          if [ -z "$CID" ] || [ "$CID" = "None" ] || [ "$CID" = "null" ]; then
+            echo "❌ Gagal mendapatkan CID setelah upload"
+            echo "Bucket: ${FILEBASE_BUCKET}"
+            echo "Key: ${KEY}"
+            echo ""
+            echo "Fallback: gunakan S3 URL langsung"
+            PUBLIC_URL="${ENDPOINT}/${FILEBASE_BUCKET}/${KEY}"
+          else
+            echo "CID: ${CID}"
+            PUBLIC_URL="${FILEBASE_GATEWAY}/${CID}"
+          fi
+
           echo "public_url=$PUBLIC_URL" >> $GITHUB_OUTPUT
-          echo "Uploaded: $PUBLIC_URL"
+          echo "✅ Public URL: $PUBLIC_URL"
 
       - name: Update history row — success
         if: success()
