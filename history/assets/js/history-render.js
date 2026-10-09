@@ -17,10 +17,10 @@
    - Prompt table hanya 1 baris
    - Prompt detail tetap menggunakan data asli
 
-   PATCH:
-   - Tambah panggilan App.startRuntimeCounter() di akhir
-     renderTable supaya runtime badge di list row
-     langsung update setelah render.
+   PATCH (2026-10-10):
+   - Fix thumbnail: deteksi image vs video.
+   - Kalau URL berakhiran .jpg/.png/.webp → render <img>, TANPA play button.
+   - Kalau video → render <video> + play button (existing).
 ========================================================= */
 
 (function () {
@@ -319,6 +319,53 @@
 
 
     /* =====================================================
+       MEDIA TYPE DETECTION
+       -----------------------------------------------------
+       Cek ekstensi URL untuk bedakan image vs video.
+    ===================================================== */
+
+    const IMAGE_EXTENSIONS = [
+        "jpg",
+        "jpeg",
+        "png",
+        "webp",
+        "gif",
+        "bmp",
+        "svg",
+        "avif"
+    ];
+
+    function isImageResultUrl(url) {
+
+        if (!url) {
+            return false;
+        }
+
+        const clean =
+            String(url)
+                .split("?")[0]
+                .split("#")[0]
+                .toLowerCase();
+
+        const dot =
+            clean.lastIndexOf(".");
+
+        if (dot === -1) {
+            return false;
+        }
+
+        const ext =
+            clean.slice(dot + 1);
+
+        return (
+            IMAGE_EXTENSIONS.indexOf(
+                ext
+            ) !== -1
+        );
+    }
+
+
+    /* =====================================================
        DATA ACCESS
     ===================================================== */
 
@@ -596,7 +643,7 @@
             return `
                 <div
                     class="history-thumbnail thumbnail-empty"
-                    aria-label="Hasil video belum tersedia"
+                    aria-label="Hasil belum tersedia"
                 >
                     <span class="thumbnail-empty-icon">
                         🎬
@@ -616,6 +663,43 @@
                     item
                 )
             );
+
+        /* =================================================
+           IMAGE RESULT
+           -------------------------------------------------
+           Kalau URL adalah gambar (.jpg/.png/.webp):
+           - Render <img> tanpa play button
+           - Tanpa class video-ready
+        ================================================= */
+
+        if (isImageResultUrl(url)) {
+
+            return `
+                <div
+                    class="history-thumbnail thumbnail-image-success"
+                    role="button"
+                    tabindex="0"
+                    aria-label="Lihat hasil gambar"
+                >
+
+                    <img
+                        src="${safeUrl}"
+                        alt="Hasil upscale"
+                        loading="lazy"
+                        decoding="async"
+                    >
+
+                    <span class="thumbnail-success">
+                        SUCCESS
+                    </span>
+
+                </div>
+            `;
+        }
+
+        /* =================================================
+           VIDEO RESULT (EXISTING)
+        ================================================= */
 
         return `
             <div
@@ -815,6 +899,9 @@
 
     App.getThumbnailHtml =
         getThumbnailHtml;
+
+    App.isImageResultUrl =
+        isImageResultUrl;
 
 
     /* =====================================================
@@ -1722,12 +1809,6 @@
 
         /* =================================================
            START RUNTIME COUNTER
-           -------------------------------------------------
-           Setelah DOM row di-render ulang, panggil
-           runtime counter supaya badge "--:--" langsung
-           update ke waktu berjalan.
-
-           Fungsi ini ada di history-runtime.js.
         ================================================= */
 
         if (
