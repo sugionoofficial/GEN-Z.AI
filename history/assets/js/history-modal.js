@@ -1,9 +1,11 @@
 /* =========================================================
    GEN-Z.AI
-   HISTORY MODAL MODULE v3
+   HISTORY MODAL MODULE v4
    ---------------------------------------------------------
    + Fitur upscale: tombol "Upscale ke 2K" di modal detail
-   + Fitur download: tombol "Download Video" di modal detail
+   + Fitur download: tombol "Download" di modal detail
+   + Deteksi tipe media (image vs video) dari URL
+   + Deteksi model "upscale-photo" untuk hide upscale button
 ========================================================= */
 
 (function () {
@@ -135,6 +137,47 @@ App.state.modalRuntimeTimerId = null;
 
 
     /* =====================================================
+       MEDIA TYPE DETECTION
+    ===================================================== */
+
+    var IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"];
+
+    function isImageUrl(url) {
+        if (!url) return false;
+        var clean = String(url).split("?")[0].split("#")[0].toLowerCase();
+        var dot = clean.lastIndexOf(".");
+        if (dot === -1) return false;
+        var ext = clean.slice(dot + 1);
+        return IMAGE_EXTENSIONS.indexOf(ext) !== -1;
+    }
+
+    function isUpscalePhoto(item) {
+        var modelId = String(item?.model_id || item?.modelId || "").toLowerCase();
+        if (modelId === "upscale-photo") return true;
+        var taskId = String(item?.task_id || item?.taskId || "").toLowerCase();
+        if (taskId.indexOf("upscale-photo_") === 0) return true;
+        return false;
+    }
+
+    function isUpscaleVideo(item) {
+        var modelId = String(item?.model_id || item?.modelId || "").toLowerCase();
+        if (modelId === "upscale-video") return true;
+        var taskId = String(item?.task_id || item?.taskId || "").toLowerCase();
+        if (taskId.indexOf("upscale_") === 0) return true;
+        return false;
+    }
+
+    function getMediaType(item) {
+        var url = getResultUrl(item);
+        if (url && isImageUrl(url)) return "image";
+        // Kalau model = upscale-photo → pasti image
+        if (isUpscalePhoto(item)) return "image";
+        // Default ke video (existing behavior)
+        return "video";
+    }
+
+
+    /* =====================================================
        STATUS LABEL / CLASS
     ===================================================== */
 
@@ -161,7 +204,8 @@ App.state.modalRuntimeTimerId = null;
        RENDER FIELD
     ===================================================== */
 
-    function renderField(label, value, options = {}) {
+    function renderField(label, value, options) {
+        options = options || {};
         const rawValue = value === null || value === undefined ? "" : String(value).trim();
         const displayValue = rawValue || "-";
         const extraClass = String(options.className || "").trim();
@@ -235,9 +279,6 @@ App.state.modalRuntimeTimerId = null;
 
    /* =====================================================
    MODAL RUNTIME COUNTER
-   -----------------------------------------------------
-   Muncul di modal detail saja. Update tiap 1 detik.
-   Auto-stop saat modal ditutup.
 ===================================================== */
 
 function pad2(n) {
@@ -361,14 +402,30 @@ function renderRuntimeRow(item) {
 
 
     /* =====================================================
-       VIDEO PREVIEW
+       MEDIA PREVIEW — Image atau Video
     ===================================================== */
 
-    function renderVideoPreview(item) {
+    function renderMediaPreview(item) {
         const status = normalizeStatus(item?.status);
         const url = getResultUrl(item);
         if (status !== "success" || !url) return "";
+
         const safeUrl = escapeHtml(url);
+        const mediaType = getMediaType(item);
+
+        if (mediaType === "image") {
+            return `
+                <div class="detail-video-preview detail-image-preview">
+                    <img
+                        src="${safeUrl}"
+                        alt="Upscale result"
+                        loading="lazy"
+                        decoding="async"
+                    >
+                </div>
+            `;
+        }
+
         return `
             <div class="detail-video-preview">
                 <video controls playsinline preload="metadata" src="${safeUrl}"></video>
@@ -396,17 +453,31 @@ function renderRuntimeRow(item) {
 
     /* =====================================================
        ACTION ROW — Download + Upscale
+       -----------------------------------------------------
+       Aturan:
+       - Image (upscale-photo) → hanya tombol Download
+       - Video upscale result → hanya tombol Download
+       - Video original success → Download + Upscale
     ===================================================== */
 
     function renderActionRow(item) {
         const status = normalizeStatus(item?.status);
         const url = getResultUrl(item);
 
-        // Action hanya muncul kalau video sudah berhasil digenerate
         if (status !== "success" || !url) return "";
 
         const safeId = escapeHtml(String(item.id || "").trim());
-        const alreadyUpscaled = hasAlreadyUpscaled(item.id);
+        const mediaType = getMediaType(item);
+        const isPhoto = mediaType === "image";
+        const isVideoUpscale = isUpscaleVideo(item);
+
+        const downloadLabel = isPhoto ? "Download Foto" : "Download Video";
+        const downloadIcon = isPhoto ? "⬇" : "⬇";
+
+        const alreadyUpscaled = isVideoUpscale || hasAlreadyUpscaled(item.id);
+
+        /* Tombol upscale hanya untuk video original (bukan image, bukan hasil upscale) */
+        const canUpscale = !isPhoto && !alreadyUpscaled;
 
         return `
             <div class="detail-row detail-action-row">
@@ -420,20 +491,15 @@ function renderRuntimeRow(item) {
                             class="download-button"
                             data-action="download"
                             data-history-id="${safeId}"
-                            title="Download video ini"
+                            title="${escapeHtml(downloadLabel)}"
                         >
-                            <span class="download-icon" aria-hidden="true">⬇</span>
-                            Download Video
+                            <span class="download-icon" aria-hidden="true">${downloadIcon}</span>
+                            ${escapeHtml(downloadLabel)}
                         </button>
 
                         ${
-                            alreadyUpscaled
+                            canUpscale
                                 ? `
-                                    <span class="upscale-already-text">
-                                        ✓ Upscale sudah diproses
-                                    </span>
-                                `
-                                : `
                                     <button
                                         type="button"
                                         class="upscale-button"
@@ -446,19 +512,24 @@ function renderRuntimeRow(item) {
                                         <span class="upscale-button-cost">1 credit</span>
                                     </button>
                                 `
+                                : (
+                                    alreadyUpscaled && !isPhoto
+                                        ? `<span class="upscale-already-text">✓ Upscale sudah diproses</span>`
+                                        : ""
+                                )
                         }
 
                     </div>
 
                     ${
-                        alreadyUpscaled
-                            ? ""
-                            : `
+                        canUpscale
+                            ? `
                                 <p class="upscale-hint">
                                     Upscale: video diproses ulang menjadi 2K
                                     dengan FFmpeg. Estimasi 1–3 menit.
                                 </p>
                             `
+                            : ""
                     }
 
                 </div>
@@ -495,7 +566,7 @@ function renderRuntimeRow(item) {
         const credits = getCreditCost(item);
 
         body.innerHTML = `
-            ${renderVideoPreview(item)}
+            ${renderMediaPreview(item)}
             ${renderStatus(item)}
             ${renderRuntimeRow(item)}
             ${renderField("Provider", provider)}
@@ -518,7 +589,7 @@ function renderRuntimeRow(item) {
     ===================================================== */
 
     function buildDownloadFilename(item) {
-        const taskId = String(item?.task_id || item?.id || "video").trim();
+        const taskId = String(item?.task_id || item?.id || "file").trim();
         const resolution = String(item?.resolution || "").trim();
         const modelName = String(item?.model_name || item?.model_id || "").trim();
 
@@ -526,12 +597,19 @@ function renderRuntimeRow(item) {
             .substring(0, 12)
             .replace(/[^a-z0-9_-]/gi, "");
 
-        // Extensi dari URL
+        // Deteksi ekstensi dari URL
         let ext = "mp4";
         const url = getResultUrl(item);
         if (url) {
-            const match = url.match(/\.(mp4|webm|mov|mkv)(\?|#|$)/i);
-            if (match) ext = match[1].toLowerCase();
+            const clean = String(url).split("?")[0].split("#")[0].toLowerCase();
+            const match = clean.match(/\.([a-z0-9]+)$/i);
+            if (match && match[1]) {
+                ext = match[1];
+            }
+        }
+        // Fallback: kalau model = upscale-photo, default jpg
+        if (isUpscalePhoto(item) && (ext === "mp4" || !ext)) {
+            ext = "jpg";
         }
 
         const date = new Date()
@@ -543,7 +621,7 @@ function renderRuntimeRow(item) {
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-|-$/g, "")
-            .substring(0, 30) || "video";
+            .substring(0, 30) || "file";
 
         const resPart = resolution
             ? `-${resolution.replace(/[^a-z0-9]/gi, "")}`
@@ -569,7 +647,7 @@ function renderRuntimeRow(item) {
 
         const url = getResultUrl(item);
         if (!url) {
-            alert("Video tidak tersedia untuk diunduh");
+            alert("Hasil tidak tersedia untuk diunduh");
             return;
         }
 
@@ -579,7 +657,7 @@ function renderRuntimeRow(item) {
         button.disabled = true;
         button.innerHTML = '<span class="download-icon">⏳</span> Menyiapkan...';
 
-        /* ---- Approach 1: Fetch blob (bekerja kalau CORS diizinkan) ---- */
+        /* ---- Approach 1: Fetch blob ---- */
 
         try {
             const res = await fetch(url, { mode: "cors" });
@@ -615,7 +693,7 @@ function renderRuntimeRow(item) {
             console.warn("[download] Blob fetch failed, fallback to direct:", err);
         }
 
-        /* ---- Approach 2: Direct anchor (fallback) ---- */
+        /* ---- Approach 2: Direct anchor ---- */
 
         try {
             const a = document.createElement("a");
@@ -639,7 +717,7 @@ function renderRuntimeRow(item) {
 
         } catch (err2) {
             console.error("[download] Fallback failed:", err2);
-            alert("Gagal mengunduh video. Coba klik kanan pada video → Save Video As.");
+            alert("Gagal mengunduh. Coba klik kanan pada media → Save As.");
             button.innerHTML = originalHTML;
             button.disabled = false;
         }
@@ -750,40 +828,39 @@ function renderRuntimeRow(item) {
     ===================================================== */
 
     function openDetailModal(id) {
-    const targetId = String(id || "").trim();
-    if (!targetId) return;
+        const targetId = String(id || "").trim();
+        if (!targetId) return;
 
-    const item = getHistoryById(targetId);
-    if (!item) {
-        console.warn("[GEN-Z.AI History] History detail tidak ditemukan:", targetId);
-        return;
+        const item = getHistoryById(targetId);
+        if (!item) {
+            console.warn("[GEN-Z.AI History] History detail tidak ditemukan:", targetId);
+            return;
+        }
+
+        getState().currentModalHistoryId = targetId;
+        renderModalBody(item);
+        setupModalBodyEvents();
+
+        const createdAt =
+            item?.created_at ||
+            item?.createdAt ||
+            "";
+        startModalRuntime(createdAt);
+
+        const elements = getElements();
+        const modal = elements.detailModal || document.getElementById("detailModal");
+        if (!modal) return;
+
+        modal.style.display = "flex";
+        modal.classList.add("show");
+        modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("history-modal-open");
+
+        const closeBtn = elements.closeModal || document.getElementById("closeModal");
+        if (closeBtn) {
+            try { closeBtn.focus(); } catch (e) {}
+        }
     }
-
-    getState().currentModalHistoryId = targetId;
-    renderModalBody(item);
-    setupModalBodyEvents();
-
-    /* ===== START RUNTIME TIMER ===== */
-    const createdAt =
-        item?.created_at ||
-        item?.createdAt ||
-        "";
-    startModalRuntime(createdAt);
-
-    const elements = getElements();
-    const modal = elements.detailModal || document.getElementById("detailModal");
-    if (!modal) return;
-
-    modal.style.display = "flex";
-    modal.classList.add("show");
-    modal.setAttribute("aria-hidden", "false");
-    document.body.classList.add("history-modal-open");
-
-    const closeBtn = elements.closeModal || document.getElementById("closeModal");
-    if (closeBtn) {
-        try { closeBtn.focus(); } catch (e) {}
-    }
-}
 
     App.openDetailModal = openDetailModal;
 
@@ -793,8 +870,8 @@ function renderRuntimeRow(item) {
     ===================================================== */
 
     function closeDetailModal() {
-        /* ===== STOP RUNTIME TIMER ===== */
-    stopModalRuntime();
+        stopModalRuntime();
+
         const elements = getElements();
         const modal = elements.detailModal || document.getElementById("detailModal");
         if (!modal) return;
@@ -841,9 +918,8 @@ function renderRuntimeRow(item) {
     function refreshOpenModal() {
         const id = getState().currentModalHistoryId;
         if (!id) return;
-       /* Reset timer biar tidak dobel */
-    stopModalRuntime();
 
+        stopModalRuntime();
 
         const item = getHistoryById(id);
         if (!item) {
