@@ -1,8 +1,9 @@
 /* =========================================================
    GEN-Z.AI
-   HISTORY MODAL MODULE v2
+   HISTORY MODAL MODULE v3
    ---------------------------------------------------------
    + Fitur upscale: tombol "Upscale ke 2K" di modal detail
+   + Fitur download: tombol "Download Video" di modal detail
 ========================================================= */
 
 (function () {
@@ -294,12 +295,7 @@
 
 
     /* =====================================================
-       UPSCALE BUTTON
-       -----------------------------------------------------
-       Muncul hanya kalau:
-         - status === success
-         - punya result_url
-         - belum pernah diupscale (belum ada entry anaknya)
+       UPSCALE HELPER
     ===================================================== */
 
     function hasAlreadyUpscaled(parentId) {
@@ -310,48 +306,78 @@
             const parentRef = String(h?.upscale_of_history_id || "").trim();
             if (parentRef !== target) return false;
             const st = normalizeStatus(h?.status);
-            // failed tidak dihitung — boleh retry
             return st !== "failed" && st !== "cancelled";
         });
     }
 
-    function renderUpscaleRow(item) {
+
+    /* =====================================================
+       ACTION ROW — Download + Upscale
+    ===================================================== */
+
+    function renderActionRow(item) {
         const status = normalizeStatus(item?.status);
         const url = getResultUrl(item);
 
+        // Action hanya muncul kalau video sudah berhasil digenerate
         if (status !== "success" || !url) return "";
 
-        if (hasAlreadyUpscaled(item.id)) {
-            return `
-                <div class="detail-row detail-upscale-row">
-                    <div class="detail-label">Upscale 2K</div>
-                    <div class="detail-value" style="color:#9ba3b0;">
-                        Video ini sudah diproses atau sedang diproses upscale-nya.
-                        Cek di list history.
-                    </div>
-                </div>
-            `;
-        }
-
         const safeId = escapeHtml(String(item.id || "").trim());
+        const alreadyUpscaled = hasAlreadyUpscaled(item.id);
 
         return `
-            <div class="detail-row detail-upscale-row">
-                <div class="detail-label">Upscale 2K</div>
+            <div class="detail-row detail-action-row">
+                <div class="detail-label">Action</div>
                 <div class="detail-value">
-                    <button
-                        type="button"
-                        class="upscale-button"
-                        data-action="upscale"
-                        data-history-id="${safeId}"
-                    >
-                        ⬆ Upscale ke 2560×1440 (QHD)
-                        <span class="upscale-button-cost">1 credit</span>
-                    </button>
-                    <p class="upscale-hint">
-                        Video akan diproses ulang menjadi 2K dengan FFmpeg.
-                        Estimasi selesai: 1–3 menit.
-                    </p>
+
+                    <div class="detail-action-buttons">
+
+                        <button
+                            type="button"
+                            class="download-button"
+                            data-action="download"
+                            data-history-id="${safeId}"
+                            title="Download video ini"
+                        >
+                            <span class="download-icon" aria-hidden="true">⬇</span>
+                            Download Video
+                        </button>
+
+                        ${
+                            alreadyUpscaled
+                                ? `
+                                    <span class="upscale-already-text">
+                                        ✓ Upscale sudah diproses
+                                    </span>
+                                `
+                                : `
+                                    <button
+                                        type="button"
+                                        class="upscale-button"
+                                        data-action="upscale"
+                                        data-history-id="${safeId}"
+                                        title="Upscale ke 2K"
+                                    >
+                                        <span class="upscale-icon" aria-hidden="true">⬆</span>
+                                        Upscale ke 2560×1440 (QHD)
+                                        <span class="upscale-button-cost">1 credit</span>
+                                    </button>
+                                `
+                        }
+
+                    </div>
+
+                    ${
+                        alreadyUpscaled
+                            ? ""
+                            : `
+                                <p class="upscale-hint">
+                                    Upscale: video diproses ulang menjadi 2K
+                                    dengan FFmpeg. Estimasi 1–3 menit.
+                                </p>
+                            `
+                    }
+
                 </div>
             </div>
         `;
@@ -398,8 +424,141 @@
             ${renderPrompt(item)}
             ${renderResult(item)}
             ${renderError(item)}
-            ${renderUpscaleRow(item)}
+            ${renderActionRow(item)}
         `;
+    }
+
+
+    /* =====================================================
+       DOWNLOAD HELPER — BUILD FILENAME
+    ===================================================== */
+
+    function buildDownloadFilename(item) {
+        const taskId = String(item?.task_id || item?.id || "video").trim();
+        const resolution = String(item?.resolution || "").trim();
+        const modelName = String(item?.model_name || item?.model_id || "").trim();
+
+        const shortId = taskId
+            .substring(0, 12)
+            .replace(/[^a-z0-9_-]/gi, "");
+
+        // Extensi dari URL
+        let ext = "mp4";
+        const url = getResultUrl(item);
+        if (url) {
+            const match = url.match(/\.(mp4|webm|mov|mkv)(\?|#|$)/i);
+            if (match) ext = match[1].toLowerCase();
+        }
+
+        const date = new Date()
+            .toISOString()
+            .slice(0, 10)
+            .replace(/-/g, "");
+
+        const modelClean = modelName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "")
+            .substring(0, 30) || "video";
+
+        const resPart = resolution
+            ? `-${resolution.replace(/[^a-z0-9]/gi, "")}`
+            : "";
+
+        return `GENZ-AI-${date}-${modelClean}${resPart}-${shortId}.${ext}`;
+    }
+
+
+    /* =====================================================
+       DOWNLOAD HANDLER
+    ===================================================== */
+
+    async function handleDownload(button) {
+        const historyId = String(button?.dataset?.historyId || "").trim();
+        if (!historyId) return;
+
+        const item = getHistoryById(historyId);
+        if (!item) {
+            alert("Data history tidak ditemukan");
+            return;
+        }
+
+        const url = getResultUrl(item);
+        if (!url) {
+            alert("Video tidak tersedia untuk diunduh");
+            return;
+        }
+
+        const filename = buildDownloadFilename(item);
+        const originalHTML = button.innerHTML;
+
+        button.disabled = true;
+        button.innerHTML = '<span class="download-icon">⏳</span> Menyiapkan...';
+
+        /* ---- Approach 1: Fetch blob (bekerja kalau CORS diizinkan) ---- */
+
+        try {
+            const res = await fetch(url, { mode: "cors" });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const blob = await res.blob();
+            const objUrl = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = objUrl;
+            a.download = filename;
+            a.style.display = "none";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            setTimeout(() => {
+                try { URL.revokeObjectURL(objUrl); } catch (e) {}
+            }, 5000);
+
+            button.innerHTML = '<span class="download-icon">✓</span> Terunduh';
+            button.classList.add("download-button-success");
+
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove("download-button-success");
+                button.disabled = false;
+            }, 2500);
+
+            return;
+
+        } catch (err) {
+            console.warn("[download] Blob fetch failed, fallback to direct:", err);
+        }
+
+        /* ---- Approach 2: Direct anchor (fallback) ---- */
+
+        try {
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            a.style.display = "none";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            button.innerHTML = '<span class="download-icon">✓</span> Terbuka di tab';
+            button.classList.add("download-button-success");
+
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove("download-button-success");
+                button.disabled = false;
+            }, 2500);
+
+        } catch (err2) {
+            console.error("[download] Fallback failed:", err2);
+            alert("Gagal mengunduh video. Coba klik kanan pada video → Save Video As.");
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }
     }
 
 
@@ -428,16 +587,16 @@
             if (!token) throw new Error("Sesi login tidak ditemukan");
 
             const res = await fetch("/api/generate", {
-    method: "POST",
-    headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-        action: "upscale",
-        history_id: historyId
-    })
-});
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    action: "upscale",
+                    history_id: historyId
+                })
+            });
 
             const data = await res.json().catch(() => ({}));
 
@@ -448,7 +607,6 @@
             button.innerHTML = "✓ Upscale dimulai";
             button.classList.add("upscale-button-success");
 
-            // Reload history
             setTimeout(async () => {
                 try {
                     if (typeof App.loadHistory === "function") {
@@ -479,16 +637,27 @@
         const elements = getElements();
         const body = elements.modalBody || document.getElementById("modalBody");
         if (!body) return;
-        if (body.dataset.upscaleBound === "true") return;
+        if (body.dataset.actionBound === "true") return;
 
         body.addEventListener("click", function (event) {
-            const btn = event.target.closest("[data-action='upscale']");
-            if (!btn) return;
-            event.preventDefault();
-            handleUpscale(btn);
+
+            const downloadBtn = event.target.closest("[data-action='download']");
+            if (downloadBtn) {
+                event.preventDefault();
+                handleDownload(downloadBtn);
+                return;
+            }
+
+            const upscaleBtn = event.target.closest("[data-action='upscale']");
+            if (upscaleBtn) {
+                event.preventDefault();
+                handleUpscale(upscaleBtn);
+                return;
+            }
+
         });
 
-        body.dataset.upscaleBound = "true";
+        body.dataset.actionBound = "true";
     }
 
 
