@@ -1373,34 +1373,83 @@ App.copyHistoryPrompt =
     ===================================================== */
 
     function getStatusDisplay(
-        item
+    item
+) {
+
+    const status =
+        normalizeStatus(
+            item?.status
+        );
+
+    const label =
+        getStatusLabel(
+            status
+        );
+
+    const createdAt =
+        item?.created_at ||
+        item?.createdAt ||
+        "";
+
+
+    /*
+     * Runtime counter hanya untuk status aktif:
+     *   - processing
+     *   - pending
+     */
+
+    const isActive =
+        status === "processing" ||
+        status === "pending";
+
+
+    const statusBadge = `
+        <span
+            class="status ${escapeHtml(
+                status
+            )}"
+            data-status="${escapeHtml(
+                status
+            )}"
+        >
+            ${escapeHtml(
+                label
+            )}
+        </span>
+    `;
+
+
+    if (
+        !isActive ||
+        !createdAt
     ) {
 
-        const status =
-            normalizeStatus(
-                item?.status
-            );
+        return statusBadge;
 
-        const label =
-            getStatusLabel(
-                status
-            );
-
-        return `
-            <span
-                class="status ${escapeHtml(
-                    status
-                )}"
-                data-status="${escapeHtml(
-                    status
-                )}"
-            >
-                ${escapeHtml(
-                    label
-                )}
-            </span>
-        `;
     }
+
+
+    const runtimeBadge = `
+        <span
+            class="runtime-badge"
+            data-runtime-created-at="${escapeHtml(
+                createdAt
+            )}"
+            title="Waktu berjalan sejak dibuat"
+        >
+            --:--
+        </span>
+    `;
+
+
+    return `
+        <div class="history-status-wrap">
+            ${statusBadge}
+            ${runtimeBadge}
+        </div>
+    `;
+
+}
 
 
     /* =====================================================
