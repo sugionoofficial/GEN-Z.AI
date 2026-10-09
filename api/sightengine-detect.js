@@ -1,3 +1,4 @@
+//api/sightengine-detect.js?v=2.1
 /* =========================================================
    GEN-Z.AI
    SIGHTENGINE AI DETECTION API
