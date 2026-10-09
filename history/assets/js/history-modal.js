@@ -1,15 +1,16 @@
 /* =========================================================
    GEN-Z.AI
-   HISTORY MODAL MODULE v5
+   HISTORY MODAL MODULE v6
    ---------------------------------------------------------
    + Fitur upscale: tombol "Upscale ke 2K" di modal detail
    + Fitur download: tombol "Download" di modal detail
    + Deteksi tipe media (image vs video) dari URL
    + Deteksi model "upscale-photo" untuk hide upscale button
 
-   PATCH v5 (2026-10-10):
-   - Image preview sekarang pakai div background-image
-     untuk menghindari masalah lazy-load rendering blur.
+   PATCH v6 (2026-10-10):
+   - Image preview kembali ke <img> tag dengan inline style.
+   - HAPUS loading="lazy" dan decoding="async" yang menyebabkan
+     rendering blur. Gambar akan load full quality saat modal terbuka.
 ========================================================= */
 
 (function () {
@@ -406,9 +407,9 @@
     /* =====================================================
        MEDIA PREVIEW — Image atau Video
        -----------------------------------------------------
-       PATCH: Pakai div + background-image untuk image,
-       bukan <img> tag, supaya menghindari masalah lazy-load
-       rendering blur saat modal baru dibuka.
+       PATCH v6: <img> tag dengan inline style eksplisit.
+       HAPUS loading="lazy" dan decoding="async" yang
+       menyebabkan rendering blur.
     ===================================================== */
 
     function renderMediaPreview(item) {
@@ -420,13 +421,15 @@
         const mediaType = getMediaType(item);
 
         if (mediaType === "image") {
+            /* Inline style untuk force full quality + layout stabil */
             return `
-                <div
-                    class="detail-video-preview detail-image-preview"
-                    style="background-image: url('${safeUrl}');"
-                    role="img"
-                    aria-label="Hasil upscale foto"
-                ></div>
+                <div class="detail-image-preview">
+                    <img
+                        src="${safeUrl}"
+                        alt="Hasil upscale"
+                        style="display:block;width:100%;height:auto;max-height:60vh;object-fit:contain;border-radius:12px;background:#030509;"
+                    >
+                </div>
             `;
         }
 
@@ -457,11 +460,6 @@
 
     /* =====================================================
        ACTION ROW — Download + Upscale
-       -----------------------------------------------------
-       Aturan:
-       - Image (upscale-photo) → hanya tombol Download
-       - Video upscale result → hanya tombol Download
-       - Video original success → Download + Upscale
     ===================================================== */
 
     function renderActionRow(item) {
