@@ -1386,7 +1386,8 @@ App.copyHistoryPrompt =
             status
         );
 
-    return `
+
+    const statusBadge = `
         <span
             class="status ${escapeHtml(
                 status
@@ -1399,6 +1400,51 @@ App.copyHistoryPrompt =
                 label
             )}
         </span>
+    `;
+
+
+    /* Runtime counter hanya untuk status aktif */
+    const isActive =
+        status === "processing" ||
+        status === "pending";
+
+
+    if (!isActive) {
+
+        return statusBadge;
+
+    }
+
+
+    const createdAt =
+        item?.created_at ||
+        item?.createdAt ||
+        "";
+
+
+    if (!createdAt) {
+
+        return statusBadge;
+
+    }
+
+
+    const runtimeBadge = `
+        <span
+            class="runtime-badge"
+            data-runtime-created-at="${escapeHtml(
+                String(createdAt)
+            )}"
+            title="Waktu berjalan sejak dibuat"
+        >--:--</span>
+    `;
+
+
+    return `
+        <div class="history-status-wrap">
+            ${statusBadge}
+            ${runtimeBadge}
+        </div>
     `;
 
 }
