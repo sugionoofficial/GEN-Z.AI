@@ -997,19 +997,9 @@ function resolveGenerationCredit(
     }
 
 
-    /*
-     * =====================================================
-     * REQUESTED RESOLUTION
-     * =====================================================
-     *
-     * Resolution dari Generate UI.
-     *
-     * Motiongen:
-     *
-     *   576P
-     *   720P HD
-     *
-     */
+    /* =====================================================
+       REQUESTED RESOLUTION
+    ===================================================== */
 
     const requestedResolution =
         normalizeGenerationResolution(
@@ -1017,11 +1007,9 @@ function resolveGenerationCredit(
         );
 
 
-    /*
-     * =====================================================
-     * MODEL ID
-     * =====================================================
-     */
+    /* =====================================================
+       MODEL ID
+    ===================================================== */
 
     const normalizedModelId =
         String(
@@ -1031,37 +1019,17 @@ function resolveGenerationCredit(
             .toLowerCase();
 
 
-    /*
-     * =====================================================
-     * CREDIT RESOLUTION
-     * =====================================================
-     *
-     * Default:
-     *
-     *   requested resolution = credit resolution
-     *
-     */
+    /* =====================================================
+       CREDIT RESOLUTION
+    ===================================================== */
 
     let creditResolution =
         requestedResolution;
 
 
-    /*
-     * =====================================================
-     * MOTIONGEN RESOLUTION MAPPING
-     * =====================================================
-     *
-     * Generate UI:
-     *
-     *   576P
-     *   720P HD
-     *
-     * Supabase credit:
-     *
-     *   576P    -> credit_480p
-     *   720P HD -> credit_720p
-     *
-     */
+    /* =====================================================
+       MOTIONGEN LIPSYNC RESOLUTION MAPPING
+    ===================================================== */
 
     if (
         normalizedModelId ===
@@ -1072,12 +1040,6 @@ function resolveGenerationCredit(
             requestedResolution
         ) {
 
-            /*
-             * 576P
-             * GEN-Z.AI credit:
-             * credit_480p
-             */
-
             case "576p":
             case "576":
 
@@ -1086,12 +1048,6 @@ function resolveGenerationCredit(
 
                 break;
 
-
-            /*
-             * 720P HD
-             * GEN-Z.AI credit:
-             * credit_720p
-             */
 
             case "720phd":
             case "720p":
@@ -1129,73 +1085,155 @@ function resolveGenerationCredit(
     }
 
 
-    /*
-     * =====================================================
-     * STANDARD RESOLUTION
-     * =====================================================
-     *
-     * Untuk model lain, perilaku lama tetap sama.
-     *
-     */
+    /* =====================================================
+       RESOLUTION PRESENCE
+       -----------------------------------------------------
+       Model flat-credit (mis. Kling Motion Control)
+       tidak punya parameter resolution.
+    ===================================================== */
+
+    const hasResolution =
+        Boolean(
+            String(
+                creditResolution || ""
+            ).trim()
+        );
+
 
     let rawCredit;
 
 
-    switch (
-        creditResolution
-    ) {
+    /* =====================================================
+       FLAT CREDIT MODEL (tanpa resolution)
+    ===================================================== */
 
-        case "480p":
+    if (!hasResolution) {
 
-            rawCredit =
-                databaseModel.credit_480p;
-
-            break;
-
-
-        case "720p":
-
-            rawCredit =
-                databaseModel.credit_720p;
-
-            break;
+        const candidates = [
+            databaseModel.credit_480p,
+            databaseModel.credit_720p,
+            databaseModel.credit_1080p,
+            databaseModel.credit_cost
+        ];
 
 
-        case "1080p":
+        for (
+            const candidate
+            of candidates
+        ) {
 
-            rawCredit =
-                databaseModel.credit_1080p;
+            if (
+                candidate === null ||
+                candidate === undefined ||
+                candidate === ""
+            ) {
+                continue;
+            }
 
-            break;
+
+            const numeric =
+                Number(candidate);
 
 
-        default:
+            if (
+                Number.isFinite(numeric) &&
+                numeric >= 0
+            ) {
+
+                rawCredit =
+                    numeric;
+
+                break;
+
+            }
+
+        }
+
+
+        if (
+            rawCredit === undefined ||
+            rawCredit === null
+        ) {
 
             throw Object.assign(
                 new Error(
-                    "Resolution must be 480p, 720p, or 1080p"
+                    "Model credit configuration is missing for flat-credit model"
                 ),
                 {
                     code:
-                        "INVALID_RESOLUTION",
+                        "MODEL_CREDIT_NOT_CONFIGURED",
 
-                    resolution:
-                        requestedResolution,
-
-                    credit_resolution:
-                        creditResolution
-
+                    model_id:
+                        normalizedModelId
                 }
             );
+
+        }
 
     }
 
 
-    /*
-     * =====================================================
-     * CREDIT CONFIGURATION
-     * =====================================================
-     */
+    /* =====================================================
+       STANDARD RESOLUTION MODEL
+    ===================================================== */
+
+    else {
+
+        switch (
+            creditResolution
+        ) {
+
+            case "480p":
+
+                rawCredit =
+                    databaseModel.credit_480p;
+
+                break;
+
+
+            case "720p":
+
+                rawCredit =
+                    databaseModel.credit_720p;
+
+                break;
+
+
+            case "1080p":
+
+                rawCredit =
+                    databaseModel.credit_1080p;
+
+                break;
+
+
+            default:
+
+                throw Object.assign(
+                    new Error(
+                        "Resolution must be 480p, 720p, or 1080p"
+                    ),
+                    {
+                        code:
+                            "INVALID_RESOLUTION",
+
+                        resolution:
+                            requestedResolution,
+
+                        credit_resolution:
+                            creditResolution
+
+                    }
+                );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       CREDIT CONFIGURATION CHECK
+    ===================================================== */
 
     if (
         rawCredit ===
@@ -1208,7 +1246,7 @@ function resolveGenerationCredit(
 
         throw Object.assign(
             new Error(
-                `Credit ${creditResolution} is not configured for this model`
+                `Credit ${creditResolution || "flat"} is not configured for this model`
             ),
             {
                 code:
@@ -1241,7 +1279,7 @@ function resolveGenerationCredit(
 
         throw Object.assign(
             new Error(
-                `Credit ${creditResolution} is invalid`
+                `Credit ${creditResolution || "flat"} is invalid`
             ),
             {
                 code:
@@ -1259,11 +1297,9 @@ function resolveGenerationCredit(
     }
 
 
-    /*
-     * =====================================================
-     * DISCOUNT
-     * =====================================================
-     */
+    /* =====================================================
+       DISCOUNT
+    ===================================================== */
 
     let discountPercent;
 
@@ -1285,17 +1321,15 @@ function resolveGenerationCredit(
 
                 credit_resolution:
                     creditResolution
-
             }
         );
 
     }
 
 
-    /*
-     * =====================================================
-     * FINAL CREDIT
-     * ===================================================== */
+    /* =====================================================
+       FINAL CREDIT
+    ===================================================== */
 
     const creditFinal =
         calculateDiscountedCredit(
@@ -1304,21 +1338,9 @@ function resolveGenerationCredit(
         );
 
 
-    /*
-     * =====================================================
-     * RESULT
-     * =====================================================
-     *
-     * resolution:
-     *   resolution asli yang dipilih user.
-     *
-     * credit_resolution:
-     *   resolution internal untuk Supabase.
-     *
-     * credit:
-     *   nilai final setelah discount.
-     *
-     */
+    /* =====================================================
+       RESULT
+    ===================================================== */
 
     return {
 
@@ -1343,7 +1365,6 @@ function resolveGenerationCredit(
     };
 
 }
-
 /* =========================================================
    DEDUCT GENERATION CREDITS
    ========================================================= */
