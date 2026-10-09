@@ -427,14 +427,17 @@
             const token = sessionData?.session?.access_token;
             if (!token) throw new Error("Sesi login tidak ditemukan");
 
-            const res = await fetch("/api/upscale", {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ history_id: historyId })
-            });
+            const res = await fetch("/api/generate", {
+    method: "POST",
+    headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+        action: "upscale",
+        history_id: historyId
+    })
+});
 
             const data = await res.json().catch(() => ({}));
 
