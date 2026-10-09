@@ -170,6 +170,12 @@
         href="./assets/css/generation-loading.css"
     >
 
+    <!-- ===== GENERATE PROGRESS CARD — CSS ===== -->
+<link
+    rel="stylesheet"
+    href="./assets/css/generate-progress-card.css"
+>
+
 
     <!-- =====================================================
          SHARED NAVIGATION
@@ -597,30 +603,17 @@
 
 
     <!-- =========================================================
-         PREMIUM GENERATION LOADING — JS
-         ---------------------------------------------------------
-         Dimuat sebagai script NON-MODULE supaya:
-         1. Tersedia di window.GENZLoading sebelum
-            generate-app.js (module) berjalan.
-         2. Bisa dipanggil dari mana saja tanpa import.
+     DISABLED — digantikan oleh generate-progress-card.js
+     Overlay fullscreen tidak reliable dan bentrok dengan
+     sistem loading lain. Dipertahankan untuk rollback.
+========================================================= -->
+<!--
+<script src="./assets/js/generation-loading.js"></script>
+<script src="./assets/js/generation-loading-bridge.js"></script>
+-->
 
-         URUTAN WAJIB:
-         1. generation-loading.js    → define window.GENZLoading
-         2. generation-loading-bridge.js → hook ke form submit
-         3. generate-app.js          → module utama
-
-         Pemakaian dari generate-app.js:
-             window.GENZLoading.show({ ... });
-             window.GENZLoading.update({ percent, step });
-             window.GENZLoading.success("Selesai!");
-             window.GENZLoading.error("Gagal.");
-             window.GENZLoading.hide();
-    ========================================================== -->
-
-    <script src="./assets/js/generation-loading.js"></script>
-
-    <script src="./assets/js/generation-loading-bridge.js"></script>
-
+    <!-- ===== GENERATE PROGRESS CARD — JS ===== -->
+<script src="./assets/js/generate-progress-card.js"></script>
 
     <!-- =========================================================
          GENERATE APPLICATION
