@@ -1,11 +1,15 @@
 /* =========================================================
    GEN-Z.AI
-   HISTORY MODAL MODULE v4
+   HISTORY MODAL MODULE v5
    ---------------------------------------------------------
    + Fitur upscale: tombol "Upscale ke 2K" di modal detail
    + Fitur download: tombol "Download" di modal detail
    + Deteksi tipe media (image vs video) dari URL
    + Deteksi model "upscale-photo" untuk hide upscale button
+
+   PATCH v5 (2026-10-10):
+   - Image preview sekarang pakai div background-image
+     untuk menghindari masalah lazy-load rendering blur.
 ========================================================= */
 
 (function () {
@@ -17,14 +21,13 @@
     const App = window.GENZHistory;
 
     App.state = App.state || {};
-if (!Array.isArray(App.state.historyData)) App.state.historyData = [];
-if (typeof App.state.currentFilter !== "string") App.state.currentFilter = "all";
-if (!Object.prototype.hasOwnProperty.call(App.state, "currentModalHistoryId")) {
-    App.state.currentModalHistoryId = null;
-}
+    if (!Array.isArray(App.state.historyData)) App.state.historyData = [];
+    if (typeof App.state.currentFilter !== "string") App.state.currentFilter = "all";
+    if (!Object.prototype.hasOwnProperty.call(App.state, "currentModalHistoryId")) {
+        App.state.currentModalHistoryId = null;
+    }
 
-/* Timer runtime untuk modal — 1 instance global */
-App.state.modalRuntimeTimerId = null;
+    App.state.modalRuntimeTimerId = null;
 
     App.elements = App.elements || {};
 
@@ -170,9 +173,7 @@ App.state.modalRuntimeTimerId = null;
     function getMediaType(item) {
         var url = getResultUrl(item);
         if (url && isImageUrl(url)) return "image";
-        // Kalau model = upscale-photo → pasti image
         if (isUpscalePhoto(item)) return "image";
-        // Default ke video (existing behavior)
         return "video";
     }
 
@@ -277,82 +278,83 @@ App.state.modalRuntimeTimerId = null;
         `;
     }
 
-   /* =====================================================
-   MODAL RUNTIME COUNTER
-===================================================== */
 
-function pad2(n) {
-    return n < 10 ? "0" + n : String(n);
-}
+    /* =====================================================
+       MODAL RUNTIME COUNTER
+    ===================================================== */
 
-function formatRuntime(ms) {
-    if (!Number.isFinite(ms) || ms < 0) return "00:00";
-    const totalSec = Math.floor(ms / 1000);
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    if (h > 0) return h + ":" + pad2(m) + ":" + pad2(s);
-    return pad2(m) + ":" + pad2(s);
-}
-
-function stopModalRuntime() {
-    const st = getState();
-    if (st.modalRuntimeTimerId) {
-        clearInterval(st.modalRuntimeTimerId);
-        st.modalRuntimeTimerId = null;
+    function pad2(n) {
+        return n < 10 ? "0" + n : String(n);
     }
-}
 
-function startModalRuntime(createdAtIso) {
-    stopModalRuntime();
+    function formatRuntime(ms) {
+        if (!Number.isFinite(ms) || ms < 0) return "00:00";
+        const totalSec = Math.floor(ms / 1000);
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        if (h > 0) return h + ":" + pad2(m) + ":" + pad2(s);
+        return pad2(m) + ":" + pad2(s);
+    }
 
-    if (!createdAtIso) return;
-
-    const startTime = new Date(createdAtIso).getTime();
-    if (!Number.isFinite(startTime)) return;
-
-    const el = document.getElementById("modalRuntime");
-    if (!el) return;
-
-    const tick = function () {
-        const target = document.getElementById("modalRuntime");
-        if (!target) {
-            stopModalRuntime();
-            return;
+    function stopModalRuntime() {
+        const st = getState();
+        if (st.modalRuntimeTimerId) {
+            clearInterval(st.modalRuntimeTimerId);
+            st.modalRuntimeTimerId = null;
         }
-        const elapsed = Date.now() - startTime;
-        target.textContent = formatRuntime(elapsed);
-    };
+    }
 
-    tick();
-    getState().modalRuntimeTimerId = setInterval(tick, 1000);
-}
+    function startModalRuntime(createdAtIso) {
+        stopModalRuntime();
 
-function renderRuntimeRow(item) {
-    const status = normalizeStatus(item?.status);
-    const isActive = status === "processing" || status === "pending";
+        if (!createdAtIso) return;
 
-    if (!isActive) return "";
+        const startTime = new Date(createdAtIso).getTime();
+        if (!Number.isFinite(startTime)) return;
 
-    const createdAt =
-        item?.created_at ||
-        item?.createdAt ||
-        "";
+        const el = document.getElementById("modalRuntime");
+        if (!el) return;
 
-    if (!createdAt) return "";
+        const tick = function () {
+            const target = document.getElementById("modalRuntime");
+            if (!target) {
+                stopModalRuntime();
+                return;
+            }
+            const elapsed = Date.now() - startTime;
+            target.textContent = formatRuntime(elapsed);
+        };
 
-    return `
-        <div class="detail-row detail-runtime-row">
-            <div class="detail-label">Runtime</div>
-            <div class="detail-value">
-                <span class="modal-runtime-badge">
-                    <span class="modal-runtime-dot" aria-hidden="true"></span>
-                    <span id="modalRuntime" data-created-at="${escapeHtml(String(createdAt))}">--:--</span>
-                </span>
+        tick();
+        getState().modalRuntimeTimerId = setInterval(tick, 1000);
+    }
+
+    function renderRuntimeRow(item) {
+        const status = normalizeStatus(item?.status);
+        const isActive = status === "processing" || status === "pending";
+
+        if (!isActive) return "";
+
+        const createdAt =
+            item?.created_at ||
+            item?.createdAt ||
+            "";
+
+        if (!createdAt) return "";
+
+        return `
+            <div class="detail-row detail-runtime-row">
+                <div class="detail-label">Runtime</div>
+                <div class="detail-value">
+                    <span class="modal-runtime-badge">
+                        <span class="modal-runtime-dot" aria-hidden="true"></span>
+                        <span id="modalRuntime" data-created-at="${escapeHtml(String(createdAt))}">--:--</span>
+                    </span>
+                </div>
             </div>
-        </div>
-    `;
-}
+        `;
+    }
 
 
     /* =====================================================
@@ -403,6 +405,10 @@ function renderRuntimeRow(item) {
 
     /* =====================================================
        MEDIA PREVIEW — Image atau Video
+       -----------------------------------------------------
+       PATCH: Pakai div + background-image untuk image,
+       bukan <img> tag, supaya menghindari masalah lazy-load
+       rendering blur saat modal baru dibuka.
     ===================================================== */
 
     function renderMediaPreview(item) {
@@ -415,14 +421,12 @@ function renderRuntimeRow(item) {
 
         if (mediaType === "image") {
             return `
-                <div class="detail-video-preview detail-image-preview">
-                    <img
-                        src="${safeUrl}"
-                        alt="Upscale result"
-                        loading="lazy"
-                        decoding="async"
-                    >
-                </div>
+                <div
+                    class="detail-video-preview detail-image-preview"
+                    style="background-image: url('${safeUrl}');"
+                    role="img"
+                    aria-label="Hasil upscale foto"
+                ></div>
             `;
         }
 
@@ -472,11 +476,9 @@ function renderRuntimeRow(item) {
         const isVideoUpscale = isUpscaleVideo(item);
 
         const downloadLabel = isPhoto ? "Download Foto" : "Download Video";
-        const downloadIcon = isPhoto ? "⬇" : "⬇";
 
         const alreadyUpscaled = isVideoUpscale || hasAlreadyUpscaled(item.id);
 
-        /* Tombol upscale hanya untuk video original (bukan image, bukan hasil upscale) */
         const canUpscale = !isPhoto && !alreadyUpscaled;
 
         return `
@@ -493,7 +495,7 @@ function renderRuntimeRow(item) {
                             data-history-id="${safeId}"
                             title="${escapeHtml(downloadLabel)}"
                         >
-                            <span class="download-icon" aria-hidden="true">${downloadIcon}</span>
+                            <span class="download-icon" aria-hidden="true">⬇</span>
                             ${escapeHtml(downloadLabel)}
                         </button>
 
@@ -597,7 +599,6 @@ function renderRuntimeRow(item) {
             .substring(0, 12)
             .replace(/[^a-z0-9_-]/gi, "");
 
-        // Deteksi ekstensi dari URL
         let ext = "mp4";
         const url = getResultUrl(item);
         if (url) {
@@ -607,7 +608,6 @@ function renderRuntimeRow(item) {
                 ext = match[1];
             }
         }
-        // Fallback: kalau model = upscale-photo, default jpg
         if (isUpscalePhoto(item) && (ext === "mp4" || !ext)) {
             ext = "jpg";
         }
@@ -657,8 +657,6 @@ function renderRuntimeRow(item) {
         button.disabled = true;
         button.innerHTML = '<span class="download-icon">⏳</span> Menyiapkan...';
 
-        /* ---- Approach 1: Fetch blob ---- */
-
         try {
             const res = await fetch(url, { mode: "cors" });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -692,8 +690,6 @@ function renderRuntimeRow(item) {
         } catch (err) {
             console.warn("[download] Blob fetch failed, fallback to direct:", err);
         }
-
-        /* ---- Approach 2: Direct anchor ---- */
 
         try {
             const a = document.createElement("a");
