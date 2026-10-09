@@ -1283,6 +1283,192 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
         transition-duration: .01ms !important;
     }
 }
+
+   /* =========================================================
+   PAGINATION — PREMIUM
+========================================================= */
+
+.pagination-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 0;
+    margin-bottom: 12px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+}
+
+.pagination-info {
+    color: var(--text-3);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .2px;
+    font-feature-settings: "tnum";
+}
+
+.per-page-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-3);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+}
+
+.per-page-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding: 7px 32px 7px 12px;
+    border: 1px solid var(--line-hi);
+    border-radius: 9px;
+    background-color: #0a0d13;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ba3b0' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    font-feature-settings: "tnum";
+    cursor: pointer;
+    transition: all .2s var(--ease);
+    color-scheme: dark;
+}
+
+.per-page-select:hover,
+.per-page-select:focus {
+    border-color: var(--red);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255,51,85,.12);
+}
+
+.per-page-select option {
+    background: #0a0d13;
+    color: var(--text);
+}
+
+/* =========================================================
+   PAGINATION BAR
+========================================================= */
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+}
+
+.pagination:empty {
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
+
+.pagination-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    font-feature-settings: "tnum";
+    cursor: pointer;
+    transition: all .2s var(--ease);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--line-hi);
+    background: rgba(255,255,255,.03);
+}
+
+.pagination-btn:focus-visible {
+    outline: 2px solid var(--red);
+    outline-offset: 2px;
+}
+
+.pagination-btn.active {
+    color: #fff;
+    border-color: var(--red);
+    background: var(--red);
+    box-shadow: 0 4px 14px rgba(255,51,85,.35);
+}
+
+.pagination-btn:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+}
+
+.pagination-nav {
+    font-size: 15px;
+    padding: 0 8px;
+}
+
+.pagination-ellipsis {
+    color: var(--text-4);
+    padding: 0 4px;
+    user-select: none;
+    font-weight: 800;
+    line-height: 1;
+}
+
+/* Row yang disembunyikan oleh pagination */
+.page-hidden {
+    display: none !important;
+}
+
+/* Mobile */
+@media (max-width: 560px) {
+    .pagination-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px 0;
+    }
+
+    .per-page-wrap {
+        justify-content: space-between;
+    }
+
+    .per-page-select {
+        min-width: 100px;
+    }
+
+    .pagination {
+        gap: 4px;
+        margin-top: 18px;
+        padding-top: 14px;
+    }
+
+    .pagination-btn {
+        min-width: 32px;
+        height: 32px;
+        padding: 0 8px;
+        font-size: 11px;
+        border-radius: 8px;
+    }
+
+    .pagination-nav {
+        font-size: 14px;
+    }
+}
+   
 </style>
 </head>
 
@@ -1359,6 +1545,25 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
             Memuat history...
         </div>
 
+       <!-- ===== PAGINATION TOOLBAR ===== -->
+<div class="pagination-toolbar" id="paginationToolbar" style="display:none;">
+    <span class="pagination-info" id="paginationInfo"></span>
+
+    <div class="per-page-wrap">
+        <label for="perPageSelect">Tampilkan</label>
+        <select
+            class="per-page-select"
+            id="perPageSelect"
+            aria-label="Jumlah baris per halaman"
+        >
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+</div>
+
         <div class="table-wrap" id="tableWrap" style="display:none;">
             <table>
                 <thead>
@@ -1377,6 +1582,13 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
                 <tbody id="historyBody"></tbody>
             </table>
         </div>
+
+       <!-- ===== PAGINATION ===== -->
+<nav
+    class="pagination"
+    id="pagination"
+    aria-label="Navigasi halaman riwayat"
+></nav>
 
         <div class="empty-state" id="emptyState">
             <div class="empty-icon">🎬</div>
@@ -1456,6 +1668,252 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
 
     setInterval(updateStats, 600);
     setTimeout(updateStats, 300);
+})();
+</script>
+
+   <!-- =========================================================
+     PAGINATION
+     - Default: 5 baris / halaman
+     - Pilihan: 5 / 10 / 50 / 100
+     - Nomor halaman otomatis muncul saat > 1 halaman
+========================================================= -->
+<script>
+(function () {
+    "use strict";
+
+    var DEFAULT_PER_PAGE = 5;
+    var PER_PAGE_OPTIONS = [5, 10, 50, 100];
+
+    var body      = document.getElementById("historyBody");
+    var toolbar   = document.getElementById("paginationToolbar");
+    var info      = document.getElementById("paginationInfo");
+    var select    = document.getElementById("perPageSelect");
+    var pag       = document.getElementById("pagination");
+
+    if (!body || !toolbar || !info || !select || !pag) return;
+
+    var state = {
+        perPage: DEFAULT_PER_PAGE,
+        page: 1,
+        totalRows: 0,
+        totalPages: 1
+    };
+
+
+    /* ============ HELPERS ============ */
+
+    function allRows() {
+        return Array.prototype.slice.call(
+            body.querySelectorAll("tr")
+        );
+    }
+
+    /* Hanya baris yang lolos filter (filter pakai inline display) */
+    function filterPassingRows() {
+        return allRows().filter(function (r) {
+            return r.style.display !== "none";
+        });
+    }
+
+
+    /* ============ APPLY ============ */
+
+    function applyPagination() {
+
+        var rows     = allRows();
+        var passing  = filterPassingRows();
+        var total    = passing.length;
+        var perPage  = state.perPage;
+        var totalPg  = Math.max(1, Math.ceil(total / perPage));
+
+        if (state.page < 1)      state.page = 1;
+        if (state.page > totalPg) state.page = totalPg;
+
+        var start = (state.page - 1) * perPage;
+        var end   = start + perPage;
+
+        /* Sembunyikan semua, lalu tampilkan hanya yang masuk halaman */
+        rows.forEach(function (r) {
+            r.classList.add("page-hidden");
+        });
+        passing.slice(start, end).forEach(function (r) {
+            r.classList.remove("page-hidden");
+        });
+
+        state.totalRows  = total;
+        state.totalPages = totalPg;
+
+        renderToolbar();
+        renderPagination();
+    }
+
+
+    /* ============ TOOLBAR ============ */
+
+    function renderToolbar() {
+
+        if (state.totalRows === 0) {
+            toolbar.style.display = "none";
+            return;
+        }
+
+        toolbar.style.display = "";
+
+        var start = (state.page - 1) * state.perPage + 1;
+        var end   = Math.min(
+            state.page * state.perPage,
+            state.totalRows
+        );
+
+        info.textContent =
+            "Menampilkan " + start + "–" + end +
+            " dari " + state.totalRows + " riwayat";
+    }
+
+
+    /* ============ PAGINATION BAR ============ */
+
+    function renderPagination() {
+
+        if (state.totalPages <= 1) {
+            if (pag.innerHTML !== "") pag.innerHTML = "";
+            return;
+        }
+
+        var cur   = state.page;
+        var total = state.totalPages;
+
+        var html = [];
+
+        /* Prev */
+        html.push(
+            '<button class="pagination-btn pagination-nav" ' +
+            'data-page="' + (cur - 1) + '"' +
+            (cur === 1 ? " disabled" : "") +
+            ' aria-label="Halaman sebelumnya">‹</button>'
+        );
+
+        /* Nomor halaman + ellipsis */
+        var pages = getPageList(cur, total);
+        for (var i = 0; i < pages.length; i++) {
+            var p = pages[i];
+            if (p === "…") {
+                html.push(
+                    '<span class="pagination-ellipsis">…</span>'
+                );
+            } else {
+                html.push(
+                    '<button class="pagination-btn' +
+                    (p === cur ? " active" : "") +
+                    '" data-page="' + p + '"' +
+                    (p === cur ? ' aria-current="page"' : "") +
+                    '>' + p + '</button>'
+                );
+            }
+        }
+
+        /* Next */
+        html.push(
+            '<button class="pagination-btn pagination-nav" ' +
+            'data-page="' + (cur + 1) + '"' +
+            (cur === total ? " disabled" : "") +
+            ' aria-label="Halaman berikutnya">›</button>'
+        );
+
+        var next = html.join("");
+
+        if (pag.dataset.sig !== next) {
+            pag.innerHTML = next;
+            pag.dataset.sig = next;
+        }
+    }
+
+
+    /* Daftar halaman + ellipsis cerdas (1 … 4 5 6 … 100) */
+    function getPageList(cur, total) {
+
+        if (total <= 7) {
+            var arr = [];
+            for (var i = 1; i <= total; i++) arr.push(i);
+            return arr;
+        }
+
+        var pages = [1];
+        var left  = Math.max(2, cur - 1);
+        var right = Math.min(total - 1, cur + 1);
+
+        if (left > 2)      pages.push("…");
+        for (var j = left; j <= right; j++) pages.push(j);
+        if (right < total - 1) pages.push("…");
+        pages.push(total);
+
+        return pages;
+    }
+
+
+    /* ============ EVENTS ============ */
+
+    select.addEventListener("change", function () {
+        var v = parseInt(select.value, 10);
+        if (PER_PAGE_OPTIONS.indexOf(v) === -1) v = DEFAULT_PER_PAGE;
+        state.perPage = v;
+        state.page = 1;
+        applyPagination();
+    });
+
+    pag.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-page]");
+        if (!btn || btn.disabled) return;
+
+        var p = parseInt(btn.getAttribute("data-page"), 10);
+        if (!isFinite(p)) return;
+        if (p < 1 || p > state.totalPages) return;
+
+        state.page = p;
+        applyPagination();
+
+        var section = document.querySelector(".history-section");
+        if (section) {
+            var y = section.getBoundingClientRect().top +
+                    window.pageYOffset - 16;
+            window.scrollTo({ top: y, behavior: "smooth" });
+        }
+    });
+
+    /* Reset ke halaman 1 saat filter diubah */
+    document
+        .querySelectorAll(".filter-button")
+        .forEach(function (b) {
+            b.addEventListener("click", function () {
+                state.page = 1;
+                setTimeout(applyPagination, 0);
+            });
+        });
+
+    /* Reset saat refresh */
+    var refreshBtn = document.getElementById("refreshButton");
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", function () {
+            state.page = 1;
+            setTimeout(applyPagination, 400);
+        });
+    }
+
+    /* Deteksi render & perubahan filter */
+    var observer = new MutationObserver(function () {
+        applyPagination();
+    });
+
+    observer.observe(body, {
+        childList: true,
+        subtree: false,
+        attributes: true,
+        attributeFilter: ["style"]
+    });
+
+    /* Init */
+    applyPagination();
+
 })();
 </script>
 
