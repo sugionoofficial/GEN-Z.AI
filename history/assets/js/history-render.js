@@ -1386,24 +1386,7 @@ App.copyHistoryPrompt =
             status
         );
 
-    const createdAt =
-        item?.created_at ||
-        item?.createdAt ||
-        "";
-
-
-    /*
-     * Runtime counter hanya untuk status aktif:
-     *   - processing
-     *   - pending
-     */
-
-    const isActive =
-        status === "processing" ||
-        status === "pending";
-
-
-    const statusBadge = `
+    return `
         <span
             class="status ${escapeHtml(
                 status
@@ -1416,37 +1399,6 @@ App.copyHistoryPrompt =
                 label
             )}
         </span>
-    `;
-
-
-    if (
-        !isActive ||
-        !createdAt
-    ) {
-
-        return statusBadge;
-
-    }
-
-
-    const runtimeBadge = `
-        <span
-            class="runtime-badge"
-            data-runtime-created-at="${escapeHtml(
-                createdAt
-            )}"
-            title="Waktu berjalan sejak dibuat"
-        >
-            --:--
-        </span>
-    `;
-
-
-    return `
-        <div class="history-status-wrap">
-            ${statusBadge}
-            ${runtimeBadge}
-        </div>
     `;
 
 }
