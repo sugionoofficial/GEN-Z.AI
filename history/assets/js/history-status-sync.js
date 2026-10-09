@@ -12,12 +12,9 @@
    - Reload History secara silent
    - Mencegah concurrent status sync
 
-   Tidak bertanggung jawab:
-   - Authentication bootstrap
-   - Render table
-   - Modal
-   - Filter UI
-   - Event listener
+   PATCH:
+   - Tambah failedSyncTracker: skip task setelah 3x gagal
+   - Reset tracker ketika task sukses
 ========================================================= */
 
 (function () {
@@ -46,6 +43,16 @@
             "pending"
         ]
     };
+
+    /* =====================================================
+       SYNC FAILURE TRACKER
+       -----------------------------------------------------
+       Task yang gagal sync beberapa kali akan di-skip
+       sampai reload halaman.
+    ===================================================== */
+
+    const failedSyncTracker = new Map();
+    const MAX_SYNC_FAILURES = 3;
 
     /* =====================================================
        HELPERS
@@ -162,29 +169,6 @@
         getAccessToken;
 
     /* =====================================================
-       ACTIVE HISTORY ITEMS
-    ===================================================== */
-
-    function getActiveHistoryItems() {
-
-        return getHistoryData()
-            .filter(item => {
-
-                const status =
-                    normalizeStatus(
-                        item?.status
-                    );
-
-                return isActiveStatus(
-                    status
-                );
-            });
-    }
-
-    App.getActiveHistoryItems =
-        getActiveHistoryItems;
-
-    /* =====================================================
        TASK VALIDATION
     ===================================================== */
 
@@ -221,6 +205,44 @@
     }
 
     /* =====================================================
+       ACTIVE HISTORY ITEMS
+       -----------------------------------------------------
+       Skip task yang sudah gagal sync 3x berturut-turut.
+    ===================================================== */
+
+    function getActiveHistoryItems() {
+
+        return getHistoryData()
+            .filter(item => {
+
+                const status =
+                    normalizeStatus(
+                        item?.status
+                    );
+
+                if (!isActiveStatus(status)) {
+                    return false;
+                }
+
+                const taskId =
+                    getTaskId(item);
+
+                if (
+                    taskId &&
+                    failedSyncTracker.get(taskId) >=
+                        MAX_SYNC_FAILURES
+                ) {
+                    return false;
+                }
+
+                return true;
+            });
+    }
+
+    App.getActiveHistoryItems =
+        getActiveHistoryItems;
+
+    /* =====================================================
        SYNC ONE TASK
     ===================================================== */
 
@@ -243,9 +265,6 @@
         const modelId =
             getModelId(item);
 
-        /*
-         * Jangan memanggil endpoint tanpa task_id.
-         */
         if (!taskId) {
 
             console.warn(
@@ -262,13 +281,6 @@
             };
         }
 
-        /*
-         * model_id dikirim bila tersedia.
-         *
-         * Backend GEN-Z.AI menggunakan task_id
-         * sebagai identitas utama dan model_id
-         * untuk kebutuhan provider lookup.
-         */
         const body = {
             task_id: taskId
         };
@@ -307,6 +319,15 @@
                 networkError
             );
 
+            /*
+             * Hitung network error juga sebagai failure.
+             */
+            if (taskId) {
+                const count =
+                    (failedSyncTracker.get(taskId) || 0) + 1;
+                failedSyncTracker.set(taskId, count);
+            }
+
             return {
                 success: false,
                 networkError: true,
@@ -328,10 +349,10 @@
             );
         }
 
-        /*
-         * HTTP error tidak boleh membuat
-         * seluruh polling berhenti.
-         */
+        /* =================================================
+           HTTP ERROR
+        ================================================= */
+
         if (!response.ok) {
 
             console.error(
@@ -340,6 +361,27 @@
                 payload
             );
 
+            /*
+             * Catat kegagalan per task.
+             */
+            if (taskId) {
+
+                const count =
+                    (failedSyncTracker.get(taskId) || 0) + 1;
+
+                failedSyncTracker.set(taskId, count);
+
+                if (count >= MAX_SYNC_FAILURES) {
+                    console.warn(
+                        "[history-sync] Task " +
+                        taskId +
+                        " di-skip setelah " +
+                        count +
+                        " kali gagal. Reload halaman untuk reset."
+                    );
+                }
+            }
+
             return {
                 success: false,
                 httpError: true,
@@ -347,6 +389,14 @@
                 payload,
                 item
             };
+        }
+
+        /* =================================================
+           SUCCESS — reset tracker untuk task ini
+        ================================================= */
+
+        if (taskId) {
+            failedSyncTracker.delete(taskId);
         }
 
         return {
@@ -369,10 +419,6 @@
         const state =
             getState();
 
-        /*
-         * Jangan menjalankan sync kedua
-         * sebelum sync sebelumnya selesai.
-         */
         if (
             state.historyStatusSyncInProgress
         ) {
@@ -386,9 +432,6 @@
         const activeItems =
             getActiveHistoryItems();
 
-        /*
-         * Tidak ada generation aktif.
-         */
         if (!activeItems.length) {
 
             stopHistoryAutoRefresh();
@@ -409,13 +452,6 @@
             const accessToken =
                 await getAccessToken();
 
-            /*
-             * Semua task diproses bersamaan.
-             *
-             * Promise.allSettled dipakai supaya
-             * satu task gagal tidak menghentikan
-             * task lainnya.
-             */
             const results =
                 await Promise.allSettled(
                     activeItems.map(item =>
@@ -453,13 +489,6 @@
                 }
             });
 
-            /*
-             * Setelah backend melakukan sinkronisasi,
-             * ambil ulang generation_history.
-             *
-             * silent=true sangat penting:
-             * tidak boleh membuat tabel berkedip.
-             */
             if (
                 typeof App.loadHistory ===
                 "function"
@@ -480,10 +509,6 @@
 
         } catch (error) {
 
-            /*
-             * Error auth/network tidak boleh
-             * membuat timer mati permanen.
-             */
             console.error(
                 "History active generation sync error:",
                 error
@@ -546,10 +571,6 @@
         const activeItems =
             getActiveHistoryItems();
 
-        /*
-         * Tidak ada task aktif:
-         * timer harus berhenti.
-         */
         if (!activeItems.length) {
             return;
         }
@@ -578,13 +599,6 @@
                         );
                     }
 
-                    /*
-                     * Setelah sync selesai,
-                     * periksa ulang state terbaru.
-                     *
-                     * Kalau masih processing/pending,
-                     * lanjut polling.
-                     */
                     if (
                         typeof App.hasActiveGeneration ===
                         "function"
@@ -620,9 +634,6 @@
 
     async function startHistoryStatusMonitor() {
 
-        /*
-         * Jangan membuat timer ganda.
-         */
         stopHistoryAutoRefresh();
 
         const activeItems =
@@ -632,16 +643,8 @@
             return;
         }
 
-        /*
-         * Lakukan sync langsung terlebih dahulu.
-         * Tidak perlu menunggu 5 detik hanya karena
-         * JavaScript menyukai angka bulat.
-         */
         await syncActiveGenerations();
 
-        /*
-         * Setelah sync, cek apakah masih aktif.
-         */
         const stillActive =
             getActiveHistoryItems()
                 .length > 0;
