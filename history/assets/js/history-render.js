@@ -16,6 +16,11 @@
    - Video thumbnail interaction helper
    - Prompt table hanya 1 baris
    - Prompt detail tetap menggunakan data asli
+
+   PATCH:
+   - Tambah panggilan App.startRuntimeCounter() di akhir
+     renderTable supaya runtime badge di list row
+     langsung update setelah render.
 ========================================================= */
 
 (function () {
@@ -1054,400 +1059,384 @@
 
     /* =====================================================
        PROMPT DISPLAY
-       -----------------------------------------------------
-       TABLE:
-       - SELALU 1 BARIS
-       - TIDAK MEMOTONG DATA ASLI
-       - ELLIPSIS DITANGANI CSS
-       - KLIK -> DETAIL
-
-       MODAL:
-       - DATA PROMPT ASLI TETAP UTUH
-       - TIDAK ADA TRUNCATE DI JAVASCRIPT
     ===================================================== */
 
     function getPromptDisplay(
-    item
-) {
+        item
+    ) {
 
-    const prompt =
-        getPrompt(
-            item
-        );
+        const prompt =
+            getPrompt(
+                item
+            );
 
-    if (!prompt) {
+        if (!prompt) {
+
+            return `
+                <div class="history-prompt-wrap">
+
+                    <span
+                        class="history-prompt-empty"
+                        title="-"
+                    >
+                        -
+                    </span>
+
+                </div>
+            `;
+        }
+
+
+        const safePrompt =
+            escapeHtml(
+                prompt
+            );
+
+
+        const historyId =
+            String(
+                item?.id ||
+                ""
+            ).trim();
+
+
+        const safeHistoryId =
+            escapeHtml(
+                historyId
+            );
+
 
         return `
-            <div class="history-prompt-wrap">
+            <div
+                class="history-prompt-wrap"
+            >
 
-                <span
-                    class="history-prompt-empty"
-                    title="-"
+                <button
+                    type="button"
+                    class="history-prompt"
+                    data-action="prompt"
+                    data-history-id="${safeHistoryId}"
+                    title="Klik untuk melihat prompt lengkap"
+                    aria-label="Lihat prompt lengkap"
                 >
-                    -
-                </span>
+
+                    <span
+                        class="history-prompt-text"
+                        title="${safePrompt}"
+                    >${safePrompt}</span>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="history-prompt-copy"
+                    data-action="copy-prompt"
+                    data-history-id="${safeHistoryId}"
+                    title="Copy prompt"
+                    aria-label="Copy prompt"
+                >
+                    COPY
+                </button>
 
             </div>
         `;
     }
 
 
-    const safePrompt =
-        escapeHtml(
-            prompt
-        );
-
-
-    const historyId =
-        String(
-            item?.id ||
-            ""
-        ).trim();
-
-
-    const safeHistoryId =
-        escapeHtml(
-            historyId
-        );
-
-
-    return `
-        <div
-            class="history-prompt-wrap"
-        >
-
-            <button
-                type="button"
-                class="history-prompt"
-                data-action="prompt"
-                data-history-id="${safeHistoryId}"
-                title="Klik untuk melihat prompt lengkap"
-                aria-label="Lihat prompt lengkap"
-            >
-
-                <span
-                    class="history-prompt-text"
-                    title="${safePrompt}"
-                >${safePrompt}</span>
-
-            </button>
-
-
-            <button
-                type="button"
-                class="history-prompt-copy"
-                data-action="copy-prompt"
-                data-history-id="${safeHistoryId}"
-                title="Copy prompt"
-                aria-label="Copy prompt"
-            >
-                COPY
-            </button>
-
-        </div>
-    `;
-}
-
-
     App.getPromptDisplay =
         getPromptDisplay;
 
-   /* =====================================================
-   COPY PROMPT
-===================================================== */
 
-function findHistoryItem(
-    historyId
-) {
+    /* =====================================================
+       COPY PROMPT
+    ===================================================== */
 
-    const id =
-        String(
-            historyId || ""
-        ).trim();
+    function findHistoryItem(
+        historyId
+    ) {
 
-    if (!id) {
-        return null;
-    }
+        const id =
+            String(
+                historyId || ""
+            ).trim();
 
-
-    const data =
-        getHistoryData();
+        if (!id) {
+            return null;
+        }
 
 
-    return (
-        data.find(
-            function (item) {
-
-                return (
-                    String(
-                        item?.id ||
-                        ""
-                    ).trim() === id
-                );
-
-            }
-        ) ||
-        null
-    );
-
-}
+        const data =
+            getHistoryData();
 
 
-async function copyPrompt(
-    historyId,
-    button
-) {
+        return (
+            data.find(
+                function (item) {
 
-    const item =
-        findHistoryItem(
-            historyId
+                    return (
+                        String(
+                            item?.id ||
+                            ""
+                        ).trim() === id
+                    );
+
+                }
+            ) ||
+            null
         );
-
-
-    if (!item) {
-
-        console.warn(
-            "[GEN-Z.AI History] " +
-            "Project history tidak ditemukan:",
-            historyId
-        );
-
-        return;
 
     }
 
 
-    const prompt =
-        getPrompt(
-            item
-        );
+    async function copyPrompt(
+        historyId,
+        button
+    ) {
 
-
-    if (!prompt) {
-
-        return;
-
-    }
-
-
-    const value =
-        String(
-            prompt
-        );
-
-
-    try {
-
-        if (
-            navigator.clipboard &&
-            typeof navigator.clipboard.writeText ===
-                "function"
-        ) {
-
-            await navigator.clipboard.writeText(
-                value
-            );
-
-        } else {
-
-            const textarea =
-                document.createElement(
-                    "textarea"
-                );
-
-
-            textarea.value =
-                value;
-
-
-            textarea.setAttribute(
-                "readonly",
-                ""
+        const item =
+            findHistoryItem(
+                historyId
             );
 
 
-            textarea.style.position =
-                "fixed";
+        if (!item) {
 
-            textarea.style.left =
-                "-9999px";
-
-            textarea.style.top =
-                "0";
-
-
-            document.body.appendChild(
-                textarea
+            console.warn(
+                "[GEN-Z.AI History] " +
+                "Project history tidak ditemukan:",
+                historyId
             );
 
-
-            textarea.focus();
-            textarea.select();
-
-
-            const copied =
-                document.execCommand(
-                    "copy"
-                );
-
-
-            textarea.remove();
-
-
-            if (!copied) {
-
-                throw new Error(
-                    "Clipboard fallback gagal."
-                );
-
-            }
+            return;
 
         }
 
 
-        if (button) {
-
-            const originalText =
-                button.textContent;
-
-
-            button.textContent =
-                "COPIED";
-
-
-            button.classList.add(
-                "copied"
+        const prompt =
+            getPrompt(
+                item
             );
 
 
-            window.setTimeout(
-                function () {
+        if (!prompt) {
 
-                    if (
-                        button.isConnected
-                    ) {
+            return;
 
-                        button.textContent =
-                            originalText;
+        }
 
-                        button.classList.remove(
-                            "copied"
-                        );
 
-                    }
+        const value =
+            String(
+                prompt
+            );
 
-                },
-                1200
+
+        try {
+
+            if (
+                navigator.clipboard &&
+                typeof navigator.clipboard.writeText ===
+                    "function"
+            ) {
+
+                await navigator.clipboard.writeText(
+                    value
+                );
+
+            } else {
+
+                const textarea =
+                    document.createElement(
+                        "textarea"
+                    );
+
+
+                textarea.value =
+                    value;
+
+
+                textarea.setAttribute(
+                    "readonly",
+                    ""
+                );
+
+
+                textarea.style.position =
+                    "fixed";
+
+                textarea.style.left =
+                    "-9999px";
+
+                textarea.style.top =
+                    "0";
+
+
+                document.body.appendChild(
+                    textarea
+                );
+
+
+                textarea.focus();
+                textarea.select();
+
+
+                const copied =
+                    document.execCommand(
+                        "copy"
+                    );
+
+
+                textarea.remove();
+
+
+                if (!copied) {
+
+                    throw new Error(
+                        "Clipboard fallback gagal."
+                    );
+
+                }
+
+            }
+
+
+            if (button) {
+
+                const originalText =
+                    button.textContent;
+
+
+                button.textContent =
+                    "COPIED";
+
+
+                button.classList.add(
+                    "copied"
+                );
+
+
+                window.setTimeout(
+                    function () {
+
+                        if (
+                            button.isConnected
+                        ) {
+
+                            button.textContent =
+                                originalText;
+
+                            button.classList.remove(
+                                "copied"
+                            );
+
+                        }
+
+                    },
+                    1200
+                );
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI History] Copy prompt gagal:",
+                error
             );
 
         }
 
-    } catch (error) {
-
-        console.error(
-            "[GEN-Z.AI History] Copy prompt gagal:",
-            error
-        );
-
     }
 
-}
 
-
-App.copyHistoryPrompt =
-    copyPrompt;
+    App.copyHistoryPrompt =
+        copyPrompt;
 
 
     /* =====================================================
        STATUS DISPLAY
        -----------------------------------------------------
-       FIX:
-       Class harus "status <status>" (dipisah spasi),
-       BUKAN "history-status status-success".
-
-       Alasan:
-       1. CSS di index.html mendefinisikan .status.success,
-          .status.processing, dst.
-       2. Script polling di index.html mencari ".status"
-          lalu cek classList.contains("success"/"processing"/"failed").
+       Status badge + runtime badge (untuk processing/pending).
+       Runtime badge akan di-update oleh history-runtime.js.
     ===================================================== */
 
     function getStatusDisplay(
-    item
-) {
+        item
+    ) {
 
-    const status =
-        normalizeStatus(
-            item?.status
-        );
+        const status =
+            normalizeStatus(
+                item?.status
+            );
 
-    const label =
-        getStatusLabel(
-            status
-        );
-
-
-    const statusBadge = `
-        <span
-            class="status ${escapeHtml(
+        const label =
+            getStatusLabel(
                 status
-            )}"
-            data-status="${escapeHtml(
-                status
-            )}"
-        >
-            ${escapeHtml(
-                label
-            )}
-        </span>
-    `;
+            );
 
 
-    /* Runtime counter hanya untuk status aktif */
-    const isActive =
-        status === "processing" ||
-        status === "pending";
+        const statusBadge = `
+            <span
+                class="status ${escapeHtml(
+                    status
+                )}"
+                data-status="${escapeHtml(
+                    status
+                )}"
+            >
+                ${escapeHtml(
+                    label
+                )}
+            </span>
+        `;
 
 
-    if (!isActive) {
+        /* Runtime counter hanya untuk status aktif */
+        const isActive =
+            status === "processing" ||
+            status === "pending";
 
-        return statusBadge;
+
+        if (!isActive) {
+
+            return statusBadge;
+
+        }
+
+
+        const createdAt =
+            item?.created_at ||
+            item?.createdAt ||
+            "";
+
+
+        if (!createdAt) {
+
+            return statusBadge;
+
+        }
+
+
+        const runtimeBadge = `
+            <span
+                class="runtime-badge"
+                data-runtime-created-at="${escapeHtml(
+                    String(createdAt)
+                )}"
+                title="Waktu berjalan sejak dibuat"
+            >--:--</span>
+        `;
+
+
+        return `
+            <div class="history-status-wrap">
+                ${statusBadge}
+                ${runtimeBadge}
+            </div>
+        `;
 
     }
-
-
-    const createdAt =
-        item?.created_at ||
-        item?.createdAt ||
-        "";
-
-
-    if (!createdAt) {
-
-        return statusBadge;
-
-    }
-
-
-    const runtimeBadge = `
-        <span
-            class="runtime-badge"
-            data-runtime-created-at="${escapeHtml(
-                String(createdAt)
-            )}"
-            title="Waktu berjalan sejak dibuat"
-        >--:--</span>
-    `;
-
-
-    return `
-        <div class="history-status-wrap">
-            ${statusBadge}
-            ${runtimeBadge}
-        </div>
-    `;
-
-}
 
 
     /* =====================================================
@@ -1477,18 +1466,6 @@ App.copyHistoryPrompt =
 
     /* =====================================================
        ROW
-       -----------------------------------------------------
-       Urutan HARUS sama dengan HTML:
-
-       Preview
-       Tanggal
-       User
-       Provider
-       Model
-       Prompt
-       Credit
-       Status
-       Action
     ===================================================== */
 
     function getRowHtml(
@@ -1741,6 +1718,27 @@ App.copyHistoryPrompt =
                 "none";
 
         }
+
+
+        /* =================================================
+           START RUNTIME COUNTER
+           -------------------------------------------------
+           Setelah DOM row di-render ulang, panggil
+           runtime counter supaya badge "--:--" langsung
+           update ke waktu berjalan.
+
+           Fungsi ini ada di history-runtime.js.
+        ================================================= */
+
+        if (
+            typeof App.startRuntimeCounter ===
+            "function"
+        ) {
+
+            App.startRuntimeCounter();
+
+        }
+
     }
 
 
