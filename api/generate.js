@@ -1,4 +1,4 @@
-//generate.js?v=1.0
+//generate.js?v=1.1
 /**
  * =========================================================
  * GEN-Z.AI
@@ -10,104 +10,10 @@
  * Endpoint:
  *   POST /api/generate
  *
- * =========================================================
- *
- * ARSITEKTUR
- *
- *   Frontend
- *      ↓
- *   POST /api/generate
- *      ↓
- *   Supabase Auth
- *      ↓
- *   MODEL REGISTRY
- *      ↓
- *   models/<model-folder>
- *      ├── config.js
- *      ├── parameters.js
- *      ├── create-task.js
- *      └── query-task.js
- *      ↓
- *   Optional Supabase admin config
- *      ↓
- *   Provider
- *      ↓
- *   provider_credentials
- *      ↓
- *   Provider API
- *      ↓
- *   taskId
- *      ↓
- *   generation_history
- *
- * =========================================================
- *
- * MODEL SOURCE OF TRUTH
- *
- *   Repository model folder
- *
- *
- * ADMIN CONFIG SOURCE
- *
- *   Supabase models
- *
- *
- * PROVIDER SOURCE
- *
- *   Supabase providers
- *
- *
- * CREDENTIAL SOURCE
- *
- *   Supabase provider_credentials
- *
- *
- * CREDIT SOURCE OF TRUTH
- *
- *   Supabase models
- *
- *   credit_480p
- *   credit_720p
- *   credit_1080p
- *   discount_percent
- *
- *
- * CREDIT CALCULATION
- *
- *   credit_final =
- *       credit -
- *       (credit * discount_percent / 100)
- *
- *
- * NSFW CHECKER
- *
- *   Server enforced:
- *
- *   nsfw_checker = true
- *
- *   Browser tidak dapat menonaktifkan
- *   NSFW checker melalui request.
- *
- *
- * CREDIT TRANSACTION
- *
- *   Supabase RPC
- *
- *   deduct_generate_credits()
- *   refund_generate_credits()
- *
- *
- * GENERATION HISTORY
- *
- *   Setelah provider berhasil membuat task:
- *
- *   generation_history.status = processing
- *
- *   Satu Generate = satu History record.
- *
- *   History tidak melakukan deduction credit.
- *   History tidak melakukan refund credit.
- *
+ * PATCH v1.1:
+ *   - Tambah handler `upscale-photo` action.
+ *   - Tambah workflow trigger upscale-photo.yml (Real-ESRGAN).
+ *   - Reuse pola yang sama dengan upscale video.
  * =========================================================
  */
 
@@ -240,9 +146,6 @@ function failure(
 
 /* =========================================================
    SANITIZE PROVIDER RESPONSE
-   ---------------------------------------------------------
-   Response KIE.AI boleh dikirim sebagai diagnostic,
-   tetapi credential rahasia WAJIB dihapus.
    ========================================================= */
 
 function sanitizeProviderResponse(
@@ -951,30 +854,7 @@ function calculateDiscountedCredit(
 
 /* =========================================================
    RESOLVE GENERATION CREDIT
-   ---------------------------------------------------------
-   Credit resolution mengikuti konfigurasi Supabase:
- *
- *   480p  -> credit_480p
- *   720p  -> credit_720p
- *   1080p -> credit_1080p
- *
- * KHUSUS MOTIONGEN
- *
- *   576P    -> credit_480p
- *   720P HD -> credit_720p
- *
- * Penting:
- *
- *   resolution asli tetap dipertahankan sebagai
- *   generationCredit.resolution agar History / response
- *   tetap mengetahui pilihan user.
- *
- *   credit_resolution adalah resolution internal
- *   yang digunakan untuk mengambil credit dari database.
- *
- * Resolution tidak dikirim ke provider Motiongen
- * oleh adapter Motiongen.
- * ========================================================= */
+   ========================================================= */
 
 function resolveGenerationCredit(
     databaseModel,
@@ -997,19 +877,11 @@ function resolveGenerationCredit(
     }
 
 
-    /* =====================================================
-       REQUESTED RESOLUTION
-    ===================================================== */
-
     const requestedResolution =
         normalizeGenerationResolution(
             parameters?.resolution
         );
 
-
-    /* =====================================================
-       MODEL ID
-    ===================================================== */
 
     const normalizedModelId =
         String(
@@ -1019,17 +891,9 @@ function resolveGenerationCredit(
             .toLowerCase();
 
 
-    /* =====================================================
-       CREDIT RESOLUTION
-    ===================================================== */
-
     let creditResolution =
         requestedResolution;
 
-
-    /* =====================================================
-       MOTIONGEN LIPSYNC RESOLUTION MAPPING
-    ===================================================== */
 
     if (
         normalizedModelId ===
@@ -1085,13 +949,6 @@ function resolveGenerationCredit(
     }
 
 
-    /* =====================================================
-       RESOLUTION PRESENCE
-       -----------------------------------------------------
-       Model flat-credit (mis. Kling Motion Control)
-       tidak punya parameter resolution.
-    ===================================================== */
-
     const hasResolution =
         Boolean(
             String(
@@ -1102,10 +959,6 @@ function resolveGenerationCredit(
 
     let rawCredit;
 
-
-    /* =====================================================
-       FLAT CREDIT MODEL (tanpa resolution)
-    ===================================================== */
 
     if (!hasResolution) {
 
@@ -1173,10 +1026,6 @@ function resolveGenerationCredit(
     }
 
 
-    /* =====================================================
-       STANDARD RESOLUTION MODEL
-    ===================================================== */
-
     else {
 
         switch (
@@ -1230,10 +1079,6 @@ function resolveGenerationCredit(
 
     }
 
-
-    /* =====================================================
-       CREDIT CONFIGURATION CHECK
-    ===================================================== */
 
     if (
         rawCredit ===
@@ -1297,10 +1142,6 @@ function resolveGenerationCredit(
     }
 
 
-    /* =====================================================
-       DISCOUNT
-    ===================================================== */
-
     let discountPercent;
 
 
@@ -1327,20 +1168,12 @@ function resolveGenerationCredit(
     }
 
 
-    /* =====================================================
-       FINAL CREDIT
-    ===================================================== */
-
     const creditFinal =
         calculateDiscountedCredit(
             credit,
             discountPercent
         );
 
-
-    /* =====================================================
-       RESULT
-    ===================================================== */
 
     return {
 
@@ -1365,6 +1198,8 @@ function resolveGenerationCredit(
     };
 
 }
+
+
 /* =========================================================
    DEDUCT GENERATION CREDITS
    ========================================================= */
@@ -1562,28 +1397,8 @@ async function refundGenerateCredits(
 
 
 /* =========================================================
-   GENERATION HISTORY
-   ---------------------------------------------------------
-   Membuat SATU record History setelah provider berhasil
-   membuat task dan taskId sudah tersedia.
- *
- *   status = processing
- *
- *   History tidak melakukan:
- *
- *   - deduction
- *   - refund
- *   - provider request
- *
- *   Jika INSERT History gagal:
- *
- *   - generation tetap berhasil
- *   - credit tidak di-refund
- *   - error hanya dicatat ke server log
- *
- *   Ini mencegah provider task berhasil tetapi transaksi
- *   credit menjadi tidak konsisten hanya karena History gagal.
- * ========================================================= */
+   GENERATION HISTORY HELPERS
+   ========================================================= */
 
 function normalizeHistoryText(
     value
@@ -1718,16 +1533,6 @@ async function createGenerationHistory({
     }
 
 
-    /*
-     * image_urls dapat berupa:
-     *
-     *   string
-     *   array
-     *
-     * Kolom History bertipe text,
-     * sehingga array disimpan sebagai JSON.
-     */
-
     const imageReference =
         normalizeHistoryText(
             parameters?.image_urls ??
@@ -1735,13 +1540,6 @@ async function createGenerationHistory({
             null
         );
 
-
-    /*
-     * Video reference belum digunakan oleh
-     * Generate API saat ini, tetapi kita tetap
-     * mempertahankan kolomnya apabila frontend
-     * mengirimkan nilai tersebut.
-     */
 
     const videoReference =
         normalizeHistoryText(
@@ -1768,20 +1566,6 @@ async function createGenerationHistory({
             null
         );
 
-
-    /*
-     * credit_cost adalah nilai yang benar-benar
-     * digunakan untuk deduction.
-     *
-     * Contoh:
-     *
-     *   base 14
-     *   discount 10%
-     *
-     *   credit_cost = 12.6
-     *
-     * Jangan dibulatkan.
-     */
 
     const creditCost =
         Number(
@@ -1944,21 +1728,6 @@ async function createGenerationHistory({
         return payload;
 
     } catch (error) {
-
-        /*
-         * PENTING:
-         *
-         * Provider task sudah berhasil dibuat.
-         *
-         * Credit juga sudah berhasil dipotong.
-         *
-         * Karena itu kegagalan History TIDAK boleh
-         * memicu refund otomatis.
-         *
-         * Refund hanya dilakukan ketika provider
-         * gagal membuat task atau taskId tidak tersedia,
-         * sesuai alur credit yang sudah ada.
-         */
 
         console.error(
             "[generate] Failed to create generation history:",
@@ -2335,9 +2104,7 @@ function getEncryptionKey() {
 
     } catch {
 
-        /*
-         * fallback
-         */
+        /* fallback */
 
     }
 
@@ -2392,9 +2159,7 @@ function decodeBuffer(
 
         } catch {
 
-            /*
-             * fallback
-             */
+            /* fallback */
 
         }
 
@@ -2420,9 +2185,7 @@ function decodeBuffer(
 
     } catch {
 
-        /*
-         * fallback
-         */
+        /* fallback */
 
     }
 
@@ -2624,9 +2387,7 @@ async function loadProviderApiKey(
         ).trim();
 
 
-    if (
-        !ciphertext
-    ) {
+    if (!ciphertext) {
 
         throw new Error(
             `Provider credential ciphertext is empty for ${normalizedProviderCode}`
@@ -2635,9 +2396,7 @@ async function loadProviderApiKey(
     }
 
 
-    if (
-        !iv
-    ) {
+    if (!iv) {
 
         throw new Error(
             `Provider credential IV is empty for ${normalizedProviderCode}`
@@ -2646,9 +2405,7 @@ async function loadProviderApiKey(
     }
 
 
-    if (
-        !authTag
-    ) {
+    if (!authTag) {
 
         throw new Error(
             `Provider credential authentication tag is empty for ${normalizedProviderCode}`
@@ -2664,22 +2421,9 @@ async function loadProviderApiKey(
 
     try {
 
-        ivBuffer =
-            decodeBuffer(
-                iv
-            );
-
-
-        authTagBuffer =
-            decodeBuffer(
-                authTag
-            );
-
-
-        ciphertextBuffer =
-            decodeBuffer(
-                ciphertext
-            );
+        ivBuffer = decodeBuffer(iv);
+        authTagBuffer = decodeBuffer(authTag);
+        ciphertextBuffer = decodeBuffer(ciphertext);
 
     } catch (error) {
 
@@ -2696,36 +2440,24 @@ async function loadProviderApiKey(
     }
 
 
-    if (
-        !ivBuffer
-    ) {
-
+    if (!ivBuffer) {
         throw new Error(
             `Provider credential IV could not be decoded for ${normalizedProviderCode}`
         );
-
     }
 
 
-    if (
-        !authTagBuffer
-    ) {
-
+    if (!authTagBuffer) {
         throw new Error(
             `Provider credential authentication tag could not be decoded for ${normalizedProviderCode}`
         );
-
     }
 
 
-    if (
-        !ciphertextBuffer
-    ) {
-
+    if (!ciphertextBuffer) {
         throw new Error(
             `Provider credential ciphertext could not be decoded for ${normalizedProviderCode}`
         );
-
     }
 
 
@@ -2927,9 +2659,7 @@ function normalizeArray(
 
             } catch {
 
-                /*
-                 * fallback
-                 */
+                /* fallback */
 
             }
 
@@ -2978,12 +2708,6 @@ function validateDatabaseRestrictions(
 
     }
 
-
-    /*
-     * =====================================================
-     * DURATION
-     * =====================================================
-     */
 
     if (
         parameters.duration !==
@@ -3070,10 +2794,6 @@ function validateDatabaseRestrictions(
     }
 
 
-    /* =====================================================
-       RATIO
-       ===================================================== */
-
     if (
         parameters.aspect_ratio !==
             undefined &&
@@ -3106,10 +2826,6 @@ function validateDatabaseRestrictions(
 
     }
 
-
-    /* =====================================================
-       RESOLUTION
-       ===================================================== */
 
     if (
         parameters.resolution !==
@@ -3267,9 +2983,10 @@ function validateAdapterInput(
 
 }
 
+
 /* =========================================================
-   UPSCALE — CONSTANTS
-========================================================= */
+   UPSCALE VIDEO — CONSTANTS
+   ========================================================= */
 
 const GITHUB_PAT =
     String(process.env.GITHUB_PAT || "").trim();
@@ -3291,8 +3008,21 @@ const UPSCALE_TARGET_LABEL = "1440p";
 
 
 /* =========================================================
-   UPSCALE — FETCH HISTORY ROW
-========================================================= */
+   UPSCALE PHOTO — CONSTANTS
+   ========================================================= */
+
+const UPSCALE_PHOTO_CREDIT_COST = 1;
+const UPSCALE_PHOTO_WORKFLOW_FILE = "upscale-photo.yml";
+const UPSCALE_PHOTO_TARGETS = ["2k", "4k"];
+const UPSCALE_PHOTO_PROVIDER_ID = "genzai-internal";
+const UPSCALE_PHOTO_PROVIDER_NAME = "GEN-Z.AI";
+const UPSCALE_PHOTO_MODEL_ID = "upscale-photo";
+const UPSCALE_PHOTO_MODEL_NAME = "Upscale Photo";
+
+
+/* =========================================================
+   UPSCALE VIDEO — FETCH HISTORY ROW
+   ========================================================= */
 
 async function fetchUpscaleParentHistory(historyId) {
     const params = new URLSearchParams();
@@ -3311,8 +3041,8 @@ async function fetchUpscaleParentHistory(historyId) {
 
 
 /* =========================================================
-   UPSCALE — CHECK ALREADY UPSCALED
-========================================================= */
+   UPSCALE VIDEO — CHECK ALREADY UPSCALED
+   ========================================================= */
 
 async function hasActiveOrSuccessfulUpscale(historyId) {
     const params = new URLSearchParams();
@@ -3331,8 +3061,8 @@ async function hasActiveOrSuccessfulUpscale(historyId) {
 
 
 /* =========================================================
-   UPSCALE — GENERATE TASK ID
-========================================================= */
+   UPSCALE VIDEO — GENERATE TASK ID
+   ========================================================= */
 
 function generateUpscaleTaskId() {
     const rand = Math.random().toString(36).slice(2, 10);
@@ -3341,8 +3071,8 @@ function generateUpscaleTaskId() {
 
 
 /* =========================================================
-   UPSCALE — CREATE HISTORY ROW
-========================================================= */
+   UPSCALE VIDEO — CREATE HISTORY ROW
+   ========================================================= */
 
 async function createUpscaleHistoryRow({
     user,
@@ -3391,8 +3121,8 @@ async function createUpscaleHistoryRow({
 
 
 /* =========================================================
-   UPSCALE — MARK FAILED + REFUND
-========================================================= */
+   UPSCALE VIDEO — MARK FAILED + REFUND
+   ========================================================= */
 
 async function markUpscaleFailedAndRefund({
     historyId,
@@ -3424,8 +3154,8 @@ async function markUpscaleFailedAndRefund({
 
 
 /* =========================================================
-   UPSCALE — TRIGGER GITHUB WORKFLOW
-========================================================= */
+   UPSCALE VIDEO — TRIGGER GITHUB WORKFLOW
+   ========================================================= */
 
 async function triggerUpscaleWorkflow({
     historyId,
@@ -3470,17 +3200,8 @@ async function triggerUpscaleWorkflow({
 
 
 /* =========================================================
-   UPSCALE — MAIN HANDLER
-   ---------------------------------------------------------
-   Dipanggil dari handler utama ketika:
-     body.action === "upscale"
-   ---------------------------------------------------------
-   Body:
-     {
-       action: "upscale",
-       history_id: string
-     }
-========================================================= */
+   UPSCALE VIDEO — MAIN HANDLER
+   ========================================================= */
 
 async function handleUpscaleAction(req, res, body, user) {
 
@@ -3489,8 +3210,6 @@ async function handleUpscaleAction(req, res, body, user) {
     if (!historyId) {
         return failure(res, 400, "history_id is required");
     }
-
-    /* ===== FETCH PARENT ===== */
 
     let parent;
     try {
@@ -3517,8 +3236,6 @@ async function handleUpscaleAction(req, res, body, user) {
         return failure(res, 409, "Video sumber tidak punya result_url");
     }
 
-    /* ===== CEK SUDAH PERNAH DIUPSCALE ===== */
-
     try {
         const already = await hasActiveOrSuccessfulUpscale(historyId);
         if (already) {
@@ -3528,8 +3245,6 @@ async function handleUpscaleAction(req, res, body, user) {
         console.error("[upscale] Failed to check upscale status:", err);
         return failure(res, 500, "Failed to check upscale status");
     }
-
-    /* ===== DEDUCT CREDIT ===== */
 
     let remainingCredits = null;
 
@@ -3556,8 +3271,6 @@ async function handleUpscaleAction(req, res, body, user) {
         );
     }
 
-    /* ===== CREATE HISTORY ROW ===== */
-
     const taskId = generateUpscaleTaskId();
     let upscaleRow;
 
@@ -3580,8 +3293,6 @@ async function handleUpscaleAction(req, res, body, user) {
         return failure(res, 500, "Gagal membuat catatan history");
     }
 
-    /* ===== TRIGGER GITHUB ===== */
-
     try {
         await triggerUpscaleWorkflow({
             historyId: upscaleRow.id,
@@ -3600,8 +3311,6 @@ async function handleUpscaleAction(req, res, body, user) {
         return failure(res, 502, "Gagal memulai upscale di GitHub Actions");
     }
 
-    /* ===== SUCCESS ===== */
-
     return success(res, {
         upscale_history_id: upscaleRow.id,
         task_id: taskId,
@@ -3612,9 +3321,185 @@ async function handleUpscaleAction(req, res, body, user) {
     });
 }
 
+
+/* =========================================================
+   UPSCALE PHOTO — MAIN HANDLER
+   ========================================================= */
+
+async function handleUpscalePhotoAction(req, res, body, user) {
+
+    const sourceUrl = String(body?.source_url || "").trim();
+    const targetResolution = String(body?.target_resolution || "2k").trim().toLowerCase();
+
+    if (!sourceUrl) {
+        return failure(res, 400, "source_url is required");
+    }
+
+    if (!UPSCALE_PHOTO_TARGETS.includes(targetResolution)) {
+        return failure(res, 400, "target_resolution must be '2k' or '4k'");
+    }
+
+    if (!GITHUB_PAT || !GITHUB_OWNER || !GITHUB_REPO) {
+        return failure(res, 500, "GitHub Actions configuration is incomplete");
+    }
+
+    /* ===== DEDUCT CREDIT ===== */
+
+    let remainingCredits = null;
+
+    try {
+        remainingCredits = await deductGenerateCredits(
+            user.id,
+            UPSCALE_PHOTO_CREDIT_COST
+        );
+    } catch (err) {
+        console.error("[upscale-photo] Credit deduction failed:", err);
+
+        const combined = String(err?.message || "").toUpperCase();
+        const insufficient = combined.includes("INSUFFICIENT_CREDITS");
+
+        return failure(
+            res,
+            insufficient ? 402 : 500,
+            insufficient ? "Kredit tidak cukup" : "Gagal potong kredit",
+            {
+                code: insufficient
+                    ? "INSUFFICIENT_CREDITS"
+                    : "CREDIT_DEDUCTION_FAILED"
+            }
+        );
+    }
+
+    /* ===== CREATE HISTORY ROW ===== */
+
+    const taskId = `upscale-photo_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+    const historyPayload = {
+        user_id: user.id,
+        user_email: user.email || null,
+        provider_id: UPSCALE_PHOTO_PROVIDER_ID,
+        provider_name: UPSCALE_PHOTO_PROVIDER_NAME,
+        model_id: UPSCALE_PHOTO_MODEL_ID,
+        model_name: UPSCALE_PHOTO_MODEL_NAME,
+        prompt: null,
+        image_reference_url: sourceUrl,
+        video_reference_url: null,
+        ratio: null,
+        duration: null,
+        resolution: targetResolution === "4k" ? "2160p" : "1440p",
+        status: "processing",
+        task_id: taskId,
+        result_url: null,
+        error_message: null,
+        credit_cost: UPSCALE_PHOTO_CREDIT_COST
+    };
+
+    let historyRow;
+
+    try {
+        const inserted = await supabaseRequest(
+            "/rest/v1/generation_history?select=*",
+            {
+                method: "POST",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify([historyPayload])
+            }
+        );
+
+        if (!Array.isArray(inserted) || !inserted.length) {
+            throw new Error("Empty response from history insert");
+        }
+
+        historyRow = inserted[0];
+
+    } catch (err) {
+        console.error("[upscale-photo] Failed to create history row:", err);
+
+        try {
+            await refundGenerateCredits(user.id, UPSCALE_PHOTO_CREDIT_COST);
+        } catch (e) {
+            console.error("[upscale-photo] Refund failed:", e);
+        }
+
+        return failure(res, 500, "Gagal membuat catatan history");
+    }
+
+    /* ===== TRIGGER GITHUB WORKFLOW ===== */
+
+    const ghUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/${UPSCALE_PHOTO_WORKFLOW_FILE}/dispatches`;
+
+    try {
+        const response = await fetch(ghUrl, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${GITHUB_PAT}`,
+                Accept: "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "Content-Type": "application/json",
+                "User-Agent": "GENZ-AI-Upscale-Photo"
+            },
+            body: JSON.stringify({
+                ref: GITHUB_REF,
+                inputs: {
+                    history_id: String(historyRow.id),
+                    source_url: sourceUrl,
+                    user_id: String(user.id),
+                    credit_cost: String(UPSCALE_PHOTO_CREDIT_COST),
+                    target_resolution: targetResolution
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`GitHub dispatch failed (${response.status}): ${text}`);
+        }
+
+    } catch (err) {
+        console.error("[upscale-photo] GitHub dispatch failed:", err);
+
+        try {
+            await supabaseRequest(
+                `/rest/v1/generation_history?id=eq.${historyRow.id}`,
+                {
+                    method: "PATCH",
+                    headers: { Prefer: "return=minimal" },
+                    body: JSON.stringify({
+                        status: "failed",
+                        error_message: "Gagal memulai upscale di GitHub Actions"
+                    })
+                }
+            );
+        } catch (e) {
+            console.error("[upscale-photo] Failed to mark history:", e);
+        }
+
+        try {
+            await refundGenerateCredits(user.id, UPSCALE_PHOTO_CREDIT_COST);
+        } catch (e) {
+            console.error("[upscale-photo] Refund failed:", e);
+        }
+
+        return failure(res, 502, "Gagal memulai upscale di GitHub Actions");
+    }
+
+    /* ===== SUCCESS ===== */
+
+    return success(res, {
+        upscale_history_id: historyRow.id,
+        task_id: taskId,
+        status: "processing",
+        target: targetResolution,
+        credit_used: UPSCALE_PHOTO_CREDIT_COST,
+        remaining_credits: remainingCredits
+    });
+}
+
+
 /* =========================================================
    HANDLER
    ========================================================= */
+
 export const config = {
     runtime: "nodejs"
 };
@@ -3729,16 +3614,10 @@ export default async function handler(
 
     }
 
-        /*
+
+    /*
      * =====================================================
-     * ACTION ROUTER — UPSCALE
-     * -----------------------------------------------------
-     * Kalau body.action === "upscale":
-     *   - pakai handler upscale, BUKAN generate biasa
-     *   - tidak butuh model_id
-     *
-     * Kalau tidak ada action atau action lain:
-     *   - lanjut ke flow generate biasa
+     * ACTION ROUTER
      * =====================================================
      */
 
@@ -3750,6 +3629,17 @@ export default async function handler(
     if (action === "upscale") {
 
         return await handleUpscaleAction(
+            req,
+            res,
+            body,
+            user
+        );
+
+    }
+
+    if (action === "upscale-photo") {
+
+        return await handleUpscalePhotoAction(
             req,
             res,
             body,
@@ -3952,35 +3842,21 @@ export default async function handler(
      * =====================================================
      */
 
-        const rawParameters =
-    adapter.getParameters(
-        body
-    );
+    const rawParameters =
+        adapter.getParameters(
+            body
+        );
 
-const parameters =
-    adapter.sanitizeParameters(
-        rawParameters
-    );
+    const parameters =
+        adapter.sanitizeParameters(
+            rawParameters
+        );
+
 
     /*
-     * -----------------------------------------------------
+     * =====================================================
      * FIX: SALIN RESOLUTION DARI BODY
-     * -----------------------------------------------------
-     * Adapter Motiongen sengaja tidak menyertakan
-     * `resolution` di sanitized parameters (karena
-     * bukan payload Motiongen).
-     *
-     * Tapi `resolveGenerationCredit()` membutuhkan
-     * `parameters.resolution` untuk:
-     *
-     *   - Validasi resolution (576P / 720P HD)
-     *   - Lookup credit_480p / credit_720p
-     *
-     * Salin dari body supaya tidak `undefined`.
-     * Nilai ini TIDAK akan dikirim ke Motiongen
-     * karena adapter akan membersihkannya lagi
-     * di buildPayload().
-     * -----------------------------------------------------
+     * =====================================================
      */
 
     if (!parameters.resolution) {
@@ -4105,11 +3981,11 @@ const parameters =
     try {
 
         generationCredit =
-    resolveGenerationCredit(
-        databaseModel,
-        parameters,
-        modelId
-    );
+            resolveGenerationCredit(
+                databaseModel,
+                parameters,
+                modelId
+            );
 
     } catch (error) {
 
@@ -4500,12 +4376,6 @@ const parameters =
         );
 
 
-        /*
-         * =================================================
-         * REFUND
-         * =================================================
-         */
-
         if (
             creditDeducted
         ) {
@@ -4806,22 +4676,6 @@ const parameters =
      * =====================================================
      * GENERATION HISTORY
      * =====================================================
-     *
-     * Provider sudah berhasil membuat task.
-     *
-     * Credit sudah berhasil dipotong.
-     *
-     * taskId sudah tersedia.
-     *
-     * Sekarang buat SATU record History:
-     *
-     *   status = processing
-     *
-     * Kegagalan INSERT History tidak menggagalkan
-     * generation karena provider task sudah valid.
-     *
-     * Tidak ada refund di sini.
-     * =====================================================
      */
 
     await createGenerationHistory({
@@ -4860,11 +4714,6 @@ const parameters =
             user_id:
                 user.id,
 
-
-            /*
-             * Model.
-             */
-
             model:
                 modelConfig.id,
 
@@ -4875,11 +4724,6 @@ const parameters =
                 modelConfig.name ||
                 modelConfig.id,
 
-
-            /*
-             * Provider.
-             */
-
             provider:
                 provider.provider_name ||
                 provider.name ||
@@ -4887,11 +4731,6 @@ const parameters =
 
             provider_id:
                 providerCode,
-
-
-            /*
-             * Credit.
-             */
 
             resolution:
                 generationCredit.resolution,
@@ -4908,22 +4747,6 @@ const parameters =
             remaining_credits:
                 remainingCredits,
 
-
-            /*
-             * NSFW CHECKER
-             *
-             * Tidak dikirim sebagai pilihan
-             * ke frontend.
-             *
-             * Nilai hanya digunakan internal
-             * sebelum adapter dipanggil.
-             */
-
-
-            /*
-             * Task.
-             */
-
             taskId,
 
             task_id:
@@ -4932,18 +4755,8 @@ const parameters =
             jobId:
                 taskId,
 
-
-            /*
-             * Provider response diagnostic.
-             */
-
             provider_response:
                 safeTask,
-
-
-            /*
-             * Database config ID jika ada.
-             */
 
             model_database_id:
                 databaseModel?.id ||
