@@ -123,6 +123,9 @@ import seedance25
 import digitalHumanLipSyncImage
     from "../models/digital-human-lipsync-image/index.js";
 
+import klingMotionControl30Pro
+    from "../models/kling-motion-control-30-pro/index.js";
+
 
 /* =========================================================
    ENVIRONMENT
@@ -156,13 +159,10 @@ const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
    ========================================================= */
 
 const MODEL_REGISTRY = Object.freeze([
-
     grokImagineImageToVideo,
-
     seedance25,
-
-    digitalHumanLipSyncImage
-
+    digitalHumanLipSyncImage,
+    klingMotionControl30Pro
 ]);
 
 
