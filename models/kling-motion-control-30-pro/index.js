@@ -1,3 +1,4 @@
+//models/kling-motion-control-30-pro/index.js?v=1.2
 /* =========================================================
    GEN-Z.AI
    MOTIONGEN-AI
