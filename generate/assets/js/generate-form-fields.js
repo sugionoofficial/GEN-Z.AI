@@ -16,6 +16,7 @@
    - Enum / Radio
    - Image
    - Audio
+   - Video
 
    Catatan:
    - Tidak menangani state
@@ -23,19 +24,21 @@
    - Tidak menangani API
    - Tidak menangani credit
    - Tidak mengubah nilai parameter
-   - Image / Audio menggunakan factory registry
+   - Image / Audio / Video menggunakan factory registry
 ========================================================= */
 
 "use strict";
 
 
 /* =========================================================
-   IMAGE / AUDIO FACTORY REGISTRY
+   IMAGE / AUDIO / VIDEO FACTORY REGISTRY
 ========================================================= */
 
 let imageFieldFactory = null;
 
 let audioFieldFactory = null;
+
+let videoFieldFactory = null;
 
 
 /* =========================================================
@@ -83,6 +86,31 @@ export function registerAudioFieldFactory(
     }
 
     audioFieldFactory =
+        factory;
+
+}
+
+
+/* =========================================================
+   REGISTER VIDEO FIELD FACTORY
+========================================================= */
+
+export function registerVideoFieldFactory(
+    factory
+) {
+
+    if (
+        typeof factory !==
+        "function"
+    ) {
+
+        throw new TypeError(
+            "Video field factory must be a function"
+        );
+
+    }
+
+    videoFieldFactory =
         factory;
 
 }
@@ -145,10 +173,35 @@ export function createAudioField(
 
 
 /* =========================================================
+   VIDEO FIELD
+========================================================= */
+
+export function createVideoField(
+    definition = {},
+    name = "video_urls"
+) {
+
+    if (
+        typeof videoFieldFactory !==
+        "function"
+    ) {
+
+        throw new Error(
+            "Video field factory is not registered"
+        );
+
+    }
+
+    return videoFieldFactory(
+        definition,
+        name
+    );
+
+}
+
+
+/* =========================================================
    DEFAULT VALUE HELPER
-   ---------------------------------------------------------
-   Hanya membaca definition.
-   Tidak menghitung / mengubah nilai.
 ========================================================= */
 
 function resolveFieldDefault(
@@ -481,21 +534,12 @@ export function createNumberField(
 
 /* =========================================================
    DURATION FIELD
-   ---------------------------------------------------------
-   - Jika ada enum → pakai select/radio (enum)
-   - Jika ada min/max → pakai range slider (geser)
-   - Fallback → number input
 ========================================================= */
 
 export function createDurationField(
     definition = {},
     name = "duration"
 ) {
-
-    /*
-     * Jika provider memberikan enum,
-     * gunakan enum asli provider.
-     */
 
     if (
         Array.isArray(
@@ -522,11 +566,6 @@ export function createDurationField(
             definition.max
         );
 
-
-    /*
-     * Range slider hanya dipakai jika
-     * min dan max valid.
-     */
 
     if (
         !Number.isFinite(min) ||
@@ -573,10 +612,6 @@ export function createDurationField(
 
     }
 
-
-    /*
-     * Clamp nilai awal ke rentang min–max.
-     */
 
     if (
         initial < min
@@ -848,11 +883,6 @@ export function createBooleanField(
             definition
         );
 
-
-    /*
-     * Boolean hanya dianggap checked
-     * jika nilai default memang true.
-     */
 
     input.checked =
         defaultValue === true;
@@ -1161,14 +1191,6 @@ export function createEnumField(
             }
 
 
-            /*
-             * Nilai parameter HARUS tetap sama
-             * dengan definition.enum.
-             *
-             * Formatter hanya berlaku untuk
-             * text label.
-             */
-
             const value =
                 String(
                     enumValue
@@ -1323,11 +1345,6 @@ export function formatEnumLabel(
     }
 
 
-    /*
-     * Jangan mengubah nilai.
-     * Label hanya menampilkan nilai asli.
-     */
-
     return String(
         value
     );
@@ -1420,6 +1437,51 @@ function isAudioField(
 
 
 /* =========================================================
+   VIDEO TYPE DETECTOR
+========================================================= */
+
+function isVideoField(
+    name,
+    definition = {}
+) {
+
+    const normalizedName =
+        String(
+            name || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    const type =
+        String(
+            definition?.type || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return (
+        normalizedName ===
+            "video_urls" ||
+
+        normalizedName ===
+            "video_url" ||
+
+        type ===
+            "video" ||
+
+        type ===
+            "video_url" ||
+
+        type ===
+            "video_urls"
+    );
+
+}
+
+
+/* =========================================================
    FIELD DISPATCHER
 ========================================================= */
 
@@ -1484,9 +1546,26 @@ export function createFieldInput(
 
 
     /* =====================================================
+       VIDEO
+    ===================================================== */
+
+    if (
+        isVideoField(
+            name,
+            definition
+        )
+    ) {
+
+        return createVideoField(
+            definition,
+            name
+        );
+
+    }
+
+
+    /* =====================================================
        ENUM
-       -----------------------------------------------------
-       Enum harus diprioritaskan sebelum generic type.
     ===================================================== */
 
     if (
@@ -1659,8 +1738,12 @@ export default Object.freeze({
 
     registerAudioFieldFactory,
 
+    registerVideoFieldFactory,
+
     createImageField,
 
-    createAudioField
+    createAudioField,
+
+    createVideoField
 
 });
