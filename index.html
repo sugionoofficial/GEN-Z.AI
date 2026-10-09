@@ -723,16 +723,16 @@
         ========================================================= */
 
         .trust-strip {
-    position: relative;
-    z-index: 10;
-    margin-top: -1px;
-    padding: 22px 0;
-    border-top: 1px solid rgba(255, 48, 72, 0.18);
-    border-bottom: 1px solid rgba(255, 48, 72, 0.14);
-    background: rgba(10, 10, 10, 0.88);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-}
+            position: relative;
+            z-index: 10;
+            margin-top: -1px;
+            padding: 22px 0;
+            border-top: 1px solid rgba(255, 48, 72, 0.18);
+            border-bottom: 1px solid rgba(255, 48, 72, 0.14);
+            background: rgba(10, 10, 10, 0.88);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+        }
 
         .trust-inner {
             min-height: 92px;
@@ -1533,258 +1533,216 @@
         }
 
         @media (max-width: 768px) {
-    .trust-strip {
-        margin-top: -20px;
-        padding: 22px 0;
-    }
-}
+            .trust-strip {
+                margin-top: -20px;
+                padding: 22px 0;
+            }
+        }
+
         @media (max-width: 768px) {
 
-    .hero {
-        padding: 92px 0 0;
-    }
+            .hero {
+                padding: 92px 0 0;
+            }
 
-    .trust-strip {
-        margin-top: -1px;
-        padding: 18px 0;
-    }
+            .trust-strip {
+                margin-top: -1px;
+                padding: 18px 0;
+            }
 
-}
+        }
+
         .hero > *:last-child {
-    margin-bottom: 0 !important;
-}
+            margin-bottom: 0 !important;
+        }
 
-         /* =========================================================
-    LIVE GENERATE TOAST
- ========================================================= */
-
-.live-generate-toast {
-    position: fixed;
-    left: 22px;
-    bottom: 22px;
-
-    z-index: 9999;
-
-    display: flex;
-    align-items: center;
-    gap: 7px;
-
-    min-height: 34px;
-    padding: 8px 13px;
-
-    border: 1px solid rgba(0, 255, 128, 0.16);
-    border-radius: 9px;
-
-    background:
-        linear-gradient(
-            135deg,
-            rgba(10, 18, 14, 0.94),
-            rgba(5, 8, 7, 0.91)
-        );
-
-    box-shadow:
-        0 8px 30px rgba(0, 0, 0, 0.45),
-        0 0 18px rgba(0, 255, 128, 0.06);
-
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-
-    color: rgba(255, 255, 255, 0.72);
-
-    font-family:
-        Inter,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-
-    opacity: 0;
-    visibility: hidden;
-
-    transform:
-        translate3d(-18px, 8px, 0)
-        scale(0.96);
-
-    transition:
-        opacity 0.35s ease,
-        transform 0.35s cubic-bezier(.22, .61, .36, 1),
-        visibility 0.35s ease;
-
-    pointer-events: none;
-}
-
-
-.live-generate-toast.is-visible {
-    opacity: 1;
-    visibility: visible;
-
-    transform:
-        translate3d(0, 0, 0)
-        scale(1);
-}
-
-
-.live-generate-dot {
-    width: 6px;
-    height: 6px;
-
-    flex: 0 0 6px;
-
-    border-radius: 50%;
-
-    background: #20ff8a;
-
-    box-shadow:
-        0 0 6px rgba(32, 255, 138, 0.9),
-        0 0 12px rgba(32, 255, 138, 0.35);
-
-    animation:
-        liveGeneratePulse 1.5s ease-in-out infinite;
-}
-
-
-.live-generate-username {
-    color: #20ff8a;
-
-    font-weight: 700;
-
-    text-shadow:
-        0 0 8px rgba(32, 255, 138, 0.28);
-}
-
-
-.live-generate-text {
-    color: rgba(255, 255, 255, 0.66);
-}
-
-
-@keyframes liveGeneratePulse {
-
-    0%,
-    100% {
-        opacity: 0.55;
-        transform: scale(0.85);
-    }
-
-    50% {
-        opacity: 1;
-        transform: scale(1);
-    }
-
-}
-
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media (max-width: 768px) {
-
-    .live-generate-toast {
-        left: 12px;
-        bottom: 12px;
-
-        min-height: 32px;
-
-        padding:
-            7px 10px;
-
-        gap: 6px;
-
-        border-radius: 8px;
-
-        font-size: 10px;
-    }
-
-
-    .live-generate-dot {
-        width: 5px;
-        height: 5px;
-
-        flex-basis: 5px;
-    }
-
-}
 
         /* =========================================================
-   ANTI-DOWNLOAD — VIDEO PROTECTION
-========================================================= */
+           LIVE GENERATE TOAST
+        ========================================================= */
 
-/*
- * Semua video di landing page:
- * - Tidak bisa di-select
- * - Tidak bisa di-drag
- * - Tidak muncul context menu
- */
+        .live-generate-toast {
+            position: fixed;
+            left: 22px;
+            bottom: 22px;
 
-.landing-video {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+            z-index: 9999;
 
-    -webkit-user-drag: none;
-    -khtml-user-drag: none;
-    -moz-user-drag: none;
-    -o-user-drag: none;
+            display: flex;
+            align-items: center;
+            gap: 7px;
 
-    -webkit-touch-callout: none;
+            min-height: 34px;
+            padding: 8px 13px;
 
-    pointer-events: none;
-}
+            border: 1px solid rgba(0, 255, 128, 0.16);
+            border-radius: 9px;
 
-/*
- * Overlay transparan di atas video — blok klik kanan
- * & long-press. Tetap allow kontrol di bawahnya.
- */
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(10, 18, 14, 0.94),
+                    rgba(5, 8, 7, 0.91)
+                );
 
-.video-shell {
-    position: relative;
-}
+            box-shadow:
+                0 8px 30px rgba(0, 0, 0, 0.45),
+                0 0 18px rgba(0, 255, 128, 0.06);
 
-.video-shell::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 5;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
 
-    /* Transparan, tapi menerima event klik */
-    background: transparent;
+            color: rgba(255, 255, 255, 0.72);
 
-    /* Blok konteks */
-    pointer-events: auto;
+            font-family:
+                Inter,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
 
-    /* Jangan blok kontrol video */
-    /* Kontrol ada di z-index 10 di atasnya */
-}
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.01em;
 
-/*
- * Pastikan kontrol masih bisa di-klik.
- * Kontrol ada di z-index 10, overlay di z-index 5.
- */
+            opacity: 0;
+            visibility: hidden;
 
-.video-controls,
-.video-control,
-.video-status {
-    position: relative;
-    z-index: 10;
-}
+            transform:
+                translate3d(-18px, 8px, 0)
+                scale(0.96);
 
-/*
- * Nonaktifkan seleksi di area landing page.
- * (Opsional — kalau ingin seluruh page tidak bisa di-select)
- */
+            transition:
+                opacity 0.35s ease,
+                transform 0.35s cubic-bezier(.22, .61, .36, 1),
+                visibility 0.35s ease;
 
-.hero-video-shell,
-.showcase-video-wrap {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-}
+            pointer-events: none;
+        }
+
+        .live-generate-toast.is-visible {
+            opacity: 1;
+            visibility: visible;
+
+            transform:
+                translate3d(0, 0, 0)
+                scale(1);
+        }
+
+        .live-generate-dot {
+            width: 6px;
+            height: 6px;
+
+            flex: 0 0 6px;
+
+            border-radius: 50%;
+
+            background: #20ff8a;
+
+            box-shadow:
+                0 0 6px rgba(32, 255, 138, 0.9),
+                0 0 12px rgba(32, 255, 138, 0.35);
+
+            animation:
+                liveGeneratePulse 1.5s ease-in-out infinite;
+        }
+
+        .live-generate-username {
+            color: #20ff8a;
+
+            font-weight: 700;
+
+            text-shadow:
+                0 0 8px rgba(32, 255, 138, 0.28);
+        }
+
+        .live-generate-text {
+            color: rgba(255, 255, 255, 0.66);
+        }
+
+        @keyframes liveGeneratePulse {
+
+            0%,
+            100% {
+                opacity: 0.55;
+                transform: scale(0.85);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+        }
+
+        @media (max-width: 768px) {
+
+            .live-generate-toast {
+                left: 12px;
+                bottom: 12px;
+
+                min-height: 32px;
+
+                padding:
+                    7px 10px;
+
+                gap: 6px;
+
+                border-radius: 8px;
+
+                font-size: 10px;
+            }
+
+            .live-generate-dot {
+                width: 5px;
+                height: 5px;
+
+                flex-basis: 5px;
+            }
+
+        }
+
+
+        /* =========================================================
+           ANTI-DOWNLOAD — VIDEO PROTECTION
+        ========================================================= */
+
+        .landing-video {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+
+            -webkit-touch-callout: none;
+
+            pointer-events: none;
+        }
+
+        .video-shell {
+            position: relative;
+        }
+
+        .video-shell::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            background: transparent;
+            pointer-events: auto;
+        }
+
+        .video-controls,
+        .video-control,
+        .video-status {
+            position: relative;
+            z-index: 10;
+        }
 
     </style>
 </head>
@@ -1906,18 +1864,18 @@
                 >
 
                     <video
-    class="landing-video hero-video"
-    autoplay
-    muted
-    loop
-    playsinline
-    preload="auto"
-    poster=""
-    aria-label="GEN-Z.AI showcase video"
-    controlslist="nodownload noplaybackrate noremoteplayback"
-    disablepictureinpicture
-    oncontextmenu="return false;"
->
+                        class="landing-video hero-video"
+                        autoplay
+                        muted
+                        loop
+                        playsinline
+                        preload="auto"
+                        poster=""
+                        aria-label="GEN-Z.AI showcase video"
+                        controlslist="nodownload noplaybackrate noremoteplayback"
+                        disablepictureinpicture
+                        oncontextmenu="return false;"
+                    >
                         <source
                             src="/assets/showcase/hero-video.mp4"
                             type="video/mp4"
@@ -2366,6 +2324,9 @@
                                 playsinline
                                 preload="auto"
                                 aria-label="GEN-Z.AI showcase 01"
+                                controlslist="nodownload noplaybackrate noremoteplayback"
+                                disablepictureinpicture
+                                oncontextmenu="return false;"
                             >
                                 <source
                                     src="/assets/showcase/video-01.mp4"
@@ -2489,6 +2450,9 @@
                                 playsinline
                                 preload="auto"
                                 aria-label="GEN-Z.AI showcase 02"
+                                controlslist="nodownload noplaybackrate noremoteplayback"
+                                disablepictureinpicture
+                                oncontextmenu="return false;"
                             >
                                 <source
                                     src="/assets/showcase/video-02.mp4"
@@ -2612,6 +2576,9 @@
                                 playsinline
                                 preload="auto"
                                 aria-label="GEN-Z.AI showcase 03"
+                                controlslist="nodownload noplaybackrate noremoteplayback"
+                                disablepictureinpicture
+                                oncontextmenu="return false;"
                             >
                                 <source
                                     src="/assets/showcase/video-03.mp4"
@@ -3054,6 +3021,11 @@
          - Play/Pause button
          - Mute/Unmute button
          - Tidak reload halaman
+
+         ANTI-DOWNLOAD:
+         - Block context menu
+         - Block drag
+         - Block Ctrl+S
     ========================================================= -->
 
     <script>
@@ -3061,6 +3033,113 @@
         (() => {
 
             "use strict";
+
+
+            /* =====================================================
+               ANTI-DOWNLOAD PROTECTION
+            ===================================================== */
+
+            function setupAntiDownload() {
+
+                /*
+                 * Blok context menu (klik kanan) pada video
+                 * & area video-shell.
+                 */
+                document.addEventListener(
+                    "contextmenu",
+                    function (event) {
+
+                        const target = event.target;
+
+                        if (
+                            target &&
+                            (
+                                target.tagName === "VIDEO" ||
+                                target.closest(".video-shell") ||
+                                target.closest(".showcase-video-wrap")
+                            )
+                        ) {
+                            event.preventDefault();
+                            return false;
+                        }
+
+                    },
+                    { capture: true }
+                );
+
+
+                /*
+                 * Blok drag video.
+                 */
+                document.addEventListener(
+                    "dragstart",
+                    function (event) {
+
+                        const target = event.target;
+
+                        if (target && target.tagName === "VIDEO") {
+                            event.preventDefault();
+                            return false;
+                        }
+
+                    },
+                    { capture: true }
+                );
+
+
+                /*
+                 * Blok Ctrl+S / Cmd+S saat video fokus.
+                 */
+                document.addEventListener(
+                    "keydown",
+                    function (event) {
+
+                        const isSave =
+                            (event.ctrlKey || event.metaKey) &&
+                            event.key &&
+                            event.key.toLowerCase() === "s";
+
+                        if (!isSave) return;
+
+                        const target = event.target;
+
+                        if (target && target.tagName === "VIDEO") {
+                            event.preventDefault();
+                            return false;
+                        }
+
+                    },
+                    { capture: true }
+                );
+
+
+                /*
+                 * Event listener tambahan langsung ke video
+                 * (untuk long-press di mobile).
+                 */
+                document
+                    .querySelectorAll(".landing-video")
+                    .forEach(function (video) {
+
+                        video.addEventListener(
+                            "contextmenu",
+                            function (event) {
+                                event.preventDefault();
+                                return false;
+                            }
+                        );
+
+                        video.addEventListener(
+                            "dragstart",
+                            function (event) {
+                                event.preventDefault();
+                                return false;
+                            }
+                        );
+
+                    });
+
+            }
 
 
             /* =====================================================
@@ -3464,10 +3543,6 @@
 
                 try {
 
-                    /*
-                     * Pastikan autoplay-safe state.
-                     */
-
                     video.autoplay = true;
                     video.loop = true;
                     video.playsInline = true;
@@ -3488,11 +3563,6 @@
                     );
 
 
-                    /*
-                     * Autoplay harus muted.
-                     * Audio dapat dibuka lewat tombol.
-                     */
-
                     if (
                         options.autoplay !== false &&
                         !state.userInteracted
@@ -3506,16 +3576,6 @@
 
                     updateMuteButton(video);
 
-
-                    /*
-                     * Jangan memanggil load()
-                     * setiap kali play.
-                     *
-                     * Ini penting.
-                     * load() berulang dapat mereset
-                     * pipeline media dan menyebabkan
-                     * autoplay baru berhasil setelah refresh.
-                     */
 
                     if (
                         video.readyState === 0
@@ -3612,15 +3672,6 @@
                 state.userPaused = false;
                 state.userInteracted = true;
 
-
-                /*
-                 * User interaction memberi izin
-                 * untuk mencoba audio.
-                 *
-                 * Tetapi kita tetap tidak memaksa
-                 * unmute secara otomatis.
-                 */
-
                 const result =
                     await playVideo(
                         video,
@@ -3662,7 +3713,6 @@
                     return;
                 }
 
-
                 if (
                     video.paused ||
                     video.ended
@@ -3698,10 +3748,6 @@
 
                 if (video.muted) {
 
-                    /*
-                     * Unmute melalui click user.
-                     */
-
                     video.muted = false;
                     video.defaultMuted = false;
 
@@ -3711,11 +3757,6 @@
 
                     updateMuteButton(video);
 
-
-                    /*
-                     * Jika ternyata video berhenti,
-                     * play kembali setelah gesture.
-                     */
 
                     if (video.paused) {
 
@@ -3766,10 +3807,6 @@
                     getState(video);
 
 
-                /*
-                 * Initial autoplay-safe configuration.
-                 */
-
                 video.autoplay = true;
                 video.muted = true;
                 video.defaultMuted = true;
@@ -3812,74 +3849,49 @@
                 updateMuteButton(video);
 
 
-                /* -------------------------------------------------
-                   MEDIA EVENTS
-                ------------------------------------------------- */
-
                 video.addEventListener(
                     "loadeddata",
                     () => {
-
                         hidePlaceholder(video);
-
                     },
-                    {
-                        passive: true
-                    }
+                    { passive: true }
                 );
 
 
                 video.addEventListener(
                     "canplay",
                     () => {
-
                         hidePlaceholder(video);
-
                     },
-                    {
-                        passive: true
-                    }
+                    { passive: true }
                 );
 
 
                 video.addEventListener(
                     "playing",
                     () => {
-
                         hidePlaceholder(video);
-
                         updatePlayingState(video);
-
                     },
-                    {
-                        passive: true
-                    }
+                    { passive: true }
                 );
 
 
                 video.addEventListener(
                     "pause",
                     () => {
-
                         updatePlayingState(video);
-
                     },
-                    {
-                        passive: true
-                    }
+                    { passive: true }
                 );
 
 
                 video.addEventListener(
                     "volumechange",
                     () => {
-
                         updateMuteButton(video);
-
                     },
-                    {
-                        passive: true
-                    }
+                    { passive: true }
                 );
 
 
@@ -3910,15 +3922,9 @@
                         );
 
                     },
-                    {
-                        passive: true
-                    }
+                    { passive: true }
                 );
 
-
-                /* -------------------------------------------------
-                   BUTTONS
-                ------------------------------------------------- */
 
                 const container =
                     getContainer(video);
@@ -4022,13 +4028,6 @@
 
                 const leave =
                     () => {
-
-                        /*
-                         * Jangan menganggap mouse leave
-                         * sebagai permanent user pause.
-                         *
-                         * Video akan dapat autoplay kembali.
-                         */
 
                         pauseVideo(video);
 
@@ -4160,15 +4159,6 @@
                 videos
             ) {
 
-                /*
-                 * Jangan menunggu refresh.
-                 *
-                 * Kita melakukan beberapa percobaan
-                 * pada event lifecycle yang berbeda.
-                 *
-                 * Tidak ada reload.
-                 */
-
                 const attempt =
                     () => {
 
@@ -4190,11 +4180,6 @@
                                     isMobileLike()
                                 ) {
 
-                                    /*
-                                     * Mobile akan diatur
-                                     * oleh IntersectionObserver.
-                                     */
-
                                     if (
                                         state.visible ||
                                         video.getBoundingClientRect().top <
@@ -4211,14 +4196,6 @@
                                     }
 
                                 } else {
-
-                                    /*
-                                     * Desktop:
-                                     * mulai autoplay muted.
-                                     *
-                                     * Hover tetap tersedia
-                                     * sebagai kontrol interaksi.
-                                     */
 
                                     playVideo(
                                         video,
@@ -4300,11 +4277,6 @@
                         }
 
 
-                        /*
-                         * Saat kembali ke tab,
-                         * coba play tanpa reload.
-                         */
-
                         setTimeout(
                             () => {
 
@@ -4369,6 +4341,9 @@
 
             function initVideoEngine() {
 
+                /* Anti-download protection */
+                setupAntiDownload();
+
                 const videos =
                     Array.from(
                         document.querySelectorAll(
@@ -4399,11 +4374,6 @@
                 );
 
 
-                /*
-                 * Tandai video yang saat ini
-                 * berada di viewport.
-                 */
-
                 videos.forEach(
                     video => {
 
@@ -4422,46 +4392,25 @@
                 );
 
 
-                /*
-                 * Mobile / tablet observer.
-                 */
-
                 setupMobileVisibility(
                     videos
                 );
 
-
-                /*
-                 * Desktop hover.
-                 */
 
                 videos.forEach(
                     setupDesktopHover
                 );
 
 
-                /*
-                 * Autoplay pertama.
-                 */
-
                 startInitialAutoplay(
                     videos
                 );
 
 
-                /*
-                 * Tab visibility.
-                 */
-
                 setupDocumentVisibility(
                     videos
                 );
 
-
-                /*
-                 * Setelah window benar-benar load,
-                 * coba lagi tanpa refresh.
-                 */
 
                 window.addEventListener(
                     "load",
@@ -4478,10 +4427,6 @@
                     }
                 );
 
-
-                /*
-                 * Resize tidak melakukan reload.
-                 */
 
                 let resizeTimer = null;
 
@@ -4583,222 +4528,204 @@
 
     <!-- =========================================================
      GEN-Z.AI LIVE GENERATION ACTIVITY
-========================================================= -->
+    ========================================================= -->
 
-<div
-    id="liveGenerateToast"
-    class="live-generate-toast"
-    aria-live="polite"
-    aria-atomic="true"
->
-    <span class="live-generate-dot"></span>
-
-    <span
-        id="liveGenerateUsername"
-        class="live-generate-username"
+    <div
+        id="liveGenerateToast"
+        class="live-generate-toast"
+        aria-live="polite"
+        aria-atomic="true"
     >
-        nag******
-    </span>
+        <span class="live-generate-dot"></span>
 
-    <span class="live-generate-text">
-        success generate video
-    </span>
-</div>
+        <span
+            id="liveGenerateUsername"
+            class="live-generate-username"
+        >
+            nag******
+        </span>
+
+        <span class="live-generate-text">
+            success generate video
+        </span>
+    </div>
 
     <script>
-/* =========================================================
-   GEN-Z.AI LIVE GENERATION ACTIVITY
-   ---------------------------------------------------------
-   - Random username
-   - Show 3 seconds
-   - Rotate to another username
-   - Only first 3 characters visible
-========================================================= */
+        /* =========================================================
+           GEN-Z.AI LIVE GENERATION ACTIVITY
+           ---------------------------------------------------------
+           - Random username
+           - Show 3 seconds
+           - Rotate to another username
+           - Only first 3 characters visible
+        ========================================================= */
 
-(function () {
+        (function () {
 
-    "use strict";
-
-
-    const usernames = [
-        "nagaofficial",
-        "sugionoai",
-        "bellaart",
-        "rendycreative",
-        "andivideo",
-        "fajarstudio",
-        "dimasvisual",
-        "putraai",
-        "rizkycreative",
-        "alvinmedia",
-        "galihstudio",
-        "bagasvisual",
-        "yogacreative",
-        "dewaai",
-        "rafivideo"
-    ];
+            "use strict";
 
 
-    const toast =
-        document.getElementById(
-            "liveGenerateToast"
-        );
-
-    const usernameElement =
-        document.getElementById(
-            "liveGenerateUsername"
-        );
-
-
-    if (
-        !toast ||
-        !usernameElement ||
-        !usernames.length
-    ) {
-        return;
-    }
-
-
-    let lastIndex = -1;
+            const usernames = [
+                "nagaofficial",
+                "sugionoai",
+                "bellaart",
+                "rendycreative",
+                "andivideo",
+                "fajarstudio",
+                "dimasvisual",
+                "putraai",
+                "rizkycreative",
+                "alvinmedia",
+                "galihstudio",
+                "bagasvisual",
+                "yogacreative",
+                "dewaai",
+                "rafivideo"
+            ];
 
 
-    function maskUsername(username) {
-
-        const normalized =
-            String(username || "")
-                .trim()
-                .toLowerCase();
-
-
-        if (!normalized) {
-            return "use******";
-        }
-
-
-        const visible =
-            normalized.slice(0, 3);
-
-
-        const hiddenLength =
-            Math.max(
-                4,
-                Math.min(
-                    normalized.length,
-                    9
-                )
-            );
-
-
-        return (
-            visible +
-            "*".repeat(hiddenLength)
-        );
-    }
-
-
-    function getRandomUsername() {
-
-        if (usernames.length === 1) {
-            return usernames[0];
-        }
-
-
-        let index;
-
-
-        do {
-
-            index =
-                Math.floor(
-                    Math.random() *
-                    usernames.length
+            const toast =
+                document.getElementById(
+                    "liveGenerateToast"
                 );
 
-        } while (
-            index === lastIndex
-        );
+            const usernameElement =
+                document.getElementById(
+                    "liveGenerateUsername"
+                );
 
 
-        lastIndex = index;
+            if (
+                !toast ||
+                !usernameElement ||
+                !usernames.length
+            ) {
+                return;
+            }
 
 
-        return usernames[index];
-    }
+            let lastIndex = -1;
 
 
-    function showGenerateActivity() {
+            function maskUsername(username) {
 
-        const username =
-            getRandomUsername();
-
-
-        usernameElement.textContent =
-            maskUsername(username);
+                const normalized =
+                    String(username || "")
+                        .trim()
+                        .toLowerCase();
 
 
-        toast.classList.remove(
-            "is-visible"
-        );
+                if (!normalized) {
+                    return "use******";
+                }
 
 
-        /*
-         * Memastikan browser menjalankan
-         * transisi dari keadaan hidden.
-         */
-        requestAnimationFrame(function () {
+                const visible =
+                    normalized.slice(0, 3);
 
-            requestAnimationFrame(function () {
 
-                toast.classList.add(
+                const hiddenLength =
+                    Math.max(
+                        4,
+                        Math.min(
+                            normalized.length,
+                            9
+                        )
+                    );
+
+
+                return (
+                    visible +
+                    "*".repeat(hiddenLength)
+                );
+            }
+
+
+            function getRandomUsername() {
+
+                if (usernames.length === 1) {
+                    return usernames[0];
+                }
+
+
+                let index;
+
+
+                do {
+
+                    index =
+                        Math.floor(
+                            Math.random() *
+                            usernames.length
+                        );
+
+                } while (
+                    index === lastIndex
+                );
+
+
+                lastIndex = index;
+
+
+                return usernames[index];
+            }
+
+
+            function showGenerateActivity() {
+
+                const username =
+                    getRandomUsername();
+
+
+                usernameElement.textContent =
+                    maskUsername(username);
+
+
+                toast.classList.remove(
                     "is-visible"
                 );
 
-            });
 
-        });
+                requestAnimationFrame(function () {
 
+                    requestAnimationFrame(function () {
 
-        /*
-         * Tampilkan selama 3 detik.
-         */
-        setTimeout(function () {
+                        toast.classList.add(
+                            "is-visible"
+                        );
 
-            toast.classList.remove(
-                "is-visible"
-            );
+                    });
 
-        }, 10000);
-
-    }
+                });
 
 
-    /*
-     * Delay awal supaya landing page
-     * selesai tampil terlebih dahulu.
-     */
-    setTimeout(function () {
+                setTimeout(function () {
 
-        showGenerateActivity();
+                    toast.classList.remove(
+                        "is-visible"
+                    );
 
+                }, 10000);
 
-        /*
-         * Ganti user secara random
-         * setiap 4 detik:
-         *
-         * 3 detik tampil
-         * 1 detik jeda
-         */
-        setInterval(function () {
-
-            showGenerateActivity();
-
-        }, 4000);
-
-    }, 1800);
+            }
 
 
-})();
-</script>
+            setTimeout(function () {
+
+                showGenerateActivity();
+
+
+                setInterval(function () {
+
+                    showGenerateActivity();
+
+                }, 4000);
+
+            }, 1800);
+
+
+        })();
+    </script>
 
 </body>
 </html>
