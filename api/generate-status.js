@@ -63,7 +63,8 @@ import klingMotionControl30Pro
 const MODEL_REGISTRY = [
     grokImagineImageToVideo,
     seedance25,
-    digitalHumanLipSyncImage
+    digitalHumanLipSyncImage,
+    klingMotionControl30Pro
 ];
 
 
