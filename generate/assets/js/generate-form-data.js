@@ -11,11 +11,18 @@
    - Membaca nilai field
    - Resolve image upload / URL
    - Resolve audio upload / URL
+   - Resolve video upload / URL
    - Normalisasi parameter
    - Membentuk data form
    - Hard cleanup parameter internal / server-controlled
    - Tidak mengubah DOM
    - Tidak merender field
+
+   PATCH (2026-10-09):
+   - Tambah isVideoParameter() untuk parameter
+     video_url / video_urls.
+   - Tambah blok handling video di loop utama.
+   - Tambah debug log video.
 ========================================================= */
 
 import {
@@ -33,7 +40,8 @@ import {
 
 import {
     resolveImageParameterValue,
-    resolveAudioParameterValue
+    resolveAudioParameterValue,
+    resolveVideoParameterValue
 } from "./generate-form-media-reader.js";
 
 
@@ -55,22 +63,15 @@ const HARD_FORBIDDEN_PARAMETERS =
    CHECK HARD FORBIDDEN
 ========================================================= */
 
-function isHardForbiddenParameter(
-    name
-) {
+function isHardForbiddenParameter(name) {
 
     const normalized =
-        String(
-            name || ""
-        )
+        String(name || "")
             .trim()
             .toLowerCase();
 
 
-    return HARD_FORBIDDEN_PARAMETERS.includes(
-        normalized
-    );
-
+    return HARD_FORBIDDEN_PARAMETERS.includes(normalized);
 }
 
 
@@ -78,45 +79,24 @@ function isHardForbiddenParameter(
    SHOULD PRESERVE VALUE
 ========================================================= */
 
-function shouldPreserveValue(
-    value
-) {
+function shouldPreserveValue(value) {
 
-    if (
-        value === undefined ||
-        value === null
-    ) {
-
+    if (value === undefined || value === null) {
         return false;
-
     }
 
 
-    if (
-        Array.isArray(value)
-    ) {
-
-        return (
-            value.length >
-            0
-        );
-
+    if (Array.isArray(value)) {
+        return value.length > 0;
     }
 
 
-    if (
-        typeof value === "string"
-    ) {
-
-        return (
-            value.trim() !== ""
-        );
-
+    if (typeof value === "string") {
+        return value.trim() !== "";
     }
 
 
     return true;
-
 }
 
 
@@ -124,14 +104,9 @@ function shouldPreserveValue(
    DEFAULT VALUE
 ========================================================= */
 
-function resolveDefaultValue(
-    definition
-) {
+function resolveDefaultValue(definition) {
 
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
+    const defaultValue = getDefaultValue(definition);
 
 
     if (
@@ -139,17 +114,11 @@ function resolveDefaultValue(
         defaultValue === null ||
         defaultValue === ""
     ) {
-
         return undefined;
-
     }
 
 
-    return normalizeParameterValue(
-        defaultValue,
-        definition
-    );
-
+    return normalizeParameterValue(defaultValue, definition);
 }
 
 
@@ -157,15 +126,10 @@ function resolveDefaultValue(
    IMAGE PARAMETER
 ========================================================= */
 
-function isImageParameter(
-    name,
-    definition
-) {
+function isImageParameter(name, definition) {
 
     const type =
-        String(
-            definition?.type || ""
-        )
+        String(definition?.type || "")
             .trim()
             .toLowerCase();
 
@@ -177,7 +141,6 @@ function isImageParameter(
         name === "image_url" ||
         name === "image_urls"
     );
-
 }
 
 
@@ -185,15 +148,10 @@ function isImageParameter(
    AUDIO PARAMETER
 ========================================================= */
 
-function isAudioParameter(
-    name,
-    definition
-) {
+function isAudioParameter(name, definition) {
 
     const type =
-        String(
-            definition?.type || ""
-        )
+        String(definition?.type || "")
             .trim()
             .toLowerCase();
 
@@ -203,7 +161,33 @@ function isAudioParameter(
         type === "audio_url" ||
         name === "audio_url"
     );
+}
 
+
+/* =========================================================
+   VIDEO PARAMETER (BARU)
+========================================================= */
+
+function isVideoParameter(name, definition) {
+
+    const type =
+        String(definition?.type || "")
+            .trim()
+            .toLowerCase();
+
+    const normalizedName =
+        String(name || "")
+            .trim()
+            .toLowerCase();
+
+
+    return (
+        type === "video" ||
+        type === "video_url" ||
+        type === "video_urls" ||
+        normalizedName === "video_url" ||
+        normalizedName === "video_urls"
+    );
 }
 
 
@@ -211,228 +195,103 @@ function isAudioParameter(
    GET FORM PARAMETERS
 ========================================================= */
 
-export async function getFormParameters(
-    modelArgument = null
-) {
+export async function getFormParameters(modelArgument = null) {
 
-    const definitions =
-        getParameterDefinitions(
-            modelArgument
-        );
+    const definitions = getParameterDefinitions(modelArgument);
 
 
-    if (
-        !definitions ||
-        typeof definitions !== "object"
-    ) {
-
+    if (!definitions || typeof definitions !== "object") {
         return {};
-
     }
 
 
-    const parameterNames =
-        getOrderedParameterNames(
-            definitions
-        );
-
+    const parameterNames = getOrderedParameterNames(definitions);
 
     const parameters = {};
 
 
-    for (
-        const name
-        of parameterNames
-    ) {
+    for (const name of parameterNames) {
 
-        if (
-            !name
-        ) {
-
+        if (!name) {
             continue;
-
         }
 
 
-        /*
-         * -------------------------------------------------
-         * HARD SECURITY FILTER
-         * -------------------------------------------------
-         */
+        /* HARD SECURITY FILTER */
 
-        if (
-            isHardForbiddenParameter(
-                name
-            )
-        ) {
-
+        if (isHardForbiddenParameter(name)) {
             continue;
-
         }
 
 
-        /*
-         * -------------------------------------------------
-         * CORE CLIENT FILTER
-         * -------------------------------------------------
-         */
+        /* CORE CLIENT FILTER */
 
-        if (
-            isClientForbiddenParameter(
-                name
-            )
-        ) {
-
+        if (isClientForbiddenParameter(name)) {
             continue;
-
         }
 
 
-        const definition =
-            definitions[name];
+        const definition = definitions[name];
 
 
-        if (
-            !definition
-        ) {
-
+        if (!definition) {
             continue;
-
         }
 
 
-        const field =
-            findField(
-                name
-            );
+        const field = findField(name);
 
 
         /* =================================================
            IMAGE
         ================================================= */
 
-        if (
-            isImageParameter(
-                name,
-                definition
-            )
-        ) {
+        if (isImageParameter(name, definition)) {
 
-            /*
-             * Jika field tidak ada, tetap hormati
-             * default value dari registry.
-             */
+            if (!field) {
 
-            if (
-                !field
-            ) {
+                const defaultValue = resolveDefaultValue(definition);
 
-                const defaultValue =
-                    resolveDefaultValue(
-                        definition
-                    );
-
-
-                if (
-                    shouldPreserveValue(
-                        defaultValue
-                    )
-                ) {
-
-                    parameters[name] =
-                        defaultValue;
-
+                if (shouldPreserveValue(defaultValue)) {
+                    parameters[name] = defaultValue;
                 }
 
-
                 continue;
-
             }
 
 
-            const imageInput =
-                field.querySelector(
-                    ".generate-image-input"
-                );
-
-
-            /*
-             * Jika renderer field secara langsung
-             * merupakan image input, gunakan field itu.
-             */
+            const imageInput = field.querySelector(".generate-image-input");
 
             const imageSource =
                 imageInput ||
-                (
-                    field.classList?.contains(
-                        "generate-image-input"
-                    )
-                        ? field
-                        : null
-                );
+                (field.classList?.contains("generate-image-input") ? field : null);
 
 
-            if (
-                imageSource
-            ) {
+            if (imageSource) {
 
-                const value =
-                    await resolveImageParameterValue(
-                        imageSource,
-                        definition
-                    );
-
-
-                const normalized =
-                    normalizeParameterValue(
-                        value,
-                        definition
-                    );
-
-
-                if (
-                    shouldPreserveValue(
-                        normalized
-                    )
-                ) {
-
-                    parameters[name] =
-                        normalized;
-
-                }
-
-
-                continue;
-
-            }
-
-
-            /*
-             * Tidak menemukan renderer image.
-             * Jangan membaca input generik karena itu dapat
-             * mengubah perilaku field image.
-             */
-
-            const defaultValue =
-                resolveDefaultValue(
+                const value = await resolveImageParameterValue(
+                    imageSource,
                     definition
                 );
 
+                const normalized = normalizeParameterValue(value, definition);
 
-            if (
-                shouldPreserveValue(
-                    defaultValue
-                )
-            ) {
 
-                parameters[name] =
-                    defaultValue;
+                if (shouldPreserveValue(normalized)) {
+                    parameters[name] = normalized;
+                }
 
+                continue;
             }
 
 
-            continue;
+            const defaultValue = resolveDefaultValue(definition);
 
+            if (shouldPreserveValue(defaultValue)) {
+                parameters[name] = defaultValue;
+            }
+
+            continue;
         }
 
 
@@ -440,111 +299,102 @@ export async function getFormParameters(
            AUDIO
         ================================================= */
 
-        if (
-            isAudioParameter(
-                name,
-                definition
-            )
-        ) {
+        if (isAudioParameter(name, definition)) {
 
-            if (
-                !field
-            ) {
+            if (!field) {
 
-                const defaultValue =
-                    resolveDefaultValue(
-                        definition
-                    );
+                const defaultValue = resolveDefaultValue(definition);
 
-
-                if (
-                    shouldPreserveValue(
-                        defaultValue
-                    )
-                ) {
-
-                    parameters[name] =
-                        defaultValue;
-
+                if (shouldPreserveValue(defaultValue)) {
+                    parameters[name] = defaultValue;
                 }
 
-
                 continue;
-
             }
 
 
-            const audioInput =
-                field.querySelector(
-                    ".generate-audio-input"
-                );
-
+            const audioInput = field.querySelector(".generate-audio-input");
 
             const audioSource =
                 audioInput ||
-                (
-                    field.classList?.contains(
-                        "generate-audio-input"
-                    )
-                        ? field
-                        : null
-                );
+                (field.classList?.contains("generate-audio-input") ? field : null);
 
 
-            if (
-                audioSource
-            ) {
+            if (audioSource) {
 
-                const value =
-                    await resolveAudioParameterValue(
-                        audioSource
-                    );
+                const value = await resolveAudioParameterValue(audioSource);
+
+                const normalized = normalizeParameterValue(value, definition);
 
 
-                const normalized =
-                    normalizeParameterValue(
-                        value,
-                        definition
-                    );
-
-
-                if (
-                    shouldPreserveValue(
-                        normalized
-                    )
-                ) {
-
-                    parameters[name] =
-                        normalized;
-
+                if (shouldPreserveValue(normalized)) {
+                    parameters[name] = normalized;
                 }
 
-
                 continue;
-
             }
 
 
-            const defaultValue =
-                resolveDefaultValue(
+            const defaultValue = resolveDefaultValue(definition);
+
+            if (shouldPreserveValue(defaultValue)) {
+                parameters[name] = defaultValue;
+            }
+
+            continue;
+        }
+
+
+        /* =================================================
+           VIDEO (BARU)
+        ================================================= */
+
+        if (isVideoParameter(name, definition)) {
+
+            if (!field) {
+
+                const defaultValue = resolveDefaultValue(definition);
+
+                if (shouldPreserveValue(defaultValue)) {
+                    parameters[name] = defaultValue;
+                }
+
+                continue;
+            }
+
+
+            const videoInput = field.querySelector(".generate-video-input");
+
+            const videoSource =
+                videoInput ||
+                (field.classList?.contains("generate-video-input") ? field : null);
+
+
+            if (videoSource) {
+
+                const value = await resolveVideoParameterValue(
+                    videoSource,
                     definition
                 );
 
+                const normalized = normalizeParameterValue(value, definition);
 
-            if (
-                shouldPreserveValue(
-                    defaultValue
-                )
-            ) {
 
-                parameters[name] =
-                    defaultValue;
+                if (shouldPreserveValue(normalized)) {
+                    parameters[name] = normalized;
+                }
 
+                continue;
             }
 
 
-            continue;
+            const defaultValue = resolveDefaultValue(definition);
 
+            if (shouldPreserveValue(defaultValue)) {
+                parameters[name] = defaultValue;
+            }
+
+            continue;
         }
 
 
@@ -552,108 +402,51 @@ export async function getFormParameters(
            STANDARD FIELD
         ================================================= */
 
-        if (
-            !field
-        ) {
+        if (!field) {
 
-            const defaultValue =
-                resolveDefaultValue(
-                    definition
-                );
+            const defaultValue = resolveDefaultValue(definition);
 
-
-            if (
-                shouldPreserveValue(
-                    defaultValue
-                )
-            ) {
-
-                parameters[name] =
-                    defaultValue;
-
+            if (shouldPreserveValue(defaultValue)) {
+                parameters[name] = defaultValue;
             }
 
-
             continue;
-
         }
 
 
-        let value =
-            readFieldValue(
-                field
-            );
+        let value = readFieldValue(field);
 
 
-        /* =================================================
-           EMPTY VALUE -> DEFAULT
-        ================================================= */
+        /* EMPTY VALUE -> DEFAULT */
 
-        if (
-            value === undefined ||
-            value === null ||
-            value === ""
-        ) {
+        if (value === undefined || value === null || value === "") {
 
-            const defaultValue =
-                getDefaultValue(
-                    definition
-                );
-
+            const defaultValue = getDefaultValue(definition);
 
             if (
                 defaultValue !== undefined &&
                 defaultValue !== null &&
                 defaultValue !== ""
             ) {
-
-                value =
-                    defaultValue;
-
+                value = defaultValue;
             }
-
         }
 
 
-        /* =================================================
-           NORMALIZE
-        ================================================= */
+        /* NORMALIZE */
 
-        value =
-            normalizeParameterValue(
-                value,
-                definition
-            );
+        value = normalizeParameterValue(value, definition);
 
 
-        /* =================================================
-           PRESERVE VALID VALUE
-        ================================================= */
+        /* PRESERVE VALID VALUE */
 
-        if (
-            shouldPreserveValue(
-                value
-            )
-        ) {
-
-            parameters[name] =
-                value;
-
+        if (shouldPreserveValue(value)) {
+            parameters[name] = value;
         }
-
     }
 
 
-    /* =====================================================
-       HARD CLIENT CLEANUP
-       =====================================================
-
-       Tetap dipertahankan sebagai lapisan kedua.
-
-       Walaupun registry atau parameter definition suatu
-       saat berubah, parameter internal/server-controlled
-       tidak boleh keluar dari browser.
-    */
+    /* HARD CLIENT CLEANUP */
 
     delete parameters.task_id;
     delete parameters.index;
@@ -676,29 +469,20 @@ export async function getFormParameters(
         "[GEN-Z.AI][Generate Form] REFERENCE IMAGE:",
         {
             image_urls:
-                Array.isArray(
-                    parameters.image_urls
-                )
+                Array.isArray(parameters.image_urls)
                     ? parameters.image_urls.length
                     : 0,
 
             image_url:
-                parameters.image_url
-                    ? "present"
-                    : "missing",
+                parameters.image_url ? "present" : "missing",
 
             hasReferenceImage:
                 (
                     (
-                        Array.isArray(
-                            parameters.image_urls
-                        ) &&
-                        parameters.image_urls.length >
-                            0
+                        Array.isArray(parameters.image_urls) &&
+                        parameters.image_urls.length > 0
                     ) ||
-                    Boolean(
-                        parameters.image_url
-                    )
+                    Boolean(parameters.image_url)
                 )
         }
     );
@@ -708,9 +492,30 @@ export async function getFormParameters(
         "[GEN-Z.AI][Generate Form] AUDIO:",
         {
             audio_url:
-                parameters.audio_url
-                    ? "present"
-                    : "missing"
+                parameters.audio_url ? "present" : "missing"
+        }
+    );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] VIDEO:",
+        {
+            video_urls:
+                Array.isArray(parameters.video_urls)
+                    ? parameters.video_urls.length
+                    : 0,
+
+            video_url:
+                parameters.video_url ? "present" : "missing",
+
+            hasVideo:
+                (
+                    (
+                        Array.isArray(parameters.video_urls) &&
+                        parameters.video_urls.length > 0
+                    ) ||
+                    Boolean(parameters.video_url)
+                )
         }
     );
 
@@ -718,26 +523,16 @@ export async function getFormParameters(
     console.debug(
         "[GEN-Z.AI][Generate Form] CLIENT FORBIDDEN:",
         {
-            webhook_url:
-                "removed",
-
-            webhook:
-                "removed",
-
-            nsfw_checker:
-                "removed",
-
-            task_id:
-                "removed",
-
-            index:
-                "removed"
+            webhook_url: "removed",
+            webhook: "removed",
+            nsfw_checker: "removed",
+            task_id: "removed",
+            index: "removed"
         }
     );
 
 
     return parameters;
-
 }
 
 
@@ -745,20 +540,13 @@ export async function getFormParameters(
    GET FORM DATA
 ========================================================= */
 
-export async function getFormData(
-    modelArgument = null
-) {
+export async function getFormData(modelArgument = null) {
 
-    const parameters =
-        await getFormParameters(
-            modelArgument
-        );
-
+    const parameters = await getFormParameters(modelArgument);
 
     return {
         parameters
     };
-
 }
 
 
