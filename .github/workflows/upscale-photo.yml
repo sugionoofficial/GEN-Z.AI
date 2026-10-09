@@ -26,6 +26,11 @@ on:
         type: string
         default: "2k"
 
+# Hindari double-run untuk history_id yang sama
+concurrency:
+  group: upscale-photo-${{ inputs.history_id }}
+  cancel-in-progress: false
+
 jobs:
   upscale-photo:
     runs-on: ubuntu-latest
@@ -156,7 +161,6 @@ jobs:
           echo "width=$W" >> $GITHUB_OUTPUT
           echo "height=$H" >> $GITHUB_OUTPUT
 
-          # Hitung total pixel untuk limit
           TOTAL=$(( W * H ))
           echo "total_pixels=$TOTAL" >> $GITHUB_OUTPUT
 
@@ -166,8 +170,6 @@ jobs:
           H=${{ steps.input-probe.outputs.height }}
           TOTAL=${{ steps.input-probe.outputs.total_pixels }}
 
-          # Kalau input > 2 megapixel (2000x1000), resize dulu ke max 1200px sisi terpanjang
-          # supaya Real-ESRGAN tidak OOM
           MAX_DIM=1200
 
           if [ "$TOTAL" -gt 2000000 ] || [ "$W" -gt "$MAX_DIM" ] || [ "$H" -gt "$MAX_DIM" ]; then
@@ -214,7 +216,6 @@ jobs:
               scale=4
           )
 
-          # PATCH: tile=400 untuk hemat RAM, hindari OOM
           upsampler = RealESRGANer(
               scale=4,
               model_path=model_path,
@@ -333,8 +334,16 @@ jobs:
 
           echo "History row updated (success)."
 
-      - name: Refund on failure
-        if: failure()
+      # =====================================================
+      # FIX UTAMA:
+      # `if: failure()` HANYA match status "failed".
+      # Kalau workflow CANCELLED (timeout/user cancel),
+      # kondisi ini FALSE → refund TIDAK jalan.
+      #
+      # Solusi: `failure() || cancelled()` — cover keduanya.
+      # =====================================================
+      - name: Refund on failure or cancel
+        if: failure() || cancelled()
         env:
           SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
@@ -342,6 +351,13 @@ jobs:
           USER_ID: ${{ inputs.user_id }}
           CREDIT_COST: ${{ inputs.credit_cost }}
         run: |
+          echo "Workflow gagal atau dibatalkan. Update history + refund credit..."
+          echo "History ID: ${HISTORY_ID}"
+          echo "User ID: ${USER_ID}"
+          echo "Credit cost: ${CREDIT_COST}"
+
+          # Update status jadi failed
+          echo "Updating history status to failed..."
           curl -X PATCH \
             "${SUPABASE_URL}/rest/v1/generation_history?id=eq.${HISTORY_ID}" \
             -H "apikey: ${SUPABASE_SERVICE_KEY}" \
@@ -350,9 +366,13 @@ jobs:
             -H "Prefer: return=minimal" \
             -d "{
               \"status\": \"failed\",
-              \"error_message\": \"Upscale foto gagal di GitHub Actions\"
+              \"error_message\": \"Upscale foto gagal atau timeout di GitHub Actions\"
             }"
 
+          echo "History updated."
+
+          # Refund credit
+          echo "Refunding credit..."
           curl -X POST \
             "${SUPABASE_URL}/rest/v1/rpc/refund_generate_credits" \
             -H "apikey: ${SUPABASE_SERVICE_KEY}" \
