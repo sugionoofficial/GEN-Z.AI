@@ -77,7 +77,7 @@ jobs:
           echo "Upscaling to 2K and interpolating 24 -> 48 fps..."
 
           ffmpeg -y -i input.mp4 \
-            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=48:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32" \
+            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=60:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32" \
             -c:v libx264 \
             -preset slow \
             -crf 18 \
