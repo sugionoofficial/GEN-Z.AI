@@ -53,7 +53,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/realesrgan
-          key: realesrgan-x4plus-v1
+          key: realesrgan-x4plus-v2
 
       - name: Install Python dependencies
         run: |
@@ -66,9 +66,31 @@ jobs:
         run: |
           mkdir -p ~/.cache/realesrgan
           cd ~/.cache/realesrgan
-          curl -L --fail --retry 3 \
-            -o RealESRGAN_x4plus.pth \
-            https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/RealESRGAN_x4plus.pth
+
+          URLs=(
+            "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
+            "https://huggingface.co/ai-forever/Real-ESRGAN/resolve/main/RealESRGAN_x4plus.pth"
+            "https://huggingface.co/lllyasviel/Annotators/resolve/main/RealESRGAN_x4plus.pth"
+          )
+
+          SUCCESS=0
+          for URL in "${URLs[@]}"; do
+            echo "Mencoba download dari: $URL"
+            if curl -L --fail --retry 2 --retry-delay 3 -o RealESRGAN_x4plus.pth "$URL"; then
+              echo "Berhasil dari: $URL"
+              SUCCESS=1
+              break
+            else
+              echo "Gagal dari URL ini, coba berikutnya..."
+              rm -f RealESRGAN_x4plus.pth
+            fi
+          done
+
+          if [ "$SUCCESS" != "1" ]; then
+            echo "Semua URL gagal."
+            exit 1
+          fi
+
           ls -lh RealESRGAN_x4plus.pth
 
       - name: Download source photo
