@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-realesrgan-v3
+          key: ${{ runner.os }}-pip-realesrgan-v4
 
       - name: Cache Real-ESRGAN model
         id: cache-model
@@ -55,35 +55,40 @@ jobs:
           path: ~/.cache/realesrgan
           key: realesrgan-x4plus-v2
 
-      - name: Install Python dependencies (pinned versions)
+      - name: Install Python dependencies
         run: |
           pip install --quiet --upgrade pip
 
-          # Pin torch & torchvision ke versi kompatibel dengan basicsr
-          # basicsr butuh torchvision.transforms.functional_tensor
-          # yang sudah dihapus di torchvision >= 0.17
+          # Torch versi lama (kompatibel dengan basicsr)
           pip install --quiet \
             torch==2.0.1 \
             torchvision==0.15.2 \
             --index-url https://download.pytorch.org/whl/cpu
 
-          pip install --quiet numpy==1.24.4
+          # Force numpy<2 (torch 2.0.1 tidak support numpy 2.x)
+          pip install --quiet "numpy<2"
+
+          # Other dependencies
           pip install --quiet opencv-python-headless==4.8.0.76
           pip install --quiet pillow
           pip install --quiet basicsr==1.4.2
           pip install --quiet realesrgan==0.3.0
 
+          # WAJIB: Force numpy<2 lagi setelah semua install
+          # (beberapa package mungkin upgrade numpy)
+          pip install --quiet --force-reinstall "numpy<2"
+
+          # Verify
+          python -c "import numpy; print('NumPy version:', numpy.__version__)"
+          python -c "import torch; print('Torch version:', torch.__version__)"
+
       - name: Patch torchvision compatibility
         run: |
-          # Patch: basicsr import torchvision.transforms.functional_tensor
-          # yang tidak ada di torchvision >= 0.17.
-          # Kita buat alias dari modul baru.
           python << 'PYEOF'
           import os
           import site
           import shutil
 
-          # Cari path site-packages
           paths = site.getsitepackages()
           tv_path = None
           for p in paths:
@@ -107,7 +112,6 @@ jobs:
               print("functional.py not found, skip")
               raise SystemExit(0)
 
-          # Copy functional.py jadi functional_tensor.py
           shutil.copy(old_file, new_file)
           print("Patched: created functional_tensor.py from functional.py")
           PYEOF
@@ -156,13 +160,7 @@ jobs:
           import sys
           import numpy as np
 
-          # Compatibility patch untuk numpy 2.x
-          if not hasattr(np, 'float'):
-              np.float = float
-          if not hasattr(np, 'int'):
-              np.int = int
-          if not hasattr(np, 'bool'):
-              np.bool = bool
+          print("NumPy version:", np.__version__)
 
           import cv2
           from basicsr.archs.rrdbnet_arch import RRDBNet
