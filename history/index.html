@@ -385,10 +385,6 @@ body {
 
 /* =========================================================
    TABLE → CARD GRID
-   ---------------------------------------------------------
-   Trik: <table>, <tbody>, <tr> di-"display:block/grid"
-   Supaya tidak ada <table> layout overflow lagi.
-   Kompatibel dengan JS existing (masih query tr/td).
 ========================================================= */
 .table-wrap {
     width: 100%;
@@ -406,7 +402,6 @@ table {
     table-layout: auto;
 }
 
-/* Sembunyikan header tabel — card sudah self-describing */
 thead { display: none; }
 colgroup { display: none; }
 
@@ -418,17 +413,15 @@ tbody {
     max-width: 100%;
 }
 
-/* ===== ROW = CARD ===== */
 tbody tr {
-    /* Default (desktop) */
     display: grid;
     grid-template-columns:
-        88px                    /* thumb */
-        minmax(0, 1.4fr)        /* meta (provider/model/tanggal) */
-        minmax(0, 2.2fr)        /* prompt */
-        auto                    /* credit */
-        auto                    /* status */
-        auto;                   /* action */
+        88px
+        minmax(0, 1.4fr)
+        minmax(0, 2.2fr)
+        auto
+        auto
+        auto;
     grid-template-rows: auto auto auto;
     column-gap: clamp(12px, 1.6vw, 22px);
     row-gap: 2px;
@@ -445,7 +438,6 @@ tbody tr {
 }
 
 tbody tr::before {
-    /* subtle red accent bar on left */
     content: "";
     position: absolute;
     left: 0;
@@ -468,7 +460,6 @@ tbody tr:hover::before {
     transform: translateY(-50%) scaleY(1);
 }
 
-/* ===== CELLS ===== */
 td {
     display: block;
     padding: 0;
@@ -481,16 +472,15 @@ td {
     overflow: hidden;
 }
 
-/* Column mapping */
-td:nth-child(1) { grid-column: 1; grid-row: 1 / span 3; }  /* Thumbnail */
-td:nth-child(2) { grid-column: 2; grid-row: 3; }           /* Tanggal */
-td:nth-child(3) { display: none; }                          /* User */
-td:nth-child(4) { grid-column: 2; grid-row: 1; }           /* Provider */
-td:nth-child(5) { grid-column: 2; grid-row: 2; }           /* Model */
-td:nth-child(6) { grid-column: 3; grid-row: 1 / span 3; }  /* Prompt */
-td:nth-child(7) { grid-column: 4; grid-row: 1 / span 3; }  /* Credit */
-td:nth-child(8) { grid-column: 5; grid-row: 1 / span 3; }  /* Status */
-td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
+td:nth-child(1) { grid-column: 1; grid-row: 1 / span 3; }
+td:nth-child(2) { grid-column: 2; grid-row: 3; }
+td:nth-child(3) { display: none; }
+td:nth-child(4) { grid-column: 2; grid-row: 1; }
+td:nth-child(5) { grid-column: 2; grid-row: 2; }
+td:nth-child(6) { grid-column: 3; grid-row: 1 / span 3; }
+td:nth-child(7) { grid-column: 4; grid-row: 1 / span 3; }
+td:nth-child(8) { grid-column: 5; grid-row: 1 / span 3; }
+td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
 
 /* =========================================================
    THUMBNAIL
@@ -648,8 +638,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
 /* =========================================================
    CELL CONTENT STYLING
 ========================================================= */
-
-/* Provider name (row 1) */
 .provider {
     display: block;
     color: var(--text);
@@ -661,7 +649,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     text-overflow: ellipsis;
 }
 
-/* Model (row 2) */
 .model {
     display: block;
     min-width: 0;
@@ -688,7 +675,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     text-overflow: ellipsis;
 }
 
-/* Date (row 3) */
 .history-date {
     display: block;
     color: var(--text-3);
@@ -701,7 +687,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     font-feature-settings: "tnum";
 }
 
-/* Prompt */
 .prompt-cell, .history-prompt-cell {
     min-width: 0;
     max-width: 100%;
@@ -731,7 +716,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     text-align: left;
     cursor: pointer;
     transition: color .2s var(--ease);
-    /* 2-line clamp */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -783,7 +767,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     white-space: nowrap;
 }
 
-/* User cell */
 .user-cell { font-size: 12px; color: var(--text-2); min-width: 0; }
 .user-cell strong {
     display: block;
@@ -803,7 +786,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     white-space: nowrap;
 }
 
-/* Credit badge */
 .credits {
     display: inline-flex;
     align-items: center;
@@ -820,7 +802,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     white-space: nowrap;
 }
 
-/* Status badge */
 .status {
     display: inline-flex;
     align-items: center;
@@ -870,7 +851,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
 }
 .status.cancelled .status-dot { background: var(--violet); }
 
-/* Processing status — shimmer */
 .status.processing {
     position: relative;
     overflow: hidden;
@@ -934,7 +914,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     48%, 100% { left: 135%; opacity: 0; }
 }
 
-/* Action button */
 .view-button {
     display: inline-flex;
     align-items: center;
@@ -1172,8 +1151,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
 /* =========================================================
    RESPONSIVE
 ========================================================= */
-
-/* Tablet besar: masih card grid, kolom lebih rapat */
 @media (max-width: 1100px) {
     .hero {
         grid-template-columns: 1fr;
@@ -1188,26 +1165,25 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Tablet / HP besar: card grid → 2-kolom ringkas */
 @media (max-width: 860px) {
     tbody tr {
         grid-template-columns:
-            72px                    /* thumb */
-            minmax(0, 1fr)          /* meta */
-            auto auto;              /* credit, action */
+            72px
+            minmax(0, 1fr)
+            auto auto;
         grid-template-rows: auto auto auto auto;
         column-gap: 14px;
         row-gap: 6px;
     }
 
-    td:nth-child(1) { grid-column: 1; grid-row: 1 / span 3; }  /* thumb */
-    td:nth-child(2) { grid-column: 2; grid-row: 3; }           /* tanggal */
-    td:nth-child(4) { grid-column: 2; grid-row: 1; }           /* provider */
-    td:nth-child(5) { grid-column: 2; grid-row: 2; }           /* model */
-    td:nth-child(6) { grid-column: 1 / -1; grid-row: 4; padding-top: 10px; border-top: 1px dashed var(--line); }  /* prompt */
-    td:nth-child(7) { grid-column: 3; grid-row: 1 / span 3; align-self: center; }  /* credit */
-    td:nth-child(8) { grid-column: 4; grid-row: 1 / span 3; align-self: center; }  /* status */
-    td:nth-child(9) { grid-column: 1 / -1; grid-row: 5; }      /* action */
+    td:nth-child(1) { grid-column: 1; grid-row: 1 / span 3; }
+    td:nth-child(2) { grid-column: 2; grid-row: 3; }
+    td:nth-child(4) { grid-column: 2; grid-row: 1; }
+    td:nth-child(5) { grid-column: 2; grid-row: 2; }
+    td:nth-child(6) { grid-column: 1 / -1; grid-row: 4; padding-top: 10px; border-top: 1px dashed var(--line); }
+    td:nth-child(7) { grid-column: 3; grid-row: 1 / span 3; align-self: center; }
+    td:nth-child(8) { grid-column: 4; grid-row: 1 / span 3; align-self: center; }
+    td:nth-child(9) { grid-column: 1 / -1; grid-row: 5; }
 
     .history-thumbnail {
         width: 72px;
@@ -1224,7 +1200,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     }
 }
 
-/* HP: layout lebih padat */
 @media (max-width: 560px) {
     :root {
         --gutter-x: 14px;
@@ -1268,7 +1243,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     .modal-body { padding: 16px; }
 }
 
-/* HP sangat kecil */
 @media (max-width: 380px) {
     .hero-title { letter-spacing: -1px; }
     .credit-value { font-size: 32px; letter-spacing: -2px; }
@@ -1284,7 +1258,7 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     }
 }
 
-   /* =========================================================
+/* =========================================================
    PAGINATION — PREMIUM
 ========================================================= */
 
@@ -1351,10 +1325,6 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     background: #0a0d13;
     color: var(--text);
 }
-
-/* =========================================================
-   PAGINATION BAR
-========================================================= */
 
 .pagination {
     display: flex;
@@ -1428,12 +1398,10 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
     line-height: 1;
 }
 
-/* Row yang disembunyikan oleh pagination */
 .page-hidden {
     display: none !important;
 }
 
-/* Mobile */
 @media (max-width: 560px) {
     .pagination-toolbar {
         flex-direction: column;
@@ -1468,10 +1436,13 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
         font-size: 14px;
     }
 }
-
-   <link rel="stylesheet" href="./assets/css/upscale-button.css">
-   
 </style>
+
+<!-- ===== UPSCALE BUTTON — CSS ===== -->
+<link
+    rel="stylesheet"
+    href="./assets/css/upscale-button.css"
+>
 </head>
 
 <body>
@@ -1547,24 +1518,24 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
             Memuat history...
         </div>
 
-       <!-- ===== PAGINATION TOOLBAR ===== -->
-<div class="pagination-toolbar" id="paginationToolbar" style="display:none;">
-    <span class="pagination-info" id="paginationInfo"></span>
+        <!-- ===== PAGINATION TOOLBAR ===== -->
+        <div class="pagination-toolbar" id="paginationToolbar" style="display:none;">
+            <span class="pagination-info" id="paginationInfo"></span>
 
-    <div class="per-page-wrap">
-        <label for="perPageSelect">Tampilkan</label>
-        <select
-            class="per-page-select"
-            id="perPageSelect"
-            aria-label="Jumlah baris per halaman"
-        >
-            <option value="5" selected>5</option>
-            <option value="10">10</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-        </select>
-    </div>
-</div>
+            <div class="per-page-wrap">
+                <label for="perPageSelect">Tampilkan</label>
+                <select
+                    class="per-page-select"
+                    id="perPageSelect"
+                    aria-label="Jumlah baris per halaman"
+                >
+                    <option value="5" selected>5</option>
+                    <option value="10">10</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+        </div>
 
         <div class="table-wrap" id="tableWrap" style="display:none;">
             <table>
@@ -1585,12 +1556,12 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
             </table>
         </div>
 
-       <!-- ===== PAGINATION ===== -->
-<nav
-    class="pagination"
-    id="pagination"
-    aria-label="Navigasi halaman riwayat"
-></nav>
+        <!-- ===== PAGINATION ===== -->
+        <nav
+            class="pagination"
+            id="pagination"
+            aria-label="Navigasi halaman riwayat"
+        ></nav>
 
         <div class="empty-state" id="emptyState">
             <div class="empty-icon">🎬</div>
@@ -1673,7 +1644,7 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }  /* Action */
 })();
 </script>
 
-   <!-- =========================================================
+<!-- =========================================================
      PAGINATION
      - Default: 5 baris / halaman
      - Pilihan: 5 / 10 / 50 / 100
