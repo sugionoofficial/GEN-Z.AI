@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-real-esrgan
+          key: ${{ runner.os }}-pip-realesrgan-v3
 
       - name: Cache Real-ESRGAN model
         id: cache-model
@@ -55,11 +55,62 @@ jobs:
           path: ~/.cache/realesrgan
           key: realesrgan-x4plus-v2
 
-      - name: Install Python dependencies
+      - name: Install Python dependencies (pinned versions)
         run: |
           pip install --quiet --upgrade pip
-          pip install --quiet torch torchvision --index-url https://download.pytorch.org/whl/cpu
-          pip install --quiet realesrgan basicsr opencv-python-headless pillow
+
+          # Pin torch & torchvision ke versi kompatibel dengan basicsr
+          # basicsr butuh torchvision.transforms.functional_tensor
+          # yang sudah dihapus di torchvision >= 0.17
+          pip install --quiet \
+            torch==2.0.1 \
+            torchvision==0.15.2 \
+            --index-url https://download.pytorch.org/whl/cpu
+
+          pip install --quiet numpy==1.24.4
+          pip install --quiet opencv-python-headless==4.8.0.76
+          pip install --quiet pillow
+          pip install --quiet basicsr==1.4.2
+          pip install --quiet realesrgan==0.3.0
+
+      - name: Patch torchvision compatibility
+        run: |
+          # Patch: basicsr import torchvision.transforms.functional_tensor
+          # yang tidak ada di torchvision >= 0.17.
+          # Kita buat alias dari modul baru.
+          python << 'PYEOF'
+          import os
+          import site
+          import shutil
+
+          # Cari path site-packages
+          paths = site.getsitepackages()
+          tv_path = None
+          for p in paths:
+              candidate = os.path.join(p, "torchvision", "transforms")
+              if os.path.isdir(candidate):
+                  tv_path = candidate
+                  break
+
+          if tv_path is None:
+              print("torchvision.transforms not found, skip patch")
+              raise SystemExit(0)
+
+          new_file = os.path.join(tv_path, "functional_tensor.py")
+          old_file = os.path.join(tv_path, "functional.py")
+
+          if os.path.exists(new_file):
+              print("functional_tensor.py already exists, skip")
+              raise SystemExit(0)
+
+          if not os.path.exists(old_file):
+              print("functional.py not found, skip")
+              raise SystemExit(0)
+
+          # Copy functional.py jadi functional_tensor.py
+          shutil.copy(old_file, new_file)
+          print("Patched: created functional_tensor.py from functional.py")
+          PYEOF
 
       - name: Download Real-ESRGAN model (if not cached)
         if: steps.cache-model.outputs.cache-hit != 'true'
@@ -102,6 +153,17 @@ jobs:
         run: |
           python << 'PYEOF'
           import os
+          import sys
+          import numpy as np
+
+          # Compatibility patch untuk numpy 2.x
+          if not hasattr(np, 'float'):
+              np.float = float
+          if not hasattr(np, 'int'):
+              np.int = int
+          if not hasattr(np, 'bool'):
+              np.bool = bool
+
           import cv2
           from basicsr.archs.rrdbnet_arch import RRDBNet
           from realesrgan import RealESRGANer
