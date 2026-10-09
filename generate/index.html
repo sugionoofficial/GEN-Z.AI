@@ -30,8 +30,6 @@
 
     <!-- =====================================================
          KEAMANAN: REFERRER POLICY
-         Kirim referrer hanya origin-nya saat cross-origin.
-         Mencegah kebocoran path/query internal.
     ====================================================== -->
 
     <meta
@@ -44,19 +42,9 @@
          KEAMANAN: CONTENT SECURITY POLICY (CSP)
          - script-src TIDAK pakai 'unsafe-inline' (kuat)
          - style-src pakai 'unsafe-inline' karena JS biasanya
-           meng-inject <style> dinamis — risiko jauh lebih kecil
-         - connect-src dibatasi ke:
-             * Supabase (auth + database + storage hasil generate)
-             * motiongenai.pro (endpoint upload + generate)
+           meng-inject <style> dinamis
+         - connect-src dibatasi ke Supabase & motiongenai.pro
          - object-src 'none' mematikan Flash/embed berbahaya
-
-         CATATAN:
-         * frame-ancestors & X-Frame-Options TIDAK bekerja
-           via <meta>, harus via HTTP header server:
-               Content-Security-Policy: frame-ancestors 'self'
-               X-Frame-Options: SAMEORIGIN
-         * Jika console menunjukkan "Refused to connect...",
-           tambahkan origin yang diblokir ke connect-src.
     ====================================================== -->
 
     <meta
@@ -116,19 +104,7 @@
 
     <!-- =====================================================
          SUPABASE (CDN)
-         - Versi di-PIN ke rilis spesifik (bukan "@2" floating)
-           supaya tidak ada update mendadak yang bisa merusak app
-         - crossorigin + referrerpolicy ditambahkan
-         - integrity: WAJIB di-generate dulu (lihat catatan bawah)
-
-         CARA AKTIFKAN SRI (direkomendasikan):
-         1. Buka https://www.srihash.org/
-         2. Paste URL di bawah ini
-         3. Salin hasil integrity="sha384-..." ke atribut integrity
-         4. Hapus komentar pada atribut integrity
-
-         ⚠️ JANGAN aktifkan integrity dengan hash yang salah —
-            script Supabase akan GAGAL dimuat dan auth akan rusak.
+         Versi di-PIN ke rilis spesifik.
     ====================================================== -->
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
@@ -159,22 +135,15 @@
 
 
     <!-- =====================================================
-         PREMIUM GENERATION LOADING — CSS
-         Overlay fullscreen dengan kartu progress premium.
-         Dimuat SETELAH genz-premium supaya bisa override
-         style yang dibutuhkan.
+         GENERATE PROGRESS CARD — CSS
+         Card inline di bawah tombol Generate.
+         Tidak menggunakan overlay fullscreen.
     ====================================================== -->
 
     <link
         rel="stylesheet"
-        href="./assets/css/generation-loading.css"
+        href="./assets/css/generate-progress-card.css"
     >
-
-    <!-- ===== GENERATE PROGRESS CARD — CSS ===== -->
-<link
-    rel="stylesheet"
-    href="./assets/css/generate-progress-card.css"
->
 
 
     <!-- =====================================================
@@ -195,9 +164,6 @@
 
     <!-- =====================================================
          SHARED NAVIGATION
-         role="navigation" ditambahkan supaya screen reader
-         mengenali sebagai landmark. <div> tetap dipertahankan
-         supaya selector CSS/JS (#adminNavigation) tidak rusak.
     ====================================================== -->
 
     <div
@@ -603,17 +569,24 @@
 
 
     <!-- =========================================================
-     DISABLED — digantikan oleh generate-progress-card.js
-     Overlay fullscreen tidak reliable dan bentrok dengan
-     sistem loading lain. Dipertahankan untuk rollback.
-========================================================= -->
-<!--
-<script src="./assets/js/generation-loading.js"></script>
-<script src="./assets/js/generation-loading-bridge.js"></script>
--->
+         GENERATE PROGRESS CARD — JS
+         ---------------------------------------------------------
+         Card inline di bawah tombol Generate untuk menampilkan
+         progress real-time: thumbnail input, timer, progress
+         bar, status, dan model.
 
-    <!-- ===== GENERATE PROGRESS CARD — JS ===== -->
-<script src="./assets/js/generate-progress-card.js"></script>
+         WAJIB dimuat SEBELUM generate-app.js supaya
+         window.GenzProgress sudah tersedia saat submit
+         handler di-bind.
+
+         Script lama (generation-loading.js dan
+         generation-loading-bridge.js) sudah dinonaktifkan
+         karena tidak reliable. Dipertahankan dalam komentar
+         untuk rollback bila diperlukan.
+    ========================================================== -->
+
+    <script src="./assets/js/generate-progress-card.js"></script>
+
 
     <!-- =========================================================
          GENERATE APPLICATION
