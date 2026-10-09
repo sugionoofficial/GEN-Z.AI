@@ -1,4 +1,4 @@
-name: Upscale Video to 2K
+name: Upscale + Smooth Video
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ on:
 jobs:
   upscale:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Install FFmpeg
@@ -44,10 +44,12 @@ jobs:
           WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 input.mp4)
           HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 input.mp4)
           DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 input.mp4)
+          FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 input.mp4)
           echo "width=$WIDTH" >> $GITHUB_OUTPUT
           echo "height=$HEIGHT" >> $GITHUB_OUTPUT
           echo "duration=$DURATION" >> $GITHUB_OUTPUT
-          echo "Source: ${WIDTH}x${HEIGHT}, duration: ${DURATION}s"
+          echo "fps=$FPS" >> $GITHUB_OUTPUT
+          echo "Source: ${WIDTH}x${HEIGHT}, ${FPS} fps, ${DURATION}s"
 
       - name: Calculate target resolution
         id: target
@@ -70,20 +72,22 @@ jobs:
           echo "orientation=$ORIENT" >> $GITHUB_OUTPUT
           echo "Target: ${TW}x${TH} (${ORIENT})"
 
-      - name: Upscale with FFmpeg
+      - name: Upscale + Interpolate
         run: |
+          echo "Upscaling to 2K and interpolating 24 -> 48 fps..."
+
           ffmpeg -y -i input.mp4 \
-            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4" \
+            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=48:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32" \
             -c:v libx264 \
-            -preset medium \
-            -crf 20 \
+            -preset slow \
+            -crf 18 \
             -pix_fmt yuv420p \
             -movflags +faststart \
             -c:a copy \
             output.mp4
 
           ls -lh output.mp4
-          echo "Upscale selesai."
+          echo "Upscale + interpolate selesai."
 
       - name: Upload to Supabase Storage
         id: upload
