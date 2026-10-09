@@ -12,6 +12,7 @@
    - Mendukung object / array / JSON Schema
    - Image URL / Upload melalui media module
    - Audio URL / Upload melalui media module
+   - Video URL / Upload melalui media module
    - Collect parameter melalui generate-form-data.js
    - Set value field
    - Reset form
@@ -52,9 +53,6 @@ import {
 
 /* =========================================================
    FORM RENDER
-   ---------------------------------------------------------
-   Detail pembuatan field dan layout sekarang dimiliki oleh:
-   generate-form-render.js
 ========================================================= */
 
 import {
@@ -71,7 +69,9 @@ import {
     validateImageFile,
     uploadImageFile,
     validateAudioFile,
-    uploadAudioFile
+    uploadAudioFile,
+    validateVideoFile,
+    uploadVideoFile
 } from "./generate-form-upload.js";
 
 
@@ -81,7 +81,8 @@ import {
 
 import {
     registerImageFieldFactory,
-    registerAudioFieldFactory
+    registerAudioFieldFactory,
+    registerVideoFieldFactory
 } from "./generate-form-fields.js";
 
 
@@ -92,8 +93,10 @@ import {
 import {
     createImageField as createMediaImageField,
     createAudioField as createMediaAudioField,
+    createVideoField as createMediaVideoField,
     registerImageMediaHandlers,
-    registerAudioMediaHandlers
+    registerAudioMediaHandlers,
+    registerVideoMediaHandlers
 } from "./generate-form-media.js";
 
 
@@ -108,11 +111,6 @@ import {
 
 /* =========================================================
    FORM DATA
-   ---------------------------------------------------------
-   getFormParameters()
-   getFormData()
-   sekarang dimiliki oleh:
-   generate-form-data.js
 ========================================================= */
 
 import {
@@ -123,15 +121,6 @@ import {
 
 /* =========================================================
    NAMED RE-EXPORT
-   ---------------------------------------------------------
-   Memastikan `getFormParameters` dan `getFormData` dapat
-   diakses sebagai named export oleh module lain, mis:
-
-       import { getFormParameters } from "./generate-form.js";
-       import * as form from "./generate-form.js";
-       form.getFormParameters(...);
-
-   Tidak mengubah perilaku object `generateForm`.
 ========================================================= */
 
 export {
@@ -142,8 +131,6 @@ export {
 
 /* =========================================================
    MEDIA HANDLER REGISTRATION
-   ---------------------------------------------------------
-   Registration dilakukan sekali saat module dimuat.
 ========================================================= */
 
 registerImageMediaHandlers({
@@ -164,10 +151,17 @@ registerAudioMediaHandlers({
 });
 
 
+registerVideoMediaHandlers({
+    upload:
+        uploadVideoFile,
+
+    validate:
+        validateVideoFile
+});
+
+
 /* =========================================================
    FIELD FACTORY REGISTRATION
-   ---------------------------------------------------------
-   Field module menggunakan factory registry untuk media.
 ========================================================= */
 
 registerImageFieldFactory(
@@ -177,6 +171,11 @@ registerImageFieldFactory(
 
 registerAudioFieldFactory(
     createMediaAudioField
+);
+
+
+registerVideoFieldFactory(
+    createMediaVideoField
 );
 
 
@@ -225,10 +224,6 @@ export function renderGenerateForm(
 
     }
 
-
-    /*
-     * Bersihkan field lama sebelum render model baru.
-     */
 
     container.innerHTML =
         "";
@@ -384,19 +379,12 @@ export function renderGenerateForm(
 
 /* =========================================================
    SET FIELD VALUE
-   ---------------------------------------------------------
-   Dipertahankan di orchestrator karena fungsi ini merupakan
-   public API yang digunakan module lain.
 ========================================================= */
 
 export function setFieldValue(
     name,
     value
 ) {
-
-    /* =====================================================
-       SECURITY / PARAMETER FILTER
-    ===================================================== */
 
     if (
         isClientForbiddenParameter(
@@ -481,11 +469,6 @@ export function setFieldValue(
         }
 
 
-        /*
-         * URL yang diberikan secara programmatic
-         * bukan hasil upload baru.
-         */
-
         if (
             imageInput &&
             typeof imageInput.setUploadedUrl ===
@@ -557,6 +540,75 @@ export function setFieldValue(
         ) {
 
             audioInput.setUploadedUrl(
+                ""
+            );
+
+        }
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       VIDEO
+    ===================================================== */
+
+    if (
+        name === "video_urls" ||
+        name === "video_url"
+    ) {
+
+        const videoInput =
+            field.querySelector(
+                ".generate-video-input"
+            ) ||
+            (
+                field.classList?.contains(
+                    "generate-video-input"
+                )
+                    ? field
+                    : null
+            );
+
+
+        const videos =
+            normalizeArray(
+                value
+            );
+
+
+        const urlInput =
+            videoInput &&
+            typeof videoInput.getUrlInput ===
+                "function"
+
+                ? videoInput.getUrlInput()
+
+                : field.querySelector(
+                    'input[type="url"]'
+                );
+
+
+        if (
+            urlInput
+        ) {
+
+            urlInput.value =
+                videos[0] ||
+                "";
+
+        }
+
+
+        if (
+            videoInput &&
+            typeof videoInput.setUploadedUrl ===
+                "function"
+        ) {
+
+            videoInput.setUploadedUrl(
                 ""
             );
 
@@ -705,14 +757,6 @@ export async function resetDynamicFields(
 
     /* =====================================================
        SEEDANCE
-       -----------------------------------------------------
-       Seedance memiliki form khusus.
-
-       Jangan render ulang karena render ulang dapat:
-       - menghapus upload state
-       - menghapus preview
-       - menghilangkan event listener khusus
-       - mengubah layout form
     ===================================================== */
 
     const seedanceForm =
@@ -729,10 +773,6 @@ export async function resetDynamicFields(
             "[GEN-Z.AI][Generate Form] Reset Seedance tanpa render ulang."
         );
 
-
-        /* =================================================
-           TEXT / TEXTAREA
-        ================================================= */
 
         seedanceForm
             .querySelectorAll(
@@ -782,10 +822,6 @@ export async function resetDynamicFields(
             );
 
 
-        /* =================================================
-           SELECT
-        ================================================= */
-
         seedanceForm
             .querySelectorAll(
                 "select"
@@ -830,10 +866,6 @@ export async function resetDynamicFields(
             );
 
 
-        /* =================================================
-           RADIO
-        ================================================= */
-
         seedanceForm
             .querySelectorAll(
                 "input[type='radio']"
@@ -847,10 +879,6 @@ export async function resetDynamicFields(
                 }
             );
 
-
-        /* =================================================
-           CHECKBOX
-        ================================================= */
 
         seedanceForm
             .querySelectorAll(
@@ -876,10 +904,6 @@ export async function resetDynamicFields(
                 }
             );
 
-
-        /* =================================================
-           FILE INPUT
-        ================================================= */
 
         seedanceForm
             .querySelectorAll(
@@ -907,10 +931,6 @@ export async function resetDynamicFields(
                 }
             );
 
-
-        /* =================================================
-           IMAGE UPLOAD
-        ================================================= */
 
         const imageUploads =
             seedanceForm.querySelectorAll(
@@ -948,10 +968,6 @@ export async function resetDynamicFields(
         }
 
 
-        /* =================================================
-           AUDIO UPLOAD
-        ================================================= */
-
         const audioUploads =
             seedanceForm.querySelectorAll(
                 ".generate-audio-input"
@@ -988,9 +1004,41 @@ export async function resetDynamicFields(
         }
 
 
-        /* =================================================
-           PREVIEW
-        ================================================= */
+        const videoUploads =
+            seedanceForm.querySelectorAll(
+                ".generate-video-input"
+            );
+
+
+        for (
+            const upload
+            of videoUploads
+        ) {
+
+            if (
+                typeof upload.clearUploadedFile ===
+                "function"
+            ) {
+
+                try {
+
+                    await upload.clearUploadedFile();
+
+                } catch (
+                    error
+                ) {
+
+                    console.warn(
+                        "[GEN-Z.AI][Generate Form] Reset video upload Seedance gagal:",
+                        error
+                    );
+
+                }
+
+            }
+
+        }
+
 
         seedanceForm
             .querySelectorAll(
@@ -1012,10 +1060,6 @@ export async function resetDynamicFields(
                 }
             );
 
-
-        /* =================================================
-           UPLOADED URL
-        ================================================= */
 
         seedanceForm
             .querySelectorAll(
@@ -1042,10 +1086,6 @@ export async function resetDynamicFields(
                 }
             );
 
-
-        /* =================================================
-           COUNTER
-        ================================================= */
 
         seedanceForm
             .querySelectorAll(
@@ -1086,10 +1126,6 @@ export async function resetDynamicFields(
             );
 
 
-        /* =================================================
-           CHECKBOX EVENTS
-        ================================================= */
-
         seedanceForm
             .querySelectorAll(
                 "input[type='checkbox']"
@@ -1121,10 +1157,6 @@ export async function resetDynamicFields(
                 }
             );
 
-
-        /* =================================================
-           CONTAINER VISIBILITY
-        ================================================= */
 
         container.hidden =
             false;
@@ -1161,14 +1193,13 @@ export async function resetDynamicFields(
 
     /* =====================================================
        MODEL NON-SEEDANCE
-       -----------------------------------------------------
-       Upload harus dibersihkan sebelum render ulang.
     ===================================================== */
 
     const uploads =
         container.querySelectorAll(
             ".generate-image-input, " +
-            ".generate-audio-input"
+            ".generate-audio-input, " +
+            ".generate-video-input"
         );
 
 
@@ -1254,8 +1285,6 @@ export function setFormDisabled(
 
 /* =========================================================
    MEDIA PARAMETERS
-   ---------------------------------------------------------
-   Compatibility helper untuk module lain.
 ========================================================= */
 
 export async function getMediaParameters(
@@ -1287,7 +1316,20 @@ export async function getMediaParameters(
             String(
                 data.audio_url ||
                 ""
-            ).trim()
+            ).trim(),
+
+        video_urls:
+            Array.isArray(
+                data.video_urls
+            )
+                ? data.video_urls
+                : (
+                    data.video_url
+                        ? normalizeArray(
+                            data.video_url
+                        )
+                        : []
+                )
 
     };
 
