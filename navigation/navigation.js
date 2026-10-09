@@ -1,4 +1,4 @@
-//navigation.js?v=2.0
+//navigation.js?v=2.1
 /* =========================================================
    GEN-Z.AI
    SHARED NAVIGATION
@@ -6,20 +6,10 @@
    File:
    navigation/navigation.js
 
-   PATCH v1.9 (FIX DEADLOCK TOTAL):
-   - BYPASS GoTrueClient SEPENUHNYA untuk auth operations.
-   - Method client.auth.* (getSession/getUser/refreshSession/
-     signOut) hang pada client yang dibuat saat page load
-     di Supabase v2.58.0.
-   - Session dibaca langsung dari localStorage.
-   - Refresh token via fetch langsung ke /auth/v1/token.
-   - Logout via clear localStorage + redirect.
-   - onAuthStateChange dinonaktifkan.
-
-   PATCH v2.0:
-   - Tambah menu "Prompt Studio" ke commonUserItems.
-   - Tambah menu "Prompt Studio" ke adminItems.
-   - Tambah icon promptStudio.
+   PATCH v2.1:
+   - Tambah menu "Upscale Studio" ke commonUserItems
+     dan adminItems.
+   - Tambah icon upscale.
 ========================================================= */
 
 (() => {
@@ -28,36 +18,26 @@
 
 
     function isDebugEnabled() {
-
         return (
             typeof window !== "undefined" &&
             window.GENZ_DEBUG === true
         );
-
     }
 
 
     function debugError(...args) {
-
         console.error(...args);
-
     }
 
 
-    if (
-        window.__GENZ_NAVIGATION_STARTED
-    ) {
-
+    if (window.__GENZ_NAVIGATION_STARTED) {
         return;
-
     }
 
     window.__GENZ_NAVIGATION_STARTED = true;
 
 
-    const STYLE_ID =
-        "genz-shared-navigation-style";
-
+    const STYLE_ID = "genz-shared-navigation-style";
 
     const NAVIGATION_CONTAINER_IDS = [
         "genz-navigation",
@@ -65,609 +45,253 @@
         "adminNavigation"
     ];
 
+    const LOGIN_PATH = "/index.html";
 
-    const LOGIN_PATH =
-        "/index.html";
-
-
-    const PROFILE_RETRY_COUNT =
-        3;
-
-
-    const PROFILE_RETRY_DELAY =
-        500;
-
-
-    const TOKEN_REFRESH_BUFFER_SEC =
-        60;
-
+    const PROFILE_RETRY_COUNT = 3;
+    const PROFILE_RETRY_DELAY = 500;
+    const TOKEN_REFRESH_BUFFER_SEC = 60;
 
     let currentUser = null;
-
     let currentProfile = null;
-
     let currentRole = "user";
-
     let navigationReady = false;
-
     let navigationReadyResolve;
-
     let documentKeydownBound = false;
 
+    const navigationReadyPromise = new Promise(resolve => {
+        navigationReadyResolve = resolve;
+    });
 
-    const navigationReadyPromise =
-        new Promise(
-            resolve => {
-
-                navigationReadyResolve =
-                    resolve;
-
-            }
-        );
-
-
-    /* =====================================================
-       GLOBAL BRIDGE
-    ===================================================== */
 
     function syncNavigationGlobals() {
-
-        window.GENZ_NAVIGATION_USER =
-            currentUser || null;
-
-        window.GENZ_NAVIGATION_PROFILE =
-            currentProfile || null;
-
-        window.GENZ_NAVIGATION_ROLE =
-            normalizeRole(currentRole);
-
-        window.GENZ_CURRENT_PROFILE =
-            currentProfile || null;
-
+        window.GENZ_NAVIGATION_USER = currentUser || null;
+        window.GENZ_NAVIGATION_PROFILE = currentProfile || null;
+        window.GENZ_NAVIGATION_ROLE = normalizeRole(currentRole);
+        window.GENZ_CURRENT_PROFILE = currentProfile || null;
     }
 
-
-    /* =====================================================
-       SUPABASE CLIENT (untuk storage & database saja)
-       -----------------------------------------------------
-       Tidak dipakai untuk auth operations.
-       Auth dibaca langsung dari localStorage.
-    ===================================================== */
 
     function getSupabaseClient() {
 
-        if (window.GENZ_SUPABASE) {
+        if (window.GENZ_SUPABASE) return window.GENZ_SUPABASE;
+        if (window.supabaseClient) return window.supabaseClient;
 
-            return window.GENZ_SUPABASE;
+        const supabaseGlobal = window.supabase;
+        const config = window.GENZ_CONFIG;
 
-        }
-
-
-        if (window.supabaseClient) {
-
-            return window.supabaseClient;
-
-        }
-
-
-        const supabaseGlobal =
-            window.supabase;
-
-        const config =
-            window.GENZ_CONFIG;
-
-
-        if (
-            !supabaseGlobal ||
-            typeof supabaseGlobal.createClient !==
-                "function"
-        ) {
-
+        if (!supabaseGlobal || typeof supabaseGlobal.createClient !== "function") {
             return null;
-
         }
 
+        if (!config || !config.SUPABASE_URL) return null;
 
-        if (
-            !config ||
-            !config.SUPABASE_URL
-        ) {
-
-            return null;
-
-        }
-
-
-        const supabaseKey =
-            config.SUPABASE_KEY ||
-            config.SUPABASE_ANON_KEY;
-
-
-        if (!supabaseKey) {
-
-            return null;
-
-        }
-
+        const supabaseKey = config.SUPABASE_KEY || config.SUPABASE_ANON_KEY;
+        if (!supabaseKey) return null;
 
         try {
-
-            const client =
-                supabaseGlobal.createClient(
-                    config.SUPABASE_URL,
-                    supabaseKey,
-                    {
-                        auth: {
-                            persistSession: true,
-                            autoRefreshToken: false,
-                            detectSessionInUrl: false,
-                            lock: async (_n, _t, fn) => await fn()
-                        }
+            const client = supabaseGlobal.createClient(
+                config.SUPABASE_URL,
+                supabaseKey,
+                {
+                    auth: {
+                        persistSession: true,
+                        autoRefreshToken: false,
+                        detectSessionInUrl: false,
+                        lock: async (_n, _t, fn) => await fn()
                     }
-                );
-
-
-            window.GENZ_SUPABASE =
-                client;
-
-            window.supabaseClient =
-                client;
-
-
-            return client;
-
-        } catch (error) {
-
-            debugError(
-                "[GEN-Z.AI] Supabase client error:",
-                error
+                }
             );
 
+            window.GENZ_SUPABASE = client;
+            window.supabaseClient = client;
+
+            return client;
+        } catch (error) {
+            debugError("[GEN-Z.AI] Supabase client error:", error);
             return null;
-
         }
-
     }
 
-
-    /* =====================================================
-       READ SESSION FROM LOCALSTORAGE
-       -----------------------------------------------------
-       FIX DEADLOCK:
-       Baca session langsung dari localStorage, bypass
-       GoTrueClient sepenuhnya.
-
-       Format key: sb-<project-ref>-auth-token
-    ===================================================== */
 
     function readSessionFromStorage() {
 
         try {
+            const config = window.GENZ_CONFIG;
+            if (!config || !config.SUPABASE_URL) return null;
 
-            const config =
-                window.GENZ_CONFIG;
+            const match = config.SUPABASE_URL.match(/https:\/\/([^.]+)/);
+            const projectRef = match && match[1];
+            if (!projectRef) return null;
 
-            if (
-                !config ||
-                !config.SUPABASE_URL
-            ) {
+            const key = "sb-" + projectRef + "-auth-token";
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
 
-                return null;
-
-            }
-
-            const match =
-                config.SUPABASE_URL.match(
-                    /https:\/\/([^.]+)/
-                );
-
-            const projectRef =
-                match && match[1];
-
-            if (!projectRef) {
-
-                return null;
-
-            }
-
-            const key =
-                "sb-" + projectRef + "-auth-token";
-
-            const raw =
-                localStorage.getItem(key);
-
-            if (!raw) {
-
-                return null;
-
-            }
-
-            const session =
-                JSON.parse(raw);
-
-            if (
-                !session ||
-                !session.access_token
-            ) {
-
-                return null;
-
-            }
+            const session = JSON.parse(raw);
+            if (!session || !session.access_token) return null;
 
             return session;
-
         } catch (error) {
-
             return null;
-
         }
-
     }
 
-
-    /* =====================================================
-       CLEAR SESSION STORAGE
-    ===================================================== */
 
     function clearSessionStorage() {
 
         try {
+            const config = window.GENZ_CONFIG;
+            if (!config || !config.SUPABASE_URL) return;
 
-            const config =
-                window.GENZ_CONFIG;
+            const match = config.SUPABASE_URL.match(/https:\/\/([^.]+)/);
+            const projectRef = match && match[1];
+            if (!projectRef) return;
 
-            if (
-                !config ||
-                !config.SUPABASE_URL
-            ) {
-
-                return;
-
-            }
-
-            const match =
-                config.SUPABASE_URL.match(
-                    /https:\/\/([^.]+)/
-                );
-
-            const projectRef =
-                match && match[1];
-
-            if (!projectRef) {
-
-                return;
-
-            }
-
-            const key =
-                "sb-" + projectRef + "-auth-token";
-
+            const key = "sb-" + projectRef + "-auth-token";
             localStorage.removeItem(key);
-
         } catch (error) {
-
             /* ignore */
-
         }
-
     }
 
-
-    /* =====================================================
-       ENSURE FRESH TOKEN (via fetch langsung)
-       -----------------------------------------------------
-       FIX DEADLOCK:
-       Refresh token via fetch ke /auth/v1/token,
-       TIDAK memanggil client.auth.refreshSession()
-       yang hang.
-    ===================================================== */
 
     async function ensureFreshToken() {
 
         try {
+            const session = readSessionFromStorage();
+            if (!session || !session.expires_at) return;
 
-            const session =
-                readSessionFromStorage();
+            const nowSec = Math.floor(Date.now() / 1000);
+            const secondsUntilExpiry = session.expires_at - nowSec;
 
-            if (
-                !session ||
-                !session.expires_at
-            ) {
+            if (secondsUntilExpiry >= TOKEN_REFRESH_BUFFER_SEC) return;
+            if (secondsUntilExpiry < 0) return;
+            if (!session.refresh_token) return;
 
-                return;
+            const config = window.GENZ_CONFIG;
 
-            }
-
-            const nowSec =
-                Math.floor(
-                    Date.now() / 1000
-                );
-
-            const secondsUntilExpiry =
-                session.expires_at -
-                nowSec;
-
-            if (
-                secondsUntilExpiry >=
-                TOKEN_REFRESH_BUFFER_SEC
-            ) {
-
-                return;
-
-            }
-
-            if (
-                secondsUntilExpiry < 0
-            ) {
-
-                /*
-                 * Sudah expired. Tidak bisa refresh
-                 * tanpa valid refresh_token.
-                 */
-
-                return;
-
-            }
-
-            if (!session.refresh_token) {
-
-                return;
-
-            }
-
-            const config =
-                window.GENZ_CONFIG;
-
-            const res =
-                await fetch(
-                    `${config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "apikey": config.SUPABASE_KEY
-                        },
-                        body: JSON.stringify({
-                            refresh_token: session.refresh_token
-                        })
-                    }
-                );
+            const res = await fetch(
+                `${config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "apikey": config.SUPABASE_KEY
+                    },
+                    body: JSON.stringify({
+                        refresh_token: session.refresh_token
+                    })
+                }
+            );
 
             if (!res.ok) {
-
                 if (isDebugEnabled()) {
-
-                    console.warn(
-                        "[GEN-Z.AI] Refresh token HTTP error:",
-                        res.status
-                    );
-
+                    console.warn("[GEN-Z.AI] Refresh token HTTP error:", res.status);
                 }
-
                 return;
-
             }
 
-            const newSession =
-                await res.json();
+            const newSession = await res.json();
+            if (!newSession || !newSession.access_token) return;
 
-            if (
-                !newSession ||
-                !newSession.access_token
-            ) {
-
-                return;
-
-            }
-
-            const match =
-                config.SUPABASE_URL.match(
-                    /https:\/\/([^.]+)/
-                );
-
-            const projectRef =
-                match && match[1];
+            const match = config.SUPABASE_URL.match(/https:\/\/([^.]+)/);
+            const projectRef = match && match[1];
 
             if (projectRef) {
-
-                const key =
-                    "sb-" + projectRef + "-auth-token";
-
-                localStorage.setItem(
-                    key,
-                    JSON.stringify(newSession)
-                );
-
+                const key = "sb-" + projectRef + "-auth-token";
+                localStorage.setItem(key, JSON.stringify(newSession));
             }
 
             if (isDebugEnabled()) {
-
-                console.log(
-                    "[GEN-Z.AI] Refresh token berhasil."
-                );
-
+                console.log("[GEN-Z.AI] Refresh token berhasil.");
             }
-
         } catch (error) {
-
             if (isDebugEnabled()) {
-
-                console.warn(
-                    "[GEN-Z.AI] ensureFreshToken error:",
-                    error
-                );
-
+                console.warn("[GEN-Z.AI] ensureFreshToken error:", error);
             }
-
         }
-
     }
 
 
     function delay(ms) {
-
         return new Promise(r => setTimeout(r, ms));
-
     }
-
 
     function getCurrentPath() {
-
         return window.location.pathname || "/";
-
     }
 
-
     function isLoginPage() {
-
-        const path =
-            getCurrentPath().toLowerCase();
-
+        const path = getCurrentPath().toLowerCase();
         return (
             path === LOGIN_PATH ||
             path === "/login" ||
             path.endsWith("/login.html")
         );
-
     }
-
 
     function normalizeRole(role) {
+        const value = String(role || "").trim().toLowerCase();
 
-        const value =
-            String(role || "")
-                .trim()
-                .toLowerCase();
-
-        if (value === "owner") {
-
-            return "owner";
-
-        }
-
-        if (
-            value === "admin" ||
-            value === "administrator"
-        ) {
-
-            return "admin";
-
-        }
-
+        if (value === "owner") return "owner";
+        if (value === "admin" || value === "administrator") return "admin";
         return "user";
-
     }
 
-
     function isProfileActive(profile) {
-
-        if (!profile) {
-
-            return false;
-
-        }
+        if (!profile) return false;
 
         if (
             profile.status === undefined ||
             profile.status === null ||
             String(profile.status).trim() === ""
         ) {
-
             return true;
-
         }
 
-        const status =
-            String(profile.status)
-                .trim()
-                .toLowerCase();
+        const status = String(profile.status).trim().toLowerCase();
 
         return (
             status === "active" ||
             status === "approved" ||
             status === "enabled"
         );
-
     }
 
-
-    /* =====================================================
-       GET SESSION (BYPASS GoTrueClient)
-    ===================================================== */
 
     async function getSessionWithRetry() {
 
         await ensureFreshToken();
 
-        const session =
-            readSessionFromStorage();
-
+        const session = readSessionFromStorage();
         if (!session) {
-
-            return {
-                session: null,
-                user: null
-            };
-
+            return { session: null, user: null };
         }
 
-        const nowSec =
-            Math.floor(Date.now() / 1000);
+        const nowSec = Math.floor(Date.now() / 1000);
 
-        if (
-            session.expires_at &&
-            session.expires_at < nowSec
-        ) {
-
-            return {
-                session: null,
-                user: null
-            };
-
+        if (session.expires_at && session.expires_at < nowSec) {
+            return { session: null, user: null };
         }
 
-        return {
-            session,
-            user: session.user
-        };
-
+        return { session, user: session.user };
     }
 
 
-    /* =====================================================
-       LOAD PROFILE (masih via Supabase database client,
-       BUKAN auth — aman karena database client tidak hang)
-    ===================================================== */
-
     async function loadProfile(userId) {
 
-        const supabase =
-            getSupabaseClient();
-
-        if (!supabase || !userId) {
-
-            return null;
-
-        }
+        const supabase = getSupabaseClient();
+        if (!supabase || !userId) return null;
 
         let lastError = null;
 
-        for (
-            let attempt = 0;
-            attempt < PROFILE_RETRY_COUNT;
-            attempt++
-        ) {
-
+        for (let attempt = 0; attempt < PROFILE_RETRY_COUNT; attempt++) {
             try {
-
-                let result =
-                    await supabase
-                        .from("profiles")
-                        .select(
-                            "id,email,name,role,credits,status"
-                        )
-                        .eq("id", userId)
-                        .maybeSingle();
+                let result = await supabase
+                    .from("profiles")
+                    .select("id,email,name,role,credits,status")
+                    .eq("id", userId)
+                    .maybeSingle();
 
                 if (
                     result.error &&
@@ -680,54 +304,32 @@
                             .includes("schema cache")
                     )
                 ) {
-
-                    result =
-                        await supabase
-                            .from("profiles")
-                            .select(
-                                "id,email,name,role,credits"
-                            )
-                            .eq("id", userId)
-                            .maybeSingle();
-
+                    result = await supabase
+                        .from("profiles")
+                        .select("id,email,name,role,credits")
+                        .eq("id", userId)
+                        .maybeSingle();
                 }
 
                 if (!result.error) {
-
                     return result.data || null;
-
                 }
 
                 lastError = result.error;
-
             } catch (error) {
-
                 lastError = error;
-
             }
 
-            if (
-                attempt <
-                PROFILE_RETRY_COUNT - 1
-            ) {
-
+            if (attempt < PROFILE_RETRY_COUNT - 1) {
                 await delay(PROFILE_RETRY_DELAY);
-
             }
-
         }
 
         if (lastError) {
-
-            debugError(
-                "[GEN-Z.AI] Profile load error:",
-                lastError
-            );
-
+            debugError("[GEN-Z.AI] Profile load error:", lastError);
         }
 
         return null;
-
     }
 
 
@@ -749,6 +351,8 @@
 
             visionVideo: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"></rect><path d="M16 10l5-3v10l-5-3z"></path></svg>`,
 
+            upscale: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path><path d="M9 9H5v4"></path><path d="M15 15h4v-4"></path></svg>`,
+
             viddra: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M10 9l5 3-5 3z"></path><path d="M7 2l2 2"></path><path d="M17 2l-2 2"></path></svg>`,
 
             history: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"></path><path d="M3.5 4.5v5h5"></path><path d="M12 7.5v5l3.5 2"></path></svg>`,
@@ -765,91 +369,54 @@
 
 
         const commonUserItems = [
-
             { label: "Dashboard", href: "/user/dashboard.html", icon: ICONS.dashboard },
-
             { label: "Generate", href: "/generate/index.html", icon: ICONS.generate },
-
             { label: "Prompt Studio", href: "/prompt-studio/index.html", icon: ICONS.promptStudio },
-
             { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
-
             { label: "Vision Video", href: "/vision-video/index.html", icon: ICONS.visionVideo },
-
+            { label: "Upscale Studio", href: "/upscale/index.html", icon: ICONS.upscale },
             { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
-
             { label: "History", href: "/history/index.html", icon: ICONS.history },
-
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
-
             { label: "Top Up", href: "/user/topup.html", icon: ICONS.topUp },
-
             { label: "Hub Admin", href: "/user/hub-admin.html", icon: ICONS.hubAdmin }
-
         ];
 
 
         const adminItems = [
-
             { label: "Dashboard", href: "/admin/dashboard/index.html", icon: ICONS.dashboard },
-
             { label: "Generate", href: "/generate/index.html", icon: ICONS.generate },
-
             { label: "Prompt Studio", href: "/prompt-studio/index.html", icon: ICONS.promptStudio },
-
             { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
-
             { label: "Vision Video", href: "/vision-video/index.html", icon: ICONS.visionVideo },
-
+            { label: "Upscale Studio", href: "/upscale/index.html", icon: ICONS.upscale },
             { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
-
             { label: "History", href: "/history/index.html", icon: ICONS.history },
-
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
-
             { label: "Admin Panel", href: "/admin-control/admin-panel.html", icon: ICONS.adminPanel }
-
         ];
 
 
-        if (
-            role === "admin" ||
-            role === "owner"
-        ) {
-
+        if (role === "admin" || role === "owner") {
             return adminItems;
-
         }
 
         return commonUserItems;
-
     }
 
 
     function getNavigationContainer() {
 
         for (const id of NAVIGATION_CONTAINER_IDS) {
-
-            const existing =
-                document.getElementById(id);
-
-            if (existing) {
-
-                return existing;
-
-            }
-
+            const existing = document.getElementById(id);
+            if (existing) return existing;
         }
 
-        const container =
-            document.createElement("div");
-
+        const container = document.createElement("div");
         container.id = "genz-navigation";
-
         document.body.prepend(container);
 
         return container;
-
     }
 
 
@@ -857,98 +424,69 @@
 
         const currentPath = getCurrentPath();
 
-        if (href === currentPath) {
-
-            return true;
-
-        }
+        if (href === currentPath) return true;
 
         try {
-
-            const target =
-                new URL(href, window.location.origin);
-
+            const target = new URL(href, window.location.origin);
             const targetPath = target.pathname;
 
-            if (targetPath === currentPath) {
-
-                return true;
-
-            }
+            if (targetPath === currentPath) return true;
 
             return (
                 currentPath.startsWith(targetPath) &&
                 targetPath !== "/"
             );
-
         } catch (error) {
-
             return false;
-
         }
-
     }
 
 
     function escapeHTML(value) {
-
         return String(value ?? "")
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
-
     }
 
 
     function renderNavigation() {
 
-        const container =
-            getNavigationContainer();
-
-        if (!container) {
-
-            return;
-
-        }
+        const container = getNavigationContainer();
+        if (!container) return;
 
         syncNavigationGlobals();
 
-        const items =
-            getNavigationConfig(currentRole);
+        const items = getNavigationConfig(currentRole);
 
-        const email =
-            currentUser && currentUser.email
-                ? currentUser.email
-                : (
-                    currentProfile &&
-                    currentProfile.email
-                        ? currentProfile.email
-                        : ""
-                );
+        const email = currentUser && currentUser.email
+            ? currentUser.email
+            : (
+                currentProfile && currentProfile.email
+                    ? currentProfile.email
+                    : ""
+            );
 
-        const roleLabel =
-            currentRole === "owner"
-                ? "OWNER"
-                : currentRole === "admin"
-                    ? "ADMIN"
-                    : "USER";
+        const roleLabel = currentRole === "owner"
+            ? "OWNER"
+            : currentRole === "admin"
+                ? "ADMIN"
+                : "USER";
 
-        const navigationItems =
-            items.map(item => {
+        const navigationItems = items.map(item => {
 
-                const active =
-                    isActiveLink(item.href);
+            const active = isActiveLink(item.href);
 
-                return `
-                    <a class="genz-nav-item${active ? " active" : ""}" href="${escapeHTML(item.href)}" data-genz-nav-link="true">
-                        <span class="genz-nav-icon">${item.icon || ""}</span>
-                        <span class="genz-nav-label">${escapeHTML(item.label)}</span>
-                    </a>
-                `;
+            return `
+                <a class="genz-nav-item${active ? " active" : ""}" href="${escapeHTML(item.href)}" data-genz-nav-link="true">
+                    <span class="genz-nav-icon">${item.icon || ""}</span>
+                    <span class="genz-nav-label">${escapeHTML(item.label)}</span>
+                </a>
+            `;
 
-            }).join("");
+        }).join("");
 
 
         container.innerHTML = `
@@ -987,12 +525,9 @@
         navigationReady = true;
 
         if (navigationReadyResolve) {
-
             navigationReadyResolve(true);
             navigationReadyResolve = null;
-
         }
-
     }
 
 
@@ -1005,88 +540,59 @@
         const logoutButton = document.getElementById("genz-logout-button");
 
         function openMobileNavigation() {
-
             if (!sidebar) return;
-
             sidebar.classList.add("open");
             if (overlay) overlay.classList.add("active");
             if (toggle) toggle.setAttribute("aria-expanded", "true");
             document.body.classList.add("genz-nav-open");
-
         }
 
         function closeMobileNavigation() {
-
             if (sidebar) sidebar.classList.remove("open");
             if (overlay) overlay.classList.remove("active");
             if (toggle) toggle.setAttribute("aria-expanded", "false");
             document.body.classList.remove("genz-nav-open");
-
         }
 
         if (toggle) {
-
             toggle.addEventListener("click", event => {
-
                 event.preventDefault();
-
                 if (sidebar && sidebar.classList.contains("open")) {
-
                     closeMobileNavigation();
-
                 } else {
-
                     openMobileNavigation();
-
                 }
-
             });
-
         }
 
         if (closeButton) {
-
             closeButton.addEventListener("click", event => {
-
                 event.preventDefault();
                 closeMobileNavigation();
-
             });
-
         }
 
         if (overlay) {
-
             overlay.addEventListener("click", closeMobileNavigation);
-
         }
 
         document
             .querySelectorAll("[data-genz-nav-link='true']")
             .forEach(link => {
-
                 link.addEventListener("click", () => {
-
                     closeMobileNavigation();
-
                 });
-
             });
 
         if (logoutButton) {
-
             logoutButton.addEventListener("click", logoutUser);
-
         }
 
         if (!documentKeydownBound) {
-
             documentKeydownBound = true;
 
             document.addEventListener("keydown", event => {
-
                 if (event.key === "Escape") {
-
                     const currentSidebar = document.getElementById("genz-sidebar");
                     const currentOverlay = document.getElementById("genz-sidebar-overlay");
                     const currentToggle = document.getElementById("genz-mobile-toggle");
@@ -1096,26 +602,13 @@
                     if (currentToggle) currentToggle.setAttribute("aria-expanded", "false");
 
                     document.body.classList.remove("genz-nav-open");
-
                 }
-
             });
-
         }
-
     }
 
 
-    /* =====================================================
-       LOGOUT (BYPASS GoTrueClient)
-    ===================================================== */
-
     async function logoutUser() {
-
-        /*
-         * Jangan panggil supabase.auth.signOut() karena hang.
-         * Cukup hapus session dari localStorage.
-         */
 
         clearSessionStorage();
 
@@ -1126,40 +619,21 @@
         syncNavigationGlobals();
 
         if (!isLoginPage()) {
-
             window.location.href = LOGIN_PATH;
-
         }
-
     }
 
-
-    /* =====================================================
-       AUTH LISTENER (DINONAKTIFKAN)
-       -----------------------------------------------------
-       FIX: onAuthStateChange ditiadakan karena method auth.*
-       pada client yang rusak akan hang.
-       Perubahan auth ditangani secara manual.
-    ===================================================== */
 
     function setupAuthListener() {
-
         /* no-op */
-
     }
 
-
-    /* =====================================================
-       AUTH VALIDATION
-    ===================================================== */
 
     async function validateAuthentication() {
 
-        const { session, user } =
-            await getSessionWithRetry();
+        const { session, user } = await getSessionWithRetry();
 
         if (!session || !user) {
-
             currentUser = null;
             currentProfile = null;
             currentRole = "user";
@@ -1167,63 +641,42 @@
             syncNavigationGlobals();
 
             if (!isLoginPage()) {
-
                 window.location.href = LOGIN_PATH;
-
             }
 
             return false;
-
         }
 
         currentUser = user;
 
-        const profile =
-            await loadProfile(user.id);
+        const profile = await loadProfile(user.id);
 
         if (profile) {
-
             currentProfile = profile;
             currentRole = normalizeRole(profile.role);
 
             syncNavigationGlobals();
 
             if (!isProfileActive(profile)) {
-
                 await logoutUser();
                 return false;
-
             }
-
         } else {
-
             currentProfile = null;
             currentRole = "user";
 
             syncNavigationGlobals();
-
         }
 
         return true;
-
     }
 
 
-    /* =====================================================
-       STYLE INJECTION
-    ===================================================== */
-
     function injectStyles() {
 
-        if (document.getElementById(STYLE_ID)) {
+        if (document.getElementById(STYLE_ID)) return;
 
-            return;
-
-        }
-
-        const style =
-            document.createElement("style");
-
+        const style = document.createElement("style");
         style.id = STYLE_ID;
 
         style.textContent = `
@@ -1339,6 +792,7 @@
                 flex-direction: column;
                 gap: 4px;
                 padding: 8px 10px 16px;
+                overflow-y: auto;
             }
 
             .genz-nav-item {
@@ -1530,51 +984,36 @@
         `;
 
         document.head.appendChild(style);
-
     }
 
-
-    /* =====================================================
-       INITIALIZE
-    ===================================================== */
 
     async function initialize() {
 
         injectStyles();
 
         if (isLoginPage()) {
-
             navigationReady = true;
 
             if (navigationReadyResolve) {
-
                 navigationReadyResolve(true);
                 navigationReadyResolve = null;
-
             }
 
             return;
-
         }
 
         try {
-
-            const authenticated =
-                await validateAuthentication();
+            const authenticated = await validateAuthentication();
 
             if (!authenticated) {
-
                 navigationReady = false;
 
                 if (navigationReadyResolve) {
-
                     navigationReadyResolve(false);
                     navigationReadyResolve = null;
-
                 }
 
                 return;
-
             }
 
             syncNavigationGlobals();
@@ -1584,37 +1023,22 @@
             navigationReady = true;
 
             if (navigationReadyResolve) {
-
                 navigationReadyResolve(true);
                 navigationReadyResolve = null;
-
             }
-
         } catch (error) {
-
-            debugError(
-                "[GEN-Z.AI] Navigation initialization error:",
-                error
-            );
+            debugError("[GEN-Z.AI] Navigation initialization error:", error);
 
             navigationReady = false;
             syncNavigationGlobals();
 
             if (navigationReadyResolve) {
-
                 navigationReadyResolve(false);
                 navigationReadyResolve = null;
-
             }
-
         }
-
     }
 
-
-    /* =====================================================
-       PUBLIC API
-    ===================================================== */
 
     window.GENZNavigation = {
 
@@ -1639,25 +1063,16 @@
     };
 
 
-    window.GENZNavigationReady =
-        navigationReadyPromise;
+    window.GENZNavigationReady = navigationReadyPromise;
 
 
     syncNavigationGlobals();
 
 
     if (document.readyState === "loading") {
-
-        document.addEventListener(
-            "DOMContentLoaded",
-            initialize,
-            { once: true }
-        );
-
+        document.addEventListener("DOMContentLoaded", initialize, { once: true });
     } else {
-
         initialize();
-
     }
 
 })();
