@@ -153,15 +153,19 @@ jobs:
           ls -lh final.jpg
 
       - name: Upload to Supabase Storage
-  id: upload
-  env:
-    SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
-    SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
-    HISTORY_ID: ${{ inputs.history_id }}
-  run: |
-    FILENAME="upscale-photo-${HISTORY_ID}-$(date +%s).jpg"
-    BUCKET="dashboard-videos"
-    KEY="upscale-photos/outputs/${FILENAME}"
+        id: upload
+        env:
+          SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          HISTORY_ID: ${{ inputs.history_id }}
+        run: |
+          FILENAME="upscale-photo-${HISTORY_ID}-$(date +%s).jpg"
+          BUCKET="dashboard-videos"
+          KEY="upscale-photos/outputs/${FILENAME}"
+
+          echo "Uploading to Supabase: ${BUCKET}/${KEY}..."
+          ls -lh final.jpg
+
           HTTP_CODE=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
             -X POST \
             "${SUPABASE_URL}/storage/v1/object/${BUCKET}/${KEY}" \
@@ -171,10 +175,12 @@ jobs:
             -H "x-upsert: true" \
             --data-binary @final.jpg)
 
-          echo "HTTP: ${HTTP_CODE}"
+          echo "HTTP status: ${HTTP_CODE}"
+          echo "Response body:"
+          cat /tmp/resp.txt
 
           if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-            cat /tmp/resp.txt
+            echo "Upload gagal dengan status ${HTTP_CODE}"
             exit 1
           fi
 
@@ -201,6 +207,8 @@ jobs:
               \"result_url\": \"${PUBLIC_URL}\",
               \"completed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
             }"
+
+          echo "History row updated (success)."
 
       - name: Refund on failure
         if: failure()
