@@ -1660,3 +1660,195 @@ footer span {
             none !important;
     }
 }
+
+
+/* =========================================================
+   LEGACY DASHBOARD MARKUP
+========================================================= */
+
+#dashboardApp {
+    padding-top: 95px;
+}
+
+#dashboardHeader .subtitle {
+    margin: 14px 0 0;
+    color: var(--gza-text-2);
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.hero {
+    position: relative;
+    overflow: hidden;
+    padding: 25px 27px;
+    margin-bottom: 30px;
+    border: 1px solid var(--gza-border);
+    border-radius: var(--gza-radius);
+    background:
+        linear-gradient(
+            110deg,
+            rgba(255,48,48,0.065),
+            rgba(255,255,255,0.018) 50%,
+            rgba(255,255,255,0.01)
+        );
+    box-shadow:
+        var(--gza-shadow),
+        inset 0 1px 0 rgba(255,255,255,0.025);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.hero::before {
+    left: 0;
+    top: 17px;
+    bottom: 17px;
+    width: 2px;
+    height: auto;
+    background: var(--gza-red);
+    box-shadow: 0 0 15px rgba(255,48,48,0.6);
+}
+
+.hero::after {
+    content: none;
+}
+
+.hero-top {
+    flex-wrap: wrap;
+}
+
+.system-status {
+    color: #dfe1e5;
+}
+
+.status-dot {
+    background: var(--gza-green);
+    box-shadow:
+        0 0 8px rgba(40,233,139,0.75),
+        0 0 18px rgba(40,233,139,0.35);
+}
+
+.section-title {
+    margin: 30px 0 14px;
+    color: #f5f6f8;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    text-shadow: none;
+}
+
+#statsGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 13px;
+}
+
+.stat-card .stat-label {
+    color: var(--gza-text-3);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+}
+
+.stat-card .stat-value {
+    margin-top: 11px;
+    color: #fff;
+    font-size: clamp(28px, 3vw, 38px);
+    line-height: 1;
+    letter-spacing: -0.055em;
+}
+
+.stat-card .stat-note {
+    color: var(--gza-text-3);
+}
+
+#accountActivityGrid .account-email {
+    color: #f4f5f7;
+    font-size: 13px;
+    font-weight: 750;
+}
+
+#accountActivityGrid .account-name {
+    color: var(--gza-text-3);
+    font-size: 10px;
+    font-weight: 400;
+}
+
+#accountActivityGrid .account-role {
+    padding: 5px 8px;
+    border: 1px solid rgba(255,48,48,0.16);
+    border-radius: 999px;
+    color: #ff7070;
+    background: rgba(255,48,48,0.045);
+}
+
+#accountActivityGrid .account-meta {
+    color: var(--gza-text-3);
+    font-size: 10px;
+}
+
+#accountActivityGrid .account-meta strong {
+    color: #dfe1e5;
+}
+
+#accountActivityGrid .account-activity-count {
+    color: var(--gza-text-3);
+}
+
+#accountActivityGrid .account-activity-count.active {
+    color: var(--gza-green);
+}
+
+.account-empty {
+    padding: 30px;
+    border: 1px dashed var(--gza-border);
+    border-radius: 15px;
+    color: var(--gza-text-3);
+    background: rgba(255,255,255,0.012);
+    text-align: center;
+}
+
+.columns {
+    gap: 13px;
+}
+
+.panel-title {
+    margin-bottom: 14px;
+    color: #f4f5f7;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.info-label {
+    color: var(--gza-text-3);
+    font-size: 10px;
+}
+
+.info-value {
+    color: #dfe1e5;
+    font-size: 10px;
+}
+
+.info-row .info-value.online {
+    color: var(--gza-green);
+}
+
+.footer {
+    color: var(--gza-text-3);
+}
+
+@media (max-width: 1150px) {
+    #statsGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 650px) {
+    #dashboardApp {
+        padding-top: 85px;
+    }
+
+    #statsGrid,
+    #accountActivityGrid {
+        grid-template-columns: 1fr;
+    }
+}

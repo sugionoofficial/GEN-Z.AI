@@ -14,28 +14,28 @@
         }
 
         :root {
-            --text: #171717;
-            --text-strong: #0b0b0b;
-            --muted: #666b73;
-            --muted-light: #858990;
+            --text: #e5e7eb;
+            --text-strong: #f9fafb;
+            --muted: #a1a1aa;
+            --muted-light: #71717a;
             --accent: #ff1744;
             --accent-2: #ff4567;
-            --accent-dark: #d9002f;
-            --success: #0b9f5b;
+            --accent-dark: #ff536d;
+            --success: #36d399;
         }
 
         html {
             min-height: 100%;
-            background: linear-gradient(135deg, #ffffff 0%, #f3f3f3 38%, #e5e5e5 72%, #f8f8f8 100%);
+            background: #050608;
         }
 
         body {
             font-family: Inter, Arial, Helvetica, sans-serif;
             background:
-                radial-gradient(circle at 8% 8%, rgba(255,23,68,.08), transparent 25%),
-                radial-gradient(circle at 92% 18%, rgba(255,23,68,.055), transparent 24%),
-                radial-gradient(circle at 50% 100%, rgba(0,0,0,.045), transparent 38%),
-                linear-gradient(135deg, #ffffff 0%, #f1f1f1 45%, #dedede 100%);
+                radial-gradient(circle at 8% 8%, rgba(255,23,68,.12), transparent 25%),
+                radial-gradient(circle at 92% 18%, rgba(255,23,68,.08), transparent 24%),
+                radial-gradient(circle at 50% 100%, rgba(255,255,255,.035), transparent 38%),
+                linear-gradient(135deg, #050608 0%, #0b0d11 45%, #08090c 100%);
             color: var(--text);
             min-height: 100vh;
             overflow-x: hidden;
@@ -69,7 +69,7 @@
             font-size: clamp(28px, 4vw, 46px);
             letter-spacing: -1.5px;
             line-height: 1;
-            text-shadow: 0 1px 0 rgba(255,255,255,.8);
+            text-shadow: 0 1px 0 rgba(0,0,0,.35);
         }
 
         .subtitle {
@@ -80,7 +80,7 @@
 
         .role-badge {
             border: 1px solid var(--accent);
-            background: linear-gradient(135deg, rgba(255,23,68,.10), rgba(255,255,255,.9));
+            background: linear-gradient(135deg, rgba(255,23,68,.16), rgba(255,255,255,.035));
             color: var(--accent-dark);
             padding: 9px 14px;
             border-radius: 100px;
@@ -92,8 +92,8 @@
         .hero {
             position: relative;
             overflow: hidden;
-            background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(239,239,239,.96));
-            border: 1px solid var(--accent);
+            background: linear-gradient(135deg, rgba(18,20,25,.97), rgba(10,11,15,.97));
+            border: 1px solid rgba(255,23,68,.55);
             border-radius: 24px;
             padding: 27px;
             margin-bottom: 25px;
@@ -101,7 +101,7 @@
                 0 14px 35px rgba(0,0,0,.10),
                 0 0 8px rgba(255,23,68,.45),
                 0 0 22px rgba(255,23,68,.18),
-                inset 0 1px 0 rgba(255,255,255,1);
+                inset 0 1px 0 rgba(255,255,255,.06);
         }
 
         .hero::before {
@@ -141,7 +141,7 @@
             align-items: center;
             gap: 10px;
             font-size: 13px;
-            color: #242424;
+            color: var(--text);
             font-weight: 650;
         }
 
@@ -177,8 +177,8 @@
         .stat-card {
             position: relative;
             overflow: hidden;
-            background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(239,239,239,.96));
-            border: 1px solid var(--accent);
+            background: linear-gradient(145deg, rgba(18,20,25,.97), rgba(10,11,15,.97));
+            border: 1px solid rgba(255,23,68,.45);
             border-radius: 19px;
             padding: 21px;
             min-height: 125px;
@@ -186,7 +186,7 @@
                 0 12px 30px rgba(0,0,0,.09),
                 0 0 7px rgba(255,23,68,.42),
                 0 0 18px rgba(255,23,68,.16),
-                inset 0 1px 0 rgba(255,255,255,1);
+                inset 0 1px 0 rgba(255,255,255,.05);
             transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
         }
 
@@ -206,7 +206,7 @@
                 0 18px 40px rgba(0,0,0,.13),
                 0 0 10px rgba(255,23,68,.60),
                 0 0 28px rgba(255,23,68,.25),
-                inset 0 1px 0 rgba(255,255,255,1);
+                inset 0 1px 0 rgba(255,255,255,.07);
         }
 
         .stat-label {
@@ -241,15 +241,15 @@
             cursor: pointer;
             text-decoration: none;
             color: inherit;
-            background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(238,238,238,.95));
-            border: 1px solid var(--accent);
+            background: linear-gradient(145deg, rgba(18,20,25,.97), rgba(10,11,15,.97));
+            border: 1px solid rgba(255,23,68,.4);
             border-radius: 19px;
             padding: 19px;
             box-shadow:
                 0 12px 30px rgba(0,0,0,.08),
                 0 0 7px rgba(255,23,68,.40),
                 0 0 18px rgba(255,23,68,.14),
-                inset 0 1px 0 rgba(255,255,255,1);
+                inset 0 1px 0 rgba(255,255,255,.05);
             transition: transform .22s ease, box-shadow .22s ease;
             display: block;
         }
@@ -348,7 +348,7 @@
         }
 
         .account-activity-count.active {
-            color: #087b47;
+            color: #34d399;
             font-weight: 750;
         }
 
@@ -359,7 +359,7 @@
             color: var(--muted);
             border: 1px dashed rgba(255,23,68,.35);
             border-radius: 18px;
-            background: rgba(255,255,255,.55);
+            background: rgba(255,255,255,.025);
         }
 
         .columns {
@@ -371,15 +371,15 @@
         .panel {
             position: relative;
             overflow: hidden;
-            background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(237,237,237,.96));
-            border: 1px solid var(--accent);
+            background: linear-gradient(145deg, rgba(18,20,25,.97), rgba(10,11,15,.97));
+            border: 1px solid rgba(255,23,68,.45);
             border-radius: 20px;
             padding: 22px;
             box-shadow:
                 0 12px 30px rgba(0,0,0,.09),
                 0 0 8px rgba(255,23,68,.42),
                 0 0 20px rgba(255,23,68,.15),
-                inset 0 1px 0 rgba(255,255,255,1);
+                inset 0 1px 0 rgba(255,255,255,.05);
         }
 
         .panel::before {
@@ -417,7 +417,7 @@
         }
 
         .info-value {
-            color: #262626;
+            color: var(--text);
             font-weight: 650;
             text-align: right;
         }
@@ -496,6 +496,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="./css/dashboard-premium.css">
 </head>
 
 <body>
@@ -510,20 +511,20 @@
 
     <div id="navigation"></div>
 
-    <main>
+    <main id="dashboardApp">
 
         <!-- =====================================================
              HEADER
         ====================================================== -->
 
-        <section class="header">
+        <section class="header" id="dashboardHeader">
 
             <div>
                 <div class="eyebrow">Control Center</div>
                 <h1>Dashboard</h1>
-                <div class="subtitle">
+                <p class="subtitle">
                     Monitoring seluruh progres aplikasi GEN-Z.AI
-                </div>
+                </p>
             </div>
 
             <div class="role-badge" id="roleBadge">
@@ -558,7 +559,7 @@
             Application Overview
         </div>
 
-        <section class="stats">
+        <section class="stats" id="statsGrid">
 
             <div class="stat-card">
                 <div class="stat-label">Total Users</div>
