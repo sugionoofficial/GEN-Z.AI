@@ -688,7 +688,7 @@
            VIDEO RESULT
         ================================================= */
 
-        return `
+                return `
             <div
                 class="history-thumbnail video-ready"
                 data-video-url="${safeUrl}"
@@ -702,7 +702,7 @@
                     src="${safeUrl}"
                     muted
                     playsinline
-                    preload="metadata"
+                    preload="none"
                     class="thumbnail-media"
                 ></video>
 
@@ -2069,43 +2069,21 @@
 
     function preloadThumbnailVideos() {
 
-        const elements =
-            getElements();
+    /*
+     * DISABLED — Jangan paksa load semua video thumbnail.
+     *
+     * Sebelumnya fungsi ini memanggil video.load() untuk
+     * SEMUA thumbnail, yang memicu ratusan HTTP request
+     * ke file .mp4 sekaligus.
+     *
+     * Browser modern sudah otomatis load video saat
+     * masuk viewport ketika preload="metadata".
+     *
+     * Biarkan browser yang mengatur kapan load.
+     */
 
-        if (
-            !elements.historyBody
-        ) {
-            return;
-        }
-
-
-        const videos =
-            elements.historyBody
-                .querySelectorAll(
-                    ".history-thumbnail video"
-                );
-
-
-        videos.forEach(
-            function (video) {
-
-                try {
-
-                    video.load();
-
-                } catch (error) {
-
-                    console.warn(
-                        "[GEN-Z.AI History] " +
-                        "Video thumbnail preload failed:",
-                        error
-                    );
-
-                }
-
-            }
-        );
-    }
+    return;
+}
 
 
     App.preloadThumbnailVideos =
