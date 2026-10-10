@@ -821,6 +821,7 @@
             var state = {
                 profiles: [],
                 activeUserIds: new Set(),
+                currentSessionUserId: "",
                 searchTerm: "",
                 refreshTimer: null
             };
@@ -1090,6 +1091,7 @@
 
                     var userId = String(profile.id || "");
                     var active = activeUserIds.has(userId);
+                    var isCurrentSession = userId === state.currentSessionUserId;
 
                     var email = escapeHtml(profile.email || "Email tidak tersedia");
                     var name = escapeHtml(profile.name || "Tanpa nama");
@@ -1109,7 +1111,7 @@
 
                         '<div class="account-head">' +
                             '<div class="account-main">' +
-                                '<span class="account-light ' + (active ? "active" : "") + '" aria-hidden="true"></span>' +
+                                '<span class="account-light ' + (active || isCurrentSession ? "active" : "") + '" aria-hidden="true"></span>' +
                                 '<div>' +
                                     '<div class="account-email">' + email + '</div>' +
                                     '<div class="account-name">' + name + '</div>' +
@@ -1180,6 +1182,7 @@
                 }
 
                 var user = session.user;
+                state.currentSessionUserId = String(user.id || "");
 
                 /* PROFILE */
                 var profile;
