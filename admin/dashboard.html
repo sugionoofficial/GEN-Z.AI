@@ -765,14 +765,114 @@
             word-break: break-word;
         }
 
-        .activity-prompt {
+        /* =========================================================
+           ACTIVITY PROMPT — COLLAPSIBLE
+           ---------------------------------------------------------
+           Default: hanya tampil ~3 baris pertama + fade.
+           Klik tombol untuk expand, klik lagi untuk collapse.
+        ========================================================= */
+
+        .activity-prompt-block {
             margin-top: 10px;
-            padding: 10px;
+
+            border:
+                1px solid rgba(255,255,255,.08);
 
             border-radius: 10px;
 
             background:
                 rgba(0,0,0,.25);
+
+            overflow: hidden;
+
+            transition:
+                border-color .2s ease;
+        }
+
+        .activity-prompt-block.expanded {
+            border-color:
+                rgba(255,23,68,.28);
+        }
+
+        .activity-prompt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+
+            padding: 9px 12px;
+
+            border-bottom:
+                1px solid rgba(255,255,255,.05);
+
+            background:
+                rgba(255,255,255,.02);
+        }
+
+        .activity-prompt-label {
+            color: #858585;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+        }
+
+        .activity-prompt-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+
+            padding: 4px 9px;
+
+            border:
+                1px solid rgba(255,23,68,.35);
+
+            border-radius: 100px;
+
+            background:
+                rgba(255,23,68,.06);
+
+            color: #ff6680;
+
+            font-family: inherit;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: .4px;
+
+            cursor: pointer;
+
+            transition:
+                background .2s ease,
+                border-color .2s ease,
+                color .2s ease;
+        }
+
+        .activity-prompt-toggle:hover {
+            background:
+                rgba(255,23,68,.14);
+
+            border-color:
+                rgba(255,23,68,.55);
+
+            color: #ff8899;
+        }
+
+        .activity-prompt-toggle-icon {
+            display: inline-block;
+            transition: transform .25s ease;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .activity-prompt-text {
+            position: relative;
+
+            max-height: 68px;
+
+            padding: 10px 12px;
 
             color: #bdbdbd;
 
@@ -781,6 +881,65 @@
 
             word-break: break-word;
             white-space: pre-wrap;
+
+            overflow: hidden;
+
+            transition:
+                max-height .35s ease;
+        }
+
+        .activity-prompt-text::after {
+            content: "";
+
+            position: absolute;
+
+            left: 0;
+            right: 0;
+            bottom: 0;
+
+            height: 32px;
+
+            background:
+                linear-gradient(
+                    to bottom,
+                    transparent 0%,
+                    rgba(0,0,0,.85) 100%
+                );
+
+            pointer-events: none;
+
+            opacity: 1;
+
+            transition:
+                opacity .25s ease;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-text {
+            max-height: 320px;
+
+            overflow-y: auto;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-text::after {
+            opacity: 0;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-text::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-text::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,.18);
+            border-radius: 10px;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-text::-webkit-scrollbar-track {
+            background: transparent;
         }
 
         .activity-actions {
@@ -1449,9 +1608,6 @@
 
             /*
              * Satu client global untuk dashboard dan Account Activity.
-             * Sebelumnya Account Activity mencoba memakai variabel
-             * supabaseClient yang sebenarnya hanya hidup di dalam
-             * loadDashboard().
              */
             let dashboardSupabaseClient = null;
 
@@ -1654,43 +1810,31 @@
 
                 try {
 
-                    /* =================================================
-   ACCOUNT ACTIVITY QUERIES — PARALLEL + LIMITED
-   -------------------------------------------------
-   PATCH:
-   - Pakai Promise.all() supaya parallel.
-   - Profiles: limit 100 (bukan semua).
-   - History: select kolom spesifik (bukan "*"),
-     limit 500.
-   - Kolom history dibatasi ke yang benar-benar
-     dipakai di UI.
-================================================== */
+                    const [profileResult, historyResult] = await Promise.all([
 
-const [profileResult, historyResult] = await Promise.all([
+                        dashboardSupabaseClient
+                            .from("profiles")
+                            .select("id,name,email,role,credits,status")
+                            .order("email", { ascending: true })
+                            .limit(100),
 
-    dashboardSupabaseClient
-        .from("profiles")
-        .select("id,name,email,role,credits,status")
-        .order("email", { ascending: true })
-        .limit(100),
+                        dashboardSupabaseClient
+                            .from("generation_history")
+                            .select(
+                                "id,user_id,status,model_id,model_name," +
+                                "provider_name,task_id,prompt,credit_cost,created_at"
+                            )
+                            .order("created_at", { ascending: false })
+                            .limit(500)
+                    ]);
 
-    dashboardSupabaseClient
-        .from("generation_history")
-        .select(
-            "id,user_id,status,model_id,model_name," +
-            "provider_name,task_id,prompt,credit_cost,created_at"
-        )
-        .order("created_at", { ascending: false })
-        .limit(500)
-]);
+                    if (profileResult.error) {
+                        throw profileResult.error;
+                    }
 
-if (profileResult.error) {
-    throw profileResult.error;
-}
-
-if (historyResult.error) {
-    throw historyResult.error;
-}
+                    if (historyResult.error) {
+                        throw historyResult.error;
+                    }
 
                     accountActivityState.profiles =
                         Array.isArray(
@@ -2168,8 +2312,27 @@ if (historyResult.error) {
                         ${
                             prompt
                                 ? `
-                                    <div class="activity-prompt">
-                                        ${prompt}
+                                    <div class="activity-prompt-block">
+                                        <div class="activity-prompt-header">
+                                            <span class="activity-prompt-label">
+                                                Prompt
+                                            </span>
+                                            <button
+                                                type="button"
+                                                class="activity-prompt-toggle"
+                                                aria-expanded="false"
+                                            >
+                                                <span class="activity-prompt-toggle-label">
+                                                    Lihat selengkapnya
+                                                </span>
+                                                <span class="activity-prompt-toggle-icon">
+                                                    ▾
+                                                </span>
+                                            </button>
+                                        </div>
+                                        <div class="activity-prompt-text">
+                                            ${prompt}
+                                        </div>
                                     </div>
                                 `
                                 : ""
@@ -2200,10 +2363,12 @@ if (historyResult.error) {
             }
 
             /* =====================================================
-               CANCEL BUTTONS
+               CANCEL BUTTONS + PROMPT TOGGLE
             ====================================================== */
 
             function bindCancelButtons() {
+
+                /* -------- Cancel Generate -------- */
 
                 document
                     .querySelectorAll(
@@ -2221,6 +2386,58 @@ if (historyResult.error) {
                                     await cancelGeneration(
                                         button.dataset.historyId,
                                         button
+                                    );
+                                }
+                            );
+                        }
+                    );
+
+                /* -------- Prompt Toggle -------- */
+
+                document
+                    .querySelectorAll(
+                        ".activity-prompt-toggle"
+                    )
+                    .forEach(
+                        toggle => {
+
+                            toggle.addEventListener(
+                                "click",
+                                event => {
+
+                                    event.preventDefault();
+                                    event.stopPropagation();
+
+                                    const block =
+                                        toggle.closest(
+                                            ".activity-prompt-block"
+                                        );
+
+                                    if (!block) return;
+
+                                    const isExpanded =
+                                        block.classList.toggle(
+                                            "expanded"
+                                        );
+
+                                    const label =
+                                        toggle.querySelector(
+                                            ".activity-prompt-toggle-label"
+                                        );
+
+                                    if (label) {
+
+                                        label.textContent =
+                                            isExpanded
+                                                ? "Sembunyikan"
+                                                : "Lihat selengkapnya";
+                                    }
+
+                                    toggle.setAttribute(
+                                        "aria-expanded",
+                                        isExpanded
+                                            ? "true"
+                                            : "false"
                                     );
                                 }
                             );
@@ -2580,108 +2797,81 @@ if (historyResult.error) {
                 );
 
                 /* =================================================
-   STATS — PARALLEL + SERVER-SIDE AGGREGATE
-   -------------------------------------------------
-   PATCH: 4 query sequential → 4 parallel.
-   - Pakai {count: "exact", head: true} supaya
-     Supabase hanya kirim count, tidak fetch data.
-   - Total credits pakai RPC (server-side SUM).
-   - Total waktu = query paling lambat, bukan
-     total semua query.
-================================================== */
+                   STATS
+                ================================================== */
 
-const statsStart = performance.now();
+                const statsStart = performance.now();
 
-const [
-    totalUsersResult,
-    activeUsersResult,
-    totalGenerationsResult,
-    totalCreditsResult
-] = await Promise.all([
+                const [
+                    totalUsersResult,
+                    activeUsersResult,
+                    totalGenerationsResult,
+                    totalCreditsResult
+                ] = await Promise.all([
 
-    /* 1. Total users — hanya count */
-    dashboardSupabaseClient
-        .from("profiles")
-        .select("id", { count: "exact", head: true }),
+                    dashboardSupabaseClient
+                        .from("profiles")
+                        .select("id", { count: "exact", head: true }),
 
-    /* 2. Active users — hanya count */
-    dashboardSupabaseClient
-        .from("profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "active"),
+                    dashboardSupabaseClient
+                        .from("profiles")
+                        .select("id", { count: "exact", head: true })
+                        .eq("status", "active"),
 
-    /* 3. Total generations — hanya count */
-    dashboardSupabaseClient
-        .from("generation_history")
-        .select("id", { count: "exact", head: true }),
+                    dashboardSupabaseClient
+                        .from("generation_history")
+                        .select("id", { count: "exact", head: true }),
 
-    /* 4. Total credits — server-side SUM via RPC */
-    dashboardSupabaseClient.rpc("sum_profile_credits")
-]);
+                    dashboardSupabaseClient.rpc("sum_profile_credits")
+                ]);
 
+                if (totalUsersResult.error) {
+                    console.error("[GEN-Z.AI] Total users error:", totalUsersResult.error);
+                    setText("totalUsers", "ERR");
+                } else {
+                    const totalUsers = Number(totalUsersResult.count) || 0;
+                    setText("totalUsers", totalUsers.toLocaleString("id-ID"));
+                }
 
-/* -------- TOTAL USERS -------- */
+                if (activeUsersResult.error) {
+                    console.error("[GEN-Z.AI] Active users error:", activeUsersResult.error);
+                    setText("activeUsers", "ERR");
+                } else {
+                    const activeUsers = Number(activeUsersResult.count) || 0;
+                    setText("activeUsers", activeUsers.toLocaleString("id-ID"));
+                }
 
-if (totalUsersResult.error) {
-    console.error("[GEN-Z.AI] Total users error:", totalUsersResult.error);
-    setText("totalUsers", "ERR");
-} else {
-    const totalUsers = Number(totalUsersResult.count) || 0;
-    setText("totalUsers", totalUsers.toLocaleString("id-ID"));
-}
+                if (totalGenerationsResult.error) {
+                    console.error("[GEN-Z.AI] Generation history error:", totalGenerationsResult.error);
+                    setText("totalGenerations", "ERR");
+                } else {
+                    const totalGenerations = Number(totalGenerationsResult.count) || 0;
+                    setText("totalGenerations", totalGenerations.toLocaleString("id-ID"));
+                }
 
+                if (totalCreditsResult.error) {
+                    console.error("[GEN-Z.AI] Credits error:", totalCreditsResult.error);
+                    setText("totalCredits", "ERR");
+                } else {
+                    let totalCredits = 0;
 
-/* -------- ACTIVE USERS -------- */
+                    if (typeof totalCreditsResult.data === "number") {
+                        totalCredits = totalCreditsResult.data;
+                    } else if (Array.isArray(totalCreditsResult.data)) {
+                        totalCredits = Number(totalCreditsResult.data[0]) || 0;
+                    } else {
+                        totalCredits = Number(totalCreditsResult.data) || 0;
+                    }
 
-if (activeUsersResult.error) {
-    console.error("[GEN-Z.AI] Active users error:", activeUsersResult.error);
-    setText("activeUsers", "ERR");
-} else {
-    const activeUsers = Number(activeUsersResult.count) || 0;
-    setText("activeUsers", activeUsers.toLocaleString("id-ID"));
-}
+                    setText("totalCredits", totalCredits.toLocaleString("id-ID"));
+                }
 
+                console.log(
+                    "[GEN-Z.AI Dashboard] Stats loaded in",
+                    Math.round(performance.now() - statsStart),
+                    "ms"
+                );
 
-/* -------- TOTAL GENERATIONS -------- */
-
-if (totalGenerationsResult.error) {
-    console.error("[GEN-Z.AI] Generation history error:", totalGenerationsResult.error);
-    setText("totalGenerations", "ERR");
-} else {
-    const totalGenerations = Number(totalGenerationsResult.count) || 0;
-    setText("totalGenerations", totalGenerations.toLocaleString("id-ID"));
-}
-
-
-/* -------- TOTAL CREDITS -------- */
-
-if (totalCreditsResult.error) {
-    console.error("[GEN-Z.AI] Credits error:", totalCreditsResult.error);
-    setText("totalCredits", "ERR");
-} else {
-    /*
-     * rpc() bisa return scalar atau array.
-     * Handle keduanya.
-     */
-    let totalCredits = 0;
-
-    if (typeof totalCreditsResult.data === "number") {
-        totalCredits = totalCreditsResult.data;
-    } else if (Array.isArray(totalCreditsResult.data)) {
-        totalCredits = Number(totalCreditsResult.data[0]) || 0;
-    } else {
-        totalCredits = Number(totalCreditsResult.data) || 0;
-    }
-
-    setText("totalCredits", totalCredits.toLocaleString("id-ID"));
-}
-
-
-console.log(
-    "[GEN-Z.AI Dashboard] Stats loaded in",
-    Math.round(performance.now() - statsStart),
-    "ms"
-);
                 /* =================================================
                    ACCOUNT ACTIVITY INITIAL LOAD
                 ================================================== */
@@ -2689,113 +2879,83 @@ console.log(
                 await loadAccountActivity();
 
                 /* =================================================
-   ACCOUNT ACTIVITY AUTO REFRESH — CONDITIONAL
-   -------------------------------------------------
-   PATCH:
-   - Jangan refresh kalau tab tidak aktif.
-   - Jangan refresh kalau tidak ada generation
-     yang running.
-   - Refresh 5s saat ada running, 30s saat idle.
-================================================== */
+                   ACCOUNT ACTIVITY AUTO REFRESH — CONDITIONAL
+                ================================================== */
 
-function hasAnyRunningGeneration() {
-    return accountActivityState.history.some(
-        item => isRunningGeneration(item)
-    );
-}
+                function hasAnyRunningGeneration() {
+                    return accountActivityState.history.some(
+                        item => isRunningGeneration(item)
+                    );
+                }
 
+                async function tickAccountActivityRefresh() {
 
-async function tickAccountActivityRefresh() {
+                    if (document.hidden) {
+                        return;
+                    }
 
-    /* Skip kalau tab tidak aktif */
-    if (document.hidden) {
-        return;
-    }
+                    if (!hasAnyRunningGeneration()) {
+                        return;
+                    }
 
-    /* Skip kalau tidak ada running */
-    if (!hasAnyRunningGeneration()) {
-        return;
-    }
+                    try {
+                        await loadAccountActivity();
 
-    try {
-        await loadAccountActivity();
+                        if (accountActivityState.selectedUserId) {
 
-        /* Update modal kalau terbuka */
-        if (accountActivityState.selectedUserId) {
+                            const modal =
+                                document.getElementById("activityModal");
 
-            const modal =
-                document.getElementById("activityModal");
+                            if (modal && modal.classList.contains("open")) {
+                                openAccountActivity(
+                                    accountActivityState.selectedUserId
+                                );
+                            }
+                        }
 
-            if (modal && modal.classList.contains("open")) {
-                openAccountActivity(
-                    accountActivityState.selectedUserId
+                    } catch (error) {
+                        console.warn(
+                            "[GEN-Z.AI Dashboard] Refresh error:",
+                            error
+                        );
+                    }
+                }
+
+                if (accountActivityState.refreshTimer) {
+                    clearInterval(accountActivityState.refreshTimer);
+                    accountActivityState.refreshTimer = null;
+                }
+
+                let dashboardTickCounter = 0;
+
+                accountActivityState.refreshTimer =
+                    window.setInterval(
+
+                        async () => {
+
+                            dashboardTickCounter++;
+
+                            const running = hasAnyRunningGeneration();
+
+                            if (!running && dashboardTickCounter % 6 !== 0) {
+                                return;
+                            }
+
+                            await tickAccountActivityRefresh();
+
+                        },
+
+                        5000
+                    );
+
+                document.addEventListener(
+                    "visibilitychange",
+                    () => {
+                        if (!document.hidden) {
+                            tickAccountActivityRefresh();
+                        }
+                    }
                 );
-            }
-        }
-
-    } catch (error) {
-        console.warn(
-            "[GEN-Z.AI Dashboard] Refresh error:",
-            error
-        );
-    }
-}
-
-
-if (accountActivityState.refreshTimer) {
-    clearInterval(accountActivityState.refreshTimer);
-    accountActivityState.refreshTimer = null;
-}
-
-
-/*
- * Polling adaptif:
- * - Saat ada running: tiap 5 detik
- * - Saat idle: tiap 30 detik (murah)
- *
- * Tetap jalan ringan, bukan polling buta.
- */
-
-let dashboardTickCounter = 0;
-
-accountActivityState.refreshTimer =
-    window.setInterval(
-
-        async () => {
-
-            dashboardTickCounter++;
-
-            const running = hasAnyRunningGeneration();
-
-            /*
-             * Kalau ada running → tick setiap 5s (sudah default).
-             * Kalau idle → tick setiap 30s (skip 5 tick).
-             */
-
-            if (!running && dashboardTickCounter % 6 !== 0) {
-                return;
-            }
-
-            await tickAccountActivityRefresh();
-
-        },
-
-        5000
-    );
-
-
-/*
- * Pause polling saat tab tidak aktif.
- */
-
-document.addEventListener(
-    "visibilitychange",
-    () => {
-        if (!document.hidden) {
-            tickAccountActivityRefresh();
-        }
-    }
-);
 
                 console.log(
                     "[GEN-Z.AI Dashboard] FINISHED"
