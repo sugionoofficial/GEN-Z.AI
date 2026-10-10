@@ -542,9 +542,37 @@ function setStatus(
      * -----------------------------------------------------
      */
 
-    updateStatusIndicator(
+        updateStatusIndicator(
         normalized
     );
+
+
+    /* -------------------------------------------------
+       SYNC PREMIUM LOADING
+    ------------------------------------------------- */
+
+    if (
+        window.GENZVisionPremium &&
+        typeof window.GENZVisionPremium.updatePremiumLoading ===
+            "function"
+    ) {
+
+        try {
+
+            window.GENZVisionPremium.updatePremiumLoading(
+                text,
+                null,
+                null
+            );
+
+        }
+        catch (error) {
+
+            /* noop */
+
+        }
+
+    }
 
 
     return true;
@@ -1017,6 +1045,34 @@ function setProgress(
     }
 
 
+        /* -------------------------------------------------
+       SYNC PREMIUM LOADING
+    ------------------------------------------------- */
+
+    if (
+        window.GENZVisionPremium &&
+        typeof window.GENZVisionPremium.updatePremiumLoading ===
+            "function"
+    ) {
+
+        try {
+
+            window.GENZVisionPremium.updatePremiumLoading(
+                null,
+                progress,
+                null
+            );
+
+        }
+        catch (error) {
+
+            /* noop */
+
+        }
+
+    }
+
+
     return progress;
 
 }
@@ -1196,9 +1252,38 @@ function setProcessing(
      * -----------------------------------------------------
      */
 
-    if (
+        if (
         active
     ) {
+
+        /* -------------------------------------------------
+           SHOW PREMIUM LOADING
+        ------------------------------------------------- */
+
+        if (
+            window.GENZVisionPremium &&
+            typeof window.GENZVisionPremium.setPremiumLoading ===
+                "function"
+        ) {
+
+            try {
+
+                window.GENZVisionPremium.setPremiumLoading(
+                    true,
+                    "Menyiapkan proses Vision...",
+                    5,
+                    "GEN-Z.AI Image Analysis Engine"
+                );
+
+            }
+            catch (error) {
+
+                /* noop */
+
+            }
+
+        }
+
 
         let currentProgress =
             5;
@@ -1248,6 +1333,30 @@ function setProcessing(
     }
 
     else {
+
+        /* -------------------------------------------------
+           HIDE PREMIUM LOADING
+        ------------------------------------------------- */
+
+        if (
+            window.GENZVisionPremium &&
+            typeof window.GENZVisionPremium.hidePremiumLoading ===
+                "function"
+        ) {
+
+            try {
+
+                window.GENZVisionPremium.hidePremiumLoading();
+
+            }
+            catch (error) {
+
+                /* noop */
+
+            }
+
+        }
+
 
         if (
             dom.progress
