@@ -19,6 +19,9 @@
      Upload
      Credit logic
      History
+
+   UPDATE:
+   - Support tombol copy untuk panel Analysis Details
 ========================================================= */
 
 
@@ -785,11 +788,6 @@ function setProgress(
             );
 
 
-        /*
-         * Jika progress > 0 dan proses masih berjalan,
-         * pastikan container terlihat.
-         */
-
         if (
             progress > 0
         ) {
@@ -811,14 +809,6 @@ function setProgress(
     if (
         dom.progressBar
     ) {
-
-        /*
-         * Force browser melakukan layout sebelum
-         * width berikutnya diterapkan.
-         *
-         * Ini membantu transition CSS tetap berjalan
-         * ketika nilai progress berubah cepat.
-         */
 
         dom.progressBar.style.width =
             "0%";
@@ -907,7 +897,7 @@ function setProgress(
      * -----------------------------------------------------
      * PROGRESS CONTAINER DATA
      * -----------------------------------------------------
- */
+     */
 
     if (
         dom.progress
@@ -1002,7 +992,7 @@ function setProcessing(
      * -----------------------------------------------------
      * GENERATE BUTTON
      * -----------------------------------------------------
- */
+     */
 
     if (
         dom.generateButton
@@ -1032,7 +1022,7 @@ function setProcessing(
      * -----------------------------------------------------
      * SPINNER
      * -----------------------------------------------------
- */
+     */
 
     if (
         dom.generateSpinner
@@ -1048,7 +1038,7 @@ function setProcessing(
      * -----------------------------------------------------
      * PROGRESS
      * -----------------------------------------------------
- */
+     */
 
     if (
         dom.progress
@@ -1078,7 +1068,7 @@ function setProcessing(
      * -----------------------------------------------------
      * DROPZONE
      * -----------------------------------------------------
- */
+     */
 
     if (
         dom.dropzone
@@ -1104,11 +1094,6 @@ function setProcessing(
      * -----------------------------------------------------
      * START VISUAL PROGRESS
      * -----------------------------------------------------
- *
-     * Jangan mengubah nilai state.
-     *
-     * Jika progress state sudah tersedia,
-     * langsung render nilai tersebut.
      */
 
     if (
@@ -1163,14 +1148,6 @@ function setProcessing(
     }
 
     else {
-
-        /*
-         * Jangan menghapus progress 100%
-         * jika proses selesai.
-         *
-         * Caller yang memanggil setProcessing(false)
-         * akan menentukan hasil akhirnya.
-         */
 
         if (
             dom.progress
@@ -1510,6 +1487,27 @@ function showAnalysis(
     }
 
 
+    /* -------------------------------------------------
+       ANALYSIS COPY BUTTON STATE
+    ------------------------------------------------- */
+
+    if (
+        dom.analysisCopyButton
+    ) {
+
+        dom.analysisCopyButton.disabled =
+            !text;
+
+        dom.analysisCopyButton.textContent =
+            "COPY";
+
+        dom.analysisCopyButton.classList.remove(
+            "vision-copy-success"
+        );
+
+    }
+
+
     return Boolean(
         text
     );
@@ -1546,6 +1544,27 @@ function resetAnalysis() {
 
         dom.analysisDetails.hidden =
             false;
+
+    }
+
+
+    /* -------------------------------------------------
+       ANALYSIS COPY BUTTON RESET
+    ------------------------------------------------- */
+
+    if (
+        dom.analysisCopyButton
+    ) {
+
+        dom.analysisCopyButton.disabled =
+            true;
+
+        dom.analysisCopyButton.textContent =
+            "COPY";
+
+        dom.analysisCopyButton.classList.remove(
+            "vision-copy-success"
+        );
 
     }
 
@@ -1623,6 +1642,84 @@ function setCopyState(
     else {
 
         dom.copyButton.textContent =
+            "COPY";
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   ANALYSIS COPY BUTTON STATE
+========================================================= */
+
+function setAnalysisCopyState(
+    available,
+    copied = false
+) {
+
+    const dom =
+        getDOM();
+
+
+    if (
+        !dom.analysisCopyButton
+    ) {
+
+        return false;
+
+    }
+
+
+    const canCopy =
+        Boolean(
+            available
+        );
+
+
+    dom.analysisCopyButton.disabled =
+        !canCopy;
+
+
+    dom.analysisCopyButton.classList.toggle(
+        "vision-copy-success",
+        Boolean(
+            copied
+        )
+    );
+
+
+    dom.analysisCopyButton.setAttribute(
+        "aria-label",
+        copied
+            ? "Analysis copied"
+            : "Copy analysis"
+    );
+
+
+    dom.analysisCopyButton.setAttribute(
+        "title",
+        copied
+            ? "Analysis copied"
+            : "Copy analysis"
+    );
+
+
+    if (
+        copied
+    ) {
+
+        dom.analysisCopyButton.textContent =
+            "COPIED";
+
+    }
+
+    else {
+
+        dom.analysisCopyButton.textContent =
             "COPY";
 
     }
@@ -1955,7 +2052,7 @@ function initialize() {
      * -----------------------------------------------------
      * PROCESSING
      * -----------------------------------------------------
- */
+     */
 
     setProcessing(
         false
@@ -1966,7 +2063,7 @@ function initialize() {
      * -----------------------------------------------------
      * STATUS
      * -----------------------------------------------------
- */
+     */
 
     setStatus(
         VISION_UI_STATUS.IDLE
@@ -1982,7 +2079,7 @@ function initialize() {
      * -----------------------------------------------------
      * PROGRESS
      * -----------------------------------------------------
- */
+     */
 
     setProgress(
         0,
@@ -2013,7 +2110,7 @@ function initialize() {
      * -----------------------------------------------------
      * COPY
      * -----------------------------------------------------
- */
+     */
 
     setCopyState(
         false,
@@ -2025,7 +2122,7 @@ function initialize() {
      * -----------------------------------------------------
      * SPINNER
      * -----------------------------------------------------
- */
+     */
 
     if (
         dom.generateSpinner
@@ -2041,7 +2138,7 @@ function initialize() {
      * -----------------------------------------------------
      * GENERATE BUTTON
      * -----------------------------------------------------
- */
+     */
 
     if (
         dom.generateButton
@@ -2076,11 +2173,6 @@ function syncFromState() {
      * -----------------------------------------------------
      * PROCESS STATE
      * -----------------------------------------------------
-     *
-     * vision-state.js tidak menyediakan state.get().
-     *
-     * Gunakan API resmi getProcess() agar UI tetap
-     * terhubung dengan struktur state yang sebenarnya.
      */
 
     const process =
@@ -2201,6 +2293,8 @@ const GENZVisionUI =
         resetAnalysis,
 
         setCopyState,
+
+        setAnalysisCopyState,
 
         showError,
 
