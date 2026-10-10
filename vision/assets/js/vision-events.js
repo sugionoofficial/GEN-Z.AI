@@ -15,6 +15,7 @@
 // - Outfit source
 // - Generate Vision
 // - Copy prompt
+// - Copy analysis
 // - Remove reference image
 // - Remove replacement character
 // - Tidak mengubah logic API / credit / history
@@ -325,22 +326,6 @@
             );
 
 
-        /*
-         * Jangan mengubah model menjadi string.
-         *
-         * vision-state.js menyimpan model sebagai object:
-         *
-         * {
-         *     id,
-         *     name,
-         *     providerId,
-         *     providerName
-         * }
-         *
-         * Jika model lama cocok dengan select,
-         * pertahankan metadata yang sudah ada.
-         */
-
         if (
             currentModel &&
             typeof currentModel === "object" &&
@@ -398,12 +383,6 @@
             getDOM();
 
 
-        /*
-         * Outfit source bersifat opsional dari sisi
-         * DOM agar Vision tetap kompatibel apabila
-         * halaman belum memiliki kontrol outfit.
-         */
-
         if (
             !dom.outfitSource
         ) {
@@ -423,14 +402,6 @@
         }
 
 
-        /*
-         * Dukungan untuk:
-         *
-         * 1. <select>
-         * 2. radio input tunggal
-         * 3. NodeList / HTMLCollection radio
-         */
-
         let selectedValue =
             "";
 
@@ -445,11 +416,6 @@
 
         }
 
-
-        /*
-         * Jika DOM memberikan collection,
-         * cari radio yang checked.
-         */
 
         if (
             !selectedValue &&
@@ -535,16 +501,6 @@
             syncOutfitSourceToState();
 
 
-        /*
-         * Analysis gambar tidak perlu diulang.
-         *
-         * Yang berubah hanya aturan outfit yang akan
-         * digunakan ketika prompt dibuat.
-         *
-         * Prompt lama harus dibersihkan agar tidak
-         * dianggap sebagai hasil dari pilihan baru.
-         */
-
         if (
             typeof state.clearPrompt ===
             "function"
@@ -554,14 +510,6 @@
 
         }
 
-
-        /*
-         * Jika UI mempunyai fungsi untuk menyembunyikan
-         * hasil prompt lama, gunakan secara aman.
-         *
-         * Tidak dipaksa karena modul UI Anda dapat
-         * memiliki implementasi berbeda.
-         */
 
         const ui =
             getUI();
@@ -599,11 +547,6 @@
             readFormValues();
 
 
-        /*
-         * Model diproses terpisah agar state.model
-         * selalu berupa object.
-         */
-
         syncModelToState();
 
 
@@ -620,17 +563,6 @@
 
         });
 
-
-        /*
-         * Sinkronkan sumber outfit.
-         *
-         * Default tetap:
-         *
-         * reference
-         *
-         * sehingga halaman lama tetap bekerja apabila
-         * kontrol outfit belum tersedia.
-         */
 
         syncOutfitSourceToState();
 
@@ -662,14 +594,6 @@
                 false
             );
 
-
-            /*
-             * Reference image adalah sumber utama
-             * Vision analysis.
-             *
-             * Karena reference diganti, hasil analysis
-             * dan prompt lama harus dibersihkan.
-             */
 
             ui.resetResult();
 
@@ -981,18 +905,6 @@
                 );
 
 
-            /*
-             * PENTING:
-             *
-             * Jangan reset analysis.
-             * Jangan reset prompt.
-             * Jangan reset credit.
-             * Jangan reset history.
-             *
-             * Replacement character adalah input
-             * tambahan terhadap reference image.
-             */
-
             getUI().setStatus(
                 "ready",
                 "Replacement character siap digunakan."
@@ -1073,13 +985,6 @@
 
         event.stopPropagation();
 
-
-        /*
-         * Gunakan class langsung pada dropzone karakter.
-         *
-         * Reference menggunakan helper preview lama,
-         * sehingga keduanya tidak saling mempengaruhi.
-         */
 
         const dropzone =
             event.currentTarget;
@@ -1222,12 +1127,6 @@
         }
 
 
-        /*
-         * Jangan menggunakan openFilePicker()
-         * milik reference karena fungsi tersebut
-         * membuka visionFileInput.
-         */
-
         if (
             dom.characterFileInput
         ) {
@@ -1274,16 +1173,6 @@
             getPreview()
                 .clearCharacterPreview();
 
-
-            /*
-             * Jangan menghapus:
-             * - analysis
-             * - prompt
-             * - credit
-             * - history
-             *
-             * karena reference image tetap ada.
-             */
 
             getUI().setStatus(
                 "ready",
@@ -1336,6 +1225,249 @@
     function handleInstructionInput() {
 
         syncFormToState();
+
+    }
+
+
+    // =====================================================
+    // COPY ANALYSIS
+    // =====================================================
+
+    async function handleCopyAnalysis(
+        event
+    ) {
+
+        event.preventDefault();
+
+        event.stopPropagation();
+
+
+        const dom =
+            getDOM();
+
+
+        const button =
+            dom.analysisCopyButton;
+
+
+        const result =
+            dom.analysisResult;
+
+
+        if (!result) {
+
+            return;
+
+        }
+
+
+        const text =
+            String(
+                result.textContent ||
+                ""
+            ).trim();
+
+
+        if (!text) {
+
+            return;
+
+        }
+
+
+        if (
+            button &&
+            button.disabled
+        ) {
+
+            return;
+
+        }
+
+
+        let copied =
+            false;
+
+
+        try {
+
+            /* -------- PRIMARY: Clipboard API -------- */
+
+            if (
+                navigator.clipboard &&
+                typeof navigator.clipboard.writeText ===
+                    "function"
+            ) {
+
+                try {
+
+                    await navigator.clipboard.writeText(
+                        text
+                    );
+
+                    copied =
+                        true;
+
+                }
+                catch (
+                    clipboardError
+                ) {
+
+                    console.warn(
+                        "[GEN-Z.AI Vision] Clipboard API gagal, menggunakan fallback.",
+                        clipboardError
+                    );
+
+                }
+
+            }
+
+
+            /* -------- FALLBACK: execCommand -------- */
+
+            if (!copied) {
+
+                const textarea =
+                    document.createElement(
+                        "textarea"
+                    );
+
+
+                textarea.value =
+                    text;
+
+
+                textarea.setAttribute(
+                    "readonly",
+                    ""
+                );
+
+
+                textarea.style.position =
+                    "fixed";
+
+                textarea.style.left =
+                    "-9999px";
+
+                textarea.style.top =
+                    "0";
+
+                textarea.style.opacity =
+                    "0";
+
+                textarea.style.pointerEvents =
+                    "none";
+
+
+                document.body.appendChild(
+                    textarea
+                );
+
+
+                textarea.focus();
+
+                textarea.select();
+
+                textarea.setSelectionRange(
+                    0,
+                    textarea.value.length
+                );
+
+
+                try {
+
+                    copied =
+                        document.execCommand(
+                            "copy"
+                        );
+
+                }
+                catch (
+                    error
+                ) {
+
+                    copied =
+                        false;
+
+                }
+
+
+                textarea.remove();
+
+            }
+
+
+            if (!copied) {
+
+                throw new Error(
+                    "Browser menolak operasi copy."
+                );
+
+            }
+
+
+            /* -------- SUCCESS FEEDBACK -------- */
+
+            if (button) {
+
+                button.disabled =
+                    true;
+
+                button.textContent =
+                    "✓ COPIED";
+
+                button.classList.add(
+                    "vision-copy-success"
+                );
+
+
+                window.setTimeout(
+                    () => {
+
+                        button.disabled =
+                            false;
+
+                        button.textContent =
+                            "COPY";
+
+                        button.classList.remove(
+                            "vision-copy-success"
+                        );
+
+                    },
+                    1800
+                );
+
+            }
+
+        }
+        catch (error) {
+
+            console.error(
+                "[GEN-Z.AI Vision] Copy analysis gagal:",
+                error
+            );
+
+
+            if (button) {
+
+                button.textContent =
+                    "✕ FAILED";
+
+
+                window.setTimeout(
+                    () => {
+
+                        button.textContent =
+                            "COPY";
+
+                    },
+                    1800
+                );
+
+            }
+
+        }
 
     }
 
@@ -1454,10 +1586,6 @@
 
         try {
 
-            // =============================================
-            // VALIDATE
-            // =============================================
-
             validateReady();
 
 
@@ -1467,10 +1595,6 @@
             const state =
                 getState().getState();
 
-
-            // =============================================
-            // CREDIT CHECK
-            // =============================================
 
             getUI().setStatus(
                 "checking",
@@ -1497,10 +1621,6 @@
             }
 
 
-            // =============================================
-            // RESET RESULT
-            // =============================================
-
             getUI().resetResult();
 
 
@@ -1525,10 +1645,6 @@
             );
 
 
-            // =============================================
-            // DEDUCT CREDIT
-            // =============================================
-
             await getCredit().deductCredit(
                 CREDIT_COST
             );
@@ -1543,10 +1659,6 @@
 
             getUI().updateCredit();
 
-
-            // =============================================
-            // ANALYSIS
-            // =============================================
 
             getUI().setStatus(
                 "processing",
@@ -1571,15 +1683,6 @@
                 });
 
 
-            /*
-             * analyzeImage() dapat memilih model aktual
-             * dari katalog OpenKey.
-             *
-             * Karena object model dikembalikan oleh API,
-             * sinkronkan kembali state agar history dan
-             * prompt generation menggunakan model aktual.
-             */
-
             if (
                 analysisResponse?.model &&
                 typeof analysisResponse.model ===
@@ -1598,43 +1701,6 @@
             );
 
 
-            // =============================================
-            // NORMALIZE ANALYSIS
-            // =============================================
-
-            /*
-             * PENTING:
-             *
-             * vision-api-analysis.js sudah melakukan:
-             *
-             * 1. request ke provider
-             * 2. validasi quality
-             * 3. parsing JSON
-             * 4. menghasilkan:
-             *
-             *    analysisResponse.analysis
-             *
-             * Jangan memberikan seluruh API wrapper ke
-             * normalizeAnalysis() jika field analysis
-             * sudah tersedia.
-             *
-             * Sebelumnya:
-             *
-             * normalizeAnalysis(analysisResponse)
-             *
-             * dapat menyebabkan processing module
-             * mencari payload wrapper lain.
-             *
-             * Sekarang:
-             *
-             * normalizeAnalysis(
-             *     analysisResponse.analysis
-             * )
-             *
-             * menggunakan parsed analysis yang sudah
-             * lolos validateAnalysisQuality().
-             */
-
             const analysisPayload =
                 analysisResponse?.analysis &&
                 typeof analysisResponse.analysis ===
@@ -1647,11 +1713,6 @@
                             : analysisResponse
                     );
 
-
-            /*
-             * Diagnostic:
-             * memastikan payload yang benar diteruskan.
-             */
 
             console.info(
                 "[GEN-Z.AI Vision] Analysis payload selected:",
@@ -1691,14 +1752,6 @@
                     analysisPayload
                 );
 
-
-            /*
-             * Diagnostic setelah normalisasi.
-             *
-             * Jika data model benar, object ini harus
-             * tetap membawa nilai konkret dari Vision
-             * Analysis, bukan hanya schema kosong.
-             */
 
             console.info(
                 "[GEN-Z.AI Vision] Analysis normalized:",
@@ -1749,10 +1802,6 @@
             );
 
 
-            // =============================================
-            // PROMPT GENERATION
-            // =============================================
-
             getUI().setStatus(
                 "processing",
                 "Membangun ultra detailed prompt..."
@@ -1785,10 +1834,6 @@
                 );
 
 
-            // =============================================
-            // NORMALIZE PROMPT
-            // =============================================
-
             const prompt =
                 getPrompt().normalizePrompt(
                     promptResponse
@@ -1813,10 +1858,6 @@
                 88
             );
 
-
-            // =============================================
-            // SAVE HISTORY
-            // =============================================
 
             getUI().setStatus(
                 "processing",
@@ -1867,10 +1908,6 @@
             }
 
 
-            // =============================================
-            // COMPLETE
-            // =============================================
-
             getState().setProgress(
                 100
             );
@@ -1906,7 +1943,6 @@
 
             getUI().updateCredit();
 
-
         } catch (error) {
 
             const message =
@@ -1924,10 +1960,6 @@
             const state =
                 getState().getState();
 
-
-            // =============================================
-            // REFUND
-            // =============================================
 
             if (
                 creditWasDeducted === true &&
@@ -1957,10 +1989,6 @@
 
             }
 
-
-            // =============================================
-            // FAILED HISTORY
-            // =============================================
 
             try {
 
@@ -1998,10 +2026,6 @@
 
             }
 
-
-            // =============================================
-            // ERROR STATE
-            // =============================================
 
             getState().setProcessError(
                 message
@@ -2266,13 +2290,24 @@
 
 
         // ================================================
-        // COPY
+        // COPY PROMPT
         // ================================================
 
         bindEvent(
             dom.copyButton,
             "click",
             handleCopyPrompt
+        );
+
+
+        // ================================================
+        // COPY ANALYSIS
+        // ================================================
+
+        bindEvent(
+            dom.analysisCopyButton,
+            "click",
+            handleCopyAnalysis
         );
 
     }
@@ -2328,23 +2363,11 @@
         }
 
 
-        // =============================================
-        // BIND EVENTS
-        // =============================================
-
         bindEvents();
 
 
-        // =============================================
-        // SYNC FORM
-        // =============================================
-
         syncFormToState();
 
-
-        // =============================================
-        // RESTORE PREVIEW
-        // =============================================
 
         getPreview().renderFromState();
 
@@ -2407,7 +2430,9 @@
 
             handleGenerateClick,
 
-            handleCopyPrompt
+            handleCopyPrompt,
+
+            handleCopyAnalysis
 
         });
 
