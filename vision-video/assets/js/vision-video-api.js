@@ -1,4 +1,4 @@
-//vision-video/assets/js/vision-video-api.js?V=1.6
+//vision-video/assets/js/vision-video-api.js?V=1.7
 /* =========================================================
    GEN-Z.AI VISION VIDEO
    ---------------------------------------------------------
@@ -11,6 +11,16 @@
    - CHARACTER REPLACEMENT INSTRUCTION: larangan tegas
      menggambarkan orang di video.
    - PROMPT DEPTH + CHARACTER FIDELITY tetap dipertahankan.
+
+   PATCH v1.7 (2026-10-10):
+   - Temperature 0.2 -> 0.5 untuk output lebih ekspresif.
+   - maxRequestFrames 4 -> 6 supaya AI punya lebih banyak data temporal.
+   - PROMPT QUALITY — STRICT: struktur sub-section wajib
+     (KARAKTER PENGGANTI, STRUKTUR TEMPORAL, GERAKAN DAN AKSI,
+      KAMERA DAN FRAMING, LINGKUNGAN DAN PENCAHAYAAN,
+      TRANSISI DAN KONTINUITAS).
+   - Time-coded segments MANDATORY di analisis dan prompt.
+   - LENGTH REQUIREMENT: min 400 kata per section.
 ========================================================= */
 
 (function () {
@@ -26,10 +36,10 @@
 
         endpoint: "/api/openkey-chat",
         timeout: 120000,
-        defaultTemperature: 0.2,
+        defaultTemperature: 0.5,
 
         maxFrames: 32,
-        maxRequestFrames: 4,
+        maxRequestFrames: 6,
         maxImageDimension: 640,
         imageQuality: 0.45,
 
@@ -108,27 +118,85 @@
 
             "The final video generation prompt must be directly usable",
             "for reconstructing the visual appearance and motion of the source video",
-
             "with the CHARACTER REFERENCE as the subject.",
 
-            "The final prompt MUST be highly detailed and comprehensive.",
-            "Do NOT write a short summary.",
-            "Do NOT write only a few sentences.",
-            "Do NOT omit visual details that are clearly visible in the frames or the character reference.",
+            "ANALYSIS REQUIREMENT — MANDATORY STRUCTURE:",
 
-            "The final prompt MUST be written as a single, continuous, richly descriptive",
-            "prompt text, not as a bullet list, not as a table, not as markdown headings.",
-            "The final prompt MUST cover, explicitly and in detail:",
+            "Section 1 (ANALISIS VIDEO) MUST contain the following sub-sections,",
+            "each with its own heading, in this exact order:",
 
-            "1. Replacement character appearance (mandatory if character reference is supplied).",
-            "2. Subject action and pose (from the video frames).",
-            "3. Camera behavior, camera movement, and framing.",
-            "4. Composition and shot type.",
-            "5. Environment and setting.",
-            "6. Lighting and color mood.",
-            "7. Motion and temporal behavior.",
-            "8. Transitions and continuity.",
-            "9. Style, rendering, and technical visual quality.",
+            "1. KARAKTER PENGGANTI — full detailed description of the replacement character",
+            "   (if a character reference is supplied). Cover face, eyes, eyebrows, nose,",
+            "   lips, jawline, cheekbones, hairstyle, hair color, hair texture, skin tone,",
+            "   body proportions, clothing, outfit, accessories, and every visible identity-defining detail.",
+
+            "2. STRUKTUR TEMPORAL — a time-coded breakdown of the video.",
+            "   You MUST write the analysis as a sequence of time segments using this exact format:",
+
+            "   0.00s - 3.50s: <detailed description of what happens in this interval>",
+            "   3.50s - 7.20s: <detailed description of what happens in this interval>",
+            "   ... and so on for the ENTIRE video duration.",
+
+            "   Each segment MUST explicitly describe:",
+            "   - the subject's pose, posture, and body orientation,",
+            "   - the subject's facial expression and gaze direction,",
+            "   - the subject's action and movement during that interval,",
+            "   - the camera behavior during that interval,",
+            "   - any visible change from the previous segment.",
+            "   Aim for MANY segments, not a few. Do not merge long intervals into one.",
+            "   Use at least 6 segments for a 30-second video.",
+            "   Use at least 10 segments for a 60-second video.",
+            "   Use at least 4 segments for a 15-second video.",
+
+            "3. GERAKAN DAN AKSI — narrative summary of all motion across the video",
+            "   (body movement, head movement, hand movement, expression change, gaze shift,",
+            "   mouth movement, blinking, breathing, weight shift, gesture, posture change).",
+
+            "4. KAMERA DAN FRAMING — full description of camera type, angle, height,",
+            "   distance, lens behavior, depth of field, focus behavior, movement",
+            "   (static / pan / tilt / dolly / handheld / zoom / tracking), and composition rule.",
+
+            "5. LINGKUNGAN DAN PENCAHAYAAN — full description of environment, background,",
+            "   props, color palette, light source direction, quality (hard/soft),",
+            "   temperature (warm/cool), contrast, and shadows.",
+
+            "6. TRANSISI DAN KONTINUITAS — description of any cuts, transitions,",
+            "   continuity of clothing / pose / environment, and any temporal anomalies.",
+
+            "Do NOT collapse these sub-sections into one paragraph.",
+            "Do NOT skip any sub-section.",
+            "Each sub-section MUST be multiple sentences.",
+
+            "PROMPT REQUIREMENT — MANDATORY STRUCTURE:",
+
+            "Section 2 (PROMPT REKONSTRUKSI) MUST contain a long, detailed, time-coded",
+            "video generation prompt. The prompt MUST be structured as follows:",
+
+            "- A short opening sentence introducing the subject (the replacement character),",
+            "  the environment, and the overall visual style.",
+
+            "- A full paragraph explicitly describing the replacement character's appearance,",
+            "  including face, eyes, eyebrows, nose, lips, jawline, cheekbones, hairstyle,",
+            "  hair color, hair texture, skin tone, body proportions, clothing, outfit details,",
+            "  accessories, and every identity-defining visual detail.",
+
+            "- A time-coded sequence of segments describing what happens over time, in this format:",
+
+            "  0.00s - 3.50s: <description of pose, motion, expression, camera, environment>",
+            "  3.50s - 7.20s: <description of pose, motion, expression, camera, environment>",
+            "  ... covering the ENTIRE video duration.",
+
+            "  Each time segment in the prompt MUST be at least 2 sentences.",
+            "  Do NOT reduce the time segments to single short phrases.",
+
+            "- A closing paragraph describing camera behavior, lighting, color grading,",
+            "  motion quality, depth of field, film grain, technical rendering quality,",
+            "  and overall visual style.",
+
+            "The prompt MUST be long, specific, technical, and complete.",
+            "The prompt MUST NOT be a summary.",
+            "The prompt MUST be usable as-is in an AI video generation model,",
+            "such as Sora, Runway, Kling, or similar systems.",
 
             "Preserve clothing, accessories, and physical appearance FROM THE CHARACTER REFERENCE.",
             "Preserve environment, composition, camera behavior, camera movement, framing, lighting,",
@@ -198,25 +266,41 @@
         systemInstructionOutputFormat: [
             "OUTPUT FORMAT REQUIREMENT:",
             "You MUST return your answer as plain text with EXACTLY two sections separated by a single separator line.",
+
             "Section 1 is the video analysis.",
             "Begin Section 1 with a heading line containing exactly the text: ANALISIS VIDEO",
-            "Then write the complete video analysis on the following lines.",
+            "Then write the complete video analysis as described in ANALYSIS REQUIREMENT.",
+
             "The separator line must appear on its own line, containing exactly this text and nothing else:",
             "=== PROMPT REKONSTRUKSI ===",
+
             "Section 2 is the final video generation prompt.",
-            "After the separator line, write the final video generation prompt.",
+            "After the separator line, write the final video generation prompt as described in PROMPT REQUIREMENT.",
+
             "STRICT RULES FOR OUTPUT FORMAT:",
+
             "- Do not skip the separator line.",
             "- Do not change the separator line text.",
             "- Do not translate the separator line.",
             "- Do not add any other separator lines.",
-            "- Do not repeat the analysis inside the prompt section.",
-            "- Do not merge the analysis and the prompt into one paragraph.",
             "- The separator line must appear exactly once, on its own line, between the two sections.",
             "- Do not wrap the separator line in quotes, backticks, bold, or any markdown formatting.",
+
+            "- The analysis section MUST contain all sub-sections of ANALYSIS REQUIREMENT.",
+            "- The analysis section MUST contain time-coded segments covering the entire video.",
+            "- The prompt section MUST contain time-coded segments covering the entire video.",
             "- The prompt section MUST NOT be a short summary.",
-            "- The prompt section MUST be a long, detailed, technical description.",
-            "- The prompt section MUST describe the CHARACTER REFERENCE, not the video person."
+            "- The prompt section MUST NOT be a single paragraph.",
+            "- The prompt section MUST be long, detailed, technical, and complete.",
+            "- The prompt section MUST describe the CHARACTER REFERENCE, not the video person.",
+            "- Never merge the analysis section and the prompt section.",
+
+            "LENGTH REQUIREMENT:",
+            "- The analysis section SHOULD be at least 400 words.",
+            "- The prompt section SHOULD be at least 400 words.",
+            "- Longer outputs are preferred over shorter outputs.",
+            "- Do not stop early.",
+            "- Do not shorten to save space."
         ].join(" ")
     });
 
@@ -320,10 +404,9 @@
 
     /* =====================================================
        CHARACTER REFERENCE INSTRUCTION
-       (diletakkan SETELAH frames)
     ===================================================== */
 
-        const PRE_FRAME_DISCLAIMER = [
+    const PRE_FRAME_DISCLAIMER = [
         "MOTION REFERENCE ONLY:",
         "The following frames show MOTION, POSE, and CAMERA references.",
         "The person visible in these frames is a PLACEHOLDER and is NOT the subject.",
@@ -366,7 +449,9 @@
         "Any detail that appears only in the video frames and not in the character reference",
         "MUST NOT appear in the final prompt.",
         "The reconstruction prompt MUST open by describing the character reference in detail,",
-        "then continue with the pose, action, camera, environment, and motion from the video frames."
+        "then continue with the pose, action, camera, environment, and motion from the video frames.",
+        "Remember: time-coded segments are MANDATORY in both sections.",
+        "The output MUST be detailed, multi-paragraph, and complete."
     ].join(" ");
 
 
@@ -1533,8 +1618,12 @@
             context.temporal || payload.temporal || {};
 
 
+        const duration =
+            Number(video.duration) || 0;
+
+
         const metadata = {
-            duration: Number(video.duration) || 0,
+            duration,
             width: Number(video.width) || 0,
             height: Number(video.height) || 0,
             fps: Number(video.fps) || 0,
@@ -1559,26 +1648,52 @@
                 : "Return the complete analysis and reconstruction prompt in Bahasa Indonesia.";
 
 
+        const durationLine =
+            duration > 0
+                ? `Total video duration: ${duration.toFixed(2)} seconds. Your time-coded segments MUST cover the full 0.00s to ${duration.toFixed(2)}s range.`
+                : "Total video duration is provided in the VIDEO CONTEXT metadata above.";
+
+
         return [
             "VIDEO CONTEXT:",
             JSON.stringify(metadata, null, 2),
             "",
             "TASK:",
             "Analyze all supplied frames in chronological order.",
-            "Infer temporal changes only when supported by visible evidence.",
-            "Focus on pose, action, movement, camera behavior, framing, environment,",
-            "lighting, timing, transitions, and visual continuity.",
             "If a CHARACTER REFERENCE image is supplied, treat it as the ONLY",
             "authoritative source for the subject's identity.",
             "The person visible in the video frames MUST be replaced by the character reference.",
             langLine,
             "",
-            "PROMPT REQUIREMENT REMINDER:",
-            "The reconstruction prompt must be long, detailed, technical, and complete.",
-            "The reconstruction prompt MUST describe the CHARACTER REFERENCE —",
-            "not the person in the video frames.",
-            "Do not write a short summary.",
+            durationLine,
             "",
+            "OUTPUT STRUCTURE REMINDER (MANDATORY):",
+
+            "Section 1 (ANALISIS VIDEO) MUST contain these sub-sections in this order:",
+            "  1. KARAKTER PENGGANTI (full character description)",
+            "  2. STRUKTUR TEMPORAL (time-coded segments from 0.00s to the end)",
+            "  3. GERAKAN DAN AKSI",
+            "  4. KAMERA DAN FRAMING",
+            "  5. LINGKUNGAN DAN PENCAHAYAAN",
+            "  6. TRANSISI DAN KONTINUITAS",
+
+            "Section 2 (PROMPT REKONSTRUKSI) MUST contain:",
+            "  - Opening sentence: subject + environment + visual style.",
+            "  - Full paragraph: detailed replacement character description.",
+            "  - Time-coded segments covering the entire video duration.",
+            "  - Closing paragraph: camera, lighting, color grading, motion quality,",
+            "    depth of field, film grain, rendering quality.",
+
+            "The time-coded segments MUST use the format:",
+            "  0.00s - 3.50s: <description>",
+            "  3.50s - 7.20s: <description>",
+            "  ... covering the entire video duration.",
+
+            "Both sections MUST be detailed, multi-paragraph, and complete.",
+            "Do NOT summarize.",
+            "Do NOT shorten the output.",
+            "Do NOT stop early.",
+
             "OUTPUT FORMAT REMINDER:",
             "Section 1 heading must be exactly: ANALISIS VIDEO",
             "Then the separator line must be exactly: === PROMPT REKONSTRUKSI ===",
@@ -1593,12 +1708,13 @@
        -----------------------------------------------------
        URUTAN:
        1. Context text
-       2. Frame video (pose/motion reference)
-       3. Character reference (SETELAH frames — recency)
-       4. Closing reminder
+       2. Pre-frame disclaimer
+       3. Frame video + interleaved reminder
+       4. Character reference
+       5. Closing reminder
     ===================================================== */
 
-        async function buildMessages(payload, options = {}) {
+    async function buildMessages(payload, options = {}) {
 
         const frames = await prepareFramesForAPI(payload);
 
@@ -1666,7 +1782,7 @@
 
         /* -------- FRAME VIDEO + INTERLEAVED REMINDER -------- */
 
-        frames.forEach(function (frame, idx) {
+        frames.forEach(function (frame) {
 
             content.push({
                 type: "text",
@@ -1682,8 +1798,6 @@
                 }
             });
 
-
-            /* Setiap frame diikuti mini-reminder */
 
             if (character) {
 
@@ -1737,6 +1851,7 @@
             }
         ];
     }
+
 
     /* =====================================================
        IMAGE DETAIL
