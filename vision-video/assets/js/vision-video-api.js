@@ -1,4 +1,4 @@
-//vision-video/assets/js/vision-video-api.js?V=1.4
+//vision-video/assets/js/vision-video-api.js?V=1.5
 /* =========================================================
    GEN-Z.AI VISION VIDEO
    ---------------------------------------------------------
@@ -9,6 +9,17 @@
    - systemInstruction dipisah menjadi base + language + format.
    - AI wajib memisahkan analisis dan prompt dengan
      separator "=== PROMPT REKONSTRUKSI ===".
+
+   PATCH (2026-10-10) v1.5:
+   - Perkuat PROMPT QUALITY: prompt rekonstruksi WAJIB sangat
+     detail dan menyertakan SEMUA aspek Replacement Character
+     yang terlihat di foto (wajah, rambut, kulit, mata, pakaian,
+     aksesori, ekspresi, dll).
+   - Tambah CHARACTER FIDELITY INSTRUCTION: model wajib men-
+     deskripsikan karakter referensi secara eksplisit di dalam
+     prompt final.
+   - Tambah PROMPT DEPTH REQUIREMENT: prompt harus spesifik,
+     teknis, dan menyeluruh, bukan ringkasan pendek.
 ========================================================= */
 
 (function () {
@@ -42,7 +53,6 @@
         /*
          * =================================================
          * SYSTEM INSTRUCTION BASE
-         * (bagian bahasa dihapus — ditambahkan dinamis)
          * =================================================
          */
         systemInstructionBase: [
@@ -50,6 +60,10 @@
             "Analyze the supplied video frames as a chronological sequence.",
             "Treat frame order and timestamps as important temporal evidence.",
             "Do not invent visual details that are not supported by the supplied images.",
+
+            /* =============================================
+               CHARACTER IDENTITY PRIORITY
+            ============================================= */
 
             "When a CHARACTER REFERENCE image is supplied, it is the authoritative source",
             "for the replacement character's identity and visible appearance.",
@@ -65,10 +79,18 @@
             "must remain the authoritative identity for the replacement character.",
             "Do not invent character details that are not visible in the character reference.",
 
+            /* =============================================
+               VIDEO ROLE
+            ============================================= */
+
             "Use the video frames primarily as evidence for pose, action, movement,",
             "camera behavior, camera movement, framing, composition, environment,",
             "lighting, timing, transitions, and visual continuity.",
             "Preserve the temporal behavior and scene structure supported by the video.",
+
+            /* =============================================
+               GENERAL ANALYSIS
+            ============================================= */
 
             "Describe subjects, actions, camera behavior, composition,",
             "environment, lighting, motion, transitions, and visual continuity.",
@@ -77,19 +99,92 @@
             "structure of the source video into an AI video generation prompt.",
             "Do not include unsupported claims.",
 
+            /* =============================================
+               PROMPT QUALITY — STRICT
+            ============================================= */
+
             "The final video generation prompt must be directly usable",
             "for reconstructing the visual appearance and motion of the source video.",
+
+            "The final prompt MUST be highly detailed and comprehensive.",
+            "Do NOT write a short summary.",
+            "Do NOT write only a few sentences.",
+            "Do NOT omit visual details that are clearly visible in the frames.",
+
+            "The final prompt MUST be written as a single, continuous, richly descriptive",
+            "prompt text, not as a bullet list, not as a table, not as markdown headings.",
+            "The final prompt MUST cover, explicitly and in detail:",
+
+            "1. Replacement character appearance (if character reference is supplied).",
+            "2. Subject action and pose.",
+            "3. Camera behavior, camera movement, and framing.",
+            "4. Composition and shot type.",
+            "5. Environment and setting.",
+            "6. Lighting and color mood.",
+            "7. Motion and temporal behavior.",
+            "8. Transitions and continuity.",
+            "9. Style, rendering, and technical visual quality.",
+
             "When a replacement character reference is supplied, explicitly preserve",
             "the replacement character's identity consistently throughout the prompt.",
+
             "Preserve clothing, colors, objects, environment, composition,",
             "camera behavior, camera movement, framing, lighting,",
             "motion, transitions, timing, and visual continuity.",
+
             "Describe temporal changes only when supported by the supplied frames.",
+
             "Do not add creative details that are not supported by the video",
             "or the character reference.",
+
             "Do not hallucinate subjects, objects, locations, actions,",
             "camera movements, lighting conditions, visual effects,",
-            "or character attributes."
+            "or character attributes.",
+
+            /* =============================================
+               CHARACTER FIDELITY INSTRUCTION
+            ============================================= */
+
+            "CHARACTER FIDELITY INSTRUCTION:",
+
+            "If a CHARACTER REFERENCE image is supplied, you MUST describe",
+            "the replacement character in explicit detail inside the final prompt,",
+
+            "covering every visible attribute such as:",
+
+            "- facial structure and face shape,",
+            "- facial features (eyes, eyebrows, nose, lips, jawline, cheekbones),",
+            "- hairstyle, hair length, hair texture, and hair color,",
+            "- skin tone and skin characteristics,",
+            "- visible body proportions and body characteristics,",
+            "- clothing, outfit, and garment details,",
+            "- accessories, jewelry, glasses, or visible items on the character,",
+            "- general appearance that defines the character's identity.",
+
+            "Do NOT describe the character in vague terms.",
+            "Do NOT replace the character with a generic person.",
+            "Do NOT describe the source video's person as the character.",
+            "Do NOT omit visible character details.",
+
+            "The character description MUST be embedded inside the reconstruction prompt,",
+            "not only in the analysis section.",
+
+            /* =============================================
+               PROMPT DEPTH REQUIREMENT
+            ============================================= */
+
+            "PROMPT DEPTH REQUIREMENT:",
+
+            "The reconstruction prompt must be long, specific, technical, and complete.",
+            "It should read as a professional AI video generation prompt,",
+            "combining all relevant visual, cinematic, and character information",
+
+            "into one coherent descriptive paragraph or a few consecutive paragraphs.",
+
+            "Do not limit the prompt length.",
+            "Do not shorten the prompt to save space.",
+            "Do not reduce the prompt to a summary.",
+            "Write the prompt as if it is the only thing the AI video model will see."
         ].join(" "),
 
         /*
@@ -115,7 +210,9 @@
             "- Do not repeat the analysis inside the prompt section.",
             "- Do not merge the analysis and the prompt into one paragraph.",
             "- The separator line must appear exactly once, on its own line, between the two sections.",
-            "- Do not wrap the separator line in quotes, backticks, bold, or any markdown formatting."
+            "- Do not wrap the separator line in quotes, backticks, bold, or any markdown formatting.",
+            "- The prompt section MUST NOT be a short summary.",
+            "- The prompt section MUST be a long, detailed, technical description."
         ].join(" ")
     });
 
@@ -237,7 +334,17 @@
         "The video frames are used for pose, action, movement, camera behavior, framing,",
         "lighting, environment, timing, transitions, and scene continuity.",
         "Do not invent unsupported character details.",
-        "Keep the replacement character visually consistent throughout the reconstructed prompt."
+        "Keep the replacement character visually consistent throughout the reconstructed prompt.",
+
+        "IMPORTANT: You MUST describe this replacement character in explicit detail",
+        "inside the final reconstruction prompt.",
+        "Cover the character's face shape, facial features, eyes, eyebrows, nose, lips,",
+        "jawline, hairstyle, hair length, hair texture, hair color, skin tone,",
+        "visible body proportions, clothing, outfit details, accessories,",
+        "and any other visible attribute that defines the character's identity.",
+        "Do NOT summarize the character in generic terms.",
+        "Do NOT omit visible character details.",
+        "Do NOT replace the character with a generic person."
     ].join(" ");
 
 
@@ -1441,6 +1548,13 @@
             "Focus on visual information useful for recreating the video.",
             "If a CHARACTER REFERENCE image is supplied, treat it as the authoritative identity reference.",
             langLine,
+            "",
+            "PROMPT REQUIREMENT REMINDER:",
+            "The reconstruction prompt must be long, detailed, technical, and complete.",
+            "The reconstruction prompt must explicitly describe the replacement character",
+            "(face, hair, skin, eyes, clothing, accessories, overall appearance) when a",
+            "character reference is supplied.",
+            "Do not write a short summary.",
             "",
             "OUTPUT FORMAT REMINDER:",
             "Section 1 heading must be exactly: ANALISIS VIDEO",
