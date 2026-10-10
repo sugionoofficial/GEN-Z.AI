@@ -6,7 +6,7 @@
    admin-control/users/assets/js/user-auth.js
 
    AUTH OWNER:
-   /navigation/navigation.js
+   /navigation/navigation.js?v=2
 
    Fungsi:
    - Mengambil authentication state dari shared navigation
