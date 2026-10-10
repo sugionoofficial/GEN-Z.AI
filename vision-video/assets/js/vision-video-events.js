@@ -30,7 +30,7 @@
    UPDATE:
    - extractResults() memisahkan analysis dari prompt
    - Tidak throw jika prompt tidak dapat dipisahkan
-     (fallback: seluruh content ke analysis)
+   - Tambah settings.language (id / en)
 ========================================================= */
 
 (function () {
@@ -1246,6 +1246,12 @@
                 ).trim() ||
                 "general",
 
+            language:
+                readValue(
+                    "language"
+                ).trim() ||
+                "id",
+
             instruction:
                 readValue(
                     "instruction"
@@ -1297,6 +1303,10 @@
             purpose:
                 settings.purpose ||
                 "general",
+
+            language:
+                settings.language ||
+                "id",
 
             instruction:
                 settings.instruction ||
@@ -1714,7 +1724,10 @@
                         settings.model,
 
                     detail:
-                        settings.detail
+                        settings.detail,
+
+                    language:
+                        settings.language
 
                 }
             );
@@ -3237,6 +3250,7 @@
             "detail",
             "frameMode",
             "purpose",
+            "language",
             "instruction"
 
         ].forEach(
