@@ -10,6 +10,9 @@
    - Tidak mengubah struktur HTML
    - Semua modul Vision Video menggunakan DOM registry ini
    - Mendukung registry key maupun CSS selector langsung
+
+   UPDATE (2026-10-10):
+   - Tambah key `language` untuk dropdown Output Language
 ========================================================= */
 
 const GENZVisionVideoDOM = (() => {
@@ -112,6 +115,9 @@ const GENZVisionVideoDOM = (() => {
         purpose:
             "#visionVideoPurpose",
 
+        language:
+            "#visionVideoLanguage",
+
         instruction:
             "#visionVideoInstruction",
 
@@ -188,6 +194,9 @@ const GENZVisionVideoDOM = (() => {
 
         analysisPlaceholder:
             "#visionVideoAnalysisPlaceholder",
+
+        analysisCopyButton:
+            "#visionVideoAnalysisCopyButton",
 
 
         /* -------------------------------------------------
@@ -401,6 +410,9 @@ const GENZVisionVideoDOM = (() => {
 
             purpose:
                 registry.purpose,
+
+            language:
+                registry.language,
 
             instruction:
                 registry.instruction,
