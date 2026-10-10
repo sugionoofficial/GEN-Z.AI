@@ -501,12 +501,20 @@
 <body>
 
     <!-- =========================================================
-         SHARED NAVIGATION — di-render oleh /navigation/navigation.js
+         SHARED NAVIGATION
+         ---------------------------------------------------------
+         Div id="navigation" akan otomatis di-render oleh
+         /navigation/navigation.js berdasarkan role user login
+         (admin / owner / user).
     ========================================================== -->
 
     <div id="navigation"></div>
 
     <main>
+
+        <!-- =====================================================
+             HEADER
+        ====================================================== -->
 
         <section class="header">
 
@@ -524,6 +532,10 @@
 
         </section>
 
+        <!-- =====================================================
+             SYSTEM STATUS
+        ====================================================== -->
+
         <section class="hero">
 
             <div class="hero-top">
@@ -537,6 +549,10 @@
             </div>
 
         </section>
+
+        <!-- =====================================================
+             GLOBAL STATISTICS
+        ====================================================== -->
 
         <div class="section-title">
             Application Overview
@@ -570,6 +586,10 @@
 
         </section>
 
+        <!-- =====================================================
+             ACCOUNT LIST
+        ====================================================== -->
+
         <div class="section-title">
             Account Activity
         </div>
@@ -579,6 +599,10 @@
                 Memuat daftar akun...
             </div>
         </section>
+
+        <!-- =====================================================
+             SYSTEM INFORMATION
+        ====================================================== -->
 
         <div class="section-title">
             System Information
@@ -660,6 +684,10 @@
 
     </main>
 
+    <!-- =========================================================
+         DEBUG PANEL
+    ====================================================== -->
+
     <div class="debug-panel" id="debugPanel">
         <button class="debug-panel-close" onclick="document.getElementById('debugPanel').classList.remove('show')">×</button>
         <div class="debug-panel-title">⚠ Debug Info</div>
@@ -668,7 +696,7 @@
 
     <!-- =========================================================
          GLOBAL ERROR HANDLER
-    ========================================================== -->
+    ====================================================== -->
 
     <script>
         window.__dashboardErrors = [];
@@ -722,10 +750,11 @@
     <!-- =========================================================
          SUPABASE + CONFIG + SHARED NAVIGATION
          ---------------------------------------------------------
+         PENTING:
          - config.js WAJIB load sebelum navigation.js
-         - navigation.js akan render sidebar otomatis
-           berdasarkan role user (admin/owner/user)
-    ========================================================== -->
+         - Semua pakai absolute path (dengan "/" di depan)
+         - Tidak ada admin-nav.js lagi
+    ====================================================== -->
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="/assets/js/config.js"></script>
@@ -733,7 +762,7 @@
 
     <!-- =========================================================
          DASHBOARD LOGIC
-    ========================================================== -->
+    ====================================================== -->
 
     <script>
         (() => {
@@ -823,7 +852,7 @@
 
                 var start = performance.now();
 
-                /* --- Total users --- */
+                /* Total users */
                 try {
                     var r1 = await dashboardSupabaseClient
                         .from("profiles")
@@ -837,7 +866,7 @@
                     setText("totalUsers", "ERR");
                 }
 
-                /* --- Active users --- */
+                /* Active users */
                 try {
                     var r2 = await dashboardSupabaseClient
                         .from("profiles")
@@ -852,7 +881,7 @@
                     setText("activeUsers", "ERR");
                 }
 
-                /* --- Total generations --- */
+                /* Total generations */
                 try {
                     var r3 = await dashboardSupabaseClient
                         .from("generation_history")
@@ -866,7 +895,7 @@
                     setText("totalGenerations", "ERR");
                 }
 
-                /* --- Total credits --- */
+                /* Total credits */
                 try {
                     var r4 = await dashboardSupabaseClient.rpc("sum_profile_credits");
 
@@ -1008,7 +1037,13 @@
                     var name = escapeHtml(profile.name || "Tanpa nama");
                     var role = escapeHtml(String(profile.role || "USER").toUpperCase());
 
-                    /* Link ke halaman user-activity */
+                    /* -------------------------------------------------
+                       Link ke halaman user-activity
+                       -------------------------------------------------
+                       Format: ./user-activity/?user=<uuid>
+                       Pastikan folder user-activity ada di:
+                       admin/dashboard/user-activity/index.html
+                    ------------------------------------------------- */
 
                     var link = "./user-activity/?user=" + encodeURIComponent(userId);
 
@@ -1060,7 +1095,7 @@
                     return;
                 }
 
-                /* --- SESSION --- */
+                /* SESSION */
                 var session;
                 try {
                     var sResult = await dashboardSupabaseClient.auth.getSession();
@@ -1078,7 +1113,7 @@
 
                 var user = session.user;
 
-                /* --- PROFILE --- */
+                /* PROFILE */
                 var profile;
                 try {
                     var prResult = await dashboardSupabaseClient
@@ -1107,24 +1142,24 @@
                     return;
                 }
 
-                /* --- ACCOUNT INFO --- */
+                /* ACCOUNT INFO */
                 setText("roleBadge", role);
                 setText("accountName", profile.name || "—");
                 setText("accountEmail", profile.email || user.email || "—");
                 setText("accountRole", role);
                 setText("accountStatus", profile.status || "active");
 
-                /* --- STATS --- */
+                /* STATS */
                 loadStats().catch(function (e) {
                     console.error("[Dashboard] Stats fatal:", e);
                 });
 
-                /* --- ACCOUNTS --- */
+                /* ACCOUNTS */
                 loadAccounts().catch(function (e) {
                     console.error("[Dashboard] Accounts fatal:", e);
                 });
 
-                /* --- AUTO REFRESH --- */
+                /* AUTO REFRESH */
                 if (state.refreshTimer) {
                     clearInterval(state.refreshTimer);
                     state.refreshTimer = null;
