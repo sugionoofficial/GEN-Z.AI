@@ -29,7 +29,7 @@
         defaultTemperature: 0.2,
 
         maxFrames: 32,
-        maxRequestFrames: 6,
+        maxRequestFrames: 4,
         maxImageDimension: 640,
         imageQuality: 0.45,
 
