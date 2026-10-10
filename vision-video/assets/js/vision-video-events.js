@@ -28,10 +28,9 @@
    - Tidak menyentuh Vision Image
 
    UPDATE:
-   - Pemisahan analysis dan prompt rekonstruksi
-     melalui extractResults()
-   - Analysis card dan Prompt card tidak lagi
-     menampilkan konten yang sama
+   - extractResults() memisahkan analysis dari prompt
+   - Tidak throw jika prompt tidak dapat dipisahkan
+     (fallback: seluruh content ke analysis)
 ========================================================= */
 
 (function () {
@@ -1736,8 +1735,10 @@
        EXTRACT ANALYSIS + PROMPT (SPLIT)
        -----------------------------------------------------
        Memisahkan hasil analisis visual dari prompt
-       rekonstruksi supaya kedua card tidak menampilkan
-       konten yang sama.
+       rekonstruksi.
+
+       Response API Vision Video hanya menyediakan
+       field `content` (string gabungan).
 
        Urutan prioritas:
        1. Field eksplisit dari API:
@@ -1747,16 +1748,17 @@
           result.reconstructionPrompt /
           result.prompt
 
-       2. Parsing marker di result.content, mis:
-          "=== PROMPT REKONSTRUKSI ==="
-          "[PROMPT REKONSTRUKSI]"
-          "## Prompt Rekonstruksi"
-          "Prompt Rekonstruksi:"
-          "=== ULTRA DETAILED PROMPT ==="
-          "=== RECONSTRUCTION PROMPT ==="
+       2. Parsing marker di result.content:
+          - "ANALISIS VIDEO" heading (opsional)
+          - "=== PROMPT REKONSTRUKSI ==="
+          - "[PROMPT REKONSTRUKSI]"
+          - "## Prompt Rekonstruksi"
+          - "Prompt Rekonstruksi:"
+          - "=== ULTRA DETAILED PROMPT ==="
+          - "=== RECONSTRUCTION PROMPT ==="
 
-       3. Fallback: seluruh content ke analisis,
-          prompt = "" (biar tidak dobel).
+       3. Fallback: seluruh content ke analysis,
+          prompt = "" (prompt card kosong).
     ===================================================== */
 
     function extractResults(result) {
@@ -1835,15 +1837,29 @@
 
             const patterns = [
 
-                /(?:^|\n)\s*={2,}\s*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT)\s*={2,}\s*\n/i,
+                /* === PROMPT REKONSTRUKSI === */
 
-                /(?:^|\n)\s*\[\s*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT)\s*\]\s*\n/i,
+                /(?:^|\n)[^\S\n]*={2,}[^\S\n]*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT|FINAL\s*VIDEO\s*PROMPT)[^\S\n]*={2,}[^\S\n]*(?:\n|$)/i,
 
-                /(?:^|\n)\s*#{1,4}\s*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT)[^\n]*\n/i,
+                /* [PROMPT REKONSTRUKSI] */
 
-                /(?:^|\n)\s*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT)\s*:\s*\n/i,
+                /(?:^|\n)[^\S\n]*\[[^\S\n]*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT|FINAL\s*VIDEO\s*PROMPT)[^\S\n]*\][^\S\n]*(?:\n|$)/i,
 
-                /(?:^|\n)\s*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT)\s*:\s*/i
+                /* ## Prompt Rekonstruksi */
+
+                /(?:^|\n)[^\S\n]*#{1,6}[^\S\n]*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT|FINAL\s*VIDEO\s*PROMPT)[^\n]*(?:\n|$)/i,
+
+                /* **Prompt Rekonstruksi** */
+
+                /(?:^|\n)[^\S\n]*\*\*[^\S\n]*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT|FINAL\s*VIDEO\s*PROMPT)[^\S\n]*\*\*[^\S\n]*(?:\n|$)/i,
+
+                /* Prompt Rekonstruksi: */
+
+                /(?:^|\n)[^\S\n]*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT|FINAL\s*VIDEO\s*PROMPT)[^\S\n]*:[^\S\n]*(?:\n|$)/i,
+
+                /* Prompt Rekonstruksi: (inline, no newline) */
+
+                /(?:^|\n)[^\S\n]*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT|FINAL\s*VIDEO\s*PROMPT)[^\S\n]*:[^\S\n]*/i
 
             ];
 
@@ -1957,6 +1973,14 @@
 
 
         if (!prompt) {
+
+            /*
+             * Bukan error fatal.
+             * Prompt card akan tampil placeholder.
+             */
+
+            state.setPrompt("");
+
 
             return "";
 
@@ -2465,11 +2489,6 @@
                 creditResult.alreadyDeducted === true;
 
 
-            /*
-             * UI module tidak menyediakan updateCredit().
-             * Fungsi yang benar adalah renderCreditFromState().
-             */
-
             ui.renderCreditFromState();
 
 
@@ -2605,10 +2624,6 @@
 
             /* =============================================
                SPLIT ANALYSIS + PROMPT
-               ---------------------------------------------
-               Analysis dan prompt rekonstruksi dipisahkan
-               di sini supaya kedua card tidak menampilkan
-               konten yang sama.
             ============================================= */
 
             const extracted =
@@ -2617,6 +2632,7 @@
 
             const analysisText =
                 extracted.analysis ||
+                result.content ||
                 "";
 
 
@@ -2625,10 +2641,24 @@
                 "";
 
 
-            if (!prompt) {
+            if (!analysisText && !prompt) {
 
                 throw new Error(
-                    "Vision Engine tidak menghasilkan prompt."
+                    "Vision Engine tidak mengembalikan hasil analysis."
+                );
+
+            }
+
+
+            /*
+             * Jangan throw kalau prompt kosong.
+             * Cukup log warning, analysis tetap tampil.
+             */
+
+            if (!prompt) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision Video] Tidak dapat memisahkan prompt rekonstruksi dari analisis. Seluruh output akan ditampilkan di card Video Analysis."
                 );
 
             }
@@ -2672,7 +2702,7 @@
             try {
 
                 await saveSuccessHistory(
-                    prompt
+                    prompt || analysisText
                 );
 
             } catch (historyError) {
@@ -2773,11 +2803,6 @@
                 }
             );
 
-
-            /*
-             * Beri sedikit waktu agar status
-             * 100% terlihat sebelum overlay ditutup.
-             */
 
             window.setTimeout(
                 function () {
@@ -2902,10 +2927,6 @@
             );
 
 
-            /*
-             * Error harus menutup premium loading.
-             */
-
             hidePremiumLoading();
 
 
@@ -3013,10 +3034,7 @@
 
         } catch (error) {
 
-            /*
-             * Cancel gagal tidak boleh
-             * menghalangi reset UI/state.
-             */
+            /* noop */
 
         }
 
