@@ -108,9 +108,18 @@ body::after {
     mix-blend-mode: overlay;
 }
 
-.menu-button,
-.sidebar,
-.overlay { display: none !important; }
+/*
+ * Navigation menu-button, sidebar, dan overlay
+ * di-render oleh /navigation/navigation.js.
+ *
+ * Jangan hide secara global karena akan menyembunyikan
+ * navigasi utama. Scope hanya untuk elemen di luar
+ * container #navigation.
+ */
+
+body > .menu-button,
+body > .sidebar,
+body > .overlay { display: none !important; }
 
 .main {
     position: relative;
@@ -1056,7 +1065,7 @@ body::after {
 
 <body>
 
-<div id="genz-navigation"></div>
+<div id="navigation"></div>
 
 <main class="main">
 
