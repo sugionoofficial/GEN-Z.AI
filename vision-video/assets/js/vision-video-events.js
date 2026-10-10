@@ -26,6 +26,12 @@
    - History success disimpan setelah prompt berhasil
    - History failure disimpan ketika proses gagal
    - Tidak menyentuh Vision Image
+
+   UPDATE:
+   - Pemisahan analysis dan prompt rekonstruksi
+     melalui extractResults()
+   - Analysis card dan Prompt card tidak lagi
+     menampilkan konten yang sama
 ========================================================= */
 
 (function () {
@@ -1172,6 +1178,7 @@
             element.value ??
             ""
         );
+
     }
 
 
@@ -1201,6 +1208,7 @@
         return Boolean(
             element.checked
         );
+
     }
 
 
@@ -1296,6 +1304,7 @@
                 ""
 
         };
+
     }
 
 
@@ -1402,6 +1411,7 @@
                 ""
 
         };
+
     }
 
 
@@ -1438,6 +1448,7 @@
                 ""
 
         };
+
     }
 
 
@@ -1494,6 +1505,7 @@
 
 
         return true;
+
     }
 
 
@@ -1534,6 +1546,7 @@
                 ""
 
         };
+
     }
 
 
@@ -1591,6 +1604,7 @@
 
             }
         );
+
     }
 
 
@@ -1655,6 +1669,7 @@
                 handlePreparationProgress
 
         });
+
     }
 
 
@@ -1713,39 +1728,211 @@
 
 
         return result;
+
     }
 
 
     /* =====================================================
-       GENERATE PROMPT FROM ANALYSIS
+       EXTRACT ANALYSIS + PROMPT (SPLIT)
+       -----------------------------------------------------
+       Memisahkan hasil analisis visual dari prompt
+       rekonstruksi supaya kedua card tidak menampilkan
+       konten yang sama.
+
+       Urutan prioritas:
+       1. Field eksplisit dari API:
+          result.analysis
+          result.reconstructed_prompt /
+          result.reconstruction_prompt /
+          result.reconstructionPrompt /
+          result.prompt
+
+       2. Parsing marker di result.content, mis:
+          "=== PROMPT REKONSTRUKSI ==="
+          "[PROMPT REKONSTRUKSI]"
+          "## Prompt Rekonstruksi"
+          "Prompt Rekonstruksi:"
+          "=== ULTRA DETAILED PROMPT ==="
+          "=== RECONSTRUCTION PROMPT ==="
+
+       3. Fallback: seluruh content ke analisis,
+          prompt = "" (biar tidak dobel).
+    ===================================================== */
+
+    function extractResults(result) {
+
+        const empty = {
+
+            analysis:
+                "",
+
+            prompt:
+                ""
+
+        };
+
+
+        if (!result) {
+
+            return empty;
+
+        }
+
+
+        const content =
+            typeof result.content === "string"
+                ? result.content
+                : "";
+
+
+        /* -------- 1. FIELD EKSPLISIT DARI API -------- */
+
+        const apiAnalysis =
+            typeof result.analysis === "string"
+                ? result.analysis.trim()
+                : "";
+
+
+        const apiPrompt =
+            (
+                typeof result.reconstructed_prompt === "string" &&
+                result.reconstructed_prompt.trim()
+            ) ||
+            (
+                typeof result.reconstruction_prompt === "string" &&
+                result.reconstruction_prompt.trim()
+            ) ||
+            (
+                typeof result.reconstructionPrompt === "string" &&
+                result.reconstructionPrompt.trim()
+            ) ||
+            (
+                typeof result.prompt === "string" &&
+                result.prompt.trim()
+            ) ||
+            "";
+
+
+        if (apiPrompt) {
+
+            return {
+
+                analysis:
+                    apiAnalysis ||
+                    content.trim(),
+
+                prompt:
+                    apiPrompt
+
+            };
+
+        }
+
+
+        /* -------- 2. PARSING MARKER DI CONTENT -------- */
+
+        if (content) {
+
+            const patterns = [
+
+                /(?:^|\n)\s*={2,}\s*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT)\s*={2,}\s*\n/i,
+
+                /(?:^|\n)\s*\[\s*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT)\s*\]\s*\n/i,
+
+                /(?:^|\n)\s*#{1,4}\s*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT)[^\n]*\n/i,
+
+                /(?:^|\n)\s*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT)\s*:\s*\n/i,
+
+                /(?:^|\n)\s*(?:RECONSTRUCTION\s*PROMPT|PROMPT\s*REKONSTRUKSI|ULTRA\s*DETAILED\s*PROMPT|RECONSTRUCTED\s*PROMPT|FINAL\s*PROMPT)\s*:\s*/i
+
+            ];
+
+
+            for (
+                const pattern
+                of patterns
+            ) {
+
+                const match =
+                    content.match(pattern);
+
+
+                if (
+                    match &&
+                    typeof match.index === "number"
+                ) {
+
+                    const analysisPart =
+                        content
+                            .slice(
+                                0,
+                                match.index
+                            )
+                            .trim();
+
+
+                    const promptPart =
+                        content
+                            .slice(
+                                match.index +
+                                match[0].length
+                            )
+                            .trim();
+
+
+                    if (promptPart) {
+
+                        return {
+
+                            analysis:
+                                analysisPart,
+
+                            prompt:
+                                promptPart
+
+                        };
+
+                    }
+
+                }
+
+            }
+
+
+            /* -------- 3. FALLBACK -------- */
+
+            return {
+
+                analysis:
+                    content.trim(),
+
+                prompt:
+                    ""
+
+            };
+
+        }
+
+
+        return empty;
+
+    }
+
+
+    /* =====================================================
+       BUILD PROMPT FROM ANALYSIS
     ===================================================== */
 
     function buildPromptFromAnalysis(
         result
     ) {
 
-        if (!result) {
-
-            return "";
-
-        }
+        const extracted =
+            extractResults(result);
 
 
-        const content =
-            typeof result.content ===
-                "string"
-                ? result.content.trim()
-                : "";
+        return extracted.prompt;
 
-
-        if (!content) {
-
-            return "";
-
-        }
-
-
-        return content;
     }
 
 
@@ -1761,10 +1948,12 @@
             getState();
 
 
+        const extracted =
+            extractResults(result);
+
+
         const prompt =
-            buildPromptFromAnalysis(
-                result
-            );
+            extracted.prompt;
 
 
         if (!prompt) {
@@ -1780,6 +1969,7 @@
 
 
         return prompt;
+
     }
 
 
@@ -1826,6 +2016,7 @@
 
 
         return taskId;
+
     }
 
 
@@ -1854,6 +2045,7 @@
                 settings.model
 
         };
+
     }
 
 
@@ -1892,6 +2084,7 @@
 
 
         return result;
+
     }
 
 
@@ -1937,6 +2130,7 @@
 
 
         return result;
+
     }
 
 
@@ -1979,6 +2173,7 @@
         return credit.refundCredit(
             metadata
         );
+
     }
 
 
@@ -2034,6 +2229,7 @@
 
 
         return result;
+
     }
 
 
@@ -2098,7 +2294,9 @@
 
 
             return null;
+
         }
+
     }
 
 
@@ -2406,13 +2604,25 @@
 
 
             /* =============================================
-               BUILD PROMPT
+               SPLIT ANALYSIS + PROMPT
+               ---------------------------------------------
+               Analysis dan prompt rekonstruksi dipisahkan
+               di sini supaya kedua card tidak menampilkan
+               konten yang sama.
             ============================================= */
 
+            const extracted =
+                extractResults(result);
+
+
+            const analysisText =
+                extracted.analysis ||
+                "";
+
+
             prompt =
-                storePrompt(
-                    result
-                );
+                extracted.prompt ||
+                "";
 
 
             if (!prompt) {
@@ -2422,6 +2632,11 @@
                 );
 
             }
+
+
+            state.setPrompt(
+                prompt
+            );
 
 
             state.setProcess({
@@ -2488,7 +2703,7 @@
 
 
             state.completeAnalysis(
-                result.content
+                analysisText
             );
 
 
@@ -2510,7 +2725,7 @@
 
 
             ui.renderAnalysis(
-                result.content
+                analysisText
             );
 
 
@@ -2541,6 +2756,9 @@
                 {
 
                     result,
+
+                    analysis:
+                        analysisText,
 
                     prompt,
 
@@ -3223,6 +3441,8 @@
         prepareAnalysis,
 
         runAPIAnalysis,
+
+        extractResults,
 
         buildPromptFromAnalysis,
 
