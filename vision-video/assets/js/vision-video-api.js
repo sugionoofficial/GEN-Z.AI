@@ -1,4 +1,4 @@
-//vision-video/assets/js/vision-video-api.js?V=1.2
+//vision-video/assets/js/vision-video-api.js?V=1.3
 /* =========================================================
    GEN-Z.AI VISION VIDEO
    ---------------------------------------------------------
@@ -23,6 +23,11 @@
    - Turunkan kompresi frame + character reference.
    - Kurangi jumlah frame yang dikirim.
    - Default image detail "low" untuk hemat payload.
+
+   PATCH (2026-10-10):
+   - Tambah OUTPUT FORMAT REQUIREMENT di systemInstruction.
+   - AI diminta memisahkan analisis dan prompt dengan
+     separator "=== PROMPT REKONSTRUKSI ===".
 ========================================================= */
 
 (function () {
@@ -218,14 +223,48 @@
             "or the character reference.",
             "Do not hallucinate subjects, objects, locations, actions,",
             "camera movements, lighting conditions, visual effects,",
-            "or character attributes."
+            "or character attributes.",
+
+            /*
+             * =================================================
+             * OUTPUT FORMAT — WAJIB
+             * =================================================
+             *
+             * Analisis dan prompt harus DIPISAH dengan
+             * separator persis seperti di bawah.
+             * Format ini dibaca oleh parser frontend.
+             */
+
+            "OUTPUT FORMAT REQUIREMENT:",
+
+            "You MUST return your answer as plain text with EXACTLY two sections separated by a single separator line.",
+
+            "Section 1 is the video analysis.",
+            "Begin Section 1 with a heading line containing exactly the text: ANALISIS VIDEO",
+            "Then write the complete video analysis on the following lines.",
+
+            "The separator line must appear on its own line, containing exactly this text and nothing else:",
+            "=== PROMPT REKONSTRUKSI ===",
+
+            "Section 2 is the final video generation prompt.",
+            "After the separator line, write the final video generation prompt.",
+
+            "STRICT RULES FOR OUTPUT FORMAT:",
+            "- Do not skip the separator line.",
+            "- Do not change the separator line text.",
+            "- Do not translate the separator line.",
+            "- Do not add any other separator lines.",
+            "- Do not repeat the analysis inside the prompt section.",
+            "- Do not merge the analysis and the prompt into one paragraph.",
+            "- The separator line must appear exactly once, on its own line, between the two sections.",
+            "- Do not wrap the separator line in quotes, backticks, bold, or any markdown formatting."
         ].join(" ")
     });
 
 
     /* =====================================================
        CHARACTER REFERENCE INSTRUCTION
-       ===================================================== */
+    ===================================================== */
 
     const CHARACTER_REFERENCE_INSTRUCTION = [
         "CHARACTER REFERENCE:",
@@ -2216,7 +2255,19 @@
 
             "If a CHARACTER REFERENCE image is supplied, treat it as the authoritative identity reference.",
 
-            "Return the analysis and reconstruction prompt in Bahasa Indonesia."
+            "Return the analysis and reconstruction prompt in Bahasa Indonesia.",
+
+            "",
+
+            "OUTPUT FORMAT REMINDER:",
+
+            "Section 1 heading must be exactly: ANALISIS VIDEO",
+
+            "Then the separator line must be exactly: === PROMPT REKONSTRUKSI ===",
+
+            "Then Section 2 with the final video generation prompt.",
+
+            "Do not skip or alter the separator line."
 
         ].join(
             "\n"
