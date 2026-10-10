@@ -434,8 +434,6 @@
             padding-top: 35px;
         }
 
-        /* DEBUG PANEL */
-
         .debug-panel {
             position: fixed;
             bottom: 15px;
@@ -502,14 +500,11 @@
 
 <body>
 
-    <div id="adminNavigation"></div>
+    <!-- =========================================================
+         SHARED NAVIGATION — di-render oleh /navigation/navigation.js
+    ========================================================== -->
 
-    <!-- NAV FALLBACK — muncul kalau admin-nav.js gagal load -->
-    <noscript>
-        <div style="padding:20px;text-align:center;color:#ff1744;">
-            JavaScript tidak aktif.
-        </div>
-    </noscript>
+    <div id="navigation"></div>
 
     <main>
 
@@ -665,7 +660,6 @@
 
     </main>
 
-    <!-- DEBUG PANEL — hanya muncul kalau ada error fatal -->
     <div class="debug-panel" id="debugPanel">
         <button class="debug-panel-close" onclick="document.getElementById('debugPanel').classList.remove('show')">×</button>
         <div class="debug-panel-title">⚠ Debug Info</div>
@@ -673,11 +667,10 @@
     </div>
 
     <!-- =========================================================
-         SCRIPT LOADING — INLINE UNTUK MEMINIMALISIR ERROR
+         GLOBAL ERROR HANDLER
     ========================================================== -->
 
     <script>
-        // Global error handler — tampilkan ke debug panel
         window.__dashboardErrors = [];
 
         window.addEventListener("error", function (e) {
@@ -726,29 +719,20 @@
         }
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
-    <script src="../assets/js/config.js"></script>
+    <!-- =========================================================
+         SUPABASE + CONFIG + SHARED NAVIGATION
+         ---------------------------------------------------------
+         - config.js WAJIB load sebelum navigation.js
+         - navigation.js akan render sidebar otomatis
+           berdasarkan role user (admin/owner/user)
+    ========================================================== -->
 
-    <!-- Admin navigation — dengan fallback inline kalau gagal -->
-    <script>
-        (function () {
-            var navScript = document.createElement("script");
-            navScript.src = "../admin-control/admin-nav.js";
-            navScript.onerror = function () {
-                // Fallback: coba path alternatif
-                var alt = document.createElement("script");
-                alt.src = "../../admin-control/admin-nav.js";
-                alt.onerror = function () {
-                    console.warn("[Dashboard] admin-nav.js tidak ditemukan di kedua path");
-                };
-                document.head.appendChild(alt);
-            };
-            document.head.appendChild(navScript);
-        })();
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+    <script src="/assets/js/config.js"></script>
+    <script src="/navigation/navigation.js"></script>
 
     <!-- =========================================================
-         DASHBOARD LOGIC — DEFENSIVE
+         DASHBOARD LOGIC
     ========================================================== -->
 
     <script>
@@ -825,7 +809,7 @@
             }
 
             /* =====================================================
-               STATS — SEPARATE FUNCTION, ERROR-PROOF
+               STATS
             ====================================================== */
 
             async function loadStats() {
@@ -882,12 +866,11 @@
                     setText("totalGenerations", "ERR");
                 }
 
-                /* --- Total credits — coba RPC, fallback ke query biasa --- */
+                /* --- Total credits --- */
                 try {
                     var r4 = await dashboardSupabaseClient.rpc("sum_profile_credits");
 
                     if (r4.error) {
-                        // Fallback: query biasa
                         console.warn("[Dashboard] sum_profile_credits RPC gagal, fallback:", r4.error.message);
 
                         var r4b = await dashboardSupabaseClient
@@ -926,7 +909,7 @@
             }
 
             /* =====================================================
-               ACCOUNTS — DENGAN FALLBACK RPC
+               ACCOUNTS
             ====================================================== */
 
             async function loadAccounts() {
@@ -939,7 +922,6 @@
                     return;
                 }
 
-                /* --- Load profiles --- */
                 var profiles = [];
 
                 try {
@@ -960,14 +942,12 @@
                     return;
                 }
 
-                /* --- Load active user ids (RPC, fallback manual) --- */
                 var activeIds = new Set();
 
                 try {
                     var aResult = await dashboardSupabaseClient.rpc("get_active_user_ids");
 
                     if (aResult.error) {
-                        // Fallback: query manual dengan filter
                         console.warn("[Dashboard] get_active_user_ids RPC gagal, fallback:", aResult.error.message);
 
                         var aFallback = await dashboardSupabaseClient
@@ -996,7 +976,6 @@
 
                 } catch (e) {
                     console.warn("[Dashboard] Active users error (non-fatal):", e);
-                    // Tidak throw — biar grid tetap render
                 }
 
                 state.profiles = profiles;
@@ -1029,8 +1008,11 @@
                     var name = escapeHtml(profile.name || "Tanpa nama");
                     var role = escapeHtml(String(profile.role || "USER").toUpperCase());
 
-                    html += '<a class="account-card" href="../user-activity/index.html?user=' +
-                        encodeURIComponent(userId) + '" aria-label="Lihat aktivitas ' + email + '">' +
+                    /* Link ke halaman user-activity */
+
+                    var link = "./user-activity/?user=" + encodeURIComponent(userId);
+
+                    html += '<a class="account-card" href="' + link + '" aria-label="Lihat aktivitas ' + email + '">' +
 
                         '<div class="account-head">' +
                             '<div class="account-main">' +
@@ -1090,7 +1072,7 @@
                 }
 
                 if (!session) {
-                    window.location.href = "../login.html";
+                    window.location.href = "/index.html";
                     return;
                 }
 
@@ -1121,7 +1103,7 @@
                 var role = String(profile.role || "").trim().toUpperCase();
 
                 if (role !== "ADMIN" && role !== "OWNER") {
-                    window.location.href = "../user/dashboard.html";
+                    window.location.href = "/user/dashboard.html";
                     return;
                 }
 
@@ -1132,12 +1114,12 @@
                 setText("accountRole", role);
                 setText("accountStatus", profile.status || "active");
 
-                /* --- STATS (independent, tidak block account) --- */
+                /* --- STATS --- */
                 loadStats().catch(function (e) {
                     console.error("[Dashboard] Stats fatal:", e);
                 });
 
-                /* --- ACCOUNTS (independent) --- */
+                /* --- ACCOUNTS --- */
                 loadAccounts().catch(function (e) {
                     console.error("[Dashboard] Accounts fatal:", e);
                 });
