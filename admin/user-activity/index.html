@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>GEN-Z.AI — User Activity</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --text: #171717;
+            --text-strong: #0b0b0b;
+            --muted: #666b73;
+            --accent: #ff1744;
+            --accent-2: #ff4567;
+            --accent-dark: #d9002f;
+            --success: #0b9f5b;
+        }
+
+        html {
+            min-height: 100%;
+            background:
+                linear-gradient(
+                    135deg,
+                    #ffffff 0%,
+                    #f3f3f3 38%,
+                    #e5e5e5 72%,
+                    #f8f8f8 100%
+                );
+        }
+
+        body {
+            font-family: Inter, Arial, Helvetica, sans-serif;
+
+            background:
+                radial-gradient(
+                    circle at 8% 8%,
+                    rgba(255,23,68,.08),
+                    transparent 25%
+                ),
+                radial-gradient(
+                    circle at 92% 18%,
+                    rgba(255,23,68,.055),
+                    transparent 24%
+                ),
+                radial-gradient(
+                    circle at 50% 100%,
+                    rgba(0,0,0,.045),
+                    transparent 38%
+                ),
+                linear-gradient(
+                    135deg,
+                    #ffffff 0%,
+                    #f1f1f1 45%,
+                    #dedede 100%
+                );
+
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        main {
+            width: min(1200px, 100%);
+            margin: auto;
+            padding: 95px 28px 45px;
+        }
+
+        /* =========================================================
+           BACK BUTTON
+        ========================================================= */
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+
+            margin-bottom: 20px;
+            padding: 9px 16px;
+
+            border: 1px solid var(--accent);
+            border-radius: 100px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,23,68,.06),
+                    rgba(255,255,255,.9)
+                );
+
+            color: var(--accent-dark);
+            text-decoration: none;
+
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .3px;
+
+            box-shadow:
+                0 0 7px rgba(255,23,68,.22),
+                0 0 16px rgba(255,23,68,.10);
+
+            transition:
+                transform .18s ease,
+                box-shadow .18s ease;
+        }
+
+        .back-link:hover {
+            transform: translateX(-2px);
+            box-shadow:
+                0 0 10px rgba(255,23,68,.40),
+                0 0 24px rgba(255,23,68,.18);
+        }
+
+        .back-link-icon {
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        /* =========================================================
+           USER HEADER
+        ========================================================= */
+
+        .user-header {
+            position: relative;
+            overflow: hidden;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,255,255,.98),
+                    rgba(239,239,239,.96)
+                );
+
+            border: 1px solid var(--accent);
+            border-radius: 24px;
+            padding: 27px;
+            margin-bottom: 25px;
+
+            box-shadow:
+                0 14px 35px rgba(0,0,0,.10),
+                0 0 8px rgba(255,23,68,.45),
+                0 0 22px rgba(255,23,68,.18),
+                inset 0 1px 0 rgba(255,255,255,1);
+        }
+
+        .user-header::before {
+            content: "";
+            position: absolute;
+            left: 0; top: 0;
+            width: 100%;
+            height: 2px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    var(--accent),
+                    var(--accent-2),
+                    var(--accent),
+                    transparent
+                );
+
+            box-shadow:
+                0 0 10px rgba(255,23,68,.75),
+                0 0 25px rgba(255,23,68,.35);
+        }
+
+        .user-header-top {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+
+            position: relative;
+            z-index: 1;
+        }
+
+        .user-avatar {
+            flex: 0 0 auto;
+
+            width: 68px;
+            height: 68px;
+
+            border-radius: 50%;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--accent),
+                    var(--accent-2)
+                );
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            color: #fff;
+            font-size: 26px;
+            font-weight: 900;
+            letter-spacing: -1px;
+
+            box-shadow:
+                0 0 12px rgba(255,23,68,.55),
+                0 0 30px rgba(255,23,68,.25);
+        }
+
+        .user-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .user-email {
+            color: var(--text-strong);
+            font-size: clamp(20px, 2.4vw, 26px);
+            font-weight: 850;
+            letter-spacing: -.6px;
+            word-break: break-word;
+        }
+
+        .user-name {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .user-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .user-badge {
+            padding: 5px 12px;
+
+            border: 1px solid rgba(255,23,68,.22);
+            border-radius: 100px;
+
+            background: rgba(255,23,68,.06);
+
+            color: var(--accent-dark);
+
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .6px;
+            text-transform: uppercase;
+        }
+
+        .user-badge.status-active {
+            border-color: rgba(11,159,91,.32);
+            background: rgba(11,159,91,.08);
+            color: #087b47;
+        }
+
+        .user-badge.credits {
+            border-color: rgba(255,23,68,.32);
+            color: var(--accent-dark);
+        }
+
+        /* =========================================================
+           STATS BAR
+        ========================================================= */
+
+        .user-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .user-stat {
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,23,68,.16);
+            background: rgba(255,255,255,.62);
+        }
+
+        .user-stat-label {
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .8px;
+            text-transform: uppercase;
+        }
+
+        .user-stat-value {
+            color: var(--text-strong);
+            font-size: 22px;
+            font-weight: 850;
+            margin-top: 6px;
+            letter-spacing: -.6px;
+        }
+
+        /* =========================================================
+           SECTION TITLE
+        ========================================================= */
+
+        .section-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1.4px;
+            color: var(--accent-dark);
+            margin: 30px 0 14px;
+            font-weight: 800;
+            text-shadow: 0 0 6px rgba(255,23,68,.20);
+        }
+
+        /* =========================================================
+           ACTIVITY LIST
+        ========================================================= */
+
+        .activity-list {
+            display: grid;
+            gap: 11px;
+        }
+
+        .activity-item {
+            border: 1px solid rgba(255,23,68,.18);
+            border-radius: 16px;
+            padding: 17px;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,.96),
+                    rgba(246,246,246,.94)
+                );
+
+            box-shadow:
+                0 8px 22px rgba(0,0,0,.05),
+                0 0 6px rgba(255,23,68,.14);
+        }
+
+        .activity-item.active {
+            border-color: rgba(22,201,120,.42);
+            box-shadow:
+                0 8px 22px rgba(0,0,0,.05),
+                0 0 10px rgba(22,201,120,.16);
+        }
+
+        .activity-item-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .activity-model {
+            color: var(--text-strong);
+            font-size: 14px;
+            font-weight: 800;
+            word-break: break-word;
+        }
+
+        .activity-provider {
+            color: var(--muted);
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        .activity-status {
+            flex: 0 0 auto;
+            padding: 5px 10px;
+            border-radius: 100px;
+            font-size: 9px;
+            font-weight: 850;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
+
+        .activity-status.processing,
+        .activity-status.pending {
+            color: #087b47;
+            background: rgba(22,201,120,.10);
+            border: 1px solid rgba(22,201,120,.30);
+        }
+
+        .activity-status.success {
+            color: #087b47;
+            background: rgba(22,201,120,.06);
+            border: 1px solid rgba(22,201,120,.18);
+        }
+
+        .activity-status.failed,
+        .activity-status.cancelled {
+            color: var(--accent-dark);
+            background: rgba(255,23,68,.08);
+            border: 1px solid rgba(255,23,68,.26);
+        }
+
+        .activity-info {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 13px;
+        }
+
+        .activity-info-box {
+            padding: 9px 11px;
+            border-radius: 10px;
+            background: rgba(255,23,68,.035);
+            border: 1px solid rgba(255,23,68,.10);
+        }
+
+        .activity-info-label {
+            color: var(--muted);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .6px;
+            text-transform: uppercase;
+        }
+
+        .activity-info-value {
+            color: var(--text-strong);
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 4px;
+            word-break: break-word;
+        }
+
+        /* =========================================================
+           PROMPT — COLLAPSIBLE
+        ========================================================= */
+
+        .activity-prompt-block {
+            margin-top: 12px;
+            border: 1px solid rgba(255,23,68,.14);
+            border-radius: 12px;
+            background: rgba(255,255,255,.55);
+            overflow: hidden;
+            transition: border-color .2s ease;
+        }
+
+        .activity-prompt-block.expanded {
+            border-color: rgba(255,23,68,.32);
+        }
+
+        .activity-prompt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 9px 12px;
+            border-bottom: 1px solid rgba(255,23,68,.10);
+            background: rgba(255,23,68,.035);
+        }
+
+        .activity-prompt-label {
+            color: var(--accent-dark);
+            font-size: 9px;
+            font-weight: 850;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+        }
+
+        .activity-prompt-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 9px;
+            border: 1px solid rgba(255,23,68,.35);
+            border-radius: 100px;
+            background: rgba(255,23,68,.06);
+            color: var(--accent-dark);
+            font-family: inherit;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: .4px;
+            cursor: pointer;
+            transition:
+                background .2s ease,
+                border-color .2s ease;
+        }
+
+        .activity-prompt-toggle:hover {
+            background: rgba(255,23,68,.14);
+            border-color: rgba(255,23,68,.55);
+        }
+
+        .activity-prompt-toggle-icon {
+            display: inline-block;
+            transition: transform .25s ease;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .activity-prompt-text {
+            position: relative;
+            max-height: 68px;
+            padding: 10px 12px;
+            color: #4a4a52;
+            font-size: 11px;
+            line-height: 1.6;
+            word-break: break-word;
+            white-space: pre-wrap;
+            overflow: hidden;
+            transition: max-height .35s ease;
+        }
+
+        .activity-prompt-text::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 32px;
+            background:
+                linear-gradient(
+                    to bottom,
+                    transparent 0%,
+                    rgba(255,255,255,.95) 100%
+                );
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity .25s ease;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-text {
+            max-height: 340px;
+            overflow-y: auto;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-text::after {
+            opacity: 0;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-text::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .activity-prompt-block.expanded
+        .activity-prompt-text::-webkit-scrollbar-thumb {
+            background: rgba(255,23,68,.25);
+            border-radius: 10px;
+        }
+
+        /* =========================================================
+           ACTIVITY ACTIONS
+        ========================================================= */
+
+        .activity-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 12px;
+        }
+
+        .cancel-generation {
+            border: 1px solid rgba(255,23,68,.55);
+            border-radius: 9px;
+            background: rgba(255,23,68,.08);
+            color: var(--accent-dark);
+            padding: 8px 14px;
+            font-family: inherit;
+            font-size: 10px;
+            font-weight: 850;
+            letter-spacing: .5px;
+            cursor: pointer;
+            transition: background .2s ease;
+        }
+
+        .cancel-generation:hover {
+            background: rgba(255,23,68,.18);
+        }
+
+        .cancel-generation:disabled {
+            opacity: .45;
+            cursor: wait;
+        }
+
+        /* =========================================================
+           LOADING / EMPTY / ERROR
+        ========================================================= */
+
+        .state-box {
+            padding: 45px 25px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 13px;
+            border: 1px dashed rgba(255,23,68,.32);
+            border-radius: 18px;
+            background: rgba(255,255,255,.55);
+        }
+
+        .spinner {
+            width: 28px;
+            height: 28px;
+            margin: 0 auto 14px;
+            border: 2px solid rgba(255,23,68,.18);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            text-align: center;
+            color: #777b82;
+            font-size: 11px;
+            padding-top: 35px;
+        }
+
+        @media (max-width: 900px) {
+            .user-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            main {
+                padding: 85px 15px 35px;
+            }
+            .user-stats {
+                grid-template-columns: 1fr;
+            }
+            .activity-info {
+                grid-template-columns: 1fr;
+            }
+            .activity-item-head {
+                flex-direction: column;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: .01ms !important;
+                animation-duration: .01ms !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="adminNavigation"></div>
+
+    <main>
+
+        <a
+            class="back-link"
+            href="../dashboard/index.html"
+        >
+            <span class="back-link-icon">←</span>
+            Kembali ke Dashboard
+        </a>
+
+        <!-- =====================================================
+             USER HEADER
+        ====================================================== -->
+
+        <section class="user-header" id="userHeader">
+
+            <div class="user-header-top">
+
+                <div class="user-avatar" id="userAvatar">
+                    ?
+                </div>
+
+                <div class="user-info">
+
+                    <div class="user-email" id="userEmail">
+                        Memuat…
+                    </div>
+
+                    <div class="user-name" id="userName">
+                        —
+                    </div>
+
+                    <div class="user-badges" id="userBadges">
+                        <!-- injected -->
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="user-stats" id="userStats">
+                <!-- injected -->
+            </div>
+
+        </section>
+
+        <!-- =====================================================
+             ACTIVITY
+        ====================================================== -->
+
+        <div class="section-title">
+            Generation Activity
+        </div>
+
+        <div class="activity-list" id="activityList">
+            <div class="state-box">
+                <div class="spinner"></div>
+                Memuat aktivitas…
+            </div>
+        </div>
+
+        <div class="footer">
+            GEN-Z.AI • User Activity Detail
+        </div>
+
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+
+    <script src="../assets/js/config.js"></script>
+
+    <script src="../admin-control/admin-nav.js"></script>
+
+    <script>
+        (() => {
+            "use strict";
+
+            console.log("[GEN-Z.AI User Activity] START");
+
+            const state = {
+                client: null,
+                userId: null,
+                profile: null,
+                history: [],
+                refreshTimer: null
+            };
+
+            /* =====================================================
+               HELPERS
+            ====================================================== */
+
+            function escapeHtml(value) {
+                return String(value ?? "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            function getSupabaseClient() {
+                if (window.GENZ_SUPABASE && typeof window.GENZ_SUPABASE.from === "function") {
+                    return window.GENZ_SUPABASE;
+                }
+                if (window.supabaseClient && typeof window.supabaseClient.from === "function") {
+                    return window.supabaseClient;
+                }
+                if (
+                    window.supabase &&
+                    typeof window.supabase.createClient === "function" &&
+                    window.GENZ_CONFIG?.SUPABASE_URL &&
+                    window.GENZ_CONFIG?.SUPABASE_KEY
+                ) {
+                    return window.supabase.createClient(
+                        window.GENZ_CONFIG.SUPABASE_URL,
+                        window.GENZ_CONFIG.SUPABASE_KEY
+                    );
+                }
+                return null;
+            }
+
+            function normalizeStatus(status) {
+                const v = String(status || "pending").trim().toLowerCase();
+                if (v === "completed" || v === "complete") return "success";
+                if (v === "queued") return "pending";
+                if (v === "canceled" || v === "cancel") return "cancelled";
+                return v;
+            }
+
+            function isRunningGeneration(item) {
+                const s = normalizeStatus(item?.status);
+                return s === "processing" || s === "pending";
+            }
+
+            function formatDate(value) {
+                if (!value) return "—";
+                const d = new Date(value);
+                if (Number.isNaN(d.getTime())) return String(value);
+                return d.toLocaleString("id-ID", {
+                    dateStyle: "short",
+                    timeStyle: "short"
+                });
+            }
+
+            function formatCredits(value) {
+                return Number(value || 0).toLocaleString("id-ID");
+            }
+
+            /* =====================================================
+               USER ID FROM URL
+            ====================================================== */
+
+            function getUserIdFromUrl() {
+                const params = new URLSearchParams(window.location.search);
+                return String(params.get("user") || "").trim();
+            }
+
+            /* =====================================================
+               LOAD PROFILE
+            ====================================================== */
+
+            async function loadProfile() {
+
+                const result = await state.client
+                    .from("profiles")
+                    .select("id,name,email,role,credits,status")
+                    .eq("id", state.userId)
+                    .single();
+
+                if (result.error) {
+                    throw result.error;
+                }
+
+                if (!result.data) {
+                    throw new Error("User tidak ditemukan");
+                }
+
+                state.profile = result.data;
+
+                renderProfile();
+            }
+
+            function renderProfile() {
+
+                const p = state.profile;
+
+                const email = p.email || "Email tidak tersedia";
+                const name = p.name || "Tanpa nama";
+                const role = String(p.role || "USER").toUpperCase();
+                const credits = formatCredits(p.credits);
+                const status = String(p.status || "—").toUpperCase();
+
+                /* Avatar initial */
+
+                const initial = (email.trim()[0] || "?").toUpperCase();
+                const avatar = document.getElementById("userAvatar");
+                if (avatar) avatar.textContent = initial;
+
+                /* Email + name */
+
+                const emailEl = document.getElementById("userEmail");
+                if (emailEl) emailEl.textContent = email;
+
+                const nameEl = document.getElementById("userName");
+                if (nameEl) nameEl.textContent = name;
+
+                /* Badges */
+
+                const badges = document.getElementById("userBadges");
+
+                if (badges) {
+                    badges.innerHTML = `
+                        <span class="user-badge">
+                            ${escapeHtml(role)}
+                        </span>
+                        <span class="user-badge status-active">
+                            ${escapeHtml(status)}
+                        </span>
+                        <span class="user-badge credits">
+                            ${escapeHtml(credits)} credits
+                        </span>
+                    `;
+                }
+
+                /* Stats */
+
+                renderStats();
+            }
+
+            function renderStats() {
+
+                const container = document.getElementById("userStats");
+                if (!container) return;
+
+                const history = state.history;
+
+                const total = history.length;
+                const success = history.filter(i => normalizeStatus(i.status) === "success").length;
+                const processing = history.filter(i => {
+                    const s = normalizeStatus(i.status);
+                    return s === "processing" || s === "pending";
+                }).length;
+                const failed = history.filter(i => {
+                    const s = normalizeStatus(i.status);
+                    return s === "failed" || s === "cancelled";
+                }).length;
+
+                container.innerHTML = `
+                    <div class="user-stat">
+                        <div class="user-stat-label">Total Activity</div>
+                        <div class="user-stat-value">${total}</div>
+                    </div>
+                    <div class="user-stat">
+                        <div class="user-stat-label">Success</div>
+                        <div class="user-stat-value">${success}</div>
+                    </div>
+                    <div class="user-stat">
+                        <div class="user-stat-label">Processing</div>
+                        <div class="user-stat-value">${processing}</div>
+                    </div>
+                    <div class="user-stat">
+                        <div class="user-stat-label">Failed</div>
+                        <div class="user-stat-value">${failed}</div>
+                    </div>
+                `;
+            }
+
+            /* =====================================================
+               LOAD HISTORY (hanya user ini)
+            ====================================================== */
+
+            async function loadHistory() {
+
+                const result = await state.client
+                    .from("generation_history")
+                    .select(
+                        "id,user_id,status,model_id,model_name," +
+                        "provider_name,task_id,prompt,credit_cost,created_at"
+                    )
+                    .eq("user_id", state.userId)
+                    .order("created_at", { ascending: false })
+                    .limit(200);
+
+                if (result.error) {
+                    throw result.error;
+                }
+
+                state.history = Array.isArray(result.data) ? result.data : [];
+
+                renderHistory();
+                renderStats();
+            }
+
+            function renderHistory() {
+
+                const list = document.getElementById("activityList");
+                if (!list) return;
+
+                if (!state.history.length) {
+                    list.innerHTML = `
+                        <div class="state-box">
+                            Akun ini belum memiliki aktivitas generate.
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = state.history
+                    .map(renderActivityItem)
+                    .join("");
+
+                bindToggles();
+                bindCancelButtons();
+            }
+
+            /* =====================================================
+               RENDER ACTIVITY ITEM
+            ====================================================== */
+
+            function renderActivityItem(item) {
+
+                const status = normalizeStatus(item.status);
+                const active = isRunningGeneration(item);
+
+                const model = escapeHtml(
+                    item.model_name || item.model_id || "Model"
+                );
+
+                const provider = escapeHtml(
+                    item.provider_name || item.provider || "GEN-Z.AI"
+                );
+
+                const taskId = escapeHtml(
+                    item.task_id || item.id || "—"
+                );
+
+                const prompt = item.prompt
+                    ? escapeHtml(item.prompt)
+                    : "";
+
+                return `
+                    <div class="activity-item ${active ? "active" : ""}">
+
+                        <div class="activity-item-head">
+
+                            <div>
+                                <div class="activity-model">
+                                    ${model}
+                                </div>
+                                <div class="activity-provider">
+                                    ${provider}
+                                </div>
+                            </div>
+
+                            <div class="activity-status ${escapeHtml(status)}">
+                                ${escapeHtml(status)}
+                            </div>
+
+                        </div>
+
+                        <div class="activity-info">
+
+                            <div class="activity-info-box">
+                                <div class="activity-info-label">Task ID</div>
+                                <div class="activity-info-value">
+                                    ${taskId}
+                                </div>
+                            </div>
+
+                            <div class="activity-info-box">
+                                <div class="activity-info-label">Mulai</div>
+                                <div class="activity-info-value">
+                                    ${escapeHtml(formatDate(item.created_at))}
+                                </div>
+                            </div>
+
+                            <div class="activity-info-box">
+                                <div class="activity-info-label">Credit</div>
+                                <div class="activity-info-value">
+                                    ${escapeHtml(formatCredits(item.credit_cost))}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        ${
+                            prompt
+                                ? `
+                                    <div class="activity-prompt-block">
+                                        <div class="activity-prompt-header">
+                                            <span class="activity-prompt-label">
+                                                Prompt
+                                            </span>
+                                            <button
+                                                type="button"
+                                                class="activity-prompt-toggle"
+                                                aria-expanded="false"
+                                            >
+                                                <span class="activity-prompt-toggle-label">
+                                                    Lihat selengkapnya
+                                                </span>
+                                                <span class="activity-prompt-toggle-icon">
+                                                    ▾
+                                                </span>
+                                            </button>
+                                        </div>
+                                        <div class="activity-prompt-text">
+                                            ${prompt}
+                                        </div>
+                                    </div>
+                                `
+                                : ""
+                        }
+
+                        ${
+                            active
+                                ? `
+                                    <div class="activity-actions">
+                                        <button
+                                            type="button"
+                                            class="cancel-generation"
+                                            data-history-id="${escapeHtml(item.id || "")}"
+                                        >
+                                            Cancel Generate
+                                        </button>
+                                    </div>
+                                `
+                                : ""
+                        }
+
+                    </div>
+                `;
+            }
+
+            /* =====================================================
+               PROMPT TOGGLE
+            ====================================================== */
+
+            function bindToggles() {
+
+                document
+                    .querySelectorAll(".activity-prompt-toggle")
+                    .forEach(toggle => {
+
+                        if (toggle.dataset.bound === "true") return;
+
+                        toggle.dataset.bound = "true";
+
+                        toggle.addEventListener("click", event => {
+
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            const block = toggle.closest(".activity-prompt-block");
+                            if (!block) return;
+
+                            const isExpanded = block.classList.toggle("expanded");
+
+                            const label = toggle.querySelector(
+                                ".activity-prompt-toggle-label"
+                            );
+
+                            if (label) {
+                                label.textContent = isExpanded
+                                    ? "Sembunyikan"
+                                    : "Lihat selengkapnya";
+                            }
+
+                            toggle.setAttribute(
+                                "aria-expanded",
+                                isExpanded ? "true" : "false"
+                            );
+                        });
+                    });
+            }
+
+            /* =====================================================
+               CANCEL GENERATION
+            ====================================================== */
+
+            function bindCancelButtons() {
+
+                document
+                    .querySelectorAll(".cancel-generation")
+                    .forEach(button => {
+
+                        if (button.dataset.bound === "true") return;
+
+                        button.dataset.bound = "true";
+
+                        button.addEventListener("click", async event => {
+
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            await cancelGeneration(
+                                button.dataset.historyId,
+                                button
+                            );
+                        });
+                    });
+            }
+
+            async function cancelGeneration(historyId, button) {
+
+                if (!state.client || !historyId) return;
+
+                if (!window.confirm("Batalkan generate ini?")) {
+                    return;
+                }
+
+                button.disabled = true;
+                button.textContent = "Membatalkan…";
+
+                try {
+
+                    const result = await state.client
+                        .from("generation_history")
+                        .update({ status: "cancelled" })
+                        .eq("id", historyId);
+
+                    if (result.error) throw result.error;
+
+                    state.history = state.history.map(item =>
+                        String(item.id) === String(historyId)
+                            ? { ...item, status: "cancelled" }
+                            : item
+                    );
+
+                    renderHistory();
+                    renderStats();
+
+                } catch (error) {
+
+                    console.error("[GEN-Z.AI] Cancel error:", error);
+
+                    button.disabled = false;
+                    button.textContent = "Cancel Generate";
+
+                    window.alert(
+                        "Gagal membatalkan generate: " +
+                        (error?.message || "Unknown error")
+                    );
+                }
+            }
+
+            /* =====================================================
+               AUTO REFRESH (CONDITIONAL)
+            ====================================================== */
+
+            function hasRunning() {
+                return state.history.some(isRunningGeneration);
+            }
+
+            function startAutoRefresh() {
+
+                if (state.refreshTimer) {
+                    clearInterval(state.refreshTimer);
+                    state.refreshTimer = null;
+                }
+
+                state.refreshTimer = window.setInterval(
+                    async () => {
+
+                        if (document.hidden) return;
+                        if (!hasRunning()) return;
+
+                        try {
+                            await loadHistory();
+                        } catch (error) {
+                            console.warn(
+                                "[GEN-Z.AI User Activity] Refresh error:",
+                                error
+                            );
+                        }
+
+                    },
+                    5000
+                );
+
+                document.addEventListener("visibilitychange", () => {
+                    if (!document.hidden && hasRunning()) {
+                        loadHistory().catch(() => {});
+                    }
+                });
+            }
+
+            /* =====================================================
+               INIT
+            ====================================================== */
+
+            async function init() {
+
+                state.client = getSupabaseClient();
+
+                if (!state.client) {
+                    showError("Supabase client tidak tersedia.");
+                    return;
+                }
+
+                state.userId = getUserIdFromUrl();
+
+                if (!state.userId) {
+                    showError("Parameter ?user= tidak ditemukan di URL.");
+                    return;
+                }
+
+                try {
+
+                    /* Cek session — harus admin */
+
+                    const session = await state.client.auth.getSession();
+                    const sessionData = session.data?.session;
+
+                    if (!sessionData) {
+                        window.location.href = "../../login.html";
+                        return;
+                    }
+
+                    const profileResult = await state.client
+                        .from("profiles")
+                        .select("role")
+                        .eq("id", sessionData.user.id)
+                        .single();
+
+                    if (profileResult.error) throw profileResult.error;
+
+                    const role = String(
+                        profileResult.data?.role || ""
+                    ).trim().toUpperCase();
+
+                    if (role !== "ADMIN" && role !== "OWNER") {
+                        window.location.href = "../../user/dashboard.html";
+                        return;
+                    }
+
+                    /* Load user profile + history */
+
+                    await loadProfile();
+                    await loadHistory();
+
+                    startAutoRefresh();
+
+                    console.log("[GEN-Z.AI User Activity] FINISHED");
+
+                } catch (error) {
+
+                    console.error("[GEN-Z.AI User Activity] Error:", error);
+                    showError(error?.message || "Unknown error");
+                }
+            }
+
+            function showError(message) {
+
+                const header = document.getElementById("userHeader");
+                if (header) header.style.display = "none";
+
+                const list = document.getElementById("activityList");
+                if (list) {
+                    list.innerHTML = `
+                        <div class="state-box">
+                            ${escapeHtml(message)}
+                        </div>
+                    `;
+                }
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", init);
+            } else {
+                init();
+            }
+
+        })();
+    </script>
+
+</body>
+</html>
