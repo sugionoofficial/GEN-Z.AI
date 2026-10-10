@@ -1654,41 +1654,43 @@
 
                 try {
 
-                    const profileResult =
-                        await dashboardSupabaseClient
-                            .from("profiles")
-                            .select(
-                                "id,name,email,role,credits,status"
-                            )
-                            .order(
-                                "email",
-                                {
-                                    ascending: true
-                                }
-                            );
+                    /* =================================================
+   ACCOUNT ACTIVITY QUERIES — PARALLEL + LIMITED
+   -------------------------------------------------
+   PATCH:
+   - Pakai Promise.all() supaya parallel.
+   - Profiles: limit 100 (bukan semua).
+   - History: select kolom spesifik (bukan "*"),
+     limit 500.
+   - Kolom history dibatasi ke yang benar-benar
+     dipakai di UI.
+================================================== */
 
-                    if (
-                        profileResult.error
-                    ) {
-                        throw profileResult.error;
-                    }
+const [profileResult, historyResult] = await Promise.all([
 
-                    const historyResult =
-                        await dashboardSupabaseClient
-                            .from("generation_history")
-                            .select("*")
-                            .order(
-                                "created_at",
-                                {
-                                    ascending: false
-                                }
-                            );
+    dashboardSupabaseClient
+        .from("profiles")
+        .select("id,name,email,role,credits,status")
+        .order("email", { ascending: true })
+        .limit(100),
 
-                    if (
-                        historyResult.error
-                    ) {
-                        throw historyResult.error;
-                    }
+    dashboardSupabaseClient
+        .from("generation_history")
+        .select(
+            "id,user_id,status,model_id,model_name," +
+            "provider_name,task_id,prompt,credit_cost,created_at"
+        )
+        .order("created_at", { ascending: false })
+        .limit(500)
+]);
+
+if (profileResult.error) {
+    throw profileResult.error;
+}
+
+if (historyResult.error) {
+    throw historyResult.error;
+}
 
                     accountActivityState.profiles =
                         Array.isArray(
@@ -2578,213 +2580,108 @@
                 );
 
                 /* =================================================
-                   TOTAL USERS
-                ================================================== */
+   STATS — PARALLEL + SERVER-SIDE AGGREGATE
+   -------------------------------------------------
+   PATCH: 4 query sequential → 4 parallel.
+   - Pakai {count: "exact", head: true} supaya
+     Supabase hanya kirim count, tidak fetch data.
+   - Total credits pakai RPC (server-side SUM).
+   - Total waktu = query paling lambat, bukan
+     total semua query.
+================================================== */
 
-                try {
+const statsStart = performance.now();
 
-                    const result =
-                        await dashboardSupabaseClient
-                            .from("profiles")
-                            .select(
-                                "id",
-                                {
-                                    count: "exact"
-                                }
-                            );
+const [
+    totalUsersResult,
+    activeUsersResult,
+    totalGenerationsResult,
+    totalCreditsResult
+] = await Promise.all([
 
-                    if (result.error) {
-                        throw result.error;
-                    }
+    /* 1. Total users — hanya count */
+    dashboardSupabaseClient
+        .from("profiles")
+        .select("id", { count: "exact", head: true }),
 
-                    const totalUsers =
-                        typeof result.count === "number"
-                            ? result.count
-                            : Array.isArray(result.data)
-                                ? result.data.length
-                                : 0;
+    /* 2. Active users — hanya count */
+    dashboardSupabaseClient
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active"),
 
-                    setText(
-                        "totalUsers",
-                        totalUsers.toLocaleString(
-                            "id-ID"
-                        )
-                    );
+    /* 3. Total generations — hanya count */
+    dashboardSupabaseClient
+        .from("generation_history")
+        .select("id", { count: "exact", head: true }),
 
-                } catch (error) {
+    /* 4. Total credits — server-side SUM via RPC */
+    dashboardSupabaseClient.rpc("sum_profile_credits")
+]);
 
-                    console.error(
-                        "[GEN-Z.AI] Total users error:",
-                        error
-                    );
 
-                    setText(
-                        "totalUsers",
-                        "ERR"
-                    );
-                }
+/* -------- TOTAL USERS -------- */
 
-                /* =================================================
-                   ACTIVE USERS
-                ================================================== */
+if (totalUsersResult.error) {
+    console.error("[GEN-Z.AI] Total users error:", totalUsersResult.error);
+    setText("totalUsers", "ERR");
+} else {
+    const totalUsers = Number(totalUsersResult.count) || 0;
+    setText("totalUsers", totalUsers.toLocaleString("id-ID"));
+}
 
-                try {
 
-                    const result =
-                        await dashboardSupabaseClient
-                            .from("profiles")
-                            .select(
-                                "id",
-                                {
-                                    count: "exact"
-                                }
-                            )
-                            .eq(
-                                "status",
-                                "active"
-                            );
+/* -------- ACTIVE USERS -------- */
 
-                    if (result.error) {
-                        throw result.error;
-                    }
+if (activeUsersResult.error) {
+    console.error("[GEN-Z.AI] Active users error:", activeUsersResult.error);
+    setText("activeUsers", "ERR");
+} else {
+    const activeUsers = Number(activeUsersResult.count) || 0;
+    setText("activeUsers", activeUsers.toLocaleString("id-ID"));
+}
 
-                    const activeUsers =
-                        typeof result.count === "number"
-                            ? result.count
-                            : Array.isArray(result.data)
-                                ? result.data.length
-                                : 0;
 
-                    setText(
-                        "activeUsers",
-                        activeUsers.toLocaleString(
-                            "id-ID"
-                        )
-                    );
+/* -------- TOTAL GENERATIONS -------- */
 
-                } catch (error) {
+if (totalGenerationsResult.error) {
+    console.error("[GEN-Z.AI] Generation history error:", totalGenerationsResult.error);
+    setText("totalGenerations", "ERR");
+} else {
+    const totalGenerations = Number(totalGenerationsResult.count) || 0;
+    setText("totalGenerations", totalGenerations.toLocaleString("id-ID"));
+}
 
-                    console.error(
-                        "[GEN-Z.AI] Active users error:",
-                        error
-                    );
 
-                    setText(
-                        "activeUsers",
-                        "ERR"
-                    );
-                }
+/* -------- TOTAL CREDITS -------- */
 
-                /* =================================================
-                   TOTAL GENERATIONS
-                ================================================== */
+if (totalCreditsResult.error) {
+    console.error("[GEN-Z.AI] Credits error:", totalCreditsResult.error);
+    setText("totalCredits", "ERR");
+} else {
+    /*
+     * rpc() bisa return scalar atau array.
+     * Handle keduanya.
+     */
+    let totalCredits = 0;
 
-                try {
+    if (typeof totalCreditsResult.data === "number") {
+        totalCredits = totalCreditsResult.data;
+    } else if (Array.isArray(totalCreditsResult.data)) {
+        totalCredits = Number(totalCreditsResult.data[0]) || 0;
+    } else {
+        totalCredits = Number(totalCreditsResult.data) || 0;
+    }
 
-                    const result =
-                        await dashboardSupabaseClient
-                            .from(
-                                "generation_history"
-                            )
-                            .select(
-                                "id",
-                                {
-                                    count: "exact"
-                                }
-                            );
+    setText("totalCredits", totalCredits.toLocaleString("id-ID"));
+}
 
-                    if (result.error) {
-                        throw result.error;
-                    }
 
-                    const totalGenerations =
-                        typeof result.count === "number"
-                            ? result.count
-                            : Array.isArray(result.data)
-                                ? result.data.length
-                                : 0;
-
-                    setText(
-                        "totalGenerations",
-                        totalGenerations.toLocaleString(
-                            "id-ID"
-                        )
-                    );
-
-                } catch (error) {
-
-                    console.error(
-                        "[GEN-Z.AI] Generation history error:",
-                        error
-                    );
-
-                    setText(
-                        "totalGenerations",
-                        "ERR"
-                    );
-                }
-
-                /* =================================================
-                   TOTAL CREDITS
-                ================================================== */
-
-                try {
-
-                    const result =
-                        await dashboardSupabaseClient
-                            .from("profiles")
-                            .select(
-                                "credits"
-                            );
-
-                    if (result.error) {
-                        throw result.error;
-                    }
-
-                    const rows =
-                        Array.isArray(result.data)
-                            ? result.data
-                            : [];
-
-                    const totalCredits =
-                        rows.reduce(
-                            (
-                                sum,
-                                row
-                            ) => {
-
-                                return (
-                                    sum +
-                                    (
-                                        Number(
-                                            row.credits
-                                        ) || 0
-                                    )
-                                );
-                            },
-                            0
-                        );
-
-                    setText(
-                        "totalCredits",
-                        totalCredits.toLocaleString(
-                            "id-ID"
-                        )
-                    );
-
-                } catch (error) {
-
-                    console.error(
-                        "[GEN-Z.AI] Credits error:",
-                        error
-                    );
-
-                    setText(
-                        "totalCredits",
-                        "ERR"
-                    );
-                }
-
+console.log(
+    "[GEN-Z.AI Dashboard] Stats loaded in",
+    Math.round(performance.now() - statsStart),
+    "ms"
+);
                 /* =================================================
                    ACCOUNT ACTIVITY INITIAL LOAD
                 ================================================== */
@@ -2792,53 +2689,113 @@
                 await loadAccountActivity();
 
                 /* =================================================
-                   ACCOUNT ACTIVITY AUTO REFRESH
-                ================================================== */
+   ACCOUNT ACTIVITY AUTO REFRESH — CONDITIONAL
+   -------------------------------------------------
+   PATCH:
+   - Jangan refresh kalau tab tidak aktif.
+   - Jangan refresh kalau tidak ada generation
+     yang running.
+   - Refresh 5s saat ada running, 30s saat idle.
+================================================== */
 
-                if (
-                    accountActivityState.refreshTimer
-                ) {
+function hasAnyRunningGeneration() {
+    return accountActivityState.history.some(
+        item => isRunningGeneration(item)
+    );
+}
 
-                    clearInterval(
-                        accountActivityState.refreshTimer
-                    );
-                }
 
-                accountActivityState.refreshTimer =
-                    window.setInterval(
-                        async () => {
+async function tickAccountActivityRefresh() {
 
-                            await loadAccountActivity();
+    /* Skip kalau tab tidak aktif */
+    if (document.hidden) {
+        return;
+    }
 
-                            /*
-                             * Jika modal sedang terbuka,
-                             * isi modal diperbarui juga.
-                             */
-                            if (
-                                accountActivityState.selectedUserId
-                            ) {
+    /* Skip kalau tidak ada running */
+    if (!hasAnyRunningGeneration()) {
+        return;
+    }
 
-                                const modal =
-                                    document.getElementById(
-                                        "activityModal"
-                                    );
+    try {
+        await loadAccountActivity();
 
-                                if (
-                                    modal &&
-                                    modal.classList.contains(
-                                        "open"
-                                    )
-                                ) {
+        /* Update modal kalau terbuka */
+        if (accountActivityState.selectedUserId) {
 
-                                    openAccountActivity(
-                                        accountActivityState.selectedUserId
-                                    );
-                                }
-                            }
+            const modal =
+                document.getElementById("activityModal");
 
-                        },
-                        5000
-                    );
+            if (modal && modal.classList.contains("open")) {
+                openAccountActivity(
+                    accountActivityState.selectedUserId
+                );
+            }
+        }
+
+    } catch (error) {
+        console.warn(
+            "[GEN-Z.AI Dashboard] Refresh error:",
+            error
+        );
+    }
+}
+
+
+if (accountActivityState.refreshTimer) {
+    clearInterval(accountActivityState.refreshTimer);
+    accountActivityState.refreshTimer = null;
+}
+
+
+/*
+ * Polling adaptif:
+ * - Saat ada running: tiap 5 detik
+ * - Saat idle: tiap 30 detik (murah)
+ *
+ * Tetap jalan ringan, bukan polling buta.
+ */
+
+let dashboardTickCounter = 0;
+
+accountActivityState.refreshTimer =
+    window.setInterval(
+
+        async () => {
+
+            dashboardTickCounter++;
+
+            const running = hasAnyRunningGeneration();
+
+            /*
+             * Kalau ada running → tick setiap 5s (sudah default).
+             * Kalau idle → tick setiap 30s (skip 5 tick).
+             */
+
+            if (!running && dashboardTickCounter % 6 !== 0) {
+                return;
+            }
+
+            await tickAccountActivityRefresh();
+
+        },
+
+        5000
+    );
+
+
+/*
+ * Pause polling saat tab tidak aktif.
+ */
+
+document.addEventListener(
+    "visibilitychange",
+    () => {
+        if (!document.hidden) {
+            tickAccountActivityRefresh();
+        }
+    }
+);
 
                 console.log(
                     "[GEN-Z.AI Dashboard] FINISHED"
