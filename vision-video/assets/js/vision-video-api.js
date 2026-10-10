@@ -130,9 +130,10 @@
             "8. Transitions and continuity.",
             "9. Style, rendering, and technical visual quality.",
 
-            "Preserve clothing, colors, objects, environment, composition,",
-            "camera behavior, camera movement, framing, lighting,",
-            "motion, transitions, timing, and visual continuity.",
+            "Preserve clothing, accessories, and physical appearance FROM THE CHARACTER REFERENCE.",
+            "Preserve environment, composition, camera behavior, camera movement, framing, lighting,",
+            "motion, transitions, timing, and visual continuity FROM THE VIDEO FRAMES.",
+            "Never mix the character reference's identity with the video person's identity.",
 
             "Describe temporal changes only when supported by the supplied frames.",
 
@@ -322,44 +323,50 @@
        (diletakkan SETELAH frames)
     ===================================================== */
 
+        const PRE_FRAME_DISCLAIMER = [
+        "MOTION REFERENCE ONLY:",
+        "The following frames show MOTION, POSE, and CAMERA references.",
+        "The person visible in these frames is a PLACEHOLDER and is NOT the subject.",
+        "Do NOT describe this placeholder person's face, hair, skin, eyes,",
+        "body, clothing, or any identity-defining detail.",
+        "Do NOT mention that person's identity in the final prompt.",
+        "These frames exist ONLY to convey motion, pose, camera behavior,",
+        "framing, environment, and timing."
+    ].join(" ");
+
+
     const CHARACTER_REFERENCE_INSTRUCTION = [
-        "CHARACTER REFERENCE — THIS IS THE AUTHORITATIVE IDENTITY:",
+        "=== CHARACTER REFERENCE — THIS IS THE SUBJECT OF THE FINAL PROMPT ===",
 
-        "The image that follows is the replacement character reference.",
+        "The image below is the REPLACEMENT CHARACTER that MUST be used as the subject.",
+        "This character replaces the placeholder person seen in the video frames.",
 
-        "You MUST describe THIS character in the final reconstruction prompt,",
+        "You MUST describe this character in explicit detail inside the final reconstruction prompt:",
 
-        "NOT the person appearing in the video frames.",
+        "- facial structure and face shape,",
+        "- eyes, eyebrows, nose, lips, jawline, cheekbones,",
+        "- hairstyle, hair length, hair texture, hair color,",
+        "- skin tone and skin characteristics,",
+        "- body proportions and visible body characteristics,",
+        "- clothing, outfit, garment details,",
+        "- accessories, jewelry, glasses, or visible items,",
+        "- general appearance defining the character's identity.",
 
-        "The person visible in the video frames MUST be REPLACED by this character.",
-
-        "Use this character's facial structure, facial features, eyes, eyebrows, nose,",
-        "lips, jawline, cheekbones, hairstyle, hair length, hair texture, hair color,",
-        "skin tone, visible body proportions, clothing, outfit details, accessories,",
-        "and any other visible attribute as the identity of the subject.",
-
-        "Do NOT describe the video person's face, hair, or identity.",
-        "Do NOT mix the video person's identity with this character.",
-        "Do NOT default to a generic person.",
-        "Do NOT omit visible character details.",
-
-        "The video frames are used ONLY for pose, action, movement, camera behavior,",
-        "framing, lighting, environment, timing, transitions, and scene continuity.",
-
-        "The character description MUST appear explicitly inside the final",
-        "reconstruction prompt (Section 2), not only inside the analysis section."
+        "The final prompt MUST describe THIS character as the subject.",
+        "The final prompt MUST NOT describe the placeholder person from the video frames.",
+        "The final prompt MUST NOT merge the two identities.",
+        "The final prompt MUST NOT fall back to a generic person."
     ].join(" ");
 
 
     const CHARACTER_REFERENCE_CLOSING_REMINDER = [
-        "FINAL REMINDER — CRITICAL:",
-        "Replace the person visible in the video frames with the CHARACTER REFERENCE image above.",
-        "The reconstruction prompt MUST describe the CHARACTER REFERENCE,",
-        "not the video person.",
-        "Write the reconstruction prompt as if the character reference is the",
-        "subject of the video, performing the same actions, poses, and camera framing",
-        "shown in the video frames.",
-        "Do NOT describe the video person's identity under any circumstance."
+        "=== FINAL CRITICAL REMINDER ===",
+        "The CHARACTER REFERENCE above is the ONLY subject you may describe.",
+        "The person visible in the video frames is a PLACEHOLDER and must be invisible in your output.",
+        "Any detail that appears only in the video frames and not in the character reference",
+        "MUST NOT appear in the final prompt.",
+        "The reconstruction prompt MUST open by describing the character reference in detail,",
+        "then continue with the pose, action, camera, environment, and motion from the video frames."
     ].join(" ");
 
 
@@ -1497,9 +1504,9 @@
 
 
         return [
-            `Frame ${Number(frame.index) + 1}`,
+            `Motion Reference ${Number(frame.index) + 1}`,
             `timestamp=${timestamp.toFixed(2)}s`,
-            `(pose/motion reference only — do not transfer identity from this frame)`
+            `(pose/motion/camera only — identity NOT used from this frame)`
         ].join(" | ");
     }
 
@@ -1591,7 +1598,7 @@
        4. Closing reminder
     ===================================================== */
 
-    async function buildMessages(payload, options = {}) {
+        async function buildMessages(payload, options = {}) {
 
         const frames = await prepareFramesForAPI(payload);
 
@@ -1646,9 +1653,20 @@
         ];
 
 
-        /* -------- 1. FRAME VIDEO DULU -------- */
+        /* -------- PRE-FRAME DISCLAIMER -------- */
 
-        frames.forEach(function (frame) {
+        if (character) {
+
+            content.push({
+                type: "text",
+                text: PRE_FRAME_DISCLAIMER
+            });
+        }
+
+
+        /* -------- FRAME VIDEO + INTERLEAVED REMINDER -------- */
+
+        frames.forEach(function (frame, idx) {
 
             content.push({
                 type: "text",
@@ -1663,10 +1681,26 @@
                     detail: resolveImageDetail(payload, options)
                 }
             });
+
+
+            /* Setiap frame diikuti mini-reminder */
+
+            if (character) {
+
+                content.push({
+                    type: "text",
+                    text:
+                        "Reminder: the person in the image above is a " +
+                        "PLACEHOLDER. Only pose, motion, camera, and " +
+                        "environment are relevant. The subject of the " +
+                        "final prompt is the CHARACTER REFERENCE that " +
+                        "will be provided after these frames."
+                });
+            }
         });
 
 
-        /* -------- 2. CHARACTER REFERENCE TERAKHIR -------- */
+        /* -------- CHARACTER REFERENCE -------- */
 
         if (character) {
 
@@ -1703,7 +1737,6 @@
             }
         ];
     }
-
 
     /* =====================================================
        IMAGE DETAIL
