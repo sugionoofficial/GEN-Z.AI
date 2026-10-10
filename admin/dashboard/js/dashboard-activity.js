@@ -1,8 +1,7 @@
 /* =========================================================
    GEN-Z.AI DASHBOARD
    ACCOUNT ACTIVITY MODULE
-
-   Tanggung jawab:
+     Tanggung jawab:
    - Load profiles
    - Load generation_history
    - Menentukan akun yang sedang aktif
