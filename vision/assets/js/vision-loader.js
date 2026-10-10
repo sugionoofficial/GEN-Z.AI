@@ -32,6 +32,7 @@ import "./vision-dom.js";
 import "./vision-upload.js";
 import "./vision-preview.js";
 import "./vision-ui.js";
+import "./vision-premium.js";
 import "./vision-supabase.js";
 import "./vision-credit.js";
 
