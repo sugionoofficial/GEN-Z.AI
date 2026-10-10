@@ -1,25 +1,16 @@
-//vision-video/assets/js/vision-video-api.js?V=1.5
+//vision-video/assets/js/vision-video-api.js?V=1.6
 /* =========================================================
    GEN-Z.AI VISION VIDEO
    ---------------------------------------------------------
    File: vision-video/assets/js/vision-video-api.js
 
-   PATCH (2026-10-10):
-   - Tambah pilihan bahasa output (id / en).
-   - systemInstruction dipisah menjadi base + language + format.
-   - AI wajib memisahkan analisis dan prompt dengan
-     separator "=== PROMPT REKONSTRUKSI ===".
-
-   PATCH (2026-10-10) v1.5:
-   - Perkuat PROMPT QUALITY: prompt rekonstruksi WAJIB sangat
-     detail dan menyertakan SEMUA aspek Replacement Character
-     yang terlihat di foto (wajah, rambut, kulit, mata, pakaian,
-     aksesori, ekspresi, dll).
-   - Tambah CHARACTER FIDELITY INSTRUCTION: model wajib men-
-     deskripsikan karakter referensi secara eksplisit di dalam
-     prompt final.
-   - Tambah PROMPT DEPTH REQUIREMENT: prompt harus spesifik,
-     teknis, dan menyeluruh, bukan ringkasan pendek.
+   PATCH v1.6 (2026-10-10):
+   - REORDER: character reference diletakkan SETELAH frame video
+     supaya AI tidak mengabaikan character reference.
+   - CLOSING REMINDER: penegas eksplisit di akhir user message.
+   - CHARACTER REPLACEMENT INSTRUCTION: larangan tegas
+     menggambarkan orang di video.
+   - PROMPT DEPTH + CHARACTER FIDELITY tetap dipertahankan.
 ========================================================= */
 
 (function () {
@@ -62,21 +53,32 @@
             "Do not invent visual details that are not supported by the supplied images.",
 
             /* =============================================
-               CHARACTER IDENTITY PRIORITY
+               CHARACTER REPLACEMENT — HIGHEST PRIORITY
             ============================================= */
 
-            "When a CHARACTER REFERENCE image is supplied, it is the authoritative source",
-            "for the replacement character's identity and visible appearance.",
-            "Use the character reference as the primary source for facial identity.",
-            "Preserve the visible facial structure, facial features, hairstyle, hair color,",
-            "skin tone, visible body characteristics, and other identity-defining details",
-            "that are actually visible in the character reference.",
-            "Do not use the identity of the person appearing in the source video.",
-            "Do not copy, merge, blend, or substitute the source video's person's face",
-            "with the replacement character.",
-            "Do not allow the source video's person's identity to override the character reference.",
-            "If the character reference and video show different people, the character reference",
-            "must remain the authoritative identity for the replacement character.",
+            "CHARACTER REPLACEMENT — HIGHEST PRIORITY:",
+
+            "When a CHARACTER REFERENCE image is supplied, it OVERRIDES the identity",
+            "of any person appearing in the source video frames.",
+
+            "The person visible in the video frames MUST be treated ONLY as a pose,",
+            "action, movement, and framing template.",
+            "The IDENTITY of that person MUST be REPLACED entirely by the character reference.",
+
+            "You MUST NOT describe the identity of the person in the video frames.",
+            "You MUST NOT describe the face, hair, hairstyle, hair color, skin tone,",
+            "eye color, body characteristics, or any identity-defining attribute of the",
+            "person seen in the video frames.",
+            "You MUST NOT copy, merge, blend, or substitute the video person's identity",
+            "with the character reference.",
+
+            "The replacement character reference is the ONLY authoritative source",
+            "for facial identity, hair, skin, eyes, body characteristics, clothing,",
+            "and any other identity-defining detail of the subject in the final prompt.",
+
+            "If the character reference and the video person are different, the character",
+            "reference MUST remain the authoritative identity in the reconstruction prompt.",
+
             "Do not invent character details that are not visible in the character reference.",
 
             /* =============================================
@@ -87,6 +89,7 @@
             "camera behavior, camera movement, framing, composition, environment,",
             "lighting, timing, transitions, and visual continuity.",
             "Preserve the temporal behavior and scene structure supported by the video.",
+            "Do NOT transfer identity from the video frames.",
 
             /* =============================================
                GENERAL ANALYSIS
@@ -104,19 +107,21 @@
             ============================================= */
 
             "The final video generation prompt must be directly usable",
-            "for reconstructing the visual appearance and motion of the source video.",
+            "for reconstructing the visual appearance and motion of the source video",
+
+            "with the CHARACTER REFERENCE as the subject.",
 
             "The final prompt MUST be highly detailed and comprehensive.",
             "Do NOT write a short summary.",
             "Do NOT write only a few sentences.",
-            "Do NOT omit visual details that are clearly visible in the frames.",
+            "Do NOT omit visual details that are clearly visible in the frames or the character reference.",
 
             "The final prompt MUST be written as a single, continuous, richly descriptive",
             "prompt text, not as a bullet list, not as a table, not as markdown headings.",
             "The final prompt MUST cover, explicitly and in detail:",
 
-            "1. Replacement character appearance (if character reference is supplied).",
-            "2. Subject action and pose.",
+            "1. Replacement character appearance (mandatory if character reference is supplied).",
+            "2. Subject action and pose (from the video frames).",
             "3. Camera behavior, camera movement, and framing.",
             "4. Composition and shot type.",
             "5. Environment and setting.",
@@ -124,9 +129,6 @@
             "7. Motion and temporal behavior.",
             "8. Transitions and continuity.",
             "9. Style, rendering, and technical visual quality.",
-
-            "When a replacement character reference is supplied, explicitly preserve",
-            "the replacement character's identity consistently throughout the prompt.",
 
             "Preserve clothing, colors, objects, environment, composition,",
             "camera behavior, camera movement, framing, lighting,",
@@ -136,10 +138,6 @@
 
             "Do not add creative details that are not supported by the video",
             "or the character reference.",
-
-            "Do not hallucinate subjects, objects, locations, actions,",
-            "camera movements, lighting conditions, visual effects,",
-            "or character attributes.",
 
             /* =============================================
                CHARACTER FIDELITY INSTRUCTION
@@ -162,8 +160,8 @@
             "- general appearance that defines the character's identity.",
 
             "Do NOT describe the character in vague terms.",
-            "Do NOT replace the character with a generic person.",
-            "Do NOT describe the source video's person as the character.",
+            "Do NOT replace the character with the video person.",
+            "Do NOT describe the video person's face, hair, or identity.",
             "Do NOT omit visible character details.",
 
             "The character description MUST be embedded inside the reconstruction prompt,",
@@ -184,7 +182,11 @@
             "Do not limit the prompt length.",
             "Do not shorten the prompt to save space.",
             "Do not reduce the prompt to a summary.",
-            "Write the prompt as if it is the only thing the AI video model will see."
+            "Write the prompt as if it is the only thing the AI video model will see.",
+
+            "Do not hallucinate subjects, objects, locations, actions,",
+            "camera movements, lighting conditions, visual effects,",
+            "or character attributes."
         ].join(" "),
 
         /*
@@ -212,7 +214,8 @@
             "- The separator line must appear exactly once, on its own line, between the two sections.",
             "- Do not wrap the separator line in quotes, backticks, bold, or any markdown formatting.",
             "- The prompt section MUST NOT be a short summary.",
-            "- The prompt section MUST be a long, detailed, technical description."
+            "- The prompt section MUST be a long, detailed, technical description.",
+            "- The prompt section MUST describe the CHARACTER REFERENCE, not the video person."
         ].join(" ")
     });
 
@@ -248,8 +251,6 @@
         }
 
 
-        /* -------- DEFAULT: BAHASA INDONESIA -------- */
-
         return [
             "OUTPUT LANGUAGE:",
             "Write the complete video analysis AND the final video generation prompt in natural Bahasa Indonesia.",
@@ -277,7 +278,6 @@
             options.language &&
             String(options.language).trim()
         ) {
-
             return String(options.language).trim();
         }
 
@@ -288,7 +288,6 @@
             payload.settings.language &&
             String(payload.settings.language).trim()
         ) {
-
             return String(payload.settings.language).trim();
         }
 
@@ -300,7 +299,6 @@
             payload.context.settings.language &&
             String(payload.context.settings.language).trim()
         ) {
-
             return String(payload.context.settings.language).trim();
         }
 
@@ -321,30 +319,47 @@
 
     /* =====================================================
        CHARACTER REFERENCE INSTRUCTION
+       (diletakkan SETELAH frames)
     ===================================================== */
 
     const CHARACTER_REFERENCE_INSTRUCTION = [
-        "CHARACTER REFERENCE:",
-        "The following image is the authoritative replacement character reference.",
-        "Use this image as the primary source for the character's identity and visible appearance.",
-        "Match the visible facial structure, facial features, hairstyle, hair color, skin tone,",
-        "visible body characteristics, and other identity-defining details shown in the reference.",
-        "Do not use the identity of the person appearing in the source video.",
-        "Do not mix the source video's person's face or identity with the replacement character.",
-        "The video frames are used for pose, action, movement, camera behavior, framing,",
-        "lighting, environment, timing, transitions, and scene continuity.",
-        "Do not invent unsupported character details.",
-        "Keep the replacement character visually consistent throughout the reconstructed prompt.",
+        "CHARACTER REFERENCE — THIS IS THE AUTHORITATIVE IDENTITY:",
 
-        "IMPORTANT: You MUST describe this replacement character in explicit detail",
-        "inside the final reconstruction prompt.",
-        "Cover the character's face shape, facial features, eyes, eyebrows, nose, lips,",
-        "jawline, hairstyle, hair length, hair texture, hair color, skin tone,",
-        "visible body proportions, clothing, outfit details, accessories,",
-        "and any other visible attribute that defines the character's identity.",
-        "Do NOT summarize the character in generic terms.",
+        "The image that follows is the replacement character reference.",
+
+        "You MUST describe THIS character in the final reconstruction prompt,",
+
+        "NOT the person appearing in the video frames.",
+
+        "The person visible in the video frames MUST be REPLACED by this character.",
+
+        "Use this character's facial structure, facial features, eyes, eyebrows, nose,",
+        "lips, jawline, cheekbones, hairstyle, hair length, hair texture, hair color,",
+        "skin tone, visible body proportions, clothing, outfit details, accessories,",
+        "and any other visible attribute as the identity of the subject.",
+
+        "Do NOT describe the video person's face, hair, or identity.",
+        "Do NOT mix the video person's identity with this character.",
+        "Do NOT default to a generic person.",
         "Do NOT omit visible character details.",
-        "Do NOT replace the character with a generic person."
+
+        "The video frames are used ONLY for pose, action, movement, camera behavior,",
+        "framing, lighting, environment, timing, transitions, and scene continuity.",
+
+        "The character description MUST appear explicitly inside the final",
+        "reconstruction prompt (Section 2), not only inside the analysis section."
+    ].join(" ");
+
+
+    const CHARACTER_REFERENCE_CLOSING_REMINDER = [
+        "FINAL REMINDER — CRITICAL:",
+        "Replace the person visible in the video frames with the CHARACTER REFERENCE image above.",
+        "The reconstruction prompt MUST describe the CHARACTER REFERENCE,",
+        "not the video person.",
+        "Write the reconstruction prompt as if the character reference is the",
+        "subject of the video, performing the same actions, poses, and camera framing",
+        "shown in the video frames.",
+        "Do NOT describe the video person's identity under any circumstance."
     ].join(" ");
 
 
@@ -429,7 +444,6 @@
                         result.data &&
                         result.data.session
                     ) {
-
                         return result.data.session;
                     }
                 }
@@ -448,7 +462,6 @@
             window.GENZVisionVideoSession &&
             window.GENZVisionVideoSession.access_token
         ) {
-
             return window.GENZVisionVideoSession;
         }
 
@@ -1485,7 +1498,8 @@
 
         return [
             `Frame ${Number(frame.index) + 1}`,
-            `timestamp=${timestamp.toFixed(2)}s`
+            `timestamp=${timestamp.toFixed(2)}s`,
+            `(pose/motion reference only — do not transfer identity from this frame)`
         ].join(" | ");
     }
 
@@ -1545,15 +1559,17 @@
             "TASK:",
             "Analyze all supplied frames in chronological order.",
             "Infer temporal changes only when supported by visible evidence.",
-            "Focus on visual information useful for recreating the video.",
-            "If a CHARACTER REFERENCE image is supplied, treat it as the authoritative identity reference.",
+            "Focus on pose, action, movement, camera behavior, framing, environment,",
+            "lighting, timing, transitions, and visual continuity.",
+            "If a CHARACTER REFERENCE image is supplied, treat it as the ONLY",
+            "authoritative source for the subject's identity.",
+            "The person visible in the video frames MUST be replaced by the character reference.",
             langLine,
             "",
             "PROMPT REQUIREMENT REMINDER:",
             "The reconstruction prompt must be long, detailed, technical, and complete.",
-            "The reconstruction prompt must explicitly describe the replacement character",
-            "(face, hair, skin, eyes, clothing, accessories, overall appearance) when a",
-            "character reference is supplied.",
+            "The reconstruction prompt MUST describe the CHARACTER REFERENCE —",
+            "not the person in the video frames.",
             "Do not write a short summary.",
             "",
             "OUTPUT FORMAT REMINDER:",
@@ -1567,6 +1583,12 @@
 
     /* =====================================================
        MESSAGE BUILDER
+       -----------------------------------------------------
+       URUTAN:
+       1. Context text
+       2. Frame video (pose/motion reference)
+       3. Character reference (SETELAH frames — recency)
+       4. Closing reminder
     ===================================================== */
 
     async function buildMessages(payload, options = {}) {
@@ -1624,23 +1646,7 @@
         ];
 
 
-        if (character) {
-
-            content.push({
-                type: "text",
-                text: CHARACTER_REFERENCE_INSTRUCTION
-            });
-
-
-            content.push({
-                type: "image_url",
-                image_url: {
-                    url: character.dataURL,
-                    detail: "high"
-                }
-            });
-        }
-
+        /* -------- 1. FRAME VIDEO DULU -------- */
 
         frames.forEach(function (frame) {
 
@@ -1658,6 +1664,32 @@
                 }
             });
         });
+
+
+        /* -------- 2. CHARACTER REFERENCE TERAKHIR -------- */
+
+        if (character) {
+
+            content.push({
+                type: "text",
+                text: CHARACTER_REFERENCE_INSTRUCTION
+            });
+
+
+            content.push({
+                type: "image_url",
+                image_url: {
+                    url: character.dataURL,
+                    detail: "high"
+                }
+            });
+
+
+            content.push({
+                type: "text",
+                text: CHARACTER_REFERENCE_CLOSING_REMINDER
+            });
+        }
 
 
         return [
