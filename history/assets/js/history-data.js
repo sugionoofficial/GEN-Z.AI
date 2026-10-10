@@ -190,12 +190,13 @@
             /*
              * Query generation history.
              */
-            let query = client
+                        let query = client
                 .from(App.config.historyTable)
                 .select("*")
                 .order("created_at", {
                     ascending: false
-                });
+                })
+                .limit(200);
 
             /*
              * USER hanya boleh melihat history
