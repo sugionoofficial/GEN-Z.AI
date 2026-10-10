@@ -7,6 +7,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GEN-Z.AI — Prompt Studio</title>
 
+<!-- =====================================================
+     SUPABASE — WAJIB untuk role-based navigation
+====================================================== -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+
+
+<!-- =====================================================
+     GEN-Z.AI CONFIG — WAJIB sebelum navigation.js
+====================================================== -->
+
+<script src="../assets/js/config.js"></script>
+
+
+<!-- =====================================================
+     GEN-Z.AI PREMIUM GLOBAL STYLE
+====================================================== -->
+
+<link
+    rel="stylesheet"
+    href="../assets/css/genz-premium.css"
+>
+
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&display=swap" rel="stylesheet">
@@ -1447,7 +1471,14 @@ body > .overlay { display: none !important; }
 
 <div class="toast" id="toast"></div>
 
-<script src="../assets/js/config.js"></script>
+<!-- =====================================================
+     NAVIGATION
+     -----------------------------------------------------
+     config.js sudah di-load di <head>.
+     navigation.js akan otomatis render sidebar
+     berdasarkan role user (admin/owner/user).
+====================================================== -->
+
 <script src="/navigation/navigation.js"></script>
 
 <script>
@@ -1667,7 +1698,7 @@ body > .overlay { display: none !important; }
         style: null,
         color: null,
         duration: null,
-        referenceFiles: [], // array of { file, dataUrl, name, size }
+        referenceFiles: [],
         subject: "",
         wardrobe: "",
         action: "",
@@ -1931,7 +1962,6 @@ body > .overlay { display: none !important; }
                 };
                 pending--;
                 if (pending === 0) {
-                    // Push in original order
                     results.forEach(function (r) {
                         if (r) state.referenceFiles.push(r);
                     });
@@ -1996,9 +2026,6 @@ body > .overlay { display: none !important; }
 
     /* =====================================================
        PROMPT BUILDER
-       -----------------------------------------------------
-       Output terstruktur dengan section header.
-       Depth mengontrol jumlah detail yang disertakan.
     ===================================================== */
 
     function sectionsFor() {
@@ -2006,7 +2033,6 @@ body > .overlay { display: none !important; }
         if (d === "simple") return ["SCENE"];
         if (d === "detailed") return ["SCENE", "CAMERA", "ENVIRONMENT", "LIGHTING", "STYLE", "TECHNICAL"];
         if (d === "cinematic") return ["SCENE", "CHARACTER", "CAMERA", "ENVIRONMENT", "LIGHTING", "STYLE", "COLOR", "TECHNICAL"];
-        // ultra
         return ["SCENE", "CHARACTER", "CAMERA", "ENVIRONMENT", "LIGHTING", "STYLE", "COLOR", "TECHNICAL", "REFERENCE", "QUALITY"];
     }
 
@@ -2018,12 +2044,12 @@ body > .overlay { display: none !important; }
         var included = sectionsFor();
 
         var t = {
-            scene: lang === "id" ? "SCENE" : "SCENE",
+            scene: "SCENE",
             character: lang === "id" ? "KARAKTER" : "CHARACTER",
             camera: lang === "id" ? "KAMERA" : "CAMERA",
             environment: lang === "id" ? "LINGKUNGAN" : "ENVIRONMENT",
             lighting: lang === "id" ? "PENCAHAYAAN" : "LIGHTING",
-            style: lang === "id" ? "STYLE" : "STYLE",
+            style: "STYLE",
             color: lang === "id" ? "WARNA" : "COLOR",
             technical: lang === "id" ? "TEKNIS" : "TECHNICAL",
             reference: lang === "id" ? "REFERENSI" : "REFERENCE",
@@ -2306,7 +2332,6 @@ body > .overlay { display: none !important; }
     ===================================================== */
 
     function enhancePrompt() {
-        // Auto-fill apa pun yang kosong dengan default berkualitas tinggi
         var filled = [];
 
         if (!state.subject) {
@@ -2334,7 +2359,6 @@ body > .overlay { display: none !important; }
             filled.push("depth");
         }
 
-        // Sync UI
         syncUIFromState();
         state.enhanced = true;
         render();
@@ -2471,7 +2495,6 @@ body > .overlay { display: none !important; }
 
 
     function syncUIFromState() {
-        // Segments
         var segOutput = document.getElementById("outputTypeSegment");
         segOutput.querySelectorAll(".segment-btn").forEach(function (b) {
             b.classList.toggle("active", b.getAttribute("data-output") === state.output);
@@ -2487,14 +2510,11 @@ body > .overlay { display: none !important; }
             b.classList.toggle("active", b.getAttribute("data-depth") === state.depth);
         });
 
-        // Duration card
         durationCard.style.display = state.output === "video" ? "block" : "none";
 
-        // Badge
         previewBadge.textContent = state.output === "video" ? "VIDEO" : "IMAGE";
         previewBadge.classList.toggle("video", state.output === "video");
 
-        // Chips
         syncChips("aspectGrid", state.aspect);
         syncChips("angleGrid", state.angle);
         syncChips("movementGrid", state.movement);
@@ -2508,13 +2528,11 @@ body > .overlay { display: none !important; }
         syncChips("colorGrid", state.color);
         syncChips("durationGrid", state.duration);
 
-        // Category
         var catContainer = document.getElementById("categoryGrid");
         catContainer.querySelectorAll(".category-tile").forEach(function (t) {
             t.classList.toggle("active", t.getAttribute("data-cat") === state.category);
         });
 
-        // Inputs
         document.getElementById("subjectInput").value = state.subject || "";
         document.getElementById("wardrobeInput").value = state.wardrobe || "";
         document.getElementById("actionInput").value = state.action || "";
