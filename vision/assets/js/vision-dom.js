@@ -12,6 +12,7 @@
    - Mendukung Reference Image
    - Mendukung Replacement Character Image
    - Mendukung Outfit Source
+   - Mendukung Analysis Copy Button
    - Tidak mengubah logic upload / preview / API
 ========================================================= */
 
@@ -75,12 +76,6 @@ const VISION_DOM_IDS = {
 
     /* =====================================================
        REPLACEMENT CHARACTER IMAGE
-       -----------------------------------------------------
-       Element ini akan digunakan ketika HTML replacement
-       character sudah ditambahkan.
-
-       Sengaja TIDAK dimasukkan ke required DOM karena
-       halaman saat ini belum memiliki element tersebut.
     ===================================================== */
 
     characterDropzone:
@@ -113,14 +108,6 @@ const VISION_DOM_IDS = {
 
     /* =====================================================
        OUTFIT SOURCE
-       -----------------------------------------------------
-       Pilihan sumber outfit:
-       - reference
-       - character
-
-       Sengaja TIDAK dimasukkan ke required DOM karena
-       HTML kontrol outfit belum wajib tersedia pada versi
-       lama.
     ===================================================== */
 
     outfitSource:
@@ -212,6 +199,9 @@ const VISION_DOM_IDS = {
 
     analysisResult:
         "visionAnalysisResult",
+
+    analysisCopyButton:
+        "visionAnalysisCopyButton",
 
 
     /* =====================================================
