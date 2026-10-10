@@ -1,4 +1,4 @@
-//vision-video/assets/js/vision-video-ui.js?v=1.1
+//vision-video/assets/js/vision-video-ui.js?v=1.2
 /* =========================================================
    GEN-Z.AI VISION VIDEO
    ---------------------------------------------------------
@@ -14,7 +14,7 @@
    - Prompt result
    - Analysis result
    - Video structure result
-   - Copy button support
+   - Copy button support (prompt + analysis)
    - Tidak menangani upload
    - Tidak menangani frame extraction
    - Tidak menangani API request
@@ -758,6 +758,68 @@
 
 
     /* =====================================================
+       COPY BUTTON HELPERS
+    ===================================================== */
+
+    function getPromptCopyButton() {
+
+        const viaDom =
+            element("copyButton");
+
+        if (viaDom) {
+            return viaDom;
+        }
+
+
+        return document.getElementById(
+            "visionVideoCopyButton"
+        );
+    }
+
+
+    function getAnalysisCopyButton() {
+
+        const viaDom =
+            element("analysisCopyButton");
+
+        if (viaDom) {
+            return viaDom;
+        }
+
+
+        return document.getElementById(
+            "visionVideoAnalysisCopyButton"
+        );
+    }
+
+
+    function showAnalysisCopyButton() {
+
+        const btn =
+            getAnalysisCopyButton();
+
+        if (btn) {
+
+            btn.hidden = false;
+
+            btn.style.display = "";
+        }
+    }
+
+
+    function hideAnalysisCopyButton() {
+
+        const btn =
+            getAnalysisCopyButton();
+
+        if (btn) {
+
+            btn.hidden = true;
+        }
+    }
+
+
+    /* =====================================================
        PROMPT
     ===================================================== */
 
@@ -880,6 +942,8 @@
             }
 
 
+            hideAnalysisCopyButton();
+
             return;
         }
 
@@ -897,6 +961,9 @@
                 "analysisPlaceholder"
             );
         }
+
+
+        showAnalysisCopyButton();
     }
 
 
@@ -1590,7 +1657,7 @@
 
 
     /* =====================================================
-       COPY RESULT
+       COPY PROMPT RESULT
     ===================================================== */
 
     async function copyPrompt() {
@@ -1680,9 +1747,7 @@
 
 
         const button =
-            element(
-                "copyButton"
-            );
+            getPromptCopyButton();
 
 
         /*
@@ -1872,6 +1937,294 @@
              * JIKA GAGAL, JANGAN TAMPILKAN STATUS PALSU
              * -------------------------------------------------
              */
+
+            if (button) {
+
+                button.textContent =
+                    "Copy";
+
+
+                button.removeAttribute(
+                    "data-copy-state"
+                );
+
+
+                button.disabled =
+                    false;
+            }
+
+
+            return false;
+        }
+    }
+
+
+    /* =====================================================
+       COPY ANALYSIS RESULT
+    ===================================================== */
+
+    async function copyAnalysis() {
+
+        const analysisElement =
+            element(
+                "analysisResult"
+            );
+
+
+        let analysis =
+            "";
+
+
+        if (analysisElement) {
+
+            analysis =
+                (
+                    analysisElement.textContent ||
+                    ""
+                ).trim();
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * FALLBACK KE STATE
+         * -------------------------------------------------
+         */
+
+        if (!analysis) {
+
+            try {
+
+                const state =
+                    getState();
+
+
+                const stateAnalysis =
+                    state.getValue(
+                        "analysis.result",
+                        ""
+                    );
+
+
+                if (
+                    typeof stateAnalysis === "string"
+                ) {
+
+                    analysis =
+                        stateAnalysis.trim();
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI Vision Video] Tidak dapat mengambil analysis dari state:",
+                    error
+                );
+            }
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * VALIDASI
+         * -------------------------------------------------
+         */
+
+        if (!analysis) {
+
+            console.warn(
+                "[GEN-Z.AI Vision Video] Tidak ada analysis yang dapat disalin."
+            );
+
+            return false;
+        }
+
+
+        const button =
+            getAnalysisCopyButton();
+
+
+        /*
+         * -------------------------------------------------
+         * CEGAH DOUBLE CLICK
+         * -------------------------------------------------
+         */
+
+        if (
+            button &&
+            button.disabled
+        ) {
+
+            return false;
+        }
+
+
+        try {
+
+            /*
+             * -------------------------------------------------
+             * MODERN CLIPBOARD API
+             * -------------------------------------------------
+             */
+
+            if (
+                navigator.clipboard &&
+                typeof navigator.clipboard.writeText ===
+                    "function"
+            ) {
+
+                await navigator.clipboard.writeText(
+                    analysis
+                );
+
+            } else {
+
+                /*
+                 * -------------------------------------------------
+                 * FALLBACK
+                 * -------------------------------------------------
+                 */
+
+                const textarea =
+                    document.createElement(
+                        "textarea"
+                    );
+
+
+                textarea.value =
+                    analysis;
+
+
+                textarea.setAttribute(
+                    "readonly",
+                    ""
+                );
+
+
+                textarea.style.position =
+                    "fixed";
+
+                textarea.style.top =
+                    "0";
+
+                textarea.style.left =
+                    "-9999px";
+
+                textarea.style.width =
+                    "1px";
+
+                textarea.style.height =
+                    "1px";
+
+                textarea.style.opacity =
+                    "0";
+
+                textarea.style.pointerEvents =
+                    "none";
+
+
+                document.body.appendChild(
+                    textarea
+                );
+
+
+                textarea.focus();
+
+                textarea.select();
+
+
+                textarea.setSelectionRange(
+                    0,
+                    textarea.value.length
+                );
+
+
+                const copied =
+                    document.execCommand(
+                        "copy"
+                    );
+
+
+                textarea.remove();
+
+
+                if (!copied) {
+
+                    throw new Error(
+                        "Browser menolak operasi copy."
+                    );
+                }
+            }
+
+
+            /*
+             * -------------------------------------------------
+             * BERHASIL
+             * -------------------------------------------------
+             */
+
+            if (button) {
+
+                button.textContent =
+                    "✓ Berhasil Disalin";
+
+
+                button.setAttribute(
+                    "data-copy-state",
+                    "success"
+                );
+
+
+                button.disabled =
+                    true;
+            }
+
+
+            /*
+             * -------------------------------------------------
+             * KEMBALIKAN TOMBOL KE KONDISI NORMAL
+             * -------------------------------------------------
+             */
+
+            window.setTimeout(
+                function () {
+
+                    if (!button) {
+                        return;
+                    }
+
+
+                    button.textContent =
+                        "Copy";
+
+
+                    button.removeAttribute(
+                        "data-copy-state"
+                    );
+
+
+                    button.disabled =
+                        false;
+
+                },
+                1800
+            );
+
+
+            console.info(
+                "[GEN-Z.AI Vision Video] Analysis berhasil disalin."
+            );
+
+
+            return true;
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI Vision Video] Copy analysis failed:",
+                error
+            );
+
 
             if (button) {
 
@@ -2174,10 +2527,10 @@
         );
 
 
+        /* ---------------- PROMPT COPY BUTTON ---------------- */
+
         const copyButton =
-            element(
-                "copyButton"
-            );
+            getPromptCopyButton();
 
 
         if (copyButton) {
@@ -2187,6 +2540,25 @@
                 function () {
 
                     copyPrompt();
+
+                }
+            );
+        }
+
+
+        /* ---------------- ANALYSIS COPY BUTTON ---------------- */
+
+        const analysisCopyButton =
+            getAnalysisCopyButton();
+
+
+        if (analysisCopyButton) {
+
+            analysisCopyButton.addEventListener(
+                "click",
+                function () {
+
+                    copyAnalysis();
 
                 }
             );
@@ -2255,6 +2627,8 @@
         sync,
 
         copyPrompt,
+
+        copyAnalysis,
 
         bind
 
