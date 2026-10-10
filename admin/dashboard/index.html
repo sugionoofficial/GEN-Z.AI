@@ -1041,12 +1041,11 @@
                     /* -------------------------------------------------
                        Link ke halaman user-activity
                        -------------------------------------------------
-                       Format: ./user-activity/?user=<uuid>
-                       Pastikan folder user-activity ada di:
-                       admin/dashboard/user-activity/index.html
+                       Format: ../user-activity/?user=<uuid>
+                       File aktif ada di: admin/user-activity/index.html
                     ------------------------------------------------- */
 
-                    var link = "./user-activity/?user=" + encodeURIComponent(userId);
+                    var link = "../user-activity/?user=" + encodeURIComponent(userId);
 
                     html += '<a class="account-card" href="' + link + '" aria-label="Lihat aktivitas ' + email + '">' +
 
