@@ -17,6 +17,7 @@
             --text: #171717;
             --text-strong: #0b0b0b;
             --muted: #666b73;
+            --muted-light: #858990;
             --accent: #ff1744;
             --accent-2: #ff4567;
             --accent-dark: #d9002f;
@@ -25,42 +26,16 @@
 
         html {
             min-height: 100%;
-            background:
-                linear-gradient(
-                    135deg,
-                    #ffffff 0%,
-                    #f3f3f3 38%,
-                    #e5e5e5 72%,
-                    #f8f8f8 100%
-                );
+            background: linear-gradient(135deg, #ffffff 0%, #f3f3f3 38%, #e5e5e5 72%, #f8f8f8 100%);
         }
 
         body {
             font-family: Inter, Arial, Helvetica, sans-serif;
-
             background:
-                radial-gradient(
-                    circle at 8% 8%,
-                    rgba(255,23,68,.08),
-                    transparent 25%
-                ),
-                radial-gradient(
-                    circle at 92% 18%,
-                    rgba(255,23,68,.055),
-                    transparent 24%
-                ),
-                radial-gradient(
-                    circle at 50% 100%,
-                    rgba(0,0,0,.045),
-                    transparent 38%
-                ),
-                linear-gradient(
-                    135deg,
-                    #ffffff 0%,
-                    #f1f1f1 45%,
-                    #dedede 100%
-                );
-
+                radial-gradient(circle at 8% 8%, rgba(255,23,68,.08), transparent 25%),
+                radial-gradient(circle at 92% 18%, rgba(255,23,68,.055), transparent 24%),
+                radial-gradient(circle at 50% 100%, rgba(0,0,0,.045), transparent 38%),
+                linear-gradient(135deg, #ffffff 0%, #f1f1f1 45%, #dedede 100%);
             color: var(--text);
             min-height: 100vh;
             overflow-x: hidden;
@@ -87,12 +62,7 @@
             border: 1px solid var(--accent);
             border-radius: 100px;
 
-            background:
-                linear-gradient(
-                    135deg,
-                    rgba(255,23,68,.06),
-                    rgba(255,255,255,.9)
-                );
+            background: linear-gradient(135deg, rgba(255,23,68,.06), rgba(255,255,255,.9));
 
             color: var(--accent-dark);
             text-decoration: none;
@@ -105,9 +75,7 @@
                 0 0 7px rgba(255,23,68,.22),
                 0 0 16px rgba(255,23,68,.10);
 
-            transition:
-                transform .18s ease,
-                box-shadow .18s ease;
+            transition: transform .18s ease, box-shadow .18s ease;
         }
 
         .back-link:hover {
@@ -130,12 +98,7 @@
             position: relative;
             overflow: hidden;
 
-            background:
-                linear-gradient(
-                    135deg,
-                    rgba(255,255,255,.98),
-                    rgba(239,239,239,.96)
-                );
+            background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(239,239,239,.96));
 
             border: 1px solid var(--accent);
             border-radius: 24px;
@@ -156,15 +119,7 @@
             width: 100%;
             height: 2px;
 
-            background:
-                linear-gradient(
-                    90deg,
-                    transparent,
-                    var(--accent),
-                    var(--accent-2),
-                    var(--accent),
-                    transparent
-                );
+            background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
 
             box-shadow:
                 0 0 10px rgba(255,23,68,.75),
@@ -175,25 +130,17 @@
             display: flex;
             align-items: center;
             gap: 18px;
-
             position: relative;
             z-index: 1;
         }
 
         .user-avatar {
             flex: 0 0 auto;
-
             width: 68px;
             height: 68px;
-
             border-radius: 50%;
 
-            background:
-                linear-gradient(
-                    135deg,
-                    var(--accent),
-                    var(--accent-2)
-                );
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
 
             display: flex;
             align-items: center;
@@ -237,14 +184,10 @@
 
         .user-badge {
             padding: 5px 12px;
-
             border: 1px solid rgba(255,23,68,.22);
             border-radius: 100px;
-
             background: rgba(255,23,68,.06);
-
             color: var(--accent-dark);
-
             font-size: 10px;
             font-weight: 800;
             letter-spacing: .6px;
@@ -324,12 +267,7 @@
             border-radius: 16px;
             padding: 17px;
 
-            background:
-                linear-gradient(
-                    145deg,
-                    rgba(255,255,255,.96),
-                    rgba(246,246,246,.94)
-                );
+            background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(246,246,246,.94));
 
             box-shadow:
                 0 8px 22px rgba(0,0,0,.05),
@@ -472,9 +410,7 @@
             font-weight: 800;
             letter-spacing: .4px;
             cursor: pointer;
-            transition:
-                background .2s ease,
-                border-color .2s ease;
+            transition: background .2s ease, border-color .2s ease;
         }
 
         .activity-prompt-toggle:hover {
@@ -512,12 +448,7 @@
             right: 0;
             bottom: 0;
             height: 32px;
-            background:
-                linear-gradient(
-                    to bottom,
-                    transparent 0%,
-                    rgba(255,255,255,.95) 100%
-                );
+            background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,.95) 100%);
             pointer-events: none;
             opacity: 1;
             transition: opacity .25s ease;
@@ -613,6 +544,44 @@
             padding-top: 35px;
         }
 
+        .debug-panel {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            width: 340px;
+            max-height: 240px;
+            overflow: auto;
+            padding: 12px;
+            border: 1px solid rgba(255,23,68,.45);
+            border-radius: 12px;
+            background: rgba(20,20,20,.94);
+            color: #ff8899;
+            font-family: monospace;
+            font-size: 10px;
+            line-height: 1.5;
+            z-index: 99999;
+            display: none;
+        }
+
+        .debug-panel.show { display: block; }
+
+        .debug-panel-title {
+            color: #fff;
+            font-weight: 800;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .debug-panel-close {
+            position: absolute;
+            top: 6px; right: 8px;
+            background: transparent;
+            border: 0;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
         @media (max-width: 900px) {
             .user-stats {
                 grid-template-columns: repeat(2, 1fr);
@@ -632,12 +601,14 @@
             .activity-item-head {
                 flex-direction: column;
             }
+            .user-header-top {
+                flex-direction: column;
+                align-items: flex-start;
+            }
         }
 
         @media (prefers-reduced-motion: reduce) {
-            *,
-            *::before,
-            *::after {
+            *, *::before, *::after {
                 scroll-behavior: auto !important;
                 transition-duration: .01ms !important;
                 animation-duration: .01ms !important;
@@ -648,13 +619,21 @@
 
 <body>
 
-    <div id="adminNavigation"></div>
+    <!-- =========================================================
+         SHARED NAVIGATION
+    ========================================================== -->
+
+    <div id="navigation"></div>
 
     <main>
 
+        <!-- =====================================================
+             BACK LINK
+        ====================================================== -->
+
         <a
             class="back-link"
-            href="../dashboard/index.html"
+            href="../index.html"
         >
             <span class="back-link-icon">←</span>
             Kembali ke Dashboard
@@ -697,7 +676,7 @@
         </section>
 
         <!-- =====================================================
-             ACTIVITY
+             ACTIVITY LIST
         ====================================================== -->
 
         <div class="section-title">
@@ -717,11 +696,79 @@
 
     </main>
 
+    <!-- =====================================================
+         DEBUG PANEL
+    ====================================================== -->
+
+    <div class="debug-panel" id="debugPanel">
+        <button class="debug-panel-close" onclick="document.getElementById('debugPanel').classList.remove('show')">×</button>
+        <div class="debug-panel-title">⚠ Debug Info</div>
+        <div id="debugContent">—</div>
+    </div>
+
+    <!-- =====================================================
+         GLOBAL ERROR HANDLER
+    ====================================================== -->
+
+    <script>
+        window.__userActivityErrors = [];
+
+        window.addEventListener("error", function (e) {
+            window.__userActivityErrors.push({
+                time: new Date().toLocaleTimeString(),
+                message: e.message,
+                source: e.filename,
+                line: e.lineno
+            });
+            updateDebugPanel();
+        });
+
+        window.addEventListener("unhandledrejection", function (e) {
+            window.__userActivityErrors.push({
+                time: new Date().toLocaleTimeString(),
+                message: "Unhandled promise: " + (e.reason?.message || e.reason),
+                source: "promise",
+                line: 0
+            });
+            updateDebugPanel();
+        });
+
+        function updateDebugPanel() {
+            var panel = document.getElementById("debugPanel");
+            var content = document.getElementById("debugContent");
+            if (!panel || !content) return;
+            if (window.__userActivityErrors.length === 0) return;
+
+            var html = "";
+            window.__userActivityErrors.forEach(function (err) {
+                html += "<div><strong>[" + err.time + "]</strong> " +
+                    escapeHtmlDebug(err.message) +
+                    (err.source ? "<br>→ " + escapeHtmlDebug(err.source) + ":" + err.line : "") +
+                    "</div>";
+            });
+            content.innerHTML = html;
+            panel.classList.add("show");
+        }
+
+        function escapeHtmlDebug(v) {
+            return String(v || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
+    </script>
+
+    <!-- =====================================================
+         SUPABASE + CONFIG + SHARED NAVIGATION
+    ====================================================== -->
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+    <script src="/assets/js/config.js"></script>
+    <script src="/navigation/navigation.js"></script>
 
-    <script src="../assets/js/config.js"></script>
-
-    <script src="../admin-control/admin-nav.js"></script>
+    <!-- =====================================================
+         USER ACTIVITY LOGIC
+    ====================================================== -->
 
     <script>
         (() => {
@@ -729,7 +776,7 @@
 
             console.log("[GEN-Z.AI User Activity] START");
 
-            const state = {
+            var state = {
                 client: null,
                 userId: null,
                 profile: null,
@@ -742,7 +789,7 @@
             ====================================================== */
 
             function escapeHtml(value) {
-                return String(value ?? "")
+                return String(value == null ? "" : value)
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;")
@@ -751,28 +798,36 @@
             }
 
             function getSupabaseClient() {
-                if (window.GENZ_SUPABASE && typeof window.GENZ_SUPABASE.from === "function") {
-                    return window.GENZ_SUPABASE;
-                }
-                if (window.supabaseClient && typeof window.supabaseClient.from === "function") {
-                    return window.supabaseClient;
-                }
-                if (
-                    window.supabase &&
-                    typeof window.supabase.createClient === "function" &&
-                    window.GENZ_CONFIG?.SUPABASE_URL &&
-                    window.GENZ_CONFIG?.SUPABASE_KEY
-                ) {
-                    return window.supabase.createClient(
-                        window.GENZ_CONFIG.SUPABASE_URL,
+                try {
+                    if (window.GENZ_SUPABASE && typeof window.GENZ_SUPABASE.from === "function") {
+                        return window.GENZ_SUPABASE;
+                    }
+                    if (window.supabaseClient && typeof window.supabaseClient.from === "function") {
+                        return window.supabaseClient;
+                    }
+                    if (
+                        window.supabase &&
+                        typeof window.supabase.createClient === "function" &&
+                        window.GENZ_CONFIG &&
+                        window.GENZ_CONFIG.SUPABASE_URL &&
                         window.GENZ_CONFIG.SUPABASE_KEY
-                    );
+                    ) {
+                        var client = window.supabase.createClient(
+                            window.GENZ_CONFIG.SUPABASE_URL,
+                            window.GENZ_CONFIG.SUPABASE_KEY
+                        );
+                        window.GENZ_SUPABASE = client;
+                        window.supabaseClient = client;
+                        return client;
+                    }
+                } catch (e) {
+                    console.error("[User Activity] Supabase client error:", e);
                 }
                 return null;
             }
 
             function normalizeStatus(status) {
-                const v = String(status || "pending").trim().toLowerCase();
+                var v = String(status || "pending").trim().toLowerCase();
                 if (v === "completed" || v === "complete") return "success";
                 if (v === "queued") return "pending";
                 if (v === "canceled" || v === "cancel") return "cancelled";
@@ -780,13 +835,13 @@
             }
 
             function isRunningGeneration(item) {
-                const s = normalizeStatus(item?.status);
+                var s = normalizeStatus(item && item.status);
                 return s === "processing" || s === "pending";
             }
 
             function formatDate(value) {
                 if (!value) return "—";
-                const d = new Date(value);
+                var d = new Date(value);
                 if (Number.isNaN(d.getTime())) return String(value);
                 return d.toLocaleString("id-ID", {
                     dateStyle: "short",
@@ -803,7 +858,7 @@
             ====================================================== */
 
             function getUserIdFromUrl() {
-                const params = new URLSearchParams(window.location.search);
+                var params = new URLSearchParams(window.location.search);
                 return String(params.get("user") || "").trim();
             }
 
@@ -813,7 +868,7 @@
 
             async function loadProfile() {
 
-                const result = await state.client
+                var result = await state.client
                     .from("profiles")
                     .select("id,name,email,role,credits,status")
                     .eq("id", state.userId)
@@ -834,96 +889,86 @@
 
             function renderProfile() {
 
-                const p = state.profile;
+                var p = state.profile;
 
-                const email = p.email || "Email tidak tersedia";
-                const name = p.name || "Tanpa nama";
-                const role = String(p.role || "USER").toUpperCase();
-                const credits = formatCredits(p.credits);
-                const status = String(p.status || "—").toUpperCase();
+                var email = p.email || "Email tidak tersedia";
+                var name = p.name || "Tanpa nama";
+                var role = String(p.role || "USER").toUpperCase();
+                var credits = formatCredits(p.credits);
+                var status = String(p.status || "—").toUpperCase();
 
                 /* Avatar initial */
-
-                const initial = (email.trim()[0] || "?").toUpperCase();
-                const avatar = document.getElementById("userAvatar");
+                var initial = (email.trim()[0] || "?").toUpperCase();
+                var avatar = document.getElementById("userAvatar");
                 if (avatar) avatar.textContent = initial;
 
                 /* Email + name */
-
-                const emailEl = document.getElementById("userEmail");
+                var emailEl = document.getElementById("userEmail");
                 if (emailEl) emailEl.textContent = email;
 
-                const nameEl = document.getElementById("userName");
+                var nameEl = document.getElementById("userName");
                 if (nameEl) nameEl.textContent = name;
 
                 /* Badges */
-
-                const badges = document.getElementById("userBadges");
+                var badges = document.getElementById("userBadges");
 
                 if (badges) {
-                    badges.innerHTML = `
-                        <span class="user-badge">
-                            ${escapeHtml(role)}
-                        </span>
-                        <span class="user-badge status-active">
-                            ${escapeHtml(status)}
-                        </span>
-                        <span class="user-badge credits">
-                            ${escapeHtml(credits)} credits
-                        </span>
-                    `;
+                    badges.innerHTML =
+                        '<span class="user-badge">' + escapeHtml(role) + '</span>' +
+                        '<span class="user-badge status-active">' + escapeHtml(status) + '</span>' +
+                        '<span class="user-badge credits">' + escapeHtml(credits) + ' credits</span>';
                 }
 
                 /* Stats */
-
                 renderStats();
             }
 
             function renderStats() {
 
-                const container = document.getElementById("userStats");
+                var container = document.getElementById("userStats");
                 if (!container) return;
 
-                const history = state.history;
+                var history = state.history;
 
-                const total = history.length;
-                const success = history.filter(i => normalizeStatus(i.status) === "success").length;
-                const processing = history.filter(i => {
-                    const s = normalizeStatus(i.status);
+                var total = history.length;
+                var success = history.filter(function (i) {
+                    return normalizeStatus(i.status) === "success";
+                }).length;
+                var processing = history.filter(function (i) {
+                    var s = normalizeStatus(i.status);
                     return s === "processing" || s === "pending";
                 }).length;
-                const failed = history.filter(i => {
-                    const s = normalizeStatus(i.status);
+                var failed = history.filter(function (i) {
+                    var s = normalizeStatus(i.status);
                     return s === "failed" || s === "cancelled";
                 }).length;
 
-                container.innerHTML = `
-                    <div class="user-stat">
-                        <div class="user-stat-label">Total Activity</div>
-                        <div class="user-stat-value">${total}</div>
-                    </div>
-                    <div class="user-stat">
-                        <div class="user-stat-label">Success</div>
-                        <div class="user-stat-value">${success}</div>
-                    </div>
-                    <div class="user-stat">
-                        <div class="user-stat-label">Processing</div>
-                        <div class="user-stat-value">${processing}</div>
-                    </div>
-                    <div class="user-stat">
-                        <div class="user-stat-label">Failed</div>
-                        <div class="user-stat-value">${failed}</div>
-                    </div>
-                `;
+                container.innerHTML =
+                    '<div class="user-stat">' +
+                        '<div class="user-stat-label">Total Activity</div>' +
+                        '<div class="user-stat-value">' + total + '</div>' +
+                    '</div>' +
+                    '<div class="user-stat">' +
+                        '<div class="user-stat-label">Success</div>' +
+                        '<div class="user-stat-value">' + success + '</div>' +
+                    '</div>' +
+                    '<div class="user-stat">' +
+                        '<div class="user-stat-label">Processing</div>' +
+                        '<div class="user-stat-value">' + processing + '</div>' +
+                    '</div>' +
+                    '<div class="user-stat">' +
+                        '<div class="user-stat-label">Failed</div>' +
+                        '<div class="user-stat-value">' + failed + '</div>' +
+                    '</div>';
             }
 
             /* =====================================================
-               LOAD HISTORY (hanya user ini)
+               LOAD HISTORY — hanya user ini
             ====================================================== */
 
             async function loadHistory() {
 
-                const result = await state.client
+                var result = await state.client
                     .from("generation_history")
                     .select(
                         "id,user_id,status,model_id,model_name," +
@@ -945,15 +990,12 @@
 
             function renderHistory() {
 
-                const list = document.getElementById("activityList");
+                var list = document.getElementById("activityList");
                 if (!list) return;
 
                 if (!state.history.length) {
-                    list.innerHTML = `
-                        <div class="state-box">
-                            Akun ini belum memiliki aktivitas generate.
-                        </div>
-                    `;
+                    list.innerHTML =
+                        '<div class="state-box">Akun ini belum memiliki aktivitas generate.</div>';
                     return;
                 }
 
@@ -971,117 +1013,70 @@
 
             function renderActivityItem(item) {
 
-                const status = normalizeStatus(item.status);
-                const active = isRunningGeneration(item);
+                var status = normalizeStatus(item.status);
+                var active = isRunningGeneration(item);
 
-                const model = escapeHtml(
-                    item.model_name || item.model_id || "Model"
-                );
+                var model = escapeHtml(item.model_name || item.model_id || "Model");
+                var provider = escapeHtml(item.provider_name || item.provider || "GEN-Z.AI");
+                var taskId = escapeHtml(item.task_id || item.id || "—");
+                var prompt = item.prompt ? escapeHtml(item.prompt) : "";
 
-                const provider = escapeHtml(
-                    item.provider_name || item.provider || "GEN-Z.AI"
-                );
+                var html = '<div class="activity-item ' + (active ? "active" : "") + '">';
 
-                const taskId = escapeHtml(
-                    item.task_id || item.id || "—"
-                );
+                html +=
+                    '<div class="activity-item-head">' +
+                        '<div>' +
+                            '<div class="activity-model">' + model + '</div>' +
+                            '<div class="activity-provider">' + provider + '</div>' +
+                        '</div>' +
+                        '<div class="activity-status ' + escapeHtml(status) + '">' +
+                            escapeHtml(status) +
+                        '</div>' +
+                    '</div>';
 
-                const prompt = item.prompt
-                    ? escapeHtml(item.prompt)
-                    : "";
+                html +=
+                    '<div class="activity-info">' +
+                        '<div class="activity-info-box">' +
+                            '<div class="activity-info-label">Task ID</div>' +
+                            '<div class="activity-info-value">' + taskId + '</div>' +
+                        '</div>' +
+                        '<div class="activity-info-box">' +
+                            '<div class="activity-info-label">Mulai</div>' +
+                            '<div class="activity-info-value">' + escapeHtml(formatDate(item.created_at)) + '</div>' +
+                        '</div>' +
+                        '<div class="activity-info-box">' +
+                            '<div class="activity-info-label">Credit</div>' +
+                            '<div class="activity-info-value">' + escapeHtml(formatCredits(item.credit_cost)) + '</div>' +
+                        '</div>' +
+                    '</div>';
 
-                return `
-                    <div class="activity-item ${active ? "active" : ""}">
+                if (prompt) {
+                    html +=
+                        '<div class="activity-prompt-block">' +
+                            '<div class="activity-prompt-header">' +
+                                '<span class="activity-prompt-label">Prompt</span>' +
+                                '<button type="button" class="activity-prompt-toggle" aria-expanded="false">' +
+                                    '<span class="activity-prompt-toggle-label">Lihat selengkapnya</span>' +
+                                    '<span class="activity-prompt-toggle-icon">▾</span>' +
+                                '</button>' +
+                            '</div>' +
+                            '<div class="activity-prompt-text">' + prompt + '</div>' +
+                        '</div>';
+                }
 
-                        <div class="activity-item-head">
+                if (active) {
+                    html +=
+                        '<div class="activity-actions">' +
+                            '<button type="button" class="cancel-generation" data-history-id="' +
+                                escapeHtml(item.id || "") + '">' +
+                                'Cancel Generate' +
+                            '</button>' +
+                        '</div>';
+                }
 
-                            <div>
-                                <div class="activity-model">
-                                    ${model}
-                                </div>
-                                <div class="activity-provider">
-                                    ${provider}
-                                </div>
-                            </div>
+                html += '</div>';
 
-                            <div class="activity-status ${escapeHtml(status)}">
-                                ${escapeHtml(status)}
-                            </div>
-
-                        </div>
-
-                        <div class="activity-info">
-
-                            <div class="activity-info-box">
-                                <div class="activity-info-label">Task ID</div>
-                                <div class="activity-info-value">
-                                    ${taskId}
-                                </div>
-                            </div>
-
-                            <div class="activity-info-box">
-                                <div class="activity-info-label">Mulai</div>
-                                <div class="activity-info-value">
-                                    ${escapeHtml(formatDate(item.created_at))}
-                                </div>
-                            </div>
-
-                            <div class="activity-info-box">
-                                <div class="activity-info-label">Credit</div>
-                                <div class="activity-info-value">
-                                    ${escapeHtml(formatCredits(item.credit_cost))}
-                                </div>
-                            </div>
-
-                        </div>
-
-                        ${
-                            prompt
-                                ? `
-                                    <div class="activity-prompt-block">
-                                        <div class="activity-prompt-header">
-                                            <span class="activity-prompt-label">
-                                                Prompt
-                                            </span>
-                                            <button
-                                                type="button"
-                                                class="activity-prompt-toggle"
-                                                aria-expanded="false"
-                                            >
-                                                <span class="activity-prompt-toggle-label">
-                                                    Lihat selengkapnya
-                                                </span>
-                                                <span class="activity-prompt-toggle-icon">
-                                                    ▾
-                                                </span>
-                                            </button>
-                                        </div>
-                                        <div class="activity-prompt-text">
-                                            ${prompt}
-                                        </div>
-                                    </div>
-                                `
-                                : ""
-                        }
-
-                        ${
-                            active
-                                ? `
-                                    <div class="activity-actions">
-                                        <button
-                                            type="button"
-                                            class="cancel-generation"
-                                            data-history-id="${escapeHtml(item.id || "")}"
-                                        >
-                                            Cancel Generate
-                                        </button>
-                                    </div>
-                                `
-                                : ""
-                        }
-
-                    </div>
-                `;
+                return html;
             }
 
             /* =====================================================
@@ -1089,41 +1084,34 @@
             ====================================================== */
 
             function bindToggles() {
+                var toggles = document.querySelectorAll(".activity-prompt-toggle");
 
-                document
-                    .querySelectorAll(".activity-prompt-toggle")
-                    .forEach(toggle => {
+                toggles.forEach(function (toggle) {
+                    if (toggle.dataset.bound === "true") return;
+                    toggle.dataset.bound = "true";
 
-                        if (toggle.dataset.bound === "true") return;
+                    toggle.addEventListener("click", function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
 
-                        toggle.dataset.bound = "true";
+                        var block = toggle.closest(".activity-prompt-block");
+                        if (!block) return;
 
-                        toggle.addEventListener("click", event => {
+                        var isExpanded = block.classList.toggle("expanded");
 
-                            event.preventDefault();
-                            event.stopPropagation();
+                        var label = toggle.querySelector(".activity-prompt-toggle-label");
+                        if (label) {
+                            label.textContent = isExpanded
+                                ? "Sembunyikan"
+                                : "Lihat selengkapnya";
+                        }
 
-                            const block = toggle.closest(".activity-prompt-block");
-                            if (!block) return;
-
-                            const isExpanded = block.classList.toggle("expanded");
-
-                            const label = toggle.querySelector(
-                                ".activity-prompt-toggle-label"
-                            );
-
-                            if (label) {
-                                label.textContent = isExpanded
-                                    ? "Sembunyikan"
-                                    : "Lihat selengkapnya";
-                            }
-
-                            toggle.setAttribute(
-                                "aria-expanded",
-                                isExpanded ? "true" : "false"
-                            );
-                        });
+                        toggle.setAttribute(
+                            "aria-expanded",
+                            isExpanded ? "true" : "false"
+                        );
                     });
+                });
             }
 
             /* =====================================================
@@ -1131,26 +1119,22 @@
             ====================================================== */
 
             function bindCancelButtons() {
+                var buttons = document.querySelectorAll(".cancel-generation");
 
-                document
-                    .querySelectorAll(".cancel-generation")
-                    .forEach(button => {
+                buttons.forEach(function (button) {
+                    if (button.dataset.bound === "true") return;
+                    button.dataset.bound = "true";
 
-                        if (button.dataset.bound === "true") return;
+                    button.addEventListener("click", async function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
 
-                        button.dataset.bound = "true";
-
-                        button.addEventListener("click", async event => {
-
-                            event.preventDefault();
-                            event.stopPropagation();
-
-                            await cancelGeneration(
-                                button.dataset.historyId,
-                                button
-                            );
-                        });
+                        await cancelGeneration(
+                            button.dataset.historyId,
+                            button
+                        );
                     });
+                });
             }
 
             async function cancelGeneration(historyId, button) {
@@ -1166,38 +1150,39 @@
 
                 try {
 
-                    const result = await state.client
+                    var result = await state.client
                         .from("generation_history")
                         .update({ status: "cancelled" })
                         .eq("id", historyId);
 
                     if (result.error) throw result.error;
 
-                    state.history = state.history.map(item =>
-                        String(item.id) === String(historyId)
-                            ? { ...item, status: "cancelled" }
-                            : item
-                    );
+                    state.history = state.history.map(function (item) {
+                        if (String(item.id) === String(historyId)) {
+                            return Object.assign({}, item, { status: "cancelled" });
+                        }
+                        return item;
+                    });
 
                     renderHistory();
                     renderStats();
 
                 } catch (error) {
 
-                    console.error("[GEN-Z.AI] Cancel error:", error);
+                    console.error("[User Activity] Cancel error:", error);
 
                     button.disabled = false;
                     button.textContent = "Cancel Generate";
 
                     window.alert(
                         "Gagal membatalkan generate: " +
-                        (error?.message || "Unknown error")
+                        (error && error.message ? error.message : "Unknown error")
                     );
                 }
             }
 
             /* =====================================================
-               AUTO REFRESH (CONDITIONAL)
+               AUTO REFRESH
             ====================================================== */
 
             function hasRunning() {
@@ -1211,30 +1196,40 @@
                     state.refreshTimer = null;
                 }
 
-                state.refreshTimer = window.setInterval(
-                    async () => {
+                state.refreshTimer = window.setInterval(async function () {
 
-                        if (document.hidden) return;
-                        if (!hasRunning()) return;
+                    if (document.hidden) return;
+                    if (!hasRunning()) return;
 
-                        try {
-                            await loadHistory();
-                        } catch (error) {
-                            console.warn(
-                                "[GEN-Z.AI User Activity] Refresh error:",
-                                error
-                            );
-                        }
+                    try {
+                        await loadHistory();
+                    } catch (error) {
+                        console.warn("[User Activity] Refresh error:", error);
+                    }
 
-                    },
-                    5000
-                );
+                }, 5000);
 
-                document.addEventListener("visibilitychange", () => {
+                document.addEventListener("visibilitychange", function () {
                     if (!document.hidden && hasRunning()) {
-                        loadHistory().catch(() => {});
+                        loadHistory().catch(function () {});
                     }
                 });
+            }
+
+            /* =====================================================
+               ERROR DISPLAY
+            ====================================================== */
+
+            function showError(message) {
+
+                var header = document.getElementById("userHeader");
+                if (header) header.style.display = "none";
+
+                var list = document.getElementById("activityList");
+                if (list) {
+                    list.innerHTML =
+                        '<div class="state-box">' + escapeHtml(message) + '</div>';
+                }
             }
 
             /* =====================================================
@@ -1259,61 +1254,46 @@
 
                 try {
 
-                    /* Cek session — harus admin */
+                    /* Cek session — harus admin/owner */
+                    var sessionResult = await state.client.auth.getSession();
+                    var session = sessionResult.data && sessionResult.data.session;
 
-                    const session = await state.client.auth.getSession();
-                    const sessionData = session.data?.session;
-
-                    if (!sessionData) {
-                        window.location.href = "../../login.html";
+                    if (!session) {
+                        window.location.href = "/index.html";
                         return;
                     }
 
-                    const profileResult = await state.client
+                    var profileResult = await state.client
                         .from("profiles")
                         .select("role")
-                        .eq("id", sessionData.user.id)
+                        .eq("id", session.user.id)
                         .single();
 
                     if (profileResult.error) throw profileResult.error;
 
-                    const role = String(
-                        profileResult.data?.role || ""
+                    var role = String(
+                        profileResult.data && profileResult.data.role
+                            ? profileResult.data.role
+                            : ""
                     ).trim().toUpperCase();
 
                     if (role !== "ADMIN" && role !== "OWNER") {
-                        window.location.href = "../../user/dashboard.html";
+                        window.location.href = "/user/dashboard.html";
                         return;
                     }
 
                     /* Load user profile + history */
-
                     await loadProfile();
                     await loadHistory();
 
                     startAutoRefresh();
 
-                    console.log("[GEN-Z.AI User Activity] FINISHED");
+                    console.log("[User Activity] FINISHED");
 
                 } catch (error) {
 
-                    console.error("[GEN-Z.AI User Activity] Error:", error);
-                    showError(error?.message || "Unknown error");
-                }
-            }
-
-            function showError(message) {
-
-                const header = document.getElementById("userHeader");
-                if (header) header.style.display = "none";
-
-                const list = document.getElementById("activityList");
-                if (list) {
-                    list.innerHTML = `
-                        <div class="state-box">
-                            ${escapeHtml(message)}
-                        </div>
-                    `;
+                    console.error("[User Activity] Error:", error);
+                    showError(error && error.message ? error.message : "Unknown error");
                 }
             }
 
