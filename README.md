@@ -160,6 +160,34 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-secret-key
 
 Vercel akan otomatis mendeteksi folder `api/` sebagai serverless functions.
 
+### Cloudflare Pages (migrasi bertahap)
+
+Repository ini juga menyediakan konfigurasi awal Cloudflare Pages. Build script
+menyalin aset frontend ke `dist/`; Pages Functions membungkus endpoint yang
+sebelumnya menggunakan format handler Vercel. Pertahankan deployment Vercel
+sampai semua endpoint dan provider sudah diuji di Cloudflare.
+
+1. Hubungkan repository GitHub ke proyek Pages di Cloudflare.
+2. Gunakan build command `node scripts/build-cloudflare-pages.mjs` dan output
+   directory `dist`.
+3. Tambahkan environment variables dan secrets di **Settings → Variables and
+   Secrets**, untuk environment Production dan Preview sesuai kebutuhan:
+   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` (atau
+   `SUPABASE_KEY`), `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+   `PROVIDER_CREDENTIAL_ENCRYPTION_KEY`, `KIE_API_KEY`,
+   `KIE_API_ENDPOINT` / `KIE_API_BASE_URL`, `OPENKEY_API_KEY`,
+   `OPENKEY_API_ENDPOINT` / `OPENKEY_API_BASE_URL`, `VIDDRA_API_KEY`,
+   `VIDDRA_SESSION_SECRET`, `SIGHTENGINE_API_USER`,
+   `SIGHTENGINE_API_SECRET`, `GITHUB_PAT`, `GITHUB_OWNER`, `GITHUB_REPO`,
+   `GITHUB_WORKFLOW_FILE`, and `GITHUB_REF`.
+4. Uji login, generate/status, admin, Viddra, OpenKey streaming, serta integrasi
+   provider pada URL preview sebelum mengalihkan domain production.
+
+`wrangler.toml` mengatur kompatibilitas runtime Node yang diperlukan oleh API.
+Jangan commit secret atau menyalin `.env.local` ke output statis; masukkan nilai
+secret langsung melalui pengaturan Cloudflare. Perubahan yang di-push ke branch
+terhubung akan memicu build otomatis melalui Git integration.
+
 ### Local Development
 
 ```bash
