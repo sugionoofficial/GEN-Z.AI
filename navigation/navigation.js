@@ -50,6 +50,9 @@
     const PROFILE_RETRY_COUNT = 3;
     const PROFILE_RETRY_DELAY = 500;
     const TOKEN_REFRESH_BUFFER_SEC = 60;
+    const PRESENCE_HEARTBEAT_INTERVAL_MS = 20000;
+    const PRESENCE_STALE_AFTER_MS = 90000;
+    const PRESENCE_SESSION_STORAGE_KEY = "genz-presence-session-id";
 
     let currentUser = null;
     let currentProfile = null;
@@ -57,6 +60,9 @@
     let navigationReady = false;
     let navigationReadyResolve;
     let documentKeydownBound = false;
+    let presenceHeartbeatTimer = null;
+    let presenceVisibilityHandler = null;
+    let presenceSessionId = null;
 
     const navigationReadyPromise = new Promise(resolve => {
         navigationReadyResolve = resolve;
@@ -152,6 +158,158 @@
         } catch (error) {
             /* ignore */
         }
+    }
+
+
+    function getPresenceSessionId() {
+        let sessionId =
+            sessionStorage.getItem(
+                PRESENCE_SESSION_STORAGE_KEY
+            );
+
+        if (!sessionId) {
+            sessionId = crypto.randomUUID();
+            sessionStorage.setItem(
+                PRESENCE_SESSION_STORAGE_KEY,
+                sessionId
+            );
+        }
+
+        return sessionId;
+    }
+
+
+    async function writePresenceHeartbeat(userId, removeStale = false) {
+        const supabase = getSupabaseClient();
+
+        if (!supabase) {
+            throw new Error(
+                "Supabase client tidak tersedia untuk heartbeat presence."
+            );
+        }
+
+        if (removeStale) {
+            const staleBefore = new Date(
+                Date.now() - PRESENCE_STALE_AFTER_MS
+            ).toISOString();
+
+            const { error: cleanupError } = await supabase
+                .from("user_presence")
+                .delete()
+                .eq("user_id", userId)
+                .lt("last_seen", staleBefore);
+
+            if (cleanupError) {
+                throw cleanupError;
+            }
+        }
+
+        const { error } = await supabase
+            .from("user_presence")
+            .upsert(
+                {
+                    user_id: userId,
+                    session_id: presenceSessionId
+                },
+                {
+                    onConflict: "user_id,session_id"
+                }
+            );
+
+        if (error) {
+            throw error;
+        }
+    }
+
+
+    function startPresenceTracking(userId) {
+        if (!userId) return;
+
+        if (
+            presenceHeartbeatTimer &&
+            currentUser &&
+            String(currentUser.id) === String(userId)
+        ) {
+            return;
+        }
+
+        stopPresenceTracking();
+        presenceSessionId = getPresenceSessionId();
+
+        const heartbeat = async removeStale => {
+            try {
+                await writePresenceHeartbeat(
+                    userId,
+                    removeStale
+                );
+            } catch (error) {
+                console.error(
+                    "[GEN-Z.AI] User presence heartbeat failed:",
+                    error
+                );
+            }
+        };
+
+        void heartbeat(true);
+
+        presenceHeartbeatTimer = window.setInterval(
+            () => {
+                void heartbeat(false);
+            },
+            PRESENCE_HEARTBEAT_INTERVAL_MS
+        );
+
+        presenceVisibilityHandler = () => {
+            if (!document.hidden) {
+                void heartbeat(false);
+            }
+        };
+
+        document.addEventListener(
+            "visibilitychange",
+            presenceVisibilityHandler
+        );
+    }
+
+
+    async function stopPresenceTracking(removeCurrentSession = false) {
+        if (presenceHeartbeatTimer) {
+            window.clearInterval(presenceHeartbeatTimer);
+            presenceHeartbeatTimer = null;
+        }
+
+        if (presenceVisibilityHandler) {
+            document.removeEventListener(
+                "visibilitychange",
+                presenceVisibilityHandler
+            );
+            presenceVisibilityHandler = null;
+        }
+
+        if (
+            removeCurrentSession &&
+            currentUser?.id &&
+            presenceSessionId
+        ) {
+            const supabase = getSupabaseClient();
+
+            if (supabase) {
+                const { error } = await supabase
+                    .from("user_presence")
+                    .delete()
+                    .eq("user_id", currentUser.id)
+                    .eq("session_id", presenceSessionId);
+
+                if (error) {
+                    console.error(
+                        "[GEN-Z.AI] User presence cleanup failed:",
+                        error
+                    );
+                }
+            }
+        }
+
+        presenceSessionId = null;
     }
 
 
@@ -610,6 +768,7 @@
 
     async function logoutUser() {
 
+        await stopPresenceTracking(true);
         clearSessionStorage();
 
         currentUser = null;
@@ -648,6 +807,7 @@
         }
 
         currentUser = user;
+        startPresenceTracking(user.id);
 
         const profile = await loadProfile(user.id);
 

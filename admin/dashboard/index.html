@@ -803,7 +803,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="/assets/js/config.js"></script>
-    <script src="/navigation/navigation.js?v=2.2"></script>
+    <script src="/navigation/navigation.js?v=presence-20261010"></script>
 
     <!-- =========================================================
          DASHBOARD LOGIC
@@ -821,6 +821,7 @@
             var state = {
                 profiles: [],
                 activeUserIds: new Set(),
+                onlineUserIds: new Set(),
                 currentSessionUserId: "",
                 searchTerm: "",
                 refreshTimer: null
@@ -1054,8 +1055,38 @@
                     console.warn("[Dashboard] Active users error (non-fatal):", e);
                 }
 
+                var onlineIds = new Set(
+                    state.currentSessionUserId
+                        ? [state.currentSessionUserId]
+                        : []
+                );
+
+                try {
+                    var presenceResult = await dashboardSupabaseClient
+                        .from("user_presence")
+                        .select("user_id")
+                        .gt(
+                            "last_seen",
+                            new Date(Date.now() - 90000).toISOString()
+                        );
+
+                    if (presenceResult.error) throw presenceResult.error;
+
+                    (presenceResult.data || []).forEach(function (row) {
+                        if (row.user_id) {
+                            onlineIds.add(String(row.user_id));
+                        }
+                    });
+                } catch (e) {
+                    console.error(
+                        "[Dashboard] User presence load failed. Apply supabase/user-presence.sql:",
+                        e
+                    );
+                }
+
                 state.profiles = profiles;
                 state.activeUserIds = activeIds;
+                state.onlineUserIds = onlineIds;
 
                 renderAccounts();
             }
@@ -1074,6 +1105,7 @@
                     return name.includes(searchTerm) || email.includes(searchTerm);
                 });
                 var activeUserIds = state.activeUserIds;
+                var onlineUserIds = state.onlineUserIds;
 
                 if (!state.profiles.length) {
                     grid.innerHTML = '<div class="account-empty">Belum ada akun yang tersedia.</div>';
@@ -1091,7 +1123,7 @@
 
                     var userId = String(profile.id || "");
                     var active = activeUserIds.has(userId);
-                    var isCurrentSession = userId === state.currentSessionUserId;
+                    var isOnline = onlineUserIds.has(userId);
 
                     var email = escapeHtml(profile.email || "Email tidak tersedia");
                     var name = escapeHtml(profile.name || "Tanpa nama");
@@ -1111,7 +1143,7 @@
 
                         '<div class="account-head">' +
                             '<div class="account-main">' +
-                                '<span class="account-light ' + (active || isCurrentSession ? "active" : "") + '" aria-hidden="true"></span>' +
+                                '<span class="account-light ' + (active || isOnline ? "active" : "") + '" aria-hidden="true"></span>' +
                                 '<div>' +
                                     '<div class="account-email">' + email + '</div>' +
                                     '<div class="account-name">' + name + '</div>' +

@@ -172,7 +172,10 @@ provider sudah diuji di Cloudflare.
 2. Gunakan build command `node scripts/build-cloudflare-pages.mjs`, lalu deploy
    dengan `npx wrangler deploy`. Wrangler membaca `main` dan konfigurasi aset
    dari `wrangler.toml`; jangan gunakan `wrangler pages deploy` untuk Worker ini.
-3. Tambahkan environment variables dan secrets pada pengaturan Worker,
+3. Untuk indikator online lintas perangkat pada dashboard admin, jalankan
+   `supabase/user-presence.sql` di Supabase SQL Editor. Sesi mengirim heartbeat
+   setiap 20 detik; akun dianggap offline setelah 90 detik tanpa heartbeat.
+4. Tambahkan environment variables dan secrets pada pengaturan Worker,
    termasuk Preview jika digunakan:
    `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` (atau
    `SUPABASE_KEY`), `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
@@ -182,7 +185,7 @@ provider sudah diuji di Cloudflare.
    `VIDDRA_SESSION_SECRET`, `SIGHTENGINE_API_USER`,
    `SIGHTENGINE_API_SECRET`, `GITHUB_PAT`, `GITHUB_OWNER`, `GITHUB_REPO`,
    `GITHUB_WORKFLOW_FILE`, and `GITHUB_REF`.
-4. Uji login, generate/status, admin, Viddra, OpenKey streaming, serta integrasi
+5. Uji login, generate/status, admin, Viddra, OpenKey streaming, serta integrasi
    provider pada URL preview sebelum mengalihkan domain production.
 
 `wrangler.toml` menetapkan entry point Worker, kompatibilitas runtime Node, serta
