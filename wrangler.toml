@@ -1,5 +1,5 @@
-name = "gen-zai"
-account_id = "0f42fca3464aa845060fe38b7774d788"
+name = "genzai"
+account_id = "f374e7e2d001dd43253c8d47182e3882"
 main = "functions/worker.js"
 compatibility_date = "2026-10-10"
 compatibility_flags = ["nodejs_compat"]

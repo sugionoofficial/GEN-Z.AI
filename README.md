@@ -167,7 +167,7 @@ frontend dari `dist/` dan membungkus endpoint API yang sebelumnya menggunakan
 format handler Vercel. Pertahankan deployment Vercel sampai semua endpoint dan
 provider sudah diuji di Cloudflare.
 
-1. Hubungkan repository GitHub ke Worker `gen-zai` melalui Git integration /
+1. Hubungkan repository GitHub ke Worker `genzai` melalui Git integration /
    Workers Builds.
 2. Gunakan build command `node scripts/build-cloudflare-pages.mjs`, lalu deploy
    dengan `npx wrangler deploy`. Wrangler membaca `main` dan konfigurasi aset
