@@ -2,7 +2,6 @@
    GEN-Z.AI DASHBOARD
    ACCOUNT ACTIVITY MODULE
 
-
    Tanggung jawab:
    - Load profiles
    - Load generation_history
