@@ -13,15 +13,22 @@
    - Mengatur panel analysis
    - Mengatur tampilan credit
    - Sinkronisasi progress state -> DOM
-   - Tidak menangani:
-     API
-     Supabase
-     Upload
-     Credit logic
-     History
 
-   UPDATE:
+   UPDATE (2026-10-10):
    - Support tombol copy untuk panel Analysis Details
+   - Tambah STATUS_ALIASES: dukung label generik
+     ("checking", "processing", "success", "ready")
+     yang dipakai oleh vision-events.js
+   - normalizeStatus() sekarang memetakan alias ke
+     status kanonik supaya animasi premium loading
+     bekerja kembali.
+
+   Tidak menangani:
+   - API
+   - Supabase
+   - Upload
+   - Credit logic
+   - History
 ========================================================= */
 
 
@@ -97,6 +104,74 @@ const VISION_UI_PROGRESS =
 
         error:
             0
+
+    });
+
+
+/* =========================================================
+   STATUS ALIASES
+   ---------------------------------------------------------
+   Beberapa modul Vision memanggil setStatus() dengan
+   label generik seperti "checking", "processing",
+   "success", dan "ready".
+
+   Alias berikut memetakan label generik tersebut ke
+   status kanonik yang dipakai oleh CSS premium loader.
+========================================================= */
+
+const STATUS_ALIASES =
+    Object.freeze({
+
+        checking:
+            "checking-credit",
+
+        check:
+            "checking-credit",
+
+        processing:
+            "analyzing",
+
+        run:
+            "analyzing",
+
+        running:
+            "analyzing",
+
+        loading:
+            "analyzing",
+
+        generating:
+            "engineering",
+
+        saving:
+            "saving-history",
+
+        success:
+            "completed",
+
+        done:
+            "completed",
+
+        finished:
+            "completed",
+
+        ready:
+            "idle",
+
+        waiting:
+            "idle",
+
+        standby:
+            "idle",
+
+        failed:
+            "error",
+
+        fail:
+            "error",
+
+        error:
+            "error"
 
     });
 
@@ -219,13 +294,19 @@ const STATUS_SUBTEXT =
 
 /* =========================================================
    NORMALIZE STATUS
+   ---------------------------------------------------------
+   Urutan:
+   1. lowercase + trim
+   2. cek alias (mis. "checking" -> "checking-credit")
+   3. cek canonical di STATUS_TEXT
+   4. fallback ke "idle"
 ========================================================= */
 
 function normalizeStatus(
     status
 ) {
 
-    const value =
+    let value =
         String(
             status ||
             VISION_UI_STATUS.IDLE
@@ -233,6 +314,23 @@ function normalizeStatus(
             .trim()
             .toLowerCase();
 
+
+    /* -------- 1. ALIAS -------- */
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            STATUS_ALIASES,
+            value
+        )
+    ) {
+
+        value =
+            STATUS_ALIASES[value];
+
+    }
+
+
+    /* -------- 2. CANONICAL -------- */
 
     if (
         Object.prototype.hasOwnProperty.call(
@@ -245,6 +343,8 @@ function normalizeStatus(
 
     }
 
+
+    /* -------- 3. FALLBACK -------- */
 
     return VISION_UI_STATUS.IDLE;
 
@@ -2169,12 +2269,6 @@ function syncFromState() {
         getState();
 
 
-    /*
-     * -----------------------------------------------------
-     * PROCESS STATE
-     * -----------------------------------------------------
-     */
-
     const process =
         state.getProcess();
 
@@ -2259,6 +2353,9 @@ const GENZVisionUI =
 
         PROGRESS:
             VISION_UI_PROGRESS,
+
+        ALIASES:
+            STATUS_ALIASES,
 
         STATUS_TEXT,
 
