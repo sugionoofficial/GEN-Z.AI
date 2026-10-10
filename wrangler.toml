@@ -1,4 +1,5 @@
 name = "genzai-pages"
+account_id = "0f42fca3464aa845060fe38b7774d788"
 pages_build_output_dir = "./dist"
 compatibility_date = "2026-10-10"
 compatibility_flags = ["nodejs_compat"]
