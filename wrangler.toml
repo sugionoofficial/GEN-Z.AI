@@ -1,5 +1,10 @@
-name = "genzai-pages"
+name = "gen-zai"
 account_id = "0f42fca3464aa845060fe38b7774d788"
-pages_build_output_dir = "./dist"
+main = "functions/worker.js"
 compatibility_date = "2026-10-10"
 compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]

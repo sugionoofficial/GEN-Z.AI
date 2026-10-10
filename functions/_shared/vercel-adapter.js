@@ -222,7 +222,6 @@ export async function runVercelHandler(handler, request, context) {
     if (context && typeof context.waitUntil === "function") {
         context.waitUntil(handlerTask);
     }
-    const response = await responseAdapter.responseReady;
     const webResponse = await responseAdapter.responseReady;
     return webResponse;
 }

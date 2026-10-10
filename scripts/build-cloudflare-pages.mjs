@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -42,13 +42,4 @@ for (const file of staticFiles) {
     await cp(path.join(root, file), path.join(output, file));
 }
 
-await writeFile(
-    path.join(output, "_routes.json"),
-    JSON.stringify({
-        version: 1,
-        include: ["/api/*"],
-        exclude: []
-    }, null, 2) + "\n"
-);
-
-console.log(`Cloudflare Pages assets built in ${path.relative(root, output)}`);
+console.log(`Cloudflare Worker assets built in ${path.relative(root, output)}`);
