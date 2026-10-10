@@ -1,4 +1,4 @@
-// vision-video/assets/js/vision-video-loader.js?v=20261006-7
+// vision-video/assets/js/vision-video-loader.js?v=20261010-2
 
 /* =========================================================
    GEN-Z.AI VISION VIDEO
@@ -66,7 +66,7 @@
          */
 
         cacheBust:
-            "20261006-7",
+            "20261010-2",
 
 
         modules: [
