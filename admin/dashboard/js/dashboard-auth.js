@@ -2,6 +2,7 @@
    GEN-Z.AI DASHBOARD
    AUTH MODULE
 
+
    Tanggung jawab:
    - mendapatkan Supabase client
    - membaca session
