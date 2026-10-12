@@ -286,7 +286,9 @@ export async function checkMetadata() {
         }
 
         renderOpenKeyResult(
-            state.openkeyDetection
+            state.openkeyDetection,
+            state.aiIndicators,
+            state.provenance
         );
 
 

@@ -779,7 +779,11 @@ export async function detectOpenKeyMedia(
 }
 
 
-export function renderOpenKeyResult(result) {
+export function renderOpenKeyResult(
+    result,
+    metadataIndicators = [],
+    provenance = null
+) {
 
     const container =
         document.getElementById(
@@ -847,18 +851,61 @@ export function renderOpenKeyResult(result) {
         uncertain: "HASIL VISUAL BELUM KONKLUSIF"
     };
 
+    const digitalSourceType =
+        provenance?.digitalSourceType;
+
+    const digitalSourceText =
+        typeof digitalSourceType === "string"
+            ? digitalSourceType
+            : JSON.stringify(digitalSourceType || "");
+
+    const aiProvenanceSignal =
+        Boolean(
+            digitalSourceText &&
+            /trained.?algorithmic|generative.?ai|ai.?generated/i.test(
+                digitalSourceText
+            )
+        ) ||
+        Boolean(
+            typeof provenance?.aiDisclosure === "string" &&
+            provenance.aiDisclosure.trim()
+        );
+
+    const aiMetadataSignal =
+        (
+            Array.isArray(metadataIndicators) &&
+            metadataIndicators.length > 0
+        ) ||
+        aiProvenanceSignal;
+
+    const provenanceNotVerified =
+        /not.?verified/i.test(
+            String(provenance?.verificationStatus || "")
+        );
+
     heading.textContent =
-        verdictLabels[result.verdict] ||
-        verdictLabels.uncertain;
+        result.verdict === "likely_not_ai" &&
+        aiMetadataSignal
+            ? "OPENKEY: TIDAK ADA INDIKASI VISUAL AI"
+            : verdictLabels[result.verdict] ||
+                verdictLabels.uncertain;
 
     summary.textContent =
-        result.summary ||
-        "OpenKey tidak memberikan ringkasan.";
+        result.verdict === "likely_not_ai" &&
+        aiMetadataSignal
+            ? "OpenKey tidak menemukan indikasi AI pada tampilan gambar/frame yang diperiksa. Namun, sinyal AI ditemukan pada metadata/provenance media. Pemeriksaan visual dan metadata mengukur hal berbeda, sehingga hasil ini tidak saling membatalkan." +
+                (
+                    provenanceNotVerified
+                        ? " Provenance berstatus NOT_VERIFIED, jadi keaslian deklarasinya belum dapat dipastikan."
+                        : ""
+                )
+            : result.summary ||
+                "OpenKey tidak memberikan ringkasan.";
 
     details.textContent = [
         result.confidence === null
-            ? "Confidence tidak tersedia"
-            : `Confidence model: ${result.confidence}%`,
+            ? "Skor confidence tidak tersedia"
+            : `Skor confidence visual OpenKey: ${result.confidence}%`,
         result.model
             ? `Model: ${result.model}`
             : "",

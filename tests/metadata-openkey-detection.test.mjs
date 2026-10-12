@@ -104,6 +104,74 @@ test("reads the normalized response shape returned by /api/openkey-chat", () => 
   );
 });
 
+test("qualifies a negative visual result when metadata declares AI provenance", () => {
+  const container = {
+    hidden: true,
+    children: [],
+    replaceChildren() {
+      this.children = [];
+    },
+    append(...children) {
+      this.children.push(...children);
+    }
+  };
+
+  globalThis.document = {
+    getElementById() {
+      return container;
+    },
+    createElement() {
+      return {
+        textContent: "",
+        className: ""
+      };
+    }
+  };
+
+  try {
+    openKeyModule.renderOpenKeyResult(
+      {
+        status: "complete",
+        verdict: "likely_not_ai",
+        confidence: 70,
+        summary: "Kemungkinan besar bukan media AI.",
+        evidence: [],
+        model: "vision-model",
+        frameCount: 1
+      },
+      [],
+      {
+        digitalSourceType: "trainedAlgorithmicMedia",
+        verificationStatus: "NOT_VERIFIED"
+      }
+    );
+
+    assert.equal(container.hidden, false);
+    assert.equal(
+      container.children[0].textContent,
+      "OPENKEY: TIDAK ADA INDIKASI VISUAL AI"
+    );
+    assert.match(
+      container.children[1].textContent,
+      /sinyal AI ditemukan pada metadata\/provenance/
+    );
+    assert.match(
+      container.children[1].textContent,
+      /NOT_VERIFIED/
+    );
+    assert.doesNotMatch(
+      container.children[1].textContent,
+      /Kemungkinan besar bukan media AI/
+    );
+    assert.match(
+      container.children[2].textContent,
+      /Skor confidence visual OpenKey/
+    );
+  } finally {
+    delete globalThis.document;
+  }
+});
+
 test("does not treat AI names in a filename as media provenance", () => {
   assert.deepEqual(
     detectorModule.detectAIIndicators([

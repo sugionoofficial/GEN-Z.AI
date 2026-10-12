@@ -3072,6 +3072,29 @@ export function renderDetectionResult() {
         openKeyDetected ||
         aiProvenanceDetected;
 
+    const withOpenKeyVisualContext = description => {
+
+        if (
+            !openKeyClear
+        ) {
+
+            return description;
+        }
+
+
+        return (
+            `${description} ` +
+            "OpenKey tidak menemukan indikasi AI secara visual pada gambar/frame sampel; hasil ini tidak membatalkan temuan metadata/provenance karena kedua pemeriksaan menilai hal berbeda." +
+            (
+                /not.?verified/i.test(
+                    String(provenance?.verificationStatus || "")
+                )
+                    ? " Provenance berstatus NOT_VERIFIED, jadi keaslian deklarasinya belum dapat dipastikan."
+                    : ""
+            )
+        );
+    };
+
 
     /* =====================================================
        CASE 1
@@ -3167,10 +3190,12 @@ export function renderDetectionResult() {
             setStatus(
                 "DETECTED",
                 "AI DETECTION",
-                buildCombinedProvenanceDetectionDescription(
-                    metadataIndicators.length,
-                    provenance,
-                    sightengine
+                withOpenKeyVisualContext(
+                    buildCombinedProvenanceDetectionDescription(
+                        metadataIndicators.length,
+                        provenance,
+                        sightengine
+                    )
                 )
             );
 
@@ -3192,9 +3217,11 @@ export function renderDetectionResult() {
             setStatus(
                 "DETECTED",
                 "AI DETECTION",
-                buildCombinedDetectionDescription(
-                    metadataIndicators.length,
-                    sightengine
+                withOpenKeyVisualContext(
+                    buildCombinedDetectionDescription(
+                        metadataIndicators.length,
+                        sightengine
+                    )
                 )
             );
 
@@ -3216,9 +3243,11 @@ export function renderDetectionResult() {
             setStatus(
                 "DETECTED",
                 "AI DETECTION",
-                buildProvenanceSightengineDescription(
-                    provenance,
-                    sightengine
+                withOpenKeyVisualContext(
+                    buildProvenanceSightengineDescription(
+                        provenance,
+                        sightengine
+                    )
                 )
             );
 
@@ -3240,9 +3269,11 @@ export function renderDetectionResult() {
             setStatus(
                 "DETECTED",
                 "AI DETECTION",
-                buildMetadataProvenanceDescription(
-                    metadataIndicators.length,
-                    provenance
+                withOpenKeyVisualContext(
+                    buildMetadataProvenanceDescription(
+                        metadataIndicators.length,
+                        provenance
+                    )
                 )
             );
 
@@ -3263,8 +3294,10 @@ export function renderDetectionResult() {
             setStatus(
                 "DETECTED",
                 "AI DETECTION",
-                buildSightengineDescription(
-                    sightengine
+                withOpenKeyVisualContext(
+                    buildSightengineDescription(
+                        sightengine
+                    )
                 )
             );
 
@@ -3285,8 +3318,10 @@ export function renderDetectionResult() {
             setStatus(
                 "DETECTED",
                 "AI DETECTION",
-                buildProvenanceDetectionDescription(
-                    provenance
+                withOpenKeyVisualContext(
+                    buildProvenanceDetectionDescription(
+                        provenance
+                    )
                 )
             );
 
@@ -3337,7 +3372,9 @@ export function renderDetectionResult() {
             setStatus(
                 "DETECTED",
                 "AI DETECTION",
-                `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
+                withOpenKeyVisualContext(
+                    `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
+                )
             );
 
 
