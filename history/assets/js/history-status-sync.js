@@ -53,6 +53,8 @@
 
     const failedSyncTracker = new Map();
     const MAX_SYNC_FAILURES = 3;
+    const STALE_TASK_ERROR =
+        "task expired (provider tidak dapat dihubungi)";
 
     /* =====================================================
        HELPERS
@@ -241,6 +243,28 @@
 
     App.getActiveHistoryItems =
         getActiveHistoryItems;
+
+    function getRecoverableExpiredHistoryItems() {
+
+        return getHistoryData()
+            .filter(item => {
+
+                const errorMessage =
+                    String(
+                        item?.error_message ||
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+                return (
+                    normalizeStatus(item?.status) === "failed" &&
+                    errorMessage === STALE_TASK_ERROR &&
+                    Boolean(getTaskId(item)) &&
+                    Boolean(getModelId(item))
+                );
+            });
+    }
 
     /* =====================================================
        SYNC ONE TASK
@@ -667,7 +691,47 @@
 
         try {
 
-            return await syncActiveGenerations();
+            const activeResult =
+                await syncActiveGenerations();
+
+            const expiredItems =
+                getRecoverableExpiredHistoryItems();
+
+            if (!expiredItems.length) {
+                return activeResult;
+            }
+
+            const accessToken =
+                await getAccessToken();
+
+            const retryResults =
+                await Promise.allSettled(
+                    expiredItems.map(item =>
+                        syncGenerationStatus(
+                            item,
+                            accessToken
+                        )
+                    )
+                );
+
+            if (
+                typeof App.loadHistory ===
+                "function"
+            ) {
+                await App.loadHistory({
+                    silent: true
+                });
+            }
+
+            return {
+                ...activeResult,
+                retriedExpired: expiredItems.length,
+                expiredRetryFailures:
+                    retryResults.filter(result =>
+                        result.status === "rejected" ||
+                        result.value?.success !== true
+                    ).length
+            };
 
         } finally {
 
