@@ -72,6 +72,8 @@ const MODEL_REGISTRY = [
 ];
 
 const SEEDANCE_STUDIO_MODEL_ID = "seedance-25-studio-s14";
+const STALE_TASK_EXPIRED_ERROR =
+    "task expired (provider tidak dapat dihubungi)";
 
 
 const COMPLETED_STATES = new Set([
@@ -2621,6 +2623,14 @@ async function updateGenerationHistory(
             status:
                 "processing"
         };
+
+        if (
+            lower(history.status) === "failed" &&
+            lower(history.error_message) === STALE_TASK_EXPIRED_ERROR
+        ) {
+            payload.error_message = null;
+            payload.completed_at = null;
+        }
     }
 
 
@@ -3338,10 +3348,16 @@ async function syncGenerationHistory(
     }
 
 
+    const canRecoverStaleFailure =
+        lower(history.status) === "failed" &&
+        lower(history.error_message) === STALE_TASK_EXPIRED_ERROR;
+
+
     if (
         normalized.processing &&
         !normalized.completed &&
-        !normalized.failed
+        !normalized.failed &&
+        !canRecoverStaleFailure
     ) {
         return {
             history_updated:
