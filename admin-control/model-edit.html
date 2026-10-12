@@ -3458,6 +3458,17 @@
                 }
 
 
+                if (
+                    values.length === 0
+                ) {
+
+                    return getAvailableResolutions(
+                        model
+                    );
+
+                }
+
+
                 return sortResolutions(
                     values
                 );
