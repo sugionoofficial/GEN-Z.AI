@@ -377,6 +377,18 @@ export async function resolveImageParameterValue(
     }
 
 
+    if (typeof imageInput.getMediaItems === "function") {
+        const items = imageInput.getMediaItems();
+        if (!Array.isArray(items)) return [];
+
+        const resolved = await Promise.all(
+            items.map(item => resolveImageParameterValue(item, definition))
+        );
+
+        return dedupe(resolved.flat());
+    }
+
+
     const mode = resolveMode(imageInput, "imageMode", "url");
 
     debugLog("Image mode:", mode);
@@ -835,6 +847,18 @@ export async function resolveVideoParameterValue(
         debugLog("Video input kosong.");
 
         return [];
+    }
+
+
+    if (typeof videoInput.getMediaItems === "function") {
+        const items = videoInput.getMediaItems();
+        if (!Array.isArray(items)) return [];
+
+        const resolved = await Promise.all(
+            items.map(item => resolveVideoParameterValue(item, definition))
+        );
+
+        return dedupe(resolved.flat());
     }
 
 

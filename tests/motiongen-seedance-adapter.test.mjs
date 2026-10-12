@@ -22,6 +22,22 @@ const rewrittenAdapter = adapterSource.replace(
 const adapterUrl = `data:text/javascript,${encodeURIComponent(rewrittenAdapter)}`;
 const parametersModule = await import(parametersUrl);
 const adapterModule = await import(adapterUrl);
+const uploadStubSource = `
+export async function uploadImageFile() { return ""; }
+export async function uploadAudioFile() { return ""; }
+export async function uploadVideoFile() { return ""; }
+`;
+const uploadStubUrl = `data:text/javascript,${encodeURIComponent(uploadStubSource)}`;
+const mediaReaderSource = await fs.readFile(
+    new URL("../generate/assets/js/generate-form-media-reader.js", import.meta.url),
+    "utf8"
+);
+const mediaReaderModuleSource = mediaReaderSource.replace(
+    'from "./generate-form-upload.js"',
+    `from "${uploadStubUrl}"`
+);
+const mediaReaderUrl = `data:text/javascript,${encodeURIComponent(mediaReaderModuleSource)}`;
+const mediaReaderModule = await import(mediaReaderUrl);
 
 test("model configs own their Admin Editor settings", () => {
     assert.deepEqual(digitalHumanConfigModule.default.adminEditor.resolutionOptions, [
@@ -77,4 +93,40 @@ test("allows an empty prompt and rejects invalid enums and excess media", () => 
     assert.equal(parametersModule.validate({
         video_urls: Array.from({ length: 4 }, (_, index) => `https://example.com/${index}.mp4`)
     }).valid, false);
+});
+
+test("collects URL and uploaded image/video slots into arrays", async () => {
+    const imageCollection = {
+        getMediaItems: () => [
+            {
+                getInputMode: () => "url",
+                getUrls: () => ["https://example.com/a.jpg"]
+            },
+            {
+                getInputMode: () => "upload",
+                getUploadedUrls: () => ["https://example.com/b.jpg"]
+            }
+        ]
+    };
+    const videoCollection = {
+        getMediaItems: () => [
+            {
+                getInputMode: () => "url",
+                getUrls: () => ["https://example.com/a.mp4"]
+            },
+            {
+                getInputMode: () => "upload",
+                getUploadedUrls: () => ["https://example.com/b.mp4"]
+            }
+        ]
+    };
+
+    assert.deepEqual(
+        await mediaReaderModule.resolveImageParameterValue(imageCollection),
+        ["https://example.com/a.jpg", "https://example.com/b.jpg"]
+    );
+    assert.deepEqual(
+        await mediaReaderModule.resolveVideoParameterValue(videoCollection),
+        ["https://example.com/a.mp4", "https://example.com/b.mp4"]
+    );
 });

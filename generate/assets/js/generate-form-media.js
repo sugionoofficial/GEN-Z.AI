@@ -3570,11 +3570,159 @@ export function createVideoField(
    PUBLIC API
 ========================================================= */
 
+function getMediaMaxItems(definition = {}) {
+    const configured = Number(
+        definition.maxItems ??
+        definition.max_items ??
+        (definition.multiple === true ? 9 : 1)
+    );
+
+    return Number.isFinite(configured) && configured > 0
+        ? Math.floor(configured)
+        : 1;
+}
+
+
+function createMediaCollectionField(
+    baseFactory,
+    definition = {},
+    parameterName = "",
+    kind = "gambar"
+) {
+    const maxItems = getMediaMaxItems(definition);
+    if (maxItems <= 1) {
+        return baseFactory(definition, parameterName);
+    }
+
+    const isVideo = kind === "video";
+    const baseClass = isVideo ? "generate-video-input" : "generate-image-input";
+    const wrapper = document.createElement("div");
+    const list = document.createElement("div");
+    const addButton = document.createElement("button");
+    const entries = [];
+
+    wrapper.className = `${baseClass} generate-media-collection`;
+    wrapper.dataset.parameter = parameterName;
+    wrapper.dataset.mediaCollection = kind;
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.gap = "10px";
+    list.style.display = "flex";
+    list.style.flexDirection = "column";
+    list.style.gap = "10px";
+
+    addButton.type = "button";
+    addButton.className = "btn btn-secondary generate-add-media-item";
+
+    function updateCollectionControls() {
+        addButton.disabled = entries.length >= maxItems;
+        addButton.textContent = `+ Tambah ${kind === "video" ? "video" : "gambar"} (${entries.length}/${maxItems})`;
+
+        for (const entry of entries) {
+            entry.removeButton.hidden = entries.length <= 1;
+        }
+    }
+
+    function addEntry(value) {
+        if (entries.length >= maxItems) return null;
+
+        const row = document.createElement("div");
+        const itemDefinition = {
+            ...definition,
+            maxItems: 1,
+            max_items: 1,
+            multiple: false
+        };
+
+        if (value !== undefined && value !== null && value !== "") {
+            itemDefinition.default = value;
+        } else {
+            delete itemDefinition.default;
+            delete itemDefinition.default_value;
+            delete itemDefinition.value;
+        }
+
+        const field = baseFactory(itemDefinition, parameterName);
+        field.classList.remove(baseClass);
+        field.classList.add("generate-media-collection-item");
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "btn btn-secondary generate-remove-media-item";
+        removeButton.textContent = "Hapus";
+        removeButton.setAttribute("aria-label", `Hapus ${kind === "video" ? "video" : "gambar"}`);
+        removeButton.addEventListener("click", async () => {
+            if (typeof field.clearUploadedFile === "function") {
+                await field.clearUploadedFile();
+            }
+            const index = entries.findIndex(entry => entry.field === field);
+            if (index >= 0) entries.splice(index, 1);
+            row.remove();
+            updateCollectionControls();
+        });
+
+        row.className = "generate-media-collection-row";
+        row.append(field, removeButton);
+        list.appendChild(row);
+        entries.push({ field, removeButton });
+        updateCollectionControls();
+        return field;
+    }
+
+    const defaultValue =
+        definition.default ??
+        definition.default_value ??
+        definition.value;
+    const initialValues = Array.isArray(defaultValue)
+        ? defaultValue.slice(0, maxItems)
+        : defaultValue != null && defaultValue !== ""
+            ? [defaultValue]
+            : [];
+
+    initialValues.forEach(value => addEntry(value));
+    if (entries.length === 0) addEntry();
+
+    addButton.addEventListener("click", () => addEntry()?.focus?.());
+    wrapper.getMediaItems = () => entries.map(entry => entry.field);
+    wrapper.clearUploadedFile = async () => {
+        await Promise.all(entries.map(entry =>
+            typeof entry.field.clearUploadedFile === "function"
+                ? entry.field.clearUploadedFile()
+                : Promise.resolve()
+        ));
+    };
+    wrapper.append(list, addButton);
+    updateCollectionControls();
+    return wrapper;
+}
+
+
+export function createImageArrayField(definition = {}, parameterName = "image_urls") {
+    return createMediaCollectionField(
+        createImageField,
+        definition,
+        parameterName,
+        "gambar"
+    );
+}
+
+
+export function createVideoArrayField(definition = {}, parameterName = "video_urls") {
+    return createMediaCollectionField(
+        createVideoField,
+        definition,
+        parameterName,
+        "video"
+    );
+}
+
 export default Object.freeze({
     registerImageMediaHandlers,
     registerAudioMediaHandlers,
     registerVideoMediaHandlers,
     createImageField,
+    createImageArrayField,
     createAudioField,
-    createVideoField
+    createVideoField,
+    createVideoArrayField
 });

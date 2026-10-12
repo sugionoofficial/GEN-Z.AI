@@ -91,9 +91,9 @@ import {
 ========================================================= */
 
 import {
-    createImageField as createMediaImageField,
+    createImageArrayField as createMediaImageArrayField,
     createAudioField as createMediaAudioField,
-    createVideoField as createMediaVideoField,
+    createVideoArrayField as createMediaVideoArrayField,
     registerImageMediaHandlers,
     registerAudioMediaHandlers,
     registerVideoMediaHandlers
@@ -165,7 +165,7 @@ registerVideoMediaHandlers({
 ========================================================= */
 
 registerImageFieldFactory(
-    createMediaImageField
+    createMediaImageArrayField
 );
 
 
@@ -175,7 +175,7 @@ registerAudioFieldFactory(
 
 
 registerVideoFieldFactory(
-    createMediaVideoField
+    createMediaVideoArrayField
 );
 
 
