@@ -2352,11 +2352,11 @@ async function refundFailedGenerationCredits(
 /* =========================================================
    AUTO-FAIL STALE HISTORY
    ---------------------------------------------------------
-   Task > 1 jam yang masih processing/pending dianggap
-   expired. Tandai failed TANPA query provider.
+    Task > 1 jam yang masih processing/pending dianggap
+    expired setelah query provider gagal.
 
    Ini mencegah spam 502 ke /api/generate-status karena
-   provider sudah tidak bisa dihubungi.
+    provider memang tidak bisa dihubungi.
 ========================================================= */
 
 async function autoFailStaleHistory(
@@ -4087,109 +4087,6 @@ export default async function handler(
         }
 
 
-        /* =================================================
-           AUTO-FAIL STALE HISTORY
-           -------------------------------------------------
-           Task > 1 jam yang masih processing dianggap
-           expired. Tandai failed tanpa query provider.
-        ================================================= */
-
-        const staleAutoFailed =
-            await autoFailStaleHistory(
-                user.id,
-                taskId
-            );
-
-
-        if (staleAutoFailed) {
-
-            return json(
-                res,
-                200,
-                {
-                    success:
-                        true,
-
-                    user_id:
-                        user.id,
-
-                    model_id:
-                        modelId,
-
-                    task_id:
-                        taskId,
-
-                    taskId:
-                        taskId,
-
-                    state:
-                        "failed",
-
-                    provider_state:
-                        "expired",
-
-                    processing:
-                        false,
-
-                    completed:
-                        false,
-
-                    failed:
-                        true,
-
-                    has_result:
-                        false,
-
-                    hasResult:
-                        false,
-
-                    result_urls:
-                        [],
-
-                    resultUrls:
-                        [],
-
-                    result:
-                        null,
-
-                    history_updated:
-                        true,
-
-                    history_matched:
-                        true,
-
-                    history_status:
-                        "failed",
-
-                    history_reason:
-                        "stale_task_auto_failed",
-
-                    history_row_id:
-                        existingHistory?.id ||
-                        null,
-
-                    history_database_status:
-                        "failed",
-
-                    history_result_url:
-                        null,
-
-                    history_completed_at:
-                        new Date().toISOString(),
-
-                    adapter_found:
-                        false,
-
-                    credential_resolved:
-                        false,
-
-                    auto_expired:
-                        true
-                }
-            );
-        }
-
-
         const model =
             await loadModel(
                 modelId
@@ -4367,6 +4264,101 @@ export default async function handler(
                     error
                 )
             );
+
+
+            const staleAutoFailed =
+                await autoFailStaleHistory(
+                    user.id,
+                    taskId
+                );
+
+
+            if (staleAutoFailed) {
+                return json(
+                    res,
+                    200,
+                    {
+                        success:
+                            true,
+
+                        user_id:
+                            user.id,
+
+                        model_id:
+                            modelId,
+
+                        task_id:
+                            taskId,
+
+                        taskId:
+                            taskId,
+
+                        state:
+                            "failed",
+
+                        provider_state:
+                            "expired",
+
+                        processing:
+                            false,
+
+                        completed:
+                            false,
+
+                        failed:
+                            true,
+
+                        has_result:
+                            false,
+
+                        hasResult:
+                            false,
+
+                        result_urls:
+                            [],
+
+                        resultUrls:
+                            [],
+
+                        result:
+                            null,
+
+                        history_updated:
+                            true,
+
+                        history_matched:
+                            true,
+
+                        history_status:
+                            "failed",
+
+                        history_reason:
+                            "stale_task_auto_failed",
+
+                        history_row_id:
+                            existingHistory?.id ||
+                            null,
+
+                        history_database_status:
+                            "failed",
+
+                        history_result_url:
+                            null,
+
+                        history_completed_at:
+                            new Date().toISOString(),
+
+                        adapter_found:
+                            true,
+
+                        credential_resolved:
+                            true,
+
+                        auto_expired:
+                            true
+                    }
+                );
+            }
 
 
             return json(
