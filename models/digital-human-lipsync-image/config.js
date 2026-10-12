@@ -96,6 +96,34 @@ const config = {
         "image-to-video",
 
 
+    adminEditor: {
+
+      resolutionOptions: [
+        {
+          value: "480p",
+          label: "576P"
+        },
+        {
+          value: "720p",
+          label: "720P HD"
+        }
+      ],
+
+      resolutionAliases: {
+        "576p": "480p",
+        "576phd": "480p",
+        "720phd": "720p"
+      },
+
+      hideParameterSummary: true,
+
+      hiddenCreditFields: [
+        "credit_1080p"
+      ]
+
+    },
+
+
     /*
      * =====================================================
      * API

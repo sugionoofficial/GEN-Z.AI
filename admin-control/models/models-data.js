@@ -53,7 +53,7 @@
 ========================================================= */
 
 const MODEL_DATA_VERSION =
-    "2026-10-12-motiongen-seedance-v5";
+    "2026-10-12-model-editor-metadata-v6";
 
 
 /* =========================================================
@@ -73,13 +73,13 @@ import seedanceParameters
     from "../../models/seedance-2-5/parameters.js?v=models-registry-20261011";
 
 import motiongenConfig
-    from "../../models/digital-human-lipsync-image/config.js?v=models-registry-20261011";
+    from "../../models/digital-human-lipsync-image/config.js?v=models-registry-editor-20261012";
 
 import motiongenParameters
     from "../../models/digital-human-lipsync-image/parameters.js?v=models-registry-20261011";
 
 import motiongenSeedanceConfig
-    from "../../models/seedance-25-studio-s14/config.js?v=models-registry-20261012";
+    from "../../models/seedance-25-studio-s14/config.js?v=models-registry-editor-20261012";
 
 import motiongenSeedanceParameters
     from "../../models/seedance-25-studio-s14/parameters.js?v=models-registry-20261012";
@@ -2166,6 +2166,12 @@ function normalizeRegistryModel(
         supported_resolutions:
             supportedResolutions,
 
+        available_resolutions:
+            supportedResolutions,
+
+        adminEditor:
+            config.adminEditor || {},
+
         min_duration:
             durationRange.min,
 
@@ -2687,6 +2693,12 @@ function normalizePersistedModel(
 
         supported_resolutions:
             supportedResolutions,
+
+        available_resolutions:
+            registryResolutions,
+
+        adminEditor:
+            registryConfig?.adminEditor || {},
 
         min_duration:
             minDuration,

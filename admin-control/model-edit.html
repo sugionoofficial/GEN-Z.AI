@@ -2665,7 +2665,7 @@
         loadModels,
         getModelByModelId,
         loadProviders
-    } from "./models/models-data.js";
+    } from "./models/models-data.js?v=admin-editor-config-20261012";
 
 
     /* =========================================================
@@ -2820,19 +2820,7 @@
         "1080p"
     ];
 
-
-    const MOTIONGEN_MODEL_ID =
-        "digital-human-lipsync-image";
-
-    const MOTIONGEN_PROVIDER_ID =
-        "motiongen";
-
-
-    /* =========================================================
-       MOTIONGEN DETECTION
-    ========================================================= */
-
-    function isMotiongenModel(model = null) {
+    function getAdminEditorConfig(model = null) {
 
         const source =
             model ||
@@ -2840,69 +2828,15 @@
             currentModel ||
             {};
 
-        const modelId =
-            String(
-                source?.model_id ||
-                source?.id ||
-                source?.config?.id ||
-                ""
-            )
-                .trim()
-                .toLowerCase();
+        return source.adminEditor || {};
 
-        const providerId =
-            String(
-                source?.provider_id ||
-                source?.providerId ||
-                source?.config?.providerId ||
-                ""
-            )
-                .trim()
-                .toLowerCase();
-
-        return (
-            modelId ===
-                MOTIONGEN_MODEL_ID ||
-            providerId ===
-                MOTIONGEN_PROVIDER_ID
-        );
     }
 
 
-    function isMotiongenLipSyncModel(model = null) {
-
-        const source =
-            model ||
-            currentRegistryModel ||
-            currentModel ||
-            {};
-
-        const modelId =
-            String(
-                source?.model_id ||
-                source?.id ||
-                source?.config?.id ||
-                ""
-            )
-                .trim()
-                .toLowerCase();
-
-        return modelId === MOTIONGEN_MODEL_ID;
-    }
-
-
-    /* =========================================================
-       MOTIONGEN RESOLUTION NORMALIZER
-       ---------------------------------------------------------
-       INTERNAL STORAGE:
-         576P    -> 480p
-         720P HD -> 720p
-
-       Jangan menyimpan "576p" ke credit_576p karena field
-       tersebut memang tidak ada pada arsitektur database.
-    ========================================================= */
-
-    function normalizeMotiongenResolution(value) {
+    function normalizeResolution(
+        value,
+        model = null
+    ) {
 
         const normalized =
             String(value ?? "")
@@ -2910,169 +2844,94 @@
                 .toLowerCase()
                 .replace(/\s+/g, "");
 
-        if (
-            normalized === "576p" ||
-            normalized === "576phd" ||
-            normalized === "480p"
-        ) {
-            return "480p";
-        }
+        const aliases =
+            getAdminEditorConfig(model)
+                .resolutionAliases || {};
 
-        if (
-            normalized === "720p" ||
-            normalized === "720phd"
-        ) {
-            return "720p";
-        }
+        return String(
+            aliases[normalized] ||
+            normalized
+        )
+            .trim()
+            .toLowerCase();
 
-        return normalized;
     }
 
 
-    function getMotiongenResolutionLabel(value) {
+    function getConfiguredResolutionOptions(model = null) {
 
-        const normalized =
-            normalizeMotiongenResolution(
-                value
-            );
+        const options =
+            getAdminEditorConfig(model)
+                .resolutionOptions;
 
-        if (
-            normalized === "480p" &&
-            isMotiongenLipSyncModel()
-        ) {
-            return "576P";
+        if (!Array.isArray(options)) {
+            return [];
         }
 
-        if (
-            normalized === "720p" &&
-            isMotiongenLipSyncModel()
-        ) {
-            return "720P HD";
-        }
+        return options
+            .filter(option => option && option.value != null)
+            .map(option => ({
+                value:
+                    normalizeResolution(option.value, model),
+                label:
+                    String(option.label || option.value).trim()
+            }));
 
-        return String(value ?? "");
     }
 
-
-    /* =========================================================
-       GENERIC RESOLUTION HELPERS
-    ========================================================= */
 
     function normalizeResolutionArray(value) {
 
         if (Array.isArray(value)) {
-
             return Array.from(
                 new Set(
                     value
-                        .map(item =>
-                            String(item ?? "").trim()
-                        )
+                        .map(item => String(item ?? "").trim())
                         .filter(Boolean)
                 )
             );
-
         }
 
-        if (
-            value === null ||
-            value === undefined ||
-            value === ""
-        ) {
-
+        if (value === null || value === undefined || value === "") {
             return [];
-
         }
 
-        if (typeof value === "string") {
+        if (typeof value !== "string") {
+            return [];
+        }
 
-            const text =
-                value.trim();
+        const text = value.trim();
+        if (!text) {
+            return [];
+        }
 
-            if (!text) {
-                return [];
-            }
-
-            if (
-                text.startsWith("[") &&
-                text.endsWith("]")
-            ) {
-
-                try {
-
-                    const parsed =
-                        JSON.parse(text);
-
-                    if (Array.isArray(parsed)) {
-
-                        return Array.from(
-                            new Set(
-                                parsed
-                                    .map(item =>
-                                        String(item ?? "").trim()
-                                    )
-                                    .filter(Boolean)
-                            )
-                        );
-
-                    }
-
-                } catch (_) {
-                    /* fallback */
+        if (text.startsWith("[") && text.endsWith("]")) {
+            try {
+                const parsed = JSON.parse(text);
+                if (Array.isArray(parsed)) {
+                    return normalizeResolutionArray(parsed);
                 }
-
+            } catch (_) {
+                return text.split(",").map(item => item.trim()).filter(Boolean);
             }
-
-            return Array.from(
-                new Set(
-                    text
-                        .split(",")
-                        .map(item => item.trim())
-                        .filter(Boolean)
-                )
-            );
-
         }
 
-        return [];
+        return text.split(",").map(item => item.trim()).filter(Boolean);
 
     }
 
 
-    function sortResolutions(values) {
+    function sortResolutions(values, model = null) {
 
-        const normalized =
-            normalizeResolutionArray(
-                values
-            );
-
-        return normalized.sort(
+        return normalizeResolutionArray(values).sort(
             (a, b) => {
+                const ai = RESOLUTION_ORDER.indexOf(normalizeResolution(a, model));
+                const bi = RESOLUTION_ORDER.indexOf(normalizeResolution(b, model));
 
-                const ai =
-                    RESOLUTION_ORDER.indexOf(
-                        normalizeMotiongenResolution(a)
-                    );
-
-                const bi =
-                    RESOLUTION_ORDER.indexOf(
-                        normalizeMotiongenResolution(b)
-                    );
-
-                if (ai === -1 && bi === -1) {
-                    return a.localeCompare(b);
-                }
-
-                if (ai === -1) {
-                    return 1;
-                }
-
-                if (bi === -1) {
-                    return -1;
-                }
-
+                if (ai === -1 && bi === -1) return a.localeCompare(b);
+                if (ai === -1) return 1;
+                if (bi === -1) return -1;
                 return ai - bi;
-
             }
         );
 
@@ -3252,32 +3111,34 @@
 
     function getAvailableResolutions(model) {
 
-        /*
-         * Motiongen:
-         *
-         * 576P    -> internal 480p
-         * 720P HD -> internal 720p
-         *
-         * Resolution UI Edit Model menggunakan dua
-         * resolution tersebut saja.
-         */
-
-        if (
-            isMotiongenModel(model)
-        ) {
-
-            return [
-                "480p",
-                "720p"
-            ];
-
-        }
-
-
         const registry =
             currentRegistryModel ||
             model ||
             {};
+
+        const configuredOptions =
+            getConfiguredResolutionOptions(
+                model
+            );
+
+        if (configuredOptions.length) {
+            return sortResolutions(
+                configuredOptions.map(option => option.value),
+                model
+            );
+        }
+
+        const availableValues =
+            normalizeResolutionArray(
+                registry?.available_resolutions
+            );
+
+        if (availableValues.length) {
+            return sortResolutions(
+                availableValues,
+                model
+            );
+        }
 
         const parameters =
             registry?.parameters;
@@ -3317,7 +3178,8 @@
                 ) {
 
                     return sortResolutions(
-                        parameterValues
+                        parameterValues,
+                        model
                     );
 
                 }
@@ -3373,7 +3235,8 @@
             ) {
 
                 return sortResolutions(
-                    parameterValues
+                        parameterValues,
+                        model
                 );
 
             }
@@ -3390,9 +3253,7 @@
             registryValues.length
         ) {
 
-            return sortResolutions(
-                registryValues
-            );
+            return sortResolutions(registryValues, model);
 
         }
 
@@ -3406,14 +3267,30 @@
             camelCaseValues.length
         ) {
 
-            return sortResolutions(
-                camelCaseValues
-            );
+            return sortResolutions(camelCaseValues, model);
 
         }
 
 
         return [];
+
+    }
+
+
+    function getResolutionOptions(model = null) {
+
+        const configuredOptions =
+            getConfiguredResolutionOptions(model);
+
+        if (configuredOptions.length) {
+            return configuredOptions;
+        }
+
+        return getAvailableResolutions(model)
+            .map(value => ({
+                value,
+                label: value
+            }));
 
     }
 
@@ -3440,22 +3317,9 @@
                 value !== undefined
             ) {
 
-                let values =
-                    normalizeResolutionArray(
-                        value
-                    );
-
-
-                if (
-                    isMotiongenModel(model)
-                ) {
-
-                    values =
-                        values.map(
-                            normalizeMotiongenResolution
-                        );
-
-                }
+                const values =
+                    normalizeResolutionArray(value)
+                        .map(item => normalizeResolution(item, model));
 
 
                 if (
@@ -3469,9 +3333,7 @@
                 }
 
 
-                return sortResolutions(
-                    values
-                );
+                return sortResolutions(values, model);
 
             }
 
@@ -3500,11 +3362,14 @@
         }
 
 
-        const available =
-            getAvailableResolutions(
+        const options =
+            getResolutionOptions(
                 currentRegistryModel ||
                 model
             );
+
+        const available =
+            options.map(option => option.value);
 
 
         const active =
@@ -3513,10 +3378,7 @@
                     model
                 )
                     .map(
-                        value =>
-                            isMotiongenModel(model)
-                                ? normalizeMotiongenResolution(value)
-                                : value
+                        value => normalizeResolution(value, model)
                     )
             );
 
@@ -3540,12 +3402,12 @@
         }
 
 
-        available.forEach(
-            resolution => {
+        options.forEach(
+            option => {
 
                 const rawValue =
                     String(
-                        resolution ?? ""
+                        option.value ?? ""
                     ).trim();
 
                 if (!rawValue) {
@@ -3554,19 +3416,11 @@
 
 
                 const value =
-                    isMotiongenModel(model)
-                        ? normalizeMotiongenResolution(
-                            rawValue
-                        )
-                        : rawValue;
+                    normalizeResolution(rawValue, model);
 
 
                 const displayValue =
-                    isMotiongenModel(model)
-                        ? getMotiongenResolutionLabel(
-                            value
-                        )
-                        : value;
+                    String(option.label || value);
 
 
                 const id =
@@ -3696,7 +3550,7 @@
         }
 
 
-        let values =
+        const values =
             Array.from(
                 activeResolutionSelector
                     .querySelectorAll(
@@ -3709,22 +3563,9 @@
                 );
 
 
-        if (
-            isMotiongenModel(
-                currentModel
-            )
-        ) {
-
-            values =
-                values.map(
-                    normalizeMotiongenResolution
-                );
-
-        }
-
-
         return sortResolutions(
-            values
+            values.map(value => normalizeResolution(value, currentModel)),
+            currentModel
         );
 
     }
@@ -3919,230 +3760,89 @@
     }
 
 
-    /* =========================================================
-       MOTIONGEN UI
-       ---------------------------------------------------------
-       Edit Model tidak menampilkan:
-         - Duration
-         - Aspect Ratio
-         - Resolution technical metadata
-         - 1080P
+    function applyAdminEditorSettings(model = currentModel) {
 
-       Duration + aspect ratio tetap dikelola
-       parameters.js Motiongen.
-    ========================================================= */
+        const settings =
+            getAdminEditorConfig(model);
 
-    function applyMotiongenUI() {
-
-        if (
-            !isMotiongenModel(
-                currentModel
-            )
-        ) {
-            return;
-        }
-
-
-        /*
-         * Parameter cards
-         */
-
-        const parameterCards =
-            document.querySelectorAll(
-                ".parameter-grid .parameter-card"
+        const parameterGrid =
+            document.querySelector(
+                ".parameter-grid"
             );
 
+        parameterGrid
+            ?.closest(".form-card")
+            ?.classList.toggle(
+                "hidden",
+                settings.hideParameterSummary === true
+            );
 
-        if (
-            parameterCards.length >= 3
-        ) {
-
-            /*
-             * Duration
-             */
-            parameterCards[0]
-                .classList.add(
-                    "hidden"
-                );
-
-
-            /*
-             * Aspect Ratio
-             */
-            parameterCards[1]
-                .classList.add(
-                    "hidden"
-                );
-
-
-            /*
-             * Resolution technical
-             */
-            parameterCards[2]
-                .classList.add(
-                    "hidden"
-                );
-
-        }
-
-
-        /*
-         * Hide 1080P pricing preview
-         */
+        const resolutionOptions =
+            getResolutionOptions(model);
 
         const priceBoxes =
             document.querySelectorAll(
                 ".price-preview .resolution-price-box"
             );
 
+        const creditInputs = {
+            credit_480p: credit480p,
+            credit_720p: credit720p,
+            credit_1080p: credit1080p
+        };
 
-        if (
-            priceBoxes.length >= 3
-        ) {
+        const standardResolutions = [
+            "480p",
+            "720p",
+            "1080p"
+        ];
 
-            priceBoxes[2]
-                .classList.add(
-                    "hidden"
-                );
+        const hiddenCreditFields = new Set(
+            Array.isArray(settings.hiddenCreditFields)
+                ? settings.hiddenCreditFields
+                : []
+        );
 
-        }
-
-
-        /*
-         * Hide 1080P credit input
-         */
-
-        if (
-            credit1080p
-        ) {
-
-            const field =
-                credit1080p.closest(
-                    ".field"
-                );
-
-            if (field) {
-                field.classList.add(
-                    "hidden"
-                );
-            }
-
-        }
-
-
-        /*
-         * Rename 480p / 720p pricing labels
-         */
-
-        if (
-            priceBoxes.length >= 2
-        ) {
-
-            const title480 =
-                priceBoxes[0]
-                    .querySelector(
-                        ".resolution-title"
+        standardResolutions.forEach(
+            (resolution, index) => {
+                const option =
+                    resolutionOptions.find(
+                        item =>
+                            normalizeResolution(item.value, model) === resolution
                     );
 
-            const title720 =
-                priceBoxes[1]
-                    .querySelector(
-                        ".resolution-title"
-                    );
+                const box = priceBoxes[index];
+                const title = box?.querySelector(".resolution-title");
+                const creditField = `credit_${resolution}`;
+                const input = creditInputs[creditField];
+                const field = input?.closest(".field");
+                const fieldSettings = settings.creditFields?.[creditField] || {};
+                const hidden =
+                    hiddenCreditFields.has(creditField) ||
+                    fieldSettings.visible === false;
 
+                box?.classList.toggle("hidden", hidden);
+                field?.classList.toggle("hidden", hidden);
 
-            if (title480) {
-                title480.textContent =
-                    isMotiongenLipSyncModel(currentModel)
-                        ? "576P"
-                        : "480P";
+                if (option?.label && title) {
+                    title.textContent = option.label;
+                }
+
+                const label = field?.querySelector("label");
+                if (fieldSettings.label && label) {
+                    label.textContent = fieldSettings.label;
+                } else if (option?.label && label) {
+                    label.textContent = `Credit ${option.label}`;
+                }
+
+                const help = field?.querySelector(".field-help");
+                if (fieldSettings.help && help) {
+                    help.textContent = fieldSettings.help;
+                } else if (option?.label && help) {
+                    help.textContent = `Credit yang digunakan untuk resolusi ${option.label}.`;
+                }
             }
-
-            if (title720) {
-                title720.textContent =
-                    isMotiongenLipSyncModel(currentModel)
-                        ? "720P HD"
-                        : "720P";
-            }
-
-        }
-
-
-        /*
-         * Rename credit inputs
-         */
-
-        const credit480Field =
-            credit480p?.closest(
-                ".field"
-            );
-
-        const credit720Field =
-            credit720p?.closest(
-                ".field"
-            );
-
-
-        const credit480Label =
-            credit480Field?.querySelector(
-                "label"
-            );
-
-        const credit720Label =
-            credit720Field?.querySelector(
-                "label"
-            );
-
-
-        if (credit480Label) {
-
-            credit480Label.textContent =
-                isMotiongenLipSyncModel(currentModel)
-                    ? "Credit 576P"
-                    : "Credit 480P";
-
-        }
-
-
-        if (credit720Label) {
-
-            credit720Label.textContent =
-                isMotiongenLipSyncModel(currentModel)
-                    ? "Credit 720P HD"
-                    : "Credit 720P";
-
-        }
-
-
-        const credit480Help =
-            credit480Field?.querySelector(
-                ".field-help"
-            );
-
-        const credit720Help =
-            credit720Field?.querySelector(
-                ".field-help"
-            );
-
-
-        if (credit480Help) {
-
-            credit480Help.textContent =
-                isMotiongenLipSyncModel(currentModel)
-                    ? "Credit yang digunakan untuk resolution 576P."
-                    : "Credit yang digunakan untuk resolution 480P.";
-
-        }
-
-
-        if (credit720Help) {
-
-            credit720Help.textContent =
-                isMotiongenLipSyncModel(currentModel)
-                    ? "Credit yang digunakan untuk resolution 720P HD."
-                    : "Credit yang digunakan untuk resolution 720P.";
-
-        }
+        );
 
     }
 
@@ -4153,16 +3853,9 @@
 
     function renderParameters(model) {
 
-        /*
-         * Motiongen:
-         * parameter teknis duration dan aspect ratio
-         * mengikuti parameters.js.
-         *
-         * Tidak ditampilkan pada Edit Model.
-         */
-
         if (
-            isMotiongenModel(model)
+            getAdminEditorConfig(model)
+                .hideParameterSummary === true
         ) {
 
             durationValue.textContent =
@@ -4174,7 +3867,7 @@
             resolutionValue.textContent =
                 "";
 
-            applyMotiongenUI();
+            applyAdminEditorSettings(model);
 
             return;
 
@@ -4745,14 +4438,6 @@
         updateStatusText();
 
 
-        /*
-         * Credit mapping:
-         *
-         * Motiongen:
-         * 480p DB field = 576P
-         * 720p DB field = 720P HD
-         */
-
         credit480p.value =
             model?.credit_480p ??
             model?.credit480p ??
@@ -4814,7 +4499,7 @@
          * selesai dibuat.
          */
 
-        applyMotiongenUI();
+        applyAdminEditorSettings(model);
 
     }
 
@@ -5567,27 +5252,10 @@
             );
 
 
-        let activeResolutions =
-            getSelectedActiveResolutions();
-
-
-        if (
-            isMotiongenModel(
-                currentModel
-            )
-        ) {
-
-            activeResolutions =
-                activeResolutions.map(
-                    normalizeMotiongenResolution
-                );
-
-        }
-
-
-        activeResolutions =
+        const activeResolutions =
             sortResolutions(
-                activeResolutions
+                getSelectedActiveResolutions(),
+                currentModel
             );
 
 
@@ -5605,15 +5273,6 @@
 
         }
 
-
-        /*
-         * Motiongen hanya menggunakan:
-         *
-         * 480p DB -> 576P
-         * 720p DB -> 720P HD
-         *
-         * credit_1080p tidak disentuh.
-         */
 
         const payload = {
 
@@ -5649,16 +5308,13 @@
         };
 
 
-        /*
-         * Jangan mengirim credit_1080p untuk Motiongen.
-         * Untuk model lain, perilaku lama tetap dipertahankan.
-         */
+        const hiddenCreditFields =
+            new Set(
+                getAdminEditorConfig(currentModel)
+                    .hiddenCreditFields || []
+            );
 
-        if (
-            !isMotiongenModel(
-                currentModel
-            )
-        ) {
+        if (!hiddenCreditFields.has("credit_1080p")) {
 
             payload.credit_1080p =
                 credit1080pValue;
@@ -5755,16 +5411,7 @@
             }
 
 
-            /*
-             * Model non-Motiongen tetap diverifikasi
-             * dengan credit_1080p.
-             */
-
-            if (
-                !isMotiongenModel(
-                    currentModel
-                )
-            ) {
+            if (!hiddenCreditFields.has("credit_1080p")) {
 
                 const saved1080 =
                     nullableNumber(
@@ -5788,13 +5435,15 @@
 
             const savedResolutions =
                 sortResolutions(
-                    verified?.supported_resolutions
+                    verified?.supported_resolutions,
+                    currentModel
                 );
 
 
             const expectedResolutions =
                 sortResolutions(
-                    activeResolutions
+                    activeResolutions,
+                    currentModel
                 );
 
 
@@ -5848,11 +5497,7 @@
                 };
 
 
-            if (
-                !isMotiongenModel(
-                    currentModel
-                )
-            ) {
+            if (!hiddenCreditFields.has("credit_1080p")) {
 
                 currentModel.credit_1080p =
                     credit1080pValue;
