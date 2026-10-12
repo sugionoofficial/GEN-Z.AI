@@ -3122,7 +3122,8 @@ export function renderDetectionResult() {
         ) {
 
             renderOverlayStamp(
-                sightengine
+                sightengine,
+                true
             );
 
         }
@@ -3131,10 +3132,13 @@ export function renderDetectionResult() {
             openKeyDetected
         ) {
 
-            renderOverlayStamp({
-                model:
-                    openKey.model
-            });
+            renderOverlayStamp(
+                {
+                    model:
+                        openKey.model
+                },
+                true
+            );
 
         }
 
@@ -3293,7 +3297,7 @@ export function renderDetectionResult() {
 
             setStatus(
                 "DETECTED",
-                "AI DETECTION",
+                "INDIKASI VISUAL AI",
                 withOpenKeyVisualContext(
                     buildSightengineDescription(
                         sightengine
@@ -3351,8 +3355,8 @@ export function renderDetectionResult() {
 
             setStatus(
                 "DETECTED",
-                "AI DETECTION",
-                `OpenKey menemukan indikasi visual AI; hasil ini bukan kepastian forensik.${confidence}${metadataDescription}`
+                "INDIKASI VISUAL AI",
+                `OpenKey menemukan indikasi visual AI pada gambar/frame yang diperiksa; ini bukan temuan metadata dan bukan kepastian forensik.${confidence}${metadataDescription}`
             );
 
 
@@ -3514,7 +3518,8 @@ export function renderDetectionResult() {
 ========================================================= */
 
 function renderOverlayStamp(
-    sightengine
+    sightengine,
+    isVisualDetection = false
 ) {
 
     const overlay =
@@ -3598,7 +3603,9 @@ function renderOverlayStamp(
 
 
     label.textContent =
-        "AI DETECTION";
+        isVisualDetection
+            ? "VISUAL AI SIGNAL"
+            : "AI DETECTION";
 
 
     renderOverlayModel(

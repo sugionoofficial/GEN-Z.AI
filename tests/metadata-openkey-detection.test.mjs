@@ -27,6 +27,11 @@ const videoSource = await fs.readFile(
   "utf8"
 );
 
+const statusSource = await fs.readFile(
+  new URL("../metadata-cleaner/assets/js/metadata-status.js", import.meta.url),
+  "utf8"
+);
+
 const openKeyModule = await import(
   `data:text/javascript,${encodeURIComponent(openKeySource)}`
 );
@@ -54,6 +59,40 @@ const rewrittenVideoSource =
 
 const videoModule = await import(
   `data:text/javascript,${encodeURIComponent(rewrittenVideoSource)}`
+);
+
+globalThis.__metadataStatusState = {};
+globalThis.__metadataStatusElements = {
+  statusTitle: { textContent: "" },
+  statusDescription: { textContent: "" },
+  statusIndicator: {
+    classList: {
+      remove() {},
+      add() {}
+    }
+  },
+  aiOverlay: null
+};
+
+const statusStateUrl =
+  `data:text/javascript,${encodeURIComponent("export const state = globalThis.__metadataStatusState;")}`;
+
+const statusDomUrl =
+  `data:text/javascript,${encodeURIComponent("export const elements = globalThis.__metadataStatusElements;")}`;
+
+const rewrittenStatusSource =
+  statusSource
+    .replace(
+      /from "\.\/metadata-state\.js"/g,
+      `from "${statusStateUrl}"`
+    )
+    .replace(
+      /from "\.\/metadata-dom\.js"/g,
+      `from "${statusDomUrl}"`
+    );
+
+const statusModule = await import(
+  `data:text/javascript,${encodeURIComponent(rewrittenStatusSource)}`
 );
 
 test("selects a catalog model with image input capability", () => {
@@ -170,6 +209,33 @@ test("qualifies a negative visual result when metadata declares AI provenance", 
   } finally {
     delete globalThis.document;
   }
+});
+
+test("labels OpenKey-only detections as visual, not metadata detections", () => {
+  Object.assign(globalThis.__metadataStatusState, {
+    aiIndicators: [],
+    provenance: null,
+    sightengineDetection: {},
+    sightengineChecked: false,
+    sightengineError: null,
+    openkeyDetection: {
+      status: "complete",
+      verdict: "likely_ai",
+      confidence: 86,
+      model: "vision-model"
+    }
+  });
+
+  statusModule.renderDetectionResult();
+
+  assert.equal(
+    globalThis.__metadataStatusElements.statusTitle.textContent,
+    "INDIKASI VISUAL AI"
+  );
+  assert.match(
+    globalThis.__metadataStatusElements.statusDescription.textContent,
+    /bukan temuan metadata/
+  );
 });
 
 test("does not treat AI names in a filename as media provenance", () => {
