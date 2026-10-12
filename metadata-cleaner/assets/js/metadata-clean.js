@@ -1057,6 +1057,11 @@ export async function cleanMetadata() {
             rawResult
         );
 
+        const cleaningNotice =
+            typeof rawResult?.notice === "string"
+                ? rawResult.notice
+                : "";
+
 
         /*
            Pastikan user belum mengganti file
@@ -1259,7 +1264,9 @@ export async function cleanMetadata() {
         */
 
         setPreviewStatus(
-            "METADATA CLEANING SELESAI. HASIL ADALAH FILE BARU."
+            cleaningNotice
+                ? `METADATA CLEANING SELESAI. ${cleaningNotice}`
+                : "METADATA CLEANING SELESAI. HASIL ADALAH FILE BARU."
         );
 
 

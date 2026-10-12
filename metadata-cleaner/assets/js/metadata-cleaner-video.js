@@ -8,13 +8,14 @@
    Fungsi:
    - Clean video metadata locally
    - Remux video through FFmpeg WASM
-   - Preserve media streams
+   - Preserve media streams during the first pass
    - Remove global/container metadata
    - Remove per-stream metadata
    - Remove per-chapter metadata
    - Remove per-program metadata
    - Remove chapters
-   - Avoid video/audio re-encoding
+   - Verify cleaned metadata
+   - Re-encode MP4/MOV only if AI metadata remains
    - Original video remains untouched
 
    PERBAIKAN:
@@ -38,10 +39,65 @@ import {
     safeDeleteFFmpegFile
 } from "./metadata-ffmpeg.js";
 
+import {
+    normalizeMetadata
+} from "./metadata-normalizer.js";
+
+import {
+    detectAIIndicators
+} from "./metadata-detector.js";
+
+import {
+    readVideoMetadata
+} from "./metadata-video.js";
+
 
 /* =========================================================
    INTERNAL HELPER
 ========================================================= */
+
+function getResidualMetadata(
+    metadata
+) {
+
+    return (metadata || []).filter(
+        item => {
+
+            const field =
+                String(item?.field || "")
+                    .trim()
+                    .toLowerCase();
+
+            return (
+                /software.?agent/i.test(field) ||
+                detectAIIndicators([item]).length > 0
+            );
+        }
+    );
+}
+
+
+async function inspectCleanedVideo(
+    blob,
+    name
+) {
+
+    const file =
+        new File(
+            [blob],
+            name,
+            {
+                type: blob.type
+            }
+        );
+
+    const metadata =
+        await readVideoMetadata(file);
+
+    return getResidualMetadata(
+        normalizeMetadata(metadata)
+    );
+}
 
 
 /* =========================================================
@@ -263,6 +319,9 @@ export async function cleanVideo(
         createCleanOutputFilename(
             inputName
         );
+
+    let reencodedOutputName =
+        "";
 
 
     /* =====================================================
@@ -562,14 +621,141 @@ export async function cleanVideo(
             );
 
 
-            /* =================================================
-               OUTPUT MIME
-            ================================================= */
-
             const outputType =
                 getCleanVideoMimeType(
                     file
                 );
+
+            let finalOutputData =
+                outputData;
+
+            let finalOutputName =
+                outputName;
+
+            let notice =
+                "";
+
+            let residualMetadata =
+                await inspectCleanedVideo(
+                    new Blob(
+                        [outputData],
+                        { type: outputType }
+                    ),
+                    outputName
+                );
+
+
+            if (
+                residualMetadata.length > 0
+            ) {
+
+                if (
+                    !isMovLikeVideo(file)
+                ) {
+
+                    throw new Error(
+                        "Indikator AI atau SoftwareAgent masih ditemukan setelah remux. Format video ini memerlukan proses encode ulang yang belum didukung."
+                    );
+                }
+
+
+                const outputExtension =
+                    outputName.slice(
+                        outputName.lastIndexOf(".")
+                    );
+
+                reencodedOutputName =
+                    `verified_${Date.now()}_${Math.random()
+                        .toString(36)
+                        .slice(2, 8)}${outputExtension}`;
+
+
+                const reencodeArguments = [
+                    "-i",
+                    outputName,
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "0:a?",
+                    "-map_metadata",
+                    "-1",
+                    "-map_metadata:s",
+                    "-1",
+                    "-map_chapters",
+                    "-1",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "veryfast",
+                    "-crf",
+                    "20",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "192k",
+                    "-sn",
+                    "-dn",
+                    "-movflags",
+                    "+faststart",
+                    reencodedOutputName
+                ];
+
+                console.warn(
+                    "[GEN-Z.AI][CLEAN] Metadata AI masih terdeteksi setelah remux; encode ulang video untuk menghapus data yang tertanam pada stream."
+                );
+
+                await ffmpeg.exec(
+                    reencodeArguments
+                );
+
+                finalOutputData =
+                    await ffmpeg.readFile(
+                        reencodedOutputName
+                    );
+
+                if (
+                    !finalOutputData ||
+                    finalOutputData.length === 0
+                ) {
+
+                    throw new Error(
+                        "FFmpeg tidak menghasilkan file video setelah encode ulang."
+                    );
+                }
+
+
+                finalOutputName =
+                    reencodedOutputName;
+
+                residualMetadata =
+                    await inspectCleanedVideo(
+                        new Blob(
+                            [finalOutputData],
+                            { type: "video/mp4" }
+                        ),
+                        finalOutputName
+                    );
+
+                if (
+                    residualMetadata.length > 0
+                ) {
+
+                    const remainingFields =
+                        residualMetadata
+                            .map(item => item.field)
+                            .filter(Boolean)
+                            .slice(0, 5)
+                            .join(", ");
+
+                    throw new Error(
+                        `Verifikasi gagal: metadata AI masih ditemukan setelah encode ulang (${remainingFields}). File tidak ditandai bersih.`
+                    );
+                }
+
+
+                notice =
+                    "Metadata AI/SoftwareAgent tertanam ditemukan; video di-encode ulang untuk menghapusnya. Kualitas video mungkin berubah; subtitle, data, dan track video tambahan tidak disertakan.";
+            }
 
 
             /* =================================================
@@ -581,7 +767,7 @@ export async function cleanVideo(
                 blob:
                     new Blob(
                         [
-                            outputData
+                            finalOutputData
                         ],
                         {
                             type:
@@ -590,7 +776,9 @@ export async function cleanVideo(
                     ),
 
                 type:
-                    outputType
+                    outputType,
+
+                notice
 
             };
         }
@@ -760,6 +948,28 @@ export async function cleanVideo(
                     error
                 )
             );
+        }
+
+        if (
+            reencodedOutputName
+        ) {
+
+            try {
+
+                await safeDeleteFFmpegFile(
+                    ffmpeg,
+                    reencodedOutputName
+                );
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI][CLEAN] Re-encoded output cleanup dilewati:",
+                    getErrorMessage(error)
+                );
+            }
         }
     }
 }

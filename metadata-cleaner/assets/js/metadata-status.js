@@ -26,6 +26,7 @@
    1. Local metadata detector
    2. C2PA / Content Credentials provenance
    3. Sightengine visual AI detector
+   4. OpenKey visual AI analysis
 
    CONTENT PROVENANCE:
    1. C2PA
@@ -36,8 +37,8 @@
    6. Provenance findings
 
    Catatan:
-   - Metadata detection dan visual detection
-     merupakan dua sumber berbeda.
+   - Metadata, provenance, dan visual detection
+     merupakan sumber evidence yang berbeda.
    - Provenance detection merupakan sumber informasi
      provenance yang dapat menjadi signal AI apabila
      C2PA / Content Credentials menyatakan informasi
@@ -46,9 +47,8 @@
    - Verification tetap dipisahkan dari detection.
    - Tidak ada detector yang dapat menjamin
      asal media secara 100%.
-   - Model pada AI DETECTION stamp berasal
-     langsung dari result Sightengine jika
-     Sightengine menjadi sumber detection.
+   - Model pada AI DETECTION stamp berasal dari
+     provider yang memberikan hasil visual.
    - Jika hanya provenance yang terdeteksi,
      stamp menggunakan sumber:
        C2PA
@@ -2935,17 +2935,19 @@ function buildCombinedProvenanceDetectionDescription(
 /* =========================================================
    DETECTION RESULT
    ---------------------------------------------------------
-   AI DETECTION menggunakan tiga sumber:
+   AI DETECTION menggunakan empat sumber:
 
    1. Local metadata detector
    2. C2PA / Content Credentials
    3. Sightengine visual AI detector
+   4. OpenKey visual AI analysis
 
    Prioritas overlay:
 
    1. Sightengine visual detection
-   2. C2PA / Content Credentials
-   3. Local metadata detection
+   2. OpenKey visual analysis
+   3. C2PA / Content Credentials
+   4. Local metadata detection
 
    Penting:
    - C2PA DETECTED tetap NOT VERIFIED jika belum
@@ -2994,6 +2996,32 @@ export function renderDetectionResult() {
             sightengine
         );
 
+    const openKey =
+        isObject(state.openkeyDetection)
+            ? state.openkeyDetection
+            : null;
+
+
+    const openKeyAvailable =
+        openKey?.status === "complete";
+
+
+    const openKeyDetected =
+        openKeyAvailable &&
+        openKey.verdict === "likely_ai";
+
+
+    const openKeyClear =
+        openKeyAvailable &&
+        openKey.verdict === "likely_not_ai";
+
+    const openKeyConfidence =
+        openKey?.confidence !== null &&
+        openKey?.confidence !== undefined &&
+        Number.isFinite(Number(openKey.confidence))
+            ? Math.round(Number(openKey.confidence))
+            : null;
+
 
     /* =====================================================
        SIGHTENGINE VISUAL DETECTION
@@ -3041,6 +3069,7 @@ export function renderDetectionResult() {
     const aiDetected =
         metadataDetected ||
         sightengineDetected ||
+        openKeyDetected ||
         aiProvenanceDetected;
 
 
@@ -3051,8 +3080,9 @@ export function renderDetectionResult() {
 
        Overlay priority:
        1. Sightengine
-       2. Provenance
-       3. Metadata
+       2. OpenKey
+       3. Provenance
+       4. Metadata
     ===================================================== */
 
     if (
@@ -3074,9 +3104,19 @@ export function renderDetectionResult() {
 
         }
 
+        else if (
+            openKeyDetected
+        ) {
+
+            renderOverlayStamp({
+                model:
+                    openKey.model
+            });
+
+        }
 
         /* =================================================
-           PRIORITY 2:
+           PRIORITY 4:
            C2PA / CONTENT CREDENTIALS
         ================================================= */
 
@@ -3092,7 +3132,7 @@ export function renderDetectionResult() {
 
 
         /* =================================================
-           PRIORITY 3:
+           PRIORITY 5:
            LOCAL METADATA
         ================================================= */
 
@@ -3115,7 +3155,7 @@ export function renderDetectionResult() {
 
 
         /* =================================================
-           ALL THREE SOURCES
+           METADATA + SIGHTENGINE + PROVENANCE
         ================================================= */
 
         if (
@@ -3257,6 +3297,36 @@ export function renderDetectionResult() {
 
 
         /* =================================================
+           OPENKEY VISUAL DETECTION
+        ================================================= */
+
+        if (
+            openKeyDetected
+        ) {
+
+            const confidence =
+                openKeyConfidence !== null
+                    ? ` Confidence model: ${openKeyConfidence}%.`
+                    : "";
+
+            const metadataDescription =
+                metadataDetected
+                    ? ` ${metadataIndicators.length} indikator metadata juga ditemukan.`
+                    : "";
+
+            setStatus(
+                "DETECTED",
+                "AI DETECTION",
+                `OpenKey menemukan indikasi visual AI; hasil ini bukan kepastian forensik.${confidence}${metadataDescription}`
+            );
+
+
+            return;
+
+        }
+
+
+        /* =================================================
            METADATA ONLY
         ================================================= */
 
@@ -3310,6 +3380,49 @@ export function renderDetectionResult() {
 
 
     /* =====================================================
+       OPENKEY VISUAL RESULT
+    ===================================================== */
+
+    if (
+        openKeyClear
+    ) {
+
+        clearOverlayStamp();
+
+        const confidence =
+            openKeyConfidence !== null
+                ? ` Confidence model: ${openKeyConfidence}%.`
+                : "";
+
+        setStatus(
+            "CLEAR",
+            "OPENKEY TIDAK MELIHAT INDIKASI AI",
+            `OpenKey tidak melihat indikasi visual AI pada gambar/frame yang diperiksa. Ini bukan bukti media bukan hasil AI.${confidence}`
+        );
+
+        return;
+    }
+
+
+    if (
+        openKeyAvailable &&
+        openKey.verdict === "uncertain"
+    ) {
+
+        clearOverlayStamp();
+
+        setStatus(
+            "UNKNOWN",
+            "OPENKEY BELUM DAPAT MENYIMPULKAN",
+            openKey.summary ||
+                "Hasil visual OpenKey belum konklusif. Periksa ringkasan dan bukti pada panel OpenKey."
+        );
+
+        return;
+    }
+
+
+    /* =====================================================
        CASE 3
        -----------------------------------------------------
        SIGHTENGINE ERROR
@@ -3319,7 +3432,8 @@ export function renderDetectionResult() {
     ===================================================== */
 
     if (
-        state.sightengineError
+        state.sightengineError ||
+        openKey?.status === "error"
     ) {
 
         clearOverlayStamp();
@@ -3328,7 +3442,7 @@ export function renderDetectionResult() {
         setStatus(
             "UNKNOWN",
             "AI VISUAL DETECTION TIDAK TERSEDIA",
-            "Metadata lokal berhasil diperiksa, tetapi Sightengine tidak dapat memberikan hasil visual AI detection."
+            "Metadata lokal berhasil diperiksa, tetapi analisis visual tidak berhasil diselesaikan."
         );
 
 

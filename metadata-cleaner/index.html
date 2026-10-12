@@ -112,8 +112,8 @@ document.title = "GEN-Z.AI Generator Web";
 
                 <p>
                     Periksa metadata foto dan video,
-                    lihat indikator yang terdeteksi,
-                    lalu bersihkan metadata langsung
+                    gunakan analisis visual OpenKey,
+                    lalu bersihkan metadata secara lokal
                     di browser.
                 </p>
 
@@ -126,7 +126,7 @@ document.title = "GEN-Z.AI Generator Web";
                         class="metadata-local-dot"
                     ></span>
 
-                    PROCESSING LOCAL
+                    OPENKEY VISUAL CHECK · LOCAL CLEANING
 
                 </div>
 
@@ -502,6 +502,27 @@ document.title = "GEN-Z.AI Generator Web";
                             </div>
 
                         </div>
+
+
+                        <div
+                            class="metadata-openkey-disclosure"
+                        >
+                            Saat CHECK, gambar atau maksimal 3 frame video
+                            dikirim ke OpenKey untuk analisis visual. File
+                            asli tidak dikirim untuk proses CLEAN; pembersihan
+                            tetap dilakukan lokal di browser. Analisis hanya
+                            indikasi, dan cleaner tidak menjamin penghapusan
+                            watermark visual atau semua jejak di luar metadata
+                            yang dapat dibaca.
+                        </div>
+
+
+                        <section
+                            id="metadata-openkey-result"
+                            class="metadata-openkey-result"
+                            aria-live="polite"
+                            hidden
+                        ></section>
 
                     </div>
 

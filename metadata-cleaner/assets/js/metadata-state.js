@@ -112,6 +112,14 @@ const metadataState = {
 
 
     /* -----------------------------------------------------
+       OPENKEY VISUAL DETECTION
+    ----------------------------------------------------- */
+
+    openkeyDetection:
+        null,
+
+
+    /* -----------------------------------------------------
        SIGHTENGINE
        -----------------------------------------------------
        Semua hasil dari backend disimpan dalam normalized

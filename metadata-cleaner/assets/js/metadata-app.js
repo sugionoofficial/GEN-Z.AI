@@ -1233,7 +1233,7 @@ async function handleMetadataCheck(
                 "READY",
 
             message:
-                "Metadata dan provenance berhasil diperiksa.",
+                "Pemeriksaan metadata, provenance, dan OpenKey selesai.",
 
             progress:
                 100
@@ -1249,7 +1249,7 @@ async function handleMetadataCheck(
                     "CHECK COMPLETE",
 
                 message:
-                    "Metadata dan provenance berhasil diperiksa."
+                    "Pemeriksaan metadata, provenance, dan OpenKey selesai."
 
             }
         );
@@ -2028,6 +2028,10 @@ window.GENZMetadataCleaner =
 
                 provenance:
                     state.provenance ||
+                    null,
+
+                openkeyDetection:
+                    state.openkeyDetection ||
                     null,
 
                 checked:
