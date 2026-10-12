@@ -425,6 +425,29 @@ export function detectAIIndicators(
             );
 
 
+        const normalizedField =
+            field
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "");
+
+
+        if (
+            [
+                "filename",
+                "filetype",
+                "filesize",
+                "lastmodified",
+                "containerextension"
+            ].includes(
+                normalizedField
+            )
+        ) {
+
+            continue;
+        }
+
+
         const value =
             String(
                 item.value || ""

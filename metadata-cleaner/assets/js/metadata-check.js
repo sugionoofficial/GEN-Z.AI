@@ -109,6 +109,16 @@ import {
 } from "./metadata-preview.js";
 
 
+/* =================================================
+   OPENKEY VISUAL DETECTION
+================================================= */
+
+import {
+    detectOpenKeyMedia,
+    renderOpenKeyResult
+} from "./metadata-openkey-detection.js";
+
+
 /* =========================================================
    CHECK METADATA
 ========================================================= */
@@ -240,6 +250,48 @@ export async function checkMetadata() {
 
         /* =================================================
            STEP 4
+           OPENKEY VISUAL AI CHECK
+        ================================================= */
+
+        try {
+
+            state.openkeyDetection =
+                await detectOpenKeyMedia(
+                    sourceFile,
+                    state.fileType,
+                    state.aiIndicators,
+                    state.provenance
+                );
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI] OpenKey visual detection failed:",
+                error
+            );
+
+            state.openkeyDetection = {
+                status: "error",
+                message: getReadableError(error)
+            };
+
+        }
+
+
+        if (
+            state.file !== sourceFile
+        ) {
+
+            return;
+        }
+
+        renderOpenKeyResult(
+            state.openkeyDetection
+        );
+
+
+        /* =================================================
+           STEP 5
            MARK CHECKED
         ================================================= */
 
@@ -344,6 +396,11 @@ export async function checkMetadata() {
 
         state.provenance =
             null;
+
+        state.openkeyDetection =
+            null;
+
+        renderOpenKeyResult(null);
 
 
         renderMetadata();

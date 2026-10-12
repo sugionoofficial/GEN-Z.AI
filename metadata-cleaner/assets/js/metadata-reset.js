@@ -37,6 +37,10 @@ import {
     setStatus
 } from "./metadata-status.js";
 
+import {
+    renderOpenKeyResult
+} from "./metadata-openkey-detection.js";
+
 
 /* =========================================================
    OBJECT URL
@@ -164,6 +168,11 @@ function resetForNewFile() {
 
     state.provenance =
         null;
+
+    state.openkeyDetection =
+        null;
+
+    renderOpenKeyResult(null);
 
 
     state.cleanedBlob =

@@ -1439,6 +1439,123 @@
 }
 
 
+.metadata-openkey-disclosure {
+
+    margin-top:
+        14px;
+
+    padding:
+        12px 14px;
+
+    border:
+        1px solid
+        rgba(255, 200, 87, 0.24);
+
+    border-radius:
+        12px;
+
+    color:
+        rgba(255, 236, 190, 0.82);
+
+    background:
+        rgba(255, 200, 87, 0.07);
+
+    font-size:
+        12px;
+
+    line-height:
+        1.55;
+}
+
+
+.metadata-openkey-result {
+
+    margin-top:
+        14px;
+
+    padding:
+        16px;
+
+    border:
+        1px solid
+        rgba(100, 160, 255, 0.26);
+
+    border-radius:
+        14px;
+
+    background:
+        rgba(100, 160, 255, 0.07);
+}
+
+
+.metadata-openkey-result[hidden] {
+
+    display:
+        none;
+}
+
+
+.metadata-openkey-result-title {
+
+    margin:
+        0 0 8px;
+
+    color:
+        #d8e7ff;
+
+    font-size:
+        13px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        0.06em;
+}
+
+
+.metadata-openkey-result-summary,
+.metadata-openkey-result-details,
+.metadata-openkey-result-evidence {
+
+    color:
+        var(--metadata-text-soft);
+
+    font-size:
+        12px;
+
+    line-height:
+        1.6;
+}
+
+
+.metadata-openkey-result-summary {
+
+    margin:
+        0 0 8px;
+}
+
+
+.metadata-openkey-result-details {
+
+    margin:
+        0;
+
+    color:
+        var(--metadata-text-muted);
+}
+
+
+.metadata-openkey-result-evidence {
+
+    margin:
+        10px 0 0;
+
+    padding-left:
+        18px;
+}
+
+
 /* =========================================================
    AI DETECT OVERLAY
 ========================================================= */

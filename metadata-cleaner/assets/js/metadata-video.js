@@ -261,14 +261,15 @@ export async function readVideoMetadata(
 
 
     /* =====================================================
-       FALLBACK MP4 CONTAINER SCAN
+       MP4 CONTAINER SCAN
+       -----------------------------------------------------
+       FFprobe does not expose every private / unknown atom.
+       Also scan the beginning and end of the file where
+       MP4/MOV metadata atoms are commonly stored.
     ===================================================== */
 
     if (
-        !ffprobeSucceeded &&
-        isLikelyMp4(
-            file
-        )
+        isLikelyMp4(file)
     ) {
 
         try {
@@ -278,15 +279,27 @@ export async function readVideoMetadata(
                     file
                 );
 
+            const additionalMetadata =
+                ffprobeSucceeded
+                    ? (
+                        mp4Metadata?.SoftwareAgent
+                            ? {
+                                SoftwareAgent:
+                                    mp4Metadata.SoftwareAgent
+                            }
+                            : {}
+                    )
+                    : mp4Metadata;
+
 
             if (
-                mp4Metadata &&
-                typeof mp4Metadata === "object"
+                additionalMetadata &&
+                typeof additionalMetadata === "object"
             ) {
 
                 appendObjectMetadata(
                     result,
-                    mp4Metadata,
+                    additionalMetadata,
                     "MP4 Container"
                 );
             }
@@ -1190,26 +1203,65 @@ export async function readMp4ContainerMetadata(
             16 * 1024 * 1024
         );
 
-
-    const buffer =
+    const buffers = [
         await file
             .slice(
                 0,
                 maxRead
             )
-            .arrayBuffer();
+            .arrayBuffer()
+    ];
 
+    if (file.size > maxRead) {
 
-    const view =
-        new DataView(
-            buffer
+        buffers.push(
+            await file
+                .slice(
+                    file.size - maxRead,
+                    file.size
+                )
+                .arrayBuffer()
         );
+    }
 
 
     const strings =
-        extractAsciiStrings(
-            view
+        buffers.flatMap(
+            buffer => {
+
+                const view =
+                    new DataView(buffer);
+
+                return extractAsciiStrings(view);
+            }
         );
+
+
+    /* =====================================================
+       SOFTWARE AGENT
+    ===================================================== */
+
+    const softwareAgentIndex =
+        strings.findIndex(
+            value => /software.?agent/i.test(value)
+        );
+
+    const softwareAgent =
+        softwareAgentIndex >= 0
+            ? strings
+                .slice(
+                    softwareAgentIndex,
+                    softwareAgentIndex + 4
+                )
+                .join(" ")
+                .slice(0, 500)
+            : "";
+
+    if (softwareAgent) {
+
+        result.SoftwareAgent =
+            softwareAgent;
+    }
 
 
     /* =====================================================
