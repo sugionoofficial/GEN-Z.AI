@@ -89,6 +89,9 @@ import seedance25
 import digitalHumanLipSyncImage
     from "../models/digital-human-lipsync-image/index.js";
 
+import seedance25StudioMotiongen
+    from "../models/seedance-25-studio-s14/index.js";
+
 import klingMotionControl30Pro
     from "../models/kling-motion-control-30-pro/index.js";
 
@@ -102,6 +105,7 @@ const MODEL_REGISTRY = Object.freeze([
    grokImagineImageToVideo,
    seedance25,
    digitalHumanLipSyncImage,
+    seedance25StudioMotiongen,
    klingMotionControl30Pro
 
 ]);
