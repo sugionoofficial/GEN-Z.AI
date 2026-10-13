@@ -9,10 +9,32 @@
     const form = document.getElementById("chatForm");
     const input = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendButton");
+    const attachButton = document.getElementById("attachButton");
+    const attachmentInput = document.getElementById("attachmentInput");
+    const attachmentList = document.getElementById("attachmentList");
     const clearButton = document.getElementById("clearButton");
     const notice = document.getElementById("notice");
 
+    const MAX_ATTACHMENTS = 4;
+    const MAX_TOTAL_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+    const MAX_TEXT_FILE_BYTES = 512 * 1024;
+    const MAX_IMAGE_FILE_BYTES = 3 * 1024 * 1024;
+    const IMAGE_TYPES = new Set([
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+        "image/avif"
+    ]);
+    const TEXT_FILE_EXTENSIONS = new Set([
+        "txt", "md", "csv", "tsv", "json", "xml", "html", "htm", "css",
+        "js", "mjs", "ts", "tsx", "jsx", "py", "java", "c", "h", "cpp",
+        "go", "rs", "php", "sql", "yaml", "yml", "toml", "ini", "log",
+        "sh", "bash", "diff", "patch"
+    ]);
+
     let messages = [];
+    let attachments = [];
     let requestPending = false;
 
     function setNotice(text, isError = false) {
@@ -45,7 +67,8 @@
     function setReady(ready) {
         const canSend = ready && modelSelect.value && !requestPending;
         input.disabled = !canSend;
-        sendButton.disabled = !canSend;
+        sendButton.disabled = !canSend || (!input.value.trim() && !attachments.length);
+        attachButton.disabled = !canSend;
         modelSelect.disabled = !ready || requestPending;
         clearButton.disabled = requestPending;
     }
@@ -88,7 +111,11 @@
         catalogStatus.textContent = `${models.length} model tersedia`;
     }
 
-    function appendMessage(role, content, { error = false, typing = false } = {}) {
+    function appendMessage(role, content, {
+        error = false,
+        typing = false,
+        attachments: messageAttachments = []
+    } = {}) {
         welcome.hidden = true;
         const message = document.createElement("article");
         message.className = `message ${role}${error ? " message-error" : ""}`;
@@ -110,6 +137,26 @@
             body.textContent = content;
         }
 
+        if (!typing && messageAttachments.length) {
+            const attachmentContainer = document.createElement("div");
+            attachmentContainer.className = "message-attachments";
+            for (const attachment of messageAttachments) {
+                if (attachment.kind === "image") {
+                    const image = document.createElement("img");
+                    image.src = attachment.dataUrl;
+                    image.alt = attachment.name;
+                    image.loading = "lazy";
+                    attachmentContainer.append(image);
+                } else {
+                    const file = document.createElement("span");
+                    file.className = "message-file";
+                    file.textContent = `▤ ${attachment.name}`;
+                    attachmentContainer.append(file);
+                }
+            }
+            body.append(attachmentContainer);
+        }
+
         message.append(avatar, body);
         transcript.append(message);
         transcript.scrollTop = transcript.scrollHeight;
@@ -124,10 +171,156 @@
         return "";
     }
 
-    async function sendMessage(text) {
-        const newMessage = { role: "user", content: text };
+    function getFileExtension(name) {
+        return String(name).split(".").pop().toLowerCase();
+    }
+
+    function readImage(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result !== "string") {
+                    reject(new Error(`Gagal membaca gambar ${file.name}.`));
+                    return;
+                }
+                resolve(reader.result);
+            };
+            reader.onerror = () => reject(new Error(`Gagal membaca gambar ${file.name}.`));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderAttachments() {
+        attachmentList.replaceChildren();
+        attachmentList.hidden = attachments.length === 0;
+
+        for (const [index, attachment] of attachments.entries()) {
+            const chip = document.createElement("div");
+            chip.className = "attachment-chip";
+
+            if (attachment.kind === "image") {
+                const image = document.createElement("img");
+                image.src = attachment.dataUrl;
+                image.alt = "";
+                chip.append(image);
+            } else {
+                const icon = document.createElement("span");
+                icon.className = "attachment-file-icon";
+                icon.setAttribute("aria-hidden", "true");
+                icon.textContent = "▤";
+                chip.append(icon);
+            }
+
+            const name = document.createElement("span");
+            name.className = "attachment-name";
+            name.textContent = attachment.name;
+            chip.append(name);
+
+            const remove = document.createElement("button");
+            remove.className = "attachment-remove";
+            remove.type = "button";
+            remove.setAttribute("aria-label", `Hapus lampiran ${attachment.name}`);
+            remove.textContent = "×";
+            remove.addEventListener("click", () => {
+                if (requestPending) return;
+                attachments.splice(index, 1);
+                renderAttachments();
+                setReady(true);
+            });
+            chip.append(remove);
+            attachmentList.append(chip);
+        }
+    }
+
+    async function loadAttachments(files) {
+        if (attachments.length + files.length > MAX_ATTACHMENTS) {
+            throw new Error(`Maksimal ${MAX_ATTACHMENTS} lampiran dalam satu pesan.`);
+        }
+
+        const added = [];
+        let totalBytes = attachments.reduce((total, attachment) => total + attachment.size, 0);
+
+        for (const file of files) {
+            if (file.size === 0) {
+                throw new Error(`Berkas ${file.name} kosong.`);
+            }
+            if (file.type.startsWith("image/")) {
+                if (!IMAGE_TYPES.has(file.type)) {
+                    throw new Error(`Format gambar ${file.name} tidak didukung. Gunakan JPG, PNG, WebP, GIF, atau AVIF.`);
+                }
+                if (file.size > MAX_IMAGE_FILE_BYTES) {
+                    throw new Error(`Ukuran gambar ${file.name} melebihi 3 MB.`);
+                }
+                totalBytes += file.size;
+                added.push({
+                    file,
+                    name: file.name,
+                    size: file.size,
+                    kind: "image",
+                    dataUrl: await readImage(file)
+                });
+            } else {
+                const extension = getFileExtension(file.name);
+                if (!TEXT_FILE_EXTENSIONS.has(extension)) {
+                    throw new Error(`Format berkas ${file.name} tidak didukung. Gambar dan berkas teks/kode diperbolehkan.`);
+                }
+                if (file.size > MAX_TEXT_FILE_BYTES) {
+                    throw new Error(`Ukuran berkas teks ${file.name} melebihi 512 KB.`);
+                }
+                totalBytes += file.size;
+                const content = await file.text();
+                if (content.includes("\u0000")) {
+                    throw new Error(`${file.name} bukan berkas teks yang dapat dibaca.`);
+                }
+                added.push({
+                    file,
+                    name: file.name,
+                    size: file.size,
+                    kind: "text",
+                    content
+                });
+            }
+
+            if (totalBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+                throw new Error("Total ukuran lampiran tidak boleh melebihi 3 MB.");
+            }
+        }
+
+        attachments.push(...added);
+        renderAttachments();
+        setReady(true);
+        setNotice(`${attachments.length} lampiran siap dikirim.`);
+    }
+
+    function buildUserMessage(text, selectedAttachments) {
+        if (!selectedAttachments.length) {
+            return { role: "user", content: text };
+        }
+
+        const content = [];
+        if (text) content.push({ type: "text", text });
+
+        for (const attachment of selectedAttachments) {
+            if (attachment.kind === "image") {
+                content.push({
+                    type: "image_url",
+                    image_url: { url: attachment.dataUrl }
+                });
+            } else {
+                content.push({
+                    type: "text",
+                    text: `File terlampir: ${attachment.name}\n\`\`\`\n${attachment.content}\n\`\`\``
+                });
+            }
+        }
+
+        return { role: "user", content };
+    }
+
+    async function sendMessage(text, selectedAttachments) {
+        const newMessage = buildUserMessage(text, selectedAttachments);
         messages.push(newMessage);
-        appendMessage("user", text);
+        appendMessage("user", text || "Lampiran", { attachments: selectedAttachments });
         let pendingMessage = null;
         requestPending = true;
         setReady(true);
@@ -162,13 +355,17 @@
             const content = responseText(result);
             if (!content) throw new Error("Model mengembalikan jawaban kosong.");
             pendingMessage.remove();
+            newMessage.content = text || `Pengguna mengirim lampiran: ${selectedAttachments.map(file => file.name).join(", ")}`;
             messages.push({ role: "assistant", content });
             appendMessage("assistant", content);
             setNotice(result.model ? `Dijawab oleh ${result.model}` : "Jawaban diterima.");
+            return true;
         } catch (error) {
             pendingMessage?.remove();
+            messages = messages.filter(message => message !== newMessage);
             appendMessage("assistant", error.message || "Terjadi kesalahan saat menghubungi model.", { error: true });
             setNotice(error.message || "Terjadi kesalahan saat menghubungi model.", true);
+            return false;
         } finally {
             requestPending = false;
             setReady(true);
@@ -179,10 +376,19 @@
     form.addEventListener("submit", async event => {
         event.preventDefault();
         const text = input.value.trim();
-        if (!text || requestPending || !modelSelect.value) return;
+        if ((!text && !attachments.length) || requestPending || !modelSelect.value) return;
+        const selectedAttachments = attachments.slice();
         input.value = "";
         input.style.height = "auto";
-        await sendMessage(text);
+        setReady(true);
+        const sent = await sendMessage(text, selectedAttachments);
+        if (sent) {
+            attachments = [];
+            renderAttachments();
+        } else {
+            input.value = text;
+            setReady(true);
+        }
     });
 
     input.addEventListener("keydown", event => {
@@ -195,6 +401,20 @@
     input.addEventListener("input", () => {
         input.style.height = "auto";
         input.style.height = `${Math.min(input.scrollHeight, 150)}px`;
+        setReady(true);
+    });
+
+    attachButton.addEventListener("click", () => attachmentInput.click());
+    attachmentInput.addEventListener("change", async () => {
+        const selectedFiles = Array.from(attachmentInput.files || []);
+        attachmentInput.value = "";
+        if (!selectedFiles.length) return;
+
+        try {
+            await loadAttachments(selectedFiles);
+        } catch (error) {
+            setNotice(error.message || "Gagal memuat lampiran.", true);
+        }
     });
 
     modelSelect.addEventListener("change", () => {
@@ -205,6 +425,8 @@
     clearButton.addEventListener("click", () => {
         if (requestPending) return;
         messages = [];
+        attachments = [];
+        renderAttachments();
         transcript.replaceChildren(welcome);
         welcome.hidden = false;
         setNotice("Percakapan baru siap.");
