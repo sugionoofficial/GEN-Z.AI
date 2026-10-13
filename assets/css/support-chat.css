@@ -183,13 +183,26 @@
 }
 
 .genz-chat-thread-notification {
-    width: 8px;
-    height: 8px;
-    flex: 0 0 8px;
-    border-radius: 50%;
-    background: #24df78;
-    box-shadow: 0 0 0 3px rgba(36, 223, 120, 0.12);
-    animation: genz-chat-notification-pulse 1.15s ease-in-out infinite;
+    flex: 0 0 auto;
+    padding: 3px 5px;
+    border: 1px solid rgba(36, 223, 120, 0.5);
+    border-radius: 999px;
+    background: rgba(36, 223, 120, 0.14);
+    color: #58f39a;
+    font-size: 7px;
+    font-weight: 850;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    animation: genz-chat-unread-blink 0.9s steps(2, jump-none) infinite;
+}
+
+@keyframes genz-chat-unread-blink {
+    50% {
+        border-color: #24df78;
+        background: #24df78;
+        box-shadow: 0 0 10px rgba(36, 223, 120, 0.82);
+        color: #07150c;
+    }
 }
 
 .genz-chat-thread-time {
@@ -375,6 +388,6 @@
     .genz-chat-notification-dot,
     .genz-chat-thread-notification {
         transition: none;
-        animation: none !important;
+        animation-duration: 2.4s;
     }
 }

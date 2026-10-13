@@ -25,6 +25,7 @@
     let conversationChannel = null;
     let inboxChannel = null;
     let conversations = [];
+    const unreadConversationIds = new Set();
     let busy = false;
     let connectionAttempt = 0;
 
@@ -336,11 +337,7 @@
             inbox.hidden = !isSupportAgent;
             tools.hidden = !isSupportAgent;
 
-            if (
-                isSupportAgent &&
-                !panel.hidden &&
-                activeConversation?.id === conversationId
-            ) {
+            if (isSupportAgent) {
                 subtitle.textContent = `Inbox dukungan · ${supportAgentName}`;
                 await loadInbox();
                 if (attempt !== connectionAttempt) return;
@@ -497,6 +494,20 @@
 
         if (error) throw error;
         conversations = data || [];
+        for (const conversation of conversations) {
+            const hasUnreadUserMessage =
+                conversation.last_user_message_at &&
+                (
+                    !conversation.admin_read_at ||
+                    new Date(conversation.last_user_message_at) >
+                        new Date(conversation.admin_read_at)
+                );
+            if (hasUnreadUserMessage) {
+                unreadConversationIds.add(conversation.id);
+            } else {
+                unreadConversationIds.delete(conversation.id);
+            }
+        }
         renderInbox();
 
         if (
@@ -534,14 +545,20 @@
                     text: conversation.user_name || "Pengunjung"
                 })
             );
-            if (
-                conversation.last_user_message_at &&
-                (!conversation.admin_read_at ||
-                    new Date(conversation.last_user_message_at) >
-                        new Date(conversation.admin_read_at))
-            ) {
+            const hasUnreadMessage =
+                unreadConversationIds.has(conversation.id) ||
+                (
+                    conversation.last_user_message_at &&
+                    (
+                        !conversation.admin_read_at ||
+                        new Date(conversation.last_user_message_at) >
+                            new Date(conversation.admin_read_at)
+                    )
+                );
+            if (hasUnreadMessage) {
                 nameRow.append(
                     createElement("span", "genz-chat-thread-notification", {
+                        text: "BARU",
                         "aria-label": "Pesan belum dibaca"
                     })
                 );
@@ -768,7 +785,56 @@
                     });
                 }
             )
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "support_messages"
+                },
+                payload => {
+                    const incomingMessage = payload.new;
+                    if (
+                        incomingMessage.sender_role !== "user" ||
+                        incomingMessage.sender_id === currentUser.id
+                    ) {
+                        return;
+                    }
+
+                    const isOpenConversation =
+                        !panel.hidden &&
+                        activeConversation?.id ===
+                            incomingMessage.conversation_id;
+                    if (isOpenConversation) {
+                        void markConversationRead(
+                            incomingMessage.conversation_id
+                        ).catch(error => {
+                            console.error(
+                                "[GEN-Z.AI Support Chat] Gagal menandai pesan telah dibaca:",
+                                error
+                            );
+                            setFeedback(getErrorMessage(error));
+                        });
+                        return;
+                    }
+
+                    unreadConversationIds.add(
+                        incomingMessage.conversation_id
+                    );
+                    renderInbox();
+                    showMessageIndicator();
+                }
+            )
             .subscribe(status => {
+                if (status === "SUBSCRIBED" && isSupportAgent) {
+                    void loadInbox().catch(error => {
+                        console.error(
+                            "[GEN-Z.AI Support Chat] Gagal memuat inbox setelah tersambung:",
+                            error
+                        );
+                        setFeedback(getErrorMessage(error));
+                    });
+                }
                 if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
                     setFeedback(
                         "Koneksi inbox live terputus. Coba muat ulang chat."
@@ -911,6 +977,7 @@
         if (activeConversation?.id === conversationId) {
             activeConversation = { ...activeConversation, ...updates };
         }
+        unreadConversationIds.delete(conversationId);
         renderInbox();
     }
 
