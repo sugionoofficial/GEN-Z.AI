@@ -11,8 +11,12 @@
         "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js";
     const CHAT_STORAGE_KEY = "genz-support-auth-token";
     const MAX_MESSAGE_LENGTH = 2000;
+    const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024;
+    const MAX_COMPRESSED_IMAGE_SIZE = 675000;
     const CONNECTION_TIMEOUT_MS = 5 * 60 * 1000;
     const UNREAD_NOTICE_DELAY_MS = 5 * 60 * 1000;
+    const SUPPORT_HEARTBEAT_INTERVAL_MS = 30000;
+    const SUPPORT_STATUS_POLL_INTERVAL_MS = 15000;
 
     let supabaseClient = null;
     let currentUser = null;
@@ -25,10 +29,14 @@
     let conversationChannel = null;
     let inboxChannel = null;
     let conversations = [];
+    let selectedImage = null;
     const unreadConversationIds = new Set();
     let busy = false;
     let connectionAttempt = 0;
     let supportMonitorPromise = null;
+    let supportHeartbeatTimer = null;
+    let supportStatusPollTimer = null;
+    let supportHeartbeatInFlight = false;
 
     const launcher = createElement("button", "genz-chat-launcher", {
         type: "button",
@@ -59,7 +67,10 @@
     const subtitle = createElement("div", "genz-chat-subtitle", {
         text: "Tim kami siap membantu"
     });
-    headingWrap.append(title, subtitle);
+    const presenceLabel = createElement("div", "genz-chat-presence-label", {
+        text: "Memeriksa status admin..."
+    });
+    headingWrap.append(title, subtitle, presenceLabel);
 
     const closeButton = createElement("button", "genz-chat-close", {
         type: "button",
@@ -96,6 +107,43 @@
     const composer = createElement("form", "genz-chat-composer", {
         hidden: ""
     });
+    const attachmentPreview = createElement(
+        "div",
+        "genz-chat-attachment-preview",
+        { hidden: "" }
+    );
+    const attachmentThumbnail = createElement("img", "genz-chat-attachment-thumb", {
+        alt: "Pratinjau gambar untuk dikirim"
+    });
+    const attachmentName = createElement("span", "genz-chat-attachment-name");
+    const removeAttachmentButton = createElement(
+        "button",
+        "genz-chat-attachment-remove",
+        {
+            type: "button",
+            "aria-label": "Hapus gambar"
+        }
+    );
+    removeAttachmentButton.textContent = "×";
+    attachmentPreview.append(
+        attachmentThumbnail,
+        attachmentName,
+        removeAttachmentButton
+    );
+    const composerControls = createElement("div", "genz-chat-composer-controls");
+    const imageInput = createElement("input", "genz-chat-image-input", {
+        type: "file",
+        accept: "image/jpeg,image/png,image/webp",
+        "aria-label": "Pilih gambar untuk dikirim"
+    });
+    imageInput.hidden = true;
+    const imageButton = createElement("button", "genz-chat-image-button", {
+        type: "button",
+        "aria-label": "Lampirkan gambar",
+        title: "Lampirkan gambar"
+    });
+    imageButton.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
     const input = createElement("textarea", "genz-chat-input", {
         name: "message",
         maxlength: String(MAX_MESSAGE_LENGTH),
@@ -107,7 +155,8 @@
         type: "submit",
         text: "Kirim"
     });
-    composer.append(input, sendButton);
+    composerControls.append(imageButton, imageInput, input, sendButton);
+    composer.append(attachmentPreview, composerControls);
 
     content.append(messages, feedback, tools, composer);
     layout.append(inbox, content);
@@ -118,6 +167,9 @@
     launcher.addEventListener("click", openChat);
     closeButton.addEventListener("click", closeChat);
     composer.addEventListener("submit", sendMessage);
+    imageButton.addEventListener("click", () => imageInput.click());
+    imageInput.addEventListener("change", selectImageAttachment);
+    removeAttachmentButton.addEventListener("click", clearImageAttachment);
     closeThreadButton.addEventListener("click", closeConversation);
     void initializeSupportMonitor();
 
@@ -308,6 +360,83 @@
             "Admin Support";
     }
 
+    function setSupportPresenceStatus(status) {
+        presenceLabel.classList.remove(
+            "is-online",
+            "is-offline",
+            "is-checking",
+            "is-unavailable"
+        );
+        presenceLabel.classList.add("is-" + status);
+        presenceLabel.textContent = {
+            online: "Admin online",
+            offline: "Admin offline",
+            checking: "Memeriksa status admin...",
+            unavailable: "Status admin tidak tersedia"
+        }[status];
+    }
+
+    async function updateSupportHeartbeat() {
+        if (supportHeartbeatInFlight) return;
+        supportHeartbeatInFlight = true;
+        try {
+            const { error } = await supabaseClient.rpc(
+                "update_support_agent_presence"
+            );
+            if (error) throw error;
+            setSupportPresenceStatus("online");
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI Support Chat] Gagal memperbarui status admin:",
+                error
+            );
+            setSupportPresenceStatus("unavailable");
+        } finally {
+            supportHeartbeatInFlight = false;
+        }
+    }
+
+    function startSupportAgentHeartbeat() {
+        if (supportHeartbeatTimer) return;
+        void updateSupportHeartbeat();
+        supportHeartbeatTimer = window.setInterval(
+            updateSupportHeartbeat,
+            SUPPORT_HEARTBEAT_INTERVAL_MS
+        );
+    }
+
+    async function refreshSupportPresence() {
+        try {
+            const { data, error } = await supabaseClient.rpc(
+                "get_support_agent_presence"
+            );
+            if (error) throw error;
+            setSupportPresenceStatus(data ? "online" : "offline");
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI Support Chat] Gagal memeriksa status admin:",
+                error
+            );
+            setSupportPresenceStatus("unavailable");
+        }
+    }
+
+    function startSupportPresencePolling() {
+        if (supportStatusPollTimer) return;
+        setSupportPresenceStatus("checking");
+        void refreshSupportPresence();
+        supportStatusPollTimer = window.setInterval(
+            refreshSupportPresence,
+            SUPPORT_STATUS_POLL_INTERVAL_MS
+        );
+    }
+
+    function stopSupportPresencePolling() {
+        if (!supportStatusPollTimer) return;
+        window.clearInterval(supportStatusPollTimer);
+        supportStatusPollTimer = null;
+    }
+
     async function initializeSupportMonitor() {
         if (supportMonitorPromise) return supportMonitorPromise;
         supportMonitorPromise = (async () => {
@@ -318,14 +447,43 @@
                     error
                 } = await appClient.auth.getSession();
                 if (error) throw error;
-                if (!session?.user || session.user.is_anonymous) return;
+                if (session?.user && !session.user.is_anonymous) {
+                    currentUser = session.user;
+                    supabaseClient = appClient;
+                } else {
+                    const config = window.GENZ_CONFIG;
+                    const guestClient = window.supabase.createClient(
+                        config.SUPABASE_URL,
+                        config.SUPABASE_KEY,
+                        {
+                            auth: {
+                                storageKey: CHAT_STORAGE_KEY,
+                                persistSession: true,
+                                autoRefreshToken: true,
+                                detectSessionInUrl: false,
+                                lock: async (_name, _timeout, callback) =>
+                                    await callback()
+                            }
+                        }
+                    );
+                    const {
+                        data: { session: guestSession },
+                        error: guestError
+                    } = await guestClient.auth.getSession();
+                    if (guestError) throw guestError;
+                    if (!guestSession?.user) return;
+                    currentUser = guestSession.user;
+                    supabaseClient = guestClient;
+                }
 
-                currentUser = session.user;
-                supabaseClient = appClient;
                 await detectSupportAgent();
-                if (!isSupportAgent) return;
+                if (!isSupportAgent) {
+                    await monitorVisitorConversation();
+                    return;
+                }
 
                 launcher.classList.add("is-support-online");
+                startSupportAgentHeartbeat();
                 await loadInbox();
                 if (unreadConversationIds.size) {
                     showMessageIndicator();
@@ -339,6 +497,11 @@
                         unreadConversationIds.clear();
                         conversations = [];
                         isSupportAgent = false;
+                        if (supportHeartbeatTimer) {
+                            window.clearInterval(supportHeartbeatTimer);
+                            supportHeartbeatTimer = null;
+                        }
+                        setSupportPresenceStatus("checking");
                         if (inboxChannel) {
                             void appClient.removeChannel(inboxChannel);
                             inboxChannel = null;
@@ -353,6 +516,24 @@
             }
         })();
         return supportMonitorPromise;
+    }
+
+    async function monitorVisitorConversation() {
+        if (panel.hidden === false || !currentUser?.id) return;
+        const { data, error } = await supabaseClient
+            .from("support_conversations")
+            .select("id,user_id,user_name,user_email,status,last_message_at,last_user_message_at,admin_read_at,user_read_at,admin_name")
+            .eq("user_id", currentUser.id)
+            .eq("status", "open")
+            .order("last_message_at", { ascending: false })
+            .limit(1);
+
+        if (error) throw error;
+        if (!data?.length || !panel.hidden) return;
+
+        activeConversation = data[0];
+        subscribeToMessages(activeConversation.id);
+        subscribeToConversation(activeConversation.id);
     }
 
     async function openChat() {
@@ -385,6 +566,11 @@
             if (attempt !== connectionAttempt) return;
             await detectSupportAgent();
             if (attempt !== connectionAttempt) return;
+            if (isSupportAgent) {
+                startSupportAgentHeartbeat();
+            } else {
+                startSupportPresencePolling();
+            }
             composer.hidden = false;
             inbox.hidden = !isSupportAgent;
             tools.hidden = !isSupportAgent;
@@ -432,12 +618,13 @@
         panel.hidden = true;
         launcher.hidden = false;
         launcher.setAttribute("aria-expanded", "false");
+        if (!isSupportAgent) stopSupportPresencePolling();
     }
 
     async function loadUserConversation(attempt = null) {
         const { data, error } = await supabaseClient
             .from("support_conversations")
-            .select("id,user_id,user_name,user_email,status,last_message_at,last_user_message_at,admin_read_at,admin_name")
+            .select("id,user_id,user_name,user_email,status,last_message_at,last_user_message_at,admin_read_at,user_read_at,admin_name")
             .eq("user_id", currentUser.id)
             .eq("status", "open")
             .order("last_message_at", { ascending: false })
@@ -458,8 +645,9 @@
                 [...loadedMessages].reverse().find(message =>
                     message.sender_role === "user"
                 ) || null;
+            await markConversationReadByUser(activeConversation.id);
             scheduleUnreadBusyNotice(activeConversation.id, latestUserMessage);
-            updateReadReceipt();
+            updateReadReceipts();
             subscribeToMessages(activeConversation.id);
             subscribeToConversation(activeConversation.id);
             return;
@@ -497,7 +685,7 @@
                     user_email: currentUser.email || null,
                     status: "open"
                 })
-                .select("id,user_id,user_name,user_email,status,last_message_at,last_user_message_at,admin_read_at,admin_name")
+                .select("id,user_id,user_name,user_email,status,last_message_at,last_user_message_at,admin_read_at,user_read_at,admin_name")
                 .single();
 
             if (error) throw error;
@@ -513,7 +701,7 @@
             subscribeToMessages(data.id);
             subscribeToConversation(data.id);
             scheduleUnreadBusyNotice(data.id, latestUserMessage);
-            updateReadReceipt();
+            updateReadReceipts();
             input.focus();
         } catch (error) {
             if (error?.code === "23505") {
@@ -539,13 +727,20 @@
     async function loadInbox() {
         const { data, error } = await supabaseClient
             .from("support_conversations")
-            .select("id,user_id,user_name,user_email,status,last_message_at,last_user_message_at,admin_read_at,admin_name")
+            .select("id,user_id,user_name,user_email,status,last_message_at,last_user_message_at,admin_read_at,user_read_at,admin_name")
             .eq("status", "open")
             .order("last_message_at", { ascending: false })
             .limit(50);
 
         if (error) throw error;
         conversations = data || [];
+        const activeUpdate = conversations.find(
+            conversation => conversation.id === activeConversation?.id
+        );
+        if (activeUpdate) {
+            activeConversation = { ...activeConversation, ...activeUpdate };
+            updateReadReceipts();
+        }
         unreadConversationIds.clear();
         for (const conversation of conversations) {
             const hasUnreadUserMessage =
@@ -652,7 +847,7 @@
         setFeedback("Memuat pesan...");
         const { data, error } = await supabaseClient
             .from("support_messages")
-            .select("id,conversation_id,sender_id,sender_role,body,created_at")
+            .select("id,conversation_id,sender_id,sender_role,body,created_at,image_data,image_type")
             .eq("conversation_id", conversationId)
             .order("created_at", { ascending: false })
             .limit(200);
@@ -671,7 +866,7 @@
                 message.sender_role === "user"
             ) || null;
         setFeedback("");
-        updateReadReceipt();
+        updateReadReceipts();
         scrollToLatest();
         return orderedMessages;
     }
@@ -703,22 +898,39 @@
                         renderMessage(payload.new);
                         if (payload.new.sender_role === "user") {
                             latestUserMessage = payload.new;
-                            updateReadReceipt();
+                            updateReadReceipts();
                             if (isSupportAgent) {
-                                void markConversationRead(conversationId).catch(
-                                    error => {
+                                if (!panel.hidden) {
+                                    void markConversationRead(
+                                        conversationId
+                                    ).catch(error => {
                                         console.error(
                                             "[GEN-Z.AI Support Chat] Gagal menandai pesan telah dibaca:",
                                             error
                                         );
-                                    }
-                                );
+                                        setFeedback(getErrorMessage(error));
+                                    });
+                                }
                             } else {
                                 scheduleUnreadBusyNotice(
                                     conversationId,
                                     payload.new
                                 );
                             }
+                        } else if (
+                            payload.new.sender_role === "support" &&
+                            !isSupportAgent &&
+                            !panel.hidden
+                        ) {
+                            void markConversationReadByUser(
+                                conversationId
+                            ).catch(error => {
+                                console.error(
+                                    "[GEN-Z.AI Support Chat] Gagal menandai pesan sebagai dibaca:",
+                                    error
+                                );
+                                setFeedback(getErrorMessage(error));
+                            });
                         }
                         if (
                             payload.new.sender_id !== currentUser.id &&
@@ -739,12 +951,59 @@
                 }
             )
             .subscribe(status => {
+                if (
+                    status === "SUBSCRIBED" &&
+                    !isSupportAgent &&
+                    panel.hidden &&
+                    activeConversation?.id === conversationId
+                ) {
+                    void checkForUnreadSupportMessage(conversationId);
+                }
                 if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
                     setFeedback(
                         "Koneksi live terputus. Coba muat ulang chat."
                     );
                 }
             });
+    }
+
+    async function checkForUnreadSupportMessage(conversationId) {
+        const conversation = activeConversation;
+        if (
+            !conversation ||
+            conversation.id !== conversationId ||
+            !panel.hidden
+        ) {
+            return;
+        }
+
+        const { data, error } = await supabaseClient
+            .from("support_messages")
+            .select("created_at")
+            .eq("conversation_id", conversationId)
+            .eq("sender_role", "support")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error) {
+            console.error(
+                "[GEN-Z.AI Support Chat] Gagal memeriksa pesan admin yang belum dibaca:",
+                error
+            );
+            return;
+        }
+
+        if (
+            data?.created_at &&
+            (
+                !conversation.user_read_at ||
+                new Date(data.created_at) >
+                    new Date(conversation.user_read_at)
+            )
+        ) {
+            showMessageIndicator();
+        }
     }
 
     function subscribeToConversation(conversationId) {
@@ -782,6 +1041,7 @@
                         ...activeConversation,
                         ...payload.new
                     };
+                    updateReadReceipts();
                     if (isSupportAgent) {
                         void loadInbox().catch(error => {
                             console.error(
@@ -791,7 +1051,6 @@
                         });
                     } else {
                         updateVisitorHeading();
-                        updateReadReceipt();
                         scheduleUnreadBusyNotice(
                             conversationId,
                             latestUserMessage
@@ -920,7 +1179,7 @@
         event.preventDefault();
         if (!activeConversation || busy) return;
         const body = input.value.trim();
-        if (!body) return;
+        if (!body && !selectedImage) return;
         if (body.length > MAX_MESSAGE_LENGTH) {
             setFeedback("Pesan maksimal 2.000 karakter.");
             return;
@@ -936,9 +1195,11 @@
                     conversation_id: activeConversation.id,
                     sender_id: currentUser.id,
                     sender_role: isSupportAgent ? "support" : "user",
-                    body
+                    body,
+                    image_data: selectedImage?.data || null,
+                    image_type: selectedImage?.type || null
                 })
-                .select("id,conversation_id,sender_id,sender_role,body,created_at")
+                .select("id,conversation_id,sender_id,sender_role,body,created_at,image_data,image_type")
                 .single();
 
             if (error) throw error;
@@ -948,9 +1209,19 @@
                     activeConversation.id,
                     sentMessage
                 );
-                updateReadReceipt();
+                updateReadReceipts();
             }
+            if (
+                !messages.querySelector(
+                    '[data-message-id="' + sentMessage.id + '"]'
+                )
+            ) {
+                renderMessage(sentMessage);
+            }
+            updateReadReceipts();
+            scrollToLatest();
             input.value = "";
+            clearImageAttachment();
         } catch (error) {
             console.error("[GEN-Z.AI Support Chat] Gagal mengirim pesan:", error);
             setFeedback(getErrorMessage(error));
@@ -989,15 +1260,39 @@
 
     function renderMessage(message) {
         const bubble = createElement("div", "genz-chat-message", {
-            "data-message-id": message.id
+            "data-message-id": message.id,
+            "data-sender-id": message.sender_id,
+            "data-sender-role": message.sender_role,
+            "data-created-at": message.created_at
         });
         if (message.sender_role === "system") {
             bubble.classList.add("is-system");
         } else if (message.sender_id === currentUser.id) {
             bubble.classList.add("is-mine");
         }
+        if (message.body) {
+            bubble.append(document.createTextNode(message.body));
+        }
+        if (message.image_data && message.image_type) {
+            const image = createElement("img", "genz-chat-image", {
+                src: `data:${message.image_type};base64,${message.image_data}`,
+                alt: "Gambar yang dikirim melalui live chat",
+                loading: "lazy"
+            });
+            image.addEventListener("click", () => {
+                const imageWindow = window.open();
+                if (imageWindow) {
+                    imageWindow.document.title = "Gambar live chat";
+                    imageWindow.document.body.style.margin = "0";
+                    imageWindow.document.body.style.background = "#101218";
+                    imageWindow.document.body.append(image.cloneNode());
+                    imageWindow.document.querySelector("img").style.cssText =
+                        "display:block;max-width:100%;max-height:100vh;margin:auto";
+                }
+            });
+            bubble.append(image);
+        }
         bubble.append(
-            document.createTextNode(message.body),
             createElement("span", "genz-chat-message-meta", {
                 text:
                     (message.sender_role === "support"
@@ -1009,6 +1304,149 @@
             })
         );
         messages.append(bubble);
+    }
+
+    async function selectImageAttachment() {
+        const [file] = imageInput.files || [];
+        if (!file) return;
+
+        if (
+            !["image/jpeg", "image/png", "image/webp"].includes(file.type)
+        ) {
+            setFeedback("Pilih gambar berformat JPG, PNG, atau WebP.");
+            imageInput.value = "";
+            return;
+        }
+        if (file.size > MAX_IMAGE_FILE_SIZE) {
+            setFeedback("Ukuran gambar maksimal 8 MB.");
+            imageInput.value = "";
+            return;
+        }
+
+        imageButton.disabled = true;
+        setFeedback("Mengoptimalkan gambar...");
+        try {
+            const compressedImage = await compressImage(file);
+            clearImageAttachment();
+            selectedImage = {
+                data: compressedImage.data,
+                type: compressedImage.type,
+                name: file.name,
+                previewUrl: URL.createObjectURL(compressedImage.blob)
+            };
+            attachmentThumbnail.src = selectedImage.previewUrl;
+            attachmentName.textContent = selectedImage.name;
+            attachmentPreview.hidden = false;
+            setFeedback("");
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI Support Chat] Gagal menyiapkan gambar:",
+                error
+            );
+            setFeedback(error.message || "Gambar gagal disiapkan.");
+        } finally {
+            imageButton.disabled = false;
+            imageInput.value = "";
+        }
+    }
+
+    async function compressImage(file) {
+        if (typeof createImageBitmap !== "function") {
+            throw new Error("Browser ini belum mendukung upload gambar.");
+        }
+
+        const bitmap = await createImageBitmap(file);
+        try {
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            if (!context) {
+                throw new Error("Gambar tidak dapat diproses di browser ini.");
+            }
+
+            let scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+            const qualities = [0.82, 0.7, 0.58, 0.46];
+            while (scale >= 0.25) {
+                canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+                canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+                for (const quality of qualities) {
+                    let blob = await new Promise((resolve, reject) => {
+                        canvas.toBlob(
+                            result => {
+                                if (result) resolve(result);
+                                else reject(new Error("Gambar gagal diproses."));
+                            },
+                            "image/webp",
+                            quality
+                        );
+                    });
+                    let type = blob.type;
+                    if (type !== "image/webp") {
+                        context.fillStyle = "#fff";
+                        context.fillRect(0, 0, canvas.width, canvas.height);
+                        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                        blob = await new Promise((resolve, reject) => {
+                            canvas.toBlob(
+                                result => {
+                                    if (result) resolve(result);
+                                    else reject(
+                                        new Error("Gambar gagal diproses.")
+                                    );
+                                },
+                                "image/jpeg",
+                                quality
+                            );
+                        });
+                        type = "image/jpeg";
+                    }
+                    if (blob.size > MAX_COMPRESSED_IMAGE_SIZE) continue;
+                    return {
+                        blob,
+                        type,
+                        data: (await blobToDataUrl(blob)).split(",", 2)[1]
+                    };
+                }
+                scale *= 0.8;
+            }
+        } finally {
+            bitmap.close();
+        }
+
+        throw new Error(
+            "Gambar terlalu besar setelah dikompres. Coba gambar lain yang lebih kecil."
+        );
+    }
+
+    function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.addEventListener("load", () => {
+                if (typeof reader.result !== "string") {
+                    reject(new Error("Gambar gagal dibaca."));
+                    return;
+                }
+                resolve(reader.result);
+            }, { once: true });
+            reader.addEventListener(
+                "error",
+                () => reject(reader.error || new Error("Gambar gagal dibaca.")),
+                { once: true }
+            );
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    function clearImageAttachment() {
+        if (selectedImage?.previewUrl) {
+            URL.revokeObjectURL(selectedImage.previewUrl);
+        }
+        selectedImage = null;
+        attachmentThumbnail.removeAttribute("src");
+        attachmentName.textContent = "";
+        attachmentPreview.hidden = true;
+        imageInput.value = "";
     }
 
     async function markConversationRead(conversationId) {
@@ -1037,6 +1475,26 @@
         }
         unreadConversationIds.delete(conversationId);
         renderInbox();
+        updateReadReceipts();
+    }
+
+    async function markConversationReadByUser(conversationId) {
+        const { data: readAt, error } = await supabaseClient.rpc(
+            "mark_support_conversation_read_by_user",
+            { p_conversation_id: conversationId }
+        );
+        if (error) throw error;
+        if (!readAt) {
+            throw new Error("Supabase tidak mengonfirmasi status pesan dibaca.");
+        }
+
+        if (activeConversation?.id === conversationId) {
+            activeConversation = {
+                ...activeConversation,
+                user_read_at: readAt
+            };
+        }
+        updateReadReceipts();
     }
 
     function updateVisitorHeading() {
@@ -1046,30 +1504,38 @@
             : "Tim support GEN-Z.AI";
     }
 
-    function updateReadReceipt() {
-        if (isSupportAgent || !latestUserMessage) return;
-        messages
-            .querySelectorAll(".genz-chat-read-check")
-            .forEach(status => status.remove());
+    function updateReadReceipts() {
+        if (!activeConversation || !currentUser) return;
+        const readAt = isSupportAgent
+            ? activeConversation.user_read_at
+            : activeConversation.admin_read_at;
+        const reader = isSupportAgent ? "pengunjung" : "admin";
+        const outgoingRole = isSupportAgent ? "support" : "user";
 
-        if (latestUserMessage.sender_id !== currentUser?.id) return;
-        const bubble = messages.querySelector(
-            '[data-message-id="' + latestUserMessage.id + '"]'
-        );
-        const meta = bubble?.querySelector(".genz-chat-message-meta");
-        if (!meta) return;
+        messages.querySelectorAll(".genz-chat-message").forEach(bubble => {
+            bubble.querySelector(".genz-chat-read-check")?.remove();
+            if (
+                bubble.dataset.senderId !== currentUser.id ||
+                bubble.dataset.senderRole !== outgoingRole
+            ) {
+                return;
+            }
 
-        const wasRead =
-            activeConversation?.admin_read_at &&
-            new Date(activeConversation.admin_read_at) >=
-                new Date(latestUserMessage.created_at);
-        const status = createElement("span", "genz-chat-read-check", {
-            text: " ✓",
-            title: wasRead ? "Dibaca admin" : "Belum dibaca admin",
-            "aria-label": wasRead ? "Dibaca admin" : "Belum dibaca admin"
+            const wasRead =
+                readAt &&
+                new Date(readAt) >= new Date(bubble.dataset.createdAt);
+            const status = createElement("span", "genz-chat-read-check", {
+                text: " ✓✓",
+                title: wasRead
+                    ? `Dibaca oleh ${reader}`
+                    : `Belum dibaca oleh ${reader}`,
+                "aria-label": wasRead
+                    ? `Dibaca oleh ${reader}`
+                    : `Belum dibaca oleh ${reader}`
+            });
+            if (wasRead) status.classList.add("is-read");
+            bubble.querySelector(".genz-chat-message-meta")?.append(status);
         });
-        if (wasRead) status.classList.add("is-read");
-        meta.append(status);
     }
 
     function scheduleUnreadBusyNotice(conversationId, message) {

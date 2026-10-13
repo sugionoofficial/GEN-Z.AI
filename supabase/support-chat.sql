@@ -16,6 +16,55 @@ $$;
 revoke all on function public.is_genz_support_agent() from public;
 grant execute on function public.is_genz_support_agent() to authenticated;
 
+create table if not exists public.support_agent_presence (
+    id boolean primary key default true check (id),
+    last_seen_at timestamptz not null default now()
+);
+
+alter table public.support_agent_presence enable row level security;
+revoke all on table public.support_agent_presence
+    from public, anon, authenticated;
+
+create or replace function public.update_support_agent_presence()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+    if not public.is_genz_support_agent() then
+        raise exception 'Only support agents can update support presence'
+            using errcode = '42501';
+    end if;
+
+    insert into public.support_agent_presence (id, last_seen_at)
+    values (true, now())
+    on conflict (id) do update
+        set last_seen_at = excluded.last_seen_at;
+end;
+$$;
+
+revoke all on function public.update_support_agent_presence() from public;
+grant execute on function public.update_support_agent_presence() to authenticated;
+
+create or replace function public.get_support_agent_presence()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select exists (
+        select 1
+        from public.support_agent_presence
+        where id
+          and last_seen_at > now() - interval '90 seconds'
+    );
+$$;
+
+revoke all on function public.get_support_agent_presence() from public;
+grant execute on function public.get_support_agent_presence() to authenticated;
+
 create table if not exists public.support_conversations (
     id uuid primary key default gen_random_uuid(),
     user_id uuid not null references auth.users(id) on delete cascade,
@@ -28,6 +77,7 @@ create table if not exists public.support_conversations (
     last_message_at timestamptz not null default now(),
     last_user_message_at timestamptz,
     admin_read_at timestamptz,
+    user_read_at timestamptz,
     admin_name text
 );
 
@@ -44,21 +94,43 @@ create table if not exists public.support_messages (
     conversation_id uuid not null
         references public.support_conversations(id) on delete cascade,
     sender_id uuid not null references auth.users(id) on delete cascade,
-    sender_role text not null check (sender_role in ('user', 'support')),
-    body text not null check (char_length(trim(body)) between 1 and 2000),
+    sender_role text not null,
+    body text not null default '',
+    image_data text,
+    image_type text,
     created_at timestamptz not null default now(),
-    busy_notice_for uuid
-        references public.support_messages(id) on delete cascade
+    busy_notice_for uuid references public.support_messages(id) on delete cascade,
+    constraint support_messages_sender_role_check
+        check (sender_role in ('user', 'support', 'system')),
+    constraint support_messages_body_check
+        check (char_length(trim(body)) <= 2000),
+    constraint support_messages_content_check
+        check (char_length(trim(body)) > 0 or image_data is not null),
+    constraint support_messages_image_check
+        check (
+            (image_data is null and image_type is null)
+            or (
+                image_data is not null
+                and image_type in ('image/webp', 'image/jpeg')
+                and char_length(image_data) <= 900000
+            )
+        )
 );
 
 alter table public.support_conversations
     add column if not exists last_user_message_at timestamptz,
     add column if not exists admin_read_at timestamptz,
+    add column if not exists user_read_at timestamptz,
     add column if not exists admin_name text;
 
 alter table public.support_messages
     add column if not exists busy_notice_for uuid
-        references public.support_messages(id) on delete cascade;
+        references public.support_messages(id) on delete cascade,
+    add column if not exists image_data text,
+    add column if not exists image_type text;
+
+alter table public.support_messages
+    alter column body set default '';
 
 alter table public.support_messages
     drop constraint if exists support_messages_sender_role_check;
@@ -66,6 +138,34 @@ alter table public.support_messages
 alter table public.support_messages
     add constraint support_messages_sender_role_check
         check (sender_role in ('user', 'support', 'system'));
+
+alter table public.support_messages
+    drop constraint if exists support_messages_body_check;
+
+alter table public.support_messages
+    add constraint support_messages_body_check
+        check (char_length(trim(body)) <= 2000);
+
+alter table public.support_messages
+    drop constraint if exists support_messages_content_check;
+
+alter table public.support_messages
+    add constraint support_messages_content_check
+        check (char_length(trim(body)) > 0 or image_data is not null);
+
+alter table public.support_messages
+    drop constraint if exists support_messages_image_check;
+
+alter table public.support_messages
+    add constraint support_messages_image_check
+        check (
+            (image_data is null and image_type is null)
+            or (
+                image_data is not null
+                and image_type in ('image/webp', 'image/jpeg')
+                and char_length(image_data) <= 900000
+            )
+        );
 
 create unique index if not exists support_messages_busy_notice_once
     on public.support_messages (busy_notice_for)
@@ -153,6 +253,38 @@ $$;
 
 revoke all on function public.mark_support_conversation_read(uuid) from public;
 grant execute on function public.mark_support_conversation_read(uuid) to authenticated;
+
+create or replace function public.mark_support_conversation_read_by_user(
+    p_conversation_id uuid
+)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    v_read_at timestamptz;
+begin
+    update public.support_conversations
+    set user_read_at = now()
+    where id = p_conversation_id
+      and user_id = auth.uid()
+      and status = 'open'
+    returning user_read_at into v_read_at;
+
+    if not found then
+        raise exception 'Open support conversation was not found'
+            using errcode = 'P0002';
+    end if;
+
+    return v_read_at;
+end;
+$$;
+
+revoke all on function public.mark_support_conversation_read_by_user(uuid)
+    from public;
+grant execute on function public.mark_support_conversation_read_by_user(uuid)
+    to authenticated;
 
 create or replace function public.add_support_busy_notice(
     p_conversation_id uuid

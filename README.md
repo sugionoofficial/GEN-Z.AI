@@ -183,11 +183,18 @@ existing chat installation) and enable **Anonymous Sign-Ins** under
 Authentication → Providers → Anonymous so visitors without an account can open
 a support conversation. Authenticated administrators and owners can reply to
 open conversations from the same floating chat inbox. Unread visitor messages
-show a blinking green `BARU` badge in the admin inbox. The chat records admin
-read receipts and the admin's profile name. If no admin reads a visitor's
-latest message within five minutes, a one-time busy notice is added to that
-conversation without closing it. Row-level security restricts conversations
-and messages to their owner and support staff.
+show a blinking green `BARU` badge in the admin inbox; new admin replies also
+show a green notification on the visitor's chat icon, including while the chat
+panel is closed. The chat records read receipts in both directions and the
+admin's profile name. The chat header shows whether an
+admin is currently online. Sent messages show gray double checks until the
+recipient reads them, then green double checks; closing the chat without
+opening a conversation leaves it unread. If no admin reads a visitor's latest
+message within five minutes, a one-time busy notice is added to that
+conversation without closing it. Chat participants may attach JPEG, PNG, or
+WebP images; images are resized and stored in the message row in the database,
+not in Supabase Storage. Row-level security restricts conversations and
+messages to their owner and support staff.
 
 ### Cloudflare Workers (migrasi bertahap)
 
