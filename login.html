@@ -418,50 +418,6 @@
 
 
                     <!-- =========================================
-                         REGISTER
-                         ========================================= -->
-
-                    <div class="register-section">
-
-                        <div class="register-divider">
-
-                            <span></span>
-
-                            <small>
-                                ATAU
-                            </small>
-
-                            <span></span>
-
-                        </div>
-
-
-                        <p class="register-text">
-                            Belum memiliki akun?
-                        </p>
-
-
-                        <a
-                            href="register.html"
-                            class="register-button"
-                        >
-                            <span>
-                                DAFTAR SEKARANG
-                            </span>
-
-                            <span
-                                class="register-arrow"
-                                aria-hidden="true"
-                            >
-                                →
-                            </span>
-
-                        </a>
-
-                    </div>
-
-
-                    <!-- =========================================
                          SECURITY NOTE
                          ========================================= -->
 
@@ -4200,6 +4156,17 @@
     opacity: 1 !important;
     width: 100% !important;
     height: 48px !important;
+}
+
+@media (min-width: 601px) {
+    body {
+        align-items: flex-start;
+        padding-top: clamp(20px, 4vh, 40px);
+    }
+
+    .login-container {
+        margin: 0 auto;
+    }
 }
 
     </style>
