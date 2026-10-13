@@ -190,6 +190,7 @@
 
                     </div>
 
+
                     <!-- =========================================
                          LOGIN FORM
                          ========================================= -->
@@ -234,22 +235,6 @@
 
                             </div>
 
-                        </div>
-
-                        <div class="email-link-option">
-                            <button
-                                type="button"
-                                id="emailLinkButton"
-                                class="email-link-button"
-                            >
-                                <span class="email-link-mark" aria-hidden="true">@</span>
-                                <span>Kirim tautan masuk ke email</span>
-                            </button>
-                            <div class="email-link-divider">
-                                <span></span>
-                                <small>ATAU MASUK DENGAN PASSWORD</small>
-                                <span></span>
-                            </div>
                         </div>
 
 
@@ -430,6 +415,50 @@
                         ></div>
 
                     </form>
+
+
+                    <!-- =========================================
+                         REGISTER
+                         ========================================= -->
+
+                    <div class="register-section">
+
+                        <div class="register-divider">
+
+                            <span></span>
+
+                            <small>
+                                ATAU
+                            </small>
+
+                            <span></span>
+
+                        </div>
+
+
+                        <p class="register-text">
+                            Belum memiliki akun?
+                        </p>
+
+
+                        <a
+                            href="register.html"
+                            class="register-button"
+                        >
+                            <span>
+                                DAFTAR SEKARANG
+                            </span>
+
+                            <span
+                                class="register-arrow"
+                                aria-hidden="true"
+                            >
+                                →
+                            </span>
+
+                        </a>
+
+                    </div>
 
 
                     <!-- =========================================
@@ -4173,170 +4202,7 @@
     height: 48px !important;
 }
 
-/* Compact the card vertically while preserving its existing width. */
-.login-card,
-.brand-panel {
-    min-height: 0;
-}
-
-.brand-panel {
-    padding: 42px 48px;
-}
-
-.brand-line {
-    margin-top: 22px;
-    margin-bottom: 12px;
-}
-
-.brand-description {
-    margin-top: 12px;
-}
-
-.brand-features {
-    gap: 10px;
-    margin-top: 22px;
-}
-
-.login-panel {
-    padding: 34px;
-}
-
-.login-header {
-    margin-bottom: 16px;
-}
-
-.login-header p {
-    margin-top: 7px;
-}
-
-.email-link-option {
-    margin: 2px 0 14px;
-}
-
-.email-link-button {
-    width: 100%;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    border: 1px solid #e4e7ec;
-    border-radius: 14px;
-    background: #fff;
-    color: #101828;
-    font: 700 12px Inter, sans-serif;
-    cursor: pointer;
-    transition: background .18s ease, border-color .18s ease;
-}
-
-.email-link-button:hover:not(:disabled) {
-    border-color: #d0d5dd;
-    background: #f8fafc;
-}
-
-.email-link-button:disabled {
-    cursor: wait;
-    opacity: .65;
-}
-
-.email-link-mark {
-    color: #667085;
-    font-size: 17px;
-    font-weight: 900;
-}
-
-.email-link-divider {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    margin-top: 11px;
-    color: #98a2b3;
-}
-
-.email-link-divider span {
-    flex: 1;
-    height: 1px;
-    background: #e4e7ec;
-}
-
-.email-link-divider small {
-    font-size: 8px;
-    font-weight: 800;
-    letter-spacing: .08em;
-}
-
-.input-group {
-    margin-bottom: 12px;
-}
-
-.input-group label {
-    margin-bottom: 5px;
-}
-
-.input-wrapper,
-.input-wrapper input {
-    height: 48px;
-}
-
-.login-button {
-    height: 48px;
-}
-
-.register-section {
-    margin-top: 16px;
-}
-
-.register-divider {
-    margin-bottom: 10px;
-}
-
-.security-note {
-    margin-top: 14px;
-}
-
-@media (max-width: 900px) {
-    .brand-panel {
-        min-height: 0;
-        padding: 32px 38px;
-    }
-
-    .login-panel {
-        padding: 32px 38px;
-    }
-}
-
-@media (max-width: 600px) {
-    .brand-panel {
-        min-height: 0;
-        padding: 26px 22px;
-    }
-
-    .brand-line {
-        margin-top: 16px;
-        margin-bottom: 10px;
-    }
-
-    .brand-features {
-        gap: 8px;
-        margin-top: 14px;
-    }
-
-    .login-panel {
-        padding: 24px 22px;
-    }
-
-    .login-header {
-        margin-bottom: 14px;
-    }
-
-    .input-wrapper,
-    .input-wrapper input {
-        height: 46px;
-    }
-}
-
     </style>
 
-    <script src="/assets/js/support-chat.js" defer></script>
 </body>
 </html>
