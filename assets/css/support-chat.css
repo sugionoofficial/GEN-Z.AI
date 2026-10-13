@@ -26,6 +26,32 @@
     height: 25px;
 }
 
+.genz-chat-notification-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 13px;
+    height: 13px;
+    border: 2px solid #101218;
+    border-radius: 50%;
+    background: #24df78;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.5);
+}
+
+.genz-chat-launcher.has-new-message .genz-chat-notification-dot {
+    opacity: 1;
+    transform: scale(1);
+    animation: genz-chat-notification-pulse 1.15s ease-in-out infinite;
+}
+
+@keyframes genz-chat-notification-pulse {
+    50% {
+        box-shadow: 0 0 0 6px rgba(36, 223, 120, 0.22);
+    }
+}
+
 .genz-chat-panel {
     position: fixed;
     right: 22px;
@@ -149,6 +175,23 @@
     white-space: nowrap;
 }
 
+.genz-chat-thread-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+}
+
+.genz-chat-thread-notification {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 8px;
+    border-radius: 50%;
+    background: #24df78;
+    box-shadow: 0 0 0 3px rgba(36, 223, 120, 0.12);
+    animation: genz-chat-notification-pulse 1.15s ease-in-out infinite;
+}
+
 .genz-chat-thread-time {
     display: block;
     margin-top: 5px;
@@ -212,11 +255,30 @@
     background: rgba(255, 48, 72, 0.17);
 }
 
+.genz-chat-message.is-system {
+    max-width: 100%;
+    align-self: center;
+    border-color: rgba(36, 223, 120, 0.18);
+    background: rgba(36, 223, 120, 0.08);
+    color: #c8f7da;
+    text-align: center;
+}
+
 .genz-chat-message-meta {
     display: block;
     margin-top: 5px;
     color: #9da2ad;
     font-size: 8px;
+}
+
+.genz-chat-read-check {
+    color: #9da2ad;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.genz-chat-read-check.is-read {
+    color: #24df78;
 }
 
 .genz-chat-composer {
@@ -309,7 +371,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .genz-chat-launcher {
+    .genz-chat-launcher,
+    .genz-chat-notification-dot,
+    .genz-chat-thread-notification {
         transition: none;
+        animation: none !important;
     }
 }

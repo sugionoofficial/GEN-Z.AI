@@ -177,13 +177,16 @@ email sign-in and signup links return to the deployed site rather than localhost
 
 ### Live Support Chat
 
-The floating support chat is loaded across the site's HTML pages. Before using
-it, run `supabase/support-chat.sql` in the Supabase SQL Editor and enable
-**Anonymous Sign-Ins** under Authentication → Providers → Anonymous so visitors
-without an account can open a support conversation. Authenticated administrators
-and owners can reply to open conversations from the same floating chat inbox.
-The SQL migration restricts conversations and messages to their owner and
-support staff using row-level security.
+The floating support chat is loaded across the site's HTML pages. Run the latest
+`supabase/support-chat.sql` in the Supabase SQL Editor (also when updating an
+existing chat installation) and enable **Anonymous Sign-Ins** under
+Authentication → Providers → Anonymous so visitors without an account can open
+a support conversation. Authenticated administrators and owners can reply to
+open conversations from the same floating chat inbox. The chat records admin
+read receipts and the admin's profile name. If no admin reads a visitor's
+latest message within five minutes, a one-time busy notice is added to that
+conversation without closing it. Row-level security restricts conversations
+and messages to their owner and support staff.
 
 ### Cloudflare Workers (migrasi bertahap)
 

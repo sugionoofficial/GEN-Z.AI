@@ -11,11 +11,16 @@
         "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js";
     const CHAT_STORAGE_KEY = "genz-support-auth-token";
     const MAX_MESSAGE_LENGTH = 2000;
+    const CONNECTION_TIMEOUT_MS = 5 * 60 * 1000;
+    const UNREAD_NOTICE_DELAY_MS = 5 * 60 * 1000;
 
     let supabaseClient = null;
     let currentUser = null;
     let isSupportAgent = false;
+    let supportAgentName = "";
     let activeConversation = null;
+    let latestUserMessage = null;
+    let unreadNoticeTimer = null;
     let messageChannel = null;
     let conversationChannel = null;
     let inboxChannel = null;
@@ -30,6 +35,10 @@
     });
     launcher.innerHTML =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"/></svg>';
+    const notificationDot = createElement("span", "genz-chat-notification-dot", {
+        "aria-hidden": "true"
+    });
+    launcher.append(notificationDot);
 
     const panel = createElement("section", "genz-chat-panel", {
         "aria-label": "Live chat dukungan",
@@ -273,7 +282,7 @@
 
         const { data: profile, error } = await supabaseClient
             .from("profiles")
-            .select("role")
+            .select("role,name")
             .eq("id", currentUser.id)
             .maybeSingle();
 
@@ -283,12 +292,21 @@
 
         const role = String(profile?.role || "").trim().toUpperCase();
         isSupportAgent = role === "ADMIN" || role === "OWNER";
+        supportAgentName =
+            String(profile?.name || "").trim() ||
+            String(
+                currentUser.user_metadata?.full_name ||
+                    currentUser.user_metadata?.name ||
+                    ""
+            ).trim() ||
+            "Admin Support";
     }
 
     async function openChat() {
         panel.hidden = false;
         launcher.hidden = true;
         launcher.setAttribute("aria-expanded", "true");
+        clearMessageIndicator();
         setFeedback("Menghubungkan ke tim support...");
 
         if (busy) return;
@@ -308,7 +326,7 @@
             });
             retryButton.addEventListener("click", openChat);
             feedback.append(retryButton);
-        }, 15000);
+        }, CONNECTION_TIMEOUT_MS);
         try {
             await ensureVisitorSession();
             if (attempt !== connectionAttempt) return;
@@ -318,8 +336,12 @@
             inbox.hidden = !isSupportAgent;
             tools.hidden = !isSupportAgent;
 
-            if (isSupportAgent) {
-                subtitle.textContent = "Inbox dukungan";
+            if (
+                isSupportAgent &&
+                !panel.hidden &&
+                activeConversation?.id === conversationId
+            ) {
+                subtitle.textContent = `Inbox dukungan · ${supportAgentName}`;
                 await loadInbox();
                 if (attempt !== connectionAttempt) return;
                 subscribeToInbox();
@@ -327,6 +349,8 @@
                     composer.hidden = false;
                     closeThreadButton.hidden = false;
                     await loadMessages(activeConversation.id);
+                    if (attempt !== connectionAttempt) return;
+                    await markConversationRead(activeConversation.id);
                     if (attempt !== connectionAttempt) return;
                     subscribeToMessages(activeConversation.id);
                 } else {
@@ -359,21 +383,12 @@
         panel.hidden = true;
         launcher.hidden = false;
         launcher.setAttribute("aria-expanded", "false");
-        unsubscribeMessages();
-        if (conversationChannel && supabaseClient) {
-            void supabaseClient.removeChannel(conversationChannel);
-            conversationChannel = null;
-        }
-        if (inboxChannel && supabaseClient) {
-            void supabaseClient.removeChannel(inboxChannel);
-            inboxChannel = null;
-        }
     }
 
     async function loadUserConversation(attempt = null) {
         const { data, error } = await supabaseClient
             .from("support_conversations")
-            .select("id,user_id,user_name,user_email,status,last_message_at")
+            .select("id,user_id,user_name,user_email,status,last_message_at,last_user_message_at,admin_read_at,admin_name")
             .eq("user_id", currentUser.id)
             .eq("status", "open")
             .order("last_message_at", { ascending: false })
@@ -387,8 +402,15 @@
             composer.hidden = false;
             closeThreadButton.hidden = true;
             setFeedback("");
-            await loadMessages(activeConversation.id);
+            updateVisitorHeading();
+            const loadedMessages = await loadMessages(activeConversation.id);
             if (attempt !== null && attempt !== connectionAttempt) return;
+            latestUserMessage =
+                [...loadedMessages].reverse().find(message =>
+                    message.sender_role === "user"
+                ) || null;
+            scheduleUnreadBusyNotice(activeConversation.id, latestUserMessage);
+            updateReadReceipt();
             subscribeToMessages(activeConversation.id);
             subscribeToConversation(activeConversation.id);
             return;
@@ -426,7 +448,7 @@
                     user_email: currentUser.email || null,
                     status: "open"
                 })
-                .select("id,user_id,user_name,user_email,status,last_message_at")
+                .select("id,user_id,user_name,user_email,status,last_message_at,last_user_message_at,admin_read_at,admin_name")
                 .single();
 
             if (error) throw error;
@@ -434,9 +456,15 @@
             setFeedback("");
             composer.hidden = false;
             closeThreadButton.hidden = true;
-            await loadMessages(data.id);
+            const loadedMessages = await loadMessages(data.id);
+            latestUserMessage =
+                [...loadedMessages].reverse().find(message =>
+                    message.sender_role === "user"
+                ) || null;
             subscribeToMessages(data.id);
             subscribeToConversation(data.id);
+            scheduleUnreadBusyNotice(data.id, latestUserMessage);
+            updateReadReceipt();
             input.focus();
         } catch (error) {
             if (error?.code === "23505") {
@@ -462,7 +490,7 @@
     async function loadInbox() {
         const { data, error } = await supabaseClient
             .from("support_conversations")
-            .select("id,user_id,user_name,user_email,status,last_message_at")
+            .select("id,user_id,user_name,user_email,status,last_message_at,last_user_message_at,admin_read_at,admin_name")
             .eq("status", "open")
             .order("last_message_at", { ascending: false })
             .limit(50);
@@ -500,10 +528,26 @@
             if (activeConversation?.id === conversation.id) {
                 thread.classList.add("is-active");
             }
-            thread.append(
+            const nameRow = createElement("span", "genz-chat-thread-name-row");
+            nameRow.append(
                 createElement("span", "genz-chat-thread-name", {
                     text: conversation.user_name || "Pengunjung"
-                }),
+                })
+            );
+            if (
+                conversation.last_user_message_at &&
+                (!conversation.admin_read_at ||
+                    new Date(conversation.last_user_message_at) >
+                        new Date(conversation.admin_read_at))
+            ) {
+                nameRow.append(
+                    createElement("span", "genz-chat-thread-notification", {
+                        "aria-label": "Pesan belum dibaca"
+                    })
+                );
+            }
+            thread.append(
+                nameRow,
                 createElement("span", "genz-chat-thread-time", {
                     text: formatTime(conversation.last_message_at)
                 })
@@ -515,6 +559,7 @@
                 closeThreadButton.hidden = false;
                 try {
                     await loadMessages(conversation.id);
+                    await markConversationRead(conversation.id);
                     subscribeToMessages(conversation.id);
                 } catch (error) {
                     console.error(
@@ -538,15 +583,22 @@
             .limit(200);
 
         if (error) throw error;
+        const orderedMessages = (data || []).slice().reverse();
         messages.replaceChildren();
-        for (const message of (data || []).reverse()) {
+        for (const message of orderedMessages) {
             renderMessage(message);
         }
-        if (!data?.length) {
+        if (!orderedMessages.length) {
             appendEmptyMessage("Kirim pesan pertama Anda.");
         }
+        latestUserMessage =
+            [...orderedMessages].reverse().find(message =>
+                message.sender_role === "user"
+            ) || null;
         setFeedback("");
+        updateReadReceipt();
         scrollToLatest();
+        return orderedMessages;
     }
 
     function subscribeToMessages(conversationId) {
@@ -574,6 +626,31 @@
                         );
                         if (empty) empty.remove();
                         renderMessage(payload.new);
+                        if (payload.new.sender_role === "user") {
+                            latestUserMessage = payload.new;
+                            updateReadReceipt();
+                            if (isSupportAgent) {
+                                void markConversationRead(conversationId).catch(
+                                    error => {
+                                        console.error(
+                                            "[GEN-Z.AI Support Chat] Gagal menandai pesan telah dibaca:",
+                                            error
+                                        );
+                                    }
+                                );
+                            } else {
+                                scheduleUnreadBusyNotice(
+                                    conversationId,
+                                    payload.new
+                                );
+                            }
+                        }
+                        if (
+                            payload.new.sender_id !== currentUser.id &&
+                            panel.hidden
+                        ) {
+                            showMessageIndicator();
+                        }
                         scrollToLatest();
                     }
                     if (isSupportAgent) {
@@ -610,18 +687,41 @@
                     filter: "id=eq." + conversationId
                 },
                 payload => {
-                    if (payload.new.status !== "closed") return;
-                    activeConversation = null;
-                    unsubscribeMessages();
-                    if (conversationChannel) {
-                        void supabaseClient.removeChannel(
-                            conversationChannel
-                        );
-                        conversationChannel = null;
+                    if (payload.new.status === "closed") {
+                        activeConversation = null;
+                        latestUserMessage = null;
+                        clearUnreadNoticeTimer();
+                        unsubscribeMessages();
+                        if (conversationChannel) {
+                            void supabaseClient.removeChannel(
+                                conversationChannel
+                            );
+                            conversationChannel = null;
+                        }
+                        composer.hidden = true;
+                        renderEmpty("Percakapan telah ditutup oleh tim support.");
+                        renderStartChatAction();
+                        return;
                     }
-                    composer.hidden = true;
-                    renderEmpty("Percakapan telah ditutup oleh tim support.");
-                    renderStartChatAction();
+                    activeConversation = {
+                        ...activeConversation,
+                        ...payload.new
+                    };
+                    if (isSupportAgent) {
+                        void loadInbox().catch(error => {
+                            console.error(
+                                "[GEN-Z.AI Support Chat] Gagal menyegarkan inbox:",
+                                error
+                            );
+                        });
+                    } else {
+                        updateVisitorHeading();
+                        updateReadReceipt();
+                        scheduleUnreadBusyNotice(
+                            conversationId,
+                            latestUserMessage
+                        );
+                    }
                 }
             )
             .subscribe(status => {
@@ -646,7 +746,20 @@
                     schema: "public",
                     table: "support_conversations"
                 },
-                () => {
+                payload => {
+                    const conversation = payload.new;
+                    if (
+                        panel.hidden &&
+                        conversation?.user_id !== currentUser.id &&
+                        conversation?.last_user_message_at &&
+                        (
+                            !conversation.admin_read_at ||
+                            new Date(conversation.last_user_message_at) >
+                                new Date(conversation.admin_read_at)
+                        )
+                    ) {
+                        showMessageIndicator();
+                    }
                     void loadInbox().catch(error => {
                         console.error(
                             "[GEN-Z.AI Support Chat] Gagal menyegarkan inbox:",
@@ -693,16 +806,26 @@
         sendButton.disabled = true;
         setFeedback("");
         try {
-            const { error } = await supabaseClient
+            const { data: sentMessage, error } = await supabaseClient
                 .from("support_messages")
                 .insert({
                     conversation_id: activeConversation.id,
                     sender_id: currentUser.id,
                     sender_role: isSupportAgent ? "support" : "user",
                     body
-                });
+                })
+                .select("id,conversation_id,sender_id,sender_role,body,created_at")
+                .single();
 
             if (error) throw error;
+            if (sentMessage.sender_role === "user") {
+                latestUserMessage = sentMessage;
+                scheduleUnreadBusyNotice(
+                    activeConversation.id,
+                    sentMessage
+                );
+                updateReadReceipt();
+            }
             input.value = "";
         } catch (error) {
             console.error("[GEN-Z.AI Support Chat] Gagal mengirim pesan:", error);
@@ -744,18 +867,151 @@
         const bubble = createElement("div", "genz-chat-message", {
             "data-message-id": message.id
         });
-        if (message.sender_id === currentUser.id) {
+        if (message.sender_role === "system") {
+            bubble.classList.add("is-system");
+        } else if (message.sender_id === currentUser.id) {
             bubble.classList.add("is-mine");
         }
         bubble.append(
             document.createTextNode(message.body),
             createElement("span", "genz-chat-message-meta", {
                 text:
-                    (message.sender_role === "support" ? "Support · " : "") +
+                    (message.sender_role === "support"
+                        ? (supportAgentName || "Support") + " · "
+                        : message.sender_role === "system"
+                            ? "Info · "
+                            : "") +
                     formatTime(message.created_at)
             })
         );
         messages.append(bubble);
+    }
+
+    async function markConversationRead(conversationId) {
+        const { data, error } = await supabaseClient.rpc(
+            "mark_support_conversation_read",
+            { p_conversation_id: conversationId }
+        );
+        if (error) throw error;
+
+        const readAt = data?.admin_read_at;
+        if (!readAt) {
+            throw new Error("Supabase tidak mengonfirmasi status pesan dibaca.");
+        }
+
+        const updates = {
+            admin_read_at: readAt,
+            admin_name: data.admin_name || supportAgentName
+        };
+        conversations = conversations.map(conversation =>
+            conversation.id === conversationId
+                ? { ...conversation, ...updates }
+                : conversation
+        );
+        if (activeConversation?.id === conversationId) {
+            activeConversation = { ...activeConversation, ...updates };
+        }
+        renderInbox();
+    }
+
+    function updateVisitorHeading() {
+        if (isSupportAgent) return;
+        subtitle.textContent = activeConversation?.admin_name
+            ? `Admin: ${activeConversation.admin_name}`
+            : "Tim support GEN-Z.AI";
+    }
+
+    function updateReadReceipt() {
+        if (isSupportAgent || !latestUserMessage) return;
+        messages
+            .querySelectorAll(".genz-chat-read-check")
+            .forEach(status => status.remove());
+
+        if (latestUserMessage.sender_id !== currentUser?.id) return;
+        const bubble = messages.querySelector(
+            '[data-message-id="' + latestUserMessage.id + '"]'
+        );
+        const meta = bubble?.querySelector(".genz-chat-message-meta");
+        if (!meta) return;
+
+        const wasRead =
+            activeConversation?.admin_read_at &&
+            new Date(activeConversation.admin_read_at) >=
+                new Date(latestUserMessage.created_at);
+        const status = createElement("span", "genz-chat-read-check", {
+            text: " ✓",
+            title: wasRead ? "Dibaca admin" : "Belum dibaca admin",
+            "aria-label": wasRead ? "Dibaca admin" : "Belum dibaca admin"
+        });
+        if (wasRead) status.classList.add("is-read");
+        meta.append(status);
+    }
+
+    function scheduleUnreadBusyNotice(conversationId, message) {
+        clearUnreadNoticeTimer();
+        if (
+            isSupportAgent ||
+            !message ||
+            message.sender_role !== "user" ||
+            !activeConversation ||
+            activeConversation.id !== conversationId ||
+            (
+                activeConversation.admin_read_at &&
+                new Date(activeConversation.admin_read_at) >=
+                    new Date(message.created_at)
+            )
+        ) {
+            return;
+        }
+
+        const deadline =
+            new Date(message.created_at).getTime() + UNREAD_NOTICE_DELAY_MS;
+        unreadNoticeTimer = window.setTimeout(() => {
+            void sendUnreadBusyNotice(conversationId, message.id);
+        }, Math.max(0, deadline - Date.now()));
+    }
+
+    async function sendUnreadBusyNotice(conversationId, messageId) {
+        if (
+            !activeConversation ||
+            activeConversation.id !== conversationId ||
+            latestUserMessage?.id !== messageId
+        ) {
+            return;
+        }
+
+        try {
+            const { error } = await supabaseClient.rpc(
+                "add_support_busy_notice",
+                { p_conversation_id: conversationId }
+            );
+            if (error) throw error;
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI Support Chat] Gagal mengirim pemberitahuan admin sibuk:",
+                error
+            );
+            if (!panel.hidden) setFeedback(getErrorMessage(error));
+        }
+    }
+
+    function clearUnreadNoticeTimer() {
+        if (unreadNoticeTimer === null) return;
+        window.clearTimeout(unreadNoticeTimer);
+        unreadNoticeTimer = null;
+    }
+
+    function showMessageIndicator() {
+        launcher.classList.add("has-new-message");
+        launcher.setAttribute(
+            "aria-label",
+            "Ada pesan baru di live chat dukungan"
+        );
+    }
+
+    function clearMessageIndicator() {
+        launcher.classList.remove("has-new-message");
+        launcher.setAttribute("aria-label", "Buka live chat dukungan");
     }
 
     function renderEmpty(text) {
@@ -804,9 +1060,14 @@
         if (
             message.includes("support_conversations") ||
             message.includes("support_messages") ||
+            message.includes("last_user_message_at") ||
+            message.includes("admin_read_at") ||
+            message.includes("admin_name") ||
+            message.includes("mark_support_conversation_read") ||
+            message.includes("add_support_busy_notice") ||
             message.includes("schema cache")
         ) {
-            return "Tabel live chat belum tersedia. Jalankan migration supabase/support-chat.sql di Supabase.";
+            return "Struktur live chat belum diperbarui. Jalankan ulang migration terbaru supabase/support-chat.sql di Supabase.";
         }
         if (
             message.includes("network") ||
