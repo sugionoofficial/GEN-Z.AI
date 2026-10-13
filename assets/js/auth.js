@@ -12,7 +12,7 @@
        PATCH v2.8 (FIX DEADLOCK):
        - autoRefreshToken: false  (sebelumnya true)
        - lock: no-op              (bypass Web Locks API)
-       - detectSessionInUrl: true (untuk callback Google OAuth)
+       - detectSessionInUrl: true (untuk callback tautan email)
        - Expose client ke window.GENZ_SUPABASE
        - Refresh token manual via fetch
        ========================================================= */
@@ -77,7 +77,7 @@
     // FIX DEADLOCK:
     // - autoRefreshToken: false
     // - lock: no-op (langsung jalankan callback)
-    // - detectSessionInUrl: true (menangani callback Google OAuth)
+    // - detectSessionInUrl: true (menangani callback tautan email)
     // =========================================================
 
     const supabaseClient =
@@ -132,11 +132,14 @@
     const loginMessage =
         document.getElementById("loginMessage");
 
-    const googleLoginButton =
-        document.getElementById("googleLoginButton");
+    const emailLinkButton =
+        document.getElementById("emailLinkButton");
 
-    const googleLoginPendingKey =
-        "genz_google_login_pending";
+    const emailLinkCallback =
+        new URLSearchParams(window.location.search)
+            .get("auth") === "email-link";
+
+    let emailLinkCallbackHandled = false;
 
 
     // =========================================================
@@ -366,7 +369,6 @@
                 error.message || ""
             ).toLowerCase();
 
-
         if (
             message.includes(
                 "invalid login credentials"
@@ -434,50 +436,62 @@
         return;
     }
 
-    if (googleLoginButton) {
-        googleLoginButton.addEventListener(
+    if (emailLinkButton) {
+        emailLinkButton.addEventListener(
             "click",
             async function () {
 
-                googleLoginButton.disabled = true;
-                showMessage("Menghubungkan ke Google...");
+                const emailElement =
+                    document.getElementById("email");
+
+                const email =
+                    emailElement?.value
+                        .trim()
+                        .toLowerCase();
+
+                if (
+                    !emailElement ||
+                    !email ||
+                    !emailElement.checkValidity()
+                ) {
+                    emailElement?.reportValidity();
+                    return;
+                }
+
+                emailLinkButton.disabled = true;
+                showMessage("Mengirim tautan masuk ke email...");
 
                 try {
-                    window.sessionStorage.setItem(
-                        googleLoginPendingKey,
-                        "1"
-                    );
-
                     const { error } =
                         await supabaseClient.auth
-                            .signInWithOAuth({
-                                provider: "google",
+                            .signInWithOtp({
+                                email,
                                 options: {
-                                    redirectTo: new URL(
-                                        "login.html",
+                                    shouldCreateUser: false,
+                                    emailRedirectTo: new URL(
+                                        "login.html?auth=email-link",
                                         window.location.href
-                                    ).href,
-                                    queryParams: {
-                                        prompt: "select_account"
-                                    }
+                                    ).href
                                 }
                             });
 
                     if (error) {
                         throw error;
                     }
-                } catch (error) {
-                    window.sessionStorage.removeItem(
-                        googleLoginPendingKey
+
+                    showMessage(
+                        "Tautan login telah dikirim. Periksa kotak masuk email Anda."
                     );
-                    googleLoginButton.disabled = false;
+                } catch (error) {
                     console.error(
-                        "GEN-Z.AI Google login error:",
+                        "GEN-Z.AI email link login error:",
                         error
                     );
                     showMessage(
                         getFriendlyAuthError(error)
                     );
+                } finally {
+                    emailLinkButton.disabled = false;
                 }
             }
         );
@@ -488,11 +502,8 @@
             .get("error_description");
 
     if (oauthError) {
-        window.sessionStorage.removeItem(
-            googleLoginPendingKey
-        );
         showMessage(
-            "Login Google gagal: " +
+            "Login melalui tautan email gagal: " +
             oauthError
         );
     }
@@ -770,18 +781,18 @@
         function (event, session) {
 
             if (
-                event === "SIGNED_IN" &&
+                (
+                    event === "SIGNED_IN" ||
+                    event === "INITIAL_SESSION"
+                ) &&
                 session &&
-                window.sessionStorage.getItem(
-                    googleLoginPendingKey
-                ) === "1"
+                emailLinkCallback &&
+                !emailLinkCallbackHandled
             ) {
-                window.sessionStorage.removeItem(
-                    googleLoginPendingKey
-                );
+                emailLinkCallbackHandled = true;
                 setLoading(true);
                 showMessage(
-                    "Google berhasil. Memeriksa akun..."
+                    "Tautan berhasil. Memeriksa akun..."
                 );
 
                 window.setTimeout(function () {
@@ -789,7 +800,7 @@
                         session.user
                     ).catch(function (error) {
                         console.error(
-                            "GEN-Z.AI Google login error:",
+                            "GEN-Z.AI email link login error:",
                             error
                         );
                         showMessage(

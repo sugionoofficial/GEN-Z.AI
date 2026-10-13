@@ -1571,11 +1571,11 @@
 
         }
 
-        .google-auth-option {
+        .email-link-option {
             margin: 20px 0 16px;
         }
 
-        .google-auth-button {
+        .email-link-button {
             width: 100%;
             min-height: 50px;
             display: flex;
@@ -1590,30 +1590,22 @@
             cursor: pointer;
         }
 
-        .google-auth-button:hover:not(:disabled) {
+        .email-link-button:hover:not(:disabled) {
             background: rgba(255, 255, 255, 0.08);
         }
 
-        .google-auth-button:disabled {
+        .email-link-button:disabled {
             cursor: wait;
             opacity: 0.65;
         }
 
-        .google-mark {
-            background: conic-gradient(
-                from -45deg,
-                #4285f4 0 25%,
-                #34a853 25% 50%,
-                #fbbc05 50% 75%,
-                #ea4335 75% 100%
-            );
-            background-clip: text;
-            color: transparent;
-            font-size: 22px;
+        .email-link-mark {
+            color: #fff;
+            font-size: 20px;
             font-weight: 900;
         }
 
-        .google-auth-divider {
+        .email-link-divider {
             display: flex;
             align-items: center;
             gap: 10px;
@@ -1624,7 +1616,7 @@
             letter-spacing: 0.1em;
         }
 
-        .google-auth-divider span {
+        .email-link-divider span {
             flex: 1;
             height: 1px;
             background: rgba(255, 255, 255, 0.1);
@@ -1765,22 +1757,6 @@
                     aria-live="polite"
                 ></div>
 
-                <div class="google-auth-option">
-                    <button
-                        type="button"
-                        id="googleRegisterButton"
-                        class="google-auth-button"
-                    >
-                        <span class="google-mark" aria-hidden="true">G</span>
-                        <span>Daftar dengan Google</span>
-                    </button>
-                    <div class="google-auth-divider">
-                        <span></span>
-                        <span>ATAU DAFTAR DENGAN EMAIL</span>
-                        <span></span>
-                    </div>
-                </div>
-
                 <form
                     id="registerForm"
                     class="form"
@@ -1887,6 +1863,22 @@
 
                         </div>
 
+                    </div>
+
+                    <div class="email-link-option">
+                        <button
+                            type="button"
+                            id="emailRegisterLinkButton"
+                            class="email-link-button"
+                        >
+                            <span class="email-link-mark" aria-hidden="true">@</span>
+                            <span>Kirim tautan daftar ke email</span>
+                        </button>
+                        <div class="email-link-divider">
+                            <span></span>
+                            <span>ATAU DAFTAR DENGAN PASSWORD</span>
+                            <span></span>
+                        </div>
                     </div>
 
 
@@ -2179,9 +2171,9 @@
                     "registerMessage"
                 );
 
-            const googleRegisterButton =
+            const emailRegisterLinkButton =
                 document.getElementById(
-                    "googleRegisterButton"
+                    "emailRegisterLinkButton"
                 );
 
             const nameInput =
@@ -2302,15 +2294,34 @@
 
             }
 
-            googleRegisterButton.addEventListener(
+            emailRegisterLinkButton.addEventListener(
                 "click",
                 async function () {
 
-                    googleRegisterButton.disabled =
+                    const name =
+                        nameInput.value.trim();
+
+                    const email =
+                        emailInput.value.trim().toLowerCase();
+
+                    if (!name) {
+                        nameInput.reportValidity();
+                        return;
+                    }
+
+                    if (
+                        !email ||
+                        !emailInput.checkValidity()
+                    ) {
+                        emailInput.reportValidity();
+                        return;
+                    }
+
+                    emailRegisterLinkButton.disabled =
                         true;
 
                     showMessage(
-                        "Menghubungkan ke Google...",
+                        "Mengirim tautan pendaftaran ke email...",
                         "success"
                     );
 
@@ -2319,22 +2330,18 @@
                             initializeSupabase();
                         }
 
-                        window.sessionStorage.setItem(
-                            "genz_google_login_pending",
-                            "1"
-                        );
-
                         const { error } =
                             await supabaseClient.auth
-                                .signInWithOAuth({
-                                    provider: "google",
+                                .signInWithOtp({
+                                    email,
                                     options: {
-                                        redirectTo: new URL(
-                                            "login.html",
+                                        shouldCreateUser: true,
+                                        emailRedirectTo: new URL(
+                                            "login.html?auth=email-link",
                                             window.location.href
                                         ).href,
-                                        queryParams: {
-                                            prompt: "select_account"
+                                        data: {
+                                            name
                                         }
                                     }
                                 });
@@ -2342,20 +2349,23 @@
                         if (error) {
                             throw error;
                         }
-                    } catch (error) {
-                        window.sessionStorage.removeItem(
-                            "genz_google_login_pending"
+
+                        showMessage(
+                            "Tautan pendaftaran telah dikirim. Buka email untuk memverifikasi dan masuk.",
+                            "success"
                         );
-                        googleRegisterButton.disabled =
-                            false;
+                    } catch (error) {
                         console.error(
-                            "GEN-Z.AI Google registration error:",
+                            "GEN-Z.AI email registration error:",
                             error
                         );
                         showMessage(
                             getErrorMessage(error),
                             "error"
                         );
+                    } finally {
+                        emailRegisterLinkButton.disabled =
+                            false;
                     }
                 }
             );
@@ -2550,7 +2560,6 @@
                     String(
                         error?.message || ""
                     ).toLowerCase();
-
 
                 if (
                     message.includes(
