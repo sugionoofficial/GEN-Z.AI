@@ -21,6 +21,7 @@
     let inboxChannel = null;
     let conversations = [];
     let busy = false;
+    let connectionAttempt = 0;
 
     const launcher = createElement("button", "genz-chat-launcher", {
         type: "button",
@@ -292,9 +293,27 @@
 
         if (busy) return;
         busy = true;
+        const attempt = ++connectionAttempt;
+        const connectionTimeout = window.setTimeout(() => {
+            if (attempt !== connectionAttempt) return;
+            connectionAttempt++;
+            busy = false;
+            composer.hidden = true;
+            setFeedback(
+                "Koneksi ke Supabase terlalu lama. Periksa koneksi dan pengaturan Anonymous Sign-Ins, lalu coba lagi."
+            );
+            const retryButton = createElement("button", "genz-chat-start", {
+                type: "button",
+                text: "Coba lagi"
+            });
+            retryButton.addEventListener("click", openChat);
+            feedback.append(retryButton);
+        }, 15000);
         try {
             await ensureVisitorSession();
+            if (attempt !== connectionAttempt) return;
             await detectSupportAgent();
+            if (attempt !== connectionAttempt) return;
             composer.hidden = false;
             inbox.hidden = !isSupportAgent;
             tools.hidden = !isSupportAgent;
@@ -302,11 +321,13 @@
             if (isSupportAgent) {
                 subtitle.textContent = "Inbox dukungan";
                 await loadInbox();
+                if (attempt !== connectionAttempt) return;
                 subscribeToInbox();
                 if (activeConversation) {
                     composer.hidden = false;
                     closeThreadButton.hidden = false;
                     await loadMessages(activeConversation.id);
+                    if (attempt !== connectionAttempt) return;
                     subscribeToMessages(activeConversation.id);
                 } else {
                     composer.hidden = true;
@@ -317,18 +338,24 @@
                 subtitle.textContent = currentUser.is_anonymous
                     ? "Chat langsung dengan tim kami"
                     : "Terhubung dengan tim support";
-                await loadUserConversation();
+                await loadUserConversation(attempt);
             }
         } catch (error) {
+            if (attempt !== connectionAttempt) return;
             console.error("[GEN-Z.AI Support Chat] Gagal membuka chat:", error);
             setFeedback(getErrorMessage(error));
             composer.hidden = true;
         } finally {
-            busy = false;
+            window.clearTimeout(connectionTimeout);
+            if (attempt === connectionAttempt) {
+                busy = false;
+            }
         }
     }
 
     function closeChat() {
+        connectionAttempt++;
+        busy = false;
         panel.hidden = true;
         launcher.hidden = false;
         launcher.setAttribute("aria-expanded", "false");
@@ -343,7 +370,7 @@
         }
     }
 
-    async function loadUserConversation() {
+    async function loadUserConversation(attempt = null) {
         const { data, error } = await supabaseClient
             .from("support_conversations")
             .select("id,user_id,user_name,user_email,status,last_message_at")
@@ -353,6 +380,7 @@
             .limit(1);
 
         if (error) throw error;
+        if (attempt !== null && attempt !== connectionAttempt) return;
 
         if (data.length) {
             activeConversation = data[0];
@@ -360,6 +388,7 @@
             closeThreadButton.hidden = true;
             setFeedback("");
             await loadMessages(activeConversation.id);
+            if (attempt !== null && attempt !== connectionAttempt) return;
             subscribeToMessages(activeConversation.id);
             subscribeToConversation(activeConversation.id);
             return;
