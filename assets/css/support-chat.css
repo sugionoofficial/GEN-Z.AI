@@ -26,18 +26,47 @@
     height: 25px;
 }
 
-.genz-chat-notification-dot {
+.genz-chat-presence-dot {
     position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 13px;
-    height: 13px;
+    right: 3px;
+    bottom: 3px;
+    width: 12px;
+    height: 12px;
     border: 2px solid #101218;
     border-radius: 50%;
     background: #24df78;
     opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.genz-chat-launcher.is-support-online .genz-chat-presence-dot {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.genz-chat-notification-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: grid;
+    width: 16px;
+    height: 16px;
+    place-items: center;
+    border: 2px solid #101218;
+    border-radius: 50%;
+    background: #24df78;
+    color: #07150c;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    opacity: 0;
     pointer-events: none;
     transform: scale(0.5);
+}
+
+.genz-chat-notification-dot::after {
+    content: "!";
 }
 
 .genz-chat-launcher.has-new-message .genz-chat-notification-dot {
@@ -385,6 +414,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     .genz-chat-launcher,
+    .genz-chat-presence-dot,
     .genz-chat-notification-dot,
     .genz-chat-thread-notification {
         transition: none;

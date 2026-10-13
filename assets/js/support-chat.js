@@ -28,6 +28,7 @@
     const unreadConversationIds = new Set();
     let busy = false;
     let connectionAttempt = 0;
+    let supportMonitorPromise = null;
 
     const launcher = createElement("button", "genz-chat-launcher", {
         type: "button",
@@ -36,10 +37,13 @@
     });
     launcher.innerHTML =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"/></svg>';
+    const presenceDot = createElement("span", "genz-chat-presence-dot", {
+        "aria-hidden": "true"
+    });
     const notificationDot = createElement("span", "genz-chat-notification-dot", {
         "aria-hidden": "true"
     });
-    launcher.append(notificationDot);
+    launcher.append(presenceDot, notificationDot);
 
     const panel = createElement("section", "genz-chat-panel", {
         "aria-label": "Live chat dukungan",
@@ -115,6 +119,7 @@
     closeButton.addEventListener("click", closeChat);
     composer.addEventListener("submit", sendMessage);
     closeThreadButton.addEventListener("click", closeConversation);
+    void initializeSupportMonitor();
 
     function createElement(tag, className, attributes) {
         const element = document.createElement(tag);
@@ -301,6 +306,53 @@
                     ""
             ).trim() ||
             "Admin Support";
+    }
+
+    async function initializeSupportMonitor() {
+        if (supportMonitorPromise) return supportMonitorPromise;
+        supportMonitorPromise = (async () => {
+            try {
+                const appClient = await ensureSupabase();
+                const {
+                    data: { session },
+                    error
+                } = await appClient.auth.getSession();
+                if (error) throw error;
+                if (!session?.user || session.user.is_anonymous) return;
+
+                currentUser = session.user;
+                supabaseClient = appClient;
+                await detectSupportAgent();
+                if (!isSupportAgent) return;
+
+                launcher.classList.add("is-support-online");
+                await loadInbox();
+                if (unreadConversationIds.size) {
+                    showMessageIndicator();
+                }
+                subscribeToInbox();
+
+                appClient.auth.onAuthStateChange(event => {
+                    if (event === "SIGNED_OUT") {
+                        launcher.classList.remove("is-support-online");
+                        clearMessageIndicator();
+                        unreadConversationIds.clear();
+                        conversations = [];
+                        isSupportAgent = false;
+                        if (inboxChannel) {
+                            void appClient.removeChannel(inboxChannel);
+                            inboxChannel = null;
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error(
+                    "[GEN-Z.AI Support Chat] Gagal memantau inbox support:",
+                    error
+                );
+            }
+        })();
+        return supportMonitorPromise;
     }
 
     async function openChat() {
@@ -494,6 +546,7 @@
 
         if (error) throw error;
         conversations = data || [];
+        unreadConversationIds.clear();
         for (const conversation of conversations) {
             const hasUnreadUserMessage =
                 conversation.last_user_message_at &&
@@ -507,6 +560,11 @@
             } else {
                 unreadConversationIds.delete(conversation.id);
             }
+        }
+        if (unreadConversationIds.size) {
+            showMessageIndicator();
+        } else {
+            clearMessageIndicator();
         }
         renderInbox();
 
