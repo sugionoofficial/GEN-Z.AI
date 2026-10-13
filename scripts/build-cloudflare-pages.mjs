@@ -10,6 +10,7 @@ const staticDirectories = [
     "assets",
     "generate",
     "history",
+    "live-chat",
     "metadata-cleaner",
     "models",
     "navigation",

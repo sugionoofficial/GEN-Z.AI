@@ -61,7 +61,7 @@ const STATE_MODULE =
     "./generate-state.js";
 
 const AUTH_MODULE =
-    "./generate-auth.js";
+    "./generate-auth.js?v=20261013-auth-refresh";
 
 const UI_MODULE =
     "./generate-ui.js";
@@ -3539,6 +3539,15 @@ async function initializeAuth() {
     ) {
 
         await auth.loadSupabase();
+
+    }
+
+    if (
+        typeof auth.ensureFreshToken ===
+        "function"
+    ) {
+
+        await auth.ensureFreshToken();
 
     }
 

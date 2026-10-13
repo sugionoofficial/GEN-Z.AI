@@ -527,130 +527,202 @@ async function getCurrentSession() {
    ENSURE FRESH TOKEN (via fetch langsung)
 ========================================================= */
 
-async function ensureFreshToken() {
+function getTokenExpiry(accessToken) {
 
     try {
 
-        const session =
-            readSessionFromStorage();
+        const payload =
+            String(accessToken || "")
+                .split(".")[1]
+                ?.replace(/-/g, "+")
+                .replace(/_/g, "/");
 
-        if (
-            !session ||
-            !session.expires_at ||
-            !session.refresh_token
-        ) {
+        if (!payload) return null;
 
-            return;
-
-        }
-
-        const nowSec =
-            Math.floor(Date.now() / 1000);
-
-        const secondsUntilExpiry =
-            session.expires_at - nowSec;
-
-        if (
-            secondsUntilExpiry >=
-            TOKEN_REFRESH_BUFFER_SEC
-        ) {
-
-            debugLog(
-                "[GEN-Z.AI][Auth] Token masih valid, " +
-                secondsUntilExpiry +
-                " detik lagi."
+        const claims =
+            JSON.parse(
+                atob(
+                    payload.padEnd(
+                        Math.ceil(payload.length / 4) * 4,
+                        "="
+                    )
+                )
             );
 
-            return;
+        const expiresAt =
+            Number(claims?.exp);
 
-        }
+        return Number.isFinite(expiresAt) && expiresAt > 0
+            ? expiresAt
+            : null;
 
-        if (secondsUntilExpiry < 0) {
+    } catch {
 
-            return;
+        return null;
 
-        }
+    }
 
-        debugLog(
-            "[GEN-Z.AI][Auth] Refresh token manual " +
-            "(expired in " +
-            secondsUntilExpiry +
-            "s)..."
-        );
+}
 
-        const config = window.GENZ_CONFIG;
 
-        const res =
-            await fetch(
-                `${config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "apikey": config.SUPABASE_KEY
-                    },
-                    body: JSON.stringify({
-                        refresh_token: session.refresh_token
-                    })
-                }
-            );
+export async function ensureFreshToken() {
 
-        if (!res.ok) {
+    const session =
+        readSessionFromStorage();
 
-            debugWarn(
-                "[GEN-Z.AI][Auth] Refresh token HTTP error:",
-                res.status
-            );
+    if (!session) {
 
-            return;
+        return;
 
-        }
+    }
 
-        const newSession =
-            await res.json();
+    const storedExpiry =
+        Number(session.expires_at);
 
-        if (
-            !newSession ||
-            !newSession.access_token
-        ) {
+    const expiresAt =
+        Number.isFinite(storedExpiry) && storedExpiry > 0
+            ? storedExpiry
+            : getTokenExpiry(session.access_token);
 
-            debugWarn(
-                "[GEN-Z.AI][Auth] Refresh token response tidak valid."
-            );
+    if (!expiresAt) {
 
-            return;
-
-        }
-
-        const match =
-            config.SUPABASE_URL.match(
-                /https:\/\/([^.]+)/
-            );
-
-        const projectRef =
-            match && match[1];
-
-        if (projectRef) {
-
-            localStorage.setItem(
-                "sb-" + projectRef + "-auth-token",
-                JSON.stringify(newSession)
-            );
-
-        }
-
-        debugLog(
-            "[GEN-Z.AI][Auth] Refresh token berhasil."
-        );
-
-    } catch (error) {
-
-        debugWarn(
-            "[GEN-Z.AI][Auth] ensureFreshToken error:",
-            error
+        throw new Error(
+            "Masa berlaku sesi login tidak dapat diverifikasi. Silakan login kembali."
         );
 
     }
+
+
+    const nowSec =
+        Math.floor(Date.now() / 1000);
+
+    const secondsUntilExpiry =
+        expiresAt - nowSec;
+
+
+    if (
+        Number.isFinite(secondsUntilExpiry) &&
+        secondsUntilExpiry >= TOKEN_REFRESH_BUFFER_SEC
+    ) {
+
+        debugLog(
+            "[GEN-Z.AI][Auth] Token masih valid, " +
+            secondsUntilExpiry +
+            " detik lagi."
+        );
+
+        return;
+
+    }
+
+
+    if (!session.refresh_token) {
+
+        throw new Error(
+            "Sesi login kedaluwarsa dan tidak dapat diperbarui. Silakan login kembali."
+        );
+
+    }
+
+
+    const config = window.GENZ_CONFIG;
+
+    const res =
+        await fetch(
+            `${config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "apikey": config.SUPABASE_KEY
+                },
+                body: JSON.stringify({
+                    refresh_token: session.refresh_token
+                })
+            }
+        );
+
+    const responseData =
+        await res.json().catch(() => null);
+
+    if (!res.ok) {
+
+        throw new Error(
+            responseData?.error_description ||
+            responseData?.message ||
+            `Gagal memperbarui sesi login (HTTP ${res.status}). Silakan login kembali.`
+        );
+
+    }
+
+
+    if (
+        !responseData ||
+        !responseData.access_token
+    ) {
+
+        throw new Error(
+            "Supabase mengembalikan sesi login yang tidak valid."
+        );
+
+    }
+
+
+    const expiresIn =
+        Number(responseData.expires_in);
+
+    const refreshedExpiry =
+        Number(responseData.expires_at) ||
+        (
+            Number.isFinite(expiresIn) &&
+            expiresIn > 0
+                ? nowSec + expiresIn
+                : getTokenExpiry(responseData.access_token)
+        );
+
+
+    if (!refreshedExpiry) {
+
+        throw new Error(
+            "Supabase tidak mengembalikan waktu kedaluwarsa sesi."
+        );
+
+    }
+
+
+    const newSession = {
+        ...session,
+        ...responseData,
+        expires_at: refreshedExpiry,
+        refresh_token:
+            responseData.refresh_token ||
+            session.refresh_token
+    };
+
+    const match =
+        config.SUPABASE_URL.match(
+            /https:\/\/([^.]+)/
+        );
+
+    const projectRef =
+        match && match[1];
+
+    if (!projectRef) {
+
+        throw new Error(
+            "Project Supabase tidak dapat ditentukan untuk menyimpan sesi."
+        );
+
+    }
+
+    localStorage.setItem(
+        "sb-" + projectRef + "-auth-token",
+        JSON.stringify(newSession)
+    );
+
+    debugLog(
+        "[GEN-Z.AI][Auth] Refresh token berhasil."
+    );
 
 }
 
