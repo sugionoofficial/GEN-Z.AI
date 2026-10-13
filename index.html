@@ -783,19 +783,89 @@
         }
 
         .payment-label {
+            flex-basis: 100%;
             color: var(--text-soft);
             font-size: 12px;
             font-weight: 700;
+            text-align: center;
         }
 
         .payment-method {
-            padding: 7px 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 150px;
+            padding: 10px 14px;
             border: 1px solid var(--border);
-            border-radius: 999px;
+            border-radius: 12px;
             background: var(--panel);
             color: #fff;
-            font-size: 12px;
+            font-size: 11px;
+        }
+
+        .payment-brand {
+            font-size: 15px;
             font-weight: 800;
+            letter-spacing: -0.04em;
+        }
+
+        .payment-brand-bca {
+            color: #4b9bff;
+            font-style: italic;
+        }
+
+        .payment-brand-dana {
+            color: #55a9ff;
+            font-style: italic;
+        }
+
+        .payment-brand-qris {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #fff;
+            font-size: 13px;
+            letter-spacing: 0;
+        }
+
+        .qris-mark {
+            display: grid;
+            grid-template-columns: repeat(2, 6px);
+            gap: 2px;
+        }
+
+        .qris-mark i {
+            width: 6px;
+            height: 6px;
+            border-radius: 2px;
+            background: #ff5964;
+        }
+
+        .qris-mark i:nth-child(2) {
+            background: #f6c84c;
+        }
+
+        .qris-mark i:nth-child(3) {
+            background: #38c98b;
+        }
+
+        .qris-mark i:nth-child(4) {
+            background: #49a3ff;
+        }
+
+        .payment-brand-seabank {
+            color: #ff8648;
+        }
+
+        .payment-description {
+            color: var(--text-soft);
+            font-size: 10px;
+        }
+
+        .payment-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
 
@@ -2024,10 +2094,33 @@
 
             <div class="container payment-inner">
                 <span class="payment-label">Pembayaran didukung:</span>
-                <span class="payment-method">BCA</span>
-                <span class="payment-method">DANA</span>
-                <span class="payment-method">QRIS</span>
-                <span class="payment-method">SeaBank</span>
+                <span class="payment-method">
+                    <span class="payment-brand payment-brand-bca">BCA</span>
+                    <span class="payment-copy">
+                        <span class="payment-description">Transfer bank</span>
+                    </span>
+                </span>
+                <span class="payment-method">
+                    <span class="payment-brand payment-brand-dana">DANA</span>
+                    <span class="payment-copy">
+                        <span class="payment-description">Dompet digital</span>
+                    </span>
+                </span>
+                <span class="payment-method">
+                    <span class="payment-brand payment-brand-qris">
+                        <span class="qris-mark"><i></i><i></i><i></i><i></i></span>
+                        QRIS
+                    </span>
+                    <span class="payment-copy">
+                        <span class="payment-description">Scan untuk bayar</span>
+                    </span>
+                </span>
+                <span class="payment-method">
+                    <span class="payment-brand payment-brand-seabank">SeaBank</span>
+                    <span class="payment-copy">
+                        <span class="payment-description">Transfer bank</span>
+                    </span>
+                </span>
             </div>
 
         </section>
