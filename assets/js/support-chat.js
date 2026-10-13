@@ -847,7 +847,7 @@
         setFeedback("Memuat pesan...");
         const { data, error } = await supabaseClient
             .from("support_messages")
-            .select("id,conversation_id,sender_id,sender_role,body,created_at,image_data,image_type")
+            .select("id,conversation_id,sender_id,sender_role,sender_name,body,created_at,image_data,image_type")
             .eq("conversation_id", conversationId)
             .order("created_at", { ascending: false })
             .limit(200);
@@ -1199,7 +1199,7 @@
                     image_data: selectedImage?.data || null,
                     image_type: selectedImage?.type || null
                 })
-                .select("id,conversation_id,sender_id,sender_role,body,created_at,image_data,image_type")
+                .select("id,conversation_id,sender_id,sender_role,sender_name,body,created_at,image_data,image_type")
                 .single();
 
             if (error) throw error;
@@ -1292,13 +1292,14 @@
             });
             bubble.append(image);
         }
-        const senderName = message.sender_role === "support"
-            ? activeConversation?.admin_name ||
-                (isSupportAgent ? supportAgentName : "Admin Support")
-            : message.sender_role === "user"
-                ? activeConversation?.user_name ||
-                    (isSupportAgent ? "Pengunjung" : "Pengguna")
-                : "Info";
+        const senderName = message.sender_name ||
+            (message.sender_role === "support"
+                ? activeConversation?.admin_name ||
+                    (isSupportAgent ? supportAgentName : "Admin Support")
+                : message.sender_role === "user"
+                    ? activeConversation?.user_name ||
+                        (isSupportAgent ? "Pengunjung" : "Pengguna")
+                    : "Info");
         bubble.append(
             createElement("span", "genz-chat-message-meta", {
                 text:

@@ -95,6 +95,7 @@ create table if not exists public.support_messages (
         references public.support_conversations(id) on delete cascade,
     sender_id uuid not null references auth.users(id) on delete cascade,
     sender_role text not null,
+    sender_name text,
     body text not null default '',
     image_data text,
     image_type text,
@@ -126,6 +127,7 @@ alter table public.support_conversations
 alter table public.support_messages
     add column if not exists busy_notice_for uuid
         references public.support_messages(id) on delete cascade,
+    add column if not exists sender_name text,
     add column if not exists image_data text,
     add column if not exists image_type text;
 
@@ -182,6 +184,99 @@ where c.last_user_message_at is null;
 
 create index if not exists support_messages_conversation_created
     on public.support_messages (conversation_id, created_at, id);
+
+create or replace function public.set_support_message_sender_name()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    v_conversation public.support_conversations%rowtype;
+begin
+    select *
+    into v_conversation
+    from public.support_conversations
+    where id = new.conversation_id;
+
+    if not found then
+        raise exception 'Support conversation was not found'
+            using errcode = 'P0002';
+    end if;
+
+    if new.sender_role = 'support' then
+        if not public.is_genz_support_agent() then
+            raise exception 'Only support agents can send support messages'
+                using errcode = '42501';
+        end if;
+
+        select coalesce(
+            nullif(trim(p.name), ''),
+            nullif(auth.jwt() -> 'user_metadata' ->> 'full_name', ''),
+            nullif(auth.jwt() -> 'user_metadata' ->> 'name', ''),
+            nullif(auth.jwt() ->> 'email', ''),
+            'Admin Support'
+        )
+        into new.sender_name
+        from auth.users u
+        left join public.profiles p on p.id = u.id
+        where u.id = auth.uid();
+    elsif new.sender_role = 'user' then
+        if v_conversation.user_id <> auth.uid() then
+            raise exception 'Only the conversation owner can send user messages'
+                using errcode = '42501';
+        end if;
+        new.sender_name := coalesce(
+            nullif(trim(v_conversation.user_name), ''),
+            'Pengunjung'
+        );
+    elsif new.sender_role = 'system' then
+        new.sender_name := 'Info';
+    end if;
+
+    return new;
+end;
+$$;
+
+revoke all on function public.set_support_message_sender_name() from public;
+
+drop trigger if exists support_messages_set_sender_name
+    on public.support_messages;
+
+create trigger support_messages_set_sender_name
+before insert on public.support_messages
+for each row
+execute function public.set_support_message_sender_name();
+
+update public.support_messages m
+set sender_name = case
+    when m.sender_role = 'support' then coalesce(
+        (
+            select nullif(trim(p.name), '')
+            from public.profiles p
+            where p.id = m.sender_id
+        ),
+        (
+            select coalesce(
+                nullif(u.raw_user_meta_data ->> 'full_name', ''),
+                nullif(u.raw_user_meta_data ->> 'name', ''),
+                nullif(u.email, '')
+            )
+            from auth.users u
+            where u.id = m.sender_id
+        ),
+        nullif(trim(c.admin_name), ''),
+        'Admin Support'
+    )
+    when m.sender_role = 'user' then coalesce(
+        nullif(trim(c.user_name), ''),
+        'Pengunjung'
+    )
+    else 'Info'
+end
+from public.support_conversations c
+where c.id = m.conversation_id
+  and m.sender_name is null;
 
 create or replace function public.update_support_conversation_activity()
 returns trigger
