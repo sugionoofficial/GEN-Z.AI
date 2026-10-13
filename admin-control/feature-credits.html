@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tarif Credit Fitur - GEN-Z.AI</title>
+    <script src="../assets/js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+    <style>
+        :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #070b14; color: #f8fafc; }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; padding: 36px 18px; background: radial-gradient(circle at 10% 0%, #312e8160, transparent 35%), #070b14; }
+        main { width: min(760px, 100%); margin: 0 auto; }
+        a { color: #a5b4fc; }
+        h1 { margin: 14px 0 8px; }
+        .intro, .hint { color: #94a3b8; line-height: 1.6; }
+        .panel { margin-top: 24px; padding: 22px; border: 1px solid #334155; border-radius: 18px; background: #0f172acc; }
+        .row { display: grid; grid-template-columns: 1fr 150px; gap: 18px; align-items: center; padding: 15px 0; border-bottom: 1px solid #263244; }
+        .row:last-of-type { border-bottom: 0; }
+        .row strong { display: block; }
+        .row small { display: block; margin-top: 4px; color: #94a3b8; }
+        input { width: 100%; padding: 11px; border: 1px solid #475569; border-radius: 9px; background: #020617; color: white; }
+        button { margin-top: 20px; padding: 12px 18px; border: 0; border-radius: 10px; background: #6366f1; color: white; font-weight: 700; cursor: pointer; }
+        button:disabled { opacity: .55; cursor: wait; }
+        #status { min-height: 1.5em; margin-top: 14px; color: #a5b4fc; }
+        #status.error { color: #fca5a5; }
+        @media (max-width: 520px) { .panel { padding: 16px; } .row { grid-template-columns: 1fr 100px; gap: 10px; } }
+    </style>
+</head>
+<body>
+<main>
+    <a href="./admin-panel.html">← Kembali ke Admin Control</a>
+    <h1>Pengaturan Tarif Credit</h1>
+    <p class="intro">Atur jumlah credit yang dipotong saat setiap fitur digunakan. Nilai 0 berarti fitur gratis. Tarif diverifikasi dan diterapkan oleh server.</p>
+    <form id="settings-form" class="panel">
+        <div id="settings-list">Memuat pengaturan...</div>
+        <button id="save-button" type="submit">Simpan Tarif</button>
+        <div id="status" role="status" aria-live="polite"></div>
+    </form>
+</main>
+<script src="./feature-credits.js"></script>
+</body>
+</html>

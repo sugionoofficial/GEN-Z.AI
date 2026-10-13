@@ -2314,8 +2314,41 @@ function setHeaders(
    VISION CREDIT CONFIG
 ========================================================= */
 
-const VISION_CREDIT_COST =
-    1;
+const VISION_FEATURE_IDS =
+    new Set([
+        "vision",
+        "vision_video"
+    ]);
+
+
+async function getFeatureCreditCost(
+    featureId
+) {
+
+    if (!VISION_FEATURE_IDS.has(featureId)) {
+        throw createError(
+            "Fitur kredit tidak valid.",
+            400,
+            "VISION_FEATURE_INVALID"
+        );
+    }
+
+    const rows = await supabaseRequest(
+        `/rest/v1/feature_credit_settings?select=credit_cost&feature_id=eq.${encodeURIComponent(featureId)}&limit=1`,
+        { method: "GET" }
+    );
+    const cost = Number(rows?.[0]?.credit_cost);
+
+    if (!Number.isInteger(cost) || cost < 0) {
+        throw createError(
+            "Tarif credit fitur belum dikonfigurasi. Jalankan migration feature-credit-settings.sql.",
+            500,
+            "FEATURE_CREDIT_SETTING_MISSING"
+        );
+    }
+
+    return cost;
+}
 
 
 /* =========================================================
@@ -2414,32 +2447,15 @@ async function getVisionCredits(
 ========================================================= */
 
 async function deductVisionCredit(
-    userId
+    userId,
+    featureId,
+    transactionId
 ) {
+    let data;
 
-    const credits =
-        await getVisionCredits(
-            userId
-        );
-
-
-    if (
-        credits <
-        VISION_CREDIT_COST
-    ) {
-
-        throw createError(
-            "Credit tidak mencukupi untuk Vision.",
-            402,
-            "VISION_INSUFFICIENT_CREDIT"
-        );
-
-    }
-
-
-    const data =
-        await supabaseRequest(
-            "/rest/v1/rpc/deduct_generate_credits",
+    try {
+        data = await supabaseRequest(
+            "/rest/v1/rpc/charge_feature_credits",
             {
 
                 method:
@@ -2451,107 +2467,35 @@ async function deductVisionCredit(
                         p_user_id:
                             userId,
 
-                        p_amount:
-                            VISION_CREDIT_COST
+                        p_feature_id:
+                            featureId,
+
+                        p_transaction_id:
+                            transactionId
 
                     })
 
             }
         );
-
-
-    const newCredits =
-        Number(
-            data
-        );
-
-
-    if (
-        Number.isFinite(
-            newCredits
-        )
-    ) {
-
-        return {
-
-            deducted:
-                true,
-
-            cost:
-                VISION_CREDIT_COST,
-
-            credits:
-                newCredits
-
-        };
-
-    }
-
-
-    if (
-        data &&
-        typeof data ===
-            "object"
-    ) {
-
-        const candidates = [
-
-            data.credits,
-
-            data.new_credits,
-
-            data.remaining_credits
-
-        ];
-
-
-        for (
-            const candidate
-            of candidates
-        ) {
-
-            const numeric =
-                Number(
-                    candidate
-                );
-
-
-            if (
-                Number.isFinite(
-                    numeric
-                )
-            ) {
-
-                return {
-
-                    deducted:
-                        true,
-
-                    cost:
-                        VISION_CREDIT_COST,
-
-                    credits:
-                        numeric
-
-                };
-
-            }
-
+    } catch (error) {
+        if (/INSUFFICIENT_CREDITS/i.test(String(error.message || ""))) {
+            throw createError(
+                    "Credit tidak mencukupi untuk fitur ini.",
+                    402,
+                    "VISION_INSUFFICIENT_CREDIT"
+            );
         }
-
+        throw error;
     }
-
 
     return {
 
-        deducted:
-            true,
-
-        cost:
-            VISION_CREDIT_COST,
-
-        credits:
-            null
+        deducted: true,
+        cost: Number(data?.cost),
+        credits: Number.isFinite(Number(data?.credits))
+            ? Number(data.credits)
+            : null,
+        transaction_id: data?.transaction_id
 
     };
 
@@ -2563,12 +2507,13 @@ async function deductVisionCredit(
 ========================================================= */
 
 async function refundVisionCredit(
-    userId
+    userId,
+    transactionId
 ) {
 
     const data =
         await supabaseRequest(
-            "/rest/v1/rpc/refund_generate_credits",
+            "/rest/v1/rpc/settle_feature_credits",
             {
 
                 method:
@@ -2580,109 +2525,45 @@ async function refundVisionCredit(
                         p_user_id:
                             userId,
 
-                        p_amount:
-                            VISION_CREDIT_COST
+                        p_transaction_id:
+                            transactionId,
+
+                        p_outcome:
+                            "refund"
 
                     })
 
             }
         );
 
-
-    const newCredits =
-        Number(
-            data
-        );
-
-
-    if (
-        Number.isFinite(
-            newCredits
-        )
-    ) {
-
-        return {
-
-            refunded:
-                true,
-
-            amount:
-                VISION_CREDIT_COST,
-
-            credits:
-                newCredits
-
-        };
-
-    }
-
-
-    if (
-        data &&
-        typeof data ===
-            "object"
-    ) {
-
-        const candidates = [
-
-            data.credits,
-
-            data.new_credits,
-
-            data.remaining_credits
-
-        ];
-
-
-        for (
-            const candidate
-            of candidates
-        ) {
-
-            const numeric =
-                Number(
-                    candidate
-                );
-
-
-            if (
-                Number.isFinite(
-                    numeric
-                )
-            ) {
-
-                return {
-
-                    refunded:
-                        true,
-
-                    amount:
-                        VISION_CREDIT_COST,
-
-                    credits:
-                        numeric
-
-                };
-
-            }
-
-        }
-
-    }
-
-
     return {
 
-        refunded:
-            true,
-
-        amount:
-            VISION_CREDIT_COST,
-
-        credits:
-            null
+        refunded: data?.status === "refunded",
+        credits: Number.isFinite(Number(data?.credits))
+            ? Number(data.credits)
+            : null
 
     };
+
+}
+
+
+async function completeVisionCredit(
+    userId,
+    transactionId
+) {
+
+    return supabaseRequest(
+        "/rest/v1/rpc/settle_feature_credits",
+        {
+            method: "POST",
+            body: JSON.stringify({
+                p_user_id: userId,
+                p_transaction_id: transactionId,
+                p_outcome: "complete"
+            })
+        }
+    );
 
 }
 
@@ -2694,18 +2575,29 @@ async function refundVisionCredit(
 async function handleVisionCreditOperation(
     res,
     user,
-    operation
+    operation,
+    body
 ) {
+
+    const requestedFeatureId = String(body?.feature_id || "vision");
+    if (!VISION_FEATURE_IDS.has(requestedFeatureId)) {
+        throw createError(
+            "Fitur credit tidak valid.",
+            400,
+            "VISION_FEATURE_INVALID"
+        );
+    }
+    const featureId = requestedFeatureId;
 
     if (
         operation ===
         "vision_credit_check"
     ) {
 
-        const credits =
-            await getVisionCredits(
-                user.id
-            );
+        const [credits, cost] = await Promise.all([
+            getVisionCredits(user.id),
+            getFeatureCreditCost(featureId)
+        ]);
 
 
         return json(
@@ -2718,12 +2610,11 @@ async function handleVisionCreditOperation(
 
                 operation,
 
-                cost:
-                    VISION_CREDIT_COST,
+                cost,
 
                 sufficient:
                     credits >=
-                    VISION_CREDIT_COST,
+                    cost,
 
                 credits
 
@@ -2738,9 +2629,22 @@ async function handleVisionCreditOperation(
         "vision_credit_deduct"
     ) {
 
+        const transactionId =
+            String(body?.transaction_id || "");
+
+        if (!/^[0-9a-f-]{36}$/i.test(transactionId)) {
+            throw createError(
+                "ID transaksi credit tidak valid.",
+                400,
+                "VISION_CREDIT_TRANSACTION_INVALID"
+            );
+        }
+
         const result =
             await deductVisionCredit(
-                user.id
+                user.id,
+                featureId,
+                transactionId
             );
 
 
@@ -2767,9 +2671,21 @@ async function handleVisionCreditOperation(
         "vision_credit_refund"
     ) {
 
+        const transactionId =
+            String(body?.transaction_id || "");
+
+        if (!/^[0-9a-f-]{36}$/i.test(transactionId)) {
+            throw createError(
+                "ID transaksi credit tidak valid.",
+                400,
+                "VISION_CREDIT_TRANSACTION_INVALID"
+            );
+        }
+
         const result =
             await refundVisionCredit(
-                user.id
+                user.id,
+                transactionId
             );
 
 
@@ -2787,6 +2703,36 @@ async function handleVisionCreditOperation(
 
             }
         );
+
+    }
+
+
+    if (
+        operation ===
+        "vision_credit_complete"
+    ) {
+
+        const transactionId =
+            String(body?.transaction_id || "");
+
+        if (!/^[0-9a-f-]{36}$/i.test(transactionId)) {
+            throw createError(
+                "ID transaksi credit tidak valid.",
+                400,
+                "VISION_CREDIT_TRANSACTION_INVALID"
+            );
+        }
+
+        const result = await completeVisionCredit(
+            user.id,
+            transactionId
+        );
+
+        return json(res, 200, {
+            success: true,
+            operation,
+            ...result
+        });
 
     }
 
@@ -2976,6 +2922,14 @@ async function saveVisionHistory(
             record.status
         );
 
+    const featureId =
+        String(record.feature_id || "vision");
+    const recordedCost = Number(record.credit_cost);
+    const creditCost =
+        Number.isInteger(recordedCost) && recordedCost >= 0
+            ? recordedCost
+            : await getFeatureCreditCost(featureId);
+
 
     const taskId =
         validateVisionTaskId(
@@ -3134,7 +3088,7 @@ async function saveVisionHistory(
             ) || null,
 
         credit_cost:
-            VISION_CREDIT_COST
+            creditCost
 
     };
 
@@ -3453,7 +3407,9 @@ export default async function handler(
         operation ===
             "vision_credit_deduct" ||
         operation ===
-            "vision_credit_refund"
+            "vision_credit_refund" ||
+        operation ===
+            "vision_credit_complete"
     ) {
 
         try {
@@ -3461,7 +3417,8 @@ export default async function handler(
             return await handleVisionCreditOperation(
                 res,
                 authenticatedUser,
-                operation
+                operation,
+                body
             );
 
         } catch (error) {

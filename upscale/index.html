@@ -14,12 +14,13 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
+    <script src="/assets/js/feature-credit.js" defer></script>
 
     <link rel="stylesheet" href="../assets/css/genz-premium.css">
     <link rel="stylesheet" href="./assets/css/upscale.css">
 </head>
 
-<body>
+<body data-feature-credit="upscale">
 
 <div id="navigation"></div>
 
@@ -110,7 +111,7 @@
                 <div class="credit-notice">
                     <div class="credit-notice-row">
                         <span>Biaya Upscale</span>
-                        <strong>1 credit</strong>
+                    <strong><span data-feature-credit-cost="upscale">--</span> credit</strong>
                     </div>
                     <small>Refund otomatis jika proses gagal</small>
                 </div>

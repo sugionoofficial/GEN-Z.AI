@@ -19,6 +19,7 @@
 ====================================================== -->
 
 <script src="../assets/js/config.js"></script>
+<script src="/assets/js/feature-credit.js" defer></script>
 
 
 <!-- =====================================================
@@ -1262,7 +1263,7 @@ body::before {
 </head>
 
 
-<body>
+<body data-feature-credit="prompt_studio">
 
 <div id="navigation"></div>
 
@@ -1597,6 +1598,12 @@ body::before {
                             Pilih kategori di sebelah kiri untuk memulai...
                         </span>
                     </div>
+
+                    <p class="feature-credit-cost-note">
+                        Biaya setiap Copy Prompt:
+                        <strong data-feature-credit-cost="prompt_studio">--</strong>
+                        credit.
+                    </p>
 
                     <div class="preview-footer">
                         <button class="btn-primary" id="copyBtn" type="button">
@@ -2551,7 +2558,7 @@ body::before {
     ===================================================== */
 
     function bindCopy() {
-        copyBtn.addEventListener("click", function () {
+        copyBtn.addEventListener("click", async function () {
             var text = buildPlainPrompt();
 
             if (!text) {
@@ -2569,12 +2576,25 @@ body::before {
                 }, 1800);
             }
 
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text)
-                    .then(showCopied)
-                    .catch(function () { fallbackCopy(text); });
-            } else {
-                fallbackCopy(text);
+            try {
+                await window.GENZFeatureCredit.run("prompt_studio", async function () {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            return;
+                        } catch (clipboardError) {
+                            if (!fallbackCopy(text)) throw clipboardError;
+                            return;
+                        }
+                    }
+
+                    if (!fallbackCopy(text)) {
+                        throw new Error("Gagal menyalin prompt ke clipboard.");
+                    }
+                });
+                showCopied();
+            } catch (error) {
+                showToast(error.message || "Gagal menyalin prompt", true);
             }
         });
     }
@@ -2588,20 +2608,15 @@ body::before {
         document.body.appendChild(ta);
         ta.select();
 
+        var copied = false;
         try {
-            document.execCommand("copy");
-            copyBtn.classList.add("copied");
-            copyLabel.textContent = "Copied!";
-            showToast("Prompt tersalin");
-            setTimeout(function () {
-                copyBtn.classList.remove("copied");
-                copyLabel.textContent = "Copy Prompt";
-            }, 1800);
+            copied = document.execCommand("copy");
         } catch (e) {
-            showToast("Gagal copy, coba manual", true);
+            copied = false;
         }
 
         document.body.removeChild(ta);
+        return copied;
     }
 
 

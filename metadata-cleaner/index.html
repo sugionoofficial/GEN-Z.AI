@@ -39,6 +39,7 @@
     ====================================================== -->
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+    <script src="/assets/js/feature-credit.js" defer></script>
 
 
     <!-- =====================================================
@@ -67,7 +68,7 @@ document.title = "GEN-Z.AI Generator Web";
 </head>
 
 
-<body>
+<body data-feature-credit="metadata_cleaner">
     <!-- =====================================================
          SHARED NAVIGATION
     ====================================================== -->
@@ -469,6 +470,11 @@ document.title = "GEN-Z.AI Generator Web";
 
                     </div>
 
+                    <p class="feature-credit-cost-note">
+                        Biaya setiap CHECK:
+                        <strong data-feature-credit-cost="metadata_cleaner">--</strong>
+                        credit.
+                    </p>
 
                     <div
                         class="metadata-status-box"
@@ -678,6 +684,11 @@ document.title = "GEN-Z.AI Generator Web";
 
                     </div>
 
+                    <p class="feature-credit-cost-note">
+                        Biaya setiap CLEAN:
+                        <strong data-feature-credit-cost="metadata_cleaner">--</strong>
+                        credit.
+                    </p>
 
                     <!-- =========================================
                          CLEANED RESULT

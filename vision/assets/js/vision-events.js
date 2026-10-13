@@ -30,9 +30,6 @@
     // CONSTANT
     // =====================================================
 
-    const CREDIT_COST = 1;
-
-
     // =====================================================
     // MODULE GETTERS
     // =====================================================
@@ -1604,7 +1601,7 @@
 
             const credit =
                 await getCredit().checkCredit(
-                    CREDIT_COST
+                    getCredit().getCost()
                 );
 
 
@@ -1646,7 +1643,7 @@
 
 
             await getCredit().deductCredit(
-                CREDIT_COST
+                getCredit().getCost()
             );
 
 
@@ -1894,7 +1891,7 @@
                         normalizedAnalysis,
 
                     creditCost:
-                        CREDIT_COST
+                        getCredit().getCost()
 
                 });
 
@@ -1905,6 +1902,15 @@
                     historyError
                 );
 
+            }
+
+            try {
+                await getCredit().completeCredit();
+            } catch (creditError) {
+                console.error(
+                    "[GEN-Z.AI Vision] Gagal menutup transaksi credit:",
+                    creditError
+                );
             }
 
 
@@ -1969,7 +1975,7 @@
                 try {
 
                     await getCredit().refundCredit(
-                        CREDIT_COST
+                        getCredit().getCost()
                     );
 
 
@@ -2013,7 +2019,7 @@
                         message,
 
                     creditCost:
-                        CREDIT_COST
+                        getCredit().getCost()
 
                 });
 

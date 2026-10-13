@@ -462,8 +462,8 @@ function buildHistoryRecord(
             errorMessage,
 
         credit_cost:
-            VISION_HISTORY_CONFIG
-                .CREDIT_COST
+            window.GENZVisionCredit?.getCost?.() ??
+            VISION_HISTORY_CONFIG.CREDIT_COST
 
     };
 

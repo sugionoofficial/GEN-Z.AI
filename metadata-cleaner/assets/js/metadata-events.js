@@ -534,7 +534,10 @@ async function onCheck(
 
     try {
 
-        await callback();
+        await window.GENZFeatureCredit.run(
+            "metadata_cleaner",
+            callback
+        );
 
 
         console.log(
@@ -678,7 +681,10 @@ async function onClean(
 
     try {
 
-        await callback();
+        await window.GENZFeatureCredit.run(
+            "metadata_cleaner",
+            callback
+        );
 
     } catch (
         error

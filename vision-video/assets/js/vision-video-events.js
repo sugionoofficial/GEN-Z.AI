@@ -2260,7 +2260,7 @@
                     ),
 
                 creditCost:
-                    CONFIG.creditCost
+                    getCredit().getCost()
 
             });
 
@@ -2317,7 +2317,7 @@
                         ),
 
                     creditCost:
-                        CONFIG.creditCost
+                        getCredit().getCost()
 
                 }
             );
@@ -2793,6 +2793,15 @@
 
             ui.renderCreditFromState();
 
+            try {
+                await getCredit().completeCredit();
+            } catch (creditError) {
+                console.error(
+                    "[GEN-Z.AI Vision Video] Gagal menutup transaksi credit:",
+                    creditError
+                );
+            }
+
 
             dispatch(
                 CONFIG.events.processComplete,
@@ -2808,7 +2817,7 @@
                     prepared,
 
                     creditCost:
-                        CONFIG.creditCost,
+                        getCredit().getCost(),
 
                     creditDeducted:
                         creditWasDeducted

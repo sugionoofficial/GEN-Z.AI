@@ -196,6 +196,18 @@ WebP images; images are resized and stored in the message row in the database,
 not in Supabase Storage. Row-level security restricts conversations and
 messages to their owner and support staff.
 
+### Tarif Credit Fitur
+
+Run `supabase/feature-credit-settings.sql` in the Supabase SQL Editor before
+using the feature-credit settings page. The migration initializes Vision,
+Vision Video, Upscale, Prompt Studio, and Metadata Cleaner at one credit each.
+Admin and owner accounts can change these rates from Admin Control → Tarif
+Credit Fitur; a rate of zero makes a feature free. The server reads the saved
+rate when charging, so the displayed value is informational rather than a
+client-side billing authority. Charges happen on Vision generation, Vision
+Video analysis, Upscale processing, Prompt Studio copy, and both Metadata
+Cleaner CHECK and CLEAN actions. Failed operations refund their charge.
+
 ### Cloudflare Workers (migrasi bertahap)
 
 Repository ini menyediakan konfigurasi Cloudflare Worker yang menayangkan aset

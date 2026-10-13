@@ -32,6 +32,9 @@
     const VISION_VIDEO_CREDIT_CONFIG =
         Object.freeze({
 
+            featureId:
+                "vision_video",
+
             cost:
                 1,
 
@@ -59,6 +62,26 @@
                 })
 
         });
+
+    let currentVisionVideoCreditCost =
+        VISION_VIDEO_CREDIT_CONFIG.cost;
+
+
+    function createCreditTransactionId() {
+
+        if (window.crypto?.randomUUID) {
+            return window.crypto.randomUUID();
+        }
+
+        const bytes = new Uint8Array(16);
+        window.crypto.getRandomValues(bytes);
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = Array.from(bytes, value => value.toString(16).padStart(2, "0")).join("");
+
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+
+    }
 
 
     /* =====================================================
@@ -764,7 +787,7 @@
 
     function getCost() {
 
-        return VISION_VIDEO_CREDIT_CONFIG.cost;
+        return currentVisionVideoCreditCost;
 
     }
 
@@ -863,6 +886,9 @@
         return {
 
             operation,
+
+            feature_id:
+                VISION_VIDEO_CREDIT_CONFIG.featureId,
 
             amount:
                 getCost(),
@@ -1100,6 +1126,12 @@
                     .CHECK
             );
 
+        const configuredCost = Number(response?.cost);
+        if (!Number.isInteger(configuredCost) || configuredCost < 0) {
+            throw new Error("Tarif credit Vision Video dari server tidak valid.");
+        }
+        currentVisionVideoCreditCost = configuredCost;
+
 
         const serverCredits =
             extractBalance(
@@ -1250,6 +1282,9 @@
          * -------------------------------------------------
          */
 
+        const transactionId =
+            createCreditTransactionId();
+
         const response =
             await requestServer(
                 VISION_VIDEO_CREDIT_CONFIG
@@ -1257,6 +1292,12 @@
                     .DEDUCT,
 
                 {
+
+                    feature_id:
+                        VISION_VIDEO_CREDIT_CONFIG.featureId,
+
+                    transaction_id:
+                        transactionId,
 
                     task_id:
                         metadata.taskId ||
@@ -1272,6 +1313,12 @@
 
                 }
             );
+
+        const chargedCost = Number(response?.cost);
+        if (!Number.isInteger(chargedCost) || chargedCost < 0) {
+            throw new Error("Tarif credit Vision Video dari server tidak valid.");
+        }
+        currentVisionVideoCreditCost = chargedCost;
 
 
         const serverCredits =
@@ -1309,6 +1356,11 @@
 
             deducted:
                 true,
+
+            transactionId,
+
+            amount:
+                chargedCost,
 
             reserved:
                 true,
@@ -1448,6 +1500,12 @@
 
                 {
 
+                    feature_id:
+                        VISION_VIDEO_CREDIT_CONFIG.featureId,
+
+                    transaction_id:
+                        creditState.transactionId,
+
                     task_id:
                         metadata.taskId ||
                         null,
@@ -1530,6 +1588,31 @@
     }
 
 
+    async function completeCredit() {
+
+        const creditState = getCreditOperationState();
+        if (!creditState.deducted || !creditState.transactionId || creditState.refunded) {
+            return { completed: false, skipped: true };
+        }
+
+        const response = await requestServer(
+            "vision_credit_complete",
+            {
+                feature_id: VISION_VIDEO_CREDIT_CONFIG.featureId,
+                transaction_id: creditState.transactionId
+            }
+        );
+
+        setCreditOperationState({
+            completed: true,
+            reserved: false
+        });
+
+        return { completed: true, response };
+
+    }
+
+
     /* =====================================================
        RESERVE CREDIT
     ===================================================== */
@@ -1583,7 +1666,13 @@
                 false,
 
             refunded:
-                false
+                false,
+
+            completed:
+                false,
+
+            transactionId:
+                null
 
         });
 
@@ -1684,6 +1773,8 @@
             getAccessToken,
 
             getCost,
+
+            completeCredit,
 
             normalizeCredit,
 

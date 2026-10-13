@@ -21,8 +21,7 @@ const CONFIG = Object.freeze({
     apiEndpoint: "/api/generate",
     maxFileSize: 20 * 1024 * 1024,
     allowedTypes: ["image/jpeg", "image/png", "image/webp"],
-    requestTimeout: 60000,
-    creditCost: 1
+    requestTimeout: 60000
 });
 
 

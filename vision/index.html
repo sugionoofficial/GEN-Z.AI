@@ -33,6 +33,7 @@
     <script
         src="../assets/js/config.js"
     ></script>
+    <script src="/assets/js/feature-credit.js" defer></script>
 
 
     <!-- =====================================================
@@ -67,7 +68,7 @@
 </head>
 
 
-<body>
+<body data-feature-credit="vision">
 
     <!-- =====================================================
          NAVIGATION
@@ -722,8 +723,9 @@
                         class="vision-credit-notice"
                         id="visionCreditNotice"
                     >
-                        1 credit akan digunakan untuk
-                        setiap proses Vision.
+                        Setiap proses Vision menggunakan
+                        <strong data-feature-credit-cost="vision">--</strong>
+                        credit.
                     </div>
 
 

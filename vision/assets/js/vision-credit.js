@@ -29,6 +29,9 @@
 const VISION_CREDIT_CONFIG =
     Object.freeze({
 
+        featureId:
+            "vision",
+
         cost:
             1,
 
@@ -57,6 +60,26 @@ const VISION_CREDIT_CONFIG =
             })
 
     });
+
+let currentVisionCreditCost =
+    VISION_CREDIT_CONFIG.cost;
+
+
+function createCreditTransactionId() {
+
+    if (window.crypto?.randomUUID) {
+        return window.crypto.randomUUID();
+    }
+
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, value => value.toString(16).padStart(2, "0")).join("");
+
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+
+}
 
 
 /* =========================================================
@@ -777,7 +800,7 @@ function setCredit(
 
 function getCost() {
 
-    return VISION_CREDIT_CONFIG.cost;
+    return currentVisionCreditCost;
 
 }
 
@@ -875,6 +898,9 @@ function buildRequest(
     return {
 
         operation,
+
+        feature_id:
+            VISION_CREDIT_CONFIG.featureId,
 
         amount:
             getCost(),
@@ -1133,6 +1159,12 @@ async function checkCredit() {
                 .CHECK
         );
 
+    const configuredCost = Number(response?.cost);
+    if (!Number.isInteger(configuredCost) || configuredCost < 0) {
+        throw new Error("Tarif credit Vision dari server tidak valid.");
+    }
+    currentVisionCreditCost = configuredCost;
+
 
     const serverCredits =
         extractBalance(
@@ -1318,6 +1350,9 @@ async function deductCredit(
      * -----------------------------------------------------
      */
 
+    const transactionId =
+        createCreditTransactionId();
+
     const response =
         await requestServer(
             VISION_CREDIT_CONFIG
@@ -1325,6 +1360,12 @@ async function deductCredit(
                 .DEDUCT,
 
             {
+
+                feature_id:
+                    VISION_CREDIT_CONFIG.featureId,
+
+                transaction_id:
+                    transactionId,
 
                 task_id:
                     metadata.taskId ||
@@ -1340,6 +1381,12 @@ async function deductCredit(
 
             }
         );
+
+    const chargedCost = Number(response?.cost);
+    if (!Number.isInteger(chargedCost) || chargedCost < 0) {
+        throw new Error("Tarif credit Vision dari server tidak valid.");
+    }
+    currentVisionCreditCost = chargedCost;
 
 
     /*
@@ -1397,6 +1444,10 @@ async function deductCredit(
         deducted:
             true,
 
+        transactionId,
+
+        chargedCost,
+
         reserved:
             true
 
@@ -1417,8 +1468,10 @@ async function deductCredit(
         deducted:
             true,
 
+        transactionId,
+
         amount:
-            getCost(),
+            chargedCost,
 
         credits:
             remaining,
@@ -1547,6 +1600,12 @@ async function refundCredit(
 
             {
 
+                feature_id:
+                    VISION_CREDIT_CONFIG.featureId,
+
+                transaction_id:
+                    creditState.transactionId,
+
                 task_id:
                     metadata.taskId ||
                     null,
@@ -1644,6 +1703,31 @@ async function refundCredit(
 }
 
 
+async function completeCredit() {
+
+    const state = getState();
+    const creditState = typeof state.getCredit === "function"
+        ? state.getCredit()
+        : {};
+
+    if (!creditState.deducted || !creditState.transactionId || creditState.refunded) {
+        return { completed: false, skipped: true };
+    }
+
+    const response = await requestServer(
+        "vision_credit_complete",
+        {
+            feature_id: VISION_CREDIT_CONFIG.featureId,
+            transaction_id: creditState.transactionId
+        }
+    );
+
+    state.setCredit({ completed: true, reserved: false });
+    return { completed: true, response };
+
+}
+
+
 /* =========================================================
    RESERVE CREDIT
 ========================================================= */
@@ -1710,7 +1794,13 @@ function resetOperationState() {
             false,
 
         refunded:
-            false
+            false,
+
+        completed:
+            false,
+
+        transactionId:
+            null
 
     });
 
@@ -1820,6 +1910,8 @@ const GENZVisionCredit =
         getAccessToken,
 
         getCost,
+
+        completeCredit,
 
         normalizeCredit,
 

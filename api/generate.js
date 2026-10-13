@@ -3026,7 +3026,6 @@ function getUpscaleGithubConfig(req) {
     };
 }
 
-const UPSCALE_CREDIT_COST = 1;
 const UPSCALE_TARGET_LABEL = "1440p";
 
 
@@ -3034,13 +3033,26 @@ const UPSCALE_TARGET_LABEL = "1440p";
    UPSCALE PHOTO — CONSTANTS
    ========================================================= */
 
-const UPSCALE_PHOTO_CREDIT_COST = 1;
 const UPSCALE_PHOTO_WORKFLOW_FILE = "upscale-photo.yml";
 const UPSCALE_PHOTO_TARGETS = ["2k", "4k"];
 const UPSCALE_PHOTO_PROVIDER_ID = "genzai-internal";
 const UPSCALE_PHOTO_PROVIDER_NAME = "GEN-Z.AI";
 const UPSCALE_PHOTO_MODEL_ID = "upscale-photo";
 const UPSCALE_PHOTO_MODEL_NAME = "Upscale Photo";
+
+async function getFeatureCreditCost(featureId) {
+    const rows = await supabaseRequest(
+        `/rest/v1/feature_credit_settings?select=credit_cost&feature_id=eq.${encodeURIComponent(featureId)}&limit=1`,
+        { method: "GET" }
+    );
+    const cost = Number(rows?.[0]?.credit_cost);
+
+    if (!Number.isInteger(cost) || cost < 0) {
+        throw new Error(`Tarif ${featureId} belum dikonfigurasi.`);
+    }
+
+    return cost;
+}
 
 
 /* =========================================================
@@ -3101,7 +3113,8 @@ async function createUpscaleHistoryRow({
     user,
     parent,
     sourceUrl,
-    taskId
+    taskId,
+    creditCost
 }) {
     const payload = {
         user_id: user.id,
@@ -3120,7 +3133,7 @@ async function createUpscaleHistoryRow({
         task_id: taskId,
         result_url: null,
         error_message: null,
-        credit_cost: UPSCALE_CREDIT_COST,
+        credit_cost: creditCost,
         upscale_of_history_id: parent.id,
         upscale_source_url: sourceUrl,
         upscale_target: UPSCALE_TARGET_LABEL
@@ -3150,7 +3163,8 @@ async function createUpscaleHistoryRow({
 async function markUpscaleFailedAndRefund({
     historyId,
     userId,
-    errorMessage
+    errorMessage,
+    creditCost
 }) {
     try {
         await supabaseRequest(
@@ -3169,7 +3183,7 @@ async function markUpscaleFailedAndRefund({
     }
 
     try {
-        await refundGenerateCredits(userId, UPSCALE_CREDIT_COST);
+        await refundGenerateCredits(userId, creditCost);
     } catch (e) {
         console.error("[upscale] Refund failed:", e);
     }
@@ -3184,7 +3198,8 @@ async function triggerUpscaleWorkflow({
     github,
     historyId,
     sourceUrl,
-    userId
+    userId,
+    creditCost
 }) {
     const url = `https://api.github.com/repos/${github.owner}/${github.repo}/actions/workflows/${github.workflowFile}/dispatches`;
 
@@ -3203,7 +3218,7 @@ async function triggerUpscaleWorkflow({
                 history_id: String(historyId),
                 source_url: String(sourceUrl),
                 user_id: String(userId),
-                credit_cost: String(UPSCALE_CREDIT_COST)
+                credit_cost: String(creditCost)
             }
         })
     });
@@ -3272,11 +3287,13 @@ async function handleUpscaleAction(req, res, body, user) {
     }
 
     let remainingCredits = null;
+    let creditCost;
 
     try {
+        creditCost = await getFeatureCreditCost("upscale");
         remainingCredits = await deductGenerateCredits(
             user.id,
-            UPSCALE_CREDIT_COST
+            creditCost
         );
     } catch (err) {
         console.error("[upscale] Credit deduction failed:", err);
@@ -3304,13 +3321,14 @@ async function handleUpscaleAction(req, res, body, user) {
             user,
             parent,
             sourceUrl,
-            taskId
+            taskId,
+            creditCost
         });
     } catch (err) {
         console.error("[upscale] Failed to create history row:", err);
 
         try {
-            await refundGenerateCredits(user.id, UPSCALE_CREDIT_COST);
+            await refundGenerateCredits(user.id, creditCost);
         } catch (e) {
             console.error("[upscale] Refund failed:", e);
         }
@@ -3323,7 +3341,8 @@ async function handleUpscaleAction(req, res, body, user) {
             github,
             historyId: upscaleRow.id,
             sourceUrl,
-            userId: user.id
+            userId: user.id,
+            creditCost
         });
     } catch (err) {
         console.error("[upscale] GitHub dispatch failed:", err);
@@ -3331,7 +3350,8 @@ async function handleUpscaleAction(req, res, body, user) {
         await markUpscaleFailedAndRefund({
             historyId: upscaleRow.id,
             userId: user.id,
-            errorMessage: "Gagal memulai upscale di GitHub Actions"
+            errorMessage: "Gagal memulai upscale di GitHub Actions",
+            creditCost
         });
 
         return failure(res, 502, "Gagal memulai upscale di GitHub Actions");
@@ -3341,7 +3361,7 @@ async function handleUpscaleAction(req, res, body, user) {
         upscale_history_id: upscaleRow.id,
         task_id: taskId,
         status: "processing",
-        credit_used: UPSCALE_CREDIT_COST,
+        credit_used: creditCost,
         remaining_credits: remainingCredits,
         target: UPSCALE_TARGET_LABEL
     });
@@ -3373,11 +3393,13 @@ async function handleUpscalePhotoAction(req, res, body, user) {
     /* ===== DEDUCT CREDIT ===== */
 
     let remainingCredits = null;
+    let creditCost;
 
     try {
+        creditCost = await getFeatureCreditCost("upscale");
         remainingCredits = await deductGenerateCredits(
             user.id,
-            UPSCALE_PHOTO_CREDIT_COST
+            creditCost
         );
     } catch (err) {
         console.error("[upscale-photo] Credit deduction failed:", err);
@@ -3418,7 +3440,7 @@ async function handleUpscalePhotoAction(req, res, body, user) {
         task_id: taskId,
         result_url: null,
         error_message: null,
-        credit_cost: UPSCALE_PHOTO_CREDIT_COST
+        credit_cost: creditCost
     };
 
     let historyRow;
@@ -3443,7 +3465,7 @@ async function handleUpscalePhotoAction(req, res, body, user) {
         console.error("[upscale-photo] Failed to create history row:", err);
 
         try {
-            await refundGenerateCredits(user.id, UPSCALE_PHOTO_CREDIT_COST);
+            await refundGenerateCredits(user.id, creditCost);
         } catch (e) {
             console.error("[upscale-photo] Refund failed:", e);
         }
@@ -3471,7 +3493,7 @@ async function handleUpscalePhotoAction(req, res, body, user) {
                     history_id: String(historyRow.id),
                     source_url: sourceUrl,
                     user_id: String(user.id),
-                    credit_cost: String(UPSCALE_PHOTO_CREDIT_COST),
+                    credit_cost: String(creditCost),
                     target_resolution: targetResolution
                 }
             })
@@ -3502,7 +3524,7 @@ async function handleUpscalePhotoAction(req, res, body, user) {
         }
 
         try {
-            await refundGenerateCredits(user.id, UPSCALE_PHOTO_CREDIT_COST);
+            await refundGenerateCredits(user.id, creditCost);
         } catch (e) {
             console.error("[upscale-photo] Refund failed:", e);
         }
@@ -3517,7 +3539,7 @@ async function handleUpscalePhotoAction(req, res, body, user) {
         task_id: taskId,
         status: "processing",
         target: targetResolution,
-        credit_used: UPSCALE_PHOTO_CREDIT_COST,
+        credit_used: creditCost,
         remaining_credits: remainingCredits
     });
 }

@@ -431,7 +431,7 @@
                 null,
 
             credit_cost:
-                CONFIG.creditCost
+                Number(options.creditCost ?? window.GENZVisionVideoCredit?.getCost?.() ?? CONFIG.creditCost)
 
         };
 
