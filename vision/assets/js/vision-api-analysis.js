@@ -1132,6 +1132,46 @@ MANDATORY ANALYSIS PROCEDURE
 
 FOLLOW THIS PROCEDURE INTERNALLY BEFORE WRITING JSON.
 
+=========================================================
+SCENE GEOMETRY AND CAMERA PRECISION
+=========================================================
+
+For IMAGE 1, describe the visible geometry precisely instead
+of using a generic phrase such as "same composition".
+
+In "camera", explicitly identify what is actually visible:
+
+- viewpoint relative to the subject: front, three-quarter,
+  profile, rear, or another clearly observable direction;
+- camera height and vertical angle: eye-level, high-angle,
+  low-angle, overhead, or an accurately qualified in-between;
+- horizontal direction and any visible camera tilt or roll;
+- apparent perspective and camera-to-subject distance;
+- shot size and lens/depth-of-field cues, only when supported
+  by the image.
+
+In "composition", record:
+
+- image orientation and aspect/crop;
+- subject position within the frame (left/center/right and
+  upper/middle/lower, as applicable);
+- subject scale in frame, headroom, visible body extent, and
+  any body parts cut by the frame;
+- direction of the subject's body and gaze;
+- position of important objects and their distance or
+  relationship to the subject.
+
+In "environment" and "background", state the actual visible
+location and the positions of distinguishing features
+relative to the subject and frame. Do not substitute a
+generic or more familiar location.
+
+These are observations of IMAGE 1, not creative suggestions.
+Do not silently normalize an unusual angle, crop, pose, or
+placement to a conventional portrait. If a detail cannot be
+determined from the image, mark it uncertain rather than
+guessing a camera specification or location.
+
 STEP 1:
 Look at IMAGE 1 ONLY.
 

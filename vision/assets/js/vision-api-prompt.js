@@ -3630,6 +3630,49 @@ Prioritaskan:
 Jangan membiarkan IMAGE 2 mengganti elemen scene.
 
 =========================================================
+EXACT REFERENCE CAMERA, FRAMING, AND LOCATION LOCK
+=========================================================
+
+Kecocokan terhadap IMAGE 1 adalah prioritas utama, bukan
+sekadar inspirasi. Sebelum mendeskripsikan karakter atau
+outfit, tulis ulang scene IMAGE 1 dengan detail spesifik
+yang tersedia pada analysis.
+
+Pertahankan secara eksplisit dan bersamaan:
+
+- lokasi aktual dan ciri pembeda tempat yang terlihat;
+- sudut pandang kamera terhadap subjek (depan, tiga-perempat,
+  samping/profil, belakang, atau arah yang teramati);
+- tinggi kamera dan sudut vertikalnya (sejajar mata, dari atas,
+  dari bawah, overhead, atau variasi yang teramati);
+- arah horizontal, perspektif, kemiringan/roll kamera, dan
+  jarak kamera-subjek yang teramati;
+- orientasi gambar, ukuran shot, crop, batas tubuh yang masuk
+  atau terpotong, headroom, dan ruang kosong;
+- posisi serta skala subjek di dalam frame, arah tubuh dan
+  pandangan;
+- posisi objek, background, dan hubungannya terhadap subjek.
+
+Jangan mengganti angle, tinggi kamera, arah pandang, jarak,
+perspektif, crop, atau posisi subjek dengan pilihan
+"lebih bagus", lebih sinematik, lebih simetris, lebih dekat,
+atau lebih konvensional. Jangan mengubah wide menjadi portrait,
+full-body menjadi close-up, atau sebaliknya.
+
+Jangan hanya menulis "sama persis dengan referensi" atau
+"pertahankan komposisi". Nyatakan ulang fakta yang benar-benar
+tercatat pada analysis agar model generatif memiliki arahan
+yang konkret. Jangan mengarang angka, lensa, lokasi, atau
+detail yang tidak dapat dipastikan dari gambar.
+
+Jika replacement character tersedia, hanya identitas dan
+rambut yang berasal dari IMAGE 2. Scene, lokasi, pose, kamera,
+framing, crop, perspektif, dan penempatan tetap IMAGE 1.
+Outfit mengikuti OUTFIT SOURCE yang dipilih: IMAGE 1 untuk
+Reference Image Outfit, IMAGE 2 untuk Replacement Character
+Outfit. Jangan biarkan pilihan outfit mengubah field scene.
+
+=========================================================
 IDENTITY FIDELITY
 =========================================================
 
@@ -3774,14 +3817,15 @@ VIDEO
 
 Jika tujuan adalah video:
 
-Pertama-tama jelaskan ulang frame sumber secara rinci.
+Pertama-tama jelaskan ulang frame sumber secara rinci dan
+pertahankan camera angle, camera height, perspective, framing,
+crop, serta posisi kamera IMAGE 1.
 
 Frame sumber mengikuti IMAGE 1 sebagai scene master.
-
 IMAGE 2 hanya menyediakan identity dan outfit sesuai
 OUTFIT SOURCE.
 
-Setelah itu tambahkan motion natural:
+Setelah itu tambahkan hanya micro-motion natural pada subjek:
 
 - kedipan;
 - pernapasan;
@@ -3789,8 +3833,14 @@ Setelah itu tambahkan motion natural:
 - gerakan kepala kecil;
 - gerakan kain;
 - gerakan rambut;
-- gerakan hijab;
-- push-in kamera perlahan.
+- gerakan hijab.
+
+Kamera tetap terkunci/static. Jangan menambah pan, tilt, zoom,
+push-in, dolly, orbit, reframing, atau camera shake karena
+gerakan kamera dapat mengubah angle dan komposisi referensi.
+Gerakan kamera hanya boleh ditambahkan bila secara eksplisit
+diminta dalam instruksi tambahan dan tidak bertentangan dengan
+fidelity referensi.
 
 Jangan mengubah:
 
@@ -4128,6 +4178,35 @@ Pertahankan secara konkret:
 14. visual style.
 
 IMAGE 2 tidak boleh mengganti elemen tersebut.
+
+=========================================================
+LOCK EXACT CAMERA, FRAME, AND LOCATION FROM IMAGE 1
+=========================================================
+
+Jangan berhenti pada instruksi umum "pertahankan kamera".
+Uraikan detail IMAGE 1 yang tersedia di analysis:
+
+- lokasi spesifik dan elemen tempat yang terlihat;
+- arah sudut kamera terhadap subjek;
+- tinggi dan sudut vertikal kamera;
+- arah horizontal, perspektif, kemiringan kamera, dan jarak
+  kamera terhadap subjek;
+- orientasi frame, ukuran shot, crop, ruang kepala, bagian
+  tubuh yang terlihat/terpotong, dan ruang kosong;
+- posisi serta skala subjek di dalam frame;
+- posisi objek dan ciri background relatif terhadap subjek.
+
+Reproduksi hubungan spasial dan framing itu, bukan hanya
+jenis adegannya. Jangan mengubah angle, posisi kamera, lokasi,
+pose, crop, atau placement menjadi versi yang lebih umum,
+simetris, dekat, sinematik, atau estetis. Jangan menambahkan
+camera movement jika tidak diminta. Jangan mengarang detail
+atau spesifikasi teknis; bila tidak diketahui, jangan klaim.
+
+OUTFIT SOURCE hanya menentukan pakaian: Reference Image Outfit
+berarti outfit IMAGE 1; Replacement Character Outfit berarti
+outfit IMAGE 2. Pilihan itu tidak boleh mengubah lokasi atau
+scene IMAGE 1.
 
 =========================================================
 IDENTITY LOCK
