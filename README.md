@@ -80,12 +80,13 @@ Credit diambil dari kolom:
 | `digital-human-lipsync-image` | Digital Human - LipSync Image | image-to-video | Motiongen-AI |
 | `seedance-25-studio-s14` | Seedance 2.5 (30s) | text-to-video | Motiongen-AI |
 
-Untuk mengaktifkan Seedance Motiongen, jalankan
-`supabase/seedance-25-studio-failure-refund.sql` di Supabase SQL Editor,
-lalu buat/aktifkan model `seedance-25-studio-s14` di Admin Models dengan
-provider `motiongen` dan harga `6` pada ketiga tier kredit. Refund kredit
-GEN-Z.AI untuk job yang gagal diproses setelah antrean ditangani secara
-idempoten oleh endpoint status.
+Jalankan `supabase/generation-failure-credit-refund.sql` di Supabase SQL
+Editor agar kegagalan task mengembalikan kredit GEN-Z.AI secara idempoten
+untuk semua model. Migration lama
+`supabase/seedance-25-studio-failure-refund.sql` hanya mencakup Seedance
+Motiongen dan kini digantikan migration tersebut. Untuk mengaktifkan Seedance
+Motiongen, buat/aktifkan model `seedance-25-studio-s14` di Admin Models dengan
+provider `motiongen` dan harga `6` pada ketiga tier kredit.
 
 Setiap model memiliki folder sendiri di `models/` dengan struktur:
 

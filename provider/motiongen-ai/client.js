@@ -880,9 +880,29 @@ async function getJob(
 
         data?.error_message ||
 
+        data?.errorMessage ||
+
+        data?.failure_reason ||
+
+        data?.failureReason ||
+
+        data?.fail_reason ||
+
+        data?.error_description ||
+
         data?.error?.message ||
 
+        data?.error?.detail ||
+
         data?.error ||
+
+        data?.reason ||
+
+        data?.detail ||
+
+        data?.details ||
+
+        data?.message ||
 
         null;
 

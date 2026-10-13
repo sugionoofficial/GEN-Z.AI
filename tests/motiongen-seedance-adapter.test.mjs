@@ -38,6 +38,12 @@ const mediaReaderModuleSource = mediaReaderSource.replace(
 );
 const mediaReaderUrl = `data:text/javascript,${encodeURIComponent(mediaReaderModuleSource)}`;
 const mediaReaderModule = await import(mediaReaderUrl);
+const motiongenClientSource = await fs.readFile(
+    new URL("../provider/motiongen-ai/client.js", import.meta.url),
+    "utf8"
+);
+const motiongenClientUrl = `data:text/javascript,${encodeURIComponent(motiongenClientSource)}`;
+const motiongenClientModule = await import(motiongenClientUrl);
 
 test("model configs own their Admin Editor settings", () => {
     assert.deepEqual(digitalHumanConfigModule.default.adminEditor.resolutionOptions, [
@@ -129,4 +135,28 @@ test("collects URL and uploaded image/video slots into arrays", async () => {
         await mediaReaderModule.resolveVideoParameterValue(videoCollection),
         ["https://example.com/a.mp4", "https://example.com/b.mp4"]
     );
+});
+
+test("preserves Motiongen failure details from job status responses", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(JSON.stringify({
+        success: true,
+        data: {
+            id: "job-123",
+            status: "FAILED",
+            failure_reason: "Audio file format is not supported."
+        }
+    }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+    });
+
+    try {
+        const job = await motiongenClientModule.getJob("job-123", "test-key");
+        assert.equal(job.status, "FAILED");
+        assert.equal(job.errorMessage, "Audio file format is not supported.");
+        assert.equal(job.error_message, "Audio file format is not supported.");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
 });

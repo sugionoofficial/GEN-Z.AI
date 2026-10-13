@@ -71,7 +71,6 @@ const MODEL_REGISTRY = [
     klingMotionControl30Pro
 ];
 
-const SEEDANCE_STUDIO_MODEL_ID = "seedance-25-studio-s14";
 const STALE_TASK_EXPIRED_ERROR =
     "task expired (provider tidak dapat dihubungi)";
 
@@ -1887,6 +1886,50 @@ function findDeepValue(
 }
 
 
+function getProviderFailureMessage(value) {
+    const message = findDeepValue(value, [
+        "error_message",
+        "errorMessage",
+        "failure_reason",
+        "failureReason",
+        "fail_reason",
+        "error_description",
+        "detail",
+        "details",
+        "reason",
+        "message"
+    ]);
+
+    if (typeof message === "string" && message.trim()) {
+        return cleanString(message);
+    }
+
+    if (message && typeof message === "object") {
+        const nestedMessage = firstDefined(
+            message.message,
+            message.detail,
+            message.details,
+            message.reason
+        );
+        if (typeof nestedMessage === "string" && nestedMessage.trim()) {
+            return cleanString(nestedMessage);
+        }
+    }
+
+    const error = findDeepValue(value, ["error"]);
+    if (typeof error === "string" && error.trim()) {
+        return cleanString(error);
+    }
+
+    const errorCode = findDeepValue(value, ["error_code", "errorCode", "code"]);
+    if (typeof errorCode === "string" && errorCode.trim()) {
+        return `Provider gagal memproses task (kode: ${cleanString(errorCode)}).`;
+    }
+
+    return "Provider gagal memproses task tanpa memberikan detail penyebab.";
+}
+
+
 /* =========================================================
    RESULT URL EXTRACTION
    ========================================================= */
@@ -2443,20 +2486,16 @@ async function autoFailStaleHistory(
             }
         );
 
-        if (
-            history.model_id === SEEDANCE_STUDIO_MODEL_ID
-        ) {
-            try {
-                await refundFailedGenerationCredits(
-                    userId,
-                    taskId
-                );
-            } catch (refundError) {
-                console.error(
-                    "[generate-status] Stale task credit refund failed:",
-                    serializeError(refundError)
-                );
-            }
+        try {
+            await refundFailedGenerationCredits(
+                userId,
+                taskId
+            );
+        } catch (refundError) {
+            console.error(
+                "[generate-status] Stale task credit refund failed:",
+                serializeError(refundError)
+            );
         }
 
 
@@ -2570,47 +2609,14 @@ async function updateGenerationHistory(
     else if (
         normalized.failed
     ) {
-        const providerErrorRaw =
-            firstDefined(
-                findDeepValue(
-                    normalized.raw,
-                    [
-                        "error_message",
-                        "errorMessage",
-                        "message",
-                        "error"
-                    ]
-                ),
-                "Provider gagal memproses task."
-            );
-
-
-        let providerError;
-
-
-        if (
-            typeof providerErrorRaw ===
-                "string"
-        ) {
-            providerError =
-                cleanString(
-                    providerErrorRaw
-                );
-        } else {
-            providerError =
-                safeJson(
-                    providerErrorRaw
-                );
-        }
-
-
         payload = {
             status:
                 "failed",
 
             error_message:
-                providerError ||
-                "Provider gagal memproses task.",
+                getProviderFailureMessage(
+                    normalized.raw
+                ),
 
             completed_at:
                 new Date().toISOString()
@@ -2937,39 +2943,14 @@ async function updateGenerationHistory(
         if (
             normalized.failed
         ) {
-            const providerErrorRaw =
-                firstDefined(
-                    findDeepValue(
-                        normalized.raw,
-                        [
-                            "error_message",
-                            "errorMessage",
-                            "message",
-                            "error"
-                        ]
-                    ),
-                    "Provider gagal memproses task."
-                );
-
-
-            const providerError =
-                typeof providerErrorRaw ===
-                    "string"
-                    ? cleanString(
-                        providerErrorRaw
-                    )
-                    : safeJson(
-                        providerErrorRaw
-                    );
-
-
             const fallbackPayload = {
                 status:
                     "failed",
 
                 error_message:
-                    providerError ||
-                    "Provider gagal memproses task."
+                    getProviderFailureMessage(
+                        normalized.raw
+                    )
             };
 
 
@@ -4102,6 +4083,57 @@ export default async function handler(
             );
         }
 
+        if (
+            existingHistory &&
+            lower(existingHistory.status) === "failed" &&
+            existingHistory.credit_refunded === false
+        ) {
+            const refund =
+                await refundFailedGenerationCredits(
+                    user.id,
+                    taskId
+                );
+            const expectedRefund =
+                Math.max(
+                    Number(existingHistory.credit_cost) || 0,
+                    0
+                );
+
+            if (
+                expectedRefund > 0 &&
+                Number(refund?.amount || 0) < expectedRefund
+            ) {
+                throw new Error(
+                    "Refund gagal diproses. Pastikan migration supabase/generation-failure-credit-refund.sql sudah dijalankan."
+                );
+            }
+
+            return json(
+                res,
+                200,
+                {
+                    success: true,
+                    user_id: user.id,
+                    model_id: modelId,
+                    task_id: taskId,
+                    taskId,
+                    state: "failed",
+                    provider_state: "failed",
+                    processing: false,
+                    completed: false,
+                    failed: true,
+                    error_message: existingHistory.error_message || null,
+                    credit_refunded: true,
+                    refunded_credit: refund?.amount ?? 0,
+                    history_updated: false,
+                    history_matched: true,
+                    history_status: "failed",
+                    history_row_id: existingHistory.id,
+                    history_database_status: "failed"
+                }
+            );
+        }
+
 
         const model =
             await loadModel(
@@ -4437,10 +4469,7 @@ export default async function handler(
             );
 
         let creditRefund = null;
-        if (
-            normalized.failed &&
-            modelId === SEEDANCE_STUDIO_MODEL_ID
-        ) {
+        if (normalized.failed) {
             try {
                 creditRefund = await refundFailedGenerationCredits(
                     user.id,

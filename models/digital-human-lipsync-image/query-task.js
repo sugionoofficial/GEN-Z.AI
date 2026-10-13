@@ -314,11 +314,17 @@ async function queryTask(
         errorMessage:
             response?.errorMessage ||
             response?.error_message ||
+            response?.failureReason ||
+            response?.failure_reason ||
+            response?.fail_reason ||
             null,
 
         error_message:
             response?.error_message ||
             response?.errorMessage ||
+            response?.failure_reason ||
+            response?.failureReason ||
+            response?.fail_reason ||
             null,
 
         raw:

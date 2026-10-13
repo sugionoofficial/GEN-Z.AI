@@ -222,12 +222,18 @@
                         item?.status
                     );
 
-                if (!isActiveStatus(status)) {
-                    return false;
-                }
-
                 const taskId =
                     getTaskId(item);
+
+                const needsFailedTaskRefund =
+                    status === "failed" &&
+                    item?.credit_refunded === false &&
+                    Boolean(taskId) &&
+                    Boolean(getModelId(item));
+
+                if (!isActiveStatus(status) && !needsFailedTaskRefund) {
+                    return false;
+                }
 
                 if (
                     taskId &&
