@@ -1292,14 +1292,17 @@
             });
             bubble.append(image);
         }
+        const senderName = message.sender_role === "support"
+            ? activeConversation?.admin_name ||
+                (isSupportAgent ? supportAgentName : "Admin Support")
+            : message.sender_role === "user"
+                ? activeConversation?.user_name ||
+                    (isSupportAgent ? "Pengunjung" : "Pengguna")
+                : "Info";
         bubble.append(
             createElement("span", "genz-chat-message-meta", {
                 text:
-                    (message.sender_role === "support"
-                        ? (supportAgentName || "Support") + " · "
-                        : message.sender_role === "system"
-                            ? "Info · "
-                            : "") +
+                    senderName + " · " +
                     formatTime(message.created_at)
             })
         );
