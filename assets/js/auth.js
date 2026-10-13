@@ -12,7 +12,7 @@
        PATCH v2.8 (FIX DEADLOCK):
        - autoRefreshToken: false  (sebelumnya true)
        - lock: no-op              (bypass Web Locks API)
-       - detectSessionInUrl: false
+       - detectSessionInUrl: true (untuk callback Google OAuth)
        - Expose client ke window.GENZ_SUPABASE
        - Refresh token manual via fetch
        ========================================================= */
@@ -77,7 +77,7 @@
     // FIX DEADLOCK:
     // - autoRefreshToken: false
     // - lock: no-op (langsung jalankan callback)
-    // - detectSessionInUrl: false
+    // - detectSessionInUrl: true (menangani callback Google OAuth)
     // =========================================================
 
     const supabaseClient =
@@ -88,7 +88,7 @@
                 auth: {
                     persistSession: true,
                     autoRefreshToken: false,
-                    detectSessionInUrl: false,
+                    detectSessionInUrl: true,
                     lock: async (_name, _acquireTimeout, fn) => {
 
                         return await fn();
@@ -131,6 +131,12 @@
 
     const loginMessage =
         document.getElementById("loginMessage");
+
+    const googleLoginButton =
+        document.getElementById("googleLoginButton");
+
+    const googleLoginPendingKey =
+        "genz_google_login_pending";
 
 
     // =========================================================
@@ -428,6 +434,69 @@
         return;
     }
 
+    if (googleLoginButton) {
+        googleLoginButton.addEventListener(
+            "click",
+            async function () {
+
+                googleLoginButton.disabled = true;
+                showMessage("Menghubungkan ke Google...");
+
+                try {
+                    window.sessionStorage.setItem(
+                        googleLoginPendingKey,
+                        "1"
+                    );
+
+                    const { error } =
+                        await supabaseClient.auth
+                            .signInWithOAuth({
+                                provider: "google",
+                                options: {
+                                    redirectTo: new URL(
+                                        "login.html",
+                                        window.location.href
+                                    ).href,
+                                    queryParams: {
+                                        prompt: "select_account"
+                                    }
+                                }
+                            });
+
+                    if (error) {
+                        throw error;
+                    }
+                } catch (error) {
+                    window.sessionStorage.removeItem(
+                        googleLoginPendingKey
+                    );
+                    googleLoginButton.disabled = false;
+                    console.error(
+                        "GEN-Z.AI Google login error:",
+                        error
+                    );
+                    showMessage(
+                        getFriendlyAuthError(error)
+                    );
+                }
+            }
+        );
+    }
+
+    const oauthError =
+        new URLSearchParams(window.location.search)
+            .get("error_description");
+
+    if (oauthError) {
+        window.sessionStorage.removeItem(
+            googleLoginPendingKey
+        );
+        showMessage(
+            "Login Google gagal: " +
+            oauthError
+        );
+    }
+
 
     // =========================================================
     // INPUT ELEMENT
@@ -463,6 +532,101 @@
 
             }
         );
+    }
+
+
+    async function completeAuthenticatedLogin(user) {
+
+        const {
+            data: sessionData,
+            error: sessionError
+        } = await supabaseClient.auth.getSession();
+
+        if (sessionError) {
+            throw new Error(
+                "Gagal membaca session: " +
+                sessionError.message
+            );
+        }
+
+        if (
+            !sessionData?.session ||
+            sessionData.session.user.id !== user.id
+        ) {
+            await supabaseClient.auth.signOut();
+            throw new Error("Session Supabase tidak sesuai dengan user.");
+        }
+
+        const {
+            data: profiles,
+            error: profileError
+        } = await supabaseClient
+            .from("profiles")
+            .select("id,email,name,role,credits,status")
+            .eq("id", user.id);
+
+        if (profileError) {
+            throw new Error(
+                "Gagal mengambil profile: " +
+                profileError.message
+            );
+        }
+
+        if (
+            !Array.isArray(profiles) ||
+            profiles.length === 0 ||
+            profiles[0].id !== user.id
+        ) {
+            await supabaseClient.auth.signOut();
+            throw new Error(
+                "Profile belum ditemukan atau tidak sesuai untuk akun ini."
+            );
+        }
+
+        const profile = profiles[0];
+        const accountStatus = String(profile.status || "")
+            .trim()
+            .toLowerCase();
+
+        if (accountStatus === "suspended") {
+            await supabaseClient.auth.signOut();
+            showLoginStatusHologram("suspended");
+            throw new Error("Akun Anda sedang ditangguhkan.");
+        }
+
+        if (accountStatus === "banned") {
+            await supabaseClient.auth.signOut();
+            showLoginStatusHologram("banned");
+            throw new Error("Akun Anda telah diblokir.");
+        }
+
+        if (accountStatus !== "active") {
+            await supabaseClient.auth.signOut();
+            hideLoginStatusHologram();
+            throw new Error("Status akun tidak valid.");
+        }
+
+        const role = String(profile.role || "")
+            .trim()
+            .toUpperCase();
+
+        if (role === "USER") {
+            hideLoginStatusHologram();
+            showMessage("Login berhasil. Membuka dashboard...");
+            window.location.href = "user/dashboard.html";
+            return;
+        }
+
+        if (role === "ADMIN" || role === "OWNER") {
+            hideLoginStatusHologram();
+            showMessage("Login berhasil. Membuka dashboard admin...");
+            window.location.href = "admin/dashboard/index.html";
+            return;
+        }
+
+        await supabaseClient.auth.signOut();
+        hideLoginStatusHologram();
+        throw new Error("Role akun tidak valid.");
     }
 
 
@@ -570,274 +734,8 @@
                 }
 
 
-                const userId =
-                    authData.user.id;
-
-
-                // =================================================
-                // GET SESSION
-                // =================================================
-
-                const {
-                    data: sessionData,
-                    error: sessionError
-                } =
-                    await supabaseClient.auth
-                        .getSession();
-
-
-                if (sessionError) {
-
-                    throw new Error(
-                        "Gagal membaca session: " +
-                        sessionError.message
-                    );
-                }
-
-
-                if (
-                    !sessionData ||
-                    !sessionData.session
-                ) {
-
-                    throw new Error(
-                        "Session Supabase tidak ditemukan."
-                    );
-                }
-
-
-                const sessionUser =
-                    sessionData.session.user;
-
-
-                if (
-                    sessionUser.id !== userId
-                ) {
-
-                    await supabaseClient.auth
-                        .signOut();
-
-
-                    hideLoginStatusHologram();
-
-
-                    throw new Error(
-                        "User ID session tidak sesuai."
-                    );
-                }
-
-
-                // =================================================
-                // AMBIL PROFILE
-                // =================================================
-
-                const {
-                    data: profiles,
-                    error: profileError
-                } =
-                    await supabaseClient
-                        .from("profiles")
-                        .select(
-                            "id,email,name,role,credits,status"
-                        )
-                        .eq(
-                            "id",
-                            userId
-                        );
-
-
-                if (profileError) {
-
-                    throw new Error(
-                        "Gagal mengambil profile: " +
-                        profileError.message
-                    );
-                }
-
-
-                if (
-                    !Array.isArray(profiles) ||
-                    profiles.length === 0
-                ) {
-
-                    await supabaseClient.auth
-                        .signOut();
-
-
-                    hideLoginStatusHologram();
-
-
-                    throw new Error(
-                        "Profile belum ditemukan untuk akun ini."
-                    );
-                }
-
-
-                const profile =
-                    profiles[0];
-
-
-                if (
-                    profile.id !== userId
-                ) {
-
-                    await supabaseClient.auth
-                        .signOut();
-
-
-                    hideLoginStatusHologram();
-
-
-                    throw new Error(
-                        "ID profile tidak sesuai dengan user."
-                    );
-                }
-
-
-                // =================================================
-                // NORMALISASI STATUS AKUN
-                // =================================================
-
-                const accountStatus =
-                    String(
-                        profile.status || ""
-                    )
-                        .trim()
-                        .toLowerCase();
-
-
-                // =================================================
-                // SUSPENDED
-                // =================================================
-
-                if (
-                    accountStatus ===
-                    "suspended"
-                ) {
-
-                    await supabaseClient.auth
-                        .signOut();
-
-
-                    showLoginStatusHologram(
-                        "suspended"
-                    );
-
-
-                    throw new Error(
-                        "Akun Anda sedang ditangguhkan."
-                    );
-                }
-
-
-                // =================================================
-                // BANNED
-                // =================================================
-
-                if (
-                    accountStatus ===
-                    "banned"
-                ) {
-
-                    await supabaseClient.auth
-                        .signOut();
-
-
-                    showLoginStatusHologram(
-                        "banned"
-                    );
-
-
-                    throw new Error(
-                        "Akun Anda telah diblokir."
-                    );
-                }
-
-
-                // =================================================
-                // STATUS HARUS ACTIVE
-                // =================================================
-
-                if (
-                    accountStatus !==
-                    "active"
-                ) {
-
-                    await supabaseClient.auth
-                        .signOut();
-
-
-                    hideLoginStatusHologram();
-
-
-                    throw new Error(
-                        "Status akun tidak valid."
-                    );
-                }
-
-
-                // =================================================
-                // VALIDASI ROLE
-                // =================================================
-
-                const role =
-                    String(
-                        profile.role || ""
-                    )
-                        .trim()
-                        .toUpperCase();
-
-
-                if (
-                    role === "USER"
-                ) {
-
-                    hideLoginStatusHologram();
-
-
-                    showMessage(
-                        "Login berhasil. Membuka dashboard..."
-                    );
-
-
-                    window.location.href =
-                        "user/dashboard.html";
-
-
-                    return;
-                }
-
-
-                if (
-                    role === "ADMIN" ||
-                    role === "OWNER"
-                ) {
-
-                    hideLoginStatusHologram();
-
-
-                    showMessage(
-                        "Login berhasil. Membuka dashboard admin..."
-                    );
-
-
-                    window.location.href =
-                        "admin/dashboard/index.html";
-
-
-                    return;
-                }
-
-
-                await supabaseClient.auth
-                    .signOut();
-
-
-                hideLoginStatusHologram();
-
-
-                throw new Error(
-                    "Role akun tidak valid."
+                await completeAuthenticatedLogin(
+                    authData.user
                 );
 
             }
@@ -870,6 +768,37 @@
 
     supabaseClient.auth.onAuthStateChange(
         function (event, session) {
+
+            if (
+                event === "SIGNED_IN" &&
+                session &&
+                window.sessionStorage.getItem(
+                    googleLoginPendingKey
+                ) === "1"
+            ) {
+                window.sessionStorage.removeItem(
+                    googleLoginPendingKey
+                );
+                setLoading(true);
+                showMessage(
+                    "Google berhasil. Memeriksa akun..."
+                );
+
+                window.setTimeout(function () {
+                    void completeAuthenticatedLogin(
+                        session.user
+                    ).catch(function (error) {
+                        console.error(
+                            "GEN-Z.AI Google login error:",
+                            error
+                        );
+                        showMessage(
+                            getFriendlyAuthError(error)
+                        );
+                        setLoading(false);
+                    });
+                }, 0);
+            }
 
             if (
                 event === "SIGNED_OUT"

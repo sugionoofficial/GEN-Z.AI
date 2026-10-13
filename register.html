@@ -1571,6 +1571,66 @@
 
         }
 
+        .google-auth-option {
+            margin: 20px 0 16px;
+        }
+
+        .google-auth-button {
+            width: 100%;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.045);
+            color: var(--text);
+            font: 700 13px Inter, system-ui, sans-serif;
+            cursor: pointer;
+        }
+
+        .google-auth-button:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .google-auth-button:disabled {
+            cursor: wait;
+            opacity: 0.65;
+        }
+
+        .google-mark {
+            background: conic-gradient(
+                from -45deg,
+                #4285f4 0 25%,
+                #34a853 25% 50%,
+                #fbbc05 50% 75%,
+                #ea4335 75% 100%
+            );
+            background-clip: text;
+            color: transparent;
+            font-size: 22px;
+            font-weight: 900;
+        }
+
+        .google-auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+        }
+
+        .google-auth-divider span {
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+
     </style>
 
 </head>
@@ -1705,6 +1765,21 @@
                     aria-live="polite"
                 ></div>
 
+                <div class="google-auth-option">
+                    <button
+                        type="button"
+                        id="googleRegisterButton"
+                        class="google-auth-button"
+                    >
+                        <span class="google-mark" aria-hidden="true">G</span>
+                        <span>Daftar dengan Google</span>
+                    </button>
+                    <div class="google-auth-divider">
+                        <span></span>
+                        <span>ATAU DAFTAR DENGAN EMAIL</span>
+                        <span></span>
+                    </div>
+                </div>
 
                 <form
                     id="registerForm"
@@ -2104,6 +2179,11 @@
                     "registerMessage"
                 );
 
+            const googleRegisterButton =
+                document.getElementById(
+                    "googleRegisterButton"
+                );
+
             const nameInput =
                 document.getElementById(
                     "name"
@@ -2221,6 +2301,64 @@
                     "message";
 
             }
+
+            googleRegisterButton.addEventListener(
+                "click",
+                async function () {
+
+                    googleRegisterButton.disabled =
+                        true;
+
+                    showMessage(
+                        "Menghubungkan ke Google...",
+                        "success"
+                    );
+
+                    try {
+                        if (!supabaseClient) {
+                            initializeSupabase();
+                        }
+
+                        window.sessionStorage.setItem(
+                            "genz_google_login_pending",
+                            "1"
+                        );
+
+                        const { error } =
+                            await supabaseClient.auth
+                                .signInWithOAuth({
+                                    provider: "google",
+                                    options: {
+                                        redirectTo: new URL(
+                                            "login.html",
+                                            window.location.href
+                                        ).href,
+                                        queryParams: {
+                                            prompt: "select_account"
+                                        }
+                                    }
+                                });
+
+                        if (error) {
+                            throw error;
+                        }
+                    } catch (error) {
+                        window.sessionStorage.removeItem(
+                            "genz_google_login_pending"
+                        );
+                        googleRegisterButton.disabled =
+                            false;
+                        console.error(
+                            "GEN-Z.AI Google registration error:",
+                            error
+                        );
+                        showMessage(
+                            getErrorMessage(error),
+                            "error"
+                        );
+                    }
+                }
+            );
 
 
             /* =====================================================
