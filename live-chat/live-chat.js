@@ -157,10 +157,67 @@
             body.append(attachmentContainer);
         }
 
+        if (!typing) {
+            const copyRow = document.createElement("div");
+            copyRow.className = "message-copy-row";
+
+            const copyButton = document.createElement("button");
+            copyButton.className = "message-copy";
+            copyButton.type = "button";
+            copyButton.setAttribute("aria-label", "Salin teks chat");
+            copyButton.title = "Salin teks chat";
+            copyButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Salin</span>';
+            copyButton.addEventListener("click", async () => {
+                try {
+                    await copyText(content);
+                    copyButton.classList.add("copied");
+                    copyButton.setAttribute("aria-label", "Teks chat disalin");
+                    copyButton.title = "Tersalin";
+                    copyButton.querySelector("span").textContent = "Tersalin";
+                    window.setTimeout(() => {
+                        copyButton.classList.remove("copied");
+                        copyButton.setAttribute("aria-label", "Salin teks chat");
+                        copyButton.title = "Salin teks chat";
+                        copyButton.querySelector("span").textContent = "Salin";
+                    }, 1600);
+                } catch (copyError) {
+                    setNotice(copyError.message || "Gagal menyalin teks chat.", true);
+                }
+            });
+
+            copyRow.append(copyButton);
+            body.append(copyRow);
+        }
+
         message.append(avatar, body);
         transcript.append(message);
         transcript.scrollTop = transcript.scrollHeight;
         return message;
+    }
+
+    async function copyText(text) {
+        const value = String(text || "");
+        if (!value) {
+            throw new Error("Tidak ada teks pada chat ini untuk disalin.");
+        }
+
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(value);
+            return;
+        }
+
+        const temporaryInput = document.createElement("textarea");
+        temporaryInput.value = value;
+        temporaryInput.setAttribute("readonly", "");
+        temporaryInput.style.position = "fixed";
+        temporaryInput.style.opacity = "0";
+        document.body.append(temporaryInput);
+        temporaryInput.select();
+        const copied = document.execCommand("copy");
+        temporaryInput.remove();
+        if (!copied) {
+            throw new Error("Browser tidak mengizinkan menyalin ke clipboard.");
+        }
     }
 
     function responseText(data) {

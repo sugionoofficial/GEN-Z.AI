@@ -66,6 +66,11 @@
         .message-content { min-width: 0; padding: 12px 15px; border: 1px solid var(--chat-line); border-radius: 4px 15px 15px; background: rgba(255,255,255,.045); color: #e4e7f0; font-size: 13px; line-height: 1.75; overflow-wrap: anywhere; white-space: pre-wrap; }
         .user .message-content { border-color: rgba(139,124,255,.25); border-radius: 15px 4px 15px 15px; background: linear-gradient(135deg, rgba(104,88,219,.25), rgba(58,89,142,.19)); color: #fff; }
         .message-error .message-content { border-color: rgba(255,112,125,.28); color: #ffb9bf; }
+        .message-copy-row { display: flex; justify-content: flex-end; margin-top: 7px; }
+        .message-copy { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #9299ad; font: inherit; font-size: 10px; cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
+        .message-copy:hover, .message-copy:focus-visible { border-color: var(--chat-line); background: rgba(255,255,255,.05); color: #e4e7f0; outline: none; }
+        .message-copy svg { width: 13px; height: 13px; }
+        .message-copy.copied { color: #8ce4ba; }
         .typing { display: inline-flex; align-items: center; gap: 5px; min-height: 18px; }
         .typing i { width: 5px; height: 5px; border-radius: 50%; background: #b9b1ff; animation: pulse 1s infinite ease-in-out; }
         .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
