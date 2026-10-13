@@ -90,7 +90,7 @@
 
         .section {
             position: relative;
-            padding: 0;
+            padding: 8px 0;
         }
 
         .section-title {
@@ -314,7 +314,7 @@
             overflow: hidden;
 
             padding:
-                70px 0 0px;
+                70px 0 8px;
         }
 
         .hero::before {
@@ -770,13 +770,41 @@
             letter-spacing: 0;
         }
 
+        .payment-methods {
+            padding: 8px 0;
+        }
+
+        .payment-inner {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .payment-label {
+            color: var(--text-soft);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .payment-method {
+            padding: 7px 12px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--panel);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
 
         /* =========================================================
            PROMO
         ========================================================= */
 
         .promo {
-            padding-top: 0;
+            padding-top: 8px;
         }
 
         .promo-card {
@@ -1232,7 +1260,7 @@
         ========================================================= */
 
         .final-cta {
-            padding-bottom: 0;
+            padding-bottom: 8px;
         }
 
         .cta-box {
@@ -1395,7 +1423,7 @@
             }
 
             .section {
-                padding: 0;
+                padding: 8px 0;
             }
 
             .nav-inner {
@@ -1419,7 +1447,7 @@
 
             .hero {
                 padding:
-                    92px 0 55px;
+                    92px 0 8px;
             }
 
             .hero-copy h1 {
@@ -1542,7 +1570,7 @@
         @media (max-width: 768px) {
 
             .hero {
-                padding: 92px 0 0;
+                padding: 92px 0 8px;
             }
 
             .trust-strip {
@@ -1988,6 +2016,18 @@
                     Intelligent Creation
                 </div>
 
+            </div>
+
+        </section>
+
+        <section class="payment-methods" aria-label="Metode pembayaran">
+
+            <div class="container payment-inner">
+                <span class="payment-label">Pembayaran didukung:</span>
+                <span class="payment-method">BCA</span>
+                <span class="payment-method">DANA</span>
+                <span class="payment-method">QRIS</span>
+                <span class="payment-method">SeaBank</span>
             </div>
 
         </section>
