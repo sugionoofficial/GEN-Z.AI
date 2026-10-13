@@ -402,6 +402,12 @@
     </span>
 </button>
 
+                        <a
+                            class="register-link-button"
+                            href="register.html"
+                        >
+                            REGISTER
+                        </a>
 
                         <!-- =====================================
                              LOGIN MESSAGE
@@ -4156,6 +4162,34 @@
     opacity: 1 !important;
     width: 100% !important;
     height: 48px !important;
+}
+
+.register-link-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 48px;
+    margin-top: 12px;
+    border: 1px solid rgba(225, 29, 46, .28);
+    border-radius: 14px;
+    background: rgba(225, 29, 46, .06);
+    color: #b42332;
+    font: 800 12px/1 Inter, sans-serif;
+    letter-spacing: .08em;
+    text-decoration: none;
+    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.register-link-button:hover {
+    border-color: rgba(225, 29, 46, .48);
+    background: rgba(225, 29, 46, .11);
+    transform: translateY(-1px);
+}
+
+.register-link-button:focus-visible {
+    outline: 2px solid rgba(225, 29, 46, .55);
+    outline-offset: 3px;
 }
 
 @media (min-width: 601px) {

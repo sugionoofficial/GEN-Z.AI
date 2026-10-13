@@ -1247,6 +1247,68 @@
 
         }
 
+        .login-link-button {
+
+            width:
+                100%;
+
+            min-height:
+                48px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            margin-top:
+                12px;
+
+            border:
+                1px solid
+                rgba(255,255,255,.16);
+
+            border-radius:
+                var(--radius);
+
+            background:
+                rgba(255,255,255,.04);
+
+            color:
+                #ffffff;
+
+            font-family:
+                inherit;
+
+            font-size:
+                13px;
+
+            font-weight:
+                700;
+
+            text-decoration:
+                none;
+
+            transition:
+                background .18s ease,
+                border-color .18s ease,
+                transform .18s ease;
+        }
+
+        .login-link-button:hover {
+            border-color: rgba(255,255,255,.3);
+            background: rgba(255,255,255,.09);
+            transform: translateY(-1px);
+        }
+
+        .login-link-button:focus-visible {
+            outline: 2px solid var(--red);
+            outline-offset: 3px;
+        }
+
 
         /* =========================================================
            SPINNER
@@ -2039,6 +2101,13 @@
                             Buat Akun
                         </span>
                     </button>
+
+                    <a
+                        class="login-link-button"
+                        href="login.html"
+                    >
+                        Login
+                    </a>
 
 
                 </form>
