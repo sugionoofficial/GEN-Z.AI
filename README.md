@@ -175,6 +175,16 @@ Supabase Authentication URL Configuration, set the same origin as the Site URL
 and allow `https://genzai-steel.vercel.app/login.html` as a Redirect URL so
 email sign-in and signup links return to the deployed site rather than localhost.
 
+### Live Support Chat
+
+The floating support chat is loaded across the site's HTML pages. Before using
+it, run `supabase/support-chat.sql` in the Supabase SQL Editor and enable
+**Anonymous Sign-Ins** under Authentication → Providers → Anonymous so visitors
+without an account can open a support conversation. Authenticated administrators
+and owners can reply to open conversations from the same floating chat inbox.
+The SQL migration restricts conversations and messages to their owner and
+support staff using row-level security.
+
 ### Cloudflare Workers (migrasi bertahap)
 
 Repository ini menyediakan konfigurasi Cloudflare Worker yang menayangkan aset
