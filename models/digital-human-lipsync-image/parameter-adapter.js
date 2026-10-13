@@ -15,10 +15,10 @@
    IMPORTANT:
    - image_urls WAJIB
    - audio_url WAJIB
-   - prompt WAJIB
+   - prompt opsional
    - duration dari parameters.js (dikirim sebagai STRING)
    - aspect_ratio TIDAK dikirim (tidak didukung Motiongen)
-   - resolution TIDAK dikirim (provider pakai default)
+   - resolution dikirim sebagai STRING (default "576p")
    - credit TIDAK dikirim
    - nsfw_checker TIDAK digunakan
    - Tidak ada KIE fallback
@@ -256,6 +256,46 @@ function normalizeDuration(
 
 
 /* =========================================================
+   RESOLUTION
+========================================================= */
+
+function normalizeResolution(
+    value
+) {
+
+    const resolution =
+        normalizeString(
+            value
+        ).toLowerCase();
+
+
+    if (
+        resolution === "480p" ||
+        resolution === "576p" ||
+        resolution === "576phd"
+    ) {
+
+        return "576p";
+
+    }
+
+
+    if (
+        resolution === "720p" ||
+        resolution === "720phd"
+    ) {
+
+        return "720p";
+
+    }
+
+
+    return resolution || "576p";
+
+}
+
+
+/* =========================================================
    GET PARAMETERS
 ========================================================= */
 
@@ -289,6 +329,11 @@ function getParameters(
         duration:
             normalizeDuration(
                 source.duration
+            ),
+
+        resolution:
+            normalizeResolution(
+                source.resolution
             )
 
         /*
@@ -387,6 +432,11 @@ function sanitizeParameters(
             parameters.duration
         );
 
+    parameters.resolution =
+        normalizeResolution(
+            parameters.resolution
+        );
+
 
     /*
      * -----------------------------------------------------
@@ -396,7 +446,6 @@ function sanitizeParameters(
      * Jangan menambahkan:
      *
      * - aspect_ratio     (tidak didukung Motiongen)
-     * - resolution       (provider pakai default)
      * - credit
      * - credit_final
      * - credit_480p

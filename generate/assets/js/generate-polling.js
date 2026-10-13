@@ -13,7 +13,7 @@
    - Mengambil result URL dari backend
    - Memastikan generation_history sudah tersinkron sebelum
      polling terminal dianggap benar-benar selesai
-   - Timeout polling
+   - Polling tanpa batas hingga status terminal dari provider
    - Menyediakan callback/event untuk module lain
 
    Tidak bertanggung jawab:
@@ -77,7 +77,6 @@
    - Forward signal ke fetch
    - Abortable sleep
    - Gate debug log via window.GENZ_DEBUG
-   - Batas maksimum history reconciliation
 ========================================================= */
 
 
@@ -99,14 +98,14 @@ const DEFAULT_INTERVAL =
 
 
 const DEFAULT_TIMEOUT =
-    10 * 60 * 1000;
+    Number.POSITIVE_INFINITY;
 
 
 /*
  * Timeout per request fetch ke /api/generate-status.
  *
- * Berbeda dari timeout polling total. Ini untuk
- * mencegah 1 request hang menghentikan seluruh polling.
+ * Mencegah satu request status yang hang menghentikan
+ * polling; timeout ini tidak membatasi durasi generation.
  */
 
 const STATUS_REQUEST_TIMEOUT_MS =
@@ -116,9 +115,9 @@ const STATUS_REQUEST_TIMEOUT_MS =
 /*
  * Konfigurasi retry untuk network error.
  *
- * Retry HANYA untuk network error / timeout, bukan
- * untuk HTTP error (4xx/5xx) yang merupakan respons
- * valid dari backend.
+ * Retry standar hanya untuk network error / timeout.
+ * Mode retryUntilTerminal juga mencoba ulang HTTP 429/5xx
+ * sampai endpoint status kembali bisa diakses.
  */
 
 const MAX_NETWORK_RETRIES =
@@ -128,17 +127,8 @@ const MAX_NETWORK_RETRIES =
 const RETRY_BASE_DELAY_MS =
     1000;
 
-
-/*
- * Batas maksimum history reconciliation berturut-turut.
- *
- * Jika melewati batas ini, polling return result apa
- * adanya agar tidak loop selamanya bila backend memiliki
- * bug sinkronisasi.
- */
-
-const MAX_HISTORY_RECONCILIATION_COUNT =
-    60;
+const MAX_RETRY_DELAY_MS =
+    30 * 1000;
 
 
 /*
@@ -2362,13 +2352,17 @@ function normalizePollingOptions(
 
 
     const timeout =
-        Math.max(
-            interval,
-            normalizeNumber(
-                options.timeout,
-                DEFAULT_TIMEOUT
-            )
-        );
+        options.timeout === null
+            ? Number.POSITIVE_INFINITY
+            : options.timeout === undefined
+                ? DEFAULT_TIMEOUT
+                : Math.max(
+                    interval,
+                    normalizeNumber(
+                        options.timeout,
+                        DEFAULT_TIMEOUT
+                    )
+                );
 
 
     const modelId =
@@ -2394,6 +2388,9 @@ function normalizePollingOptions(
         timeout,
 
         modelId,
+
+        retryUntilTerminal:
+            options.retryUntilTerminal === true,
 
         signal:
             options.signal ||
@@ -2504,25 +2501,39 @@ function isHistorySynchronized(
 /* =========================================================
    IS RETRYABLE ERROR
    ---------------------------------------------------------
-   Hanya network error & timeout yang layak di-retry.
-
-   HTTP error (4xx/5xx) adalah respons valid backend,
-   tidak boleh di-retry.
+   Dalam mode retryUntilTerminal, semua error status endpoint
+   dicoba ulang. Hanya status terminal provider yang mengakhiri
+   polling sebagai success atau failed.
 ========================================================= */
 
 function isRetryableError(
-    error
+    error,
+    retryUntilTerminal = false
 ) {
 
     const code =
         error?.code;
 
+    const status =
+        Number(error?.status);
+
+    if (
+        retryUntilTerminal &&
+        (
+            error?.response ||
+            status >= 400
+        )
+    ) {
+        return true;
+    }
 
     return (
         code ===
             "NETWORK_ERROR" ||
         code ===
-            "REQUEST_TIMEOUT"
+            "REQUEST_TIMEOUT" ||
+        status === 429 ||
+        status >= 500
     );
 
 }
@@ -2687,14 +2698,7 @@ export async function pollTask(
         let result;
 
 
-        /* =================================================
-           RETRY LOOP UNTUK NETWORK ERROR
-           -------------------------------------------------
-           Maksimum MAX_NETWORK_RETRIES percobaan ulang
-           dengan exponential backoff.
-
-           Cancellation tetap diprioritaskan.
-        ================================================= */
+        /* Retry status sementara tanpa mengubahnya menjadi task failed. */
 
         let retryCount =
             0;
@@ -2762,15 +2766,15 @@ export async function pollTask(
 
 
                 /* =========================================
-                   RETRY UNTUK NETWORK ERROR
+                   RETRY UNTUK STATUS SEMENTARA
                 ========================================= */
 
                 if (
-                    isRetryableError(
-                        error
-                    ) &&
-                    retryCount <
-                        MAX_NETWORK_RETRIES
+                    isRetryableError(error, polling.retryUntilTerminal) &&
+                    (
+                        polling.retryUntilTerminal ||
+                        retryCount < MAX_NETWORK_RETRIES
+                    )
                 ) {
 
                     retryCount +=
@@ -2778,18 +2782,18 @@ export async function pollTask(
 
 
                     const delay =
-                        RETRY_BASE_DELAY_MS *
-                        Math.pow(
-                            2,
-                            retryCount - 1
+                        Math.min(
+                            RETRY_BASE_DELAY_MS * Math.pow(2, retryCount - 1),
+                            MAX_RETRY_DELAY_MS
                         );
 
 
                     debugLog(
                         "[GEN-Z.AI] Polling retry",
                         retryCount,
-                        "/",
-                        MAX_NETWORK_RETRIES,
+                        polling.retryUntilTerminal
+                            ? "(tanpa batas sampai status terminal)"
+                            : `/ ${MAX_NETWORK_RETRIES}`,
                         "setelah",
                         delay,
                         "ms. Kode:",
@@ -3069,9 +3073,8 @@ export async function pollTask(
                /api/generate-status agar backend bisa
                melakukan reconciliation ulang.
 
-               Ada batas MAX_HISTORY_RECONCILIATION_COUNT
-               untuk mencegah loop tak berujung bila backend
-               mengalami bug sinkronisasi.
+               Terus meminta backend melakukan reconciliation
+               sampai generation_history tersinkron.
             ============================================= */
 
             historyReconciliationCount +=
@@ -3120,35 +3123,6 @@ export async function pollTask(
 
                     }
                 );
-            }
-
-
-            /* =========================================
-               SAFETY LIMIT
-            ========================================= */
-
-            if (
-                historyReconciliationCount >=
-                MAX_HISTORY_RECONCILIATION_COUNT
-            ) {
-
-                console.warn(
-                    "[GEN-Z.AI] Batas maksimum history reconciliation tercapai. Mengembalikan hasil apa adanya.",
-                    {
-                        task_id:
-                            normalizedTaskId,
-
-                        model_id:
-                            polling.modelId,
-
-                        history_reconciliation_count:
-                            historyReconciliationCount
-                    }
-                );
-
-
-                return result;
-
             }
 
 

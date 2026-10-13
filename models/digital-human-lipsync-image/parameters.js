@@ -23,12 +23,12 @@
    IMPORTANT:
    - image_urls WAJIB, tepat 1 image
    - audio_url WAJIB
-   - prompt WAJIB (untuk UX, walau API opsional)
+   - prompt opsional
    - duration DIKIRIM ke Motiongen API sebagai STRING
      Pilihan: "10", "15", "20", "25", "30"
-   - aspect_ratio DIKIRIM ke Motiongen API
+   - aspect_ratio tidak didukung oleh model ini
    - resolution DIKIRIM ke Motiongen API
-     Pilihan: "576p", "720p"
+     Pilihan: "576p", "720p" (default: "576p")
    - resolution juga dipakai GEN-Z.AI untuk hitung credit
    - credit TIDAK didefinisikan di sini
    - nsfw_checker TIDAK digunakan
@@ -54,8 +54,7 @@ const parameters = [
     /* =====================================================
        PROMPT
        -----------------------------------------------------
-       Wajib di UI (untuk UX).
-       API motiongen menerima sebagai field opsional.
+       Opsional untuk API maupun UI.
     ===================================================== */
 
     {
@@ -66,13 +65,13 @@ const parameters = [
             "string",
 
         required:
-            true,
+            false,
 
         maxLength:
             30000,
 
         description:
-            "Prompt untuk Digital Human LipSync."
+            "Deskripsi opsional untuk Digital Human LipSync."
     },
 
 
@@ -100,7 +99,7 @@ const parameters = [
             1,
 
         description:
-            "Satu URL publik JPG atau PNG sebagai sumber wajah Digital Human."
+            "Satu URL publik JPG, PNG, atau WEBP sebagai sumber wajah Digital Human."
     },
 
 
@@ -122,37 +121,6 @@ const parameters = [
 
         description:
             "URL publik file audio MP3 atau WAV untuk proses LipSync."
-    },
-
-
-    /* =====================================================
-       ASPECT RATIO
-       -----------------------------------------------------
-       Provider-owned parameter.
-       Dikirim ke Motiongen sebagai aspect_ratio.
-    ===================================================== */
-
-    {
-        name:
-            "aspect_ratio",
-
-        type:
-            "string",
-
-        required:
-            false,
-
-        enum: [
-            "16:9",
-            "9:16",
-            "1:1"
-        ],
-
-        default:
-            "16:9",
-
-        description:
-            "Aspect ratio video yang didukung Motiongen-AI."
     },
 
 
@@ -213,7 +181,7 @@ const parameters = [
             "string",
 
         required:
-            true,
+            false,
 
         enum: [
             "576p",
@@ -221,10 +189,10 @@ const parameters = [
         ],
 
         default:
-            "720p",
+            "576p",
 
         description:
-            "Resolusi video (dikirim ke Motiongen-AI) dan dipakai untuk menghitung kredit GEN-Z.AI."
+            "Resolusi video Motiongen-AI dan kredit GEN-Z.AI. Default: 576p."
     },
 
 
@@ -372,13 +340,7 @@ function validate(
         );
 
 
-    if (!prompt) {
-
-        errors.push(
-            "Prompt wajib diisi."
-        );
-
-    } else {
+    if (prompt) {
 
         const definition =
             getParameter(
@@ -462,7 +424,7 @@ function validate(
     const resolution =
         input.resolution == null
 
-            ? "720p"
+            ? "576p"
 
             : String(
                 input.resolution
@@ -489,43 +451,6 @@ function validate(
 
         errors.push(
             `Resolution tidak valid. Gunakan: ${resolutionDefinition.enum.join(", ")}.`
-        );
-
-    }
-
-
-    /* =====================================================
-       ASPECT RATIO
-    ===================================================== */
-
-    const aspectRatio =
-        input.aspect_ratio == null
-
-            ? "16:9"
-
-            : String(
-                input.aspect_ratio
-            ).trim();
-
-
-    const aspectRatioDefinition =
-        getParameter(
-            "aspect_ratio"
-        );
-
-
-    if (
-        aspectRatioDefinition &&
-        Array.isArray(
-            aspectRatioDefinition.enum
-        ) &&
-        !aspectRatioDefinition.enum.includes(
-            aspectRatio
-        )
-    ) {
-
-        errors.push(
-            `Aspect ratio tidak valid. Gunakan: ${aspectRatioDefinition.enum.join(", ")}.`
         );
 
     }

@@ -1615,7 +1615,6 @@ async function handleGenerateSubmit(
             "6. Sebelum polling"
         );
 
-
         const result =
             await polling.pollGenerateTask(
                 taskId,
@@ -1625,10 +1624,13 @@ async function handleGenerateSubmit(
                         modelId,
 
                     interval:
-                        3000,
+                        10000,
 
                     timeout:
-                        15 * 60 * 1000,
+                        null,
+
+                    retryUntilTerminal:
+                        true,
 
                     onUpdate:
                         update => {
