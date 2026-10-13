@@ -168,6 +168,13 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-secret-key
 
 Vercel akan otomatis mendeteksi folder `api/` sebagai serverless functions.
 
+### Email Link Authentication
+
+Set `SITE_URL` in `assets/js/config.js` to the deployed site origin. In
+Supabase Authentication URL Configuration, set the same origin as the Site URL
+and allow `https://genzai-steel.vercel.app/login.html` as a Redirect URL so
+email sign-in and signup links return to the deployed site rather than localhost.
+
 ### Cloudflare Workers (migrasi bertahap)
 
 Repository ini menyediakan konfigurasi Cloudflare Worker yang menayangkan aset

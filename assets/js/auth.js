@@ -470,7 +470,7 @@
                                     shouldCreateUser: false,
                                     emailRedirectTo: new URL(
                                         "login.html?auth=email-link",
-                                        window.location.href
+                                        window.GENZ_CONFIG.SITE_URL
                                     ).href
                                 }
                             });
