@@ -47,7 +47,17 @@ async function supabase(path, options = {}) {
     }
 
     if (!response.ok) {
-        throw fail(data?.message || data?.error || "Permintaan Supabase gagal.", response.status);
+        const message = String(data?.message || data?.error || "");
+        if (
+            response.status === 404 &&
+            (data?.code === "PGRST205" || /feature_credit_settings.*schema cache/i.test(message))
+        ) {
+            throw fail(
+                "Tabel tarif belum tersedia di Supabase. Jalankan supabase/feature-credit-settings.sql melalui Supabase SQL Editor, lalu muat ulang halaman. Jika migration sudah dijalankan, tunggu beberapa saat agar schema cache diperbarui.",
+                503
+            );
+        }
+        throw fail(message || "Permintaan Supabase gagal.", response.status);
     }
 
     return data;

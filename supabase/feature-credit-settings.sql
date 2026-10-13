@@ -231,3 +231,5 @@ revoke all on function public.charge_feature_credits(uuid, text, uuid) from publ
 revoke all on function public.settle_feature_credits(uuid, uuid, text) from public, anon, authenticated;
 grant execute on function public.charge_feature_credits(uuid, text, uuid) to service_role;
 grant execute on function public.settle_feature_credits(uuid, uuid, text) to service_role;
+
+notify pgrst, 'reload schema';

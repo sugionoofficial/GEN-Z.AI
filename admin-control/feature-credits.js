@@ -13,6 +13,7 @@
     const list = document.getElementById("settings-list");
     const button = document.getElementById("save-button");
     const status = document.getElementById("status");
+    const retryButton = document.getElementById("retry-button");
 
     function getClient() {
         const config = window.GENZ_CONFIG || {};
@@ -54,10 +55,30 @@
         return data;
     }
 
-    function setStatus(message, isError = false) {
-        status.textContent = message;
-        status.classList.toggle("error", isError);
-        status.setAttribute("role", isError ? "alert" : "status");
+    function setStatus(message, tone = "success", title = "") {
+        status.replaceChildren();
+        status.className = message ? tone : "";
+        status.setAttribute("role", tone === "error" ? "alert" : "status");
+        if (!message) return;
+
+        if (tone === "loading") {
+            const spinner = document.createElement("span");
+            spinner.className = "status-spinner";
+            spinner.setAttribute("aria-hidden", "true");
+            status.append(spinner);
+        }
+
+        const content = document.createElement("div");
+        content.className = "status-content";
+        if (title) {
+            const heading = document.createElement("strong");
+            heading.textContent = title;
+            content.append(heading);
+        }
+        const detail = document.createElement("p");
+        detail.textContent = message;
+        content.append(detail);
+        status.append(content);
     }
 
     function render(settings) {
@@ -90,19 +111,29 @@
     }
 
     async function load() {
+        button.disabled = true;
+        retryButton.hidden = true;
+        list.setAttribute("aria-busy", "true");
+        setStatus("Memeriksa akses admin dan mengambil tarif dari Supabase.", "loading", "Memuat pengaturan");
         try {
-            setStatus("Memeriksa akses admin dan memuat tarif...");
             const data = await callApi("GET", null, true);
             render(data.settings);
-            setStatus("Tarif berhasil dimuat.");
+            list.setAttribute("aria-busy", "false");
+            button.disabled = false;
+            setStatus("Tarif aktif berhasil dimuat. Perubahan belum disimpan sampai Anda menekan tombol Simpan Tarif.", "success", "Siap");
         } catch (error) {
-            list.textContent = "Pengaturan tidak dapat dimuat.";
-            setStatus(error.message || "Gagal memuat tarif.", true);
+            list.replaceChildren();
+            list.setAttribute("aria-busy", "false");
+            retryButton.hidden = false;
+            setStatus(error.message || "Gagal memuat tarif.", "error", "Pengaturan belum dapat dimuat");
         }
     }
 
+    retryButton.addEventListener("click", load);
+
     form.addEventListener("submit", async event => {
         event.preventDefault();
+        if (button.disabled) return;
         const settings = Object.fromEntries(
             Object.keys(FEATURE_LABELS).map(featureId => {
                 const input = form.elements.namedItem(featureId);
@@ -111,18 +142,19 @@
         );
 
         if (Object.values(settings).some(value => !Number.isInteger(value) || value < 0 || value > 1000000)) {
-            setStatus("Isi tarif bilangan bulat antara 0 sampai 1.000.000.", true);
+            setStatus("Isi tarif bilangan bulat antara 0 sampai 1.000.000.", "error", "Nilai tarif tidak valid");
             return;
         }
 
         button.disabled = true;
-        setStatus("Menyimpan tarif...");
+        retryButton.hidden = true;
+        setStatus("Menyimpan tarif dan memperbarui pengaturan server.", "loading", "Menyimpan tarif");
         try {
             const data = await callApi("POST", { action: "save_settings", settings });
             render(data.settings);
-            setStatus("Tarif berhasil disimpan dan akan digunakan server.");
+            setStatus("Tarif baru sudah tersimpan dan akan digunakan server.", "success", "Berhasil disimpan");
         } catch (error) {
-            setStatus(error.message || "Tarif gagal disimpan.", true);
+            setStatus(error.message || "Tarif gagal disimpan.", "error", "Tarif gagal disimpan");
         } finally {
             button.disabled = false;
         }
