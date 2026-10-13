@@ -54,6 +54,35 @@
         .catalog-status { color: var(--chat-muted); font-size: 11px; white-space: nowrap; }
         .text-button { padding: 8px 10px; border: 1px solid var(--chat-line); border-radius: 9px; background: rgba(255,255,255,.025); color: #c5cad8; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
         .text-button:hover { border-color: rgba(139,124,255,.45); color: white; }
+        .repo-panel { flex: 0 0 auto; border-bottom: 1px solid var(--chat-line); background: rgba(255,255,255,.015); }
+        .repo-panel summary { display: flex; min-height: 43px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 18px; color: #d6d3f7; font-size: 11px; font-weight: 700; cursor: pointer; list-style: none; }
+        .repo-panel summary::-webkit-details-marker { display: none; }
+        .repo-panel summary::before { margin-right: 7px; color: #8ce4ba; content: "⌘"; font-size: 14px; }
+        .repo-summary-title { display: inline-flex; min-width: 0; align-items: center; }
+        .repo-status { overflow: hidden; color: var(--chat-muted); font-size: 10px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+        .repo-controls { display: grid; grid-template-columns: minmax(180px, 1fr) 130px auto; gap: 8px; padding: 0 18px 10px; }
+        .repo-input { min-width: 0; padding: 9px 10px; border: 1px solid var(--chat-line); border-radius: 8px; outline: 0; background: rgba(255,255,255,.035); color: var(--chat-text); font: inherit; font-size: 11px; }
+        .repo-input:focus { border-color: rgba(139,124,255,.55); }
+        .repo-input::placeholder { color: #777f94; }
+        .repo-load { padding: 8px 11px; border: 1px solid rgba(139,124,255,.32); border-radius: 8px; background: rgba(139,124,255,.12); color: #d8d1ff; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
+        .repo-load:hover:not(:disabled) { background: rgba(139,124,255,.2); }
+        .repo-load:disabled { opacity: .5; cursor: wait; }
+        .repo-file-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 18px 8px; }
+        .repo-file-tools[hidden], .repo-file-list[hidden], .repo-context[hidden] { display: none; }
+        .repo-search { flex: 1 1 auto; }
+        .repo-select-all { flex: 0 0 auto; padding: 5px 0; border: 0; background: none; color: #b9b1ff; font: inherit; font-size: 10px; cursor: pointer; }
+        .repo-file-list { display: grid; max-height: 190px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; overflow-y: auto; padding: 0 18px 10px; }
+        .repo-file-option { display: flex; min-width: 0; align-items: center; gap: 7px; padding: 5px 6px; border-radius: 6px; color: #c9cede; font-size: 10px; }
+        .repo-file-option:hover { background: rgba(255,255,255,.04); }
+        .repo-file-option input { flex: 0 0 auto; accent-color: var(--chat-accent); }
+        .repo-file-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .repo-file-size { flex: 0 0 auto; margin-left: auto; color: #747d91; font-size: 9px; }
+        .repo-file-empty { grid-column: 1 / -1; margin: 4px 0; color: var(--chat-muted); font-size: 10px; }
+        .repo-selection-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 18px 10px; }
+        .repo-selection-hint { color: #858ca0; font-size: 9px; line-height: 1.5; }
+        .repo-context { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 18px; border-top: 1px solid rgba(255,255,255,.05); color: #a9e9c9; font-size: 10px; }
+        .repo-context-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .repo-clear { flex: 0 0 auto; padding: 4px 7px; border: 1px solid var(--chat-line); border-radius: 6px; background: transparent; color: #b5bbca; font: inherit; font-size: 9px; cursor: pointer; }
         .transcript { display: flex; min-height: 380px; max-height: min(58vh, 680px); flex-direction: column; gap: 17px; overflow-y: auto; padding: 28px clamp(16px, 5vw, 54px); scroll-behavior: smooth; }
         .welcome { display: grid; min-height: 320px; align-content: center; justify-items: center; text-align: center; }
         .welcome-icon { display: grid; width: 58px; height: 58px; place-items: center; margin-bottom: 17px; border: 1px solid rgba(139,124,255,.25); border-radius: 18px; background: linear-gradient(145deg, rgba(139,124,255,.20), rgba(86,217,232,.08)); font-size: 25px; }
@@ -64,8 +93,15 @@
         .avatar { display: grid; width: 30px; height: 30px; flex: 0 0 auto; place-items: center; border: 1px solid var(--chat-line); border-radius: 10px; background: rgba(255,255,255,.05); font-size: 13px; }
         .assistant .avatar { border-color: rgba(139,124,255,.25); background: rgba(139,124,255,.12); }
         .message-content { min-width: 0; padding: 12px 15px; border: 1px solid var(--chat-line); border-radius: 4px 15px 15px; background: rgba(255,255,255,.045); color: #e4e7f0; font-size: 13px; line-height: 1.75; overflow-wrap: anywhere; white-space: pre-wrap; }
+        .message-text { white-space: pre-wrap; }
+        .message-text.is-collapsed { position: relative; max-height: 240px; overflow: hidden; }
+        .message-text.is-collapsed::after { position: absolute; right: 0; bottom: 0; left: 0; height: 56px; background: linear-gradient(transparent, rgba(18,21,34,.98)); content: ""; pointer-events: none; }
         .user .message-content { border-color: rgba(139,124,255,.25); border-radius: 15px 4px 15px 15px; background: linear-gradient(135deg, rgba(104,88,219,.25), rgba(58,89,142,.19)); color: #fff; }
+        .user .message-text.is-collapsed::after { background: linear-gradient(transparent, rgba(69,65,131,.98)); }
         .message-error .message-content { border-color: rgba(255,112,125,.28); color: #ffb9bf; }
+        .message-expand-row { display: flex; justify-content: flex-start; margin-top: 6px; }
+        .message-expand { padding: 3px 0; border: 0; background: transparent; color: #b9b1ff; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
+        .message-expand:hover, .message-expand:focus-visible { color: #fff; text-decoration: underline; outline: none; }
         .message-copy-row { display: flex; justify-content: flex-end; margin-top: 7px; }
         .message-copy { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #9299ad; font: inherit; font-size: 10px; cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
         .message-copy:hover, .message-copy:focus-visible { border-color: var(--chat-line); background: rgba(255,255,255,.05); color: #e4e7f0; outline: none; }
@@ -125,6 +161,11 @@
             .toolbar { align-items: flex-start; flex-direction: column; gap: 10px; padding: 14px; }
             .toolbar-actions { width: 100%; justify-content: space-between; }
             select { max-width: calc(100vw - 115px); }
+            .repo-controls { grid-template-columns: minmax(0, 1fr) 86px; padding-right: 13px; padding-left: 13px; }
+            .repo-controls .repo-url { grid-column: 1 / -1; }
+            .repo-panel summary { padding-right: 13px; padding-left: 13px; }
+            .repo-file-tools, .repo-file-list, .repo-selection-row, .repo-context { padding-right: 13px; padding-left: 13px; }
+            .repo-file-list { grid-template-columns: minmax(0, 1fr); }
             .transcript { min-height: 340px; max-height: 56vh; padding: 20px 13px; }
             .message { max-width: 96%; }
             .composer-wrap { padding: 13px; }
@@ -161,6 +202,31 @@
                 </div>
             </div>
 
+            <details class="repo-panel" id="repoPanel">
+                <summary>
+                    <span class="repo-summary-title">Tambah konteks dari repo GitHub publik</span>
+                    <span class="repo-status" id="repoStatus">Belum terhubung</span>
+                </summary>
+                <div class="repo-controls">
+                    <input class="repo-input repo-url" id="repoUrl" type="url" placeholder="https://github.com/owner/repo" aria-label="URL repo publik GitHub">
+                    <input class="repo-input" id="repoBranch" type="text" placeholder="Branch (default)" aria-label="Branch GitHub (opsional)">
+                    <button class="repo-load" id="repoBrowseButton" type="button">Muat daftar file</button>
+                </div>
+                <div class="repo-file-tools" id="repoFileTools" hidden>
+                    <input class="repo-input repo-search" id="repoSearch" type="search" placeholder="Cari file..." aria-label="Cari file repo">
+                    <button class="repo-select-all" id="repoSelectAll" type="button">Pilih semua</button>
+                </div>
+                <div class="repo-file-list" id="repoFileList" role="group" aria-label="File teks repo" hidden></div>
+                <div class="repo-selection-row" id="repoSelectionRow" hidden>
+                    <span class="repo-selection-hint" id="repoSelectionHint">Pilih sampai 20 file teks (maks. 40 KB per file dan 128 KB konteks). File terpilih disertakan ke chat.</span>
+                    <button class="repo-load" id="repoLoadFilesButton" type="button">Tambahkan file</button>
+                </div>
+                <div class="repo-context" id="repoContext" hidden>
+                    <span class="repo-context-name" id="repoContextName"></span>
+                    <button class="repo-clear" id="repoClearButton" type="button">Lepas repo</button>
+                </div>
+            </details>
+
             <div class="transcript" id="transcript" aria-live="polite" aria-label="Riwayat percakapan">
                 <div class="welcome" id="welcome">
                     <span class="welcome-icon" aria-hidden="true">✧</span>
@@ -189,6 +255,6 @@
     </main>
 
     <script src="/navigation/navigation.js?v=presence-20261010"></script>
-    <script src="/live-chat/live-chat.js?v=1"></script>
+    <script src="/live-chat/live-chat.js?v=github-repo-context-3"></script>
 </body>
 </html>
