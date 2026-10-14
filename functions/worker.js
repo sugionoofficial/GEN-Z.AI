@@ -1,34 +1,3 @@
-import { runVercelHandler } from "./_shared/vercel-adapter.js";
-import adminCredit from "../api/admin-credit.js";
-import featureCredits from "../api/feature-credits.js";
-import adminModels from "../api/admin-models.js";
-import adminProviderCredentials from "../api/admin-provider-credentials.js";
-import adminUsers from "../api/admin-users.js";
-import generateStatus from "../api/generate-status.js";
-import generate from "../api/generate.js";
-import kieConfig from "../api/kie-config.js";
-import modelConfig from "../api/model-config.js";
-import openkeyChat from "../api/openkey-chat.js";
-import sightengineDetect from "../api/sightengine-detect.js";
-import viddraAccount from "../api/viddra/account.js";
-import viddraGenerate from "../api/viddra/generate.js";
-
-const handlers = new Map([
-    ["/api/admin-credit", adminCredit],
-    ["/api/feature-credits", featureCredits],
-    ["/api/admin-models", adminModels],
-    ["/api/admin-provider-credentials", adminProviderCredentials],
-    ["/api/admin-users", adminUsers],
-    ["/api/generate-status", generateStatus],
-    ["/api/generate", generate],
-    ["/api/kie-config", kieConfig],
-    ["/api/model-config", modelConfig],
-    ["/api/openkey-chat", openkeyChat],
-    ["/api/sightengine-detect", sightengineDetect],
-    ["/api/viddra/account", viddraAccount],
-    ["/api/viddra/generate", viddraGenerate]
-]);
-
 // =========================================================
 // TEMPMAIL HANDLER (Chinaapi)
 // =========================================================
@@ -62,6 +31,7 @@ async function handleTempmail(request, env) {
         let method = "GET";
 
         if (action === "create") {
+            // Selalu pakai provider gmail
             targetUrl = `${TEMPMAIL_URL}/api/email?name=gmail`;
             method = "POST";
         } else if (action === "messages") {
@@ -71,7 +41,8 @@ async function handleTempmail(request, env) {
                     { status: 400, headers: corsHeaders }
                 );
             }
-            targetUrl = `${TEMPMAIL_URL}/api/email/${encodeURIComponent(email)}/messages?token=${encodeURIComponent(token)}`;
+            // ⭐ Tambahkan name=gmail agar provider konsisten
+            targetUrl = `${TEMPMAIL_URL}/api/email/${encodeURIComponent(email)}/messages?token=${encodeURIComponent(token)}&name=gmail`;
         } else if (action === "message") {
             if (!email || !token || !messageId) {
                 return Response.json(
@@ -79,7 +50,8 @@ async function handleTempmail(request, env) {
                     { status: 400, headers: corsHeaders }
                 );
             }
-            targetUrl = `${TEMPMAIL_URL}/api/email/${encodeURIComponent(email)}/message/${encodeURIComponent(messageId)}?token=${encodeURIComponent(token)}`;
+            // ⭐ Tambahkan name=gmail juga
+            targetUrl = `${TEMPMAIL_URL}/api/email/${encodeURIComponent(email)}/message/${encodeURIComponent(messageId)}?token=${encodeURIComponent(token)}&name=gmail`;
         } else {
             return Response.json(
                 { error: "Action tidak dikenal. Gunakan: create, messages, atau message" },
@@ -87,55 +59,49 @@ async function handleTempmail(request, env) {
             );
         }
 
-        const response = await fetch(targetUrl, { method });
+        // ⭐ Tambahkan timeout supaya tidak menggantung
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+        let response;
+        try {
+            response = await fetch(targetUrl, {
+                method,
+                signal: controller.signal,
+                headers: { "Accept": "application/json" }
+            });
+        } finally {
+            clearTimeout(timeoutId);
+        }
+
         const data = await response.text();
+        const contentType = response.headers.get("Content-Type") || "application/json";
+
+        // ⭐ Kalau server balikin error, tetap teruskan tapi kasih info
+        if (!response.ok) {
+            return new Response(data, {
+                status: response.status,
+                headers: {
+                    ...corsHeaders,
+                    "Content-Type": contentType,
+                    "X-Target-URL": targetUrl.replace(/token=[^&]+/, "token=***")
+                }
+            });
+        }
 
         return new Response(data, {
             status: response.status,
-            headers: {
-                ...corsHeaders,
-                "Content-Type": response.headers.get("Content-Type") || "application/json"
-            }
+            headers: { ...corsHeaders, "Content-Type": contentType }
         });
     } catch (error) {
+        const errorMessage = String(error && error.message ? error.message : error);
         return Response.json(
-            { error: "Gagal menghubungi server Tempmail", detail: String(error) },
-            { status: 500, headers: corsHeaders }
+            {
+                error: "Gagal menghubungi server Tempmail",
+                detail: errorMessage,
+                isAbort: errorMessage.includes("abort")
+            },
+            { status: 502, headers: corsHeaders }
         );
     }
 }
-
-// =========================================================
-// MAIN WORKER
-// =========================================================
-export default {
-    async fetch(request, env, context) {
-        const url = new URL(request.url);
-        const pathname = url.pathname.replace(/\/+$/, "") || "/";
-
-        // Route khusus Tempmail
-        if (pathname === "/api/tempmail") {
-            return handleTempmail(request, env);
-        }
-
-        const handler = handlers.get(pathname);
-
-        if (handler) {
-            try {
-                return await runVercelHandler(handler, request, context, env);
-            } catch (error) {
-                console.error("[Cloudflare Worker] API request failed:", error);
-                return Response.json(
-                    { error: "Internal server error" },
-                    { status: 500 }
-                );
-            }
-        }
-
-        if (pathname.startsWith("/api/")) {
-            return Response.json({ error: "Not found" }, { status: 404 });
-        }
-
-        return env.ASSETS.fetch(request);
-    }
-};
