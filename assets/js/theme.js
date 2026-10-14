@@ -78,13 +78,13 @@
             html[data-genz-theme="light"] {
                 color-scheme: light;
                 --theme-page: #f3f5fb;
-                --theme-text: #202536;
-                --theme-muted: #657087;
-                --theme-surface: rgba(255, 255, 255, .84);
-                --theme-surface-raised: rgba(255, 255, 255, .96);
-                --theme-border: rgba(73, 88, 120, .15);
-                --theme-shadow: 0 18px 50px rgba(52, 65, 94, .11);
-                --theme-input: rgba(255, 255, 255, .88);
+                --theme-text: #172033;
+                --theme-muted: #4b5870;
+                --theme-surface: #ffffff;
+                --theme-surface-raised: #f8f9fd;
+                --theme-border: #7c8aa0;
+                --theme-shadow: 0 16px 38px rgba(40, 54, 82, .13);
+                --theme-input: #ffffff;
             }
 
             html[data-genz-theme="light"] body {
@@ -118,6 +118,25 @@
             }
 
             html[data-genz-theme="light"] body :is(
+                .card, .panel, .modal, .stat-card, .feature-card, .form-card,
+                .vision-video-card, .vision-card, .parameter-card, .credit-card,
+                .provider-stat-card, .metadata-panel, .payment-method,
+                .requirement, .workflow-step
+            ) {
+                border-style: solid;
+                border-width: 1px;
+            }
+
+            html[data-genz-theme="light"] body :is(
+                .card-header, .panel-header, .modal-header, .page-header,
+                .toolbar, .info-row
+            ) {
+                color: var(--theme-text);
+                border-color: #a7b2c4;
+                background-color: #edf1f8;
+            }
+
+            html[data-genz-theme="light"] body :is(
                 h1, h2, h3, h4, h5, p, li, label, th, td,
                 .card-title, .panel-title, .stat-label, .stat-value,
                 .field-label, .form-label, .info-label, .info-value,
@@ -132,18 +151,23 @@
                 .section-description, .page-subtitle, .subtitle,
                 .description, .eyebrow, small, .muted
             ) {
-                color: var(--theme-muted);
+                color: var(--theme-muted) !important;
             }
 
             html[data-genz-theme="light"] body :is(input, textarea, select) {
                 color: var(--theme-text);
-                border-color: var(--theme-border);
+                border: 1px solid #8291a7;
                 background-color: var(--theme-input);
                 box-shadow: inset 0 1px 2px rgba(34, 46, 70, .04);
             }
 
+            html[data-genz-theme="light"] body :is(input, textarea, select):focus {
+                border-color: #596fa8;
+                outline: 3px solid rgba(89, 111, 168, .2);
+            }
+
             html[data-genz-theme="light"] body :is(input, textarea, select)::placeholder {
-                color: #81899b;
+                color: #59657a;
             }
 
             html[data-genz-theme="light"] body :is(
@@ -223,9 +247,9 @@
 
             html[data-genz-theme="light"] .genz-theme-toggle {
                 color: #283047;
-                border-color: rgba(73, 88, 120, .2);
-                background: rgba(255, 255, 255, .78);
-                box-shadow: 0 6px 20px rgba(52, 65, 94, .1);
+                border-color: #aab6c9;
+                background: #fff;
+                box-shadow: 0 6px 20px rgba(52, 65, 94, .14);
             }
 
         `;
