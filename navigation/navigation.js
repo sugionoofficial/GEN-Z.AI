@@ -538,7 +538,7 @@
             { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
             { label: "History", href: "/history/index.html", icon: ICONS.history },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
-            { label: "Chinaapi", href: "/email.html", icon: ICONS.chinaapi },
+            { label: "TempMail", href: "/email.html", icon: ICONS.chinaapi },
             { label: "Top Up", href: "/user/topup.html", icon: ICONS.topUp },
             { label: "Hub Admin", href: "/user/hub-admin.html", icon: ICONS.hubAdmin }
         ];
