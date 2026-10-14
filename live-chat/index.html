@@ -240,13 +240,13 @@
                 <div class="composer">
                     <textarea id="messageInput" rows="1" maxlength="12000" placeholder="Tulis pesan untuk AI..." aria-label="Tulis pesan" disabled></textarea>
                     <div class="composer-tools">
-                        <input id="attachmentInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif,.txt,.md,.csv,.tsv,.json,.xml,.html,.htm,.css,.js,.mjs,.ts,.tsx,.jsx,.py,.java,.c,.h,.cpp,.go,.rs,.php,.sql,.yaml,.yml,.toml,.ini,.log,.sh,.bash,.diff,.patch" multiple hidden>
+                        <input id="attachmentInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime,.mp4,.m4v,.mov,.webm,.txt,.md,.csv,.tsv,.json,.xml,.html,.htm,.css,.js,.mjs,.ts,.tsx,.jsx,.py,.java,.c,.h,.cpp,.go,.rs,.php,.sql,.yaml,.yml,.toml,.ini,.log,.sh,.bash,.diff,.patch" multiple hidden>
                         <button class="attach-button" id="attachButton" type="button" aria-label="Lampirkan gambar atau berkas" title="Lampirkan gambar atau berkas" disabled>＋</button>
                         <button class="send-button" id="sendButton" type="submit" aria-label="Kirim pesan" disabled>↑</button>
                     </div>
                 </div>
                 <div class="composer-foot">
-                    <span>Gambar dioptimalkan otomatis · Maks. 4 lampiran</span>
+                    <span>Video dianalisis lewat 4 cuplikan frame · Total lampiran maks. 512 KB</span>
                     <span>OpenKey Chat</span>
                 </div>
             </form>
@@ -254,6 +254,6 @@
     </main>
 
     <script src="/navigation/navigation.js?v=theme-20261014"></script>
-    <script src="/live-chat/live-chat.js?v=github-repo-context-image-4"></script>
+    <script src="/live-chat/live-chat.js?v=video-frame-attachments-20261014"></script>
 </body>
 </html>

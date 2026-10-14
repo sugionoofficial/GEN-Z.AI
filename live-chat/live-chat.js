@@ -29,11 +29,16 @@
     const repoClearButton = document.getElementById("repoClearButton");
 
     const MAX_ATTACHMENTS = 4;
-    const MAX_TOTAL_ATTACHMENT_BYTES = 1.5 * 1024 * 1024;
+    const MAX_TOTAL_ATTACHMENT_BYTES = 512 * 1024;
+    const MAX_CHAT_REQUEST_BYTES = 900 * 1024;
     const MAX_TEXT_FILE_BYTES = 512 * 1024;
     const MAX_IMAGE_SOURCE_BYTES = 12 * 1024 * 1024;
-    const MAX_IMAGE_FILE_BYTES = 768 * 1024;
+    const MAX_IMAGE_FILE_BYTES = 300 * 1024;
     const MAX_IMAGE_DIMENSION = 1920;
+    const MAX_VIDEO_SOURCE_BYTES = 50 * 1024 * 1024;
+    const MAX_VIDEO_FRAMES = 4;
+    const MAX_VIDEO_FRAME_DIMENSION = 640;
+    const MAX_VIDEO_FRAME_BYTES = 60 * 1024;
     const MAX_REPO_FILES = 20;
     const MAX_REPO_FILE_BYTES = 40 * 1024;
     const MAX_REPO_CONTEXT_BYTES = 128 * 1024;
@@ -71,6 +76,12 @@
         "image/gif",
         "image/avif"
     ]);
+    const VIDEO_TYPES = new Set([
+        "video/mp4",
+        "video/webm",
+        "video/quicktime"
+    ]);
+    const VIDEO_EXTENSIONS = new Set(["mp4", "m4v", "mov", "webm"]);
     const TEXT_FILE_EXTENSIONS = new Set([
         "txt", "md", "csv", "tsv", "json", "xml", "html", "htm", "css",
         "js", "mjs", "ts", "tsx", "jsx", "py", "java", "c", "h", "cpp",
@@ -501,6 +512,15 @@
                     image.alt = attachment.name;
                     image.loading = "lazy";
                     attachmentContainer.append(image);
+                } else if (attachment.kind === "video") {
+                    for (const frame of attachment.frames) {
+                        const image = document.createElement("img");
+                        image.src = frame.dataUrl;
+                        image.alt = `${attachment.name}, cuplikan ${formatDuration(frame.timestamp)}`;
+                        image.title = `Cuplikan ${formatDuration(frame.timestamp)}`;
+                        image.loading = "lazy";
+                        attachmentContainer.append(image);
+                    }
                 } else {
                     const file = document.createElement("span");
                     file.className = "message-file";
@@ -605,6 +625,13 @@
         return String(name).split(".").pop().toLowerCase();
     }
 
+    function formatDuration(seconds) {
+        const totalSeconds = Math.floor(Math.max(0, seconds));
+        const minutes = Math.floor(totalSeconds / 60);
+        const remainingSeconds = totalSeconds % 60;
+        return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+    }
+
     function readImage(file, name = file.name || "hasil optimasi") {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -648,6 +675,117 @@
         });
     }
 
+    function isVideoFile(file) {
+        return file.type.startsWith("video/") || VIDEO_TYPES.has(file.type) ||
+            VIDEO_EXTENSIONS.has(getFileExtension(file.name));
+    }
+
+    function waitForVideoEvent(video, successEvent, fileName) {
+        return new Promise((resolve, reject) => {
+            const timeout = window.setTimeout(() => {
+                cleanup();
+                reject(new Error(`Timeout saat membaca video ${fileName}.`));
+            }, 15000);
+
+            function cleanup() {
+                window.clearTimeout(timeout);
+                video.removeEventListener(successEvent, onSuccess);
+                video.removeEventListener("error", onError);
+            }
+
+            function onSuccess() {
+                cleanup();
+                resolve();
+            }
+
+            function onError() {
+                cleanup();
+                reject(new Error(`Format atau codec video ${fileName} tidak didukung browser.`));
+            }
+
+            video.addEventListener(successEvent, onSuccess, { once: true });
+            video.addEventListener("error", onError, { once: true });
+        });
+    }
+
+    async function captureVideoFrame(video, fileName, timestamp, index) {
+        const seeked = waitForVideoEvent(video, "seeked", fileName);
+        video.currentTime = timestamp;
+        await seeked;
+
+        const scale = Math.min(
+            1,
+            MAX_VIDEO_FRAME_DIMENSION / Math.max(video.videoWidth, video.videoHeight)
+        );
+        const canvas = document.createElement("canvas");
+        let width = Math.max(1, Math.round(video.videoWidth * scale));
+        let height = Math.max(1, Math.round(video.videoHeight * scale));
+
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext("2d", { alpha: false });
+            if (!context) throw new Error("Browser tidak dapat memproses frame video.");
+            context.drawImage(video, 0, 0, width, height);
+
+            const blob = await encodeCanvas(canvas, Math.max(0.35, 0.62 - attempt * 0.06));
+            if (blob.size <= MAX_VIDEO_FRAME_BYTES) {
+                return {
+                    timestamp,
+                    index,
+                    size: blob.size,
+                    dataUrl: await readImage(blob, fileName)
+                };
+            }
+
+            width = Math.max(1, Math.round(width * 0.8));
+            height = Math.max(1, Math.round(height * 0.8));
+        }
+
+        throw new Error(`Frame video ${fileName} tidak dapat diperkecil ke ukuran yang didukung.`);
+    }
+
+    async function prepareVideo(file) {
+        if (file.size > MAX_VIDEO_SOURCE_BYTES) {
+            throw new Error(`Ukuran video ${file.name} melebihi 50 MB.`);
+        }
+
+        const video = document.createElement("video");
+        const objectUrl = URL.createObjectURL(file);
+        video.preload = "metadata";
+        video.muted = true;
+        video.playsInline = true;
+
+        try {
+            const metadataLoaded = waitForVideoEvent(video, "loadedmetadata", file.name);
+            video.src = objectUrl;
+            await metadataLoaded;
+            if (!Number.isFinite(video.duration) || video.duration <= 0 || !video.videoWidth || !video.videoHeight) {
+                throw new Error(`Durasi atau dimensi video ${file.name} tidak valid.`);
+            }
+
+            const frames = [];
+            const frameCount = Math.min(
+                MAX_VIDEO_FRAMES,
+                Math.max(1, Math.ceil(video.duration * 2))
+            );
+            for (let index = 0; index < frameCount; index += 1) {
+                const timestamp = video.duration * ((index + 1) / (frameCount + 1));
+                frames.push(await captureVideoFrame(video, file.name, timestamp, index));
+            }
+
+            return {
+                frames,
+                size: frames.reduce((total, frame) => total + frame.size, 0),
+                duration: video.duration
+            };
+        } finally {
+            video.removeAttribute("src");
+            video.load();
+            URL.revokeObjectURL(objectUrl);
+        }
+    }
+
     async function prepareImage(file) {
         if (file.size > MAX_IMAGE_SOURCE_BYTES) {
             throw new Error(`Ukuran gambar ${file.name} melebihi 12 MB.`);
@@ -655,7 +793,7 @@
 
         if (file.type === "image/gif") {
             if (file.size > MAX_IMAGE_FILE_BYTES) {
-                throw new Error(`GIF ${file.name} terlalu besar. Gunakan GIF di bawah 768 KB atau ubah ke JPG/PNG.`);
+                throw new Error(`GIF ${file.name} terlalu besar. Gunakan GIF di bawah 300 KB atau ubah ke JPG/PNG.`);
             }
             return { dataUrl: await readImage(file), size: file.size };
         }
@@ -698,6 +836,13 @@
                 image.src = attachment.dataUrl;
                 image.alt = "";
                 chip.append(image);
+            } else if (attachment.kind === "video") {
+                const icon = document.createElement("span");
+                icon.className = "attachment-file-icon";
+                icon.setAttribute("aria-hidden", "true");
+                icon.textContent = "▶";
+                chip.append(icon);
+                chip.title = `${formatDuration(attachment.duration)} · ${attachment.frames.length} cuplikan frame`;
             } else {
                 const icon = document.createElement("span");
                 icon.className = "attachment-file-icon";
@@ -752,10 +897,24 @@
                     kind: "image",
                     dataUrl: image.dataUrl
                 });
+            } else if (isVideoFile(file)) {
+                if (!VIDEO_TYPES.has(file.type) && !VIDEO_EXTENSIONS.has(getFileExtension(file.name))) {
+                    throw new Error(`Format video ${file.name} tidak didukung. Gunakan MP4, MOV, atau WebM.`);
+                }
+                const video = await prepareVideo(file);
+                totalBytes += video.size;
+                added.push({
+                    file,
+                    name: file.name,
+                    size: video.size,
+                    kind: "video",
+                    duration: video.duration,
+                    frames: video.frames
+                });
             } else {
                 const extension = getFileExtension(file.name);
                 if (!TEXT_FILE_EXTENSIONS.has(extension)) {
-                    throw new Error(`Format berkas ${file.name} tidak didukung. Gambar dan berkas teks/kode diperbolehkan.`);
+                    throw new Error(`Format berkas ${file.name} tidak didukung. Gunakan gambar, video MP4/MOV/WebM, atau berkas teks/kode.`);
                 }
                 if (file.size > MAX_TEXT_FILE_BYTES) {
                     throw new Error(`Ukuran berkas teks ${file.name} melebihi 512 KB.`);
@@ -775,7 +934,7 @@
             }
 
             if (totalBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
-                throw new Error("Total ukuran lampiran setelah optimasi tidak boleh melebihi 1,5 MB.");
+                throw new Error("Total ukuran semua lampiran setelah optimasi tidak boleh melebihi 512 KB.");
             }
         }
 
@@ -799,6 +958,21 @@
                     type: "image_url",
                     image_url: { url: attachment.dataUrl }
                 });
+            } else if (attachment.kind === "video") {
+                content.push({
+                    type: "text",
+                    text: `Cuplikan video ${attachment.name}, durasi ${formatDuration(attachment.duration)}. Analisis sebagai urutan frame berdasarkan timestamp:`
+                });
+                for (const frame of attachment.frames) {
+                    content.push({
+                        type: "text",
+                        text: `Timestamp ${formatDuration(frame.timestamp)}`
+                    });
+                    content.push({
+                        type: "image_url",
+                        image_url: { url: frame.dataUrl }
+                    });
+                }
             } else {
                 content.push({
                     type: "text",
@@ -812,7 +986,6 @@
 
     async function sendMessage(text, selectedAttachments) {
         const newMessage = buildUserMessage(text, selectedAttachments);
-        messages.push(newMessage);
         appendMessage("user", text || "Lampiran", { attachments: selectedAttachments });
         let pendingMessage = null;
         requestPending = true;
@@ -827,26 +1000,33 @@
             if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login kembali.");
             pendingMessage = appendMessage("assistant", "", { typing: true });
 
+            const requestBody = JSON.stringify({
+                model: modelSelect.value,
+                messages: [
+                    ...(repoContextMessage ? [{ role: "system", content: repoContextMessage }] : []),
+                    ...messages.slice(-100),
+                    newMessage
+                ],
+                stream: false
+            });
+            const requestSize = new TextEncoder().encode(requestBody).byteLength;
+            if (requestSize > MAX_CHAT_REQUEST_BYTES) {
+                throw new Error("Ukuran percakapan terlalu besar untuk dikirim. Hapus beberapa lampiran atau mulai percakapan baru, lalu coba lagi.");
+            }
+
             const response = await fetch(endpoint, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    model: modelSelect.value,
-                    messages: [
-                        ...(repoContextMessage ? [{ role: "system", content: repoContextMessage }] : []),
-                        ...messages.slice(-100)
-                    ],
-                    stream: false
-                }),
+                body: requestBody,
                 signal: AbortSignal.timeout(180000)
             });
             const result = await response.json().catch(() => null);
             if (!response.ok || result?.success !== true) {
                 if (response.status === 413 || result?.provider_status === 413) {
-                    throw new Error("Ukuran pesan terlalu besar untuk OpenKey (HTTP 413). Hapus beberapa lampiran atau pilih gambar yang lebih kecil, lalu coba lagi.");
+                    throw new Error("OpenKey menolak ukuran permintaan (HTTP 413). Lampiran dibatasi otomatis; hapus beberapa lampiran atau mulai percakapan baru, lalu coba lagi.");
                 }
                 throw new Error(result?.error || `Chat gagal diproses (HTTP ${response.status}).`);
             }
@@ -854,14 +1034,16 @@
             const content = responseText(result);
             if (!content) throw new Error("Model mengembalikan jawaban kosong.");
             pendingMessage.remove();
-            newMessage.content = text || `Pengguna mengirim lampiran: ${selectedAttachments.map(file => file.name).join(", ")}`;
+            messages.push({
+                role: "user",
+                content: text || `Pengguna mengirim lampiran: ${selectedAttachments.map(file => file.name).join(", ")}`
+            });
             messages.push({ role: "assistant", content });
             appendMessage("assistant", content);
             setNotice(result.model ? `Dijawab oleh ${result.model}` : "Jawaban diterima.");
             return true;
         } catch (error) {
             pendingMessage?.remove();
-            messages = messages.filter(message => message !== newMessage);
             appendMessage("assistant", error.message || "Terjadi kesalahan saat menghubungi model.", { error: true });
             setNotice(error.message || "Terjadi kesalahan saat menghubungi model.", true);
             return false;
