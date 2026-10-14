@@ -53,16 +53,113 @@
         const style = document.createElement("style");
         style.id = STYLE_ID;
         style.textContent = `
-            html[data-genz-theme="light"] {
+            html {
                 color-scheme: dark;
-                filter: invert(1) hue-rotate(180deg);
+                --theme-page: #090a10;
+                --theme-text: #f5f6fb;
+                --theme-muted: #a0a5b5;
+                --theme-surface: rgba(19, 21, 31, .84);
+                --theme-surface-raised: rgba(27, 29, 41, .94);
+                --theme-border: rgba(255, 255, 255, .09);
+                --theme-shadow: 0 18px 55px rgba(0, 0, 0, .28);
+                --theme-input: rgba(6, 8, 14, .78);
             }
 
-            html[data-genz-theme="light"] img,
-            html[data-genz-theme="light"] video,
-            html[data-genz-theme="light"] canvas,
-            html[data-genz-theme="light"] iframe {
-                filter: invert(1) hue-rotate(180deg);
+            html[data-genz-theme="dark"] body {
+                color: var(--theme-text);
+                background:
+                    radial-gradient(ellipse at 8% 0%, rgba(255, 48, 72, .14), transparent 34%),
+                    radial-gradient(ellipse at 94% 8%, rgba(97, 82, 190, .12), transparent 32%),
+                    radial-gradient(ellipse at 50% 100%, rgba(19, 91, 120, .09), transparent 42%),
+                    linear-gradient(145deg, #11131c 0%, #090a10 48%, #06070b 100%) !important;
+                background-attachment: fixed !important;
+            }
+
+            html[data-genz-theme="light"] {
+                color-scheme: light;
+                --theme-page: #f3f5fb;
+                --theme-text: #202536;
+                --theme-muted: #657087;
+                --theme-surface: rgba(255, 255, 255, .84);
+                --theme-surface-raised: rgba(255, 255, 255, .96);
+                --theme-border: rgba(73, 88, 120, .15);
+                --theme-shadow: 0 18px 50px rgba(52, 65, 94, .11);
+                --theme-input: rgba(255, 255, 255, .88);
+            }
+
+            html[data-genz-theme="light"] body {
+                color: var(--theme-text);
+                background:
+                    radial-gradient(ellipse at 7% 0%, rgba(255, 48, 72, .10), transparent 34%),
+                    radial-gradient(ellipse at 94% 8%, rgba(107, 117, 221, .15), transparent 34%),
+                    radial-gradient(ellipse at 52% 100%, rgba(75, 172, 190, .10), transparent 42%),
+                    linear-gradient(145deg, #fff 0%, #f1f3fa 48%, #e9edf6 100%) !important;
+                background-attachment: fixed !important;
+            }
+
+            html[data-genz-theme="dark"] body :is(
+                .card, .panel, .modal, .stat-card, .feature-card, .form-card,
+                .vision-video-card, .vision-card, .parameter-card, .credit-card,
+                .provider-stat-card, .metadata-panel, .payment-method,
+                .requirement, .workflow-step
+            ),
+            html[data-genz-theme="light"] body :is(
+                .card, .panel, .modal, .stat-card, .feature-card, .form-card,
+                .vision-video-card, .vision-card, .parameter-card, .credit-card,
+                .provider-stat-card, .metadata-panel, .payment-method,
+                .requirement, .workflow-step
+            ) {
+                color: var(--theme-text);
+                border-color: var(--theme-border);
+                background-color: var(--theme-surface);
+                box-shadow: var(--theme-shadow);
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+            }
+
+            html[data-genz-theme="light"] body :is(
+                h1, h2, h3, h4, h5, p, li, label, th, td,
+                .card-title, .panel-title, .stat-label, .stat-value,
+                .field-label, .form-label, .info-label, .info-value,
+                .section-title, .section-description, .page-title,
+                .page-subtitle, .subtitle, .description, .eyebrow
+            ) {
+                color: var(--theme-text);
+            }
+
+            html[data-genz-theme="light"] body :is(
+                .stat-label, .field-label, .form-label, .info-label,
+                .section-description, .page-subtitle, .subtitle,
+                .description, .eyebrow, small, .muted
+            ) {
+                color: var(--theme-muted);
+            }
+
+            html[data-genz-theme="light"] body :is(input, textarea, select) {
+                color: var(--theme-text);
+                border-color: var(--theme-border);
+                background-color: var(--theme-input);
+                box-shadow: inset 0 1px 2px rgba(34, 46, 70, .04);
+            }
+
+            html[data-genz-theme="light"] body :is(input, textarea, select)::placeholder {
+                color: #81899b;
+            }
+
+            html[data-genz-theme="light"] body :is(
+                .genz-sidebar, .genz-mobile-toggle
+            ) {
+                color: var(--theme-text);
+                border-color: var(--theme-border);
+                background: var(--theme-surface-raised);
+                box-shadow: var(--theme-shadow);
+            }
+
+            html[data-genz-theme="light"] body :is(
+                .genz-sidebar .genz-logo-text, .genz-sidebar .genz-nav-label,
+                .genz-sidebar .genz-account-email
+            ) {
+                color: var(--theme-text);
             }
 
             .genz-theme-toggle {
@@ -122,6 +219,13 @@
                 right: 12px;
                 z-index: 10002;
                 box-shadow: 0 4px 18px rgba(0, 0, 0, .25);
+            }
+
+            html[data-genz-theme="light"] .genz-theme-toggle {
+                color: #283047;
+                border-color: rgba(73, 88, 120, .2);
+                background: rgba(255, 255, 255, .78);
+                box-shadow: 0 6px 20px rgba(52, 65, 94, .1);
             }
 
         `;
