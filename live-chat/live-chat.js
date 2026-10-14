@@ -29,9 +29,11 @@
     const repoClearButton = document.getElementById("repoClearButton");
 
     const MAX_ATTACHMENTS = 4;
-    const MAX_TOTAL_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+    const MAX_TOTAL_ATTACHMENT_BYTES = 1.5 * 1024 * 1024;
     const MAX_TEXT_FILE_BYTES = 512 * 1024;
-    const MAX_IMAGE_FILE_BYTES = 3 * 1024 * 1024;
+    const MAX_IMAGE_SOURCE_BYTES = 12 * 1024 * 1024;
+    const MAX_IMAGE_FILE_BYTES = 768 * 1024;
+    const MAX_IMAGE_DIMENSION = 1920;
     const MAX_REPO_FILES = 20;
     const MAX_REPO_FILE_BYTES = 40 * 1024;
     const MAX_REPO_CONTEXT_BYTES = 128 * 1024;
@@ -603,19 +605,84 @@
         return String(name).split(".").pop().toLowerCase();
     }
 
-    function readImage(file) {
+    function readImage(file, name = file.name || "hasil optimasi") {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => {
                 if (typeof reader.result !== "string") {
-                    reject(new Error(`Gagal membaca gambar ${file.name}.`));
+                    reject(new Error(`Gagal membaca gambar ${name}.`));
                     return;
                 }
                 resolve(reader.result);
             };
-            reader.onerror = () => reject(new Error(`Gagal membaca gambar ${file.name}.`));
+            reader.onerror = () => reject(new Error(`Gagal membaca gambar ${name}.`));
             reader.readAsDataURL(file);
         });
+    }
+
+    function loadImage(file) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            const objectUrl = URL.createObjectURL(file);
+            image.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                resolve(image);
+            };
+            image.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                reject(new Error(`Gagal membaca gambar ${file.name}.`));
+            };
+            image.src = objectUrl;
+        });
+    }
+
+    function encodeCanvas(canvas, quality) {
+        return new Promise((resolve, reject) => {
+            canvas.toBlob(blob => {
+                if (!blob) {
+                    reject(new Error("Browser tidak dapat mengoptimalkan gambar."));
+                    return;
+                }
+                resolve(blob);
+            }, "image/webp", quality);
+        });
+    }
+
+    async function prepareImage(file) {
+        if (file.size > MAX_IMAGE_SOURCE_BYTES) {
+            throw new Error(`Ukuran gambar ${file.name} melebihi 12 MB.`);
+        }
+
+        if (file.type === "image/gif") {
+            if (file.size > MAX_IMAGE_FILE_BYTES) {
+                throw new Error(`GIF ${file.name} terlalu besar. Gunakan GIF di bawah 768 KB atau ubah ke JPG/PNG.`);
+            }
+            return { dataUrl: await readImage(file), size: file.size };
+        }
+
+        const image = await loadImage(file);
+        const largestDimension = Math.max(image.naturalWidth, image.naturalHeight);
+        if (file.size <= MAX_IMAGE_FILE_BYTES && largestDimension <= MAX_IMAGE_DIMENSION) {
+            return { dataUrl: await readImage(file), size: file.size };
+        }
+
+        let scale = Math.min(1, MAX_IMAGE_DIMENSION / largestDimension);
+        const canvas = document.createElement("canvas");
+        for (let attempt = 0; attempt < 7; attempt += 1) {
+            canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+            const context = canvas.getContext("2d");
+            if (!context) throw new Error("Browser tidak dapat memproses gambar.");
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+            const blob = await encodeCanvas(canvas, Math.max(0.42, 0.84 - attempt * 0.07));
+            if (blob.size <= MAX_IMAGE_FILE_BYTES) {
+                return { dataUrl: await readImage(blob, file.name), size: blob.size };
+            }
+            scale *= 0.8;
+        }
+
+        throw new Error(`Gambar ${file.name} tidak dapat diperkecil ke ukuran yang didukung.`);
     }
 
     function renderAttachments() {
@@ -676,16 +743,14 @@
                 if (!IMAGE_TYPES.has(file.type)) {
                     throw new Error(`Format gambar ${file.name} tidak didukung. Gunakan JPG, PNG, WebP, GIF, atau AVIF.`);
                 }
-                if (file.size > MAX_IMAGE_FILE_BYTES) {
-                    throw new Error(`Ukuran gambar ${file.name} melebihi 3 MB.`);
-                }
-                totalBytes += file.size;
+                const image = await prepareImage(file);
+                totalBytes += image.size;
                 added.push({
                     file,
                     name: file.name,
-                    size: file.size,
+                    size: image.size,
                     kind: "image",
-                    dataUrl: await readImage(file)
+                    dataUrl: image.dataUrl
                 });
             } else {
                 const extension = getFileExtension(file.name);
@@ -710,7 +775,7 @@
             }
 
             if (totalBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
-                throw new Error("Total ukuran lampiran tidak boleh melebihi 3 MB.");
+                throw new Error("Total ukuran lampiran setelah optimasi tidak boleh melebihi 1,5 MB.");
             }
         }
 
@@ -780,6 +845,9 @@
             });
             const result = await response.json().catch(() => null);
             if (!response.ok || result?.success !== true) {
+                if (response.status === 413 || result?.provider_status === 413) {
+                    throw new Error("Ukuran pesan terlalu besar untuk OpenKey (HTTP 413). Hapus beberapa lampiran atau pilih gambar yang lebih kecil, lalu coba lagi.");
+                }
                 throw new Error(result?.error || `Chat gagal diproses (HTTP ${response.status}).`);
             }
 
