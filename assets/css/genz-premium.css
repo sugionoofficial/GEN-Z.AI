@@ -5117,6 +5117,30 @@ input[type="number"]::-webkit-outer-spin-button {
         animation: none !important;
     }
 
+    body.generate-page .generate-topbar .brand-hologram-glow {
+        animation: genzHologramGlow 3.2s ease-in-out infinite !important;
+        animation-duration: 3.2s !important;
+        animation-iteration-count: infinite !important;
+    }
+
+    body.generate-page .generate-topbar .brand-logo {
+        animation: genzHologramFloat 3.8s ease-in-out infinite !important;
+        animation-duration: 3.8s !important;
+        animation-iteration-count: infinite !important;
+    }
+
+    body.generate-page .generate-topbar .brand-scanline {
+        animation: genzScanline 2.8s linear infinite !important;
+        animation-duration: 2.8s !important;
+        animation-iteration-count: infinite !important;
+    }
+
+    body.generate-page .generate-topbar .brand-particles i {
+        animation: genzParticle 3s ease-in-out infinite !important;
+        animation-duration: 3s !important;
+        animation-iteration-count: infinite !important;
+    }
+
     .btn,
     .field input,
     .field textarea,

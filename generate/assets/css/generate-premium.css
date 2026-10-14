@@ -371,6 +371,13 @@ body {
         -0.055em;
 }
 
+.generate-topbar .brand-logo::before,
+.generate-topbar .brand-logo::after {
+
+    display:
+        none;
+}
+
 
 .generate-topbar .brand-gen {
 
