@@ -126,43 +126,73 @@
       color: #888;
       margin-bottom: 4px;
     }
+
+    /* ===== Penyesuaian layout dengan sidebar navigation ===== */
+    /* Desktop: kasih ruang untuk sidebar 248px + tetap center konten */
+    @media (min-width: 769px) {
+      body {
+        max-width: none;
+        margin: 0;
+        padding: 30px 30px 30px calc(248px + 30px);
+      }
+      .email-container {
+        max-width: 720px;
+        margin: 0 auto;
+      }
+    }
+
+    /* Mobile: toggle button ada di kiri atas, kasih ruang */
+    @media (max-width: 768px) {
+      body {
+        padding: 70px 20px 20px;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <h1>Chinaapi — Temp Gmail</h1>
-  <div class="subtitle">Generate email @gmail.com sementara untuk verifikasi & testing.</div>
+  <!-- Container konten (agar center di desktop tanpa menabrak sidebar) -->
+  <div class="email-container">
 
-  <div>
-    <button id="btn-generate">📧 Generate Email Gmail</button>
-    <button id="btn-refresh" class="secondary hidden">🔄 Refresh Inbox</button>
-  </div>
+    <h1>Chinaapi — Temp Gmail</h1>
+    <div class="subtitle">Generate email @gmail.com sementara untuk verifikasi & testing.</div>
 
-  <div id="status" class="status"></div>
-
-  <div id="email-display" class="box hidden">
-    <div class="email-display">
-      <span class="email-text" id="email-text">-</span>
-      <button id="btn-copy" class="secondary" style="margin:0;">📋 Salin</button>
+    <div>
+      <button id="btn-generate">📧 Generate Email Gmail</button>
+      <button id="btn-refresh" class="secondary hidden">🔄 Refresh Inbox</button>
     </div>
-    <div style="margin-top:10px; font-size:12px; color:#888;">
-      Gunakan alamat ini untuk verifikasi akun. Klik "Cek Pesan Masuk" untuk membaca email yang diterima.
+
+    <div id="status" class="status"></div>
+
+    <div id="email-display" class="box hidden">
+      <div class="email-display">
+        <span class="email-text" id="email-text">-</span>
+        <button id="btn-copy" class="secondary" style="margin:0;">📋 Salin</button>
+      </div>
+      <div style="margin-top:10px; font-size:12px; color:#888;">
+        Gunakan alamat ini untuk verifikasi akun. Klik "Refresh Inbox" untuk membaca email yang diterima.
+      </div>
     </div>
+
+    <div id="inbox" class="box hidden">
+      <h3 style="margin-top:0; font-size:15px; color:#fff;">📥 Pesan Masuk</h3>
+      <div id="message-list"></div>
+    </div>
+
+    <div id="message-view" class="box hidden">
+      <h3 style="margin-top:0; font-size:15px; color:#fff;">📩 Isi Pesan</h3>
+      <div class="msg-meta"><strong>Subject:</strong> <span id="msg-subject">-</span></div>
+      <div class="msg-meta"><strong>Dari:</strong> <span id="msg-from">-</span></div>
+      <div class="msg-body" id="message-content"></div>
+      <button onclick="document.getElementById('message-view').classList.add('hidden')" class="secondary" style="margin-top:10px;">Tutup</button>
+    </div>
+
   </div>
 
-  <div id="inbox" class="box hidden">
-    <h3 style="margin-top:0; font-size:15px; color:#fff;">📥 Pesan Masuk</h3>
-    <div id="message-list"></div>
-  </div>
+  <!-- ===================== NAVIGATION ===================== -->
+  <script src="/navigation/navigation.js?v=2.2"></script>
 
-  <div id="message-view" class="box hidden">
-    <h3 style="margin-top:0; font-size:15px; color:#fff;">📩 Isi Pesan</h3>
-    <div class="msg-meta"><strong>Subject:</strong> <span id="msg-subject">-</span></div>
-    <div class="msg-meta"><strong>Dari:</strong> <span id="msg-from">-</span></div>
-    <div class="msg-body" id="message-content"></div>
-    <button onclick="document.getElementById('message-view').classList.add('hidden')" class="secondary" style="margin-top:10px;">Tutup</button>
-  </div>
-
+  <!-- ===================== TEMPMAIL LOGIC ===================== -->
   <script>
     let currentEmail = '';
     let currentToken = '';
@@ -170,7 +200,6 @@
 
     const statusEl = document.getElementById('status');
     const btnGenerate = document.getElementById('btn-generate');
-    const btnCheck = document.getElementById('btn-check');
     const btnRefresh = document.getElementById('btn-refresh');
     const btnCopy = document.getElementById('btn-copy');
 
@@ -210,7 +239,6 @@
 
           setStatus('✅ Email berhasil dibuat. Klik "Refresh Inbox" untuk cek pesan masuk.', 'success');
 
-          // Auto refresh tiap 15 detik
           if (autoRefreshTimer) clearInterval(autoRefreshTimer);
           autoRefreshTimer = setInterval(() => {
             if (currentEmail && currentToken) checkMessages(true);
@@ -233,7 +261,6 @@
         btnCopy.textContent = '✅ Tersalin';
         setTimeout(() => { btnCopy.textContent = '📋 Salin'; }, 1500);
       } catch {
-        // Fallback untuk browser lama
         const temp = document.createElement('textarea');
         temp.value = currentEmail;
         document.body.appendChild(temp);
@@ -283,11 +310,6 @@
       }
     }
 
-    // Tombol cek (yang lama, dari email-display)
-    const oldBtnCheck = document.getElementById('btn-check');
-    if (oldBtnCheck) oldBtnCheck.addEventListener('click', () => checkMessages(false));
-
-    // Tombol refresh baru
     btnRefresh.addEventListener('click', () => checkMessages(false));
 
     // ===================== TAMPILKAN ISI PESAN =====================
