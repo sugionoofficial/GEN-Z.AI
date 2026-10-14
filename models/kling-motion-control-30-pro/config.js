@@ -61,6 +61,10 @@ const config = {
     type:
         "motion-control",
 
+    adminEditor: {
+        resolutionIndependent: true
+    },
+
 
     /* =====================================================
        API

@@ -5260,7 +5260,8 @@
 
 
         if (
-            activeResolutions.length === 0
+            activeResolutions.length === 0 &&
+            getAdminEditorConfig(currentModel).resolutionIndependent !== true
         ) {
 
             showAlert(
