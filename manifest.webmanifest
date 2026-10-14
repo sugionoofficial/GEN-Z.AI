@@ -1,0 +1,30 @@
+{
+    "id": "/",
+    "name": "GEN-Z.AI",
+    "short_name": "GEN-Z.AI",
+    "description": "Create without limits with GEN-Z.AI.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "display_override": [
+        "fullscreen",
+        "standalone"
+    ],
+    "orientation": "any",
+    "background_color": "#050505",
+    "theme_color": "#050505",
+    "icons": [
+        {
+            "src": "/assets/genzai-app-icon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/genzai-app-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ]
+}

@@ -1,0 +1,12 @@
+{
+  "appId": "com.genzai.ai",
+  "appName": "GEN-Z.AI",
+  "webDir": "www",
+  "server": {
+    "url": "https://genzai.genzai-f37.workers.dev",
+    "cleartext": false,
+    "allowNavigation": [
+      "genzai.genzai-f37.workers.dev"
+    ]
+  }
+}

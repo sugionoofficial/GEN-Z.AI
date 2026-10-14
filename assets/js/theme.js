@@ -7,6 +7,7 @@
     const STORAGE_KEY = "genz-theme";
     const STYLE_ID = "genz-theme-style";
     let toggleButton = null;
+    let appDownloadButton = null;
 
     function reportStorageError(action, error) {
         console.error(`[GEN-Z.AI] Unable to ${action} theme preference:`, error);
@@ -214,6 +215,42 @@
                 margin-bottom: 10px;
             }
 
+            .genz-app-download {
+                min-height: 38px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 7px;
+                padding: 8px 11px;
+                border: 1px solid rgba(255, 48, 72, .32);
+                border-radius: 9px;
+                color: #fff;
+                background: rgba(255, 48, 72, .08);
+                font: inherit;
+                font-size: 11px;
+                font-weight: 700;
+                text-align: center;
+                text-decoration: none;
+                white-space: nowrap;
+            }
+
+            .genz-app-download:hover {
+                border-color: rgba(255, 48, 72, .6);
+                background: rgba(255, 48, 72, .16);
+            }
+
+            .genz-sidebar-footer .genz-app-download {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+
+            html[data-genz-theme="light"] .genz-app-download {
+                color: #283047;
+                border-color: #cf8a98;
+                background: #fff;
+                box-shadow: 0 6px 20px rgba(52, 65, 94, .1);
+            }
+
             .nav-actions .genz-theme-toggle {
                 min-height: 36px;
             }
@@ -254,6 +291,25 @@
 
         `;
         document.head.appendChild(style);
+    }
+
+    function initializePwaSupport() {
+        if (!document.head) return;
+
+        if (!document.querySelector('link[rel="manifest"]')) {
+            const manifest = document.createElement("link");
+            manifest.rel = "manifest";
+            manifest.href = "/manifest.webmanifest";
+            document.head.appendChild(manifest);
+        }
+
+        if (!("serviceWorker" in navigator)) return;
+
+        navigator.serviceWorker
+            .register("/service-worker.js")
+            .catch(error => {
+                console.error("[GEN-Z.AI] Unable to register PWA service worker:", error);
+            });
     }
 
     function getToggleParent() {
@@ -299,18 +355,59 @@
         }
     }
 
+    function mountAppDownload() {
+        if (!document.body) return;
+
+        const parent = getToggleParent();
+        if (parent === document.body) return;
+
+        if (!appDownloadButton) {
+            appDownloadButton = document.createElement("a");
+            appDownloadButton.className = "genz-app-download";
+            appDownloadButton.href = "/assets/downloads/genzai-android.apk";
+            appDownloadButton.download = "GEN-Z.AI-Android.apk";
+            appDownloadButton.textContent = "↓ Unduh Aplikasi Android";
+            appDownloadButton.setAttribute(
+                "aria-label",
+                "Unduh aplikasi GEN-Z.AI untuk Android"
+            );
+        }
+
+        if (appDownloadButton.parentElement !== parent) {
+            if (parent.classList.contains("genz-sidebar-footer")) {
+                const accountBox =
+                    parent.querySelector(".genz-account-box");
+
+                parent.insertBefore(appDownloadButton, accountBox);
+            } else {
+                parent.append(appDownloadButton);
+            }
+        } else if (
+            parent.classList.contains("genz-sidebar-footer") &&
+            appDownloadButton.previousElementSibling !== toggleButton
+        ) {
+            parent.insertBefore(
+                appDownloadButton,
+                toggleButton?.nextSibling || parent.firstChild
+            );
+        }
+    }
+
     function initialize() {
         ensureStyles();
         mountToggle();
+        mountAppDownload();
 
         const observer = new MutationObserver(() => {
             mountToggle();
+            mountAppDownload();
         });
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
     applyTheme(readTheme());
     ensureStyles();
+    initializePwaSupport();
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", initialize, { once: true });

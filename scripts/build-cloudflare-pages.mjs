@@ -25,8 +25,10 @@ const staticDirectories = [
 const staticFiles = [
     "index.html",
     "login.html",
+    "manifest.webmanifest",
     "register.html",
     "reset-password.html",
+    "service-worker.js",
     "email.html"
 ];
 
