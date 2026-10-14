@@ -204,7 +204,6 @@
   ========================================================== -->
   <script>
     let currentEmail = '';
-    let currentToken = '';
     let autoRefreshTimer = null;
 
     const statusEl = document.getElementById('status');
@@ -228,17 +227,45 @@
       }
     }
 
+    async function tempmailRequest(url, options = {}) {
+      if (window.GENZNavigationReady) {
+        await window.GENZNavigationReady;
+      }
+
+      const client = window.GENZ_SUPABASE || window.supabaseClient;
+      if (!client?.auth?.getSession) {
+        throw new Error('Session Supabase tidak tersedia. Silakan login kembali.');
+      }
+
+      const { data, error } = await client.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      if (error || !accessToken) {
+        throw new Error('Silakan login terlebih dahulu untuk menggunakan TempMail.');
+      }
+
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Permintaan TempMail gagal.');
+      }
+      return result;
+    }
+
     // ===================== GENERATE EMAIL =====================
     btnGenerate.addEventListener('click', async () => {
       setLoading(btnGenerate, true, 'Menghubungi server...');
       setStatus('');
       try {
-        const res = await fetch('/api/tempmail?action=create', { method: 'POST' });
-        const data = await res.json();
+        const data = await tempmailRequest('/api/tempmail?action=create', { method: 'POST' });
 
         if (data.email) {
           currentEmail = data.email;
-          currentToken = data.token;
 
           document.getElementById('email-text').textContent = data.email;
           document.getElementById('email-display').classList.remove('hidden');
@@ -250,7 +277,7 @@
 
           if (autoRefreshTimer) clearInterval(autoRefreshTimer);
           autoRefreshTimer = setInterval(() => {
-            if (currentEmail && currentToken) checkMessages(true);
+            if (currentEmail) checkMessages(true);
           }, 15000);
         } else {
           setStatus('❌ Gagal generate email: ' + (data.error || 'Unknown error'), 'error');
@@ -283,17 +310,16 @@
 
     // ===================== CEK PESAN MASUK =====================
     async function checkMessages(silent = false) {
-      if (!currentEmail || !currentToken) {
+      if (!currentEmail) {
         setStatus('⚠️ Generate email dulu.', 'error');
         return;
       }
       if (!silent) setStatus('🔄 Memuat pesan...');
 
       try {
-        const res = await fetch(
-          `/api/tempmail?action=messages&email=${encodeURIComponent(currentEmail)}&token=${encodeURIComponent(currentToken)}`
+        const messages = await tempmailRequest(
+          `/api/tempmail?action=messages&email=${encodeURIComponent(currentEmail)}`
         );
-        const messages = await res.json();
         const list = document.getElementById('message-list');
         list.innerHTML = '';
 
@@ -325,10 +351,9 @@
     async function showMessage(id) {
       setStatus('🔄 Memuat isi pesan...');
       try {
-        const res = await fetch(
-          `/api/tempmail?action=message&email=${encodeURIComponent(currentEmail)}&token=${encodeURIComponent(currentToken)}&messageId=${encodeURIComponent(id)}`
+        const msg = await tempmailRequest(
+          `/api/tempmail?action=message&email=${encodeURIComponent(currentEmail)}&messageId=${encodeURIComponent(id)}`
         );
-        const msg = await res.json();
 
         document.getElementById('msg-subject').textContent = msg.subject || '-';
         document.getElementById('msg-from').textContent = msg.from_addr || '-';
