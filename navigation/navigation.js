@@ -1140,15 +1140,31 @@
                     z-index: 10000;
                 }
                 .genz-sidebar.open { transform: translateX(0); }
-                .genz-sidebar-header { min-height: 72px; }
-                .genz-mobile-close { display: flex; align-items: center; justify-content: center; }
+                .genz-sidebar-header {
+                    min-height: 72px;
+                    align-items: flex-start;
+                    padding: 13px 11px;
+                }
+                .genz-brand { flex: 1 1 auto; }
+                .genz-logo { min-height: 40px; }
+                .genz-mobile-close {
+                    display: flex;
+                    flex: 0 0 40px;
+                    width: 40px;
+                    height: 40px;
+                    align-items: center;
+                    justify-content: center;
+                }
                 .genz-mobile-toggle { display: flex; }
+                body.genz-nav-open .genz-mobile-toggle {
+                    visibility: hidden;
+                    pointer-events: none;
+                }
                 body { padding-left: 0 !important; }
                 body.genz-nav-open { overflow: hidden; }
             }
 
             @media (max-width: 480px) {
-                .genz-sidebar-header { padding: 13px 11px; }
                 .genz-logo { gap: 8px; min-height: 40px; padding: 5px 9px 5px 6px; }
                 .genz-logo-mark { width: 32px; height: 32px; flex-basis: 32px; border-radius: 8px; font-size: 11px; }
                 .genz-logo-text { font-size: 17px; }
