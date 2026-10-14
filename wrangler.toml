@@ -1,6 +1,6 @@
 name = "genzai"
 account_id = "f374e7e2d001dd43253c8d47182e3882"
-main = "functions/worker.js"
+main = "functions/worker.mjs"
 compatibility_date = "2026-10-10"
 compatibility_flags = ["nodejs_compat"]
 
