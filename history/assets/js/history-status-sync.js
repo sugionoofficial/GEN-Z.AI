@@ -206,16 +206,38 @@
         ).trim();
     }
 
+    function isUpscaleHistoryItem(item) {
+        const modelId =
+            getModelId(item).toLowerCase();
+
+        const taskId =
+            getTaskId(item).toLowerCase();
+
+        return Boolean(
+            item?.upscale_of_history_id ||
+            item?.upscale_source_url ||
+            item?.upscale_target ||
+            modelId === "upscale-video" ||
+            modelId === "upscale-photo" ||
+            taskId.startsWith("upscale_") ||
+            taskId.startsWith("upscale-photo_")
+        );
+    }
+
     /* =====================================================
        ACTIVE HISTORY ITEMS
        -----------------------------------------------------
-       Skip task yang sudah gagal sync 3x berturut-turut.
+       Skip upscale internal dan task yang sudah gagal
+       sync 3x berturut-turut.
     ===================================================== */
 
     function getActiveHistoryItems() {
 
         return getHistoryData()
             .filter(item => {
+                if (isUpscaleHistoryItem(item)) {
+                    return false;
+                }
 
                 const status =
                     normalizeStatus(

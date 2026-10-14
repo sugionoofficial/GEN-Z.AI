@@ -439,10 +439,18 @@
 
 
             state.supabaseClient =
+                window.GENZ_SUPABASE ||
+                window.supabaseClient ||
                 window.supabase.createClient(
                     GENZ_CONFIG.SUPABASE_URL,
                     GENZ_CONFIG.SUPABASE_KEY
                 );
+
+            window.GENZ_SUPABASE =
+                state.supabaseClient;
+
+            window.supabaseClient =
+                state.supabaseClient;
 
 
             const {
