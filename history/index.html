@@ -298,6 +298,61 @@ body {
 }
 .refresh-button:hover svg { transform: rotate(180deg); }
 
+.history-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.auto-refresh-toggle {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    border: 1px solid rgba(255, 82, 99, .48);
+    border-radius: var(--r-pill);
+    background: rgba(255, 65, 82, .1);
+    color: #ff7581;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color .2s ease, background .2s ease, border-color .2s ease;
+}
+
+.auto-refresh-toggle::before {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: 50%;
+    background: currentColor;
+    content: "";
+}
+
+.auto-refresh-toggle.is-on {
+    border-color: rgba(47, 220, 132, .62);
+    background: rgba(24, 190, 105, .12);
+    color: #42e28e;
+}
+
+.auto-refresh-toggle.is-on::before {
+    animation: auto-refresh-pulse 1s ease-in-out infinite;
+}
+
+.auto-refresh-toggle:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+}
+
+@keyframes auto-refresh-pulse {
+    50% {
+        opacity: .28;
+        box-shadow: 0 0 10px currentColor;
+    }
+}
+
 /* =========================================================
    FILTERS
 ========================================================= */
@@ -855,9 +910,9 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
     position: relative;
     overflow: hidden;
     isolation: isolate;
-    color: #ffc266;
-    background: rgba(255,167,38,.10);
-    border: 1px solid rgba(255,167,38,.32);
+    color: #76baff;
+    background: rgba(45,130,230,.12);
+    border: 1px solid rgba(74,156,255,.38);
 }
 .status.processing::after {
     content: "";
@@ -876,8 +931,8 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
 .status.processing .status-dot {
     position: relative;
     z-index: 3;
-    background: var(--amber);
-    box-shadow: 0 0 10px rgba(255,167,38,.70);
+    background: #4d9dff;
+    box-shadow: 0 0 10px rgba(77,157,255,.75);
     animation: processingOrb 1.6s ease-in-out infinite;
 }
 .processing-indicator {
@@ -1838,14 +1893,23 @@ tbody tr {
                 <p class="section-sub" id="historyCount">Memuat riwayat...</p>
             </div>
 
-            <button class="refresh-button" id="refreshButton" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 12a9 9 0 1 1-3-6.7"/>
-                    <path d="M21 3v6h-6"/>
-                </svg>
-                Refresh
-            </button>
+            <div class="history-actions">
+                <button
+                    class="auto-refresh-toggle"
+                    id="autoRefreshToggle"
+                    type="button"
+                    aria-pressed="false"
+                    title="Auto refresh setiap 10 detik: mati"
+                >Auto 10s OFF</button>
+                <button class="refresh-button" id="refreshButton" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12a9 9 0 1 1-3-6.7"/>
+                        <path d="M21 3v6h-6"/>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
         </div>
 
         <div class="filters">
@@ -1946,7 +2010,7 @@ tbody tr {
 <script src="./assets/js/history-render.js"></script>
 <script src="./assets/js/history-runtime.js"></script>
 <script src="./assets/js/history-modal.js"></script>
-<script src="./assets/js/history-events.js"></script>
+<script src="./assets/js/history-events.js?v=auto-refresh-10s"></script>
 <script src="./assets/js/history-app.js"></script>
 
 <script>

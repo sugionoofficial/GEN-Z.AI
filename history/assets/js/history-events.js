@@ -40,6 +40,8 @@
     const App =
         window.GENZHistory;
 
+    let autoHistoryRefreshTimer = null;
+
 
     /* =====================================================
        STATE
@@ -1609,6 +1611,56 @@ function handleModalClick(
                 handleRefresh
             );
 
+        }
+
+        const autoRefreshToggle =
+            document.getElementById("autoRefreshToggle");
+
+        if (autoRefreshToggle) {
+            autoRefreshToggle.addEventListener("click", () => {
+                const isEnabled =
+                    autoHistoryRefreshTimer !== null;
+
+                if (isEnabled) {
+                    window.clearInterval(autoHistoryRefreshTimer);
+                    autoHistoryRefreshTimer = null;
+                    autoRefreshToggle.classList.remove("is-on");
+                    autoRefreshToggle.textContent = "Auto 10s OFF";
+                    autoRefreshToggle.setAttribute("aria-pressed", "false");
+                    autoRefreshToggle.title =
+                        "Auto refresh setiap 10 detik: mati";
+                    return;
+                }
+
+                autoRefreshToggle.classList.add("is-on");
+                autoRefreshToggle.textContent = "Auto 10s ON";
+                autoRefreshToggle.setAttribute("aria-pressed", "true");
+                autoRefreshToggle.title =
+                    "Auto refresh aktif setiap 10 detik";
+
+                autoHistoryRefreshTimer = window.setInterval(async () => {
+                    if (App.state.historyLoadInProgress) return;
+
+                    try {
+                        if (typeof App.loadHistory !== "function") {
+                            throw new Error("History data module belum tersedia.");
+                        }
+                        await App.loadHistory({ silent: true });
+                    } catch (error) {
+                        console.error(
+                            "[GEN-Z.AI History] Auto refresh gagal:",
+                            error
+                        );
+                    }
+                }, 10000);
+            });
+
+            window.addEventListener("pagehide", () => {
+                if (autoHistoryRefreshTimer !== null) {
+                    window.clearInterval(autoHistoryRefreshTimer);
+                    autoHistoryRefreshTimer = null;
+                }
+            }, { once: true });
         }
 
 
