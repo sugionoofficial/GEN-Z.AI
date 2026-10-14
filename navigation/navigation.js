@@ -1,4 +1,4 @@
-//navigation.js?v=2.1
+//navigation.js?v=2.2
 /* =========================================================
    GEN-Z.AI
    SHARED NAVIGATION
@@ -6,10 +6,10 @@
    File:
    navigation/navigation.js
 
-   PATCH v2.1:
-   - Tambah menu "Upscale Studio" ke commonUserItems
+   PATCH v2.2:
+   - Tambah menu "Chinaapi" (Temp Mail) ke commonUserItems
      dan adminItems.
-   - Tambah icon upscale.
+   - Tambah icon "chinaapi" (amplop/email).
 ========================================================= */
 
 (() => {
@@ -521,7 +521,9 @@
 
             hubAdmin: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V9l8-5 8 5v12"></path><path d="M2 21h20"></path><path d="M8 21v-6h8v6"></path><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path></svg>`,
 
-            adminPanel: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v5c0 5.2-3.4 8.7-8 10-4.6-1.3-8-4.8-8-10V6z"></path><path d="M8.5 12l2.2 2.2 4.8-4.8"></path></svg>`
+            adminPanel: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v5c0 5.2-3.4 8.7-8 10-4.6-1.3-8-4.8-8-10V6z"></path><path d="M8.5 12l2.2 2.2 4.8-4.8"></path></svg>`,
+
+            chinaapi: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2"></rect><path d="m3 6.5 9 7 9-7"></path></svg>`
 
         });
 
@@ -536,6 +538,7 @@
             { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
             { label: "History", href: "/history/index.html", icon: ICONS.history },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
+            { label: "Chinaapi", href: "/email.html", icon: ICONS.chinaapi },
             { label: "Top Up", href: "/user/topup.html", icon: ICONS.topUp },
             { label: "Hub Admin", href: "/user/hub-admin.html", icon: ICONS.hubAdmin }
         ];
@@ -551,6 +554,7 @@
             { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
             { label: "History", href: "/history/index.html", icon: ICONS.history },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
+            { label: "Chinaapi", href: "/email.html", icon: ICONS.chinaapi },
             { label: "Admin Panel", href: "/admin-control/admin-panel.html", icon: ICONS.adminPanel }
         ];
 
