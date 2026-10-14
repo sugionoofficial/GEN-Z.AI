@@ -27,8 +27,7 @@ const staticFiles = [
     "login.html",
     "register.html",
     "reset-password.html",
-    "dang1.mp3",
-    "ssstik.io_1790719438524 (1).mp3"
+    "email.html"
 ];
 
 await rm(output, { recursive: true, force: true });
