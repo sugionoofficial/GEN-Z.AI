@@ -127,8 +127,7 @@
       margin-bottom: 4px;
     }
 
-    /* ===== Penyesuaian layout dengan sidebar navigation ===== */
-    /* Desktop: kasih ruang untuk sidebar 248px + tetap center konten */
+    /* Penyesuaian dengan sidebar navigation */
     @media (min-width: 769px) {
       body {
         max-width: none;
@@ -140,8 +139,6 @@
         margin: 0 auto;
       }
     }
-
-    /* Mobile: toggle button ada di kiri atas, kasih ruang */
     @media (max-width: 768px) {
       body {
         padding: 70px 20px 20px;
@@ -151,7 +148,7 @@
 </head>
 <body>
 
-  <!-- Container konten (agar center di desktop tanpa menabrak sidebar) -->
+  <!-- Container konten -->
   <div class="email-container">
 
     <h1>Chinaapi — Temp Gmail</h1>
@@ -189,10 +186,22 @@
 
   </div>
 
-  <!-- ===================== NAVIGATION ===================== -->
-  <script src="/navigation/navigation.js?v=2.2"></script>
+  <!-- =========================================================
+       DEPENDENSI NAVIGATION (WAJIB, urutan harus begini)
+  ========================================================== -->
 
-  <!-- ===================== TEMPMAIL LOGIC ===================== -->
+  <!-- 1. Supabase client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+
+  <!-- 2. Config (path absolut karena email.html di root) -->
+  <script src="/assets/js/config.js"></script>
+
+  <!-- 3. Navigation (path absolut) -->
+  <script src="/navigation/navigation.js?v=presence-20261010"></script>
+
+  <!-- =========================================================
+       TEMPMAIL LOGIC
+  ========================================================== -->
   <script>
     let currentEmail = '';
     let currentToken = '';
