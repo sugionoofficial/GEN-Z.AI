@@ -596,6 +596,7 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
     content: "";
     position: absolute;
     inset: -50%;
+    z-index: 0;
     background: conic-gradient(from 0deg, transparent 0deg, rgba(255,51,85,.03) 60deg, rgba(255,51,85,.30) 100deg, transparent 150deg, transparent 360deg);
     animation: thumbnailSpin 2.4s linear infinite;
 }
@@ -615,13 +616,13 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
     position: absolute;
     left: 0; right: 0; bottom: 0;
     z-index: 4;
-    padding: 6px 4px 5px;
+    padding: 6px 3px 5px;
     text-align: center;
-    background: linear-gradient(transparent, rgba(0,0,0,.85));
+    background: linear-gradient(transparent, rgba(0,0,0,.96) 35%);
     color: #fff;
-    font-size: 7px;
+    font-size: 6px;
     font-weight: 900;
-    letter-spacing: 1px;
+    letter-spacing: .65px;
 }
 @keyframes thumbnailSpin { to { transform: rotate(360deg); } }
 
@@ -1318,6 +1319,38 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
         animation-duration: .01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: .01ms !important;
+    }
+}
+
+@media (max-width: 560px) {
+    .thumbnail-loader {
+        width: 20px;
+        height: 20px;
+        top: -10px;
+    }
+
+    .thumbnail-processing-label {
+        z-index: 5;
+        padding: 5px 2px 4px;
+        font-size: 5px;
+        letter-spacing: .45px;
+        background: linear-gradient(transparent, rgba(0,0,0,.98) 28%);
+    }
+
+    /*
+     * Keep the explicitly requested generation indicators animated
+     * on mobile while leaving other reduced-motion behavior intact.
+     */
+    .thumbnail-processing::before {
+        animation: thumbnailSpin 2.4s linear infinite !important;
+    }
+
+    .thumbnail-loader {
+        animation: spin .8s linear infinite !important;
+    }
+
+    .status.processing::after {
+        animation: processingShimmer 2.2s cubic-bezier(.4,0,.2,1) infinite !important;
     }
 }
 
