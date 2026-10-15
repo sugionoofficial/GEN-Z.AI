@@ -4,12 +4,12 @@
    Flow:
      1. Wait for navigation ready
      2. Load user + credit
-     3. User upload foto → validate → preview
+     3. User upload foto/video → validate → preview
      4. User pilih target → klik Upscale
-     5. Upload ke Supabase Storage bucket dashboard-upscales/photos/inputs/
-     6. Kirim URL ke backend /api/generate (action: upscale-photo)
+     5. Foto/video diunggah sementara ke Supabase Storage
+     6. Kirim URL ke backend /api/generate
      7. Backend deduct credit + create history + trigger workflow
-     8. Tampil status + redirect ke history
+     8. Video di-upscale + diinterpolasi di server; hasil masuk History
 ========================================================= */
 
 "use strict";
@@ -18,9 +18,18 @@
 const CONFIG = Object.freeze({
     bucket: "dashboard-videos",
     photoInputFolder: "upscale-photos/inputs",
+    videoInputFolder: "upscale-videos/inputs",
     apiEndpoint: "/api/generate",
-    maxFileSize: 20 * 1024 * 1024,
-    allowedTypes: ["image/jpeg", "image/png", "image/webp"],
+    maxPhotoSize: 20 * 1024 * 1024,
+    maxVideoSize: 50 * 1024 * 1024,
+    maxVideoDuration: 180,
+    allowedPhotoTypes: ["image/jpeg", "image/png", "image/webp"],
+    allowedVideoTypes: [
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
+        "video/x-m4v"
+    ],
     requestTimeout: 60000
 });
 
@@ -34,7 +43,9 @@ const state = {
     session: null,
     credit: null,
     file: null,
+    mediaType: null,
     previewUrl: null,
+    fileSelectionVersion: 0,
     target: "2k",
     processing: false,
     dom: {}
@@ -49,10 +60,12 @@ function resolveDom() {
 
     const ids = [
         "dropzone", "fileInput", "uploadState", "previewState",
-        "previewImg", "fileName", "fileSize", "browseBtn", "removeBtn",
+        "previewImg", "previewVideo", "fileName", "fileSize", "browseBtn", "removeBtn",
         "targetGrid", "upscaleBtn", "upscaleBtnText", "upscaleSpinner",
         "statusMessage", "resultArea", "resultActions", "creditValue",
-        "loadingOverlay", "loadingTitle", "loadingText"
+        "loadingOverlay", "loadingTitle", "loadingText",
+        "videoProcessingNote", "engineInfo", "engineDescription",
+        "timeInfo", "timeDescription", "outputInfo", "outputDescription"
     ];
 
     ids.forEach(id => {
@@ -201,71 +214,214 @@ async function loadCredit() {
    FILE HANDLING
 ========================================================= */
 
-function validateFile(file) {
+async function validateFile(file) {
 
     if (!file) throw new Error("File tidak ditemukan.");
 
-    if (!CONFIG.allowedTypes.includes(file.type)) {
-        throw new Error("Format tidak didukung. Gunakan JPG, PNG, atau WebP.");
+    if (CONFIG.allowedPhotoTypes.includes(file.type)) {
+        if (file.size > CONFIG.maxPhotoSize) {
+            throw new Error("Ukuran foto maksimal 20 MB.");
+        }
+
+        return "image";
     }
 
-    if (file.size > CONFIG.maxFileSize) {
-        throw new Error("Ukuran file maksimal 20 MB.");
+    if (CONFIG.allowedVideoTypes.includes(file.type)) {
+        if (file.size > CONFIG.maxVideoSize) {
+            throw new Error("Ukuran video maksimal 50 MB.");
+        }
+
+        const duration = await getVideoDuration(file);
+        if (duration > CONFIG.maxVideoDuration) {
+            throw new Error("Durasi video maksimal 3 menit.");
+        }
+
+        return "video";
     }
 
-    return true;
+    throw new Error("Format tidak didukung. Gunakan JPG, PNG, WebP, MP4, WebM, MOV, atau M4V.");
 }
 
 
+function getVideoDuration(file) {
+
+    return new Promise((resolve, reject) => {
+        const video = document.createElement("video");
+        const url = URL.createObjectURL(file);
+        const timeout = setTimeout(() => {
+            URL.revokeObjectURL(url);
+            reject(new Error("Durasi video tidak dapat dibaca."));
+        }, 15000);
+
+        video.preload = "metadata";
+        video.onloadedmetadata = () => {
+            clearTimeout(timeout);
+            URL.revokeObjectURL(url);
+
+            if (!Number.isFinite(video.duration) || video.duration <= 0) {
+                reject(new Error("Durasi video tidak valid."));
+                return;
+            }
+
+            resolve(video.duration);
+        };
+        video.onerror = () => {
+            clearTimeout(timeout);
+            URL.revokeObjectURL(url);
+            reject(new Error("Video tidak dapat dibaca oleh browser."));
+        };
+        video.src = url;
+    });
+}
+
+function updateMediaControls() {
+    const isVideo = state.mediaType === "video";
+    const options = state.dom.targetGrid?.querySelectorAll(".target-option") || [];
+
+    options.forEach(option => {
+        const imageOnlyTarget =
+            option.dataset.target === "1080p" ||
+            option.dataset.target === "1k";
+        option.hidden = !isVideo && imageOnlyTarget;
+        option.classList.toggle(
+            "active",
+            option.dataset.target === state.target
+        );
+    });
+
+    if (state.dom.videoProcessingNote) {
+        state.dom.videoProcessingNote.hidden = !isVideo;
+    }
+
+    if (state.dom.engineInfo) {
+        state.dom.engineInfo.textContent = isVideo
+            ? "FFmpeg Motion Interpolation"
+            : "Real-ESRGAN";
+    }
+    if (state.dom.engineDescription) {
+        state.dom.engineDescription.textContent = isVideo
+            ? "Lanczos + penajaman + estimasi gerak"
+            : "AI upscaling foto 4× + downscale ke target";
+    }
+    if (state.dom.timeInfo) {
+        state.dom.timeInfo.textContent = isVideo
+            ? "Beberapa menit"
+            : "~2-4 menit";
+    }
+    if (state.dom.timeDescription) {
+        state.dom.timeDescription.textContent = isVideo
+            ? "Diproses di server; durasi bergantung pada video dan target"
+            : "Proses berjalan di server GPU/CPU";
+    }
+    if (state.dom.outputInfo) {
+        state.dom.outputInfo.textContent = isVideo
+            ? "MP4 · H.264"
+            : "JPG / PNG";
+    }
+    if (state.dom.outputDescription) {
+        state.dom.outputDescription.textContent = isVideo
+            ? "Hasil video muncul di halaman History"
+            : "Foto hasil upscale siap pakai";
+    }
+}
+
 function showPreview() {
 
-    const { uploadState, previewState, previewImg, fileName, fileSize } = state.dom;
+    const {
+        uploadState,
+        previewState,
+        previewImg,
+        previewVideo,
+        fileName,
+        fileSize
+    } = state.dom;
 
     if (uploadState) uploadState.hidden = true;
     if (previewState) previewState.hidden = false;
 
-    if (previewImg && state.previewUrl) previewImg.src = state.previewUrl;
+    if (previewImg) {
+        previewImg.hidden = state.mediaType !== "image";
+        if (state.mediaType === "image" && state.previewUrl) {
+            previewImg.src = state.previewUrl;
+        } else {
+            previewImg.removeAttribute("src");
+        }
+    }
+    if (previewVideo) {
+        previewVideo.hidden = state.mediaType !== "video";
+        if (state.mediaType === "video" && state.previewUrl) {
+            previewVideo.src = state.previewUrl;
+        } else {
+            previewVideo.pause();
+            previewVideo.removeAttribute("src");
+            previewVideo.load();
+        }
+    }
     if (fileName) fileName.textContent = state.file?.name || "-";
     if (fileSize) fileSize.textContent = formatBytes(state.file?.size || 0);
 
+    updateMediaControls();
     updateUpscaleButton();
 }
 
-
 function hidePreview() {
 
-    const { uploadState, previewState, previewImg } = state.dom;
+    const { uploadState, previewState, previewImg, previewVideo } = state.dom;
 
     if (uploadState) uploadState.hidden = false;
     if (previewState) previewState.hidden = true;
     if (previewImg) previewImg.removeAttribute("src");
+    if (previewVideo) {
+        previewVideo.pause();
+        previewVideo.removeAttribute("src");
+        previewVideo.load();
+        previewVideo.hidden = true;
+    }
+    if (previewImg) previewImg.hidden = false;
 
+    updateMediaControls();
     updateUpscaleButton();
 }
 
+async function handleFileSelect(file) {
+    const selectionVersion = ++state.fileSelectionVersion;
 
-function handleFileSelect(file) {
+    if (state.previewUrl) {
+        URL.revokeObjectURL(state.previewUrl);
+        state.previewUrl = null;
+    }
+    state.file = null;
+    state.mediaType = null;
+    hideStatus();
+    hidePreview();
 
     try {
-        validateFile(file);
-
-        if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+        const mediaType = await validateFile(file);
+        if (selectionVersion !== state.fileSelectionVersion) return;
 
         state.file = file;
+        state.mediaType = mediaType;
+        if (mediaType === "image" && !["2k", "4k"].includes(state.target)) {
+            state.target = "2k";
+        }
         state.previewUrl = URL.createObjectURL(file);
 
         hideStatus();
         showPreview();
 
     } catch (err) {
+        if (selectionVersion !== state.fileSelectionVersion) return;
         showStatus(err.message, "error");
         state.file = null;
+        state.mediaType = null;
+        if (state.dom.fileInput) state.dom.fileInput.value = "";
         hidePreview();
     }
 }
 
 
 function clearFile() {
+    state.fileSelectionVersion += 1;
 
     if (state.previewUrl) {
         URL.revokeObjectURL(state.previewUrl);
@@ -273,6 +429,7 @@ function clearFile() {
     }
 
     state.file = null;
+    state.mediaType = null;
 
     const input = state.dom.fileInput;
     if (input) input.value = "";
@@ -286,16 +443,30 @@ function clearFile() {
    UPLOAD TO SUPABASE
 ========================================================= */
 
-async function uploadPhoto(file) {
+async function uploadMedia(file, mediaType) {
 
     const supabase = getSupabaseClient();
     if (!supabase) throw new Error("Supabase client tidak tersedia.");
 
     if (!state.user?.id) throw new Error("User belum terautentikasi.");
 
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    const rand = Math.random().toString(36).slice(2, 10);
-    const path = `${CONFIG.photoInputFolder}/${state.user.id}/${Date.now()}-${rand}.${ext}`;
+    const extensionByType = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+        "video/mp4": "mp4",
+        "video/webm": "webm",
+        "video/quicktime": "mov",
+        "video/x-m4v": "m4v"
+    };
+    const ext = extensionByType[file.type];
+    const rand = window.crypto?.randomUUID
+        ? window.crypto.randomUUID().replace(/-/g, "").slice(0, 8)
+        : Math.random().toString(36).slice(2).padEnd(8, "0").slice(0, 8);
+    const folder = mediaType === "video"
+        ? CONFIG.videoInputFolder
+        : CONFIG.photoInputFolder;
+    const path = `${folder}/${state.user.id}/${Date.now()}-${rand}.${ext}`;
 
     const { error } = await supabase.storage
         .from(CONFIG.bucket)
@@ -313,7 +484,7 @@ async function uploadPhoto(file) {
 
     if (!publicUrl) throw new Error("URL publik tidak tersedia.");
 
-    return publicUrl;
+    return { publicUrl };
 }
 
 
@@ -321,7 +492,7 @@ async function uploadPhoto(file) {
    BACKEND CALL
 ========================================================= */
 
-async function callBackend(sourceUrl) {
+async function callBackend(sourceUrl, mediaType, targetResolution) {
 
     const session = state.session;
     if (!session?.access_token) {
@@ -339,9 +510,11 @@ async function callBackend(sourceUrl) {
                 "Authorization": "Bearer " + session.access_token
             },
             body: JSON.stringify({
-                action: "upscale-photo",
+                action: mediaType === "video"
+                    ? "upscale-video-upload"
+                    : "upscale-photo",
                 source_url: sourceUrl,
-                target_resolution: state.target
+                target_resolution: targetResolution
             }),
             signal: controller.signal,
             credentials: "same-origin"
@@ -371,10 +544,13 @@ async function startUpscale() {
 
     if (state.processing) return;
     if (!state.file) {
-        showStatus("Upload foto terlebih dahulu.", "error");
+        showStatus("Upload foto atau video terlebih dahulu.", "error");
         return;
     }
 
+    const mediaType = state.mediaType;
+    const targetResolution = state.target;
+    const file = state.file;
     state.processing = true;
 
     const btn = state.dom.upscaleBtn;
@@ -388,18 +564,27 @@ async function startUpscale() {
     hideStatus();
 
     try {
-        showLoading("Mengunggah foto...", "Menyiapkan file untuk upscale");
+        showLoading(
+            mediaType === "video" ? "Mengunggah video..." : "Mengunggah foto...",
+            "Menyiapkan file untuk upscale"
+        );
 
-        const publicUrl = await uploadPhoto(state.file);
+        const upload = await uploadMedia(file, mediaType);
 
         showLoading("Memulai upscale...", "Menghubungi server");
 
-        const result = await callBackend(publicUrl);
+        const result = await callBackend(
+            upload.publicUrl,
+            mediaType,
+            targetResolution
+        );
 
         hideLoading();
 
         showStatus(
-            `Berhasil! Upscale sedang diproses. Hasil akan muncul di History dalam beberapa menit.`,
+            mediaType === "video"
+                ? `Berhasil! Video ${result.target || targetResolution} sedang di-upscale dan dihaluskan. Hasil akan muncul di History setelah proses server selesai.`
+                : "Berhasil! Upscale foto sedang diproses. Hasil akan muncul di History dalam beberapa menit.",
             "success"
         );
 

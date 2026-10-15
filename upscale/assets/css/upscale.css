@@ -383,6 +383,19 @@ body {
     object-fit: contain;
 }
 
+.preview-image-wrap video {
+    display: block;
+    width: 100%;
+    max-height: 320px;
+    background: #030509;
+}
+
+.preview-image-wrap [hidden],
+.target-option[hidden],
+.video-processing-note[hidden] {
+    display: none;
+}
+
 .preview-info {
     display: flex;
     flex-direction: column;
@@ -422,6 +435,17 @@ body {
     text-align: left;
     cursor: pointer;
     transition: all 0.22s var(--up-ease);
+}
+
+.video-processing-note {
+    padding: 12px 14px;
+    margin: 14px 0 0;
+    border: 1px solid rgba(255, 167, 38, 0.22);
+    border-radius: var(--up-radius-sm);
+    background: rgba(255, 167, 38, 0.06);
+    color: #d6c4a2;
+    font-size: 12px;
+    line-height: 1.6;
 }
 
 .target-option:hover { border-color: var(--up-line-hi); }

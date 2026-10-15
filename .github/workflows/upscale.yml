@@ -20,6 +20,21 @@ on:
         required: true
         type: string
         default: "1"
+      target_resolution:
+        description: "Resolusi sisi panjang target"
+        required: true
+        type: choice
+        options:
+          - 1080p
+          - 1k
+          - 2k
+          - 4k
+        default: "2k"
+      source_object_path:
+        description: "Object Storage sementara yang dihapus setelah pemrosesan"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   upscale:
@@ -33,46 +48,106 @@ jobs:
           sudo apt-get install -y -qq ffmpeg
 
       - name: Download source video
+        env:
+          SOURCE_URL: ${{ inputs.source_url }}
+          SOURCE_OBJECT_PATH: ${{ inputs.source_object_path }}
         run: |
           echo "Downloading video..."
-          curl -L --fail --retry 3 -o input.mp4 "${{ inputs.source_url }}"
+          if [ -n "$SOURCE_OBJECT_PATH" ]; then
+            curl -L --fail --retry 3 --max-filesize 52428800 -o input.mp4 "$SOURCE_URL"
+          else
+            curl -L --fail --retry 3 -o input.mp4 "$SOURCE_URL"
+          fi
           ls -lh input.mp4
 
       - name: Probe source video
         id: probe
+        env:
+          SOURCE_OBJECT_PATH: ${{ inputs.source_object_path }}
+          MAX_DURATION_SECONDS: "180"
         run: |
           WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 input.mp4)
           HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 input.mp4)
           DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 input.mp4)
+          FRAME_RATE=$(ffprobe -v error -select_streams v:0 -show_entries stream=avg_frame_rate -of csv=p=0 input.mp4)
+
+          if [ -z "$WIDTH" ] || [ -z "$HEIGHT" ] || [ -z "$DURATION" ]; then
+            echo "Tidak dapat membaca dimensi atau durasi video."
+            exit 1
+          fi
+
+          if [ -n "$SOURCE_OBJECT_PATH" ]; then
+            if ! awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" 'BEGIN { exit !(duration > 0 && duration <= maximum) }'; then
+              echo "Durasi video melebihi batas ${MAX_DURATION_SECONDS} detik."
+              exit 1
+            fi
+          fi
+
           echo "width=$WIDTH" >> $GITHUB_OUTPUT
           echo "height=$HEIGHT" >> $GITHUB_OUTPUT
           echo "duration=$DURATION" >> $GITHUB_OUTPUT
-          echo "Source: ${WIDTH}x${HEIGHT}, ${DURATION}s"
+          echo "frame_rate=$FRAME_RATE" >> $GITHUB_OUTPUT
+          echo "Source: ${WIDTH}x${HEIGHT}, ${DURATION}s, ${FRAME_RATE}fps"
 
       - name: Calculate target resolution
         id: target
+        env:
+          SOURCE_WIDTH: ${{ steps.probe.outputs.width }}
+          SOURCE_HEIGHT: ${{ steps.probe.outputs.height }}
+          SOURCE_FRAME_RATE: ${{ steps.probe.outputs.frame_rate }}
+          TARGET_RESOLUTION: ${{ inputs.target_resolution }}
         run: |
-          W="${{ steps.probe.outputs.width }}"
-          H="${{ steps.probe.outputs.height }}"
+          case "$TARGET_RESOLUTION" in
+            1080p) EDGE=1080 ;;
+            1k) EDGE=1024 ;;
+            2k) EDGE=2560 ;;
+            4k) EDGE=3840 ;;
+            *) echo "Target resolusi tidak valid."; exit 1 ;;
+          esac
 
-          if [ "$W" -gt "$H" ]; then
-            TW=2560
-            TH=1440
-            ORIENT="landscape"
+          W="$SOURCE_WIDTH"
+          H="$SOURCE_HEIGHT"
+
+          if [ "$TARGET_RESOLUTION" = "1080p" ]; then
+            if [ "$W" -ge "$H" ]; then
+              TH="$EDGE"
+              TW=$(( W * EDGE / H ))
+            else
+              TW="$EDGE"
+              TH=$(( H * EDGE / W ))
+            fi
+          elif [ "$W" -ge "$H" ]; then
+            TW="$EDGE"
+            TH=$(( H * EDGE / W ))
           else
-            TW=1440
-            TH=2560
-            ORIENT="portrait"
+            TH="$EDGE"
+            TW=$(( W * EDGE / H ))
           fi
+
+          TW=$(( TW / 2 * 2 ))
+          TH=$(( TH / 2 * 2 ))
+          if [ "$TW" -lt 2 ]; then TW=2; fi
+          if [ "$TH" -lt 2 ]; then TH=2; fi
+
+          FPS=$(awk -F/ '{ if ($2 > 0) printf "%d", ($1 / $2) + 0.5; else printf "24" }' <<< "$SOURCE_FRAME_RATE")
+          if [ "$FPS" -lt 1 ]; then FPS=24; fi
+          OUTPUT_FPS=$(( FPS * 2 ))
+          if [ "$OUTPUT_FPS" -gt 60 ]; then OUTPUT_FPS=60; fi
+          if [ "$OUTPUT_FPS" -lt "$FPS" ]; then OUTPUT_FPS="$FPS"; fi
 
           echo "target_width=$TW" >> $GITHUB_OUTPUT
           echo "target_height=$TH" >> $GITHUB_OUTPUT
-          echo "Target: ${TW}x${TH} (${ORIENT})"
+          echo "target_fps=$OUTPUT_FPS" >> $GITHUB_OUTPUT
+          echo "Target: ${TW}x${TH} at ${OUTPUT_FPS}fps"
 
       - name: Upscale + Interpolate (2-pass, target < 45MB)
+        env:
+          DURATION: ${{ steps.probe.outputs.duration }}
+          TARGET_WIDTH: ${{ steps.target.outputs.target_width }}
+          TARGET_HEIGHT: ${{ steps.target.outputs.target_height }}
+          TARGET_FPS: ${{ steps.target.outputs.target_fps }}
         run: |
-          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 input.mp4)
-          DURATION_INT=$(printf "%.0f" "$DURATION")
+          DURATION_INT=$(awk -v duration="$DURATION" 'BEGIN { value=int(duration + 0.5); if (value < 1) value=1; print value }')
 
           # Target 45 MB (buffer 5 MB dari limit 50 MB Supabase free)
           TARGET_MB=45
@@ -80,14 +155,17 @@ jobs:
           TOTAL_KBPS=$(( TARGET_MB * 8 * 1024 / DURATION_INT ))
           VIDEO_KBPS=$(( TOTAL_KBPS - AUDIO_KBPS ))
 
+          FILTER="scale=${TARGET_WIDTH}:${TARGET_HEIGHT}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=${TARGET_FPS}:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32"
+
           echo "Duration: ${DURATION_INT}s"
+          echo "Output: ${TARGET_WIDTH}x${TARGET_HEIGHT} at ${TARGET_FPS}fps"
           echo "Target total bitrate: ${TOTAL_KBPS} kbps"
           echo "Target video bitrate: ${VIDEO_KBPS} kbps"
 
           # PASS 1 — analyze
           echo "=== PASS 1 ==="
           ffmpeg -y -i input.mp4 \
-            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=48:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32" \
+            -vf "$FILTER" \
             -c:v libx264 \
             -preset medium \
             -b:v ${VIDEO_KBPS}k \
@@ -99,7 +177,7 @@ jobs:
           # PASS 2 — final encode
           echo "=== PASS 2 ==="
           ffmpeg -y -i input.mp4 \
-            -vf "scale=${{ steps.target.outputs.target_width }}:${{ steps.target.outputs.target_height }}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=48:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32" \
+            -vf "$FILTER" \
             -c:v libx264 \
             -preset medium \
             -b:v ${VIDEO_KBPS}k \
@@ -203,3 +281,18 @@ jobs:
             }"
 
           echo "Refund done."
+
+      - name: Delete temporary uploaded source
+        if: always() && inputs.source_object_path != ''
+        env:
+          SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          SOURCE_OBJECT_PATH: ${{ inputs.source_object_path }}
+        run: |
+          if ! curl --fail --silent --show-error \
+            -X DELETE \
+            "${SUPABASE_URL}/storage/v1/object/dashboard-videos/${SOURCE_OBJECT_PATH}" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}"; then
+            echo "::warning::Temporary source video could not be removed from Storage."
+          fi

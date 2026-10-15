@@ -15,7 +15,7 @@
    - Remove per-program metadata
    - Remove chapters
    - Verify cleaned metadata
-   - Re-encode MP4/MOV only if AI metadata remains
+   - Re-encode MP4/MOV only if AI metadata or provenance remains
    - Original video remains untouched
 
    PERBAIKAN:
@@ -51,6 +51,10 @@ import {
     readVideoMetadata
 } from "./metadata-video.js";
 
+import {
+    inspectProvenance
+} from "./metadata-provenance.js";
+
 
 /* =========================================================
    INTERNAL HELPER
@@ -76,6 +80,20 @@ function getResidualMetadata(
     );
 }
 
+function canReencodeVideo(
+    file
+) {
+
+    return (
+        isMovLikeVideo(file) ||
+        String(file?.type || "")
+            .toLowerCase() === "video/mp4" ||
+        /\.mp4$/i.test(
+            String(file?.name || "")
+        )
+    );
+}
+
 
 async function inspectCleanedVideo(
     blob,
@@ -94,9 +112,17 @@ async function inspectCleanedVideo(
     const metadata =
         await readVideoMetadata(file);
 
-    return getResidualMetadata(
-        normalizeMetadata(metadata)
-    );
+    const provenance =
+        await inspectProvenance(file);
+
+    return {
+        residualMetadata:
+            getResidualMetadata(
+                normalizeMetadata(metadata)
+            ),
+
+        provenance
+    };
 }
 
 
@@ -635,7 +661,7 @@ export async function cleanVideo(
             let notice =
                 "";
 
-            let residualMetadata =
+            let verification =
                 await inspectCleanedVideo(
                     new Blob(
                         [outputData],
@@ -646,15 +672,16 @@ export async function cleanVideo(
 
 
             if (
-                residualMetadata.length > 0
+                verification.residualMetadata.length > 0 ||
+                verification.provenance.detected
             ) {
 
                 if (
-                    !isMovLikeVideo(file)
+                    !canReencodeVideo(file)
                 ) {
 
                     throw new Error(
-                        "Indikator AI atau SoftwareAgent masih ditemukan setelah remux. Format video ini memerlukan proses encode ulang yang belum didukung."
+                        "Metadata AI, SoftwareAgent, atau C2PA masih ditemukan setelah remux. Format video ini memerlukan proses encode ulang yang belum didukung."
                     );
                 }
 
@@ -727,7 +754,7 @@ export async function cleanVideo(
                 finalOutputName =
                     reencodedOutputName;
 
-                residualMetadata =
+                verification =
                     await inspectCleanedVideo(
                         new Blob(
                             [finalOutputData],
@@ -737,24 +764,34 @@ export async function cleanVideo(
                     );
 
                 if (
-                    residualMetadata.length > 0
+                    verification.residualMetadata.length > 0 ||
+                    verification.provenance.detected
                 ) {
 
                     const remainingFields =
-                        residualMetadata
+                        verification.residualMetadata
                             .map(item => item.field)
                             .filter(Boolean)
                             .slice(0, 5)
                             .join(", ");
 
+                    const remainingFindings = [
+                        ...(remainingFields
+                            ? [remainingFields]
+                            : []),
+                        ...verification.provenance.findings
+                    ]
+                        .slice(0, 5)
+                        .join(", ");
+
                     throw new Error(
-                        `Verifikasi gagal: metadata AI masih ditemukan setelah encode ulang (${remainingFields}). File tidak ditandai bersih.`
+                        `Verifikasi gagal: metadata masih ditemukan setelah encode ulang (${remainingFindings}). File tidak ditandai bersih.`
                     );
                 }
 
 
                 notice =
-                    "Metadata AI/SoftwareAgent tertanam ditemukan; video di-encode ulang untuk menghapusnya. Kualitas video mungkin berubah; subtitle, data, dan track video tambahan tidak disertakan.";
+                    "Metadata AI, C2PA, atau SoftwareAgent tertanam ditemukan; video di-encode ulang untuk menghapusnya. Kualitas video mungkin berubah; subtitle, data, dan track video tambahan tidak disertakan.";
             }
 
 

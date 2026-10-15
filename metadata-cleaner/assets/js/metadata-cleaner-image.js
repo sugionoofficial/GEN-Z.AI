@@ -350,6 +350,7 @@ async function stripImageMetadata(
  * APP0  = JFIF application block
  * APP1  = EXIF / XMP
  * APP2  = ICC profile
+ * APP11 = C2PA / JUMBF
  * APP13 = IPTC / Photoshop
  * COM   = JPEG comment
  *
@@ -580,6 +581,7 @@ function stripJPEGMetadata(
          * APP0  FFE0
          * APP1  FFE1
          * APP2  FFE2
+         * APP11 FFEB
          * APP13 FFED
          * COM   FFFE
          */
@@ -588,6 +590,7 @@ function stripJPEGMetadata(
             marker === 0xE0 ||
             marker === 0xE1 ||
             marker === 0xE2 ||
+            marker === 0xEB ||
             marker === 0xED ||
             marker === 0xFE;
 
@@ -641,6 +644,7 @@ function stripJPEGMetadata(
  * zTXt = compressed text metadata
  * iTXt = international text metadata
  * eXIf = EXIF
+ * caBX = C2PA / JUMBF
  * pHYs = physical pixel dimensions
  * cHRM = chromaticity
  * gAMA = gamma
@@ -758,6 +762,7 @@ function stripPNGMetadata(
             chunkType === "zTXt" ||
             chunkType === "iTXt" ||
             chunkType === "eXIf" ||
+            chunkType === "caBX" ||
             chunkType === "pHYs" ||
             chunkType === "cHRM" ||
             chunkType === "gAMA" ||
@@ -822,6 +827,7 @@ function stripPNGMetadata(
  * EXIF
  * XMP
  * ICCP
+ * C2PA
  *
  * VP8 / VP8L / VP8X tetap dipertahankan.
  */
@@ -939,7 +945,9 @@ function stripWebPMetadata(
         const removeChunk =
             chunkType === "EXIF" ||
             chunkType === "XMP " ||
-            chunkType === "ICCP";
+            chunkType === "ICCP" ||
+            chunkType === "C2PA" ||
+            chunkType === "JUMBF";
 
 
         if (

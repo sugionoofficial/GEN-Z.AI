@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-    <meta name="description" content="GEN-Z.AI Upscale Studio — Tingkatkan resolusi foto hingga 4K dengan AI Real-ESRGAN.">
+    <meta name="description" content="GEN-Z.AI Upscale Studio — Upscale foto dengan AI Real-ESRGAN dan video hingga 4K dengan interpolasi gerak.">
     <meta name="theme-color" content="#06070c">
     <meta name="color-scheme" content="dark">
     <title>GEN-Z.AI — Upscale Studio</title>
@@ -30,11 +30,12 @@
         <div class="hero-content">
             <span class="hero-kicker">GEN-Z.AI STUDIO</span>
             <h1 class="hero-title">
-                Upscale <em>Foto</em> Anda
+                Upscale <em>Foto &amp; Video</em>
             </h1>
             <p class="hero-subtitle">
-                Tingkatkan resolusi foto hingga 2K atau 4K dengan mesin AI Real-ESRGAN.
-                Hasil upscale otomatis tersimpan di halaman History.
+                Tingkatkan resolusi foto dengan AI Real-ESRGAN, atau upscale video,
+                tajamkan detail, dan haluskan gerakan dengan interpolasi frame.
+                Hasil upscale tersimpan di halaman History.
             </p>
         </div>
 
@@ -55,30 +56,31 @@
             <section class="upscale-card">
                 <div class="card-header">
                     <span class="card-step">STEP 01</span>
-                    <h2>Upload Foto</h2>
-                    <p>JPG, PNG, atau WebP — maksimum 20 MB.</p>
+                    <h2>Upload Foto atau Video</h2>
+                    <p>Foto maks. 20 MB. Video MP4, WebM, MOV, atau M4V maks. 50 MB dan 3 menit.</p>
                 </div>
 
                 <div id="dropzone" class="dropzone">
-                    <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden>
+                    <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/x-m4v" hidden>
 
                     <div id="uploadState" class="upload-state">
                         <div class="upload-icon" aria-hidden="true">+</div>
-                        <h3>DROP FOTO DI SINI</h3>
+                        <h3>DROP FOTO / VIDEO DI SINI</h3>
                         <p>atau klik untuk memilih file</p>
-                        <button type="button" id="browseBtn" class="btn-secondary">PILIH FOTO</button>
-                        <small>JPG, PNG, WebP • Maks 20 MB</small>
+                        <button type="button" id="browseBtn" class="btn-secondary">PILIH MEDIA</button>
+                        <small>JPG, PNG, WebP • MP4, WebM, MOV, M4V</small>
                     </div>
 
                     <div id="previewState" class="preview-state" hidden>
                         <div class="preview-image-wrap">
                             <img id="previewImg" alt="Preview foto">
+                            <video id="previewVideo" controls playsinline preload="metadata" hidden aria-label="Preview video"></video>
                         </div>
                         <div class="preview-info">
                             <strong id="fileName">-</strong>
                             <span id="fileSize">-</span>
                         </div>
-                        <button type="button" id="removeBtn" class="btn-remove" aria-label="Hapus foto">HAPUS FOTO</button>
+                        <button type="button" id="removeBtn" class="btn-remove" aria-label="Hapus media">HAPUS MEDIA</button>
                     </div>
                 </div>
             </section>
@@ -88,22 +90,39 @@
                 <div class="card-header">
                     <span class="card-step">STEP 02</span>
                     <h2>Target Resolusi</h2>
-                    <p>Pilih resolusi output upscale.</p>
+                    <p>Video mengikuti target resolusi yang dipilih dan mempertahankan rasio aspek asli.</p>
                 </div>
 
                 <div class="target-grid" id="targetGrid">
+                    <button type="button" class="target-option" data-target="1080p" hidden>
+                        <span class="target-badge">1080p</span>
+                        <strong>Full HD</strong>
+                        <small>Sisi pendek 1080 px</small>
+                    </button>
+
+                    <button type="button" class="target-option" data-target="1k" hidden>
+                        <span class="target-badge">1K</span>
+                        <strong>1024 px</strong>
+                        <small>Sisi panjang 1024 px</small>
+                    </button>
+
                     <button type="button" class="target-option active" data-target="2k">
                         <span class="target-badge">2K</span>
-                        <strong>1440p</strong>
-                        <small>2560 × 1440</small>
+                        <strong>2560 px</strong>
+                        <small>Sisi panjang 2560 px</small>
                     </button>
 
                     <button type="button" class="target-option" data-target="4k">
                         <span class="target-badge">4K</span>
-                        <strong>2160p</strong>
-                        <small>3840 × 2160</small>
+                        <strong>3840 px</strong>
+                        <small>Sisi panjang 3840 px</small>
                     </button>
                 </div>
+                <p class="video-processing-note" id="videoProcessingNote" hidden>
+                    Video diunggah sementara ke server untuk diproses. Fitur memakai Lanczos,
+                    penajaman, dan interpolasi gerak FFmpeg—bukan rekonstruksi AI; hasil dapat
+                    memiliki artefak pada gerakan cepat. Ukuran hasil dibatasi sekitar 45 MB.
+                </p>
             </section>
 
             <!-- STEP 03: ACTION -->
@@ -135,14 +154,14 @@
                 <div class="card-header">
                     <span class="card-step">RESULT</span>
                     <h2>Hasil Upscale</h2>
-                    <p>Foto hasil upscale akan muncul di halaman History.</p>
+                    <p>Hasil foto atau video akan muncul di halaman History.</p>
                 </div>
 
                 <div id="resultArea" class="result-area">
                     <div class="result-placeholder">
                         <div class="placeholder-icon" aria-hidden="true">◇</div>
                         <h3>BELUM ADA HASIL</h3>
-                        <p>Upload foto lalu klik Mulai Upscale untuk memproses.</p>
+                        <p>Upload foto atau video lalu klik Mulai Upscale untuk memproses.</p>
                     </div>
                 </div>
 
@@ -155,20 +174,20 @@
             <div class="info-grid">
                 <div class="info-card">
                     <span>ENGINE</span>
-                    <strong>Real-ESRGAN</strong>
-                    <small>AI upscaling 4× + downscale ke target</small>
+                    <strong id="engineInfo">Real-ESRGAN</strong>
+                    <small id="engineDescription">AI upscaling foto 4× + downscale ke target</small>
                 </div>
 
                 <div class="info-card">
                     <span>WAKTU PROSES</span>
-                    <strong>~2-4 menit</strong>
-                    <small>Proses berjalan di server GPU/CPU</small>
+                    <strong id="timeInfo">~2-4 menit</strong>
+                    <small id="timeDescription">Proses berjalan di server GPU/CPU</small>
                 </div>
 
                 <div class="info-card">
                     <span>OUTPUT</span>
-                    <strong>JPG Premium</strong>
-                    <small>Kualitas tinggi, siap pakai</small>
+                    <strong id="outputInfo">JPG / PNG</strong>
+                    <small id="outputDescription">Foto hasil upscale siap pakai</small>
                 </div>
             </div>
 

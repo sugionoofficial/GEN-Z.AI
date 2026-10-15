@@ -10,10 +10,10 @@
  * Endpoint:
  *   POST /api/generate
  *
- * PATCH v1.1:
- *   - Tambah handler `upscale-photo` action.
- *   - Tambah workflow trigger upscale-photo.yml (Real-ESRGAN).
- *   - Reuse pola yang sama dengan upscale video.
+ * UPSCALE ACTIONS:
+ *   - `upscale-photo` triggers the Real-ESRGAN photo workflow.
+ *   - `upscale-video-upload` validates and processes uploaded videos.
+ *   - `upscale` continues to upscale successful video history entries.
  * =========================================================
  */
 
@@ -3026,7 +3026,23 @@ function getUpscaleGithubConfig(req) {
     };
 }
 
-const UPSCALE_TARGET_LABEL = "1440p";
+const UPSCALE_VIDEO_TARGETS = Object.freeze([
+    "1080p",
+    "1k",
+    "2k",
+    "4k"
+]);
+
+const UPSCALE_VIDEO_TARGET_LABELS = Object.freeze({
+    "1080p": "1080p",
+    "1k": "1K (1024px)",
+    "2k": "2K (2560px)",
+    "4k": "4K (3840px)"
+});
+
+function getUpscaleVideoTargetLabel(targetResolution) {
+    return UPSCALE_VIDEO_TARGET_LABELS[targetResolution];
+}
 
 
 /* =========================================================
@@ -3114,8 +3130,12 @@ async function createUpscaleHistoryRow({
     parent,
     sourceUrl,
     taskId,
-    creditCost
+    creditCost,
+    targetResolution = "2k"
 }) {
+    const targetLabel =
+        getUpscaleVideoTargetLabel(targetResolution);
+
     const payload = {
         user_id: user.id,
         user_email: user.email || null,
@@ -3128,7 +3148,7 @@ async function createUpscaleHistoryRow({
         video_reference_url: parent.video_reference_url || null,
         ratio: parent.ratio || null,
         duration: parent.duration || null,
-        resolution: UPSCALE_TARGET_LABEL,
+        resolution: targetLabel,
         status: "processing",
         task_id: taskId,
         result_url: null,
@@ -3136,7 +3156,7 @@ async function createUpscaleHistoryRow({
         credit_cost: creditCost,
         upscale_of_history_id: parent.id,
         upscale_source_url: sourceUrl,
-        upscale_target: UPSCALE_TARGET_LABEL
+        upscale_target: targetLabel
     };
 
     const rows = await supabaseRequest(
@@ -3199,7 +3219,9 @@ async function triggerUpscaleWorkflow({
     historyId,
     sourceUrl,
     userId,
-    creditCost
+    creditCost,
+    targetResolution = "2k",
+    sourceObjectPath = ""
 }) {
     const url = `https://api.github.com/repos/${github.owner}/${github.repo}/actions/workflows/${github.workflowFile}/dispatches`;
 
@@ -3218,7 +3240,9 @@ async function triggerUpscaleWorkflow({
                 history_id: String(historyId),
                 source_url: String(sourceUrl),
                 user_id: String(userId),
-                credit_cost: String(creditCost)
+                credit_cost: String(creditCost),
+                target_resolution: String(targetResolution),
+                source_object_path: String(sourceObjectPath)
             }
         })
     });
@@ -3241,10 +3265,18 @@ async function triggerUpscaleWorkflow({
 async function handleUpscaleAction(req, res, body, user) {
 
     const historyId = String(body?.history_id || "").trim();
+    const targetResolution =
+        String(body?.target_resolution || "2k")
+            .trim()
+            .toLowerCase();
     const github = getUpscaleGithubConfig(req);
 
     if (!historyId) {
         return failure(res, 400, "history_id is required");
+    }
+
+    if (!UPSCALE_VIDEO_TARGETS.includes(targetResolution)) {
+        return failure(res, 400, "target_resolution must be 1080p, 1k, 2k, or 4k");
     }
 
     if (!github.token) {
@@ -3322,7 +3354,8 @@ async function handleUpscaleAction(req, res, body, user) {
             parent,
             sourceUrl,
             taskId,
-            creditCost
+            creditCost,
+            targetResolution
         });
     } catch (err) {
         console.error("[upscale] Failed to create history row:", err);
@@ -3342,7 +3375,8 @@ async function handleUpscaleAction(req, res, body, user) {
             historyId: upscaleRow.id,
             sourceUrl,
             userId: user.id,
-            creditCost
+            creditCost,
+            targetResolution
         });
     } catch (err) {
         console.error("[upscale] GitHub dispatch failed:", err);
@@ -3363,7 +3397,224 @@ async function handleUpscaleAction(req, res, body, user) {
         status: "processing",
         credit_used: creditCost,
         remaining_credits: remainingCredits,
-        target: UPSCALE_TARGET_LABEL
+        target: getUpscaleVideoTargetLabel(targetResolution)
+    });
+}
+
+function getUploadedUpscaleVideoSource(sourceUrl, userId) {
+    if (!SUPABASE_URL) {
+        throw new Error("SUPABASE_URL is not configured");
+    }
+
+    let parsedUrl;
+    let supabaseOrigin;
+
+    try {
+        parsedUrl = new URL(sourceUrl);
+        supabaseOrigin = new URL(SUPABASE_URL).origin;
+    } catch {
+        throw new Error("URL video tidak valid.");
+    }
+
+    if (
+        parsedUrl.protocol !== "https:" ||
+        parsedUrl.origin !== supabaseOrigin ||
+        parsedUrl.username ||
+        parsedUrl.password ||
+        parsedUrl.search ||
+        parsedUrl.hash
+    ) {
+        throw new Error("URL video sumber tidak diizinkan.");
+    }
+
+    const storagePrefix =
+        "/storage/v1/object/public/dashboard-videos/";
+
+    if (!parsedUrl.pathname.startsWith(storagePrefix)) {
+        throw new Error("Video harus diunggah melalui Upscale Studio.");
+    }
+
+    let objectPath;
+
+    try {
+        objectPath = decodeURIComponent(
+            parsedUrl.pathname.slice(storagePrefix.length)
+        );
+    } catch {
+        throw new Error("Path video sumber tidak valid.");
+    }
+
+    const safeUserId =
+        String(userId || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const uploadedVideoPath =
+        new RegExp(
+            `^upscale-videos/inputs/${safeUserId}/[0-9]+-[a-z0-9]{8}\\.(mp4|webm|mov|m4v)$`,
+            "i"
+        );
+
+    if (!uploadedVideoPath.test(objectPath)) {
+        throw new Error("Video sumber tidak cocok dengan akun yang login.");
+    }
+
+    return objectPath;
+}
+
+async function deleteUploadedUpscaleVideoSource(objectPath) {
+    try {
+        const encodedPath = objectPath
+            .split("/")
+            .map(encodeURIComponent)
+            .join("/");
+
+        await supabaseRequest(
+            `/storage/v1/object/dashboard-videos/${encodedPath}`,
+            { method: "DELETE" }
+        );
+    } catch (err) {
+        console.error("[upscale-video-upload] Temporary source cleanup failed:", err);
+    }
+}
+
+async function handleUpscaleVideoUploadAction(req, res, body, user) {
+    const sourceUrl = String(body?.source_url || "").trim();
+    const targetResolution =
+        String(body?.target_resolution || "2k")
+            .trim()
+            .toLowerCase();
+    const github = getUpscaleGithubConfig(req);
+
+    if (!sourceUrl) {
+        return failure(res, 400, "source_url is required");
+    }
+
+    if (!UPSCALE_VIDEO_TARGETS.includes(targetResolution)) {
+        return failure(res, 400, "target_resolution must be 1080p, 1k, 2k, or 4k");
+    }
+
+    let sourceObjectPath;
+    try {
+        sourceObjectPath =
+            getUploadedUpscaleVideoSource(sourceUrl, user.id);
+    } catch (err) {
+        return failure(res, 400, err.message);
+    }
+
+    if (!github.token) {
+        await deleteUploadedUpscaleVideoSource(sourceObjectPath);
+        return failure(res, 500, "GitHub Actions secret GITHUB_PAT is not configured");
+    }
+
+    let creditCost;
+    try {
+        creditCost = await getFeatureCreditCost("upscale");
+    } catch (err) {
+        console.error("[upscale-video-upload] Failed to load credit cost:", err);
+        await deleteUploadedUpscaleVideoSource(sourceObjectPath);
+        return failure(res, 500, "Tarif Upscale belum tersedia");
+    }
+
+    try {
+        await deductGenerateCredits(user.id, creditCost);
+    } catch (err) {
+        console.error("[upscale-video-upload] Credit deduction failed:", err);
+
+        const insufficient =
+            String(err?.message || "").toUpperCase()
+                .includes("INSUFFICIENT_CREDITS");
+
+        await deleteUploadedUpscaleVideoSource(sourceObjectPath);
+        return failure(
+            res,
+            insufficient ? 402 : 500,
+            insufficient ? "Kredit tidak cukup" : "Gagal potong kredit",
+            {
+                code: insufficient
+                    ? "INSUFFICIENT_CREDITS"
+                    : "CREDIT_DEDUCTION_FAILED"
+            }
+        );
+    }
+
+    const taskId = generateUpscaleTaskId();
+    let historyRow;
+
+    try {
+        const rows = await supabaseRequest(
+            "/rest/v1/generation_history?select=*",
+            {
+                method: "POST",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify([{
+                    user_id: user.id,
+                    user_email: user.email || null,
+                    provider_id: UPSCALE_PHOTO_PROVIDER_ID,
+                    provider_name: UPSCALE_PHOTO_PROVIDER_NAME,
+                    model_id: "upscale-video",
+                    model_name: "Upscale Video",
+                    prompt: null,
+                    image_reference_url: null,
+                    video_reference_url: null,
+                    ratio: null,
+                    duration: null,
+                    resolution: getUpscaleVideoTargetLabel(targetResolution),
+                    status: "processing",
+                    task_id: taskId,
+                    result_url: null,
+                    error_message: null,
+                    credit_cost: creditCost,
+                    upscale_target: getUpscaleVideoTargetLabel(targetResolution)
+                }])
+            }
+        );
+
+        if (!Array.isArray(rows) || !rows.length) {
+            throw new Error("Empty response from history insert");
+        }
+
+        historyRow = rows[0];
+    } catch (err) {
+        console.error("[upscale-video-upload] Failed to create history row:", err);
+
+        try {
+            await refundGenerateCredits(user.id, creditCost);
+        } catch (refundError) {
+            console.error("[upscale-video-upload] Credit refund failed:", refundError);
+        }
+
+        await deleteUploadedUpscaleVideoSource(sourceObjectPath);
+        return failure(res, 500, "Gagal membuat catatan history");
+    }
+
+    try {
+        await triggerUpscaleWorkflow({
+            github,
+            historyId: historyRow.id,
+            sourceUrl,
+            userId: user.id,
+            creditCost,
+            targetResolution,
+            sourceObjectPath
+        });
+    } catch (err) {
+        console.error("[upscale-video-upload] GitHub dispatch failed:", err);
+
+        await markUpscaleFailedAndRefund({
+            historyId: historyRow.id,
+            userId: user.id,
+            errorMessage: "Gagal memulai upscale video di GitHub Actions",
+            creditCost
+        });
+
+        await deleteUploadedUpscaleVideoSource(sourceObjectPath);
+        return failure(res, 502, "Gagal memulai upscale video di GitHub Actions");
+    }
+
+    return success(res, {
+        upscale_history_id: historyRow.id,
+        task_id: taskId,
+        status: "processing",
+        target: getUpscaleVideoTargetLabel(targetResolution),
+        credit_used: creditCost
     });
 }
 
@@ -3689,6 +3940,17 @@ export default async function handler(
     if (action === "upscale-photo") {
 
         return await handleUpscalePhotoAction(
+            req,
+            res,
+            body,
+            user
+        );
+
+    }
+
+    if (action === "upscale-video-upload") {
+
+        return await handleUpscaleVideoUploadAction(
             req,
             res,
             body,
