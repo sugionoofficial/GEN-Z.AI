@@ -216,6 +216,9 @@ Video sumber hingga 100 MB dikompres di browser sebelum diunggah ke Supabase
 Storage yang memiliki batas 50 MB. Kompresi menggunakan MediaRecorder pada
 perangkat pengguna; browser yang tidak mendukung kompresi lokal akan
 menampilkan pesan error dan meminta pengguna mencoba Chrome versi terbaru.
+Jalankan `supabase/upscale-video-upload-policy.sql` di Supabase SQL Editor agar
+akun yang login dapat mengunggah video sementara hanya ke folder Upscale milik
+akunnya sendiri di bucket `dashboard-videos`.
 
 ### Informasi Penting untuk Akun
 
