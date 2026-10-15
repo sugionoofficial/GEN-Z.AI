@@ -7,7 +7,13 @@
     const STORAGE_KEY = "genz-theme";
     const STYLE_ID = "genz-theme-style";
     let toggleButton = null;
+    let refreshButton = null;
     let appDownloadButton = null;
+    const isNativeApp = Boolean(window.Capacitor?.Plugins);
+
+    if (isNativeApp) {
+        document.documentElement.dataset.genzApp = "true";
+    }
 
     function reportStorageError(action, error) {
         console.error(`[GEN-Z.AI] Unable to ${action} theme preference:`, error);
@@ -210,9 +216,41 @@
                 background: rgba(255, 48, 72, .1);
             }
 
+            .genz-refresh-button {
+                min-height: 38px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 8px 11px;
+                border: 1px solid rgba(255, 255, 255, .16);
+                border-radius: 9px;
+                color: #fff;
+                background: rgba(255, 255, 255, .04);
+                font: inherit;
+                font-size: 18px;
+                font-weight: 700;
+                line-height: 1;
+                cursor: pointer;
+            }
+
+            .genz-refresh-button:hover {
+                border-color: rgba(255, 48, 72, .5);
+                background: rgba(255, 48, 72, .1);
+            }
+
             .genz-sidebar-footer .genz-theme-toggle {
                 width: 100%;
                 margin-bottom: 10px;
+            }
+
+            .genz-sidebar-footer.genz-has-refresh-control .genz-theme-toggle,
+            .genz-sidebar-footer.genz-has-refresh-control .genz-refresh-button {
+                width: calc(50% - 4px);
+                margin-bottom: 10px;
+            }
+
+            .genz-sidebar-footer.genz-has-refresh-control .genz-theme-toggle {
+                margin-right: 8px;
             }
 
             .genz-app-download {
@@ -255,6 +293,28 @@
                 min-height: 36px;
             }
 
+            html[data-genz-app="true"] .navbar .nav-actions {
+                gap: 6px;
+            }
+
+            html[data-genz-app="true"] .navbar .nav-actions .genz-refresh-button {
+                min-height: 40px;
+                width: 40px;
+                padding: 8px;
+                border-radius: 10px;
+            }
+
+            @media (max-width: 760px) {
+                html[data-genz-app="true"] .navbar .nav-actions {
+                    grid-template-columns: repeat(5, minmax(0, 1fr));
+                }
+
+                html[data-genz-app="true"] .navbar .nav-actions .genz-refresh-button {
+                    width: 100%;
+                    font-size: 18px;
+                }
+            }
+
             @media (max-width: 760px) {
                 .nav-actions .genz-theme-toggle {
                     width: 36px;
@@ -283,6 +343,13 @@
             }
 
             html[data-genz-theme="light"] .genz-theme-toggle {
+                color: #283047;
+                border-color: #aab6c9;
+                background: #fff;
+                box-shadow: 0 6px 20px rgba(52, 65, 94, .14);
+            }
+
+            html[data-genz-theme="light"] .genz-refresh-button {
                 color: #283047;
                 border-color: #aab6c9;
                 background: #fff;
@@ -355,6 +422,32 @@
         }
     }
 
+    function mountRefreshButton() {
+        if (!isNativeApp || !document.body) return;
+
+        const parent = getToggleParent();
+        if (parent === document.body) return;
+
+        if (!refreshButton) {
+            refreshButton = document.createElement("button");
+            refreshButton.type = "button";
+            refreshButton.className = "genz-refresh-button";
+            refreshButton.textContent = "↻";
+            refreshButton.setAttribute("aria-label", "Refresh halaman");
+            refreshButton.title = "Refresh halaman";
+            refreshButton.addEventListener("click", () => {
+                window.location.reload();
+            });
+        }
+
+        parent.classList.add("genz-has-refresh-control");
+        if (refreshButton.parentElement !== parent) {
+            parent.insertBefore(refreshButton, toggleButton?.nextSibling || parent.firstChild);
+        } else if (refreshButton.previousElementSibling !== toggleButton) {
+            parent.insertBefore(refreshButton, toggleButton?.nextSibling || parent.firstChild);
+        }
+    }
+
     function mountAppDownload() {
         if (!document.body) return;
 
@@ -384,11 +477,11 @@
             }
         } else if (
             parent.classList.contains("genz-sidebar-footer") &&
-            appDownloadButton.previousElementSibling !== toggleButton
+            appDownloadButton.previousElementSibling !== (refreshButton || toggleButton)
         ) {
             parent.insertBefore(
                 appDownloadButton,
-                toggleButton?.nextSibling || parent.firstChild
+                refreshButton?.nextSibling || toggleButton?.nextSibling || parent.firstChild
             );
         }
     }
@@ -396,10 +489,12 @@
     function initialize() {
         ensureStyles();
         mountToggle();
+        mountRefreshButton();
         mountAppDownload();
 
         const observer = new MutationObserver(() => {
             mountToggle();
+            mountRefreshButton();
             mountAppDownload();
         });
         observer.observe(document.body, { childList: true, subtree: true });
