@@ -364,8 +364,9 @@ async function supabaseRequest(
 
     if (!response.ok) {
 
+        const requestMethod = String(options.method || "GET").toUpperCase();
         let message =
-            `Supabase request failed with status ${response.status}`;
+            `Supabase request ${requestMethod} ${path} failed with status ${response.status}`;
 
 
         if (
@@ -392,6 +393,8 @@ async function supabaseRequest(
         error.status =
             response.status;
 
+        error.path =
+            path;
 
         error.data =
             data;
@@ -3873,13 +3876,17 @@ export default async function handler(
 
     } catch (error) {
 
+        const message =
+            error.status === 403 && error.path === "/auth/v1/user"
+                ? "Supabase menolak validasi sesi (403). Pastikan SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY pada konfigurasi server berasal dari project Supabase yang sama dengan aplikasi, lalu login ulang."
+                : error.message || "Unauthorized";
+
         return failure(
             res,
             error.status ||
                 401,
 
-            error.message ||
-                "Unauthorized"
+            message
         );
 
     }
