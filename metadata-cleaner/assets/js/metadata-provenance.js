@@ -1239,7 +1239,10 @@ function inspectMP4(
             jumbfFound ||
             contentCredentialsFound ||
             createdFound ||
-            aiDisclosureFound
+            aiDisclosureFound ||
+            Boolean(
+                ai.softwareAgent
+            )
         );
 
 
