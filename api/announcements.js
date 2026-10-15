@@ -1,6 +1,17 @@
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
 const SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 const CATEGORIES = new Set(["info", "feature", "maintenance", "important"]);
+const MEDIA_BUCKET = "site-announcements";
+const MEDIA_TYPES = new Map([
+    ["image/jpeg", { kind: "image", extension: "jpg", maxSize: 10 * 1024 * 1024 }],
+    ["image/png", { kind: "image", extension: "png", maxSize: 10 * 1024 * 1024 }],
+    ["image/webp", { kind: "image", extension: "webp", maxSize: 10 * 1024 * 1024 }],
+    ["image/gif", { kind: "image", extension: "gif", maxSize: 10 * 1024 * 1024 }],
+    ["image/avif", { kind: "image", extension: "avif", maxSize: 10 * 1024 * 1024 }],
+    ["video/mp4", { kind: "video", extension: "mp4", maxSize: 50 * 1024 * 1024 }],
+    ["video/webm", { kind: "video", extension: "webm", maxSize: 50 * 1024 * 1024 }],
+    ["video/quicktime", { kind: "video", extension: "mov", maxSize: 50 * 1024 * 1024 }]
+]);
 
 function send(res, status, body) {
     res.statusCode = status;
@@ -90,7 +101,7 @@ async function getRole(userId) {
 
 async function getAnnouncement(adminView) {
     const rows = await supabase(
-        "/rest/v1/site_announcements?select=id,title,message,category,is_published,expires_at,updated_at&id=eq.1&limit=1"
+        "/rest/v1/site_announcements?select=id,title,message,category,is_published,expires_at,updated_at,media_url,media_type,cta_url&id=eq.1&limit=1"
     );
     const announcement = rows?.[0] || null;
 
@@ -108,6 +119,22 @@ async function getAnnouncement(adminView) {
     return announcement;
 }
 
+function validateHttpsUrl(value, label) {
+    const raw = typeof value === "string" ? value.trim() : "";
+    if (!raw) return null;
+
+    let url;
+    try {
+        url = new URL(raw);
+    } catch {
+        throw fail(`${label} harus berupa URL yang valid.`, 400);
+    }
+    if (url.protocol !== "https:" || url.username || url.password) {
+        throw fail(`${label} harus menggunakan tautan HTTPS yang valid.`, 400);
+    }
+    return url;
+}
+
 function validateAnnouncement(body) {
     const title = typeof body.title === "string" ? body.title.trim() : "";
     const message = typeof body.message === "string" ? body.message.trim() : "";
@@ -116,6 +143,9 @@ function validateAnnouncement(body) {
     const expiresAt = body.expires_at === "" || body.expires_at == null
         ? null
         : String(body.expires_at);
+    const mediaUrl = typeof body.media_url === "string" ? body.media_url.trim() : "";
+    const mediaType = body.media_type == null ? "" : String(body.media_type);
+    const ctaUrl = validateHttpsUrl(body.cta_url, "Link tombol CHECK");
 
     if (title.length > 100) throw fail("Judul maksimal 100 karakter.", 400);
     if (message.length > 3000) throw fail("Isi informasi maksimal 3.000 karakter.", 400);
@@ -128,6 +158,20 @@ function validateAnnouncement(body) {
         throw fail("Waktu kedaluwarsa harus berupa waktu yang valid di masa mendatang.", 400);
     }
 
+    if (mediaUrl) {
+        const url = validateHttpsUrl(mediaUrl, "URL media");
+        const storageOrigin = new URL(SUPABASE_URL).origin;
+        if (
+            url.origin !== storageOrigin ||
+            !url.pathname.startsWith(`/storage/v1/object/public/${MEDIA_BUCKET}/`) ||
+            !["image", "video"].includes(mediaType)
+        ) {
+            throw fail("Media harus diunggah melalui pemilih file di halaman ini.", 400);
+        }
+    } else if (mediaType) {
+        throw fail("Pilih ulang media yang akan ditampilkan.", 400);
+    }
+
     return {
         id: 1,
         title,
@@ -135,8 +179,94 @@ function validateAnnouncement(body) {
         category,
         is_published: isPublished,
         expires_at: expiresAt,
+        media_url: mediaUrl || null,
+        media_type: mediaUrl ? mediaType : null,
+        cta_url: ctaUrl?.href || null,
         updated_at: new Date().toISOString()
     };
+}
+
+async function ensureMediaBucket() {
+    const response = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+        method: "POST",
+        headers: {
+            apikey: SERVICE_ROLE_KEY,
+            Authorization: ["Bearer", SERVICE_ROLE_KEY].join(" "),
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            id: MEDIA_BUCKET,
+            name: MEDIA_BUCKET,
+            public: true,
+            file_size_limit: 50 * 1024 * 1024,
+            allowed_mime_types: [...MEDIA_TYPES.keys()]
+        })
+    });
+
+    if (response.ok || response.status === 409) return;
+
+    const data = await response.json().catch(() => null);
+    const message = String(data?.message || data?.error || "");
+    if (/already exists|duplicate/i.test(message)) return;
+    throw fail(message || "Bucket media pengumuman gagal disiapkan.", response.status);
+}
+
+async function uploadAnnouncementMedia(req, res) {
+    const contentType = String(req.headers?.["content-type"] || "")
+        .split(";")[0]
+        .trim()
+        .toLowerCase();
+    const media = MEDIA_TYPES.get(contentType);
+    if (!media) {
+        throw fail("Format media tidak didukung. Pilih foto JPG, PNG, WebP, GIF, AVIF atau video MP4, WebM, MOV.", 400);
+    }
+
+    const declaredLength = Number(req.headers?.["content-length"] || 0);
+    if (declaredLength > media.maxSize) {
+        throw fail(media.kind === "image" ? "Ukuran foto maksimal 10 MB." : "Ukuran video maksimal 50 MB.", 413);
+    }
+
+    if (
+        !req.body ||
+        !(ArrayBuffer.isView(req.body) || req.body instanceof ArrayBuffer)
+    ) {
+        throw fail("Isi file media tidak valid.", 400);
+    }
+    const bytes = req.body instanceof ArrayBuffer
+        ? new Uint8Array(req.body)
+        : new Uint8Array(req.body.buffer, req.body.byteOffset, req.body.byteLength);
+    if (bytes.byteLength === 0 || bytes.byteLength > media.maxSize) {
+        throw fail(bytes.byteLength === 0 ? "File media kosong." : "Ukuran media melebihi batas yang diizinkan.", bytes.byteLength === 0 ? 400 : 413);
+    }
+
+    await ensureMediaBucket();
+    const objectPath = `${crypto.randomUUID()}.${media.extension}`;
+    const uploadResponse = await fetch(
+        `${SUPABASE_URL}/storage/v1/object/${MEDIA_BUCKET}/${objectPath}`,
+        {
+            method: "POST",
+            headers: {
+                apikey: SERVICE_ROLE_KEY,
+                Authorization: ["Bearer", SERVICE_ROLE_KEY].join(" "),
+                "Content-Type": contentType,
+                "x-upsert": "false"
+            },
+            body: bytes
+        }
+    );
+    if (!uploadResponse.ok) {
+        const data = await uploadResponse.json().catch(() => null);
+        throw fail(
+            String(data?.message || data?.error || "File media gagal diunggah."),
+            uploadResponse.status
+        );
+    }
+
+    return send(res, 200, {
+        success: true,
+        media_url: `${SUPABASE_URL}/storage/v1/object/public/${MEDIA_BUCKET}/${objectPath}`,
+        media_type: media.kind
+    });
 }
 
 export default async function handler(req, res) {
@@ -169,6 +299,10 @@ export default async function handler(req, res) {
 
         if (!["ADMIN", "OWNER"].includes(await getRole(user.id))) {
             throw fail("Hanya admin atau owner yang dapat mengelola informasi.", 403);
+        }
+
+        if (req.query?.action === "upload-media") {
+            return await uploadAnnouncementMedia(req, res);
         }
 
         const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;

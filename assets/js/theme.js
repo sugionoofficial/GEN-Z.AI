@@ -266,6 +266,77 @@
                 box-shadow: 0 24px 90px rgba(0, 0, 0, .34);
             }
 
+            .genz-announcement-media {
+                display: block;
+                width: min(100%, 430px);
+                max-height: min(34vh, 280px);
+                margin: 20px auto;
+                object-fit: cover;
+                border: 1px solid rgba(255, 255, 255, .22);
+                border-radius: 16px;
+                box-shadow: 0 18px 38px rgba(0, 0, 0, .38), 0 0 26px rgba(91, 190, 255, .16);
+                transform: rotate(-1.5deg);
+            }
+
+            .genz-announcement-media[hidden] {
+                display: none;
+            }
+
+            .genz-announcement-actions {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+            }
+
+            .genz-announcement-check {
+                min-height: 42px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0 18px;
+                border: 1px solid rgba(101, 255, 160, .76);
+                border-radius: 12px;
+                color: #06170c;
+                background: linear-gradient(135deg, #68ff9f, #29e879);
+                font: inherit;
+                font-size: 12px;
+                font-weight: 900;
+                text-decoration: none;
+                box-shadow: 0 0 22px rgba(51, 245, 125, .28), inset 0 1px rgba(255, 255, 255, .45);
+                transition: filter .18s, transform .18s, box-shadow .18s;
+            }
+
+            .genz-announcement-check:hover {
+                filter: brightness(1.08);
+                transform: translateY(-1px);
+                box-shadow: 0 0 30px rgba(51, 245, 125, .42);
+            }
+
+            .genz-announcement-check[hidden] {
+                display: none;
+            }
+
+            .genz-announcement-media--video {
+                background: #05070b;
+            }
+
+            .genz-announcement-media--image {
+                aspect-ratio: 16 / 9;
+            }
+
+            @media (max-width: 540px) {
+                .genz-announcement-media {
+                    max-height: min(30vh, 220px);
+                    margin: 16px auto;
+                    transform: rotate(-1deg);
+                }
+                .genz-announcement-actions { gap: 7px; }
+                .genz-announcement-check,
+                .genz-announcement-ok { min-height: 40px; padding: 0 12px; font-size: 11px; }
+                .genz-announcement-footer { align-items: flex-start; flex-direction: column; gap: 12px; }
+                .genz-announcement-actions { align-self: flex-end; }
+            }
+
             .genz-announcement-frame::before {
                 position: absolute;
                 z-index: 0;
@@ -281,7 +352,7 @@
                     #ff5378
                 );
                 content: "";
-                animation: genz-announcement-neon 9s linear infinite;
+                animation: genz-announcement-neon 2s linear infinite;
                 will-change: transform;
             }
 
@@ -817,6 +888,25 @@
         title.id = "genz-announcement-title";
         title.textContent = announcement.title;
 
+        let media = null;
+        if (announcement.media_url && announcement.media_type === "image") {
+            media = document.createElement("img");
+            media.className = "genz-announcement-media genz-announcement-media--image";
+            media.src = announcement.media_url;
+            media.alt = announcement.title || "Media pengumuman";
+            media.loading = "eager";
+        } else if (announcement.media_url && announcement.media_type === "video") {
+            media = document.createElement("video");
+            media.className = "genz-announcement-media genz-announcement-media--video";
+            media.src = announcement.media_url;
+            media.controls = true;
+            media.autoplay = true;
+            media.muted = true;
+            media.loop = true;
+            media.playsInline = true;
+            media.preload = "auto";
+        }
+
         const message = document.createElement("p");
         message.className = "genz-announcement-message";
         message.textContent = announcement.message;
@@ -826,6 +916,18 @@
         const brand = document.createElement("span");
         brand.className = "genz-announcement-brand";
         brand.textContent = "GEN-Z.AI · Informasi resmi";
+        const actions = document.createElement("div");
+        actions.className = "genz-announcement-actions";
+        if (announcement.cta_url) {
+            const checkLink = document.createElement("a");
+            checkLink.className = "genz-announcement-check";
+            checkLink.href = announcement.cta_url;
+            checkLink.target = "_blank";
+            checkLink.rel = "noopener noreferrer";
+            checkLink.textContent = "CHECK";
+            checkLink.setAttribute("aria-label", "Buka tautan informasi pengumuman");
+            actions.append(checkLink);
+        }
         const okButton = document.createElement("button");
         okButton.className = "genz-announcement-ok";
         okButton.type = "button";
@@ -843,8 +945,11 @@
             overlay.remove();
         });
 
-        footer.append(brand, okButton);
-        dialog.append(kicker, title, message, footer);
+        actions.append(okButton);
+        footer.append(brand, actions);
+        dialog.append(kicker, title);
+        if (media) dialog.append(media);
+        dialog.append(message, footer);
         frame.append(dialog);
         overlay.append(frame);
         if (announcementBodyOverflow === null) {

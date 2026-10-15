@@ -7,7 +7,7 @@
     <title>Informasi Penting - GEN-Z.AI</title>
     <script src="../assets/js/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
-    <script src="/navigation/navigation.js?v=announcements-neon-20261016"></script>
+    <script src="/navigation/navigation.js?v=announcements-media-check-20261016"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -51,6 +51,8 @@
         .field textarea { min-height: 164px; padding: 13px; resize: vertical; line-height: 1.65; }
         .field input:focus, .field textarea:focus, .field select:focus { border-color: #8272ff; box-shadow: 0 0 0 3px rgba(130, 114, 255, .13); }
         .field input::placeholder, .field textarea::placeholder { color: #697187; }
+        .field input[type="file"] { height: auto; min-height: 46px; padding: 9px; }
+        .field input[type="file"]::file-selector-button { margin-right: 10px; padding: 7px 10px; border: 1px solid rgba(177, 166, 255, .3); border-radius: 8px; background: rgba(129, 114, 255, .12); color: #e7e3ff; font: inherit; font-size: 10px; font-weight: 700; }
         .field-help { margin: -2px 0 0; color: #777f94; font-size: 10px; line-height: 1.5; }
         .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .count { justify-self: end; color: #717a8f; font-size: 10px; font-variant-numeric: tabular-nums; }
@@ -76,8 +78,17 @@
         .preview-category[data-category="feature"] { border-color: rgba(73, 219, 178, .23); background: rgba(50, 196, 155, .08); color: #93e6cb; }
         .preview-title { margin: 16px 0 9px; font-size: 21px; line-height: 1.25; letter-spacing: -.035em; overflow-wrap: anywhere; }
         .preview-message { min-height: 65px; margin: 0; color: #a7afc3; font-size: 12px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .announcement-media { display: block; width: min(100%, 420px); max-height: 240px; margin: 20px auto; object-fit: cover; border: 1px solid rgba(255,255,255,.22); border-radius: 15px; box-shadow: 0 15px 34px rgba(0,0,0,.35), 0 0 20px rgba(99,183,255,.12); transform: rotate(-1.5deg); }
+        .announcement-media[hidden] { display: none; }
+        .preview-media { display: block; width: min(100%, 340px); max-height: 180px; margin: 18px auto; object-fit: cover; border: 1px solid rgba(255,255,255,.2); border-radius: 12px; box-shadow: 0 12px 26px rgba(0,0,0,.28); transform: rotate(-1.5deg); }
+        .preview-media[hidden] { display: none; }
+        .media-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .button-remove-media { min-height: 38px; padding: 0 12px; }
         .preview-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 21px; padding-top: 15px; border-top: 1px solid rgba(154, 165, 197, .12); color: #7f889e; font-size: 10px; }
         .preview-ok { min-height: 34px; padding: 0 13px; border: 1px solid rgba(172, 160, 255, .35); border-radius: 9px; background: linear-gradient(135deg, #8172ff, #6355d9); color: #fff; font-size: 10px; font-weight: 800; }
+        .preview-check { min-height: 34px; padding: 0 13px; border: 1px solid rgba(94, 255, 157, .55); border-radius: 9px; background: linear-gradient(135deg, #43f58b, #12c96a); color: #06170c; font-size: 10px; font-weight: 900; box-shadow: 0 0 15px rgba(53, 245, 131, .2); }
+        .preview-check[hidden] { display: none; }
+        .preview-actions { display: flex; gap: 7px; }
         .delivery-note { display: flex; gap: 11px; margin-top: 16px; padding: 13px; border: 1px solid rgba(86, 199, 164, .15); border-radius: 13px; background: rgba(44, 159, 126, .055); color: #91a99f; font-size: 10px; line-height: 1.55; }
         .delivery-note span { color: #75dbb7; font-size: 15px; }
         .delivery-note p { margin: 0; }
@@ -138,6 +149,20 @@
                 </div>
             </div>
             <div class="field">
+                <label for="announcement-check-url">Link tombol CHECK (opsional)</label>
+                <input id="announcement-check-url" name="cta_url" type="url" inputmode="url" placeholder="https://contoh.com/halaman" autocomplete="url">
+                <span class="field-help">Tombol CHECK hijau akan muncul di samping OK, saya mengerti. Gunakan tautan HTTPS.</span>
+            </div>
+            <div class="field">
+                <label for="announcement-media-file">Foto atau video popup (opsional)</label>
+                <input id="announcement-media-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime">
+                <span class="field-help">Foto maksimal 10 MB; video maksimal 50 MB. Format foto JPG, PNG, WebP, GIF, AVIF atau video MP4, WebM, MOV.</span>
+                <div class="media-actions">
+                    <span id="media-status" class="field-help" role="status" aria-live="polite">Belum ada media.</span>
+                    <button id="remove-media" class="button button-secondary button-remove-media" type="button" hidden>Hapus media</button>
+                </div>
+            </div>
+            <div class="field">
                 <label for="announcement-message">Isi informasi</label>
                 <textarea id="announcement-message" name="message" maxlength="3000" placeholder="Tuliskan informasi yang perlu diketahui pengguna..."></textarea>
                 <span class="count" id="message-count">0 / 3.000</span>
@@ -161,10 +186,15 @@
             <article class="notice-preview">
                 <span class="preview-category" id="preview-category" data-category="info">Informasi umum</span>
                 <h3 class="preview-title" id="preview-title">Judul informasi Anda</h3>
+                <img id="preview-media-image" class="preview-media" alt="Pratinjau media pengumuman" hidden>
+                <video id="preview-media-video" class="preview-media" controls playsinline hidden></video>
                 <p class="preview-message" id="preview-message">Pratinjau isi informasi akan tampil di sini. Gunakan bahasa yang jelas dan ringkas untuk seluruh pengguna.</p>
                 <div class="preview-footer">
                     <span>GEN-Z.AI · Informasi resmi</span>
-                    <button class="preview-ok" type="button" disabled>OK, mengerti</button>
+                    <div class="preview-actions">
+                        <button id="preview-check" class="preview-check" type="button" hidden>CHECK</button>
+                        <button class="preview-ok" type="button" disabled>OK, mengerti</button>
+                    </div>
                 </div>
             </article>
             <div class="delivery-note">
@@ -175,6 +205,6 @@
         </aside>
     </div>
 </main>
-<script src="./announcements.js?v=announcements-neon-20261016"></script>
+<script src="./announcements.js?v=announcements-media-check-20261016"></script>
 </body>
 </html>
