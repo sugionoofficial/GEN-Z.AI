@@ -337,7 +337,7 @@ jobs:
           HISTORY_ID: ${{ inputs.history_id }}
           USER_ID: ${{ inputs.user_id }}
           CREDIT_COST: ${{ inputs.credit_cost }}
-          TERMINAL_STATUS: ${{ cancelled() && 'cancelled' || 'failed' }}
+          TERMINAL_STATUS: ${{ job.status == 'cancelled' && 'cancelled' || 'failed' }}
         run: |
           if [ "$TERMINAL_STATUS" = "cancelled" ]; then
             ERROR_MESSAGE="Upscale dibatalkan di GitHub Actions."
