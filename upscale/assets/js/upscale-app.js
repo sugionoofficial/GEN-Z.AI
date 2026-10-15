@@ -22,6 +22,8 @@ const CONFIG = Object.freeze({
     apiEndpoint: "/api/generate",
     maxPhotoSize: 20 * 1024 * 1024,
     maxVideoSize: 100 * 1024 * 1024,
+    maxVideoUploadSize: 48_000_000,
+    targetCompressedVideoSize: 44_000_000,
     maxVideoDuration: 180,
     allowedPhotoTypes: ["image/jpeg", "image/png", "image/webp"],
     allowedVideoTypes: [
@@ -439,6 +441,200 @@ function clearFile() {
 }
 
 
+function getVideoRecorderMimeType() {
+    if (
+        typeof MediaRecorder === "undefined" ||
+        typeof MediaRecorder.isTypeSupported !== "function"
+    ) {
+        throw new Error("Browser ini tidak mendukung kompresi video. Coba gunakan Chrome versi terbaru.");
+    }
+
+    const candidates = [
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm",
+        "video/mp4"
+    ];
+    const mimeType = candidates.find(type => MediaRecorder.isTypeSupported(type));
+
+    if (!mimeType) {
+        throw new Error("Format kompresi video tidak didukung pada perangkat ini.");
+    }
+
+    return mimeType;
+}
+
+async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+    const objectUrl = URL.createObjectURL(file);
+    let sourceStream = null;
+    let canvasStream = null;
+    let recorder = null;
+    let animationFrame = 0;
+
+    video.preload = "auto";
+    video.playsInline = true;
+    video.muted = true;
+    video.src = objectUrl;
+
+    try {
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(
+                () => reject(new Error("Video terlalu lama disiapkan untuk kompresi.")),
+                30000
+            );
+            video.onloadedmetadata = () => {
+                clearTimeout(timeout);
+                resolve();
+            };
+            video.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error("Video tidak dapat dibuka untuk kompresi."));
+            };
+        });
+
+        if (!video.videoWidth || !video.videoHeight) {
+            throw new Error("Resolusi video sumber tidak valid.");
+        }
+
+        const captureSource = video.captureStream || video.mozCaptureStream;
+        if (typeof captureSource !== "function" || typeof canvas.captureStream !== "function") {
+            throw new Error("Perangkat ini tidak mendukung kompresi video lokal. Coba gunakan Chrome versi terbaru.");
+        }
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext("2d", { alpha: false });
+        if (!context) {
+            throw new Error("Perangkat tidak dapat menyiapkan kompresi video.");
+        }
+
+        sourceStream = captureSource.call(video);
+        canvasStream = canvas.captureStream(24);
+        const tracks = [
+            ...canvasStream.getVideoTracks(),
+            ...sourceStream.getAudioTracks()
+        ];
+        const outputStream = new MediaStream(tracks);
+        recorder = new MediaRecorder(outputStream, {
+            mimeType,
+            videoBitsPerSecond
+        });
+
+        const chunks = [];
+        const recording = new Promise((resolve, reject) => {
+            let settled = false;
+            let recordingTimeout;
+            const finish = error => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(recordingTimeout);
+                cancelAnimationFrame(animationFrame);
+                if (recorder?.state !== "inactive") recorder.stop();
+                canvasStream?.getTracks().forEach(track => track.stop());
+                sourceStream?.getTracks().forEach(track => track.stop());
+                video.pause();
+                video.removeAttribute("src");
+                video.load();
+                URL.revokeObjectURL(objectUrl);
+
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(new Blob(chunks, {
+                        type: recorder.mimeType || mimeType
+                    }));
+                }
+            };
+
+            recorder.ondataavailable = event => {
+                if (event.data.size > 0) chunks.push(event.data);
+            };
+            recorder.onerror = event => {
+                finish(event.error || new Error("Kompresi video gagal."));
+            };
+            recorder.onstop = () => finish();
+            video.onended = () => {
+                if (recorder.state !== "inactive") recorder.stop();
+            };
+
+            const drawFrame = () => {
+                if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                    try {
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    } catch (error) {
+                        finish(error);
+                        return;
+                    }
+                }
+                if (!video.ended && recorder.state === "recording") {
+                    animationFrame = requestAnimationFrame(drawFrame);
+                }
+            };
+
+            try {
+                recordingTimeout = setTimeout(
+                    () => finish(new Error("Kompresi video terlalu lama. Coba lagi atau gunakan video yang lebih kecil.")),
+                    (video.duration * 2000) + 30000
+                );
+                recorder.start(1000);
+                animationFrame = requestAnimationFrame(drawFrame);
+                video.play().catch(finish);
+            } catch (error) {
+                finish(error);
+            }
+        });
+
+        return await recording;
+    } catch (error) {
+        if (recorder?.state !== "inactive") recorder.stop();
+        canvasStream?.getTracks().forEach(track => track.stop());
+        sourceStream?.getTracks().forEach(track => track.stop());
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+        URL.revokeObjectURL(objectUrl);
+        throw error;
+    }
+}
+
+async function compressVideoForStorage(file) {
+    if (file.size <= CONFIG.targetCompressedVideoSize) return file;
+
+    const mimeType = getVideoRecorderMimeType();
+    const duration = await getVideoDuration(file);
+    const targetBitsPerSecond = Math.floor(
+        (CONFIG.targetCompressedVideoSize * 8 * 0.9) / duration
+    );
+    const audioBitsPerSecond = 96_000;
+    const initialVideoBitrate = Math.max(
+        250_000,
+        targetBitsPerSecond - audioBitsPerSecond
+    );
+
+    for (const bitrateScale of [1, 0.75, 0.55]) {
+        const blob = await encodeVideoAttempt(
+            file,
+            Math.floor(initialVideoBitrate * bitrateScale),
+            mimeType
+        );
+
+        if (blob.size <= CONFIG.maxVideoUploadSize) {
+            const outputType = blob.type.split(";")[0] || "video/webm";
+            const extension = outputType === "video/mp4" ? "mp4" : "webm";
+            const name = file.name.replace(/\.[^.]+$/, "") || "video";
+            return new File([blob], `${name}-compressed.${extension}`, {
+                type: outputType,
+                lastModified: Date.now()
+            });
+        }
+    }
+
+    throw new Error("Ukuran video tetap melebihi batas upload 50 MB setelah dikompres. Coba video yang lebih pendek atau lebih kecil.");
+}
+
+
 /* =========================================================
    UPLOAD TO SUPABASE
 ========================================================= */
@@ -564,12 +760,26 @@ async function startUpscale() {
     hideStatus();
 
     try {
+        let uploadFile = file;
+        if (
+            mediaType === "video" &&
+            file.size > CONFIG.targetCompressedVideoSize
+        ) {
+            showLoading(
+                "Mengompres video...",
+                `Ukuran sumber ${formatBytes(file.size)}. Mengurangi ukuran agar sesuai dengan batas upload Supabase 50 MB.`
+            );
+            uploadFile = await compressVideoForStorage(file);
+        }
+
         showLoading(
             mediaType === "video" ? "Mengunggah video..." : "Mengunggah foto...",
-            "Menyiapkan file untuk upscale"
+            mediaType === "video" && uploadFile !== file
+                ? `Video sudah dikompres menjadi ${formatBytes(uploadFile.size)}. Mengunggah file...`
+                : "Menyiapkan file untuk upscale"
         );
 
-        const upload = await uploadMedia(file, mediaType);
+        const upload = await uploadMedia(uploadFile, mediaType);
 
         showLoading("Memulai upscale...", "Menghubungi server");
 

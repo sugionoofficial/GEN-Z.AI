@@ -652,11 +652,45 @@
         const filename = buildDownloadFilename(item);
         const originalHTML = button.innerHTML;
         const isNativeApp = Boolean(
-            window.Capacitor?.Plugins || window.GENZAndroidDownloads
+            window.GENZAndroidDownloads ||
+            window.Capacitor?.isNativePlatform?.() ||
+            window.Capacitor?.Plugins
         );
 
         button.disabled = true;
         button.innerHTML = '<span class="download-icon">⏳</span> Menyiapkan...';
+
+        if (isNativeApp) {
+            try {
+                const bridge = window.GENZAndroidDownloads;
+                if (typeof bridge?.downloadUrl !== "function") {
+                    throw new Error(
+                        "Aplikasi Android perlu diperbarui untuk mengunduh file. Pasang versi terbaru lalu coba kembali."
+                    );
+                }
+
+                bridge.downloadUrl(
+                    url,
+                    filename,
+                    "",
+                    window.location.href,
+                    navigator.userAgent
+                );
+                button.innerHTML = '<span class="download-icon">✓</span> Unduhan dimulai';
+                button.classList.add("download-button-success");
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.classList.remove("download-button-success");
+                    button.disabled = false;
+                }, 2500);
+            } catch (error) {
+                console.error("[download] Android download failed:", error);
+                alert(error.message || "Gagal mengunduh. Silakan coba kembali.");
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }
+            return;
+        }
 
         try {
             const res = await fetch(url, { mode: "cors" });
@@ -680,11 +714,6 @@
                     return;
                 }
 
-                if (isNativeApp) {
-                    throw new Error("Jembatan unduhan Android tidak tersedia. Tutup lalu buka kembali aplikasi.");
-                }
-            } else if (isNativeApp) {
-                throw new Error("Fitur unduhan Android belum siap. Tutup lalu buka kembali aplikasi.");
             }
 
             const objUrl = URL.createObjectURL(blob);
@@ -717,29 +746,6 @@
         }
 
         try {
-            if (isNativeApp) {
-                const bridge = window.GENZAndroidDownloads;
-                if (!bridge) {
-                    throw new Error("Jembatan unduhan Android tidak tersedia.");
-                }
-
-                bridge.downloadUrl(
-                    url,
-                    filename,
-                    "",
-                    window.location.href,
-                    navigator.userAgent
-                );
-                button.innerHTML = '<span class="download-icon">✓</span> Unduhan dimulai';
-                button.classList.add("download-button-success");
-                setTimeout(() => {
-                    button.innerHTML = originalHTML;
-                    button.classList.remove("download-button-success");
-                    button.disabled = false;
-                }, 2500);
-                return;
-            }
-
             const a = document.createElement("a");
             a.href = url;
             a.download = filename;

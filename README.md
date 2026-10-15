@@ -210,6 +210,13 @@ client-side billing authority. Charges happen on Vision generation, Vision
 Video analysis, Upscale processing, Prompt Studio copy, and both Metadata
 Cleaner CHECK and CLEAN actions. Failed operations refund their charge.
 
+### Upscale Video
+
+Video sumber hingga 100 MB dikompres di browser sebelum diunggah ke Supabase
+Storage yang memiliki batas 50 MB. Kompresi menggunakan MediaRecorder pada
+perangkat pengguna; browser yang tidak mendukung kompresi lokal akan
+menampilkan pesan error dan meminta pengguna mencoba Chrome versi terbaru.
+
 ### Informasi Penting untuk Akun
 
 Jalankan `supabase/site-announcements.sql` di Supabase SQL Editor sebelum
