@@ -24,7 +24,7 @@ const CONFIG = Object.freeze({
     maxVideoSize: 100 * 1024 * 1024,
     maxVideoUploadSize: 48_000_000,
     targetCompressedVideoSize: 44_000_000,
-    maxVideoDuration: 180,
+    maxVideoDuration: 15,
     allowedPhotoTypes: ["image/jpeg", "image/png", "image/webp"],
     allowedVideoTypes: [
         "video/mp4",
@@ -238,7 +238,7 @@ async function validateFile(file) {
 
         const duration = await getVideoDuration(file);
         if (duration > CONFIG.maxVideoDuration) {
-            throw new Error("Durasi video maksimal 3 menit.");
+            throw new Error("Durasi video maksimal 15 detik.");
         }
 
         return "video";
@@ -282,12 +282,17 @@ function getVideoDuration(file) {
 function updateMediaControls() {
     const isVideo = state.mediaType === "video";
     const options = state.dom.targetGrid?.querySelectorAll(".target-option") || [];
+    if (isVideo && state.target === "4k") {
+        state.target = "2k";
+    }
 
     options.forEach(option => {
         const imageOnlyTarget =
             option.dataset.target === "1080p" ||
             option.dataset.target === "1k";
-        option.hidden = !isVideo && imageOnlyTarget;
+        option.hidden = isVideo
+            ? option.dataset.target === "4k"
+            : imageOnlyTarget;
         option.classList.toggle(
             "active",
             option.dataset.target === state.target

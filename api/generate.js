@@ -3032,15 +3032,13 @@ function getUpscaleGithubConfig(req) {
 const UPSCALE_VIDEO_TARGETS = Object.freeze([
     "1080p",
     "1k",
-    "2k",
-    "4k"
+    "2k"
 ]);
 
 const UPSCALE_VIDEO_TARGET_LABELS = Object.freeze({
     "1080p": "1080p",
     "1k": "1K (1024px)",
-    "2k": "2K (2560px)",
-    "4k": "4K (3840px)"
+    "2k": "2K (2560px)"
 });
 
 function getUpscaleVideoTargetLabel(targetResolution) {
@@ -3510,7 +3508,7 @@ async function handleUpscaleAction(req, res, body, user) {
     }
 
     if (!UPSCALE_VIDEO_TARGETS.includes(targetResolution)) {
-        return failure(res, 400, "target_resolution must be 1080p, 1k, 2k, or 4k");
+        return failure(res, 400, "target_resolution must be 1080p, 1k, or 2k");
     }
 
     if (!github.token) {
@@ -3722,7 +3720,7 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
     }
 
     if (!UPSCALE_VIDEO_TARGETS.includes(targetResolution)) {
-        return failure(res, 400, "target_resolution must be 1080p, 1k, 2k, or 4k");
+        return failure(res, 400, "target_resolution must be 1080p, 1k, or 2k");
     }
 
     let sourceObjectPath;

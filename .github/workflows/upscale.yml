@@ -29,7 +29,6 @@ on:
           - 1080p
           - 1k
           - 2k
-          - 4k
         default: "2k"
       source_object_path:
         description: "Object Storage sementara yang dihapus setelah pemrosesan"
@@ -65,7 +64,7 @@ jobs:
         id: probe
         env:
           SOURCE_OBJECT_PATH: ${{ inputs.source_object_path }}
-          MAX_DURATION_SECONDS: "180"
+          MAX_DURATION_SECONDS: "15"
         run: |
           WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 input.mp4)
           HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 input.mp4)
@@ -141,8 +140,7 @@ jobs:
 
           if ! is_valid_duration "$DURATION" ||
             awk -v duration="$DURATION" 'BEGIN { exit !(duration < 0.5) }' ||
-            { [ -n "$SOURCE_OBJECT_PATH" ] &&
-              awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" 'BEGIN { exit !(duration > maximum) }'; }; then
+            awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" 'BEGIN { exit !(duration > maximum) }'; then
             if is_valid_duration "$PACKET_DURATION"; then
               DURATION="$PACKET_DURATION"
             elif [ -z "$FRAME_COUNT" ]; then
@@ -161,11 +159,9 @@ jobs:
             exit 1
           fi
 
-          if [ -n "$SOURCE_OBJECT_PATH" ]; then
-            if ! awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" 'BEGIN { exit !(duration > 0 && duration <= maximum) }'; then
-              echo "Durasi video terukur ${DURATION} detik, melebihi batas ${MAX_DURATION_SECONDS} detik."
-              exit 1
-            fi
+          if ! awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" 'BEGIN { exit !(duration > 0 && duration <= maximum) }'; then
+            echo "Durasi video terukur ${DURATION} detik, melebihi batas ${MAX_DURATION_SECONDS} detik."
+            exit 1
           fi
 
           echo "width=$WIDTH" >> $GITHUB_OUTPUT
@@ -186,7 +182,6 @@ jobs:
             1080p) EDGE=1080 ;;
             1k) EDGE=1024 ;;
             2k) EDGE=2560 ;;
-            4k) EDGE=3840 ;;
             *) echo "Target resolusi tidak valid."; exit 1 ;;
           esac
 
