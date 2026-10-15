@@ -669,6 +669,33 @@
         return `GENZ-AI-${date}-${modelClean}${resPart}-${shortId}.${ext}`;
     }
 
+    function getDirectDownloadUrl(url, filename) {
+        try {
+            const downloadUrl = new URL(url, window.location.href);
+            if (
+                downloadUrl.hostname.endsWith(".supabase.co") &&
+                downloadUrl.pathname.includes("/storage/v1/object/public/")
+            ) {
+                downloadUrl.searchParams.set("download", filename);
+            }
+            return downloadUrl.href;
+        } catch (error) {
+            console.warn("[download] Could not prepare direct download URL:", error);
+            return url;
+        }
+    }
+
+    function triggerDirectDownload(url, filename) {
+        const link = document.createElement("a");
+        link.href = getDirectDownloadUrl(url, filename);
+        link.download = filename;
+        link.rel = "noopener noreferrer";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    }
+
 
     /* =====================================================
        DOWNLOAD HANDLER
@@ -705,9 +732,17 @@
             try {
                 const bridge = window.GENZAndroidDownloads;
                 if (typeof bridge?.downloadUrl !== "function") {
-                    throw new Error(
-                        "Aplikasi Android perlu diperbarui untuk mengunduh file. Pasang versi terbaru lalu coba kembali."
+                    console.warn(
+                        "[download] Android bridge unavailable; falling back to a direct URL download."
                     );
+                    triggerDirectDownload(url, filename);
+                    button.innerHTML =
+                        '<span class="download-icon">⬇</span> Permintaan unduhan dikirim';
+                    setTimeout(() => {
+                        button.innerHTML = originalHTML;
+                        button.disabled = false;
+                    }, 3500);
+                    return;
                 }
 
                 bridge.downloadUrl(
@@ -787,24 +822,14 @@
         }
 
         try {
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = filename;
-            a.target = "_blank";
-            a.rel = "noopener noreferrer";
-            a.style.display = "none";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            triggerDirectDownload(url, filename);
 
-            button.innerHTML = typeof window.GENZMobileDownload === "function"
-                ? '<span class="download-icon">✓</span> Unduhan dimulai'
-                : '<span class="download-icon">✓</span> Terbuka di tab';
-            button.classList.add("download-button-success");
+            button.innerHTML = isNativeApp
+                ? '<span class="download-icon">⬇</span> Permintaan unduhan dikirim'
+                : '<span class="download-icon">↗</span> Membuka unduhan';
 
             setTimeout(() => {
                 button.innerHTML = originalHTML;
-                button.classList.remove("download-button-success");
                 button.disabled = false;
             }, 2500);
 
