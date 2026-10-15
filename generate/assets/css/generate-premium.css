@@ -3490,3 +3490,249 @@ textarea,
     opacity:
         1 !important;
 }
+
+
+/* =========================================================
+   42. AUDIO CLIP EDITOR
+========================================================= */
+
+.generate-audio-trim-panel {
+    position: relative;
+    margin-top: 14px;
+    padding: clamp(14px, 3vw, 20px);
+    overflow: hidden;
+    border: 1px solid rgba(183, 255, 0, 0.2);
+    border-radius: 18px;
+    background:
+        radial-gradient(ellipse at 100% 0%, rgba(183, 255, 0, 0.1), transparent 52%),
+        linear-gradient(145deg, rgba(16, 22, 12, 0.96), rgba(7, 10, 8, 0.98));
+    box-shadow:
+        0 18px 48px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.generate-audio-trim-panel[hidden] {
+    display: none !important;
+}
+
+.generate-audio-trim-heading {
+    display: grid;
+    gap: 5px;
+}
+
+.generate-audio-trim-heading span {
+    color: var(--gz-lime);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+}
+
+.generate-audio-trim-heading strong {
+    color: var(--gz-text);
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.generate-audio-trim-description {
+    margin: 7px 0 16px;
+    color: var(--gz-muted);
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.generate-audio-trim-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+}
+
+.generate-audio-trim-control {
+    display: grid;
+    min-width: 0;
+    gap: 7px;
+    color: var(--gz-muted);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+}
+
+.generate-audio-trim-control input[type="range"] {
+    width: 100%;
+    min-width: 0;
+    margin: 5px 0;
+    accent-color: var(--gz-lime);
+    cursor: pointer;
+}
+
+.generate-audio-trim-control input[type="number"] {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    outline: none;
+    color: var(--gz-text);
+    background: rgba(0, 0, 0, 0.28);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: normal;
+}
+
+.generate-audio-trim-control input[type="number"]:focus {
+    border-color: rgba(183, 255, 0, 0.55);
+    box-shadow: 0 0 0 3px rgba(183, 255, 0, 0.08);
+}
+
+.generate-audio-trim-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-top: 16px;
+}
+
+.generate-audio-trim-actions button {
+    min-height: 40px;
+    padding: 9px 13px;
+    border-radius: 11px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    transition:
+        transform 160ms ease,
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        opacity 160ms ease;
+}
+
+.generate-audio-trim-actions button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.generate-audio-trim-actions button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+
+.generate-audio-trim-whole {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--gz-text-soft);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.generate-audio-trim-submit {
+    border: 1px solid rgba(183, 255, 0, 0.52);
+    color: #121807;
+    background: linear-gradient(135deg, #d9ff55, #a8ef00);
+    box-shadow: 0 7px 22px rgba(183, 255, 0, 0.16);
+}
+
+.generate-audio-trim-status {
+    min-height: 16px;
+    margin: 10px 0 0;
+    color: var(--gz-muted);
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.generate-audio-clip-toast {
+    position: fixed;
+    z-index: 10000;
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: min(390px, calc(100vw - 32px));
+    padding: 14px 16px;
+    border: 1px solid rgba(183, 255, 0, 0.35);
+    border-radius: 16px;
+    color: var(--gz-text);
+    background:
+        radial-gradient(ellipse at 100% 0%, rgba(183, 255, 0, 0.14), transparent 58%),
+        rgba(7, 11, 7, 0.97);
+    box-shadow:
+        0 18px 55px rgba(0, 0, 0, 0.48),
+        0 0 25px rgba(183, 255, 0, 0.11);
+    animation: generateAudioToastIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.generate-audio-clip-toast.is-leaving {
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.generate-audio-clip-toast-icon {
+    display: grid;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border: 1px solid rgba(183, 255, 0, 0.42);
+    border-radius: 50%;
+    color: #141b07;
+    background: var(--gz-lime);
+    box-shadow: 0 0 18px rgba(183, 255, 0, 0.24);
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.generate-audio-clip-toast > div {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+}
+
+.generate-audio-clip-toast strong {
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.generate-audio-clip-toast > div span {
+    overflow: hidden;
+    color: var(--gz-muted);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@keyframes generateAudioToastIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (max-width: 480px) {
+    .generate-audio-trim-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .generate-audio-trim-actions button {
+        width: 100%;
+    }
+
+    .generate-audio-clip-toast {
+        right: 16px;
+        bottom: max(16px, env(safe-area-inset-bottom));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .generate-audio-clip-toast {
+        animation: none;
+    }
+
+    .generate-audio-trim-actions button,
+    .generate-audio-clip-toast.is-leaving {
+        transition: none;
+    }
+}

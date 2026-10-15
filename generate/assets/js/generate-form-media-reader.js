@@ -746,6 +746,22 @@ export async function resolveAudioParameterValue(audioInput) {
     }
 
 
+    if (audioInput._audioSelectionPending) {
+        debugLog(
+            "Audio menunggu pilihan audio utuh atau klip manual."
+        );
+        throw new Error(
+            "Pilih “Gunakan audio utuh” atau potong klip audio sebelum generate."
+        );
+    }
+
+    if (audioInput._audioSelectedFile) {
+        throw new Error(
+            "Audio pilihan belum berhasil diunggah. Periksa pesan error pada kolom audio lalu coba lagi."
+        );
+    }
+
+
     /* -----------------------------------------------------
        FALLBACK FILE INPUT
     ----------------------------------------------------- */

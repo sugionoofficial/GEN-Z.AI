@@ -42,7 +42,7 @@ import {
     resolveImageParameterValue,
     resolveAudioParameterValue,
     resolveVideoParameterValue
-} from "./generate-form-media-reader.js";
+} from "./generate-form-media-reader.js?v=audio-clip-editor-20261015";
 
 
 /* =========================================================

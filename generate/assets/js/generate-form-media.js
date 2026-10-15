@@ -870,6 +870,174 @@ function createAudioPreview(
 }
 
 
+function encodeAudioBufferRangeToWav(
+    audioBuffer,
+    startSeconds,
+    endSeconds
+) {
+    const sampleRate = audioBuffer.sampleRate;
+    const channels = audioBuffer.numberOfChannels;
+    const startFrame = Math.max(0, Math.floor(startSeconds * sampleRate));
+    const endFrame = Math.min(
+        audioBuffer.length,
+        Math.ceil(endSeconds * sampleRate)
+    );
+    const frameCount = endFrame - startFrame;
+
+    if (frameCount < 1) {
+        throw new Error("Rentang klip audio tidak valid.");
+    }
+
+    const bytesPerSample = 2;
+    const dataSize = frameCount * channels * bytesPerSample;
+    if (dataSize + 44 > 50 * 1024 * 1024) {
+        throw new Error(
+            "Ukuran klip audio melebihi batas 50 MB. Pilih durasi yang lebih pendek."
+        );
+    }
+
+    const wav = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(wav);
+    const channelData = Array.from(
+        { length: channels },
+        (_, channel) => audioBuffer.getChannelData(channel)
+    );
+    const writeText = (offset, text) => {
+        for (let index = 0; index < text.length; index += 1) {
+            view.setUint8(offset + index, text.charCodeAt(index));
+        }
+    };
+
+    writeText(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeText(8, "WAVE");
+    writeText(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, channels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+    view.setUint16(32, channels * bytesPerSample, true);
+    view.setUint16(34, 16, true);
+    writeText(36, "data");
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    for (let frame = startFrame; frame < endFrame; frame += 1) {
+        for (let channel = 0; channel < channels; channel += 1) {
+            const sample = Math.max(
+                -1,
+                Math.min(1, channelData[channel][frame])
+            );
+            view.setInt16(
+                offset,
+                sample < 0 ? sample * 32768 : sample * 32767,
+                true
+            );
+            offset += bytesPerSample;
+        }
+    }
+
+    return new Blob([wav], { type: "audio/wav" });
+}
+
+
+async function createAudioClip(
+    file,
+    startSeconds,
+    endSeconds
+) {
+    const AudioContextConstructor =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+    if (typeof AudioContextConstructor !== "function") {
+        throw new Error("Pemotongan audio tidak didukung di browser ini.");
+    }
+
+    const context = new AudioContextConstructor();
+
+    try {
+        const buffer = await context.decodeAudioData(
+            await file.arrayBuffer()
+        );
+
+        if (
+            !Number.isFinite(startSeconds) ||
+            !Number.isFinite(endSeconds) ||
+            startSeconds < 0 ||
+            endSeconds > buffer.duration ||
+            endSeconds - startSeconds < 0.1
+        ) {
+            throw new Error("Pilih rentang audio minimal 0,1 detik dan masih dalam durasi file.");
+        }
+
+        const blob = encodeAudioBufferRangeToWav(
+            buffer,
+            startSeconds,
+            endSeconds
+        );
+        const baseName =
+            String(file.name || "audio")
+                .replace(/\.[^.]+$/, "") ||
+            "audio";
+        const clip = new File(
+            [blob],
+            `${baseName}-clip.wav`,
+            {
+                type: "audio/wav",
+                lastModified: Date.now()
+            }
+        );
+
+        validateAudio(clip);
+        return clip;
+    } finally {
+        await context.close();
+    }
+}
+
+
+function showAudioClipNotice(
+    file,
+    duration
+) {
+    document.querySelectorAll(".generate-audio-clip-toast").forEach(
+        toast => toast.remove()
+    );
+
+    const toast = document.createElement("div");
+    toast.className = "generate-audio-clip-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+
+    const icon = document.createElement("span");
+    icon.className = "generate-audio-clip-toast-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "✓";
+
+    const content = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = "Klip audio siap digunakan";
+    const description = document.createElement("span");
+    description.textContent =
+        `${file.name} · ${duration.toFixed(1)} detik · ${formatAudioFileSize(file.size)}`;
+    content.append(title, description);
+    toast.append(icon, content);
+    document.body.appendChild(toast);
+
+    window.setTimeout(() => {
+        toast.classList.add("is-leaving");
+        window.setTimeout(() => toast.remove(), 250);
+    }, 5000);
+}
+
+
+function formatAudioFileSize(bytes) {
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+
 /* =========================================================
    VIDEO PREVIEW
 ========================================================= */
@@ -2089,6 +2257,100 @@ export function createAudioField(
             preview
         );
 
+    let sourceAudioFile = null;
+    let sourceAudioDuration = 0;
+
+    const trimPanel = document.createElement("section");
+    trimPanel.className = "generate-audio-trim-panel";
+    trimPanel.hidden = true;
+
+    const trimHeading = document.createElement("div");
+    trimHeading.className = "generate-audio-trim-heading";
+    const trimEyebrow = document.createElement("span");
+    trimEyebrow.textContent = "AUDIO EDITOR";
+    const trimTitle = document.createElement("strong");
+    trimTitle.textContent = "Pilih bagian audio";
+    trimHeading.append(trimEyebrow, trimTitle);
+
+    const trimDescription = document.createElement("p");
+    trimDescription.className = "generate-audio-trim-description";
+    trimDescription.textContent =
+        "Atur titik mulai dan akhir, lalu gunakan klip pilihan Anda untuk model.";
+
+    const trimControls = document.createElement("div");
+    trimControls.className = "generate-audio-trim-controls";
+
+    function createTrimControl(labelText, inputType, className) {
+        const group = document.createElement("label");
+        group.className = "generate-audio-trim-control";
+        const label = document.createElement("span");
+        label.textContent = labelText;
+        const input = document.createElement("input");
+        input.type = inputType;
+        input.className = className;
+        input.step = "0.01";
+        if (inputType === "number") {
+            input.min = "0";
+            input.inputMode = "decimal";
+            input.setAttribute("aria-label", `${labelText} (detik)`);
+        }
+        group.append(label, input);
+        return { group, input };
+    }
+
+    const startRangeControl = createTrimControl(
+        "MULAI",
+        "range",
+        "generate-audio-trim-start-range"
+    );
+    const endRangeControl = createTrimControl(
+        "AKHIR",
+        "range",
+        "generate-audio-trim-end-range"
+    );
+    const startNumberControl = createTrimControl(
+        "Mulai (detik)",
+        "number",
+        "generate-audio-trim-start-number"
+    );
+    const endNumberControl = createTrimControl(
+        "Akhir (detik)",
+        "number",
+        "generate-audio-trim-end-number"
+    );
+    trimControls.append(
+        startRangeControl.group,
+        endRangeControl.group,
+        startNumberControl.group,
+        endNumberControl.group
+    );
+
+    const trimActions = document.createElement("div");
+    trimActions.className = "generate-audio-trim-actions";
+    const useWholeButton = document.createElement("button");
+    useWholeButton.type = "button";
+    useWholeButton.className = "generate-audio-trim-whole";
+    useWholeButton.textContent = "Gunakan audio utuh";
+    const trimButton = document.createElement("button");
+    trimButton.type = "button";
+    trimButton.className = "generate-audio-trim-submit";
+    trimButton.textContent = "Potong & gunakan klip";
+    trimActions.append(useWholeButton, trimButton);
+
+    const trimStatus = document.createElement("p");
+    trimStatus.className = "generate-audio-trim-status";
+    trimStatus.setAttribute("role", "status");
+    trimStatus.setAttribute("aria-live", "polite");
+
+    trimPanel.append(
+        trimHeading,
+        trimDescription,
+        trimControls,
+        trimActions,
+        trimStatus
+    );
+    preview.appendChild(trimPanel);
+
 
     function renderPreview(
         file
@@ -2146,6 +2408,38 @@ export function createAudioField(
         audio.dataset.objectUrl =
             objectUrl;
 
+        audio.onloadedmetadata = () => {
+            if (file !== sourceAudioFile) return;
+            if (!Number.isFinite(audio.duration) || audio.duration <= 0) {
+                trimStatus.textContent =
+                    "Durasi audio tidak dapat dibaca. Coba file MP3 atau WAV lain.";
+                return;
+            }
+            sourceAudioDuration = audio.duration;
+            const duration = sourceAudioDuration;
+            [
+                startRangeControl.input,
+                endRangeControl.input,
+                startNumberControl.input,
+                endNumberControl.input
+            ].forEach(input => {
+                input.min = "0";
+                input.max = String(duration);
+            });
+            endRangeControl.input.value = String(duration);
+            endNumberControl.input.value = duration.toFixed(2);
+            startNumberControl.input.value = "0";
+            startRangeControl.input.value = "0";
+            trimStatus.textContent =
+                `Durasi sumber ${duration.toFixed(2)} detik.`;
+            trimButton.disabled = duration < 0.1;
+            useWholeButton.disabled = false;
+            if (duration < 0.1) {
+                trimStatus.textContent =
+                    "Durasi terlalu singkat untuk dipotong. Audio utuh tetap dapat digunakan.";
+            }
+        };
+
 
         preview.style.display =
             "block";
@@ -2153,7 +2447,9 @@ export function createAudioField(
     }
 
 
-    function clearPreview() {
+    function clearPreview(
+        preserveEditor = false
+    ) {
 
         const objectUrl =
             audio.dataset.objectUrl;
@@ -2188,6 +2484,85 @@ export function createAudioField(
 
         preview.style.display =
             "none";
+
+        if (!preserveEditor) {
+            trimPanel.hidden = true;
+            sourceAudioFile = null;
+            sourceAudioDuration = 0;
+        }
+
+    }
+
+
+    async function uploadSelectedAudio(
+        file,
+        clipDuration = null
+    ) {
+        validateAudio(file);
+
+        const myToken = ++uploadToken;
+        wrapper._audioSelectionPending = false;
+        wrapper._audioSelectedFile = file;
+        delete wrapper.dataset.uploadedUrl;
+        clearUploadError(wrapper);
+        renderPreview(file);
+        trimPanel.hidden = !sourceAudioFile;
+        trimStatus.textContent = clipDuration === null
+            ? "Mengunggah audio utuh..."
+            : `Klip ${clipDuration.toFixed(2)} detik siap. Mengunggah klip pilihan...`;
+        useWholeButton.disabled = true;
+        trimButton.disabled = true;
+        setUploadState(wrapper, "uploading", "Mengunggah audio pilihan...");
+
+        wrapper._audioUploadPromise = (async () => {
+            try {
+                const uploaded = await uploadAudio(file);
+                const uploadedUrl = extractUploadUrl(uploaded);
+                if (!uploadedUrl) {
+                    throw new Error(
+                        "Upload audio berhasil tetapi URL audio tidak tersedia."
+                    );
+                }
+
+                if (myToken !== uploadToken) return "";
+
+                wrapper.dataset.uploadedUrl = uploadedUrl;
+                wrapper.dataset.uploadState = "done";
+                setUploadState(
+                    wrapper,
+                    "done",
+                    clipDuration === null
+                        ? "✓ Audio utuh berhasil diunggah"
+                        : "✓ Klip audio berhasil diunggah dan siap digunakan"
+                );
+                if (clipDuration !== null) {
+                    showAudioClipNotice(file, clipDuration);
+                }
+                return uploadedUrl;
+            } catch (error) {
+                if (myToken === uploadToken) {
+                    console.error(
+                        "[GEN-Z.AI][Generate Form] Upload audio gagal:",
+                        error
+                    );
+                    delete wrapper.dataset.uploadedUrl;
+                    wrapper.dataset.uploadError =
+                        String(error?.message || "Gagal mengupload audio.");
+                    showUploadError(wrapper, wrapper.dataset.uploadError);
+                    setUploadState(wrapper, "failed", "✗ Gagal mengunggah audio");
+                    trimStatus.textContent = wrapper.dataset.uploadError;
+                }
+                return "";
+            } finally {
+                if (myToken === uploadToken) {
+                    useWholeButton.disabled = false;
+                    trimButton.disabled = sourceAudioDuration < 0.1;
+                    wrapper._audioUploadPromise = null;
+                }
+            }
+        })();
+
+        return await wrapper._audioUploadPromise;
 
     }
 
@@ -2240,9 +2615,12 @@ export function createAudioField(
                 fileInput.files.length
             ) {
 
+                sourceAudioFile = fileInput.files[0];
                 renderPreview(
-                    fileInput.files[0]
+                    wrapper._audioSelectedFile ||
+                    sourceAudioFile
                 );
+                trimPanel.hidden = false;
 
             }
 
@@ -2255,7 +2633,7 @@ export function createAudioField(
                 "none";
 
 
-            clearPreview();
+            clearPreview(true);
 
 
             uploadButton.classList.remove(
@@ -2358,6 +2736,9 @@ export function createAudioField(
                 wrapper._audioUploadPromise =
                     null;
 
+                wrapper._audioSelectionPending = false;
+                wrapper._audioSelectedFile = null;
+
                 setUploadState(
                     wrapper,
                     ""
@@ -2373,108 +2754,28 @@ export function createAudioField(
             const file =
                 files[0];
 
-
             try {
 
                 validateAudio(
                     file
                 );
 
-
+                uploadToken += 1;
+                sourceAudioFile = file;
+                sourceAudioDuration = 0;
+                wrapper._audioSelectionPending = true;
+                wrapper._audioSelectedFile = null;
+                wrapper._audioUploadPromise = null;
+                delete wrapper.dataset.uploadedUrl;
                 renderPreview(
                     file
                 );
-
-
-                delete wrapper.dataset.uploadedUrl;
-
-
-                /* =========================================
-                   RACE TOKEN
-                ========================================= */
-
-                const myToken =
-                    ++uploadToken;
-
-
-                setUploadState(
-                    wrapper,
-                    "uploading",
-                    "Mengunggah audio..."
-                );
-
-
-                wrapper._audioUploadPromise =
-                    (async () => {
-
-                        const uploaded =
-                            await uploadAudio(
-                                file
-                            );
-
-
-                        const uploadedUrl =
-                            extractUploadUrl(
-                                uploaded
-                            );
-
-
-                        if (
-                            myToken !==
-                            uploadToken
-                        ) {
-
-                            debugLog(
-                                "[GEN-Z.AI][Generate Form] Upload audio stale diabaikan (race condition)."
-                            );
-
-
-                            return uploadedUrl;
-
-                        }
-
-
-                        if (
-                            !uploadedUrl
-                        ) {
-
-                            throw new Error(
-                                "Upload audio berhasil tetapi URL audio tidak tersedia."
-                            );
-
-                        }
-
-
-                        wrapper.dataset.uploadedUrl =
-                            uploadedUrl;
-
-
-                        debugLog(
-                            "[GEN-Z.AI][Generate Form] Audio upload ready:",
-                            uploadedUrl
-                        );
-
-
-                        return uploadedUrl;
-
-                    })();
-
-
-                await wrapper._audioUploadPromise;
-
-
-                if (
-                    myToken ===
-                    uploadToken
-                ) {
-
-                    setUploadState(
-                        wrapper,
-                        "done",
-                        "✓ Audio berhasil diunggah"
-                    );
-
-                }
+                trimPanel.hidden = false;
+                trimButton.disabled = true;
+                useWholeButton.disabled = true;
+                trimStatus.textContent =
+                    "Pilih audio utuh atau potong bagian yang ingin digunakan.";
+                setUploadState(wrapper, "");
 
             } catch (
                 error
@@ -2487,6 +2788,8 @@ export function createAudioField(
 
 
                 delete wrapper.dataset.uploadedUrl;
+                wrapper._audioSelectionPending = false;
+                wrapper._audioSelectedFile = null;
 
 
                 try {
@@ -2534,6 +2837,111 @@ export function createAudioField(
 
         }
     );
+
+
+    function syncTrimInputs(source) {
+        const start = source === "start-range"
+            ? Number(startRangeControl.input.value)
+            : Number(startNumberControl.input.value);
+        const end = source === "end-range"
+            ? Number(endRangeControl.input.value)
+            : Number(endNumberControl.input.value);
+        if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+
+        if (source === "start-range" || source === "start-number") {
+            const nextStart = Math.max(
+                0,
+                Math.min(start, sourceAudioDuration - 0.1)
+            );
+            startNumberControl.input.value = nextStart.toFixed(2);
+            startRangeControl.input.value = String(nextStart);
+            if (end - nextStart < 0.1) {
+                const nextEnd = Math.min(
+                    sourceAudioDuration,
+                    nextStart + 0.1
+                );
+                endNumberControl.input.value = nextEnd.toFixed(2);
+                endRangeControl.input.value = String(nextEnd);
+            }
+        } else {
+            const nextEnd = Math.max(
+                0.1,
+                Math.min(end, sourceAudioDuration)
+            );
+            endNumberControl.input.value = nextEnd.toFixed(2);
+            endRangeControl.input.value = String(nextEnd);
+            if (nextEnd - start < 0.1) {
+                const nextStart = Math.max(0, nextEnd - 0.1);
+                startNumberControl.input.value = nextStart.toFixed(2);
+                startRangeControl.input.value = String(nextStart);
+            }
+        }
+
+        const selectedDuration =
+            Number(endNumberControl.input.value) -
+            Number(startNumberControl.input.value);
+        trimStatus.textContent =
+            `Klip terpilih ${selectedDuration.toFixed(2)} detik dari ${sourceAudioDuration.toFixed(2)} detik.`;
+    }
+
+    startRangeControl.input.addEventListener(
+        "input",
+        () => syncTrimInputs("start-range")
+    );
+    startNumberControl.input.addEventListener(
+        "input",
+        () => syncTrimInputs("start-number")
+    );
+    endRangeControl.input.addEventListener(
+        "input",
+        () => syncTrimInputs("end-range")
+    );
+    endNumberControl.input.addEventListener(
+        "input",
+        () => syncTrimInputs("end-number")
+    );
+
+    useWholeButton.addEventListener("click", async () => {
+        if (!sourceAudioFile) return;
+        await uploadSelectedAudio(sourceAudioFile);
+    });
+
+    trimButton.addEventListener("click", async () => {
+        if (!sourceAudioFile || !sourceAudioDuration) return;
+
+        const sourceFile = sourceAudioFile;
+        const selectionToken = uploadToken;
+        const start = Number(startNumberControl.input.value);
+        const end = Number(endNumberControl.input.value);
+        useWholeButton.disabled = true;
+        trimButton.disabled = true;
+        trimStatus.textContent = "Memotong klip audio...";
+
+        try {
+            const clip = await createAudioClip(
+                sourceFile,
+                start,
+                end
+            );
+            if (
+                selectionToken !== uploadToken ||
+                sourceAudioFile !== sourceFile
+            ) {
+                return;
+            }
+            await uploadSelectedAudio(clip, end - start);
+        } catch (error) {
+            if (
+                selectionToken === uploadToken &&
+                sourceAudioFile === sourceFile
+            ) {
+                trimStatus.textContent =
+                    error?.message || "Klip audio gagal dipotong.";
+                useWholeButton.disabled = false;
+                trimButton.disabled = false;
+            }
+        }
+    });
 
 
     urlInput.addEventListener(
@@ -2632,6 +3040,12 @@ export function createAudioField(
 
 
             wrapper._audioUploadPromise =
+                null;
+
+            wrapper._audioSelectionPending =
+                false;
+
+            wrapper._audioSelectedFile =
                 null;
 
 
