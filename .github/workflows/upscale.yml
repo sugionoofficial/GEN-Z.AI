@@ -68,17 +68,49 @@ jobs:
         run: |
           WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 input.mp4)
           HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 input.mp4)
-          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 input.mp4)
+          FORMAT_DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 input.mp4)
+          STREAM_DURATION=$(ffprobe -v error -select_streams v:0 -show_entries stream=duration -of csv=p=0 input.mp4)
           FRAME_RATE=$(ffprobe -v error -select_streams v:0 -show_entries stream=avg_frame_rate -of csv=p=0 input.mp4)
+          if [ -z "$FRAME_RATE" ] || [ "$FRAME_RATE" = "0/0" ]; then
+            FRAME_RATE=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 input.mp4)
+          fi
 
-          if [ -z "$WIDTH" ] || [ -z "$HEIGHT" ] || [ -z "$DURATION" ]; then
-            echo "Tidak dapat membaca dimensi atau durasi video."
+          is_valid_duration() {
+            awk -v duration="$1" 'BEGIN { exit !(duration ~ /^[0-9]+([.][0-9]+)?$/ && duration > 0) }'
+          }
+
+          DURATION="$STREAM_DURATION"
+          if ! is_valid_duration "$DURATION"; then
+            DURATION="$FORMAT_DURATION"
+          fi
+
+          if ! is_valid_duration "$DURATION" ||
+            { [ -n "$SOURCE_OBJECT_PATH" ] &&
+              awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" 'BEGIN { exit !(duration > maximum) }'; }; then
+            FRAME_COUNT=$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 input.mp4)
+            FRAME_DURATION=$(awk -v frames="$FRAME_COUNT" -v rate="$FRAME_RATE" 'BEGIN {
+              split(rate, parts, "/")
+              if (frames ~ /^[0-9]+$/ && parts[1] ~ /^[0-9]+$/ && parts[2] ~ /^[0-9]+$/ && parts[1] > 0 && parts[2] > 0) {
+                printf "%.6f", frames * parts[2] / parts[1]
+              } else {
+                exit 1
+              }
+            }') || FRAME_DURATION=""
+            if is_valid_duration "$FRAME_DURATION"; then
+              DURATION="$FRAME_DURATION"
+            fi
+          fi
+
+          echo "Duration metadata: container=${FORMAT_DURATION}s, video_stream=${STREAM_DURATION}s, frame_count=${FRAME_COUNT:-unneeded}, frame_rate=${FRAME_RATE}"
+
+          if [ -z "$WIDTH" ] || [ -z "$HEIGHT" ] || ! is_valid_duration "$DURATION"; then
+            echo "Tidak dapat membaca dimensi atau menghitung durasi video."
             exit 1
           fi
 
           if [ -n "$SOURCE_OBJECT_PATH" ]; then
             if ! awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" 'BEGIN { exit !(duration > 0 && duration <= maximum) }'; then
-              echo "Durasi video melebihi batas ${MAX_DURATION_SECONDS} detik."
+              echo "Durasi video terukur ${DURATION} detik, melebihi batas ${MAX_DURATION_SECONDS} detik."
               exit 1
             fi
           fi
