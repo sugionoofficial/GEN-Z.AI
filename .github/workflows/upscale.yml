@@ -75,6 +75,38 @@ jobs:
             FRAME_RATE=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 input.mp4)
           fi
 
+          PACKET_DURATION=$(ffprobe -v error -select_streams v:0 \
+            -show_entries packet=pts_time,duration_time -of csv=p=0 input.mp4 | awk -F, '
+              function is_number(value) {
+                return value ~ /^[0-9]+([.][0-9]+)?$/
+              }
+              is_number($1) {
+                pts = $1 + 0
+                if (!found) {
+                  first_pts = pts
+                  found = 1
+                }
+                if (found && has_previous && pts > previous_pts) {
+                  last_delta = pts - previous_pts
+                }
+                previous_pts = pts
+                has_previous = 1
+                last_pts = pts
+                if (is_number($2) && $2 > 0) {
+                  last_duration = $2
+                } else {
+                  last_duration = 0
+                }
+              }
+              END {
+                if (found) {
+                  end_pts = last_pts + (last_duration > 0 ? last_duration : last_delta)
+                  if (end_pts > first_pts) {
+                    printf "%.6f", end_pts - first_pts
+                  }
+                }
+              }')
+
           is_valid_duration() {
             awk -v duration="$1" 'BEGIN { exit !(duration ~ /^[0-9]+([.][0-9]+)?$/ && duration > 0) }'
           }
@@ -84,24 +116,44 @@ jobs:
             DURATION="$FORMAT_DURATION"
           fi
 
+          if is_valid_duration "$PACKET_DURATION" &&
+            { ! is_valid_duration "$DURATION" ||
+              awk -v metadata="$DURATION" -v packets="$PACKET_DURATION" 'BEGIN { exit !(packets - metadata > 0.5) }'; }; then
+            DURATION="$PACKET_DURATION"
+          fi
+
+          RATE_FPS=$(awk -F/ '{
+            if ($2 > 0) rate = $1 / $2
+            else rate = $1
+            if (rate > 0) printf "%.6f", rate
+          }' <<< "$FRAME_RATE")
+
+          if ! awk -v rate="$RATE_FPS" 'BEGIN { exit !(rate > 0 && rate <= 120) }'; then
+            FRAME_COUNT=$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 input.mp4)
+            RATE_FPS=$(awk -v frames="$FRAME_COUNT" -v duration="$PACKET_DURATION" 'BEGIN {
+              if (frames ~ /^[0-9]+$/ && duration > 0) printf "%.6f", frames / duration
+            }')
+          fi
+          if ! awk -v rate="$RATE_FPS" 'BEGIN { exit !(rate > 0 && rate <= 120) }'; then
+            RATE_FPS="30"
+          fi
+
           if ! is_valid_duration "$DURATION" ||
+            awk -v duration="$DURATION" 'BEGIN { exit !(duration < 0.5) }' ||
             { [ -n "$SOURCE_OBJECT_PATH" ] &&
               awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" 'BEGIN { exit !(duration > maximum) }'; }; then
-            FRAME_COUNT=$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 input.mp4)
-            FRAME_DURATION=$(awk -v frames="$FRAME_COUNT" -v rate="$FRAME_RATE" 'BEGIN {
-              split(rate, parts, "/")
-              if (frames ~ /^[0-9]+$/ && parts[1] ~ /^[0-9]+$/ && parts[2] ~ /^[0-9]+$/ && parts[1] > 0 && parts[2] > 0) {
-                printf "%.6f", frames * parts[2] / parts[1]
-              } else {
-                exit 1
-              }
-            }') || FRAME_DURATION=""
-            if is_valid_duration "$FRAME_DURATION"; then
-              DURATION="$FRAME_DURATION"
+            if is_valid_duration "$PACKET_DURATION"; then
+              DURATION="$PACKET_DURATION"
+            elif [ -z "$FRAME_COUNT" ]; then
+              FRAME_COUNT=$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 input.mp4)
+            fi
+            if ! is_valid_duration "$PACKET_DURATION" &&
+              awk -v frames="$FRAME_COUNT" -v rate="$RATE_FPS" 'BEGIN { exit !(frames ~ /^[0-9]+$/ && rate > 0) }'; then
+              DURATION=$(awk -v frames="$FRAME_COUNT" -v rate="$RATE_FPS" 'BEGIN { printf "%.6f", frames / rate }')
             fi
           fi
 
-          echo "Duration metadata: container=${FORMAT_DURATION}s, video_stream=${STREAM_DURATION}s, frame_count=${FRAME_COUNT:-unneeded}, frame_rate=${FRAME_RATE}"
+          echo "Duration metadata: container=${FORMAT_DURATION}s, video_stream=${STREAM_DURATION}s, packet_timing=${PACKET_DURATION:-unavailable}, frame_count=${FRAME_COUNT:-unneeded}, frame_rate=${FRAME_RATE}, effective_fps=${RATE_FPS}"
 
           if [ -z "$WIDTH" ] || [ -z "$HEIGHT" ] || ! is_valid_duration "$DURATION"; then
             echo "Tidak dapat membaca dimensi atau menghitung durasi video."
@@ -118,8 +170,8 @@ jobs:
           echo "width=$WIDTH" >> $GITHUB_OUTPUT
           echo "height=$HEIGHT" >> $GITHUB_OUTPUT
           echo "duration=$DURATION" >> $GITHUB_OUTPUT
-          echo "frame_rate=$FRAME_RATE" >> $GITHUB_OUTPUT
-          echo "Source: ${WIDTH}x${HEIGHT}, ${DURATION}s, ${FRAME_RATE}fps"
+          echo "frame_rate=$RATE_FPS" >> $GITHUB_OUTPUT
+          echo "Source: ${WIDTH}x${HEIGHT}, ${DURATION}s, ${RATE_FPS}fps"
 
       - name: Calculate target resolution
         id: target
@@ -161,11 +213,10 @@ jobs:
           if [ "$TW" -lt 2 ]; then TW=2; fi
           if [ "$TH" -lt 2 ]; then TH=2; fi
 
-          FPS=$(awk -F/ '{ if ($2 > 0) printf "%d", ($1 / $2) + 0.5; else printf "24" }' <<< "$SOURCE_FRAME_RATE")
+          FPS=$(awk -v rate="$SOURCE_FRAME_RATE" 'BEGIN { value=int(rate + 0.5); if (value < 1) value=24; if (value > 60) value=60; print value }')
           if [ "$FPS" -lt 1 ]; then FPS=24; fi
           OUTPUT_FPS=$(( FPS * 2 ))
           if [ "$OUTPUT_FPS" -gt 60 ]; then OUTPUT_FPS=60; fi
-          if [ "$OUTPUT_FPS" -lt "$FPS" ]; then OUTPUT_FPS="$FPS"; fi
 
           echo "target_width=$TW" >> $GITHUB_OUTPUT
           echo "target_height=$TH" >> $GITHUB_OUTPUT
@@ -187,7 +238,7 @@ jobs:
           TOTAL_KBPS=$(( TARGET_MB * 8 * 1024 / DURATION_INT ))
           VIDEO_KBPS=$(( TOTAL_KBPS - AUDIO_KBPS ))
 
-          FILTER="scale=${TARGET_WIDTH}:${TARGET_HEIGHT}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,minterpolate=fps=${TARGET_FPS}:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16:search_param=32"
+          FILTER="minterpolate=fps=${TARGET_FPS}:mi_mode=mci:mc_mode=aobmc:vsbmc=1:me_mode=bidir:mb_size=16,scale=${TARGET_WIDTH}:${TARGET_HEIGHT}:flags=lanczos,unsharp=5:5:0.8:3:3:0.4"
 
           echo "Duration: ${DURATION_INT}s"
           echo "Output: ${TARGET_WIDTH}x${TARGET_HEIGHT} at ${TARGET_FPS}fps"
