@@ -136,6 +136,14 @@
                 }
             });
             setForm(result.announcement);
+            if (isPublished && result.announcement) {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        "genz-announcement-published",
+                        { detail: result.announcement }
+                    )
+                );
+            }
             setStatus(
                 isPublished
                     ? "Informasi berhasil diterbitkan dan siap tampil di halaman akun."

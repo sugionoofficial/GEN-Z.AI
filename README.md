@@ -217,8 +217,9 @@ menggunakan Admin Control → Informasi Penting. Admin dan owner dapat menyimpan
 draft atau menerbitkan satu informasi aktif untuk semua akun user dan admin,
 memilih kategori, dan menetapkan waktu kedaluwarsa opsional. Informasi yang
 diterbitkan muncul sebagai dialog di halaman akun; tombol OK menyembunyikan
-versi pengumuman tersebut pada akun di perangkat itu. Halaman akun yang sedang
-terbuka memeriksa pengumuman baru secara berkala.
+versi pengumuman tersebut pada akun di perangkat itu. Pengumuman yang
+diterbitkan tampil langsung pada halaman admin yang menerbitkan dan diperiksa
+setiap 5 detik pada halaman akun lain yang sedang terbuka.
 
 ### Cloudflare Workers (migrasi bertahap)
 

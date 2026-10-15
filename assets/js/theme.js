@@ -12,7 +12,9 @@
     let announcementCheckRunning = false;
     let announcementPollTimer = null;
     let announcementBodyOverflow = null;
-    const isNativeApp = Boolean(window.GENZAndroidDownloads);
+    let dismissedAnnouncementVersion = null;
+    const isNativeApp = Boolean(window.Capacitor?.Plugins);
+    const hasAndroidDownloadBridge = Boolean(window.GENZAndroidDownloads);
 
     if (isNativeApp) {
         document.documentElement.dataset.genzApp = "true";
@@ -248,20 +250,51 @@
                 display: grid;
                 place-items: center;
                 padding: 22px;
-                background: rgba(3, 5, 12, .76);
-                backdrop-filter: blur(14px);
-                -webkit-backdrop-filter: blur(14px);
+                background: rgba(3, 5, 12, .58);
+                backdrop-filter: blur(5px);
+                -webkit-backdrop-filter: blur(5px);
+            }
+
+            .genz-announcement-frame {
+                position: relative;
+                isolation: isolate;
+                overflow: hidden;
+                width: min(100%, 520px);
+                max-height: min(82vh, 720px);
+                padding: 2px;
+                border-radius: 26px;
+                box-shadow: 0 24px 90px rgba(0, 0, 0, .34);
+            }
+
+            .genz-announcement-frame::before {
+                position: absolute;
+                z-index: 0;
+                inset: -75%;
+                background: conic-gradient(
+                    #ff5378,
+                    #ffb84d,
+                    #f5ed69,
+                    #42e3b3,
+                    #51b7ff,
+                    #a77aff,
+                    #f35dce,
+                    #ff5378
+                );
+                content: "";
+                animation: genz-announcement-neon 9s linear infinite;
+                will-change: transform;
             }
 
             .genz-announcement-dialog {
                 position: relative;
+                z-index: 1;
                 overflow: hidden;
-                width: min(100%, 520px);
-                max-height: min(82vh, 720px);
+                width: 100%;
+                max-height: min(calc(82vh - 4px), 716px);
                 overflow-y: auto;
                 padding: 30px;
-                border: 1px solid rgba(153, 140, 255, .28);
-                border-radius: 24px;
+                border: 0;
+                border-radius: 23px;
                 color: #f5f6fb;
                 background:
                     radial-gradient(ellipse at 100% 0%, rgba(128, 111, 255, .2), transparent 50%),
@@ -388,8 +421,13 @@
                 to { opacity: 1; transform: translateY(0) scale(1); }
             }
 
+            @keyframes genz-announcement-neon {
+                to { transform: rotate(1turn); }
+            }
+
             @media (max-width: 540px) {
                 .genz-announcement-overlay { padding: 16px; }
+                .genz-announcement-frame { border-radius: 22px; }
                 .genz-announcement-dialog { padding: 24px 21px; border-radius: 20px; }
                 .genz-announcement-dialog::before { left: 21px; }
                 .genz-announcement-message { font-size: 13px; }
@@ -541,7 +579,7 @@
     }
 
     async function saveBlobInAndroid(blob, fileName) {
-        if (!isNativeApp || !(blob instanceof Blob)) return null;
+        if (!hasAndroidDownloadBridge || !(blob instanceof Blob)) return null;
 
         const bridge = window.GENZAndroidDownloads;
         const id = bridge.beginBlobDownload(
@@ -580,7 +618,14 @@
     window.GENZMobileDownload = saveBlobInAndroid;
 
     document.addEventListener("click", event => {
-        if (!isNativeApp || event.defaultPrevented || event.button !== 0) return;
+        if (
+            !isNativeApp ||
+            !hasAndroidDownloadBridge ||
+            event.defaultPrevented ||
+            event.button !== 0
+        ) {
+            return;
+        }
 
         const target = event.target instanceof Element
             ? event.target
@@ -734,13 +779,17 @@
         const storageKey = `genz-announcement-dismissed:${userId}`;
         const announcementVersion =
             `${announcement.id}:${announcement.updated_at || ""}`;
+        if (dismissedAnnouncementVersion === announcementVersion) return;
+
         try {
             if (localStorage.getItem(storageKey) === announcementVersion) return;
         } catch (error) {
             reportStorageError("read announcement dismissal for", error);
         }
 
-        document.querySelector(".genz-announcement-overlay")?.remove();
+        const currentOverlay = document.querySelector(".genz-announcement-overlay");
+        if (currentOverlay?.dataset.announcementVersion === announcementVersion) return;
+        currentOverlay?.remove();
         const categoryLabels = {
             info: "Informasi umum",
             feature: "Fitur baru",
@@ -749,6 +798,9 @@
         };
         const overlay = document.createElement("div");
         overlay.className = "genz-announcement-overlay";
+        overlay.dataset.announcementVersion = announcementVersion;
+        const frame = document.createElement("div");
+        frame.className = "genz-announcement-frame";
         const dialog = document.createElement("section");
         dialog.className = "genz-announcement-dialog";
         dialog.dataset.category = announcement.category || "info";
@@ -780,6 +832,7 @@
         okButton.textContent = "OK, saya mengerti";
 
         okButton.addEventListener("click", () => {
+            dismissedAnnouncementVersion = announcementVersion;
             try {
                 localStorage.setItem(storageKey, announcementVersion);
             } catch (error) {
@@ -792,7 +845,8 @@
 
         footer.append(brand, okButton);
         dialog.append(kicker, title, message, footer);
-        overlay.append(dialog);
+        frame.append(dialog);
+        overlay.append(frame);
         if (announcementBodyOverflow === null) {
             announcementBodyOverflow = document.body.style.overflow;
         }
@@ -800,6 +854,13 @@
         document.body.style.overflow = "hidden";
         okButton.focus();
     }
+
+    window.addEventListener("genz-announcement-published", event => {
+        showAnnouncement(
+            event.detail,
+            window.GENZ_NAVIGATION_USER?.id
+        );
+    });
 
     async function loadAnnouncement() {
         if (
@@ -820,6 +881,7 @@
             if (!session?.access_token || !session.user?.id) return;
 
             const response = await fetch("/api/announcements", {
+                cache: "no-store",
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
             const result = await response.json().catch(() => ({}));
@@ -841,7 +903,16 @@
         ) {
             return;
         }
-        announcementPollTimer = window.setInterval(loadAnnouncement, 60_000);
+        announcementPollTimer = window.setInterval(() => {
+            if (document.visibilityState === "visible") {
+                void loadAnnouncement();
+            }
+        }, 5_000);
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                void loadAnnouncement();
+            }
+        });
     }
 
     function initialize() {
