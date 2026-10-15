@@ -29,6 +29,7 @@ public class MainActivity extends BridgeActivity {
     private float pullStartX;
     private float pullStartY;
     private boolean pullStartedAtTop;
+    private boolean pullRefreshTriggered;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -161,31 +162,41 @@ public class MainActivity extends BridgeActivity {
     private void configurePullToRefresh(WebView webView) {
         int touchSlop = ViewConfiguration.get(this).getScaledTouchSlop();
         int refreshThreshold = Math.max(
-            touchSlop * 4,
-            (int) (96 * getResources().getDisplayMetrics().density)
+            touchSlop * 3,
+            (int) (56 * getResources().getDisplayMetrics().density)
         );
         webView.setOnTouchListener((view, event) -> {
             switch (event.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
                     pullStartX = event.getX();
                     pullStartY = event.getY();
-                    pullStartedAtTop = webView.getScrollY() == 0;
+                    pullStartedAtTop =
+                        webView.getScrollY() <= 0 &&
+                        !webView.canScrollVertically(-1);
+                    pullRefreshTriggered = false;
                     break;
-                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_MOVE:
                     float deltaY = event.getY() - pullStartY;
                     float deltaX = Math.abs(event.getX() - pullStartX);
                     if (
                         pullStartedAtTop &&
-                        webView.getScrollY() == 0 &&
+                        !pullRefreshTriggered &&
+                        !webView.canScrollVertically(-1) &&
                         deltaY >= refreshThreshold &&
                         deltaX < deltaY / 2
                     ) {
+                        pullRefreshTriggered = true;
                         webView.reload();
+                        return true;
                     }
+                    break;
+                case MotionEvent.ACTION_UP:
                     pullStartedAtTop = false;
+                    pullRefreshTriggered = false;
                     break;
                 case MotionEvent.ACTION_CANCEL:
                     pullStartedAtTop = false;
+                    pullRefreshTriggered = false;
                     break;
                 default:
                     break;
