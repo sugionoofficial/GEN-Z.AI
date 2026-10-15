@@ -35,7 +35,8 @@ const CONFIG = Object.freeze({
     requestTimeout: 60000
 });
 
-const MAX_COMPRESSED_VIDEO_EDGE = 1920;
+const MAX_COMPRESSED_VIDEO_EDGE = 1280;
+const COMPRESSED_VIDEO_FPS = 20;
 
 
 /* =========================================================
@@ -466,7 +467,7 @@ function getVideoRecorderMimeType() {
     return mimeType;
 }
 
-async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
+async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType, onProgress) {
     const video = document.createElement("video");
     const canvas = document.createElement("canvas");
     const objectUrl = URL.createObjectURL(file);
@@ -505,6 +506,7 @@ async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
             throw new Error("Perangkat ini tidak mendukung kompresi video lokal. Coba gunakan Chrome versi terbaru.");
         }
 
+        video.currentTime = 0;
         const scale = Math.min(
             1,
             MAX_COMPRESSED_VIDEO_EDGE / Math.max(video.videoWidth, video.videoHeight)
@@ -523,7 +525,7 @@ async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
         }
 
         sourceStream = captureSource.call(video);
-        canvasStream = canvas.captureStream(24);
+        canvasStream = canvas.captureStream(COMPRESSED_VIDEO_FPS);
         const tracks = [
             ...canvasStream.getVideoTracks(),
             ...sourceStream.getAudioTracks()
@@ -538,12 +540,14 @@ async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
         const recording = new Promise((resolve, reject) => {
             let settled = false;
             let recordingTimeout;
-            const finish = error => {
+            let stopError = null;
+            let stopRequested = false;
+            let lastProgressUpdate = 0;
+            const finalize = () => {
                 if (settled) return;
                 settled = true;
                 clearTimeout(recordingTimeout);
                 cancelAnimationFrame(animationFrame);
-                if (recorder?.state !== "inactive") recorder.stop();
                 canvasStream?.getTracks().forEach(track => track.stop());
                 sourceStream?.getTracks().forEach(track => track.stop());
                 video.pause();
@@ -551,12 +555,22 @@ async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
                 video.load();
                 URL.revokeObjectURL(objectUrl);
 
-                if (error) {
-                    reject(error);
+                if (stopError) {
+                    reject(stopError);
                 } else {
                     resolve(new Blob(chunks, {
                         type: recorder.mimeType || mimeType
                     }));
+                }
+            };
+            const finish = error => {
+                if (settled || stopRequested) return;
+                stopRequested = true;
+                if (error) stopError = error;
+                if (recorder?.state === "recording" || recorder?.state === "paused") {
+                    recorder.stop();
+                } else if (recorder?.state === "inactive") {
+                    finalize();
                 }
             };
 
@@ -566,13 +580,30 @@ async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
             recorder.onerror = event => {
                 finish(event.error || new Error("Kompresi video gagal."));
             };
-            recorder.onstop = () => finish();
+            recorder.onstop = finalize;
             video.onended = () => {
-                if (recorder.state !== "inactive") recorder.stop();
+                finish();
+            };
+            video.ontimeupdate = () => {
+                if (
+                    video.duration > 0 &&
+                    video.currentTime >= video.duration - 0.1
+                ) {
+                    finish();
+                }
+                const progress = Math.min(
+                    99,
+                    Math.floor((video.currentTime / video.duration) * 100)
+                );
+                const now = Date.now();
+                if (progress > 0 && now - lastProgressUpdate >= 1000) {
+                    lastProgressUpdate = now;
+                    onProgress?.(progress);
+                }
             };
             sourceStream.getVideoTracks().forEach(track => {
                 track.addEventListener("ended", () => {
-                    if (recorder.state !== "inactive") recorder.stop();
+                    finish();
                 }, { once: true });
             });
 
@@ -585,6 +616,13 @@ async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
                         return;
                     }
                 }
+                if (
+                    video.duration > 0 &&
+                    video.currentTime >= video.duration - 0.1
+                ) {
+                    finish();
+                    return;
+                }
                 if (!video.ended && recorder.state === "recording") {
                     animationFrame = requestAnimationFrame(drawFrame);
                 }
@@ -592,10 +630,10 @@ async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
 
             try {
                 recordingTimeout = setTimeout(
-                    () => finish(new Error("Kompresi video belum selesai. Pastikan aplikasi tetap terbuka selama proses, lalu coba lagi.")),
+                    () => finish(new Error("Kompresi video belum selesai. Pastikan aplikasi tetap terbuka dan layar tidak terkunci, lalu coba lagi.")),
                     Math.min(
                         15 * 60 * 1000,
-                        Math.max(5 * 60 * 1000, (video.duration * 8000) + 120000)
+                        Math.max(5 * 60 * 1000, (video.duration * 4000) + 120000)
                     )
                 );
                 recorder.start(1000);
@@ -625,30 +663,32 @@ async function compressVideoForStorage(file) {
     const mimeType = getVideoRecorderMimeType();
     const duration = await getVideoDuration(file);
     const targetBitsPerSecond = Math.floor(
-        (CONFIG.targetCompressedVideoSize * 8 * 0.9) / duration
+        (CONFIG.targetCompressedVideoSize * 8 * 0.7) / duration
     );
     const audioBitsPerSecond = 96_000;
-    const initialVideoBitrate = Math.max(
+    const videoBitsPerSecond = Math.max(
         250_000,
         targetBitsPerSecond - audioBitsPerSecond
     );
-
-    for (const bitrateScale of [1, 0.75, 0.55]) {
-        const blob = await encodeVideoAttempt(
-            file,
-            Math.floor(initialVideoBitrate * bitrateScale),
-            mimeType
-        );
-
-        if (blob.size <= CONFIG.maxVideoUploadSize) {
-            const outputType = blob.type.split(";")[0] || "video/webm";
-            const extension = outputType === "video/mp4" ? "mp4" : "webm";
-            const name = file.name.replace(/\.[^.]+$/, "") || "video";
-            return new File([blob], `${name}-compressed.${extension}`, {
-                type: outputType,
-                lastModified: Date.now()
-            });
+    const blob = await encodeVideoAttempt(
+        file,
+        videoBitsPerSecond,
+        mimeType,
+        progress => {
+            if (state.dom.loadingText) {
+                state.dom.loadingText.textContent = `Mengompres video: ${progress}%`;
+            }
         }
+    );
+
+    if (blob.size <= CONFIG.maxVideoUploadSize) {
+        const outputType = blob.type.split(";")[0] || "video/webm";
+        const extension = outputType === "video/mp4" ? "mp4" : "webm";
+        const name = file.name.replace(/\.[^.]+$/, "") || "video";
+        return new File([blob], `${name}-compressed.${extension}`, {
+            type: outputType,
+            lastModified: Date.now()
+        });
     }
 
     throw new Error("Ukuran video tetap melebihi batas upload 50 MB setelah dikompres. Coba video yang lebih pendek atau lebih kecil.");
