@@ -48,6 +48,7 @@ emulator/perangkat lalu jalankan aplikasinya dari IDE.
   aset Capacitor dan bukan fallback offline untuk konfigurasi ini.
   - Aplikasi native menyembunyikan status bar dan navigation bar sistem secara
     immersive. Bar sistem dapat muncul sementara melalui gesture sistem.
+    Saat halaman berada paling atas, tarik layar ke bawah untuk memuat ulang.
   - Situs menyediakan PWA mode standalone. Pasang GEN-Z.AI dari browser untuk
     membuka semua halaman tanpa address bar dan toolbar browser. Browser biasa
     tidak mengizinkan situs menyembunyikan toolbar secara paksa.

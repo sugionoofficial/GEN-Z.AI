@@ -8,11 +8,14 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.webkit.CookieManager;
 import android.webkit.URLUtil;
+import android.webkit.WebView;
 import android.widget.Toast;
 
 import com.getcapacitor.BridgeActivity;
@@ -23,11 +26,15 @@ import java.util.List;
 public class MainActivity extends BridgeActivity {
     private static final int WRITE_STORAGE_PERMISSION_REQUEST = 7301;
     private final List<PendingDownload> pendingDownloads = new ArrayList<>();
+    private float pullStartX;
+    private float pullStartY;
+    private boolean pullStartedAtTop;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getBridge().getWebView().setDownloadListener(
+        WebView webView = getBridge().getWebView();
+        webView.setDownloadListener(
             (url, userAgent, contentDisposition, mimeType, contentLength) -> {
                 Uri downloadUri = Uri.parse(url);
                 String scheme = downloadUri.getScheme();
@@ -64,6 +71,7 @@ public class MainActivity extends BridgeActivity {
                 enqueueDownload(download);
             }
         );
+        configurePullToRefresh(webView);
         hideSystemBars();
     }
 
@@ -148,6 +156,42 @@ public class MainActivity extends BridgeActivity {
         runOnUiThread(() ->
             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         );
+    }
+
+    private void configurePullToRefresh(WebView webView) {
+        int touchSlop = ViewConfiguration.get(this).getScaledTouchSlop();
+        int refreshThreshold = Math.max(
+            touchSlop * 4,
+            (int) (96 * getResources().getDisplayMetrics().density)
+        );
+        webView.setOnTouchListener((view, event) -> {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    pullStartX = event.getX();
+                    pullStartY = event.getY();
+                    pullStartedAtTop = webView.getScrollY() == 0;
+                    break;
+                case MotionEvent.ACTION_UP:
+                    float deltaY = event.getY() - pullStartY;
+                    float deltaX = Math.abs(event.getX() - pullStartX);
+                    if (
+                        pullStartedAtTop &&
+                        webView.getScrollY() == 0 &&
+                        deltaY >= refreshThreshold &&
+                        deltaX < deltaY / 2
+                    ) {
+                        webView.reload();
+                    }
+                    pullStartedAtTop = false;
+                    break;
+                case MotionEvent.ACTION_CANCEL:
+                    pullStartedAtTop = false;
+                    break;
+                default:
+                    break;
+            }
+            return false;
+        });
     }
 
     private String getRefererOrigin() {
