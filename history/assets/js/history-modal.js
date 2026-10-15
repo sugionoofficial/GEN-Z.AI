@@ -403,6 +403,46 @@
         `;
     }
 
+    function renderUpscaleProgressActions(item) {
+        const status = normalizeStatus(item?.status);
+        if (
+            getModelId(item).toLowerCase() !== "upscale-video" ||
+            (status !== "processing" && status !== "pending")
+        ) {
+            return "";
+        }
+
+        const safeId = escapeHtml(String(item.id || "").trim());
+        return `
+            <div class="detail-row detail-action-row">
+                <div class="detail-label">Upscale</div>
+                <div class="detail-value">
+                    <div class="detail-action-buttons">
+                        <button
+                            type="button"
+                            class="download-button"
+                            data-action="refresh-upscale-status"
+                            data-history-id="${safeId}"
+                        >
+                            Periksa status GitHub
+                        </button>
+                        <button
+                            type="button"
+                            class="upscale-button"
+                            data-action="cancel-upscale"
+                            data-history-id="${safeId}"
+                        >
+                            Batalkan proses
+                        </button>
+                    </div>
+                    <p class="upscale-hint">
+                        Jika job GitHub sudah berhenti atau dibatalkan, pemeriksaan ini akan memperbarui status History dan mengembalikan credit bila perlu.
+                    </p>
+                </div>
+            </div>
+        `;
+    }
+
 
     /* =====================================================
        MEDIA PREVIEW — Image atau Video
@@ -579,6 +619,7 @@
             ${renderPrompt(item)}
             ${renderResult(item)}
             ${renderError(item)}
+            ${renderUpscaleProgressActions(item)}
             ${renderActionRow(item)}
         `;
     }
@@ -842,6 +883,79 @@
         }
     }
 
+    async function handleUpscaleStatus(button, cancel = false) {
+        const historyId = String(button?.dataset?.historyId || "").trim();
+        if (!historyId) return;
+
+        if (
+            cancel &&
+            !window.confirm("Batalkan proses upscale ini? Credit akan dikembalikan.")
+        ) {
+            return;
+        }
+
+        const originalHTML = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = cancel ? "Membatalkan..." : "Memeriksa...";
+
+        try {
+            const client = App.state?.supabaseClient || window.GENZ_SUPABASE;
+            if (!client) throw new Error("Supabase client tidak tersedia");
+
+            const { data: sessionData, error: sessionError } =
+                await client.auth.getSession();
+            if (sessionError) throw sessionError;
+
+            const token = sessionData?.session?.access_token;
+            if (!token) throw new Error("Sesi login tidak ditemukan");
+
+            const response = await fetch("/api/generate", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    action: "upscale-video-status",
+                    history_id: historyId,
+                    cancel
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(
+                    payload?.error || `Gagal memeriksa status (${response.status})`
+                );
+            }
+
+            if (typeof App.loadHistory === "function") {
+                await App.loadHistory({ silent: true });
+            }
+            if (typeof App.refreshOpenModal === "function") {
+                App.refreshOpenModal();
+            }
+
+            if (cancel && payload?.status === "cancelled") {
+                alert("Upscale dibatalkan dan credit telah dikembalikan.");
+            } else if (cancel) {
+                alert("GitHub belum mengonfirmasi pembatalan. Periksa status kembali beberapa saat lagi.");
+            } else if (!cancel && payload?.run_found === false && payload?.terminal !== true) {
+                alert("Run GitHub belum ditemukan. Status History belum diubah.");
+            } else if (
+                !cancel &&
+                payload?.run_conclusion === "success" &&
+                payload?.terminal !== true
+            ) {
+                alert("GitHub melaporkan proses selesai, tetapi hasil belum tercatat di History. Silakan coba periksa kembali.");
+            }
+        } catch (error) {
+            console.error("[upscale-status] Error:", error);
+            alert(error?.message || "Gagal memperbarui status upscale.");
+            button.disabled = false;
+            button.innerHTML = originalHTML;
+        }
+    }
+
 
     /* =====================================================
        EVENT DELEGATION DI MODAL BODY
@@ -866,6 +980,22 @@
             if (upscaleBtn) {
                 event.preventDefault();
                 handleUpscale(upscaleBtn);
+                return;
+            }
+
+            const refreshUpscaleBtn =
+                event.target.closest("[data-action='refresh-upscale-status']");
+            if (refreshUpscaleBtn) {
+                event.preventDefault();
+                handleUpscaleStatus(refreshUpscaleBtn);
+                return;
+            }
+
+            const cancelUpscaleBtn =
+                event.target.closest("[data-action='cancel-upscale']");
+            if (cancelUpscaleBtn) {
+                event.preventDefault();
+                handleUpscaleStatus(cancelUpscaleBtn, true);
                 return;
             }
 
@@ -907,6 +1037,25 @@
         modal.classList.add("show");
         modal.setAttribute("aria-hidden", "false");
         document.body.classList.add("history-modal-open");
+
+        if (
+            getModelId(item).toLowerCase() === "upscale-video" &&
+            ["processing", "pending"].includes(normalizeStatus(item.status))
+        ) {
+            const createdAt = Date.parse(item.created_at || item.createdAt || "");
+            if (Number.isFinite(createdAt) && Date.now() - createdAt > 55 * 60 * 1000) {
+                const statusButton = modal.querySelector(
+                    "[data-action='refresh-upscale-status']"
+                );
+                if (statusButton) {
+                    window.setTimeout(() => {
+                        if (statusButton.isConnected) {
+                            handleUpscaleStatus(statusButton);
+                        }
+                    }, 0);
+                }
+            }
+        }
 
         const closeBtn = elements.closeModal || document.getElementById("closeModal");
         if (closeBtn) {

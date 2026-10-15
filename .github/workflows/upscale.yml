@@ -1,4 +1,5 @@
 name: Upscale + Smooth Video
+run-name: Upscale Video - ${{ inputs.history_id }}
 
 on:
   workflow_dispatch:
@@ -320,7 +321,7 @@ jobs:
           PUBLIC_URL: ${{ steps.upload.outputs.public_url }}
         run: |
           curl --fail -X PATCH \
-            "${SUPABASE_URL}/rest/v1/generation_history?id=eq.${HISTORY_ID}" \
+            "${SUPABASE_URL}/rest/v1/generation_history?id=eq.${HISTORY_ID}&status=in.(processing,pending)" \
             -H "apikey: ${SUPABASE_SERVICE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
             -H "Content-Type: application/json" \
@@ -333,28 +334,38 @@ jobs:
 
           echo "History row updated (success)."
 
-      - name: Refund credit and mark failed
-        if: failure()
+      - name: Refund credit and mark failed or cancelled
+        if: ${{ failure() || cancelled() }}
         env:
           SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
           HISTORY_ID: ${{ inputs.history_id }}
           USER_ID: ${{ inputs.user_id }}
           CREDIT_COST: ${{ inputs.credit_cost }}
+          TERMINAL_STATUS: ${{ cancelled() && 'cancelled' || 'failed' }}
         run: |
-          curl -X PATCH \
-            "${SUPABASE_URL}/rest/v1/generation_history?id=eq.${HISTORY_ID}" \
+          if [ "$TERMINAL_STATUS" = "cancelled" ]; then
+            ERROR_MESSAGE="Upscale dibatalkan di GitHub Actions."
+          else
+            ERROR_MESSAGE="Upscale gagal di GitHub Actions."
+          fi
+
+          curl --fail --silent --show-error -o /tmp/upscale-terminal-row.json \
+            -X PATCH \
+            "${SUPABASE_URL}/rest/v1/generation_history?id=eq.${HISTORY_ID}&status=in.(processing,pending)" \
             -H "apikey: ${SUPABASE_SERVICE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
             -H "Content-Type: application/json" \
-            -H "Prefer: return=minimal" \
+            -H "Prefer: return=representation" \
             -d "{
-              \"status\": \"failed\",
-              \"error_message\": \"Upscale gagal di GitHub Actions\"
+              \"status\": \"${TERMINAL_STATUS}\",
+              \"error_message\": \"${ERROR_MESSAGE}\",
+              \"completed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
             }"
 
-          curl -X POST \
-            "${SUPABASE_URL}/rest/v1/rpc/refund_generate_credits" \
+          if [ "$(jq 'length' /tmp/upscale-terminal-row.json)" -gt 0 ]; then
+            curl --fail --silent --show-error -X POST \
+              "${SUPABASE_URL}/rest/v1/rpc/refund_generate_credits" \
             -H "apikey: ${SUPABASE_SERVICE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
             -H "Content-Type: application/json" \
@@ -363,7 +374,10 @@ jobs:
               \"p_amount\": ${CREDIT_COST}
             }"
 
-          echo "Refund done."
+            echo "Upscale marked ${TERMINAL_STATUS}; refund done."
+          else
+            echo "History row was already finalized; no duplicate refund issued."
+          fi
 
       - name: Delete temporary uploaded source
         if: always() && inputs.source_object_path != ''

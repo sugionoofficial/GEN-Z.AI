@@ -3189,20 +3189,28 @@ async function markUpscaleFailedAndRefund({
     errorMessage,
     creditCost
 }) {
+    let updatedRows = [];
+
     try {
-        await supabaseRequest(
-            `/rest/v1/generation_history?id=eq.${historyId}`,
+        updatedRows = await supabaseRequest(
+            `/rest/v1/generation_history?id=eq.${encodeURIComponent(historyId)}&status=in.(processing,pending)`,
             {
                 method: "PATCH",
-                headers: { Prefer: "return=minimal" },
+                headers: { Prefer: "return=representation" },
                 body: JSON.stringify({
                     status: "failed",
-                    error_message: errorMessage
+                    error_message: errorMessage,
+                    completed_at: new Date().toISOString()
                 })
             }
         );
     } catch (e) {
         console.error("[upscale] Failed to mark history row:", e);
+        return;
+    }
+
+    if (!Array.isArray(updatedRows) || !updatedRows.length) {
+        return;
     }
 
     try {
@@ -3258,6 +3266,229 @@ async function triggerUpscaleWorkflow({
     }
 
     return true;
+}
+
+
+async function findUpscaleWorkflowRun(github, historyRow) {
+    if (!github.token) {
+        throw new Error("GitHub token untuk memeriksa status upscale belum dikonfigurasi.");
+    }
+
+    const url = new URL(
+        `https://api.github.com/repos/${github.owner}/${github.repo}/actions/workflows/${encodeURIComponent(github.workflowFile)}/runs`
+    );
+    url.searchParams.set("event", "workflow_dispatch");
+    url.searchParams.set("per_page", "100");
+
+    const response = await fetch(url, {
+        headers: {
+            Authorization: "Bearer " + github.token,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "GENZ-AI-Upscale"
+        }
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(
+            `Gagal membaca status GitHub Actions (${response.status}): ${text}`
+        );
+    }
+
+    const payload = await response.json();
+    const runs = Array.isArray(payload?.workflow_runs)
+        ? payload.workflow_runs
+        : [];
+    const expectedName = `Upscale Video - ${historyRow.id}`;
+    const namedRuns = runs.filter(run =>
+        [run?.name, run?.display_title].some(name =>
+            String(name || "").trim() === expectedName
+        )
+    );
+
+    if (namedRuns.length) {
+        return namedRuns.sort((left, right) =>
+            Date.parse(right.created_at) - Date.parse(left.created_at)
+        )[0];
+    }
+
+    const createdAt = Date.parse(historyRow.created_at);
+    if (!Number.isFinite(createdAt)) return null;
+
+    const nearbyRuns = runs.filter(run => {
+        const runCreatedAt = Date.parse(run?.created_at);
+        return Number.isFinite(runCreatedAt) &&
+            Math.abs(runCreatedAt - createdAt) <= 5 * 60 * 1000;
+    });
+
+    return nearbyRuns.length === 1 ? nearbyRuns[0] : null;
+}
+
+
+async function finalizeUpscaleHistory({
+    historyRow,
+    status,
+    errorMessage
+}) {
+    const updatedRows = await supabaseRequest(
+        `/rest/v1/generation_history?id=eq.${encodeURIComponent(historyRow.id)}&status=in.(processing,pending)`,
+        {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify({
+                status,
+                error_message: errorMessage,
+                completed_at: new Date().toISOString()
+            })
+        }
+    );
+
+    if (Array.isArray(updatedRows) && updatedRows.length) {
+        const creditCost = Number(historyRow.credit_cost);
+        if (!Number.isFinite(creditCost) || creditCost < 0) {
+            throw new Error("Biaya kredit upscale tidak valid; status sudah diperbarui tetapi refund gagal.");
+        }
+
+        await refundGenerateCredits(historyRow.user_id, creditCost);
+        return { status, finalized: true };
+    }
+
+    const latest = await fetchUpscaleParentHistory(historyRow.id);
+    return {
+        status: String(latest?.status || status),
+        finalized: false
+    };
+}
+
+
+async function handleUpscaleVideoStatusAction(req, res, body, user) {
+    const historyId = String(body?.history_id || "").trim();
+    if (!historyId) {
+        return failure(res, 400, "ID history upscale tidak tersedia.");
+    }
+
+    const historyRow = await fetchUpscaleParentHistory(historyId);
+    if (!historyRow) {
+        return failure(res, 404, "History upscale tidak ditemukan.");
+    }
+    if (String(historyRow.user_id || "") !== String(user.id)) {
+        return failure(res, 403, "Anda tidak memiliki akses ke history upscale ini.");
+    }
+    if (String(historyRow.model_id || "").toLowerCase() !== "upscale-video") {
+        return failure(res, 400, "History ini bukan upscale video.");
+    }
+
+    const currentStatus = String(historyRow.status || "").toLowerCase();
+    if (!["processing", "pending"].includes(currentStatus)) {
+        return success(res, { status: currentStatus, terminal: true });
+    }
+
+    const github = getUpscaleGithubConfig(req);
+    const run = await findUpscaleWorkflowRun(github, historyRow);
+    const cancelRequested = body?.cancel === true;
+    const createdAt = Date.parse(historyRow.created_at);
+    const isOlderThanWorkflowLimit =
+        Number.isFinite(createdAt) &&
+        Date.now() - createdAt > 55 * 60 * 1000;
+
+    if (!run) {
+        if (!isOlderThanWorkflowLimit) {
+            return success(res, {
+                status: currentStatus,
+                run_found: false,
+                terminal: false
+            });
+        }
+
+        const result = await finalizeUpscaleHistory({
+            historyRow,
+            status: cancelRequested ? "cancelled" : "failed",
+            errorMessage: cancelRequested
+                ? "Upscale dibatalkan; GitHub Actions tidak lagi memiliki run aktif."
+                : "Upscale berhenti tanpa menyimpan hasil; GitHub Actions tidak lagi memiliki run aktif."
+        });
+        return success(res, { ...result, run_found: false, terminal: true });
+    }
+
+    if (run.status !== "completed" && cancelRequested) {
+        const cancelUrl =
+            `https://api.github.com/repos/${github.owner}/${github.repo}/actions/runs/${encodeURIComponent(run.id)}/cancel`;
+        const cancelResponse = await fetch(cancelUrl, {
+            method: "POST",
+            headers: {
+                Authorization: "Bearer " + github.token,
+                Accept: "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "GENZ-AI-Upscale"
+            }
+        });
+
+        if (cancelResponse.status === 409) {
+            const runResponse = await fetch(
+                `https://api.github.com/repos/${github.owner}/${github.repo}/actions/runs/${encodeURIComponent(run.id)}`,
+                {
+                    headers: {
+                        Authorization: "Bearer " + github.token,
+                        Accept: "application/vnd.github+json",
+                        "X-GitHub-Api-Version": "2022-11-28",
+                        "User-Agent": "GENZ-AI-Upscale"
+                    }
+                }
+            );
+            if (!runResponse.ok) {
+                throw new Error("GitHub menolak pembatalan dan status terbaru run tidak dapat dibaca.");
+            }
+            Object.assign(run, await runResponse.json());
+        } else if (!cancelResponse.ok) {
+            const text = await cancelResponse.text();
+            throw new Error(
+                `GitHub Actions gagal membatalkan job (${cancelResponse.status}): ${text}`
+            );
+        } else {
+            const result = await finalizeUpscaleHistory({
+                historyRow,
+                status: "cancelled",
+                errorMessage: "Upscale dibatalkan dari halaman History."
+            });
+            return success(res, { ...result, terminal: true });
+        }
+    }
+
+    if (run.status === "completed") {
+        const conclusion = String(run.conclusion || "").toLowerCase();
+        if (conclusion === "cancelled") {
+            const result = await finalizeUpscaleHistory({
+                historyRow,
+                status: "cancelled",
+                errorMessage: "Upscale dibatalkan di GitHub Actions."
+            });
+            return success(res, { ...result, terminal: true });
+        }
+        if (conclusion && conclusion !== "success") {
+            const result = await finalizeUpscaleHistory({
+                historyRow,
+                status: "failed",
+                errorMessage: `Upscale ${conclusion.replace(/_/g, " ")} di GitHub Actions.`
+            });
+            return success(res, { ...result, terminal: true });
+        }
+        if (conclusion === "success") {
+            const result = await finalizeUpscaleHistory({
+                historyRow,
+                status: "failed",
+                errorMessage: "GitHub Actions selesai tanpa menyimpan hasil ke History."
+            });
+            return success(res, { ...result, terminal: true });
+        }
+    }
+
+    return success(res, {
+        status: currentStatus,
+        run_status: run.status,
+        run_conclusion: run.conclusion || null,
+        terminal: false
+    });
 }
 
 
@@ -3963,6 +4194,26 @@ export default async function handler(
             body,
             user
         );
+
+    }
+
+    if (action === "upscale-video-status") {
+
+        try {
+            return await handleUpscaleVideoStatusAction(
+                req,
+                res,
+                body,
+                user
+            );
+        } catch (error) {
+            console.error("[upscale-video-status] Failed:", error);
+            return failure(
+                res,
+                error.status || 500,
+                error.message || "Gagal memeriksa status upscale video."
+            );
+        }
 
     }
 
