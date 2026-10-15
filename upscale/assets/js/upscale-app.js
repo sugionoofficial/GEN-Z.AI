@@ -35,6 +35,8 @@ const CONFIG = Object.freeze({
     requestTimeout: 60000
 });
 
+const MAX_COMPRESSED_VIDEO_EDGE = 1920;
+
 
 /* =========================================================
    STATE
@@ -503,8 +505,18 @@ async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
             throw new Error("Perangkat ini tidak mendukung kompresi video lokal. Coba gunakan Chrome versi terbaru.");
         }
 
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        const scale = Math.min(
+            1,
+            MAX_COMPRESSED_VIDEO_EDGE / Math.max(video.videoWidth, video.videoHeight)
+        );
+        canvas.width = Math.max(
+            2,
+            Math.floor((video.videoWidth * scale) / 2) * 2
+        );
+        canvas.height = Math.max(
+            2,
+            Math.floor((video.videoHeight * scale) / 2) * 2
+        );
         const context = canvas.getContext("2d", { alpha: false });
         if (!context) {
             throw new Error("Perangkat tidak dapat menyiapkan kompresi video.");
@@ -558,6 +570,11 @@ async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
             video.onended = () => {
                 if (recorder.state !== "inactive") recorder.stop();
             };
+            sourceStream.getVideoTracks().forEach(track => {
+                track.addEventListener("ended", () => {
+                    if (recorder.state !== "inactive") recorder.stop();
+                }, { once: true });
+            });
 
             const drawFrame = () => {
                 if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
@@ -575,8 +592,11 @@ async function encodeVideoAttempt(file, videoBitsPerSecond, mimeType) {
 
             try {
                 recordingTimeout = setTimeout(
-                    () => finish(new Error("Kompresi video terlalu lama. Coba lagi atau gunakan video yang lebih kecil.")),
-                    (video.duration * 2000) + 30000
+                    () => finish(new Error("Kompresi video belum selesai. Pastikan aplikasi tetap terbuka selama proses, lalu coba lagi.")),
+                    Math.min(
+                        15 * 60 * 1000,
+                        Math.max(5 * 60 * 1000, (video.duration * 8000) + 120000)
+                    )
                 );
                 recorder.start(1000);
                 animationFrame = requestAnimationFrame(drawFrame);
