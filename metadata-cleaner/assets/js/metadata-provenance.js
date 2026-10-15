@@ -51,6 +51,10 @@ const MAX_INSPECT_BYTES =
     50 * 1024 * 1024;
 
 
+const ASCII_CACHE =
+    new WeakMap();
+
+
 /*
    C2PA Manifest Store UUID.
 
@@ -227,41 +231,36 @@ function bytesToAscii(
     bytes
 ) {
 
-    let output =
-        "";
+    const cached =
+        ASCII_CACHE.get(
+            bytes
+        );
 
 
-    for (
-        let index = 0;
-        index < bytes.length;
-        index++
+    if (
+        cached !== undefined
     ) {
 
-        const value =
-            bytes[index];
-
-
-        if (
-            value >= 32 &&
-            value <= 126
-        ) {
-
-            output +=
-                String.fromCharCode(
-                    value
-                );
-
-        } else {
-
-            output +=
-                "\0";
-
-        }
+        return cached;
 
     }
 
 
-    return output;
+    const text =
+        new TextDecoder(
+            "windows-1252"
+        ).decode(
+            bytes
+        );
+
+
+    ASCII_CACHE.set(
+        bytes,
+        text
+    );
+
+
+    return text;
 
 }
 
@@ -1239,10 +1238,7 @@ function inspectMP4(
             jumbfFound ||
             contentCredentialsFound ||
             createdFound ||
-            aiDisclosureFound ||
-            Boolean(
-                ai.softwareAgent
-            )
+            aiDisclosureFound
         );
 
 
