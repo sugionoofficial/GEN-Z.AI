@@ -651,6 +651,9 @@
 
         const filename = buildDownloadFilename(item);
         const originalHTML = button.innerHTML;
+        const isNativeApp = Boolean(
+            window.Capacitor?.Plugins || window.GENZAndroidDownloads
+        );
 
         button.disabled = true;
         button.innerHTML = '<span class="download-icon">⏳</span> Menyiapkan...';
@@ -676,6 +679,12 @@
                     }, 2500);
                     return;
                 }
+
+                if (isNativeApp) {
+                    throw new Error("Jembatan unduhan Android tidak tersedia. Tutup lalu buka kembali aplikasi.");
+                }
+            } else if (isNativeApp) {
+                throw new Error("Fitur unduhan Android belum siap. Tutup lalu buka kembali aplikasi.");
             }
 
             const objUrl = URL.createObjectURL(blob);
@@ -708,6 +717,29 @@
         }
 
         try {
+            if (isNativeApp) {
+                const bridge = window.GENZAndroidDownloads;
+                if (!bridge) {
+                    throw new Error("Jembatan unduhan Android tidak tersedia.");
+                }
+
+                bridge.downloadUrl(
+                    url,
+                    filename,
+                    "",
+                    window.location.href,
+                    navigator.userAgent
+                );
+                button.innerHTML = '<span class="download-icon">✓</span> Unduhan dimulai';
+                button.classList.add("download-button-success");
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.classList.remove("download-button-success");
+                    button.disabled = false;
+                }, 2500);
+                return;
+            }
+
             const a = document.createElement("a");
             a.href = url;
             a.download = filename;
@@ -731,7 +763,7 @@
 
         } catch (err2) {
             console.error("[download] Fallback failed:", err2);
-            alert("Gagal mengunduh. Coba klik kanan pada media → Save As.");
+            alert("Gagal mengunduh. Silakan coba kembali.");
             button.innerHTML = originalHTML;
             button.disabled = false;
         }

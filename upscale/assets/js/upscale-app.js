@@ -21,7 +21,7 @@ const CONFIG = Object.freeze({
     videoInputFolder: "upscale-videos/inputs",
     apiEndpoint: "/api/generate",
     maxPhotoSize: 20 * 1024 * 1024,
-    maxVideoSize: 50 * 1024 * 1024,
+    maxVideoSize: 100 * 1024 * 1024,
     maxVideoDuration: 180,
     allowedPhotoTypes: ["image/jpeg", "image/png", "image/webp"],
     allowedVideoTypes: [
@@ -228,7 +228,7 @@ async function validateFile(file) {
 
     if (CONFIG.allowedVideoTypes.includes(file.type)) {
         if (file.size > CONFIG.maxVideoSize) {
-            throw new Error("Ukuran video maksimal 50 MB.");
+            throw new Error("Ukuran video maksimal 100 MB.");
         }
 
         const duration = await getVideoDuration(file);

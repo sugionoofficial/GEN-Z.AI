@@ -54,7 +54,7 @@ jobs:
         run: |
           echo "Downloading video..."
           if [ -n "$SOURCE_OBJECT_PATH" ]; then
-            curl -L --fail --retry 3 --max-filesize 52428800 -o input.mp4 "$SOURCE_URL"
+            curl -L --fail --retry 3 --max-filesize 104857600 -o input.mp4 "$SOURCE_URL"
           else
             curl -L --fail --retry 3 -o input.mp4 "$SOURCE_URL"
           fi

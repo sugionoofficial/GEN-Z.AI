@@ -13,12 +13,18 @@
     let announcementPollTimer = null;
     let announcementBodyOverflow = null;
     let dismissedAnnouncementVersion = null;
-    const isNativeApp = Boolean(window.Capacitor?.Plugins);
-    const hasAndroidDownloadBridge = Boolean(window.GENZAndroidDownloads);
 
-    if (isNativeApp) {
-        document.documentElement.dataset.genzApp = "true";
+    function isNativeApp() {
+        const detected = Boolean(
+            window.Capacitor?.Plugins || window.GENZAndroidDownloads
+        );
+        if (detected) {
+            document.documentElement.dataset.genzApp = "true";
+        }
+        return detected;
     }
+
+    isNativeApp();
 
     function reportStorageError(action, error) {
         console.error(`[GEN-Z.AI] Unable to ${action} theme preference:`, error);
@@ -650,9 +656,9 @@
     }
 
     async function saveBlobInAndroid(blob, fileName) {
-        if (!hasAndroidDownloadBridge || !(blob instanceof Blob)) return null;
-
         const bridge = window.GENZAndroidDownloads;
+        if (!bridge || !(blob instanceof Blob)) return null;
+
         const id = bridge.beginBlobDownload(
             fileName || "GEN-Z.AI-download",
             blob.type || "application/octet-stream"
@@ -689,9 +695,10 @@
     window.GENZMobileDownload = saveBlobInAndroid;
 
     document.addEventListener("click", event => {
+        const bridge = window.GENZAndroidDownloads;
         if (
-            !isNativeApp ||
-            !hasAndroidDownloadBridge ||
+            !isNativeApp() ||
+            !bridge ||
             event.defaultPrevented ||
             event.button !== 0
         ) {
@@ -721,13 +728,13 @@
                 })
                 .catch(error => {
                     console.error("[GEN-Z.AI] Android file download failed:", error);
-                    window.GENZAndroidDownloads.notifyDownloadFailure();
+                    bridge.notifyDownloadFailure();
                 });
             return;
         }
 
         if (/^https?:/i.test(link.href)) {
-            window.GENZAndroidDownloads.downloadUrl(
+            bridge.downloadUrl(
                 link.href,
                 link.download,
                 link.type || "",
@@ -781,7 +788,7 @@
     }
 
     function mountRefreshButton() {
-        if (!isNativeApp || !document.body) return;
+        if (!isNativeApp() || !document.body) return;
 
         const parent = getToggleParent();
         if (parent === document.body) return;

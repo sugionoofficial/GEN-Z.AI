@@ -49,6 +49,7 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         WebView webView = getBridge().getWebView();
         webView.addJavascriptInterface(new AndroidDownloadBridge(), "GENZAndroidDownloads");
+        webView.post(webView::reload);
         webView.setDownloadListener(
             (url, userAgent, contentDisposition, mimeType, contentLength) -> {
                 handleUrlDownload(
