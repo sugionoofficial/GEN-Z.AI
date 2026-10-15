@@ -225,6 +225,9 @@ tombol CHECK membuka tautan admin, sedangkan tombol OK menyembunyikan versi
 pengumuman tersebut pada akun di perangkat itu. Pengumuman yang diterbitkan
 tampil langsung pada halaman admin yang menerbitkan dan diperiksa setiap 5
 detik pada halaman akun lain yang sedang terbuka.
+Jika user sedang logout saat informasi diterbitkan, informasi aktif akan muncul
+otomatis segera setelah ia login dan navigasi akun siap, selama belum
+kedaluwarsa atau dikonfirmasi pada perangkat tersebut.
 
 ### Cloudflare Workers (migrasi bertahap)
 

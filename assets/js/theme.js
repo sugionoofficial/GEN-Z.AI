@@ -850,7 +850,8 @@
         const storageKey = `genz-announcement-dismissed:${userId}`;
         const announcementVersion =
             `${announcement.id}:${announcement.updated_at || ""}`;
-        if (dismissedAnnouncementVersion === announcementVersion) return;
+        const dismissalVersion = `${userId}:${announcementVersion}`;
+        if (dismissedAnnouncementVersion === dismissalVersion) return;
 
         try {
             if (localStorage.getItem(storageKey) === announcementVersion) return;
@@ -934,7 +935,7 @@
         okButton.textContent = "OK, saya mengerti";
 
         okButton.addEventListener("click", () => {
-            dismissedAnnouncementVersion = announcementVersion;
+            dismissedAnnouncementVersion = dismissalVersion;
             try {
                 localStorage.setItem(storageKey, announcementVersion);
             } catch (error) {
@@ -965,6 +966,10 @@
             event.detail,
             window.GENZ_NAVIGATION_USER?.id
         );
+    });
+
+    window.addEventListener("genz-account-navigation-ready", () => {
+        void loadAnnouncement();
     });
 
     async function loadAnnouncement() {
