@@ -660,6 +660,24 @@
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
             const blob = await res.blob();
+            if (typeof window.GENZMobileDownload === "function") {
+                const saved = await window.GENZMobileDownload(blob, filename);
+                if (saved === false) {
+                    throw new Error("File tidak berhasil disimpan di perangkat.");
+                }
+
+                if (saved === true) {
+                    button.innerHTML = '<span class="download-icon">✓</span> Tersimpan di Downloads';
+                    button.classList.add("download-button-success");
+                    setTimeout(() => {
+                        button.innerHTML = originalHTML;
+                        button.classList.remove("download-button-success");
+                        button.disabled = false;
+                    }, 2500);
+                    return;
+                }
+            }
+
             const objUrl = URL.createObjectURL(blob);
 
             const a = document.createElement("a");
@@ -700,7 +718,9 @@
             a.click();
             document.body.removeChild(a);
 
-            button.innerHTML = '<span class="download-icon">✓</span> Terbuka di tab';
+            button.innerHTML = typeof window.GENZMobileDownload === "function"
+                ? '<span class="download-icon">✓</span> Unduhan dimulai'
+                : '<span class="download-icon">✓</span> Terbuka di tab';
             button.classList.add("download-button-success");
 
             setTimeout(() => {

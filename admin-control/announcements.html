@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#080a12">
+    <title>Informasi Penting - GEN-Z.AI</title>
+    <script src="../assets/js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+    <script src="/navigation/navigation.js?v=account-downloads-20261016"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #f7f8fc;
+            background: #080a12;
+            font-synthesis: none;
+            text-rendering: optimizeLegibility;
+        }
+        * { box-sizing: border-box; }
+        body {
+            min-width: 320px;
+            min-height: 100vh;
+            margin: 0;
+            background:
+                radial-gradient(ellipse at 13% 0%, rgba(112, 90, 255, .17), transparent 34rem),
+                radial-gradient(ellipse at 94% 12%, rgba(255, 48, 72, .09), transparent 30rem),
+                #080a12;
+        }
+        button, input, textarea, select { font: inherit; }
+        button, a { -webkit-tap-highlight-color: transparent; }
+        .page-shell { width: min(1240px, 100%); margin: 0 auto; padding: 38px 28px 72px; }
+        .eyebrow { display: inline-flex; align-items: center; gap: 9px; color: #b9adff; font-size: 10px; font-weight: 850; letter-spacing: .17em; text-transform: uppercase; }
+        .eyebrow::before { width: 7px; height: 7px; border-radius: 50%; background: #9a89ff; box-shadow: 0 0 18px #9a89ff; content: ""; }
+        .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin: 12px 0 26px; }
+        h1 { margin: 0 0 9px; font-size: clamp(30px, 4vw, 46px); line-height: 1.08; letter-spacing: -.045em; }
+        .intro { max-width: 690px; margin: 0; color: #9da6bb; font-size: 14px; line-height: 1.7; }
+        .audience-pill { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 9px; padding: 10px 14px; border: 1px solid rgba(141, 126, 255, .25); border-radius: 999px; background: rgba(117, 97, 255, .09); color: #d0c9ff; font-size: 11px; font-weight: 750; }
+        .audience-pill::before { width: 7px; height: 7px; border-radius: 50%; background: #8b7cff; content: ""; }
+        .workspace { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(300px, .88fr); gap: 20px; align-items: start; }
+        .panel { border: 1px solid rgba(163, 173, 211, .14); border-radius: 22px; background: linear-gradient(145deg, rgba(18, 21, 34, .97), rgba(11, 14, 24, .97)); box-shadow: 0 22px 75px rgba(0, 0, 0, .24), inset 0 1px rgba(255, 255, 255, .025); }
+        .editor { padding: 25px; }
+        .panel-heading { display: flex; align-items: flex-start; gap: 13px; padding-bottom: 20px; border-bottom: 1px solid rgba(154, 165, 197, .11); }
+        .panel-icon { display: grid; flex: 0 0 42px; width: 42px; height: 42px; place-items: center; border: 1px solid rgba(170, 157, 255, .28); border-radius: 13px; background: linear-gradient(145deg, rgba(125, 105, 255, .2), rgba(79, 65, 159, .08)); color: #d6d0ff; font-size: 19px; }
+        .panel-heading h2 { margin: 1px 0 5px; font-size: 15px; letter-spacing: -.015em; }
+        .panel-heading p { margin: 0; color: #8992a8; font-size: 11px; line-height: 1.55; }
+        .field { display: grid; gap: 8px; margin-top: 20px; }
+        .field label, .field-label { color: #c4cbda; font-size: 11px; font-weight: 750; }
+        .field input, .field textarea, .field select { width: 100%; border: 1px solid rgba(150, 160, 190, .2); border-radius: 12px; outline: none; background: rgba(5, 7, 14, .78); color: #f6f7fb; transition: border-color .2s, box-shadow .2s; }
+        .field input, .field select { min-height: 46px; padding: 0 13px; }
+        .field textarea { min-height: 164px; padding: 13px; resize: vertical; line-height: 1.65; }
+        .field input:focus, .field textarea:focus, .field select:focus { border-color: #8272ff; box-shadow: 0 0 0 3px rgba(130, 114, 255, .13); }
+        .field input::placeholder, .field textarea::placeholder { color: #697187; }
+        .field-help { margin: -2px 0 0; color: #777f94; font-size: 10px; line-height: 1.5; }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .count { justify-self: end; color: #717a8f; font-size: 10px; font-variant-numeric: tabular-nums; }
+        .actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 23px; padding-top: 19px; border-top: 1px solid rgba(154, 165, 197, .11); }
+        .action-group { display: flex; flex-wrap: wrap; gap: 9px; }
+        .button { display: inline-flex; min-height: 43px; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 1px solid rgba(177, 166, 255, .42); border-radius: 11px; background: linear-gradient(135deg, #8172ff, #6355d9); color: #fff; font-size: 11px; font-weight: 800; box-shadow: 0 8px 24px rgba(97, 80, 224, .18), inset 0 1px rgba(255, 255, 255, .18); cursor: pointer; transition: transform .18s, filter .18s, opacity .18s; }
+        .button:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+        .button:disabled { opacity: .56; cursor: wait; }
+        .button-secondary { border-color: rgba(180, 190, 220, .18); background: rgba(255, 255, 255, .035); box-shadow: none; color: #dce2f3; }
+        .button-publish { border-color: rgba(255, 90, 115, .45); background: linear-gradient(135deg, #ff526c, #d82748); box-shadow: 0 8px 24px rgba(223, 42, 74, .2), inset 0 1px rgba(255, 255, 255, .18); }
+        #status { min-height: 0; margin-top: 15px; color: #aeb8cd; font-size: 11px; line-height: 1.6; }
+        #status.error { color: #ff9aa9; }
+        #status.success { color: #9bdfc2; }
+        .preview-panel { position: sticky; top: 22px; padding: 22px; }
+        .preview-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
+        .preview-topline h2 { margin: 0; font-size: 13px; }
+        .preview-label { padding: 6px 9px; border: 1px solid rgba(154, 165, 197, .14); border-radius: 999px; color: #8d96aa; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .notice-preview { position: relative; overflow: hidden; padding: 22px; border: 1px solid rgba(153, 140, 255, .2); border-radius: 18px; background: radial-gradient(ellipse at 100% 0%, rgba(128, 111, 255, .16), transparent 55%), linear-gradient(145deg, rgba(29, 31, 49, .98), rgba(15, 18, 30, .98)); box-shadow: 0 18px 54px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .06); }
+        .notice-preview::before { position: absolute; top: 0; left: 22px; width: 48px; height: 2px; background: linear-gradient(90deg, #a99cff, transparent); content: ""; }
+        .preview-category { display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border: 1px solid rgba(150, 137, 255, .22); border-radius: 999px; background: rgba(117, 97, 255, .1); color: #c9c1ff; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .preview-category[data-category="maintenance"] { border-color: rgba(255, 173, 83, .23); background: rgba(255, 158, 61, .08); color: #ffc986; }
+        .preview-category[data-category="important"] { border-color: rgba(255, 88, 112, .27); background: rgba(255, 60, 90, .09); color: #ff9eae; }
+        .preview-category[data-category="feature"] { border-color: rgba(73, 219, 178, .23); background: rgba(50, 196, 155, .08); color: #93e6cb; }
+        .preview-title { margin: 16px 0 9px; font-size: 21px; line-height: 1.25; letter-spacing: -.035em; overflow-wrap: anywhere; }
+        .preview-message { min-height: 65px; margin: 0; color: #a7afc3; font-size: 12px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .preview-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 21px; padding-top: 15px; border-top: 1px solid rgba(154, 165, 197, .12); color: #7f889e; font-size: 10px; }
+        .preview-ok { min-height: 34px; padding: 0 13px; border: 1px solid rgba(172, 160, 255, .35); border-radius: 9px; background: linear-gradient(135deg, #8172ff, #6355d9); color: #fff; font-size: 10px; font-weight: 800; }
+        .delivery-note { display: flex; gap: 11px; margin-top: 16px; padding: 13px; border: 1px solid rgba(86, 199, 164, .15); border-radius: 13px; background: rgba(44, 159, 126, .055); color: #91a99f; font-size: 10px; line-height: 1.55; }
+        .delivery-note span { color: #75dbb7; font-size: 15px; }
+        .delivery-note p { margin: 0; }
+        .footnote { margin: 17px 4px 0; color: #737d93; font-size: 10px; line-height: 1.6; }
+        @media (max-width: 850px) { .workspace { grid-template-columns: 1fr; } .preview-panel { position: static; } }
+        @media (max-width: 560px) {
+            .page-shell { padding: 26px 15px 50px; }
+            .page-heading { display: block; margin-bottom: 20px; }
+            .audience-pill { margin-top: 14px; }
+            .editor, .preview-panel { padding: 18px; border-radius: 18px; }
+            .field-row { grid-template-columns: 1fr; gap: 0; }
+            .actions, .action-group { width: 100%; }
+            .actions { flex-direction: column-reverse; }
+            .action-group > * { flex: 1; }
+            .button { min-height: 45px; }
+        }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+    </style>
+</head>
+<body>
+<main class="page-shell">
+    <div class="eyebrow">PUSAT KOMUNIKASI GEN-Z.AI</div>
+    <header class="page-heading">
+        <div>
+            <h1>Informasi penting,<br>tersampaikan dengan elegan.</h1>
+            <p class="intro">Kelola pengumuman produk, pembaruan fitur, jadwal pemeliharaan, dan kabar penting dalam satu tempat. Informasi terbit akan muncul sebagai dialog premium di halaman akun user dan admin.</p>
+        </div>
+        <span class="audience-pill">Semua akun · User &amp; Admin</span>
+    </header>
+
+    <div class="workspace">
+        <form id="announcement-form" class="panel editor">
+            <div class="panel-heading">
+                <span class="panel-icon" aria-hidden="true">✦</span>
+                <div>
+                    <h2>Susun informasi</h2>
+                    <p>Simpan sebagai draft terlebih dahulu atau terbitkan langsung untuk semua akun.</p>
+                </div>
+            </div>
+            <div class="field">
+                <label for="announcement-title">Judul informasi</label>
+                <input id="announcement-title" name="title" maxlength="100" placeholder="Contoh: Fitur baru sudah tersedia" autocomplete="off">
+                <span class="count" id="title-count">0 / 100</span>
+            </div>
+            <div class="field-row">
+                <div class="field">
+                    <label for="announcement-category">Kategori</label>
+                    <select id="announcement-category" name="category">
+                        <option value="info">Informasi umum</option>
+                        <option value="feature">Fitur baru</option>
+                        <option value="maintenance">Pemeliharaan</option>
+                        <option value="important">Penting</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="announcement-expires">Sembunyikan setelah (opsional)</label>
+                    <input id="announcement-expires" name="expires_at" type="datetime-local">
+                </div>
+            </div>
+            <div class="field">
+                <label for="announcement-message">Isi informasi</label>
+                <textarea id="announcement-message" name="message" maxlength="3000" placeholder="Tuliskan informasi yang perlu diketahui pengguna..."></textarea>
+                <span class="count" id="message-count">0 / 3.000</span>
+            </div>
+            <div class="actions">
+                <div class="action-group">
+                    <button id="save-draft" class="button button-secondary" type="button">Simpan Draft</button>
+                </div>
+                <div class="action-group">
+                    <button id="publish-button" class="button button-publish" type="submit"><span aria-hidden="true">↗</span> Terbitkan Informasi</button>
+                </div>
+            </div>
+            <div id="status" role="status" aria-live="polite"></div>
+        </form>
+
+        <aside class="panel preview-panel" aria-label="Pratinjau pengumuman">
+            <div class="preview-topline">
+                <h2>Pratinjau dialog</h2>
+                <span class="preview-label">Tampilan pengguna</span>
+            </div>
+            <article class="notice-preview">
+                <span class="preview-category" id="preview-category" data-category="info">Informasi umum</span>
+                <h3 class="preview-title" id="preview-title">Judul informasi Anda</h3>
+                <p class="preview-message" id="preview-message">Pratinjau isi informasi akan tampil di sini. Gunakan bahasa yang jelas dan ringkas untuk seluruh pengguna.</p>
+                <div class="preview-footer">
+                    <span>GEN-Z.AI · Informasi resmi</span>
+                    <button class="preview-ok" type="button" disabled>OK, mengerti</button>
+                </div>
+            </article>
+            <div class="delivery-note">
+                <span aria-hidden="true">◉</span>
+                <p>Sesudah diterbitkan, dialog tampil di halaman akun user dan admin, termasuk sesi yang sedang aktif. Tombol OK menutupnya dan mengingat konfirmasi pada akun di perangkat tersebut.</p>
+            </div>
+            <p class="footnote">Informasi hanya ditampilkan selama berstatus terbit dan sebelum waktu kedaluwarsa yang ditentukan.</p>
+        </aside>
+    </div>
+</main>
+<script src="./announcements.js?v=20261015"></script>
+</body>
+</html>

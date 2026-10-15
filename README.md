@@ -210,6 +210,16 @@ client-side billing authority. Charges happen on Vision generation, Vision
 Video analysis, Upscale processing, Prompt Studio copy, and both Metadata
 Cleaner CHECK and CLEAN actions. Failed operations refund their charge.
 
+### Informasi Penting untuk Akun
+
+Jalankan `supabase/site-announcements.sql` di Supabase SQL Editor sebelum
+menggunakan Admin Control → Informasi Penting. Admin dan owner dapat menyimpan
+draft atau menerbitkan satu informasi aktif untuk semua akun user dan admin,
+memilih kategori, dan menetapkan waktu kedaluwarsa opsional. Informasi yang
+diterbitkan muncul sebagai dialog di halaman akun; tombol OK menyembunyikan
+versi pengumuman tersebut pada akun di perangkat itu. Halaman akun yang sedang
+terbuka memeriksa pengumuman baru secara berkala.
+
 ### Cloudflare Workers (migrasi bertahap)
 
 Repository ini menyediakan konfigurasi Cloudflare Worker yang menayangkan aset

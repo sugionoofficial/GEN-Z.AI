@@ -39,7 +39,7 @@
     if (!window.__GENZ_THEME_SCRIPT_LOADING) {
         window.__GENZ_THEME_SCRIPT_LOADING = true;
         const themeScript = document.createElement("script");
-        themeScript.src = "/assets/js/theme.js?v=app-refresh-navigation-20261015";
+        themeScript.src = "/assets/js/theme.js?v=account-downloads-20261016";
         themeScript.onerror = error => {
             console.error("[GEN-Z.AI] Failed to load shared theme controls:", error);
             window.__GENZ_THEME_SCRIPT_LOADING = false;
@@ -534,6 +534,8 @@
 
             adminPanel: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v5c0 5.2-3.4 8.7-8 10-4.6-1.3-8-4.8-8-10V6z"></path><path d="M8.5 12l2.2 2.2 4.8-4.8"></path></svg>`,
 
+            announcements: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14V9a2 2 0 0 1 2-2h3l8-4v17l-8-4H6a2 2 0 0 1-2-2Z"></path><path d="m9 16 1.5 5h3L12 17"></path><path d="M20 8a5 5 0 0 1 0 7"></path></svg>`,
+
             chinaapi: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2"></rect><path d="m3 6.5 9 7 9-7"></path></svg>`
 
         });
@@ -566,7 +568,8 @@
             { label: "History", href: "/history/index.html", icon: ICONS.history },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
             { label: "TempMail", href: "/email.html", icon: ICONS.chinaapi },
-            { label: "Admin Panel", href: "/admin-control/admin-panel.html", icon: ICONS.adminPanel }
+            { label: "Admin Panel", href: "/admin-control/admin-panel.html", icon: ICONS.adminPanel },
+            { label: "Informasi Penting", href: "/admin-control/announcements.html", icon: ICONS.announcements }
         ];
 
 

@@ -9,7 +9,10 @@
     let toggleButton = null;
     let refreshButton = null;
     let appDownloadButton = null;
-    const isNativeApp = Boolean(window.Capacitor?.Plugins);
+    let announcementCheckRunning = false;
+    let announcementPollTimer = null;
+    let announcementBodyOverflow = null;
+    const isNativeApp = Boolean(window.GENZAndroidDownloads);
 
     if (isNativeApp) {
         document.documentElement.dataset.genzApp = "true";
@@ -238,6 +241,164 @@
                 background: rgba(255, 48, 72, .1);
             }
 
+            .genz-announcement-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 10050;
+                display: grid;
+                place-items: center;
+                padding: 22px;
+                background: rgba(3, 5, 12, .76);
+                backdrop-filter: blur(14px);
+                -webkit-backdrop-filter: blur(14px);
+            }
+
+            .genz-announcement-dialog {
+                position: relative;
+                overflow: hidden;
+                width: min(100%, 520px);
+                max-height: min(82vh, 720px);
+                overflow-y: auto;
+                padding: 30px;
+                border: 1px solid rgba(153, 140, 255, .28);
+                border-radius: 24px;
+                color: #f5f6fb;
+                background:
+                    radial-gradient(ellipse at 100% 0%, rgba(128, 111, 255, .2), transparent 50%),
+                    linear-gradient(145deg, #1c1e2e, #0e111b 78%);
+                box-shadow: 0 30px 110px rgba(0, 0, 0, .58), inset 0 1px rgba(255, 255, 255, .08);
+                animation: genz-announcement-enter .28s ease-out both;
+            }
+
+            .genz-announcement-dialog::before {
+                position: absolute;
+                top: 0;
+                left: 30px;
+                width: 72px;
+                height: 2px;
+                background: linear-gradient(90deg, #b6a8ff, transparent);
+                content: "";
+            }
+
+            .genz-announcement-kicker {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 7px 10px;
+                border: 1px solid rgba(153, 140, 255, .24);
+                border-radius: 999px;
+                color: #c9c1ff;
+                background: rgba(117, 97, 255, .1);
+                font-size: 10px;
+                font-weight: 800;
+                letter-spacing: .09em;
+                text-transform: uppercase;
+            }
+
+            .genz-announcement-dialog[data-category="maintenance"] .genz-announcement-kicker {
+                border-color: rgba(255, 173, 83, .28);
+                color: #ffc986;
+                background: rgba(255, 158, 61, .09);
+            }
+
+            .genz-announcement-dialog[data-category="important"] .genz-announcement-kicker {
+                border-color: rgba(255, 88, 112, .3);
+                color: #ff9eae;
+                background: rgba(255, 60, 90, .1);
+            }
+
+            .genz-announcement-dialog[data-category="feature"] .genz-announcement-kicker {
+                border-color: rgba(73, 219, 178, .27);
+                color: #93e6cb;
+                background: rgba(50, 196, 155, .09);
+            }
+
+            .genz-announcement-title {
+                margin: 20px 0 12px;
+                color: #fff;
+                font-size: clamp(24px, 5vw, 32px);
+                line-height: 1.2;
+                letter-spacing: -.04em;
+                overflow-wrap: anywhere;
+            }
+
+            .genz-announcement-message {
+                margin: 0;
+                color: #b1b8ca;
+                font-size: 14px;
+                line-height: 1.8;
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+            }
+
+            .genz-announcement-footer {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 14px;
+                margin-top: 26px;
+                padding-top: 18px;
+                border-top: 1px solid rgba(154, 165, 197, .14);
+            }
+
+            .genz-announcement-brand {
+                color: #858da3;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: .03em;
+            }
+
+            .genz-announcement-ok {
+                min-height: 42px;
+                padding: 0 18px;
+                border: 1px solid rgba(177, 166, 255, .5);
+                border-radius: 12px;
+                color: #fff;
+                background: linear-gradient(135deg, #8172ff, #6355d9);
+                font: inherit;
+                font-size: 12px;
+                font-weight: 800;
+                box-shadow: 0 8px 24px rgba(97, 80, 224, .24), inset 0 1px rgba(255, 255, 255, .18);
+                cursor: pointer;
+            }
+
+            .genz-announcement-ok:hover {
+                filter: brightness(1.12);
+            }
+
+            html[data-genz-theme="light"] .genz-announcement-dialog {
+                color: #172033;
+                border-color: #aeb7d0;
+                background:
+                    radial-gradient(ellipse at 100% 0%, rgba(128, 111, 255, .13), transparent 50%),
+                    linear-gradient(145deg, #fff, #f3f5fb 78%);
+                box-shadow: 0 30px 90px rgba(32, 44, 70, .28);
+            }
+
+            html[data-genz-theme="light"] .genz-announcement-title {
+                color: #172033;
+            }
+
+            html[data-genz-theme="light"] .genz-announcement-message {
+                color: #4b5870;
+            }
+
+            @keyframes genz-announcement-enter {
+                from { opacity: 0; transform: translateY(12px) scale(.98); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+
+            @media (max-width: 540px) {
+                .genz-announcement-overlay { padding: 16px; }
+                .genz-announcement-dialog { padding: 24px 21px; border-radius: 20px; }
+                .genz-announcement-dialog::before { left: 21px; }
+                .genz-announcement-message { font-size: 13px; }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .genz-announcement-dialog { animation: none; }
+            }
+
             .genz-sidebar-footer .genz-theme-toggle {
                 width: 100%;
                 margin-bottom: 10px;
@@ -379,6 +540,87 @@
             });
     }
 
+    async function saveBlobInAndroid(blob, fileName) {
+        if (!isNativeApp || !(blob instanceof Blob)) return null;
+
+        const bridge = window.GENZAndroidDownloads;
+        const id = bridge.beginBlobDownload(
+            fileName || "GEN-Z.AI-download",
+            blob.type || "application/octet-stream"
+        );
+        if (!id) return false;
+
+        try {
+            const chunkSize = 48 * 1024;
+            for (let offset = 0; offset < blob.size; offset += chunkSize) {
+                const end = Math.min(offset + chunkSize, blob.size);
+                const bytes = new Uint8Array(
+                    await blob.slice(offset, end).arrayBuffer()
+                );
+                let binary = "";
+                for (let index = 0; index < bytes.length; index += 1) {
+                    binary += String.fromCharCode(bytes[index]);
+                }
+                if (!bridge.writeBlobChunk(id, window.btoa(binary))) {
+                    throw new Error("Android gagal menerima isi file unduhan.");
+                }
+            }
+
+            if (!bridge.finishBlobDownload(id)) {
+                throw new Error("Android gagal menyimpan file unduhan.");
+            }
+            return true;
+        } catch (error) {
+            bridge.cancelBlobDownload(id);
+            console.error("[GEN-Z.AI] Android file download failed:", error);
+            return false;
+        }
+    }
+
+    window.GENZMobileDownload = saveBlobInAndroid;
+
+    document.addEventListener("click", event => {
+        if (!isNativeApp || event.defaultPrevented || event.button !== 0) return;
+
+        const target = event.target instanceof Element
+            ? event.target
+            : event.target?.parentElement;
+        const link = target?.closest("a[download]");
+        if (!link) return;
+
+        event.preventDefault();
+        if (/^(blob:|data:)/i.test(link.href)) {
+            void fetch(link.href)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Gagal membaca file unduhan (HTTP ${response.status}).`);
+                    }
+                    return response.blob();
+                })
+                .then(blob => saveBlobInAndroid(blob, link.download))
+                .then(saved => {
+                    if (saved !== true) {
+                        throw new Error("File tidak berhasil disimpan di perangkat.");
+                    }
+                })
+                .catch(error => {
+                    console.error("[GEN-Z.AI] Android file download failed:", error);
+                    window.GENZAndroidDownloads.notifyDownloadFailure();
+                });
+            return;
+        }
+
+        if (/^https?:/i.test(link.href)) {
+            window.GENZAndroidDownloads.downloadUrl(
+                link.href,
+                link.download,
+                link.type || "",
+                window.location.href,
+                navigator.userAgent
+            );
+        }
+    }, true);
+
     function getToggleParent() {
         return (
             document.querySelector(".genz-sidebar-footer") ||
@@ -486,16 +728,136 @@
         }
     }
 
+    function showAnnouncement(announcement, userId) {
+        if (!announcement || !userId || !announcement.id) return;
+
+        const storageKey = `genz-announcement-dismissed:${userId}`;
+        const announcementVersion =
+            `${announcement.id}:${announcement.updated_at || ""}`;
+        try {
+            if (localStorage.getItem(storageKey) === announcementVersion) return;
+        } catch (error) {
+            reportStorageError("read announcement dismissal for", error);
+        }
+
+        document.querySelector(".genz-announcement-overlay")?.remove();
+        const categoryLabels = {
+            info: "Informasi umum",
+            feature: "Fitur baru",
+            maintenance: "Pemeliharaan",
+            important: "Penting"
+        };
+        const overlay = document.createElement("div");
+        overlay.className = "genz-announcement-overlay";
+        const dialog = document.createElement("section");
+        dialog.className = "genz-announcement-dialog";
+        dialog.dataset.category = announcement.category || "info";
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("aria-labelledby", "genz-announcement-title");
+
+        const kicker = document.createElement("span");
+        kicker.className = "genz-announcement-kicker";
+        kicker.textContent = categoryLabels[announcement.category] || categoryLabels.info;
+
+        const title = document.createElement("h2");
+        title.className = "genz-announcement-title";
+        title.id = "genz-announcement-title";
+        title.textContent = announcement.title;
+
+        const message = document.createElement("p");
+        message.className = "genz-announcement-message";
+        message.textContent = announcement.message;
+
+        const footer = document.createElement("div");
+        footer.className = "genz-announcement-footer";
+        const brand = document.createElement("span");
+        brand.className = "genz-announcement-brand";
+        brand.textContent = "GEN-Z.AI · Informasi resmi";
+        const okButton = document.createElement("button");
+        okButton.className = "genz-announcement-ok";
+        okButton.type = "button";
+        okButton.textContent = "OK, saya mengerti";
+
+        okButton.addEventListener("click", () => {
+            try {
+                localStorage.setItem(storageKey, announcementVersion);
+            } catch (error) {
+                reportStorageError("save announcement dismissal for", error);
+            }
+            document.body.style.overflow = announcementBodyOverflow || "";
+            announcementBodyOverflow = null;
+            overlay.remove();
+        });
+
+        footer.append(brand, okButton);
+        dialog.append(kicker, title, message, footer);
+        overlay.append(dialog);
+        if (announcementBodyOverflow === null) {
+            announcementBodyOverflow = document.body.style.overflow;
+        }
+        document.body.append(overlay);
+        document.body.style.overflow = "hidden";
+        okButton.focus();
+    }
+
+    async function loadAnnouncement() {
+        if (
+            announcementCheckRunning ||
+            !document.querySelector(".genz-sidebar-footer")
+        ) {
+            return;
+        }
+
+        const client = window.GENZ_SUPABASE || window.supabaseClient;
+        if (!client?.auth?.getSession) return;
+
+        announcementCheckRunning = true;
+        try {
+            const { data, error } = await client.auth.getSession();
+            if (error) throw error;
+            const session = data?.session;
+            if (!session?.access_token || !session.user?.id) return;
+
+            const response = await fetch("/api/announcements", {
+                headers: { Authorization: `Bearer ${session.access_token}` }
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result.success !== true) {
+                throw new Error(result.error || `HTTP ${response.status}`);
+            }
+            showAnnouncement(result.announcement, result.user_id || session.user.id);
+        } catch (error) {
+            console.error("[GEN-Z.AI] Failed to load account announcement:", error);
+        } finally {
+            announcementCheckRunning = false;
+        }
+    }
+
+    function startAnnouncementPolling() {
+        if (
+            announcementPollTimer ||
+            !document.querySelector(".genz-sidebar-footer")
+        ) {
+            return;
+        }
+        announcementPollTimer = window.setInterval(loadAnnouncement, 60_000);
+    }
+
     function initialize() {
         ensureStyles();
         mountToggle();
         mountRefreshButton();
         mountAppDownload();
+        loadAnnouncement();
+        startAnnouncementPolling();
 
         const observer = new MutationObserver(() => {
             mountToggle();
             mountRefreshButton();
             mountAppDownload();
+            loadAnnouncement();
+            startAnnouncementPolling();
         });
         observer.observe(document.body, { childList: true, subtree: true });
     }

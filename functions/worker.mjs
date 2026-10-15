@@ -1,6 +1,7 @@
 import { runVercelHandler } from "./_shared/vercel-adapter.js";
 import adminCredit from "../api/admin-credit.js";
 import featureCredits from "../api/feature-credits.js";
+import announcements from "../api/announcements.js";
 import adminModels from "../api/admin-models.js";
 import adminProviderCredentials from "../api/admin-provider-credentials.js";
 import adminUsers from "../api/admin-users.js";
@@ -17,6 +18,7 @@ import handleTempmail from "./_shared/tempmail-handler.js";
 const handlers = new Map([
     ["/api/admin-credit", adminCredit],
     ["/api/feature-credits", featureCredits],
+    ["/api/announcements", announcements],
     ["/api/admin-models", adminModels],
     ["/api/admin-provider-credentials", adminProviderCredentials],
     ["/api/admin-users", adminUsers],
