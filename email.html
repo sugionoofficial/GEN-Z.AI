@@ -126,6 +126,9 @@
       color: #888;
       margin-bottom: 4px;
     }
+    .email-container {
+      visibility: hidden;
+    }
 
     /* Penyesuaian dengan sidebar navigation */
     @media (min-width: 769px) {
@@ -210,6 +213,25 @@
     const btnGenerate = document.getElementById('btn-generate');
     const btnRefresh = document.getElementById('btn-refresh');
     const btnCopy = document.getElementById('btn-copy');
+    const emailContainer = document.querySelector('.email-container');
+    const tempmailAccessReady = (async () => {
+      if (window.GENZNavigationReady) {
+        await window.GENZNavigationReady;
+      }
+
+      const role = String(
+        window.GENZNavigation?.getRole?.() || window.GENZ_NAVIGATION_ROLE || ''
+      ).trim().toLowerCase();
+
+      if (role !== 'admin' && role !== 'owner') {
+        emailContainer.innerHTML = '<h1>Akses terbatas</h1><div class="subtitle">Fitur ini hanya tersedia untuk role admin atau owner.</div>';
+        emailContainer.style.visibility = 'visible';
+        return false;
+      }
+
+      emailContainer.style.visibility = 'visible';
+      return true;
+    })();
 
     function setStatus(message, type) {
       statusEl.textContent = message || '';
@@ -228,6 +250,10 @@
     }
 
     async function tempmailRequest(url, options = {}) {
+      if (!(await tempmailAccessReady)) {
+        throw new Error('Fitur ini hanya tersedia untuk role admin atau owner.');
+      }
+
       if (window.GENZNavigationReady) {
         await window.GENZNavigationReady;
       }

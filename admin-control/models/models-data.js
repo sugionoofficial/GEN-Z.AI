@@ -53,7 +53,7 @@
 ========================================================= */
 
 const MODEL_DATA_VERSION =
-    "2026-10-14-model-editor-metadata-v7";
+    "2026-10-16-model-editor-metadata-v8";
 
 
 /* =========================================================
@@ -83,6 +83,12 @@ import motiongenSeedanceConfig
 
 import motiongenSeedanceParameters
     from "../../models/seedance-25-studio-s14/parameters.js?v=models-registry-20261012";
+
+import motiongenSeedanceA2VConfig
+    from "../../models/seedance-a2v-studio-s14/config.js?v=models-registry-20261016";
+
+import motiongenSeedanceA2VParameters
+    from "../../models/seedance-a2v-studio-s14/parameters.js?v=models-registry-20261016";
 
 import klingMotionControlConfig
     from "../../models/kling-motion-control-30-pro/config.js?v=models-registry-editor-20261014";
@@ -149,6 +155,16 @@ const MODEL_REGISTRY = [
 
         parameters:
             motiongenSeedanceParameters
+    },
+    {
+        folder:
+            "models/seedance-a2v-studio-s14",
+
+        config:
+            motiongenSeedanceA2VConfig,
+
+        parameters:
+            motiongenSeedanceA2VParameters
     },
     {
         folder:

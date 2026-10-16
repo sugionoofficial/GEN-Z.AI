@@ -7,8 +7,7 @@
    navigation/navigation.js
 
    PATCH v2.2:
-   - Tambah menu "Chinaapi" (Temp Mail) ke commonUserItems
-     dan adminItems.
+   - Tambah menu "Chinaapi" (Temp Mail) ke adminItems.
    - Tambah icon "chinaapi" (amplop/email).
 ========================================================= */
 
@@ -551,7 +550,6 @@
             { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
             { label: "History", href: "/history/index.html", icon: ICONS.history },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
-            { label: "TempMail", href: "/email.html", icon: ICONS.chinaapi },
             { label: "Top Up", href: "/user/topup.html", icon: ICONS.topUp },
             { label: "Hub Admin", href: "/user/hub-admin.html", icon: ICONS.hubAdmin }
         ];

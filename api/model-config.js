@@ -92,6 +92,9 @@ import digitalHumanLipSyncImage
 import seedance25StudioMotiongen
     from "../models/seedance-25-studio-s14/index.js";
 
+import seedanceA2VStudioS14
+    from "../models/seedance-a2v-studio-s14/index.js";
+
 import klingMotionControl30Pro
     from "../models/kling-motion-control-30-pro/index.js";
 
@@ -106,6 +109,7 @@ const MODEL_REGISTRY = Object.freeze([
    seedance25,
    digitalHumanLipSyncImage,
     seedance25StudioMotiongen,
+   seedanceA2VStudioS14,
    klingMotionControl30Pro
 
 ]);

@@ -62,6 +62,25 @@ async function getUserTempmailAlias(env, userId, email) {
     return rows[0] || null;
 }
 
+async function getTempmailUserRole(env, userId) {
+    const { supabaseUrl, serviceRoleKey } = getTempmailDatabaseConfig(env);
+    const url = new URL(`${supabaseUrl}/rest/v1/profiles`);
+    url.searchParams.set("select", "role");
+    url.searchParams.set("id", `eq.${userId}`);
+    url.searchParams.set("limit", "1");
+
+    const response = await fetch(url, {
+        headers: {
+            "apikey": serviceRoleKey,
+            "Authorization": `Bearer ${serviceRoleKey}`
+        }
+    });
+
+    if (!response.ok) throw new Error("Gagal memeriksa role akun TempMail.");
+    const profiles = await response.json();
+    return profiles[0]?.role || null;
+}
+
 async function saveUserTempmailAlias(env, userId, alias) {
     const { supabaseUrl, serviceRoleKey } = getTempmailDatabaseConfig(env);
     const url = new URL(`${supabaseUrl}/rest/v1/tempmail_user_aliases`);
@@ -120,6 +139,16 @@ export default async function handleTempmail(request, env) {
         return json({ error: "Gagal memverifikasi session Supabase." }, 502);
     }
     if (auth.error) return json({ error: auth.error }, auth.status);
+
+    let role;
+    try {
+        role = await getTempmailUserRole(env, auth.user.id);
+    } catch {
+        return json({ error: "Gagal memverifikasi role akun." }, 502);
+    }
+    if (!["admin", "owner"].includes(String(role || "").trim().toLowerCase())) {
+        return json({ error: "Fitur TempMail hanya tersedia untuk role admin atau owner." }, 403);
+    }
 
     const tempmailUrl = (env.TEMPMAIL_API_URL || "").replace(/\/+$/, "");
     if (!tempmailUrl) {
