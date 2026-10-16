@@ -67,10 +67,10 @@ const UI_MODULE =
     "./generate-ui.js";
 
 const MODEL_MODULE =
-    "./generate-model.js";
+    "./generate-model.js?v=20261016-regenerate-history";
 
 const FORM_MODULE =
-    "./generate-form.js";
+    "./generate-form.js?v=20261016-regenerate-history";
 
 const SEEDANCE_MODULE =
     "./generate-seedance.js";
@@ -3438,6 +3438,110 @@ async function renderForm(
 }
 
 
+function applyPendingRegeneration() {
+
+    const regeneration =
+        window.GENZRegenerate?.read?.();
+
+    if (!regeneration) {
+        return;
+    }
+
+    const form =
+        appState.modules.form;
+
+    const model =
+        getCurrentModel();
+
+    const modelId =
+        getModelId(model);
+
+    if (
+        !form ||
+        !model ||
+        modelId !== regeneration.modelId
+    ) {
+        window.GENZRegenerate?.clear?.();
+        showError(
+            "Model dari task riwayat tidak tersedia atau tidak aktif. Pilih model lain untuk melanjutkan."
+        );
+        return;
+    }
+
+    const parameters =
+        regeneration.parameters || {};
+
+    const setIfAvailable =
+        (name, value) => {
+
+            if (
+                value === undefined ||
+                value === null ||
+                value === "" ||
+                !form.getParameterDefinition?.(name, model)
+            ) {
+                return false;
+            }
+
+            return form.setFieldValue(
+                name,
+                value
+            );
+        };
+
+    [
+        "prompt",
+        "aspect_ratio",
+        "duration",
+        "resolution"
+    ].forEach(
+        name => setIfAvailable(
+            name,
+            parameters[name]
+        )
+    );
+
+    const setReference =
+        (url, candidates) => {
+
+            if (!url) {
+                return;
+            }
+
+            for (const name of candidates) {
+                if (setIfAvailable(name, url)) {
+                    return;
+                }
+            }
+        };
+
+    setReference(
+        parameters.image_reference_url,
+        [
+            "image_urls",
+            "image_url",
+            "first_frame_url",
+            "reference_image_urls"
+        ]
+    );
+
+    setReference(
+        parameters.video_reference_url,
+        [
+            "video_urls",
+            "video_url",
+            "reference_video_urls"
+        ]
+    );
+
+    if (!window.GENZRegenerate?.clear?.()) {
+        showError(
+            "Parameter task sudah dimuat, tetapi data regenerate tidak dapat dibersihkan dari sesi browser."
+        );
+    }
+}
+
+
 /* =========================================================
    RENDER COMPLETE MODEL
 ========================================================= */
@@ -5192,6 +5296,8 @@ async function bootstrap() {
         bindResolutionEvent();
 
         await initializeModel();
+
+        applyPendingRegeneration();
 
         const elements =
             getDOM();

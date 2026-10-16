@@ -789,6 +789,90 @@
         openDetail;
 
 
+    function startRegeneration(historyId) {
+
+        const id =
+            String(historyId || "").trim();
+
+        const item =
+            (App.getHistoryData?.() || App.state?.historyData || [])
+                .find(
+                    entry =>
+                        String(entry?.id || "").trim() === id
+                );
+
+        if (!item) {
+            App.showMessage?.(
+                "Data task tidak ditemukan. Muat ulang riwayat lalu coba lagi.",
+                "error"
+            );
+            return;
+        }
+
+        if (App.isVisionHistoryItem?.(item)) {
+            return;
+        }
+
+        const modelId =
+            String(
+                item.model_id ||
+                item.modelId ||
+                ""
+            ).trim();
+
+        if (!modelId) {
+            App.showMessage?.(
+                "Model task ini tidak tersedia di riwayat sehingga tidak dapat diregenerate.",
+                "error"
+            );
+            return;
+        }
+
+        const parameters = {};
+        const normalizeReference =
+            window.GENZRegenerate?.normalizeReference ||
+            (value => value);
+        const savedValues = {
+            prompt: item.prompt || item.input_prompt,
+            aspect_ratio: item.ratio,
+            duration: item.duration,
+            resolution: item.resolution,
+            image_reference_url: normalizeReference(
+                item.image_reference_url
+            ),
+            video_reference_url: normalizeReference(
+                item.video_reference_url
+            )
+        };
+
+        Object.entries(savedValues).forEach(([name, value]) => {
+            if (
+                value !== undefined &&
+                value !== null &&
+                value !== ""
+            ) {
+                parameters[name] = value;
+            }
+        });
+
+        if (
+            typeof window.GENZRegenerate?.save !== "function" ||
+            !window.GENZRegenerate.save({
+                modelId,
+                parameters
+            })
+        ) {
+            App.showMessage?.(
+                "Tidak dapat menyiapkan regenerate. Periksa pengaturan penyimpanan browser lalu coba lagi.",
+                "error"
+            );
+            return;
+        }
+
+        window.location.assign("../generate/");
+    }
+
+
     /* =====================================================
        VIDEO THUMBNAIL
     ===================================================== */
@@ -921,6 +1005,25 @@ function handleHistoryBodyClick(
 
         return;
 
+    }
+
+
+    const regenerateButton =
+        target.closest(
+            "[data-action='regenerate']"
+        );
+
+
+    if (regenerateButton) {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        startRegeneration(
+            regenerateButton.dataset.historyId
+        );
+
+        return;
     }
 
 

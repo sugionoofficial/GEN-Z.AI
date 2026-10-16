@@ -3941,6 +3941,9 @@ export async function selectModel(
 
 export async function resolveInitialModel() {
 
+    const pendingRegeneration =
+        window.GENZRegenerate?.read?.();
+
     const storedModelId =
         getStoredModelId();
 
@@ -3952,6 +3955,19 @@ export async function resolveInitialModel() {
     let selectedModelId =
         null;
 
+    const regenerationModel =
+        models.find(
+            model =>
+                getModelId(model) ===
+                pendingRegeneration?.modelId &&
+                isExecutableModel(model)
+        );
+
+    if (regenerationModel) {
+        selectedModelId =
+            getModelId(regenerationModel);
+    }
+
 
     const storedModel =
         models.find(
@@ -3962,7 +3978,7 @@ export async function resolveInitialModel() {
         );
 
 
-    if (storedModel) {
+    if (!selectedModelId && storedModel) {
 
         selectedModelId =
             getModelId(

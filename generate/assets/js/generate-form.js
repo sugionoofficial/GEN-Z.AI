@@ -423,8 +423,12 @@ export function setFieldValue(
     ===================================================== */
 
     if (
-        name === "image_urls" ||
-        name === "image_url"
+        [
+            "image_urls",
+            "image_url",
+            "first_frame_url",
+            "reference_image_urls"
+        ].includes(name)
     ) {
 
         const imageInput =
@@ -556,8 +560,11 @@ export function setFieldValue(
     ===================================================== */
 
     if (
-        name === "video_urls" ||
-        name === "video_url"
+        [
+            "video_urls",
+            "video_url",
+            "reference_video_urls"
+        ].includes(name)
     ) {
 
         const videoInput =

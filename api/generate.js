@@ -1474,6 +1474,25 @@ function normalizeHistoryText(
 }
 
 
+function normalizeHistoryReference(
+    value
+) {
+
+    const candidate =
+        Array.isArray(value)
+            ? value.find(
+                item =>
+                    typeof item === "string" &&
+                    item.trim()
+            )
+            : value;
+
+    return normalizeHistoryText(
+        candidate
+    );
+}
+
+
 function normalizeHistoryInteger(
     value
 ) {
@@ -1563,15 +1582,22 @@ async function createGenerationHistory({
 
 
     const imageReference =
-        normalizeHistoryText(
+        normalizeHistoryReference(
             parameters?.image_urls ??
+            parameters?.image_url ??
+            parameters?.first_frame_url ??
+            parameters?.reference_image_urls ??
             body?.image_urls ??
+            body?.image_url ??
             null
         );
 
 
     const videoReference =
-        normalizeHistoryText(
+        normalizeHistoryReference(
+            parameters?.video_urls ??
+            parameters?.video_url ??
+            parameters?.reference_video_urls ??
             body?.video_reference_url ??
             body?.video_url ??
             body?.video_reference ??

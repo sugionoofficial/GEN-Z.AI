@@ -378,6 +378,41 @@
     }
 
 
+    function isVisionHistoryItem(item) {
+
+        if (
+            typeof window.GENZRegenerate?.isVisionTask ===
+            "function"
+        ) {
+            return window.GENZRegenerate.isVisionTask(item);
+        }
+
+        const taskId =
+            getTaskId(item).toLowerCase();
+
+        const providers = [
+            item?.provider_id,
+            item?.provider_name,
+            item?.provider
+        ].map(
+            value =>
+                String(value || "")
+                    .trim()
+                    .toLowerCase()
+        );
+
+        return taskId.startsWith("vision-") ||
+            providers.some(
+                provider =>
+                    /(^|[^a-z])vision([^a-z]|$)/.test(provider)
+            );
+    }
+
+
+    App.isVisionHistoryItem =
+        isVisionHistoryItem;
+
+
     function getModelId(
         item
     ) {
@@ -1661,6 +1696,22 @@
                 <!-- ACTION -->
 
                 <td class="history-action-cell">
+
+                    ${
+                        isVisionHistoryItem(item)
+                            ? ""
+                            : `
+                                <button
+                                    type="button"
+                                    class="history-regenerate-button"
+                                    data-action="regenerate"
+                                    data-history-id="${safeId}"
+                                    title="Buka kembali parameter di halaman Generate"
+                                >
+                                    Regenerate
+                                </button>
+                            `
+                    }
 
                     <button
                         type="button"
