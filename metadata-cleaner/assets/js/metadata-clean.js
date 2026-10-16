@@ -69,6 +69,10 @@ import {
     cleanImage
 } from "./metadata-cleaner-image.js";
 
+import {
+    readImageMetadata
+} from "./metadata-image.js";
+
 
 /* =========================================================
    VIDEO CLEANER
@@ -77,6 +81,36 @@ import {
 import {
     cleanVideo
 } from "./metadata-cleaner-video.js";
+
+import {
+    readVideoMetadata
+} from "./metadata-video.js";
+
+
+/* =========================================================
+   METADATA VERIFICATION
+========================================================= */
+
+import {
+    normalizeMetadata
+} from "./metadata-normalizer.js";
+
+import {
+    detectAIIndicators
+} from "./metadata-detector.js";
+
+import {
+    inspectProvenance
+} from "./metadata-provenance.js";
+
+import {
+    renderDetectionResult,
+    renderMetadata
+} from "./metadata-status.js";
+
+import {
+    renderOpenKeyResult
+} from "./metadata-openkey-detection.js";
 
 
 /* =========================================================
@@ -172,6 +206,57 @@ function setPreviewStatus(
         "important"
     );
 
+}
+
+
+async function verifyCleanedMetadata(
+    blob,
+    originalFile,
+    isImage
+) {
+
+    const cleanedFile =
+        new File(
+            [blob],
+            originalFile.name,
+            {
+                type: blob.type || originalFile.type
+            }
+        );
+
+    const metadata =
+        isImage
+            ? await readImageMetadata(cleanedFile)
+            : await readVideoMetadata(cleanedFile);
+
+    const normalizedMetadata =
+        normalizeMetadata(metadata);
+
+    const softwareAgentEntries =
+        normalizedMetadata.filter(
+            item => /software.?agent/i.test(item.field)
+        );
+
+    if (softwareAgentEntries.length > 0) {
+        throw new Error(
+            "SoftwareAgent masih ditemukan pada file hasil cleaning. File tidak ditandai bersih."
+        );
+    }
+
+    const provenance =
+        await inspectProvenance(cleanedFile);
+
+    if (provenance.detected || provenance.softwareAgent) {
+        throw new Error(
+            "SoftwareAgent atau C2PA/Content Credentials masih ditemukan pada file hasil cleaning. File tidak ditandai bersih."
+        );
+    }
+
+    return {
+        metadata: normalizedMetadata,
+        aiIndicators: detectAIIndicators(normalizedMetadata),
+        provenance
+    };
 }
 
 
@@ -1091,6 +1176,42 @@ export async function cleanMetadata() {
 
         validateCleanedBlob(
             cleanedBlob
+        );
+
+        const cleanedMetadata =
+            await verifyCleanedMetadata(
+                cleanedBlob,
+                cleaningFile,
+                isImage
+            );
+
+        if (
+            state.file !==
+            cleaningFile
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][CLEAN] File berubah saat verifikasi metadata. Hasil dibuang."
+            );
+
+            return false;
+        }
+
+        state.metadata =
+            cleanedMetadata.metadata;
+
+        state.aiIndicators =
+            cleanedMetadata.aiIndicators;
+
+        state.provenance =
+            cleanedMetadata.provenance;
+
+        renderMetadata();
+        renderDetectionResult();
+        renderOpenKeyResult(
+            state.openkeyDetection,
+            state.aiIndicators,
+            state.provenance
         );
 
 

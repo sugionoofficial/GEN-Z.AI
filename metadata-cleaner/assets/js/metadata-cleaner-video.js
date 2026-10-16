@@ -673,7 +673,8 @@ export async function cleanVideo(
 
             if (
                 verification.residualMetadata.length > 0 ||
-                verification.provenance.detected
+                verification.provenance.detected ||
+                verification.provenance.softwareAgent
             ) {
 
                 if (
@@ -765,7 +766,8 @@ export async function cleanVideo(
 
                 if (
                     verification.residualMetadata.length > 0 ||
-                    verification.provenance.detected
+                    verification.provenance.detected ||
+                    verification.provenance.softwareAgent
                 ) {
 
                     const remainingFields =
@@ -778,6 +780,9 @@ export async function cleanVideo(
                     const remainingFindings = [
                         ...(remainingFields
                             ? [remainingFields]
+                            : []),
+                        ...(verification.provenance.softwareAgent
+                            ? [`softwareAgent: ${verification.provenance.softwareAgent}`]
                             : []),
                         ...verification.provenance.findings
                     ]

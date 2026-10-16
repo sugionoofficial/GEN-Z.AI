@@ -1367,34 +1367,6 @@ function inspectAIProvenance(
 
 
     /*
-       Known AI generator names may occur
-       independently of the softwareAgent label.
-    */
-
-    if (
-        !softwareAgent
-    ) {
-
-        const knownGeneratorMatch =
-            normalized.match(
-                /\b(Grok(?:\s+Imagine)?|Sora|Midjourney|Runway|Kling|Seedance|Veo|Gemini|Adobe Firefly|Stable Diffusion|Flux)\b/i
-            );
-
-
-        if (
-            knownGeneratorMatch &&
-            knownGeneratorMatch[1]
-        ) {
-
-            softwareAgent =
-                knownGeneratorMatch[1];
-
-        }
-
-    }
-
-
-    /*
        AI Disclosure.
     */
 

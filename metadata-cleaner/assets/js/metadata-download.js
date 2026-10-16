@@ -24,46 +24,78 @@ import {
 
 function downloadCleanedFile() {
 
-    if (
-        !state.cleanedBlob ||
-        !state.cleanedURL
-    ) {
+    if (!state.cleanedBlob) {
 
-        return;
+        console.error(
+            "[GEN-Z.AI][DOWNLOAD] Blob hasil cleaning tidak tersedia."
+        );
+
+        return false;
     }
 
 
-    const anchor =
-        document.createElement(
-            "a"
+    let downloadURL;
+
+    try {
+
+        downloadURL =
+            URL.createObjectURL(
+                state.cleanedBlob
+            );
+
+        const anchor =
+            document.createElement(
+                "a"
+            );
+
+        anchor.href =
+            downloadURL;
+
+
+        anchor.download =
+            state.cleanedFile?.name ||
+            createCleanedFilename(
+                state.file?.name ||
+                "media"
+            );
+
+
+        anchor.style.display =
+            "none";
+
+
+        document.body.appendChild(
+            anchor
         );
 
-
-    anchor.href =
-        state.cleanedURL;
+        anchor.click();
 
 
-    anchor.download =
-        state.cleanedFile?.name ||
-        createCleanedFilename(
-            state.file?.name ||
-            "media"
+        anchor.remove();
+
+        setTimeout(
+            () => URL.revokeObjectURL(downloadURL),
+            1000
         );
 
+        return true;
 
-    anchor.style.display =
-        "none";
+    } catch (error) {
 
+        if (downloadURL) {
 
-    document.body.appendChild(
-        anchor
-    );
+            URL.revokeObjectURL(
+                downloadURL
+            );
+        }
 
+        console.error(
+            "[GEN-Z.AI][DOWNLOAD] Gagal mengunduh file hasil cleaning.",
+            error
+        );
 
-    anchor.click();
-
-
-    anchor.remove();
+        return false;
+    }
 }
 
 
