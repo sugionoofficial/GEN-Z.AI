@@ -1,5 +1,9 @@
 import { parseFinalPromptBlocks } from "./prompt-blocks.js";
 import { getVideoFrameTimestamps } from "./video-frames.js";
+import {
+    buildCharacterReferenceParts,
+    buildCharacterReplacementInstruction
+} from "./character-reference.js";
 
 (() => {
     "use strict";
@@ -20,6 +24,10 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
     const replaceCharacter = document.getElementById("replaceCharacter");
     const characterField = document.getElementById("characterField");
     const replacementCharacter = document.getElementById("replacementCharacter");
+    const characterImageField = document.getElementById("characterImageField");
+    const characterImageInput = document.getElementById("characterImageInput");
+    const characterImageButton = document.getElementById("characterImageButton");
+    const characterImagePreview = document.getElementById("characterImagePreview");
     const clearButton = document.getElementById("clearButton");
     const notice = document.getElementById("notice");
     const repoStatus = document.getElementById("repoStatus");
@@ -42,6 +50,7 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
     const MAX_TEXT_FILE_BYTES = 512 * 1024;
     const MAX_IMAGE_SOURCE_BYTES = 12 * 1024 * 1024;
     const MAX_IMAGE_FILE_BYTES = 300 * 1024;
+    const MAX_CHARACTER_IMAGE_BYTES = 150 * 1024;
     const MAX_IMAGE_DIMENSION = 1920;
     const MAX_VIDEO_SOURCE_BYTES = 50 * 1024 * 1024;
     const MAX_VIDEO_FRAME_DIMENSION = 480;
@@ -98,6 +107,8 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
 
     let messages = [];
     let attachments = [];
+    let replacementCharacterImage = null;
+    let characterImageProcessing = false;
     let requestPending = false;
     let repoFiles = [];
     let activeRepo = null;
@@ -132,21 +143,28 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
     }
 
     function setReady(ready) {
-        const canSend = ready && modelSelect.value && !requestPending;
+        const canSend = ready && modelSelect.value && !requestPending && !characterImageProcessing;
         input.disabled = !canSend;
         sendButton.disabled = !canSend || (!input.value.trim() && !attachments.length);
         attachButton.disabled = !canSend;
         modelSelect.disabled = !ready || requestPending;
-        clearButton.disabled = requestPending;
+        clearButton.disabled = requestPending || characterImageProcessing;
         videoOutputMode.disabled = !canSend;
         replaceCharacter.disabled = !canSend;
         replacementCharacter.disabled = !canSend || !replaceCharacter.checked;
+        characterImageButton.disabled = !canSend || !replaceCharacter.checked;
     }
 
     function updateVideoOptions() {
         const hasVideo = attachments.some(attachment => attachment.kind === "video");
+        if (!hasVideo && replacementCharacterImage) {
+            replacementCharacterImage = null;
+            renderCharacterImagePreview();
+        }
+        if (!hasVideo) replaceCharacter.checked = false;
         videoOptions.hidden = !hasVideo;
         characterField.hidden = !replaceCharacter.checked;
+        characterImageField.hidden = !replaceCharacter.checked;
         setReady(Boolean(modelSelect.value) && !requestPending);
     }
 
@@ -849,21 +867,21 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
         }
     }
 
-    async function prepareImage(file) {
+    async function prepareImage(file, maxBytes = MAX_IMAGE_FILE_BYTES) {
         if (file.size > MAX_IMAGE_SOURCE_BYTES) {
             throw new Error(`Ukuran gambar ${file.name} melebihi 12 MB.`);
         }
 
         if (file.type === "image/gif") {
-            if (file.size > MAX_IMAGE_FILE_BYTES) {
-                throw new Error(`GIF ${file.name} terlalu besar. Gunakan GIF di bawah 300 KB atau ubah ke JPG/PNG.`);
+            if (file.size > maxBytes) {
+                throw new Error(`GIF ${file.name} terlalu besar. Gunakan GIF di bawah ${formatBytes(maxBytes)} atau ubah ke JPG/PNG.`);
             }
             return { dataUrl: await readImage(file), size: file.size };
         }
 
         const image = await loadImage(file);
         const largestDimension = Math.max(image.naturalWidth, image.naturalHeight);
-        if (file.size <= MAX_IMAGE_FILE_BYTES && largestDimension <= MAX_IMAGE_DIMENSION) {
+        if (file.size <= maxBytes && largestDimension <= MAX_IMAGE_DIMENSION) {
             return { dataUrl: await readImage(file), size: file.size };
         }
 
@@ -877,13 +895,41 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
             context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
             const blob = await encodeCanvas(canvas, Math.max(0.42, 0.84 - attempt * 0.07));
-            if (blob.size <= MAX_IMAGE_FILE_BYTES) {
+            if (blob.size <= maxBytes) {
                 return { dataUrl: await readImage(blob, file.name), size: blob.size };
             }
             scale *= 0.8;
         }
 
         throw new Error(`Gambar ${file.name} tidak dapat diperkecil ke ukuran yang didukung.`);
+    }
+
+    function renderCharacterImagePreview() {
+        characterImagePreview.replaceChildren();
+        characterImagePreview.hidden = !replacementCharacterImage;
+        if (!replacementCharacterImage) return;
+
+        const image = document.createElement("img");
+        image.src = replacementCharacterImage.dataUrl;
+        image.alt = "Pratinjau foto referensi karakter";
+
+        const name = document.createElement("span");
+        name.className = "character-image-name";
+        name.textContent = replacementCharacterImage.name;
+
+        const remove = document.createElement("button");
+        remove.className = "character-image-remove";
+        remove.type = "button";
+        remove.textContent = "Hapus";
+        remove.setAttribute("aria-label", "Hapus foto referensi karakter");
+        remove.addEventListener("click", () => {
+            if (requestPending) return;
+            replacementCharacterImage = null;
+            renderCharacterImagePreview();
+            setReady(true);
+        });
+
+        characterImagePreview.append(image, name, remove);
     }
 
     function renderAttachments() {
@@ -924,8 +970,9 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
             remove.type = "button";
             remove.setAttribute("aria-label", `Hapus lampiran ${attachment.name}`);
             remove.textContent = "×";
+            remove.disabled = requestPending || characterImageProcessing;
             remove.addEventListener("click", () => {
-                if (requestPending) return;
+                if (requestPending || characterImageProcessing) return;
                 attachments.splice(index, 1);
                 renderAttachments();
                 updateVideoOptions();
@@ -1009,8 +1056,8 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
         setNotice(`${attachments.length} lampiran siap dikirim.`);
     }
 
-    function buildUserMessage(text, selectedAttachments) {
-        if (!selectedAttachments.length) {
+    function buildUserMessage(text, selectedAttachments, characterReference) {
+        if (!selectedAttachments.length && !characterReference) {
             return { role: "user", content: text };
         }
 
@@ -1046,6 +1093,7 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
             }
         }
 
+        content.push(...buildCharacterReferenceParts(characterReference));
         return { role: "user", content };
     }
 
@@ -1059,7 +1107,10 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
             both: "Berikan analisis terperinci, satu prompt video final, dan satu prompt gambar final untuk satu frame/kunci yang paling representatif."
         };
         const replacement = replaceCharacter.checked
-            ? `GANTI KARAKTER: gunakan deskripsi karakter baru ini: "${replacementCharacter.value.trim() || "rancang karakter baru yang sesuai dengan suasana dan aksi adegan"}". Ganti hanya identitas/penampilan karakter utama; pertahankan lokasi/lingkungan, aksi dan timing, blocking, kamera, komposisi, pencahayaan, warna, suasana, dan urutan adegan dari video sumber. Sesuaikan gerak tubuh agar masuk akal bagi karakter baru.`
+            ? buildCharacterReplacementInstruction({
+                description: replacementCharacter.value,
+                hasReferenceImage: Boolean(replacementCharacterImage)
+            })
             : "Pertahankan karakter/objek utama asli; jangan mengganti identitas atau penampilannya.";
 
         return {
@@ -1081,8 +1132,17 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
     }
 
     async function sendMessage(text, selectedAttachments) {
-        const newMessage = buildUserMessage(text, selectedAttachments);
-        appendMessage("user", text || "Lampiran", { attachments: selectedAttachments });
+        const videoAttachments = selectedAttachments.filter(attachment => attachment.kind === "video");
+        const characterReference = videoAttachments.length && replaceCharacter.checked
+            ? replacementCharacterImage
+            : null;
+        const newMessage = buildUserMessage(text, selectedAttachments, characterReference);
+        appendMessage("user", text || "Lampiran", {
+            attachments: [
+                ...selectedAttachments,
+                ...(characterReference ? [characterReference] : [])
+            ]
+        });
         let pendingMessage = null;
         requestPending = true;
         setReady(true);
@@ -1095,7 +1155,6 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
             const token = data?.session?.access_token;
             if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login kembali.");
             pendingMessage = appendMessage("assistant", "", { typing: true });
-            const videoAttachments = selectedAttachments.filter(attachment => attachment.kind === "video");
             const videoInstructions = buildVideoAnalysisInstructions(videoAttachments);
 
             const requestBody = JSON.stringify({
@@ -1133,9 +1192,13 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
             const content = responseText(result);
             if (!content) throw new Error("Model mengembalikan jawaban kosong.");
             pendingMessage.remove();
+            const attachmentNames = [
+                ...selectedAttachments.map(file => file.name),
+                ...(characterReference ? [`foto referensi karakter: ${characterReference.name}`] : [])
+            ];
             messages.push({
                 role: "user",
-                content: text || `Pengguna mengirim lampiran: ${selectedAttachments.map(file => file.name).join(", ")}`
+                content: text || `Pengguna mengirim lampiran: ${attachmentNames.join(", ")}`
             });
             messages.push({ role: "assistant", content });
             appendMessage("assistant", content);
@@ -1164,6 +1227,8 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
         const sent = await sendMessage(text, selectedAttachments);
         if (sent) {
             attachments = [];
+            replacementCharacterImage = null;
+            renderCharacterImagePreview();
             renderAttachments();
             updateVideoOptions();
         } else {
@@ -1186,6 +1251,7 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
     });
 
     attachButton.addEventListener("click", () => attachmentInput.click());
+    characterImageButton.addEventListener("click", () => characterImageInput.click());
     replaceCharacter.addEventListener("change", () => {
         updateVideoOptions();
     });
@@ -1245,6 +1311,37 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
             setNotice(error.message || "Gagal memuat lampiran.", true);
         }
     });
+    characterImageInput.addEventListener("change", async () => {
+        const file = characterImageInput.files?.[0];
+        characterImageInput.value = "";
+        if (!file) return;
+
+        characterImageProcessing = true;
+        setReady(true);
+        try {
+            if (!IMAGE_TYPES.has(file.type)) {
+                throw new Error("Format foto karakter tidak didukung. Gunakan JPG, PNG, WebP, GIF, atau AVIF.");
+            }
+            if (file.size === 0) throw new Error(`Berkas ${file.name} kosong.`);
+
+            const image = await prepareImage(file, MAX_CHARACTER_IMAGE_BYTES);
+            replacementCharacterImage = {
+                name: file.name,
+                size: image.size,
+                kind: "image",
+                dataUrl: image.dataUrl
+            };
+            replaceCharacter.checked = true;
+            renderCharacterImagePreview();
+            updateVideoOptions();
+            setNotice(`Foto referensi karakter ${file.name} siap digunakan.`);
+        } catch (error) {
+            setNotice(error.message || "Gagal memuat foto referensi karakter.", true);
+        } finally {
+            characterImageProcessing = false;
+            setReady(true);
+        }
+    });
 
     modelSelect.addEventListener("change", () => {
         if (messages.length) setNotice(`Model untuk pesan berikutnya: ${modelSelect.selectedOptions[0].textContent}`);
@@ -1252,12 +1349,14 @@ import { getVideoFrameTimestamps } from "./video-frames.js";
     });
 
     clearButton.addEventListener("click", () => {
-        if (requestPending) return;
+        if (requestPending || characterImageProcessing) return;
         messages = [];
         attachments = [];
         renderAttachments();
         replaceCharacter.checked = false;
         replacementCharacter.value = "";
+        replacementCharacterImage = null;
+        renderCharacterImagePreview();
         videoOutputMode.value = "both";
         updateVideoOptions();
         transcript.replaceChildren(welcome);

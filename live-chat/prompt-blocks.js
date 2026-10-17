@@ -8,7 +8,7 @@ export function parseFinalPromptBlocks(content) {
 
     for (const [marker, label] of definitions) {
         const expression = new RegExp(
-            `<<<${marker}>>>\\s*([\\s\\S]*?)\\s*<<<\\/${marker}>>>`,
+            `<<<${marker}>>>\\s*([\\s\\S]*?)\\s*(?:<<<\\/${marker}>>>|<<<${marker}>>>)`,
             "gi"
         );
         displayText = displayText.replace(expression, (_match, prompt) => {

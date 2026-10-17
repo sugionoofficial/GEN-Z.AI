@@ -118,11 +118,19 @@
         .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
         .composer-wrap { padding: 16px 20px 18px; border-top: 1px solid var(--chat-line); background: rgba(7,9,16,.46); }
         .video-options { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(190px, 1fr); gap: 9px 12px; margin-bottom: 11px; padding: 10px 12px; border: 1px solid rgba(139,124,255,.20); border-radius: 11px; background: rgba(139,124,255,.045); }
-        .video-options[hidden], .character-field[hidden] { display: none; }
+        .video-options[hidden], .character-field[hidden], .character-image-field[hidden] { display: none; }
         .video-option-label { display: grid; gap: 5px; color: #c5cad8; font-size: 10px; font-weight: 700; }
         .video-option-input { width: 100%; min-height: 34px; padding: 7px 9px; border: 1px solid var(--chat-line); border-radius: 7px; outline: 0; background: rgba(255,255,255,.04); color: var(--chat-text); font: inherit; font-size: 11px; }
         .character-toggle { display: flex; align-items: center; gap: 7px; min-height: 34px; color: #c5cad8; font-size: 10px; }
         .character-toggle input { accent-color: var(--chat-accent); }
+        .character-image-field { display: grid; gap: 6px; margin-top: 7px; }
+        .character-image-button { width: 100%; min-height: 32px; padding: 6px 9px; border: 1px solid var(--chat-line); border-radius: 7px; background: rgba(255,255,255,.04); color: #c6c1ff; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
+        .character-image-button:disabled { opacity: .45; cursor: not-allowed; }
+        .character-image-preview { display: flex; min-width: 0; align-items: center; gap: 8px; color: #aeb4c5; font-size: 9px; }
+        .character-image-preview[hidden] { display: none; }
+        .character-image-preview img { width: 36px; height: 36px; border: 1px solid var(--chat-line); border-radius: 6px; object-fit: cover; }
+        .character-image-name { overflow: hidden; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
+        .character-image-remove { flex: 0 0 auto; padding: 3px 6px; border: 1px solid var(--chat-line); border-radius: 6px; background: transparent; color: #ff929c; font: inherit; font-size: 9px; cursor: pointer; }
         .video-options-hint { grid-column: 1 / -1; margin: 0; color: #858ca0; font-size: 9px; line-height: 1.5; }
         .notice { min-height: 17px; margin: 0 0 10px 2px; color: var(--chat-muted); font-size: 11px; }
         .notice.error { color: #ff929c; }
@@ -140,6 +148,7 @@
         .attachment-file-icon { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 6px; background: rgba(139,124,255,.14); color: #c6c1ff; font-size: 16px; }
         .attachment-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .attachment-remove { position: absolute; top: 5px; right: 5px; display: grid; width: 20px; height: 20px; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #9299ad; font-size: 14px; cursor: pointer; }
+        .attachment-remove:disabled { opacity: .45; cursor: not-allowed; }
         .attachment-remove:hover { background: rgba(255,112,125,.12); color: #ff929c; }
         .message-attachments { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
         .message-attachments img { max-width: 180px; max-height: 150px; border: 1px solid var(--chat-line); border-radius: 9px; object-fit: cover; }
@@ -268,9 +277,15 @@
                             Ganti karakter, pertahankan adegan
                         </label>
                         <label class="video-option-label character-field" id="characterField" for="replacementCharacter" hidden>
-                            Deskripsi karakter baru
+                            Deskripsi karakter baru (opsional)
                             <input class="video-option-input" id="replacementCharacter" type="text" maxlength="300" placeholder="Contoh: pria berambut ikal memakai jaket biru">
                         </label>
+                        <div class="character-image-field" id="characterImageField" hidden>
+                            <span class="video-option-label">Foto referensi karakter (opsional)</span>
+                            <input id="characterImageInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden>
+                            <button class="character-image-button" id="characterImageButton" type="button">Pilih foto karakter</button>
+                            <div class="character-image-preview" id="characterImagePreview" hidden></div>
+                        </div>
                     </div>
                     <p class="video-options-hint">Pilih model OpenKey multimodal yang mendukung input gambar. Analisis mencakup gerakan dan perubahan per detik, lingkungan/lokasi yang terlihat, sudut kamera, komposisi, dan pencahayaan. Maksimal 30 detik video; lokasi geografis tidak ditebak jika tidak tampak jelas.</p>
                 </section>
@@ -291,6 +306,6 @@
     </main>
 
     <script src="/navigation/navigation.js?v=android-download-bridge-20261017"></script>
-    <script type="module" src="/live-chat/live-chat.js?v=video-analysis-prompts-20261017"></script>
+    <script type="module" src="/live-chat/live-chat.js?v=character-reference-photo-20261017"></script>
 </body>
 </html>

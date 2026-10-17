@@ -32,3 +32,32 @@ test("ignores empty prompt markers and leaves normal chat text unchanged", () =>
         { displayText: "", prompts: [] }
     );
 });
+
+test("extracts separate prompts when the model repeats each opening marker to close it", () => {
+    const parsed = parseFinalPromptBlocks([
+        "Analisis terperinci video.",
+        "",
+        "<<<VIDEO_PROMPT_FINAL>>>Prompt video saja.<<<VIDEO_PROMPT_FINAL>>>",
+        "",
+        "<<<IMAGE_PROMPT_FINAL>>>Prompt gambar saja.<<<IMAGE_PROMPT_FINAL>>>"
+    ].join("\n"));
+
+    assert.equal(parsed.displayText, "Analisis terperinci video.");
+    assert.deepEqual(parsed.prompts, [
+        { label: "Prompt Video Final", text: "Prompt video saja." },
+        { label: "Prompt Gambar Final", text: "Prompt gambar saja." }
+    ]);
+});
+
+test("extracts prompts when opening and closing markers are concatenated with their content", () => {
+    const parsed = parseFinalPromptBlocks(
+        "<<<VIDEO_PROMPT_FINAL>>>Video prompt.<<</VIDEO_PROMPT_FINAL>>>\n" +
+        "<<<IMAGE_PROMPT_FINAL>>>Image prompt.<<</IMAGE_PROMPT_FINAL>>>"
+    );
+
+    assert.equal(parsed.displayText, "");
+    assert.deepEqual(parsed.prompts, [
+        { label: "Prompt Video Final", text: "Video prompt." },
+        { label: "Prompt Gambar Final", text: "Image prompt." }
+    ]);
+});
