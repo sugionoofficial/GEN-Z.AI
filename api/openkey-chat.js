@@ -44,7 +44,7 @@ import {
     applyWebPageContext,
     buildWebPageContext
 } from "../lib/web-page-context.js";
-import { buildMediaAnalysisGuidance } from "../lib/media-analysis-guidance.js";
+import { buildMediaAnalysisGuidance } from "../live-chat/media-analysis-guidance.js";
 
 
 /* =========================================================

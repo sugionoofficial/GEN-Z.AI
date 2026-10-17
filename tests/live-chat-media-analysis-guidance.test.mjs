@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildMediaAnalysisGuidance } from "../lib/media-analysis-guidance.js";
+import { buildMediaAnalysisGuidance } from "../live-chat/media-analysis-guidance.js";
 
 test("guides neutral analysis of benign visual media without overriding safety requirements", () => {
     const guidance = buildMediaAnalysisGuidance();

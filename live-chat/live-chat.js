@@ -1,6 +1,6 @@
 import { parseFinalPromptBlocks } from "./prompt-blocks.js";
 import { getVideoFrameTimestamps } from "./video-frames.js";
-import { buildMediaAnalysisGuidance } from "../lib/media-analysis-guidance.js";
+import { buildMediaAnalysisGuidance } from "./media-analysis-guidance.js";
 import {
     buildCharacterReferenceParts,
     buildCharacterReplacementInstruction
