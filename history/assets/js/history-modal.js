@@ -630,43 +630,16 @@
     ===================================================== */
 
     function buildDownloadFilename(item) {
-        const taskId = String(item?.task_id || item?.id || "file").trim();
-        const resolution = String(item?.resolution || "").trim();
-        const modelName = String(item?.model_name || item?.model_id || "").trim();
-
-        const shortId = taskId
-            .substring(0, 12)
-            .replace(/[^a-z0-9_-]/gi, "");
-
-        let ext = "mp4";
         const url = getResultUrl(item);
-        if (url) {
-            const clean = String(url).split("?")[0].split("#")[0].toLowerCase();
-            const match = clean.match(/\.([a-z0-9]+)$/i);
-            if (match && match[1]) {
-                ext = match[1];
-            }
-        }
-        if (isUpscalePhoto(item) && (ext === "mp4" || !ext)) {
-            ext = "jpg";
-        }
+        const fallbackExtension =
+            getMediaType(item) === "image"
+                ? "jpg"
+                : "mp4";
 
-        const date = new Date()
-            .toISOString()
-            .slice(0, 10)
-            .replace(/-/g, "");
-
-        const modelClean = modelName
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-|-$/g, "")
-            .substring(0, 30) || "file";
-
-        const resPart = resolution
-            ? `-${resolution.replace(/[^a-z0-9]/gi, "")}`
-            : "";
-
-        return `GENZ-AI-${date}-${modelClean}${resPart}-${shortId}.${ext}`;
+        return window.GENZGeneratedFileName.create(
+            url,
+            fallbackExtension
+        );
     }
 
     function getDirectDownloadUrl(url, filename) {

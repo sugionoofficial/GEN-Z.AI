@@ -103,10 +103,17 @@ async function saveBlobInAndroid(
 
 async function downloadCleanedFile() {
 
-    if (!state.cleanedBlob) {
+    if (
+        !(state.cleanedBlob instanceof Blob) ||
+        state.cleanedBlob.size === 0
+    ) {
 
         console.error(
-            "[GEN-Z.AI][DOWNLOAD] Blob hasil cleaning tidak tersedia."
+            "[GEN-Z.AI][DOWNLOAD] Blob hasil cleaning tidak tersedia atau kosong.",
+            {
+                hasBlob: Boolean(state.cleanedBlob),
+                size: state.cleanedBlob?.size || 0
+            }
         );
 
         return false;
@@ -141,7 +148,7 @@ async function downloadCleanedFile() {
             );
             window.GENZAndroidDownloads
                 .notifyDownloadFailure?.();
-            return false;
+            throw error;
         }
     }
 
@@ -182,7 +189,7 @@ async function downloadCleanedFile() {
 
         setTimeout(
             () => URL.revokeObjectURL(downloadURL),
-            1000
+            60_000
         );
 
         return true;
@@ -201,7 +208,7 @@ async function downloadCleanedFile() {
             error
         );
 
-        return false;
+        throw error;
     }
 }
 

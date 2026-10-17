@@ -361,11 +361,17 @@
             overflow:hidden;
             box-shadow:0 10px 30px rgba(15,23,42,.04);
             transition:.25s ease;
+            cursor:pointer;
         }
 
         .video-card:hover {
             transform:translateY(-4px);
             box-shadow:0 20px 50px rgba(15,23,42,.08);
+        }
+
+        .video-card:focus-visible {
+            outline:3px solid #6366f1;
+            outline-offset:3px;
         }
 
         .video-preview {
@@ -398,6 +404,27 @@
 
         .video-preview video {
             pointer-events:none;
+        }
+
+        .video-sound-toggle {
+            position:absolute;
+            right:10px;
+            bottom:10px;
+            z-index:4;
+            min-width:38px;
+            min-height:38px;
+            padding:7px 10px;
+            border:1px solid rgba(255,255,255,.65);
+            border-radius:999px;
+            background:rgba(17,24,39,.82);
+            color:#fff;
+            font-size:11px;
+            font-weight:700;
+        }
+
+        .video-sound-toggle:hover,
+        .video-sound-toggle:focus-visible {
+            background:#111827;
         }
 
         .video-preview.is-playing .play {
@@ -711,6 +738,11 @@
             font-size:17px;
             line-height:1.35;
             overflow-wrap:anywhere;
+        }
+
+        html[data-genz-theme="dark"] .video-info h3,
+        html[data-genz-theme="dark"] .example-preview-header h3 {
+            color:#000;
         }
 
         .example-preview-video {
@@ -1829,6 +1861,7 @@ let toastTimer = null;
 let mobilePreviewObserver = null;
 let mobilePreviewCandidates = new Set();
 let mobilePreviewFrame = null;
+let exampleVideosMuted = true;
 
 const mobilePreviewMedia =
     window.matchMedia(
@@ -2468,6 +2501,90 @@ function stopInlinePreview(video) {
 }
 
 
+function syncExampleSoundControls() {
+
+    elements.videoGrid
+        .querySelectorAll("[data-example-video]")
+        .forEach(
+            video => {
+                video.muted = exampleVideosMuted;
+            }
+        );
+
+    elements.videoGrid
+        .querySelectorAll("[data-example-sound]")
+        .forEach(
+            button => {
+                const action =
+                    exampleVideosMuted
+                        ? "Aktifkan"
+                        : "Matikan";
+
+                button.textContent =
+                    exampleVideosMuted
+                        ? "🔇 Aktifkan suara"
+                        : "🔊 Matikan suara";
+                button.setAttribute(
+                    "aria-label",
+                    `${action} suara contoh video`
+                );
+                button.setAttribute(
+                    "aria-pressed",
+                    String(!exampleVideosMuted)
+                );
+            }
+        );
+}
+
+
+function toggleExampleVideoSound(button) {
+
+    const preview =
+        button.closest(".video-preview");
+
+    const video =
+        preview?.querySelector("[data-example-video]");
+
+    if (!video) {
+        return;
+    }
+
+    exampleVideosMuted = !exampleVideosMuted;
+    syncExampleSoundControls();
+
+    video.play()
+        .then(
+            () => {
+                if (!video.paused) {
+                    preview.classList.add("is-playing");
+                }
+            }
+        )
+        .catch(
+            error => {
+                if (error?.name === "NotAllowedError") {
+                    exampleVideosMuted = true;
+                    syncExampleSoundControls();
+                    showToast(
+                        "Browser memblokir audio otomatis. Tekan tombol suara untuk mencoba lagi.",
+                        "error"
+                    );
+                    return;
+                }
+
+                console.warn(
+                    "[GEN-Z.AI UserDashboard] Suara contoh video gagal diputar:",
+                    error
+                );
+                showToast(
+                    "Contoh video gagal diputar.",
+                    "error"
+                );
+            }
+        );
+}
+
+
 function scheduleCenteredPreview() {
 
     if (
@@ -2540,7 +2657,6 @@ function scheduleCenteredPreview() {
                             return;
                         }
 
-                        video.muted = true;
                         if (!video.paused) {
                             return;
                         }
@@ -2692,7 +2808,7 @@ function renderVideoCard(
                         ? `poster="${escapeAttribute(thumbnailUrl)}"`
                         : ""}
                     preload="none"
-                    muted
+                    ${exampleVideosMuted ? "muted" : ""}
                     playsinline
                     loop
                     controlslist="nodownload"
@@ -2701,6 +2817,13 @@ function renderVideoCard(
                     data-example-video
                     aria-label="Preview ${title}"
                 ></video>
+                <button
+                    class="video-sound-toggle"
+                    type="button"
+                    data-example-sound
+                    aria-label="${exampleVideosMuted ? "Aktifkan" : "Matikan"} suara contoh video ${title}"
+                    aria-pressed="${!exampleVideosMuted}"
+                >${exampleVideosMuted ? "🔇 Aktifkan suara" : "🔊 Matikan suara"}</button>
             `
             : thumbnailUrl
                 ? `
@@ -2767,7 +2890,12 @@ function renderVideoCard(
 
 
     return `
-        <article class="video-card">
+        <article
+            class="video-card"
+            data-id="${escapeAttribute(video.id)}"
+            tabindex="0"
+            aria-label="Lihat detail contoh video ${title}"
+        >
 
             <div class="video-preview">
 
@@ -3835,57 +3963,84 @@ elements.videoGrid.addEventListener(
     "click",
     async event => {
 
+        const soundButton =
+            event.target.closest(
+                "[data-example-sound]"
+            );
+
+        if (soundButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleExampleVideoSound(soundButton);
+            return;
+        }
+
         const button =
             event.target.closest(
                 "[data-action]"
             );
 
 
-        if (!button) {
+        if (button) {
+            const id =
+                button.dataset.id;
+
+            const action =
+                button.dataset.action;
+
+            if (action === "preview") {
+                openExamplePreview(id);
+                return;
+            }
+
+            if (
+                !EDIT_MODE ||
+                !isAdmin
+            ) {
+                return;
+            }
+
+            if (action === "edit") {
+                openEditModal(id);
+                return;
+            }
+
+            if (action === "delete") {
+                await deleteVideo(id);
+            }
             return;
         }
-
-        const id =
-            button.dataset.id;
-
-        const action =
-            button.dataset.action;
-
-        if (action === "preview") {
-            openExamplePreview(id);
-            return;
-        }
-
 
         if (
-            !EDIT_MODE ||
-            !isAdmin
+            event.target.closest(
+                "a, input, select, textarea, label"
+            )
         ) {
             return;
         }
 
+        const card =
+            event.target.closest(".video-card");
 
+        if (card) {
+            openExamplePreview(card.dataset.id);
+        }
+
+    }
+);
+
+elements.videoGrid.addEventListener(
+    "keydown",
+    event => {
         if (
-            action === "edit"
+            (event.key !== "Enter" && event.key !== " ") ||
+            !event.target.matches(".video-card")
         ) {
-
-            openEditModal(
-                id
-            );
-
             return;
         }
 
-
-        if (
-            action === "delete"
-        ) {
-
-            await deleteVideo(
-                id
-            );
-        }
-
+        event.preventDefault();
+        openExamplePreview(event.target.dataset.id);
     }
 );
 
@@ -3911,7 +4066,6 @@ elements.videoGrid.addEventListener(
             return;
         }
 
-        video.muted = true;
         video.play()
             .then(
                 () => {

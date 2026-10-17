@@ -40,6 +40,10 @@ import {
     state
 } from "./metadata-state.js";
 
+import {
+    setPreviewStatus
+} from "./metadata-preview.js";
+
 
 /* =========================================================
    CALLBACKS
@@ -732,10 +736,6 @@ function onDownload(
         button.disabled
     ) {
 
-        console.warn(
-            "[GEN-Z.AI] DOWNLOAD masih disabled."
-        );
-
         return;
     }
 
@@ -757,31 +757,50 @@ function onDownload(
     }
 
 
-    try {
+    const originalText =
+        button.textContent;
 
-        Promise.resolve(
-            callback()
-        ).catch(
+    button.disabled = true;
+    button.textContent = "MENYIAPKAN UNDUHAN...";
+    setPreviewStatus(
+        "MENYIAPKAN HASIL CLEANING UNTUK DIUNDUH."
+    );
+
+    Promise.resolve()
+        .then(callback)
+        .then(
+            saved => {
+                if (saved !== true) {
+                    throw new Error(
+                        "File hasil cleaning tidak tersedia atau gagal disimpan."
+                    );
+                }
+
+                setPreviewStatus(
+                    window.GENZAndroidDownloads
+                        ? "FILE BERHASIL DISIMPAN DI FOLDER DOWNLOADS/GEN-Z.AI."
+                        : "UNDUHAN FILE HASIL CLEANING DIMULAI."
+                );
+            }
+        )
+        .catch(
             error => {
-
                 console.error(
                     "[GEN-Z.AI] Download error:",
                     error
                 );
-
+                setPreviewStatus(
+                    error?.message ||
+                    "Unduhan gagal. Silakan coba kembali."
+                );
+            }
+        )
+        .finally(
+            () => {
+                button.disabled = false;
+                button.textContent = originalText;
             }
         );
-
-    } catch (
-        error
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] Download error:",
-            error
-        );
-
-    }
 
 }
 
