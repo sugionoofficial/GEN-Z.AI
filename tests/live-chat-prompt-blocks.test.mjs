@@ -1,0 +1,34 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { parseFinalPromptBlocks } from "../live-chat/prompt-blocks.js";
+
+test("extracts clean final video and image prompts separately from the analysis", () => {
+    const parsed = parseFinalPromptBlocks([
+        "Analisis gerakan: karakter bergerak dari kiri ke kanan.",
+        "",
+        "<<<VIDEO_PROMPT_FINAL>>>",
+        "Cinematic video, slow dolly-in, warm light.",
+        "<<</VIDEO_PROMPT_FINAL>>>",
+        "",
+        "<<<IMAGE_PROMPT_FINAL>>>",
+        "A cinematic still, warm light.",
+        "<<</IMAGE_PROMPT_FINAL>>>"
+    ].join("\n"));
+
+    assert.equal(parsed.displayText, "Analisis gerakan: karakter bergerak dari kiri ke kanan.");
+    assert.deepEqual(parsed.prompts, [
+        { label: "Prompt Video Final", text: "Cinematic video, slow dolly-in, warm light." },
+        { label: "Prompt Gambar Final", text: "A cinematic still, warm light." }
+    ]);
+});
+
+test("ignores empty prompt markers and leaves normal chat text unchanged", () => {
+    assert.deepEqual(
+        parseFinalPromptBlocks("Jawaban biasa."),
+        { displayText: "Jawaban biasa.", prompts: [] }
+    );
+    assert.deepEqual(
+        parseFinalPromptBlocks("<<<VIDEO_PROMPT_FINAL>>><<</VIDEO_PROMPT_FINAL>>>"),
+        { displayText: "", prompts: [] }
+    );
+});

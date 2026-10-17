@@ -1,3 +1,6 @@
+import { parseFinalPromptBlocks } from "./prompt-blocks.js";
+import { getVideoFrameTimestamps } from "./video-frames.js";
+
 (() => {
     "use strict";
 
@@ -12,6 +15,11 @@
     const attachButton = document.getElementById("attachButton");
     const attachmentInput = document.getElementById("attachmentInput");
     const attachmentList = document.getElementById("attachmentList");
+    const videoOptions = document.getElementById("videoOptions");
+    const videoOutputMode = document.getElementById("videoOutputMode");
+    const replaceCharacter = document.getElementById("replaceCharacter");
+    const characterField = document.getElementById("characterField");
+    const replacementCharacter = document.getElementById("replacementCharacter");
     const clearButton = document.getElementById("clearButton");
     const notice = document.getElementById("notice");
     const repoStatus = document.getElementById("repoStatus");
@@ -36,9 +44,8 @@
     const MAX_IMAGE_FILE_BYTES = 300 * 1024;
     const MAX_IMAGE_DIMENSION = 1920;
     const MAX_VIDEO_SOURCE_BYTES = 50 * 1024 * 1024;
-    const MAX_VIDEO_FRAMES = 4;
-    const MAX_VIDEO_FRAME_DIMENSION = 640;
-    const MAX_VIDEO_FRAME_BYTES = 60 * 1024;
+    const MAX_VIDEO_FRAME_DIMENSION = 480;
+    const MAX_VIDEO_FRAME_BYTES = 12 * 1024;
     const MAX_REPO_FILES = 20;
     const MAX_REPO_FILE_BYTES = 40 * 1024;
     const MAX_REPO_CONTEXT_BYTES = 128 * 1024;
@@ -131,6 +138,16 @@
         attachButton.disabled = !canSend;
         modelSelect.disabled = !ready || requestPending;
         clearButton.disabled = requestPending;
+        videoOutputMode.disabled = !canSend;
+        replaceCharacter.disabled = !canSend;
+        replacementCharacter.disabled = !canSend || !replaceCharacter.checked;
+    }
+
+    function updateVideoOptions() {
+        const hasVideo = attachments.some(attachment => attachment.kind === "video");
+        videoOptions.hidden = !hasVideo;
+        characterField.hidden = !replaceCharacter.checked;
+        setReady(Boolean(modelSelect.value) && !requestPending);
     }
 
     function formatModel(model) {
@@ -472,6 +489,47 @@
         }
     }
 
+    function appendFinalPromptCards(body, prompts) {
+        if (!prompts.length) return;
+        const container = document.createElement("div");
+        container.className = "final-prompts";
+
+        for (const prompt of prompts) {
+            const card = document.createElement("section");
+            card.className = "final-prompt";
+            const header = document.createElement("div");
+            header.className = "final-prompt-head";
+
+            const label = document.createElement("span");
+            label.textContent = prompt.label;
+            const copyButton = document.createElement("button");
+            copyButton.className = "final-prompt-copy";
+            copyButton.type = "button";
+            copyButton.textContent = "Salin prompt final";
+            copyButton.addEventListener("click", async () => {
+                try {
+                    await copyText(prompt.text);
+                    copyButton.classList.add("copied");
+                    copyButton.textContent = "Prompt tersalin";
+                    window.setTimeout(() => {
+                        copyButton.classList.remove("copied");
+                        copyButton.textContent = "Salin prompt final";
+                    }, 1600);
+                } catch (error) {
+                    setNotice(error.message || "Gagal menyalin prompt.", true);
+                }
+            });
+
+            const text = document.createElement("pre");
+            text.className = "final-prompt-text";
+            text.textContent = prompt.text;
+            header.append(label, copyButton);
+            card.append(header, text);
+            container.append(card);
+        }
+        body.append(container);
+    }
+
     function appendMessage(role, content, {
         error = false,
         typing = false,
@@ -489,6 +547,8 @@
         const body = document.createElement("div");
         body.className = "message-content";
         let messageText = null;
+        let promptBlocks = [];
+        let copyContent = content;
         if (typing) {
             const dots = document.createElement("span");
             dots.className = "typing";
@@ -496,10 +556,18 @@
             for (let index = 0; index < 3; index += 1) dots.append(document.createElement("i"));
             body.append(dots);
         } else {
+            const parsed = role === "assistant"
+                ? parseFinalPromptBlocks(content)
+                : { displayText: content, prompts: [] };
+            promptBlocks = parsed.prompts;
+            if (promptBlocks.length) {
+                copyContent = parsed.displayText;
+            }
             messageText = document.createElement("div");
             messageText.className = "message-text";
-            messageText.textContent = content;
-            body.append(messageText);
+            messageText.textContent = parsed.displayText || (promptBlocks.length ? "Prompt final siap digunakan:" : content);
+            if (messageText.textContent) body.append(messageText);
+            appendFinalPromptCards(body, promptBlocks);
         }
 
         if (!typing && messageAttachments.length) {
@@ -543,7 +611,7 @@
             copyButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Salin</span>';
             copyButton.addEventListener("click", async () => {
                 try {
-                    await copyText(content);
+                    await copyText(copyContent);
                     copyButton.classList.add("copied");
                     copyButton.setAttribute("aria-label", "Teks chat disalin");
                     copyButton.title = "Tersalin";
@@ -763,14 +831,9 @@
             if (!Number.isFinite(video.duration) || video.duration <= 0 || !video.videoWidth || !video.videoHeight) {
                 throw new Error(`Durasi atau dimensi video ${file.name} tidak valid.`);
             }
-
             const frames = [];
-            const frameCount = Math.min(
-                MAX_VIDEO_FRAMES,
-                Math.max(1, Math.ceil(video.duration * 2))
-            );
-            for (let index = 0; index < frameCount; index += 1) {
-                const timestamp = video.duration * ((index + 1) / (frameCount + 1));
+            const timestamps = getVideoFrameTimestamps(video.duration);
+            for (const [index, timestamp] of timestamps.entries()) {
                 frames.push(await captureVideoFrame(video, file.name, timestamp, index));
             }
 
@@ -842,7 +905,7 @@
                 icon.setAttribute("aria-hidden", "true");
                 icon.textContent = "▶";
                 chip.append(icon);
-                chip.title = `${formatDuration(attachment.duration)} · ${attachment.frames.length} cuplikan frame`;
+                chip.title = `${formatDuration(attachment.duration)} · ${attachment.frames.length} cuplikan (satu per detik)`;
             } else {
                 const icon = document.createElement("span");
                 icon.className = "attachment-file-icon";
@@ -865,6 +928,7 @@
                 if (requestPending) return;
                 attachments.splice(index, 1);
                 renderAttachments();
+                updateVideoOptions();
                 setReady(true);
             });
             chip.append(remove);
@@ -940,6 +1004,7 @@
 
         attachments.push(...added);
         renderAttachments();
+        updateVideoOptions();
         setReady(true);
         setNotice(`${attachments.length} lampiran siap dikirim.`);
     }
@@ -984,6 +1049,37 @@
         return { role: "user", content };
     }
 
+    function buildVideoAnalysisInstructions(videoAttachments) {
+        if (!videoAttachments.length) return null;
+
+        const modeLabels = {
+            analysis: "Berikan analisis terperinci saja; jangan keluarkan prompt final.",
+            video: "Berikan analisis terperinci dan satu prompt video final.",
+            image: "Berikan analisis terperinci dan satu prompt gambar final untuk satu frame/kunci yang paling representatif.",
+            both: "Berikan analisis terperinci, satu prompt video final, dan satu prompt gambar final untuk satu frame/kunci yang paling representatif."
+        };
+        const replacement = replaceCharacter.checked
+            ? `GANTI KARAKTER: gunakan deskripsi karakter baru ini: "${replacementCharacter.value.trim() || "rancang karakter baru yang sesuai dengan suasana dan aksi adegan"}". Ganti hanya identitas/penampilan karakter utama; pertahankan lokasi/lingkungan, aksi dan timing, blocking, kamera, komposisi, pencahayaan, warna, suasana, dan urutan adegan dari video sumber. Sesuaikan gerak tubuh agar masuk akal bagi karakter baru.`
+            : "Pertahankan karakter/objek utama asli; jangan mengganti identitas atau penampilannya.";
+
+        return {
+            role: "system",
+            content: [
+                "ANALISIS VIDEO TERPERINCI:",
+                "Video dilampirkan sebagai rangkaian cuplikan bertimestamp, satu cuplikan per detik, maksimal 30 detik. Analisis hanya hal yang tampak; cuplikan tidak menunjukkan setiap frame, jadi jangan mengarang gerakan yang tidak terlihat dan nyatakan ketidakpastian.",
+                "Susun analisis dengan bagian: (1) ringkasan adegan dan durasi, (2) tabel kronologis per detik dengan timestamp, gerakan/aksi karakter dan objek, perubahan posisi/blocking, lingkungan dan detail lokasi yang terlihat, framing/jarak shot, sudut kamera, gerak kamera, fokus/depth of field bila tampak, pencahayaan (arah, kualitas, warna, kontras), serta transisi/perubahan; (3) kontinuitas dan detail visual penting.",
+                "Jelaskan lokasi sebagai lingkungan yang terlihat (mis. interior/eksterior, jenis ruang, objek, latar, kondisi sekitar); jangan menebak nama tempat atau lokasi geografis bila tidak ada bukti visual.",
+                replacement,
+                modeLabels[videoOutputMode.value] || modeLabels.both,
+                "Jika diminta prompt final, tulis prompt yang langsung dapat ditempel ke generator, lengkap dan spesifik. Prompt final harus dipisahkan dari analisis dan dari penjelasan lain menggunakan tepat penanda berikut (jangan bungkus dengan code fence):",
+                "<<<VIDEO_PROMPT_FINAL>>>prompt video final saja<<</VIDEO_PROMPT_FINAL>>>",
+                "<<<IMAGE_PROMPT_FINAL>>>prompt gambar final saja<<</IMAGE_PROMPT_FINAL>>>",
+                "Keluarkan hanya penanda prompt yang diminta oleh mode pilihan. Teks di dalam setiap penanda adalah prompt bersih final tanpa judul, bullet, label tambahan, maupun komentar. Untuk prompt gambar, gambarkan satu frame komposisi paling representatif, bukan rangkaian instruksi video.",
+                `Video yang dianalisis: ${videoAttachments.map(video => `${video.name} (${formatDuration(video.duration)}, ${video.frames.length} cuplikan bertimestamp)`).join("; ")}.`
+            ].join("\n\n")
+        };
+    }
+
     async function sendMessage(text, selectedAttachments) {
         const newMessage = buildUserMessage(text, selectedAttachments);
         appendMessage("user", text || "Lampiran", { attachments: selectedAttachments });
@@ -999,11 +1095,14 @@
             const token = data?.session?.access_token;
             if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login kembali.");
             pendingMessage = appendMessage("assistant", "", { typing: true });
+            const videoAttachments = selectedAttachments.filter(attachment => attachment.kind === "video");
+            const videoInstructions = buildVideoAnalysisInstructions(videoAttachments);
 
             const requestBody = JSON.stringify({
                 model: modelSelect.value,
                 messages: [
                     ...(repoContextMessage ? [{ role: "system", content: repoContextMessage }] : []),
+                    ...(videoInstructions ? [videoInstructions] : []),
                     ...messages.slice(-100),
                     newMessage
                 ],
@@ -1066,6 +1165,7 @@
         if (sent) {
             attachments = [];
             renderAttachments();
+            updateVideoOptions();
         } else {
             input.value = text;
             setReady(true);
@@ -1086,6 +1186,12 @@
     });
 
     attachButton.addEventListener("click", () => attachmentInput.click());
+    replaceCharacter.addEventListener("change", () => {
+        updateVideoOptions();
+    });
+    videoOutputMode.addEventListener("change", () => {
+        setReady(Boolean(modelSelect.value) && !requestPending);
+    });
     repoBrowseButton.addEventListener("click", browseRepository);
     repoSearch.addEventListener("input", () => {
         const search = repoSearch.value.trim().toLowerCase();
@@ -1150,6 +1256,10 @@
         messages = [];
         attachments = [];
         renderAttachments();
+        replaceCharacter.checked = false;
+        replacementCharacter.value = "";
+        videoOutputMode.value = "both";
+        updateVideoOptions();
         transcript.replaceChildren(welcome);
         welcome.hidden = false;
         setNotice("Percakapan baru siap.");

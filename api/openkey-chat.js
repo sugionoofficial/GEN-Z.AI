@@ -40,6 +40,8 @@ import openKeyStream
 import openKeyModels
     from "../provider/openkey/models.js";
 
+import { buildWebPageContext } from "../lib/web-page-context.js";
+
 
 /* =========================================================
    VERSION
@@ -3649,6 +3651,41 @@ export default async function handler(
     const wantsStream =
         body.stream === true ||
         body.stream === "true";
+
+    let webContext;
+    try {
+        webContext = await buildWebPageContext(body.messages);
+    } catch (error) {
+        return json(
+            res,
+            422,
+            {
+                success: false,
+                error: error.message || "URL web tidak dapat dibaca.",
+                code: "WEB_CONTEXT_FAILED"
+            }
+        );
+    }
+
+    if (webContext) {
+        const messages = Array.isArray(body.messages) ? body.messages.slice() : [];
+        let latestUserIndex = -1;
+        for (let index = messages.length - 1; index >= 0; index -= 1) {
+            if (messages[index]?.role === "user") {
+                latestUserIndex = index;
+                break;
+            }
+        }
+        if (latestUserIndex < 0) {
+            return json(res, 400, {
+                success: false,
+                error: "URL web harus dikirim dalam pesan pengguna.",
+                code: "WEB_CONTEXT_WITHOUT_USER_MESSAGE"
+            });
+        }
+        messages.splice(latestUserIndex, 0, webContext);
+        body.messages = messages;
+    }
 
 
     if (

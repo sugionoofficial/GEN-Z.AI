@@ -6,12 +6,14 @@ const moduleUrl = new URL('../api/openkey-chat.js', import.meta.url);
 const providerChatUrl = new URL('../provider/openkey/chat.js', import.meta.url).href;
 const providerStreamUrl = new URL('../provider/openkey/stream.js', import.meta.url).href;
 const providerModelsUrl = new URL('../provider/openkey/models.js', import.meta.url).href;
+const webPageContextUrl = new URL('../lib/web-page-context.js', import.meta.url).href;
 
 const source = await fs.readFile(moduleUrl, 'utf8');
 const rewrittenSource = source
   .replace(/from\s+"\.\.\/provider\/openkey\/chat\.js"/g, `from "${providerChatUrl}"`)
   .replace(/from\s+"\.\.\/provider\/openkey\/stream\.js"/g, `from "${providerStreamUrl}"`)
-  .replace(/from\s+"\.\.\/provider\/openkey\/models\.js"/g, `from "${providerModelsUrl}"`);
+  .replace(/from\s+"\.\.\/provider\/openkey\/models\.js"/g, `from "${providerModelsUrl}"`)
+  .replace(/from\s+"\.\.\/lib\/web-page-context\.js"/g, `from "${webPageContextUrl}"`);
 
 const module = await import(`data:text/javascript,${encodeURIComponent(rewrittenSource)}`);
 

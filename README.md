@@ -17,6 +17,7 @@
 | **Image → Video** | Hidupkan gambar statis menjadi video dinamis |
 | **Digital Human** | Talking avatar / lipsync dari gambar + audio |
 | **AI Vision** | Analisis gambar untuk mendukung proses creative |
+| **Live Chat AI** | Percakapan OpenKey, konteks URL publik, analisis video per detik, dan prompt final video/gambar yang dapat disalin terpisah |
 | **Credit System** | Sistem kredit berbasis resolusi (480p / 720p / 1080p) + discount |
 | **NSFW Filter** | Server-side content moderation (SightEngine) |
 | **Admin Panel** | Kelola user, model, kredit, dan provider credentials |
@@ -308,6 +309,12 @@ cd GEN-Z.AI
 node scripts/build-cloudflare-pages.mjs
 npx wrangler@4 dev
 ```
+
+Live Chat AI mengambil maksimal 30 cuplikan video (satu per detik) untuk analisis
+gerakan, lingkungan yang terlihat, sudut kamera, dan pencahayaan. Video di atas
+30 detik harus dipotong terlebih dahulu. Saat membuat prompt, pilih keluaran
+video/gambar dan, bila perlu, aktifkan opsi ganti karakter agar detail adegan
+lainnya tetap dipertahankan.
 
 ---
 
