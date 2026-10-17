@@ -12,7 +12,7 @@ test("adds the character reference photo to multimodal user content with a clear
 
     assert.equal(parts.length, 2);
     assert.match(parts[0].text, /REFERENSI KARAKTER BARU/);
-    assert.match(parts[0].text, /bukan frame dari video/);
+    assert.match(parts[0].text, /bukan foto sumber atau frame video/);
     assert.deepEqual(parts[1], {
         type: "image_url",
         image_url: { url: "data:image/jpeg;base64,reference" }

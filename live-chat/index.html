@@ -261,14 +261,14 @@
             <form class="composer-wrap" id="chatForm">
                 <p class="notice" id="notice" role="status">Sedang memuat sesi dan katalog model.</p>
                 <div class="attachment-list" id="attachmentList" aria-label="Lampiran yang akan dikirim" hidden></div>
-                <section class="video-options" id="videoOptions" aria-label="Opsi analisis video" hidden>
+                <section class="video-options" id="videoOptions" aria-label="Opsi analisis foto dan video" hidden>
                     <label class="video-option-label" for="videoOutputMode">
-                        Hasil analisis video
+                        <span id="videoOptionsTitle">Hasil analisis media</span>
                         <select class="video-option-input" id="videoOutputMode">
                             <option value="analysis">Analisis detail saja</option>
-                            <option value="video">Analisis + prompt video</option>
                             <option value="image">Analisis + prompt gambar</option>
-                            <option value="both" selected>Analisis + prompt video dan gambar</option>
+                            <option value="video">Analisis + prompt video</option>
+                            <option value="both" selected>Analisis + prompt gambar dan video</option>
                         </select>
                     </label>
                     <div>
@@ -287,7 +287,7 @@
                             <div class="character-image-preview" id="characterImagePreview" hidden></div>
                         </div>
                     </div>
-                    <p class="video-options-hint">Pilih model OpenKey multimodal yang mendukung input gambar. Analisis mencakup gerakan dan perubahan per detik, lingkungan/lokasi yang terlihat, sudut kamera, komposisi, dan pencahayaan. Maksimal 30 detik video; lokasi geografis tidak ditebak jika tidak tampak jelas.</p>
+                    <p class="video-options-hint" id="videoOptionsHint">Pilih model OpenKey multimodal yang mendukung input gambar.</p>
                 </section>
                 <div class="composer">
                     <textarea id="messageInput" rows="1" maxlength="12000" placeholder="Tulis pesan atau tempel URL halaman web..." aria-label="Tulis pesan atau URL halaman web" disabled></textarea>
@@ -306,6 +306,6 @@
     </main>
 
     <script src="/navigation/navigation.js?v=android-download-bridge-20261017"></script>
-    <script type="module" src="/live-chat/live-chat.js?v=openkey-catalog-loading-fix-20261017"></script>
+    <script type="module" src="/live-chat/live-chat.js?v=photo-analysis-options-20261017"></script>
 </body>
 </html>

@@ -1,10 +1,8 @@
 import { parseFinalPromptBlocks } from "./prompt-blocks.js";
 import { getVideoFrameTimestamps } from "./video-frames.js";
 import { buildMediaAnalysisGuidance } from "./media-analysis-guidance.js";
-import {
-    buildCharacterReferenceParts,
-    buildCharacterReplacementInstruction
-} from "./character-reference.js";
+import { buildMediaAnalysisInstructions } from "./media-analysis-prompts.js";
+import { buildCharacterReferenceParts } from "./character-reference.js";
 
 (() => {
     "use strict";
@@ -22,6 +20,8 @@ import {
     const attachmentList = document.getElementById("attachmentList");
     const videoOptions = document.getElementById("videoOptions");
     const videoOutputMode = document.getElementById("videoOutputMode");
+    const videoOptionsTitle = document.getElementById("videoOptionsTitle");
+    const videoOptionsHint = document.getElementById("videoOptionsHint");
     const replaceCharacter = document.getElementById("replaceCharacter");
     const characterField = document.getElementById("characterField");
     const replacementCharacter = document.getElementById("replacementCharacter");
@@ -158,12 +158,22 @@ import {
 
     function updateVideoOptions() {
         const hasVideo = attachments.some(attachment => attachment.kind === "video");
-        if (!hasVideo && replacementCharacterImage) {
+        const hasImage = attachments.some(attachment => attachment.kind === "image");
+        const hasVisualMedia = hasVideo || hasImage;
+        if (!hasVisualMedia && replacementCharacterImage) {
             replacementCharacterImage = null;
             renderCharacterImagePreview();
         }
-        if (!hasVideo) replaceCharacter.checked = false;
-        videoOptions.hidden = !hasVideo;
+        if (!hasVisualMedia) replaceCharacter.checked = false;
+        videoOptions.hidden = !hasVisualMedia;
+        videoOptionsTitle.textContent = hasVideo && hasImage
+            ? "Hasil analisis foto dan video"
+            : hasVideo
+                ? "Hasil analisis video"
+                : "Hasil analisis foto";
+        videoOptionsHint.textContent = hasVideo
+            ? "Pilih model OpenKey multimodal yang mendukung input gambar. Analisis video mencakup gerakan per detik; foto sumber juga dianalisis bila dilampirkan. Prompt gambar dan video dipisahkan agar dapat disalin sendiri-sendiri."
+            : "Pilih model OpenKey multimodal yang mendukung input gambar. Analisis foto mencakup karakter, pose, komposisi, latar, sudut kamera, dan pencahayaan. Prompt gambar dan video dipisahkan agar dapat disalin sendiri-sendiri.";
         characterField.hidden = !replaceCharacter.checked;
         characterImageField.hidden = !replaceCharacter.checked;
         setReady(Boolean(modelSelect.value) && !requestPending);
@@ -1099,43 +1109,11 @@ import {
         return { role: "user", content };
     }
 
-    function buildVideoAnalysisInstructions(videoAttachments) {
-        if (!videoAttachments.length) return null;
-
-        const modeLabels = {
-            analysis: "Berikan analisis terperinci saja; jangan keluarkan prompt final.",
-            video: "Berikan analisis terperinci dan satu prompt video final.",
-            image: "Berikan analisis terperinci dan satu prompt gambar final untuk satu frame/kunci yang paling representatif.",
-            both: "Berikan analisis terperinci, satu prompt video final, dan satu prompt gambar final untuk satu frame/kunci yang paling representatif."
-        };
-        const replacement = replaceCharacter.checked
-            ? buildCharacterReplacementInstruction({
-                description: replacementCharacter.value,
-                hasReferenceImage: Boolean(replacementCharacterImage)
-            })
-            : "Pertahankan karakter/objek utama asli; jangan mengganti identitas atau penampilannya.";
-
-        return {
-            role: "system",
-            content: [
-                "ANALISIS VIDEO TERPERINCI:",
-                "Video dilampirkan sebagai rangkaian cuplikan bertimestamp, satu cuplikan per detik, maksimal 30 detik. Analisis hanya hal yang tampak; cuplikan tidak menunjukkan setiap frame, jadi jangan mengarang gerakan yang tidak terlihat dan nyatakan ketidakpastian.",
-                "Susun analisis dengan bagian: (1) ringkasan adegan dan durasi, (2) tabel kronologis per detik dengan timestamp, gerakan/aksi karakter dan objek, perubahan posisi/blocking, lingkungan dan detail lokasi yang terlihat, framing/jarak shot, sudut kamera, gerak kamera, fokus/depth of field bila tampak, pencahayaan (arah, kualitas, warna, kontras), serta transisi/perubahan; (3) kontinuitas dan detail visual penting.",
-                "Jelaskan lokasi sebagai lingkungan yang terlihat (mis. interior/eksterior, jenis ruang, objek, latar, kondisi sekitar); jangan menebak nama tempat atau lokasi geografis bila tidak ada bukti visual.",
-                replacement,
-                modeLabels[videoOutputMode.value] || modeLabels.both,
-                "Jika diminta prompt final, tulis prompt yang langsung dapat ditempel ke generator, lengkap dan spesifik. Prompt final harus dipisahkan dari analisis dan dari penjelasan lain menggunakan tepat penanda berikut (jangan bungkus dengan code fence):",
-                "<<<VIDEO_PROMPT_FINAL>>>prompt video final saja<<</VIDEO_PROMPT_FINAL>>>",
-                "<<<IMAGE_PROMPT_FINAL>>>prompt gambar final saja<<</IMAGE_PROMPT_FINAL>>>",
-                "Keluarkan hanya penanda prompt yang diminta oleh mode pilihan. Teks di dalam setiap penanda adalah prompt bersih final tanpa judul, bullet, label tambahan, maupun komentar. Untuk prompt gambar, gambarkan satu frame komposisi paling representatif, bukan rangkaian instruksi video.",
-                `Video yang dianalisis: ${videoAttachments.map(video => `${video.name} (${formatDuration(video.duration)}, ${video.frames.length} cuplikan bertimestamp)`).join("; ")}.`
-            ].join("\n\n")
-        };
-    }
-
     async function sendMessage(text, selectedAttachments) {
-        const videoAttachments = selectedAttachments.filter(attachment => attachment.kind === "video");
-        const characterReference = videoAttachments.length && replaceCharacter.checked
+        const visualAttachments = selectedAttachments.filter(attachment =>
+            attachment.kind === "image" || attachment.kind === "video"
+        );
+        const characterReference = visualAttachments.length && replaceCharacter.checked
             ? replacementCharacterImage
             : null;
         const newMessage = buildUserMessage(text, selectedAttachments, characterReference);
@@ -1157,17 +1135,21 @@ import {
             const token = data?.session?.access_token;
             if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login kembali.");
             pendingMessage = appendMessage("assistant", "", { typing: true });
-            const videoInstructions = buildVideoAnalysisInstructions(videoAttachments);
-            const hasVisualAttachments = selectedAttachments.some(attachment =>
-                attachment.kind === "image" || attachment.kind === "video"
-            ) || Boolean(characterReference);
+            const mediaInstructions = buildMediaAnalysisInstructions({
+                mediaAttachments: visualAttachments,
+                outputMode: videoOutputMode.value,
+                replaceCharacter: replaceCharacter.checked,
+                replacementDescription: replacementCharacter.value,
+                hasCharacterReference: Boolean(characterReference)
+            });
+            const hasVisualAttachments = visualAttachments.length > 0 || Boolean(characterReference);
 
             const requestBody = JSON.stringify({
                 model: modelSelect.value,
                 messages: [
                     ...(repoContextMessage ? [{ role: "system", content: repoContextMessage }] : []),
                     ...(hasVisualAttachments ? [buildMediaAnalysisGuidance()] : []),
-                    ...(videoInstructions ? [videoInstructions] : []),
+                    ...(mediaInstructions ? [mediaInstructions] : []),
                     ...messages.slice(-100),
                     newMessage
                 ],

@@ -4,7 +4,7 @@ export function buildCharacterReferenceParts(referenceImage) {
     return [
         {
             type: "text",
-            text: "Foto berikut adalah REFERENSI KARAKTER BARU, bukan frame dari video. Analisis penampilan yang terlihat dan gunakan sebagai identitas karakter pengganti."
+            text: "Foto berikut adalah REFERENSI KARAKTER BARU, bukan foto sumber atau frame video yang dianalisis. Analisis penampilan yang terlihat dan gunakan sebagai identitas karakter pengganti."
         },
         {
             type: "image_url",
