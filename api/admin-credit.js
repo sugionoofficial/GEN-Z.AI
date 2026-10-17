@@ -11,7 +11,7 @@
 // - POST kurangi credit
 //
 // Menggunakan SUPABASE_SERVICE_ROLE_KEY
-// hanya di server Vercel.
+// hanya di server.
 //
 // JANGAN pernah memasukkan service role key
 // ke frontend.

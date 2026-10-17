@@ -146,7 +146,7 @@ async function parseResponseBody(
    REDACT SENSITIVE
    ---------------------------------------------------------
    Redact API key & token dari log supaya tidak bocor ke
-   Vercel Functions Log.
+   Cloudflare Workers Logs.
 ========================================================= */
 
 function redactSecrets(
@@ -469,7 +469,7 @@ function createProviderError(
        * HTTP status motiongen
        * Payload yang dikirim (secret di-redact)
        * Response body motiongen (secret di-redact)
-   - Log ini muncul di Vercel Functions Log.
+   - Log ini muncul di Cloudflare Workers Logs.
    - Setelah masalah selesai, log bisa dihapus.
 ========================================================= */
 
@@ -556,7 +556,7 @@ async function request(
 
 
     /* =====================================================
-       DEBUG LOG — HANYA MUNCUL DI VERCEL LOG
+       DEBUG LOG — HANYA MUNCUL DI CLOUDFLARE WORKERS LOGS
        ===================================================== */
 
     if (

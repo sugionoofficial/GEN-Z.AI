@@ -409,8 +409,8 @@ async function readBody(
 ) {
 
     /*
-     * Vercel biasanya sudah melakukan parsing
-     * JSON body.
+     * Adapter runtime dapat mengirim JSON body
+     * yang sudah diparse.
      */
 
     if (

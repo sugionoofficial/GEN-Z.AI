@@ -33,7 +33,7 @@
 const GENZ_CONFIG = Object.freeze({
 
     SITE_URL:
-        "https://genzai-steel.vercel.app",
+        window.location.origin,
 
     SUPABASE_URL:
         "https://boeamhglmvkatnycluaa.supabase.co",

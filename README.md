@@ -183,10 +183,11 @@ untuk menerbitkan Worker dan route API.
 
 ### Email Link Authentication
 
-Set `SITE_URL` in `assets/js/config.js` to the Cloudflare production site origin.
-In Supabase Authentication URL Configuration, set the same origin as the Site
-URL and add `<production-site-origin>/login.html` as a Redirect URL so email
-sign-in and signup links return to the deployed site rather than localhost.
+`SITE_URL` in `assets/js/config.js` uses the current site origin, including the
+Cloudflare production domain. In Supabase Authentication URL Configuration,
+set the production origin as the Site URL and add
+`<production-site-origin>/login.html` as a Redirect URL so email sign-in and
+signup links return to the deployed site.
 
 ### Live Support Chat
 

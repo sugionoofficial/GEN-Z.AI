@@ -700,8 +700,8 @@ async function createVidDraGeneration(
      * -------------------------------------------------------
      * Compatibility fallback.
      *
-     * Ini menjaga deployment lama tetap dapat berjalan
-     * apabila VIDDRA_API_KEY masih tersedia di Vercel.
+     * Ini menjaga deployment tetap dapat berjalan apabila
+     * VIDDRA_API_KEY tersedia di environment server.
      *
      * Tetapi API key user selalu diprioritaskan.
      * -------------------------------------------------------
