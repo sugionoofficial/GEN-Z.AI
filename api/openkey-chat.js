@@ -40,7 +40,11 @@ import openKeyStream
 import openKeyModels
     from "../provider/openkey/models.js";
 
-import { buildWebPageContext } from "../lib/web-page-context.js";
+import {
+    applyWebPageContext,
+    buildWebPageContext
+} from "../lib/web-page-context.js";
+import { buildMediaAnalysisGuidance } from "../lib/media-analysis-guidance.js";
 
 
 /* =========================================================
@@ -3661,30 +3665,24 @@ export default async function handler(
             422,
             {
                 success: false,
-                error: error.message || "URL web tidak dapat dibaca.",
+                error: error.message || "Pencarian web atau URL tidak dapat dibaca.",
                 code: "WEB_CONTEXT_FAILED"
             }
         );
     }
 
     if (webContext) {
-        const messages = Array.isArray(body.messages) ? body.messages.slice() : [];
-        let latestUserIndex = -1;
-        for (let index = messages.length - 1; index >= 0; index -= 1) {
-            if (messages[index]?.role === "user") {
-                latestUserIndex = index;
-                break;
-            }
-        }
-        if (latestUserIndex < 0) {
+        if (!body.messages.some(message => message?.role === "user")) {
             return json(res, 400, {
                 success: false,
                 error: "URL web harus dikirim dalam pesan pengguna.",
                 code: "WEB_CONTEXT_WITHOUT_USER_MESSAGE"
             });
         }
-        messages.splice(latestUserIndex, 0, webContext);
-        body.messages = messages;
+        body.messages = applyWebPageContext(body.messages, webContext);
+        if (webContext.imageParts?.length) {
+            body.messages.unshift(buildMediaAnalysisGuidance());
+        }
     }
 
 

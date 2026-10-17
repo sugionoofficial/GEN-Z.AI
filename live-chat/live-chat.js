@@ -1,5 +1,6 @@
 import { parseFinalPromptBlocks } from "./prompt-blocks.js";
 import { getVideoFrameTimestamps } from "./video-frames.js";
+import { buildMediaAnalysisGuidance } from "../lib/media-analysis-guidance.js";
 import {
     buildCharacterReferenceParts,
     buildCharacterReplacementInstruction
@@ -1156,11 +1157,15 @@ import {
             if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login kembali.");
             pendingMessage = appendMessage("assistant", "", { typing: true });
             const videoInstructions = buildVideoAnalysisInstructions(videoAttachments);
+            const hasVisualAttachments = selectedAttachments.some(attachment =>
+                attachment.kind === "image" || attachment.kind === "video"
+            ) || Boolean(characterReference);
 
             const requestBody = JSON.stringify({
                 model: modelSelect.value,
                 messages: [
                     ...(repoContextMessage ? [{ role: "system", content: repoContextMessage }] : []),
+                    ...(hasVisualAttachments ? [buildMediaAnalysisGuidance()] : []),
                     ...(videoInstructions ? [videoInstructions] : []),
                     ...messages.slice(-100),
                     newMessage
