@@ -3689,6 +3689,37 @@ function debugMergedModels(
    LOAD MODELS
 ========================================================= */
 
+async function loadAuthenticatedModels(
+    options = {}
+) {
+
+    const authenticatedResponse =
+        await openKeyClient.listModels(
+            options.apiKey ?? null
+        );
+
+    const models =
+        normalizeModels(
+            authenticatedResponse
+        );
+
+    if (
+        !models.length
+    ) {
+
+        throw new Error(
+            "OpenKey tidak mengembalikan daftar model yang tersedia untuk credential ini."
+        );
+
+    }
+
+    return sortModels(
+        models
+    );
+
+}
+
+
 async function loadModels(
     options = {}
 ) {
@@ -4542,6 +4573,8 @@ const OpenKeyModels = {
 
     loadModels,
 
+    loadAuthenticatedModels,
+
     refreshModels,
 
     clearCache,
@@ -4647,6 +4680,8 @@ export {
 
 
     loadModels,
+
+    loadAuthenticatedModels,
 
     refreshModels,
 

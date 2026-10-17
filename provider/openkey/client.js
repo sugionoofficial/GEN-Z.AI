@@ -508,6 +508,18 @@ async function request(
 
     };
 
+    if (
+        Number.isFinite(options.timeoutMs) &&
+        options.timeoutMs > 0
+    ) {
+
+        requestOptions.signal =
+            AbortSignal.timeout(
+                options.timeoutMs
+            );
+
+    }
+
 
     if (
         options.body !== undefined
@@ -541,12 +553,16 @@ async function request(
 
         throw createOpenKeyError(
 
-            `Gagal terhubung ke OpenKey: ${error.message}`,
+            error?.name === "TimeoutError" || error?.name === "AbortError"
+                ? "Waktu tunggu permintaan OpenKey habis."
+                : `Gagal terhubung ke OpenKey: ${error.message}`,
 
             {
 
                 code:
-                    "OPENKEY_NETWORK_ERROR",
+                    error?.name === "TimeoutError" || error?.name === "AbortError"
+                        ? "OPENKEY_TIMEOUT_ERROR"
+                        : "OPENKEY_NETWORK_ERROR",
 
                 cause:
                     error
@@ -641,7 +657,10 @@ async function listModels(
             method:
                 "GET",
 
-            apiKey
+            apiKey,
+
+            timeoutMs:
+                15000
 
         }
 

@@ -183,7 +183,8 @@ import {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`
             },
-            body: JSON.stringify({ operation: "openkey_models" })
+            body: JSON.stringify({ operation: "openkey_models" }),
+            signal: AbortSignal.timeout(25000)
         });
         const data = await response.json().catch(() => null);
         if (!response.ok || data?.success !== true) {
@@ -1392,7 +1393,10 @@ import {
             setNotice("Katalog model siap. Mulai percakapan.");
         } catch (error) {
             catalogStatus.textContent = "Tidak tersedia";
-            setNotice(error.message || "Gagal memuat live chat.", true);
+            const errorMessage = error.name === "TimeoutError" || error.name === "AbortError"
+                ? "Waktu tunggu memuat model OpenKey habis. Periksa koneksi lalu coba lagi."
+                : error.message || "Gagal memuat live chat.";
+            setNotice(errorMessage, true);
             const retry = document.createElement("button");
             retry.className = "text-button";
             retry.type = "button";

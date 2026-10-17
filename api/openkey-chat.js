@@ -1484,7 +1484,7 @@ async function handleOpenKeyModelsOperation(
 ) {
 
     const models =
-        await openKeyModels.loadModels({
+        await openKeyModels.loadAuthenticatedModels({
 
             apiKey
 
