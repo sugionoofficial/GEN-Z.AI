@@ -26,7 +26,7 @@ const downloadModule = await import(
 
 const { state } = stateModule;
 
-test("downloads the cleaned Blob even when the preview URL is absent", () => {
+test("downloads the cleaned Blob even when the preview URL is absent", async () => {
     const blob = new Blob(["cleaned content"], { type: "video/mp4" });
     const originalCreateObjectURL = URL.createObjectURL;
     const originalRevokeObjectURL = URL.revokeObjectURL;
@@ -72,7 +72,7 @@ test("downloads the cleaned Blob even when the preview URL is absent", () => {
     state.cleanedFile = null;
 
     try {
-        assert.equal(downloadModule.downloadCleanedFile(), true);
+        assert.equal(await downloadModule.downloadCleanedFile(), true);
         assert.equal(createdBlob, blob);
         assert.equal(document.body.anchor.href, "blob:download-result");
         assert.equal(document.body.anchor.download, "clip_cleaned.mp4");
@@ -91,16 +91,49 @@ test("downloads the cleaned Blob even when the preview URL is absent", () => {
     }
 });
 
-test("reports when the cleaned Blob is unavailable", () => {
+test("reports when the cleaned Blob is unavailable", async () => {
     const originalCleanedBlob = state.cleanedBlob;
     const originalConsoleError = console.error;
     state.cleanedBlob = null;
     console.error = () => {};
 
     try {
-        assert.equal(downloadModule.downloadCleanedFile(), false);
+        assert.equal(await downloadModule.downloadCleanedFile(), false);
     } finally {
         state.cleanedBlob = originalCleanedBlob;
         console.error = originalConsoleError;
+    }
+});
+
+test("sends cleaned Blob data to the Android download manager", async () => {
+    const blob = new Blob(["native cleaned content"], { type: "image/jpeg" });
+    const originalBridge = window.GENZAndroidDownloads;
+    const originalMobileDownload = window.GENZMobileDownload;
+    const originalFile = state.file;
+    const originalCleanedBlob = state.cleanedBlob;
+    const originalCleanedFile = state.cleanedFile;
+    let savedBlob;
+    let savedFileName;
+
+    window.GENZAndroidDownloads = {};
+    window.GENZMobileDownload = async (value, fileName) => {
+        savedBlob = value;
+        savedFileName = fileName;
+        return true;
+    };
+    state.file = { name: "photo.jpg" };
+    state.cleanedBlob = blob;
+    state.cleanedFile = null;
+
+    try {
+        assert.equal(await downloadModule.downloadCleanedFile(), true);
+        assert.equal(savedBlob, blob);
+        assert.equal(savedFileName, "photo_cleaned.jpg");
+    } finally {
+        window.GENZAndroidDownloads = originalBridge;
+        window.GENZMobileDownload = originalMobileDownload;
+        state.file = originalFile;
+        state.cleanedBlob = originalCleanedBlob;
+        state.cleanedFile = originalCleanedFile;
     }
 });

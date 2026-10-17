@@ -22,7 +22,86 @@ import {
    DOWNLOAD CLEANED FILE
 ========================================================= */
 
-function downloadCleanedFile() {
+async function saveBlobInAndroid(
+    blob,
+    fileName
+) {
+
+    const bridge =
+        window.GENZAndroidDownloads;
+
+    if (!bridge) {
+        return null;
+    }
+
+    if (
+        typeof window.GENZMobileDownload ===
+        "function"
+    ) {
+        return window.GENZMobileDownload(
+            blob,
+            fileName
+        );
+    }
+
+    const downloadId =
+        bridge.beginBlobDownload(
+            fileName,
+            blob.type || "application/octet-stream"
+        );
+
+    if (!downloadId) {
+        throw new Error(
+            "Android gagal menyiapkan file unduhan."
+        );
+    }
+
+    try {
+        const chunkSize = 48 * 1024;
+
+        for (
+            let offset = 0;
+            offset < blob.size;
+            offset += chunkSize
+        ) {
+            const bytes = new Uint8Array(
+                await blob
+                    .slice(offset, Math.min(offset + chunkSize, blob.size))
+                    .arrayBuffer()
+            );
+
+            let binary = "";
+            for (const byte of bytes) {
+                binary += String.fromCharCode(byte);
+            }
+
+            if (
+                !bridge.writeBlobChunk(
+                    downloadId,
+                    window.btoa(binary)
+                )
+            ) {
+                throw new Error(
+                    "Android gagal menerima isi file unduhan."
+                );
+            }
+        }
+
+        if (!bridge.finishBlobDownload(downloadId)) {
+            throw new Error(
+                "Android gagal menyimpan file unduhan."
+            );
+        }
+
+        return true;
+    } catch (error) {
+        bridge.cancelBlobDownload(downloadId);
+        throw error;
+    }
+}
+
+
+async function downloadCleanedFile() {
 
     if (!state.cleanedBlob) {
 
@@ -33,6 +112,38 @@ function downloadCleanedFile() {
         return false;
     }
 
+    const fileName =
+        state.cleanedFile?.name ||
+        createCleanedFilename(
+            state.file?.name ||
+            "media"
+        );
+
+    if (window.GENZAndroidDownloads) {
+        try {
+            const saved =
+                await saveBlobInAndroid(
+                    state.cleanedBlob,
+                    fileName
+                );
+
+            if (saved !== true) {
+                throw new Error(
+                    "File tidak berhasil disimpan di perangkat."
+                );
+            }
+
+            return true;
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI][DOWNLOAD] Android gagal menyimpan hasil cleaning.",
+                error
+            );
+            window.GENZAndroidDownloads
+                .notifyDownloadFailure?.();
+            return false;
+        }
+    }
 
     let downloadURL;
 
@@ -53,11 +164,7 @@ function downloadCleanedFile() {
 
 
         anchor.download =
-            state.cleanedFile?.name ||
-            createCleanedFilename(
-                state.file?.name ||
-                "media"
-            );
+            fileName;
 
 
         anchor.style.display =

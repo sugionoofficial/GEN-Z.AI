@@ -759,7 +759,18 @@ function onDownload(
 
     try {
 
-        callback();
+        Promise.resolve(
+            callback()
+        ).catch(
+            error => {
+
+                console.error(
+                    "[GEN-Z.AI] Download error:",
+                    error
+                );
+
+            }
+        );
 
     } catch (
         error

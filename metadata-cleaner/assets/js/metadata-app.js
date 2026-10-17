@@ -46,7 +46,7 @@ import {
 
 import {
     bindMetadataEvents
-} from "./metadata-events.js";
+} from "./metadata-events.js?v=android-blob-download-20261017";
 
 
 import {
@@ -77,7 +77,7 @@ import {
 
 import {
     downloadCleanedFile
-} from "./metadata-download.js";
+} from "./metadata-download.js?v=android-blob-download-20261017";
 
 
 import {
