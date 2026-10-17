@@ -2,10 +2,10 @@
 
 **Create Without Limits** — AI Creative Platform untuk generate video, image-to-video, digital human, dan AI vision dalam satu engine.
 
-**Live Demo:** [https://genzai-steel.vercel.app](https://genzai-steel.vercel.app)
+**Deployment:** Cloudflare Worker (`genzai`)
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](LICENSE)
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black)](https://genzai-steel.vercel.app)
+[![Deployed on Cloudflare Workers](https://img.shields.io/badge/Deployed%20on-Cloudflare%20Workers-orange)](https://workers.cloudflare.com/)
 
 ---
 
@@ -26,13 +26,13 @@
 ## Tech Stack
 
 - **Frontend**: Static HTML / CSS / Vanilla JS
-- **Backend**: Vercel Serverless Functions (Node.js), with Cloudflare Workers migration scaffold
+- **Backend**: Cloudflare Workers (Node.js compatibility)
 - **Database & Auth**: Supabase (Auth, PostgreSQL, RPC)
 - **Providers**:
   - KIE.AI (Grok Imagine, Seedance 2.5)
   - Motiongen-AI (Digital Human LipSync)
 - **Content Safety**: SightEngine
-- **Deployment**: Vercel
+- **Deployment**: Cloudflare Workers, deployed through GitHub Actions
 
 ---
 
@@ -106,7 +106,7 @@ models/<model-name>/
 
 ```
 GEN-Z.AI/
-├── api/                          # Vercel Serverless Functions
+├── api/                          # API handlers routed by the Cloudflare Worker
 │   ├── generate.js               # POST /api/generate
 │   ├── generate-status.js        # Query generation status
 │   ├── model-config.js           # Model configuration
@@ -132,7 +132,8 @@ GEN-Z.AI/
 
 ## Environment Variables
 
-Buat file `.env` (atau set di Vercel Project Settings):
+Buat file `.dev.vars` untuk pengembangan lokal. Untuk production, atur
+variables dan secrets di Cloudflare Worker → Settings → Variables and Secrets.
 
 ```env
 # Supabase
@@ -149,8 +150,9 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-secret-key
 ```
 
 > **Penting**: Jangan pernah commit `.env` atau service role key ke repository.
-> `SUPABASE_ANON_KEY` harus berasal dari project yang sama dengan `SUPABASE_URL`;
-> simpan sebagai environment variable server-side, bukan di repository.
+> `SUPABASE_ANON_KEY` harus berasal dari project yang sama dengan `SUPABASE_URL`.
+> Jangan commit `.dev.vars`; `SUPABASE_SERVICE_ROLE_KEY` wajib disimpan sebagai
+> secret dan tidak boleh dikirim ke browser atau repository.
 
 ---
 
@@ -159,25 +161,31 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-secret-key
 ### Prerequisites
 
 - Node.js 18+
-- Akun Vercel
+- Akun Cloudflare dengan izin deploy Workers
+- Repository GitHub dengan GitHub Actions aktif
 - Project Supabase
 - API key dari provider (KIE.AI / Motiongen)
 
-### Deploy ke Vercel
+### Deploy ke Cloudflare Workers
 
-1. Fork / clone repository ini
-2. Import project ke [Vercel](https://vercel.com)
-3. Set environment variables di Project Settings → Environment Variables
-4. Deploy
+1. Fork atau clone repository ini dan hubungkan repository ke workflow GitHub Actions.
+2. Tambahkan repository secret `CLOUDFLARE_API_TOKEN` dengan izin deploy Worker
+   pada akun yang ditetapkan di `wrangler.toml`.
+3. Atur runtime variables dan secrets pada Cloudflare Worker `genzai` melalui
+   **Settings → Variables and Secrets**. Tambahkan juga konfigurasi Preview jika
+   menggunakan environment Preview.
+4. Push ke branch `main`, atau jalankan workflow
+   `.github/workflows/deploy-cloudflare-worker.yml` secara manual dari tab Actions.
 
-Vercel akan otomatis mendeteksi folder `api/` sebagai serverless functions.
+Workflow membangun aset statis ke `dist/`, lalu menjalankan `wrangler deploy`
+untuk menerbitkan Worker dan route API.
 
 ### Email Link Authentication
 
-Set `SITE_URL` in `assets/js/config.js` to the deployed site origin. In
-Supabase Authentication URL Configuration, set the same origin as the Site URL
-and allow `https://genzai-steel.vercel.app/login.html` as a Redirect URL so
-email sign-in and signup links return to the deployed site rather than localhost.
+Set `SITE_URL` in `assets/js/config.js` to the Cloudflare production site origin.
+In Supabase Authentication URL Configuration, set the same origin as the Site
+URL and add `<production-site-origin>/login.html` as a Redirect URL so email
+sign-in and signup links return to the deployed site rather than localhost.
 
 ### Live Support Chat
 
@@ -244,12 +252,11 @@ Jika user sedang logout saat informasi diterbitkan, informasi aktif akan muncul
 otomatis segera setelah ia login dan navigasi akun siap, selama belum
 kedaluwarsa atau dikonfirmasi pada perangkat tersebut.
 
-### Cloudflare Workers (migrasi bertahap)
+### Konfigurasi Cloudflare Workers
 
 Repository ini menyediakan konfigurasi Cloudflare Worker yang menayangkan aset
-frontend dari `dist/` dan membungkus endpoint API yang sebelumnya menggunakan
-format handler Vercel. Pertahankan deployment Vercel sampai semua endpoint dan
-provider sudah diuji di Cloudflare.
+frontend dari `dist/` dan merutekan endpoint API melalui Worker. Cloudflare
+Worker `genzai` adalah target deployment production.
 
 1. Tambahkan GitHub Actions repository secret `CLOUDFLARE_API_TOKEN` dengan
    token yang memiliki izin deploy Workers pada akun Cloudflare yang ditetapkan
@@ -279,30 +286,27 @@ provider sudah diuji di Cloudflare.
    fine-grained token). The upscale handler reads Worker bindings at request
    time; `GITHUB_OWNER` and `GITHUB_REPO` default to `sugionoofficial` and
    `GEN-Z.AI`, so they only need to be overridden for another repository.
-5. Uji login, generate/status, admin, Viddra, OpenKey streaming, serta integrasi
-   provider pada URL preview sebelum mengalihkan domain production.
+5. Setelah deployment, uji login, generate/status, admin, Viddra, OpenKey
+   streaming, serta integrasi provider pada domain production.
 
 `wrangler.toml` menetapkan entry point Worker, kompatibilitas runtime Node, serta
 aset statis. Jangan commit secret atau menyalin `.env.local` ke output; masukkan
 nilai secret langsung melalui pengaturan Cloudflare. Push ke `main` memicu
 GitHub Actions untuk build dan deploy Worker.
 
-### Local Development
+### Pengembangan Lokal
 
 ```bash
 # Clone
 git clone https://github.com/sugionoofficial/GEN-Z.AI.git
 cd GEN-Z.AI
 
-# Install Vercel CLI (jika belum)
-npm i -g vercel
+# Buat .dev.vars berisi konfigurasi Supabase dan provider untuk development.
+# Jangan commit file ini; gunakan nilai development, bukan production secrets.
 
-# Link project & pull env
-vercel link
-vercel env pull .env.local
-
-# Run local
-vercel dev
+# Build aset statis dan jalankan Worker lokal
+node scripts/build-cloudflare-pages.mjs
+npx wrangler@4 dev
 ```
 
 ---
