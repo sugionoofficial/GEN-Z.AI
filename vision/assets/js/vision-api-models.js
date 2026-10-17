@@ -698,6 +698,46 @@ function supportsImageInput(
 
         ]);
 
+    const inputValues = [];
+    const inputFields = [
+        "input",
+        "inputs",
+        "input_type",
+        "input_types",
+        "inputType",
+        "inputTypes",
+        "input_modalities",
+        "inputModalities",
+        "supported_input",
+        "supported_inputs",
+        "supportedInput",
+        "supportedInputs",
+        "supported_input_types",
+        "supportedInputTypes",
+        "accepted_inputs",
+        "acceptedInputs"
+    ];
+
+    [model, model.raw].forEach(source => {
+        if (!source || typeof source !== "object") return;
+        inputFields.forEach(key => {
+            if (Object.prototype.hasOwnProperty.call(source, key)) {
+                collectModalityValues(source[key], inputValues);
+            }
+        });
+    });
+
+    if (
+        inputValues.length &&
+        inputValues.every(value =>
+            ["text", "text-only", "text only", "text_input", "text input"].includes(
+                String(value).trim().toLowerCase()
+            )
+        )
+    ) {
+        return false;
+    }
+
 
     const imageIndicators = [
 
@@ -737,6 +777,20 @@ function supportsImageInput(
 
     }
 
+    const modelIdentity = [
+        normalized.id,
+        normalized.name
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+    if (
+        /(?:grok(?:-\d+(?:\.\d+)?(?:-[a-z0-9.]+)*)?|gemini(?:-[a-z0-9.]+)*|gpt-4o(?:-[a-z0-9.]+)*|gpt-4\.1(?:-[a-z0-9.]+)*|gpt-5(?:-[a-z0-9.]+)*|claude-(?:3|4)(?:-[a-z0-9.]+)*|qwen[^ ]*-(?:vl|vision)(?:-[a-z0-9.]+)*|pixtral(?:-[a-z0-9.]+)*|llava(?:-[a-z0-9.]+)*|llama-3\.2-vision(?:-[a-z0-9.]+)*|llama-4-(?:scout|maverick)(?:-[a-z0-9.]+)*|internvl(?:-[a-z0-9.]+)*|molmo(?:-[a-z0-9.]+)*|minicpm-v(?:-[a-z0-9.]+)*|phi-[a-z0-9.]*vision(?:-[a-z0-9.]+)*|deepseek-vl(?:-[a-z0-9.]+)*)/i.test(modelIdentity) &&
+        !/(?:embedding|embed|moderation|text-only|text_only|tts|transcription)/i.test(modelIdentity)
+    ) {
+        return true;
+    }
 
     return isOpenKeyDocumentedVisionModel(
         normalized
