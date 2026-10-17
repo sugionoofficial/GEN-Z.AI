@@ -1044,6 +1044,61 @@
         }
 
 
+        const inputValues = [];
+        const inputFields = [
+            "input",
+            "inputs",
+            "input_type",
+            "input_types",
+            "inputType",
+            "inputTypes",
+            "input_modalities",
+            "inputModalities",
+            "supported_input",
+            "supported_inputs",
+            "supportedInput",
+            "supportedInputs",
+            "supported_input_types",
+            "supportedInputTypes",
+            "accepted_inputs",
+            "acceptedInputs"
+        ];
+
+        [model, model.raw].forEach(source => {
+            if (!source || typeof source !== "object") return;
+            inputFields.forEach(key => {
+                if (Object.prototype.hasOwnProperty.call(source, key)) {
+                    collectValues(source[key], inputValues);
+                }
+            });
+        });
+
+        const explicitlyTextOnly = inputValues.length > 0 &&
+            inputValues.every(value =>
+                ["text", "text-only", "text only", "text_input", "text input"].includes(
+                    String(value).trim().toLowerCase()
+                )
+            );
+        if (explicitlyTextOnly) return false;
+
+        const modelIdentity = [
+            model.id,
+            model.name,
+            model.model_id,
+            model.model_name
+        ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+        if (
+            /(?:gemini|gpt-4o|gpt-4\.1|gpt-5(?:[-.]|$)|claude-(?:3|4)(?:[-.]|$)|qwen[^ ]*-(?:vl|vision)|pixtral|llava|llama-3\.2-vision|llama-4-(?:scout|maverick)|internvl|molmo|minicpm-v|phi-[^ ]*vision)/i.test(modelIdentity) &&
+            !/(?:embedding|embed|moderation|text-only|text_only|tts)/i.test(modelIdentity)
+        ) {
+            return true;
+        }
+
+
         /* =================================================
            SERIALIZED FALLBACK
         ================================================= */
