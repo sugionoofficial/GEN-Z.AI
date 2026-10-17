@@ -396,6 +396,15 @@
             z-index:1;
         }
 
+        .video-preview video {
+            pointer-events:none;
+        }
+
+        .video-preview.is-playing .play {
+            opacity:0;
+            pointer-events:none;
+        }
+
         .video-type {
             position:absolute;
             left:10px;
@@ -426,6 +435,7 @@
             text-decoration:none;
             box-shadow:0 8px 25px rgba(0,0,0,.2);
             z-index:3;
+            transition:opacity .2s ease;
         }
 
         .video-info {
@@ -1696,6 +1706,9 @@
             class="example-preview-video"
             id="examplePreviewVideo"
             controls
+            controlslist="nodownload noplaybackrate"
+            disablepictureinpicture
+            disableremoteplayback
             playsinline
         ></video>
 
@@ -1813,6 +1826,14 @@ let activeCategory =
     "all";
 
 let toastTimer = null;
+let mobilePreviewObserver = null;
+let mobilePreviewCandidates = new Set();
+let mobilePreviewFrame = null;
+
+const mobilePreviewMedia =
+    window.matchMedia(
+        "(hover: none) and (pointer: coarse)"
+    );
 
 
 /* =========================================================
@@ -2415,6 +2436,7 @@ function renderVideos() {
     if (!filtered.length) {
 
         renderEmpty();
+        observeMobileVideoPreviews();
 
         return;
     }
@@ -2426,6 +2448,189 @@ function renderVideos() {
                 renderVideoCard
             )
             .join("");
+
+    observeMobileVideoPreviews();
+}
+
+
+function stopInlinePreview(video) {
+
+    if (!video) {
+        return;
+    }
+
+    video.pause();
+    if (video.readyState > 0) {
+        video.currentTime = 0;
+    }
+    video.closest(".video-preview")
+        ?.classList.remove("is-playing");
+}
+
+
+function scheduleCenteredPreview() {
+
+    if (
+        mobilePreviewFrame !== null
+    ) {
+        return;
+    }
+
+    mobilePreviewFrame =
+        window.requestAnimationFrame(
+            () => {
+
+                mobilePreviewFrame = null;
+
+                if (
+                    !mobilePreviewMedia.matches ||
+                    !elements.examplePreviewModal.classList.contains("hidden")
+                ) {
+                    mobilePreviewCandidates.forEach(
+                        stopInlinePreview
+                    );
+                    return;
+                }
+
+                const viewportCenter =
+                    window.innerHeight / 2;
+
+                let centeredVideo = null;
+                let centerDistance = Infinity;
+
+                mobilePreviewCandidates.forEach(
+                    video => {
+
+                        if (!video.isConnected) {
+                            mobilePreviewCandidates.delete(video);
+                            return;
+                        }
+
+                        const bounds =
+                            video.getBoundingClientRect();
+
+                        const intersectsCenterZone =
+                            bounds.bottom > window.innerHeight * 0.38 &&
+                            bounds.top < window.innerHeight * 0.62;
+
+                        if (!intersectsCenterZone) {
+                            stopInlinePreview(video);
+                            return;
+                        }
+
+                        const distance =
+                            Math.abs(
+                                bounds.top +
+                                bounds.height / 2 -
+                                viewportCenter
+                            );
+
+                        if (distance < centerDistance) {
+                            centerDistance = distance;
+                            centeredVideo = video;
+                        }
+                    }
+                );
+
+                mobilePreviewCandidates.forEach(
+                    video => {
+
+                        if (video !== centeredVideo) {
+                            stopInlinePreview(video);
+                            return;
+                        }
+
+                        video.muted = true;
+                        if (!video.paused) {
+                            return;
+                        }
+
+                        video.play()
+                            .then(
+                                () => {
+                                    if (!video.paused) {
+                                        video.closest(".video-preview")
+                                            ?.classList.add("is-playing");
+                                    }
+                                }
+                            )
+                            .catch(
+                                error => {
+                                    if (error?.name !== "NotAllowedError") {
+                                        console.warn(
+                                            "[GEN-Z.AI UserDashboard] Preview video gagal diputar:",
+                                            error
+                                        );
+                                    }
+                                }
+                            );
+                    }
+                );
+            }
+        );
+}
+
+
+function observeMobileVideoPreviews() {
+
+    if (mobilePreviewObserver) {
+        mobilePreviewObserver.disconnect();
+    }
+
+    mobilePreviewCandidates.forEach(
+        stopInlinePreview
+    );
+    mobilePreviewCandidates.clear();
+
+    if (!mobilePreviewMedia.matches) {
+        return;
+    }
+
+    const previewVideos =
+        elements.videoGrid.querySelectorAll(
+            "[data-example-video]"
+        );
+
+    if (
+        typeof window.IntersectionObserver !== "function"
+    ) {
+        previewVideos.forEach(
+            video => mobilePreviewCandidates.add(video)
+        );
+        scheduleCenteredPreview();
+        return;
+    }
+
+    mobilePreviewObserver =
+        new IntersectionObserver(
+            entries => {
+
+                entries.forEach(
+                    entry => {
+
+                        const video =
+                            entry.target;
+
+                        if (entry.isIntersecting) {
+                            mobilePreviewCandidates.add(video);
+                        } else {
+                            mobilePreviewCandidates.delete(video);
+                            stopInlinePreview(video);
+                        }
+                    }
+                );
+
+                scheduleCenteredPreview();
+            },
+            {
+                rootMargin: "-38% 0px -38% 0px",
+                threshold: 0
+            }
+        );
+
+    previewVideos.forEach(
+            video => mobilePreviewObserver.observe(video)
+        );
 }
 
 
@@ -2478,30 +2683,34 @@ function renderVideoCard(
             : "HIDDEN";
 
 
-    let media = "";
-
-
-    if (thumbnailUrl) {
-
-        media = `
-            <img
-                src="${escapeAttribute(thumbnailUrl)}"
-                alt="${title}"
-                loading="lazy"
-            >
-        `;
-
-    } else if (videoUrl) {
-
-        media = `
-            <video
-                src="${escapeAttribute(videoUrl)}"
-                preload="metadata"
-                muted
-                playsinline
-            ></video>
-        `;
-    }
+    const media =
+        videoUrl
+            ? `
+                <video
+                    src="${escapeAttribute(videoUrl)}"
+                    ${thumbnailUrl
+                        ? `poster="${escapeAttribute(thumbnailUrl)}"`
+                        : ""}
+                    preload="none"
+                    muted
+                    playsinline
+                    loop
+                    controlslist="nodownload"
+                    disablepictureinpicture
+                    disableremoteplayback
+                    data-example-video
+                    aria-label="Preview ${title}"
+                ></video>
+            `
+            : thumbnailUrl
+                ? `
+                    <img
+                        src="${escapeAttribute(thumbnailUrl)}"
+                        alt="${title}"
+                        loading="lazy"
+                    >
+                `
+                : "";
 
 
     const editActions =
@@ -2944,6 +3153,10 @@ function openExamplePreview(
         return;
     }
 
+    elements.videoGrid
+        .querySelectorAll("[data-example-video]")
+        .forEach(stopInlinePreview);
+
     elements.examplePreviewTitle.textContent =
         video.title || "Contoh Video";
     elements.examplePreviewVideo.src =
@@ -2977,6 +3190,8 @@ function closeExamplePreview() {
     elements.examplePreviewModal.classList.add(
         "hidden"
     );
+
+    scheduleCenteredPreview();
 }
 
 
@@ -3672,6 +3887,124 @@ elements.videoGrid.addEventListener(
         }
 
     }
+);
+
+
+elements.videoGrid.addEventListener(
+    "pointerover",
+    event => {
+
+        if (mobilePreviewMedia.matches) {
+            return;
+        }
+
+        const preview =
+            event.target.closest(".video-preview");
+
+        const video =
+            preview?.querySelector("[data-example-video]");
+
+        if (
+            !video ||
+            preview.contains(event.relatedTarget)
+        ) {
+            return;
+        }
+
+        video.muted = true;
+        video.play()
+            .then(
+                () => {
+                    if (!video.paused) {
+                        video.closest(".video-preview")
+                            ?.classList.add("is-playing");
+                    }
+                }
+            )
+            .catch(
+                error => {
+                    if (error?.name !== "NotAllowedError") {
+                        console.warn(
+                            "[GEN-Z.AI UserDashboard] Preview video gagal diputar:",
+                            error
+                        );
+                    }
+                }
+            );
+    }
+);
+
+
+elements.videoGrid.addEventListener(
+    "pointerout",
+    event => {
+
+        if (mobilePreviewMedia.matches) {
+            return;
+        }
+
+        const preview =
+            event.target.closest(".video-preview");
+
+        const video =
+            preview?.querySelector("[data-example-video]");
+
+        if (
+            video &&
+            !preview.contains(event.relatedTarget)
+        ) {
+            stopInlinePreview(video);
+        }
+    }
+);
+
+
+elements.videoGrid.addEventListener(
+    "contextmenu",
+    event => {
+
+    const preview =
+        event.target.closest(".video-preview");
+
+    if (
+        preview?.querySelector("[data-example-video]")
+    ) {
+        event.preventDefault();
+    }
+    }
+);
+
+
+window.addEventListener(
+    "scroll",
+    () => {
+        if (mobilePreviewMedia.matches) {
+            scheduleCenteredPreview();
+        }
+    },
+    { passive: true }
+);
+
+
+window.addEventListener(
+    "resize",
+    () => {
+        observeMobileVideoPreviews();
+        scheduleCenteredPreview();
+    },
+    { passive: true }
+);
+
+
+mobilePreviewMedia.addEventListener?.(
+    "change",
+    observeMobileVideoPreviews
+);
+
+
+elements.examplePreviewVideo.addEventListener(
+    "contextmenu",
+    event => event.preventDefault()
 );
 
 

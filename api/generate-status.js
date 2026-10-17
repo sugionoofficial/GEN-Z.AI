@@ -141,6 +141,7 @@ const SUPABASE_ANON_KEY =
     String(
         process.env.SUPABASE_ANON_KEY ||
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        process.env.SUPABASE_KEY ||
         ""
     ).trim();
 
@@ -646,8 +647,8 @@ async function authenticateUser(
                         `Bearer ${accessToken}`,
 
                     apikey:
-                        SUPABASE_SERVICE_ROLE_KEY ||
-                        SUPABASE_ANON_KEY
+                        SUPABASE_ANON_KEY ||
+                        SUPABASE_SERVICE_ROLE_KEY
                 }
             }
         );

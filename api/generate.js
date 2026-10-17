@@ -59,6 +59,14 @@ const SUPABASE_SERVICE_ROLE_KEY =
         process.env.SUPABASE_SERVICE_ROLE_KEY || ""
     ).trim();
 
+const SUPABASE_ANON_KEY =
+    String(
+        process.env.SUPABASE_ANON_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        process.env.SUPABASE_KEY ||
+        ""
+    ).trim();
+
 
 const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
     String(
@@ -496,6 +504,7 @@ async function authenticateUser(
                         `Bearer ${accessToken}`,
 
                     apikey:
+                        SUPABASE_ANON_KEY ||
                         SUPABASE_SERVICE_ROLE_KEY
 
                 }
@@ -3768,11 +3777,11 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
 
     let creditCost;
     try {
-        creditCost = await getFeatureCreditCost("upscale");
+        creditCost = await getFeatureCreditCost("upscale_video");
     } catch (err) {
         console.error("[upscale-video-upload] Failed to load credit cost:", err);
         await deleteUploadedUpscaleVideoSource(sourceObjectPath);
-        return failure(res, 500, "Tarif Upscale belum tersedia");
+        return failure(res, 500, "Tarif Upscale Video belum tersedia");
     }
 
     try {
@@ -4137,7 +4146,7 @@ export default async function handler(
 
         const message =
             error.status === 403 && error.path === "/auth/v1/user"
-                ? "Supabase menolak validasi sesi (403). Pastikan SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY pada konfigurasi server berasal dari project Supabase yang sama dengan aplikasi, lalu login ulang."
+                ? "Supabase menolak validasi sesi (403). Pastikan SUPABASE_URL dan SUPABASE_ANON_KEY (atau SUPABASE_KEY) pada server cocok dengan project aplikasi. SUPABASE_SERVICE_ROLE_KEY juga harus berasal dari project yang sama untuk operasi database."
                 : error.message || "Unauthorized";
 
         return failure(

@@ -1,9 +1,16 @@
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
 const SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+const ANON_KEY = String(
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_KEY ||
+    ""
+).trim();
 const FEATURE_IDS = new Set([
     "vision",
     "vision_video",
     "upscale",
+    "upscale_video",
     "prompt_studio",
     "metadata_cleaner"
 ]);
@@ -70,7 +77,7 @@ async function authenticate(req) {
 
     const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
         headers: {
-            apikey: SERVICE_ROLE_KEY,
+            apikey: ANON_KEY || SERVICE_ROLE_KEY,
             Authorization: `Bearer ${match[1]}`
         }
     });

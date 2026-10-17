@@ -5,6 +5,7 @@
         vision: ["Vision", "Setiap generate"],
         vision_video: ["Vision Video", "Setiap analisis"],
         upscale: ["Upscale", "Setiap proses"],
+        upscale_video: ["Upscale Video", "Setiap proses video"],
         prompt_studio: ["Prompt Studio", "Setiap Copy Prompt"],
         metadata_cleaner: ["Metadata Cleaner", "Setiap CHECK atau CLEAN"]
     };

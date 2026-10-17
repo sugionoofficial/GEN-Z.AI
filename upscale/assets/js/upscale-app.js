@@ -281,6 +281,22 @@ function getVideoDuration(file) {
 
 function updateMediaControls() {
     const isVideo = state.mediaType === "video";
+    const featureId = isVideo ? "upscale_video" : "upscale";
+    const creditLabel = document.getElementById("upscaleCreditLabel");
+    document.body.dataset.featureCredit = featureId;
+    if (creditLabel) {
+        creditLabel.textContent = isVideo
+            ? "Biaya Upscale Video"
+            : "Biaya Upscale Foto";
+    }
+    if (typeof window.GENZFeatureCredit?.setFeature === "function") {
+        window.GENZFeatureCredit.setFeature(featureId);
+    } else {
+        document.querySelectorAll("[data-feature-credit-cost]").forEach(element => {
+            element.dataset.featureCreditCost = featureId;
+        });
+    }
+
     const options = state.dom.targetGrid?.querySelectorAll(".target-option") || [];
     if (isVideo && state.target === "4k") {
         state.target = "2k";

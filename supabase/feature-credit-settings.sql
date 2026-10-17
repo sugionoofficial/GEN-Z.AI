@@ -4,6 +4,7 @@ create table if not exists public.feature_credit_settings (
             'vision',
             'vision_video',
             'upscale',
+            'upscale_video',
             'prompt_studio',
             'metadata_cleaner'
         )),
@@ -12,11 +13,25 @@ create table if not exists public.feature_credit_settings (
     updated_at timestamptz not null default pg_catalog.now()
 );
 
+alter table public.feature_credit_settings
+    drop constraint if exists feature_credit_settings_feature_id_check;
+alter table public.feature_credit_settings
+    add constraint feature_credit_settings_feature_id_check
+        check (feature_id in (
+            'vision',
+            'vision_video',
+            'upscale',
+            'upscale_video',
+            'prompt_studio',
+            'metadata_cleaner'
+        ));
+
 insert into public.feature_credit_settings (feature_id, credit_cost)
 values
     ('vision', 1),
     ('vision_video', 1),
     ('upscale', 1),
+    ('upscale_video', 1),
     ('prompt_studio', 1),
     ('metadata_cleaner', 1)
 on conflict (feature_id) do nothing;

@@ -5,10 +5,12 @@
     const FEATURE_NAMES = {
         vision: "Vision — setiap generate",
         vision_video: "Vision Video — setiap analisis",
-        upscale: "Upscale — setiap proses",
+        upscale: "Upscale Foto — setiap proses",
+        upscale_video: "Upscale Video — setiap proses",
         prompt_studio: "Prompt Studio — setiap Copy Prompt",
         metadata_cleaner: "Metadata Cleaner — setiap CHECK atau CLEAN"
     };
+    let currentCosts = {};
 
     function getClient() {
         if (window.GENZ_SUPABASE) return window.GENZ_SUPABASE;
@@ -102,21 +104,37 @@
 
     async function loadSettings() {
         const data = await request();
-        const costs = Object.fromEntries(
+        currentCosts = Object.fromEntries(
             data.settings.map(item => [item.feature_id, Number(item.credit_cost)])
         );
+
+        renderCosts();
+        return currentCosts;
+    }
+
+    function renderCosts() {
         document.querySelectorAll("[data-feature-credit-cost]").forEach(element => {
             const featureId = element.dataset.featureCreditCost;
-            if (!Object.hasOwn(costs, featureId)) return;
-            element.textContent = costs[featureId].toLocaleString("id-ID");
+            if (!Object.hasOwn(currentCosts, featureId)) return;
+            element.textContent = currentCosts[featureId].toLocaleString("id-ID");
         });
 
         const currentFeature = document.body.dataset.featureCredit;
-        if (FEATURE_NAMES[currentFeature] && Object.hasOwn(costs, currentFeature)) {
-            showMessage(`${FEATURE_NAMES[currentFeature]}: ${costs[currentFeature].toLocaleString("id-ID")} credit.`);
+        if (FEATURE_NAMES[currentFeature] && Object.hasOwn(currentCosts, currentFeature)) {
+            showMessage(`${FEATURE_NAMES[currentFeature]}: ${currentCosts[currentFeature].toLocaleString("id-ID")} credit.`);
+        }
+    }
+
+    function setFeature(featureId) {
+        if (!FEATURE_NAMES[featureId]) {
+            throw new Error("Fitur kredit tidak dikenal.");
         }
 
-        return costs;
+        document.body.dataset.featureCredit = featureId;
+        document.querySelectorAll("[data-feature-credit-cost]").forEach(element => {
+            element.dataset.featureCreditCost = featureId;
+        });
+        renderCosts();
     }
 
     async function run(featureId, operation) {
@@ -166,7 +184,12 @@
         return result;
     }
 
-    window.GENZFeatureCredit = Object.freeze({ loadSettings, run, showMessage });
+    window.GENZFeatureCredit = Object.freeze({
+        loadSettings,
+        setFeature,
+        run,
+        showMessage
+    });
 
     document.addEventListener("DOMContentLoaded", function () {
         loadSettings().catch(error => {
