@@ -1,11 +1,3 @@
-const SUPABASE_URL = String(process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
-const SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
-const ANON_KEY = String(
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_KEY ||
-    ""
-).trim();
 const FEATURE_IDS = new Set([
     "vision",
     "vision_video",
@@ -14,6 +6,26 @@ const FEATURE_IDS = new Set([
     "prompt_studio",
     "metadata_cleaner"
 ]);
+
+function getSupabaseConfig(env = {}) {
+    return {
+        url: String(env.SUPABASE_URL || process.env.SUPABASE_URL || "").trim().replace(/\/+$/, ""),
+        serviceRoleKey: String(
+            env.SUPABASE_SERVICE_ROLE_KEY ||
+            process.env.SUPABASE_SERVICE_ROLE_KEY ||
+            ""
+        ).trim(),
+        anonKey: String(
+            env.SUPABASE_ANON_KEY ||
+            env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+            env.SUPABASE_KEY ||
+            process.env.SUPABASE_ANON_KEY ||
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+            process.env.SUPABASE_KEY ||
+            ""
+        ).trim()
+    };
+}
 
 function send(res, status, body) {
     res.statusCode = status;
@@ -28,15 +40,16 @@ function fail(message, status = 500) {
     return error;
 }
 
-async function supabase(path, options = {}) {
-    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+async function supabase(config, path, options = {}) {
+    const SERVICE_ROLE_KEY = config.serviceRoleKey;
+    if (!config.url || !config.serviceRoleKey) {
         throw fail("Konfigurasi Supabase server belum lengkap.");
     }
 
-    const response = await fetch(`${SUPABASE_URL}${path}`, {
+    const response = await fetch(`${config.url}${path}`, {
         ...options,
         headers: {
-            apikey: SERVICE_ROLE_KEY,
+            apikey: config.serviceRoleKey,
             Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
             "Content-Type": "application/json",
             ...(options.headers || {})
@@ -70,35 +83,59 @@ async function supabase(path, options = {}) {
     return data;
 }
 
-async function authenticate(req) {
+async function authenticate(req, config) {
+    if (!config.url) {
+        throw fail("SUPABASE_URL belum dikonfigurasi di server.", 500);
+    }
+    if (!config.anonKey && !config.serviceRoleKey) {
+        throw fail(
+            "SUPABASE_ANON_KEY (atau SUPABASE_KEY) belum dikonfigurasi di server.",
+            500
+        );
+    }
+
     const authorization = String(req.headers?.authorization || req.headers?.Authorization || "");
     const match = authorization.match(/^Bearer\s+(.+)$/i);
     if (!match) throw fail("Silakan login untuk menggunakan fitur ini.", 401);
 
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    const response = await fetch(`${config.url}/auth/v1/user`, {
         headers: {
-            apikey: ANON_KEY || SERVICE_ROLE_KEY,
+            apikey: config.anonKey || config.serviceRoleKey,
             Authorization: `Bearer ${match[1]}`
         }
     });
     const user = await response.json().catch(() => null);
 
     if (!response.ok || !user?.id) {
+        if (response.status === 403) {
+            throw fail(
+                "Supabase menolak API key untuk validasi sesi (403). Pastikan SUPABASE_URL dan SUPABASE_ANON_KEY atau SUPABASE_KEY di server berasal dari project Supabase yang sama dengan aplikasi, lalu deploy ulang API.",
+                403
+            );
+        }
+        if (response.status === 401) {
+            throw fail(
+                "Sesi login tidak valid atau sudah kedaluwarsa. Silakan login ulang. Jika masalah berlanjut, pastikan SUPABASE_URL dan API key server berasal dari project Supabase yang sama dengan aplikasi.",
+                401
+            );
+        }
         throw fail("Sesi login tidak valid. Silakan login ulang.", 401);
     }
 
     return user;
 }
 
-async function getRole(userId) {
+async function getRole(config, userId) {
     const rows = await supabase(
+        config,
         `/rest/v1/profiles?select=role&id=eq.${encodeURIComponent(userId)}&limit=1`
     );
     return String(rows?.[0]?.role || "").trim().toUpperCase();
 }
 
-async function getSettings() {
+async function getSettings(config) {
     const rows = await supabase(
+        config,
         "/rest/v1/feature_credit_settings?select=feature_id,credit_cost,updated_at&order=feature_id.asc"
     );
     return rows;
@@ -142,16 +179,17 @@ export default async function handler(req, res) {
     }
 
     try {
-        const user = await authenticate(req);
+        const config = getSupabaseConfig(req.env);
+        const user = await authenticate(req, config);
 
         if (req.method === "GET") {
             if (
                 new URL(req.url, "http://localhost").searchParams.get("admin") === "1" &&
-                !["ADMIN", "OWNER"].includes(await getRole(user.id))
+                !["ADMIN", "OWNER"].includes(await getRole(config, user.id))
             ) {
                 throw fail("Halaman ini hanya dapat diakses admin atau owner.", 403);
             }
-            const settings = await getSettings();
+            const settings = await getSettings(config);
             return send(res, 200, { success: true, settings });
         }
 
@@ -161,7 +199,7 @@ export default async function handler(req, res) {
         }
 
         if (body.action === "save_settings") {
-            if (!["ADMIN", "OWNER"].includes(await getRole(user.id))) {
+            if (!["ADMIN", "OWNER"].includes(await getRole(config, user.id))) {
                 throw fail("Hanya admin atau owner yang dapat mengubah tarif.", 403);
             }
 
@@ -170,6 +208,7 @@ export default async function handler(req, res) {
                 updated_at: new Date().toISOString()
             }));
             const saved = await supabase(
+                config,
                 "/rest/v1/feature_credit_settings?on_conflict=feature_id",
                 {
                     method: "POST",
@@ -187,7 +226,7 @@ export default async function handler(req, res) {
                 throw fail("Fitur atau ID transaksi tidak valid.", 400);
             }
 
-            const result = await supabase("/rest/v1/rpc/charge_feature_credits", {
+            const result = await supabase(config, "/rest/v1/rpc/charge_feature_credits", {
                 method: "POST",
                 body: JSON.stringify({
                     p_user_id: user.id,
@@ -205,7 +244,7 @@ export default async function handler(req, res) {
                 throw fail("Data penyelesaian transaksi tidak valid.", 400);
             }
 
-            const result = await supabase("/rest/v1/rpc/settle_feature_credits", {
+            const result = await supabase(config, "/rest/v1/rpc/settle_feature_credits", {
                 method: "POST",
                 body: JSON.stringify({
                     p_user_id: user.id,

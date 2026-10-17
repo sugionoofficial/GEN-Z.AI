@@ -123,3 +123,78 @@ test("admin must include the separate video upscale credit rate", async () => {
         console.error = originalConsoleError;
     }
 });
+
+test("reports a Supabase API key or project mismatch separately from an invalid session", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalConsoleError = console.error;
+    console.error = () => {};
+    globalThis.fetch = async () => new Response(
+        JSON.stringify({ message: "Invalid API key" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+
+    const response = createResponse();
+
+    try {
+        await handler({
+            method: "GET",
+            url: "/api/feature-credits?admin=1",
+            headers: { authorization: "Bearer valid-shaped-token" }
+        }, response);
+
+        assert.equal(response.statusCode, 403);
+        assert.match(
+            JSON.parse(response.body).error,
+            /SUPABASE_URL dan SUPABASE_ANON_KEY.*project Supabase yang sama/i
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+        console.error = originalConsoleError;
+    }
+});
+
+test("reads Cloudflare Worker Supabase bindings from the request environment", async () => {
+    const originalFetch = globalThis.fetch;
+    const requests = [];
+    globalThis.fetch = async (url, options = {}) => {
+        requests.push({ url: String(url), options });
+        if (String(url).endsWith("/auth/v1/user")) {
+            return Response.json({ id: "worker-admin" });
+        }
+        if (String(url).includes("/rest/v1/profiles?")) {
+            return Response.json([{ role: "ADMIN" }]);
+        }
+        if (String(url).includes("/rest/v1/feature_credit_settings?")) {
+            return Response.json([
+                { feature_id: "upscale_video", credit_cost: 8, updated_at: "2026-10-17T00:00:00Z" }
+            ]);
+        }
+        throw new Error(`Unexpected Supabase request: ${url}`);
+    };
+
+    const response = createResponse();
+    try {
+        await handler({
+            method: "GET",
+            url: "/api/feature-credits?admin=1",
+            headers: { authorization: "Bearer cloudflare-worker-token" },
+            env: {
+                SUPABASE_URL: "https://worker-project.supabase.co",
+                SUPABASE_ANON_KEY: "worker-project-anon",
+                SUPABASE_SERVICE_ROLE_KEY: "worker-project-service-role"
+            }
+        }, response);
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(requests[0].url, "https://worker-project.supabase.co/auth/v1/user");
+        assert.equal(requests[0].options.headers.apikey, "worker-project-anon");
+        assert.ok(requests.slice(1).every(request =>
+            request.url.startsWith("https://worker-project.supabase.co/")
+        ));
+        assert.ok(requests.slice(1).every(request =>
+            request.options.headers.apikey === "worker-project-service-role"
+        ));
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

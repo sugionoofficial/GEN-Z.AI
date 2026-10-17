@@ -137,6 +137,7 @@ Buat file `.env` (atau set di Vercel Project Settings):
 ```env
 # Supabase
 SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-project-anon-or-publishable-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Provider credential encryption (32-byte key recommended)
@@ -148,6 +149,8 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-secret-key
 ```
 
 > **Penting**: Jangan pernah commit `.env` atau service role key ke repository.
+> `SUPABASE_ANON_KEY` harus berasal dari project yang sama dengan `SUPABASE_URL`;
+> simpan sebagai environment variable server-side, bukan di repository.
 
 ---
 
