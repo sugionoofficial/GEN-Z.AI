@@ -14,6 +14,13 @@
     const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024;
     const MAX_COMPRESSED_IMAGE_SIZE = 675000;
     const CONNECTION_TIMEOUT_MS = 5 * 60 * 1000;
+
+    /*
+     * Teks loading saat panel dibuka.
+     * Wajib dibersihkan di SEMUA jalur sukses openChat —
+     * lihat safety check di akhir blok try openChat.
+     */
+    const CONNECTION_FEEDBACK_TEXT = "Menghubungkan ke tim support...";
     const UNREAD_NOTICE_DELAY_MS = 5 * 60 * 1000;
     const SUPPORT_HEARTBEAT_INTERVAL_MS = 30000;
     const SUPPORT_STATUS_POLL_INTERVAL_MS = 15000;
@@ -541,11 +548,11 @@
         launcher.hidden = true;
         launcher.setAttribute("aria-expanded", "true");
         clearMessageIndicator();
-        setFeedback("Menghubungkan ke tim support...");
 
         if (busy) return;
         busy = true;
         const attempt = ++connectionAttempt;
+        setFeedback(CONNECTION_FEEDBACK_TEXT);
         const connectionTimeout = window.setTimeout(() => {
             if (attempt !== connectionAttempt) return;
             connectionAttempt++;
@@ -592,12 +599,22 @@
                     composer.hidden = true;
                     closeThreadButton.hidden = true;
                     renderEmpty("Pilih percakapan untuk mulai membalas.");
+                    setFeedback("");
                 }
             } else {
                 subtitle.textContent = currentUser.is_anonymous
                     ? "Chat langsung dengan tim kami"
                     : "Terhubung dengan tim support";
                 await loadUserConversation(attempt);
+            }
+
+            /*
+             * Safety: semua jalur sukses di atas tidak boleh
+             * menyisakan teks loading koneksi (mis. jalur inbox
+             * admin tanpa percakapan aktif).
+             */
+            if (feedback.textContent === CONNECTION_FEEDBACK_TEXT) {
+                setFeedback("");
             }
         } catch (error) {
             if (attempt !== connectionAttempt) return;
