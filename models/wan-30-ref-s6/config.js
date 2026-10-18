@@ -4,6 +4,8 @@ const config = {
     name: "Wan 3.0 Reference Video (15s)",
     providerId: "motiongen",
     providerName: "Motiongen-AI",
+
+    logo: "wan.svg",
     type: "image-to-video",
     adminEditor: {
         hideParameterSummary: true

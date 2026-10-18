@@ -7,6 +7,8 @@ const config = {
 
     providerName: "GEN-Z.AI",
 
+    logo: "seedance.svg",
+
     type: "text-to-video",
 
     api: {
