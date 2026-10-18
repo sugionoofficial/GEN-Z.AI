@@ -985,6 +985,15 @@ export async function resolveVideoParameterValue(
         }
     }
 
+    if (videoInput._videoSelectionPending) {
+        debugLog(
+            "Video menunggu pilihan video utuh atau klip manual."
+        );
+        throw new Error(
+            "Pilih “Gunakan video utuh” atau potong klip video sebelum generate."
+        );
+    }
+
 
     /* -----------------------------------------------------
        EXISTING UPLOADED URLS (plural)
@@ -1051,6 +1060,12 @@ export async function resolveVideoParameterValue(
 
             return [uploadedUrl];
         }
+    }
+
+    if (videoInput._videoSelectedFile) {
+        throw new Error(
+            "Video pilihan belum berhasil diunggah. Periksa pesan error pada kolom video lalu coba lagi."
+        );
     }
 
 

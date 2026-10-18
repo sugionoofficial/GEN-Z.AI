@@ -97,7 +97,7 @@ import {
     registerImageMediaHandlers,
     registerAudioMediaHandlers,
     registerVideoMediaHandlers
-} from "./generate-form-media.js?v=audio-clip-editor-20261015";
+} from "./generate-form-media.js?v=video-clip-editor-20261018";
 
 
 /* =========================================================

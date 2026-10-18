@@ -28,6 +28,12 @@
 
 "use strict";
 
+import {
+    createFFmpegFilename,
+    ensureFFmpeg,
+    safeDeleteFFmpegFile
+} from "../../../metadata-cleaner/assets/js/metadata-ffmpeg.js";
+
 
 /* =========================================================
    DEBUG FLAG
@@ -997,6 +1003,89 @@ async function createAudioClip(
     }
 }
 
+async function createVideoClip(
+    file,
+    startSeconds,
+    endSeconds
+) {
+    if (
+        !Number.isFinite(startSeconds) ||
+        !Number.isFinite(endSeconds) ||
+        startSeconds < 0 ||
+        endSeconds - startSeconds < 0.1
+    ) {
+        throw new Error("Pilih rentang video minimal 0,1 detik.");
+    }
+
+    const ffmpeg = await ensureFFmpeg();
+    const uniqueId = globalThis.crypto?.randomUUID?.() ||
+        `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const sourceName = `generate_video_source_${uniqueId}_${createFFmpegFilename(file)}`;
+    const outputName = `generate_video_clip_${uniqueId}.mp4`;
+
+    try {
+        await ffmpeg.writeFile(
+            sourceName,
+            new Uint8Array(await file.arrayBuffer())
+        );
+        const exitCode = await ffmpeg.exec([
+            "-ss",
+            String(startSeconds),
+            "-i",
+            sourceName,
+            "-t",
+            String(endSeconds - startSeconds),
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a?",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-movflags",
+            "+faststart",
+            outputName
+        ]);
+
+        if (exitCode !== 0) {
+            throw new Error(`FFmpeg gagal memotong video (kode ${exitCode}).`);
+        }
+
+        const output = await ffmpeg.readFile(outputName);
+        if (!output?.length) {
+            throw new Error("FFmpeg tidak menghasilkan klip video.");
+        }
+
+        const baseName =
+            String(file.name || "video").replace(/\.[^.]+$/, "") || "video";
+        const clip = new File(
+            [output],
+            `${baseName}-clip.mp4`,
+            {
+                type: "video/mp4",
+                lastModified: Date.now()
+            }
+        );
+
+        validateVideo(clip);
+        return clip;
+    } finally {
+        await Promise.all([
+            safeDeleteFFmpegFile(ffmpeg, sourceName),
+            safeDeleteFFmpegFile(ffmpeg, outputName)
+        ]);
+    }
+}
+
 
 function showAudioClipNotice(
     file,
@@ -1035,6 +1124,40 @@ function showAudioClipNotice(
 
 function formatAudioFileSize(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function showVideoClipNotice(
+    file,
+    duration
+) {
+    document.querySelectorAll(".generate-video-clip-toast").forEach(
+        toast => toast.remove()
+    );
+
+    const toast = document.createElement("div");
+    toast.className = "generate-video-clip-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+
+    const icon = document.createElement("span");
+    icon.className = "generate-video-clip-toast-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "✓";
+
+    const content = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = "Klip video siap digunakan";
+    const description = document.createElement("span");
+    description.textContent =
+        `${file.name} · ${duration.toFixed(1)} detik · ${formatAudioFileSize(file.size)}`;
+    content.append(title, description);
+    toast.append(icon, content);
+    document.body.appendChild(toast);
+
+    window.setTimeout(() => {
+        toast.classList.add("is-leaving");
+        window.setTimeout(() => toast.remove(), 250);
+    }, 5000);
 }
 
 
@@ -3362,6 +3485,102 @@ export function createVideoField(
             preview
         );
 
+    let sourceVideoFile = null;
+    let sourceVideoDuration = 0;
+    wrapper._videoSelectionPending = false;
+    wrapper._videoSelectedFile = null;
+
+    const trimPanel = document.createElement("section");
+    trimPanel.className = "generate-audio-trim-panel generate-video-trim-panel";
+    trimPanel.hidden = true;
+
+    const trimHeading = document.createElement("div");
+    trimHeading.className = "generate-audio-trim-heading";
+    const trimEyebrow = document.createElement("span");
+    trimEyebrow.textContent = "VIDEO EDITOR";
+    const trimTitle = document.createElement("strong");
+    trimTitle.textContent = "Pilih bagian video";
+    trimHeading.append(trimEyebrow, trimTitle);
+
+    const trimDescription = document.createElement("p");
+    trimDescription.className = "generate-audio-trim-description";
+    trimDescription.textContent =
+        "Tentukan titik mulai dan akhir. Klip dipotong sebelum diunggah.";
+
+    const trimControls = document.createElement("div");
+    trimControls.className = "generate-audio-trim-controls";
+
+    function createTrimControl(labelText, inputType, className) {
+        const group = document.createElement("label");
+        group.className = "generate-audio-trim-control";
+        const label = document.createElement("span");
+        label.textContent = labelText;
+        const input = document.createElement("input");
+        input.type = inputType;
+        input.className = className;
+        input.step = "0.01";
+        if (inputType === "number") {
+            input.min = "0";
+            input.inputMode = "decimal";
+            input.setAttribute("aria-label", `${labelText} (detik)`);
+        }
+        group.append(label, input);
+        return { group, input };
+    }
+
+    const startRangeControl = createTrimControl(
+        "MULAI",
+        "range",
+        "generate-video-trim-start-range"
+    );
+    const endRangeControl = createTrimControl(
+        "AKHIR",
+        "range",
+        "generate-video-trim-end-range"
+    );
+    const startNumberControl = createTrimControl(
+        "Mulai (detik)",
+        "number",
+        "generate-video-trim-start-number"
+    );
+    const endNumberControl = createTrimControl(
+        "Akhir (detik)",
+        "number",
+        "generate-video-trim-end-number"
+    );
+    trimControls.append(
+        startRangeControl.group,
+        endRangeControl.group,
+        startNumberControl.group,
+        endNumberControl.group
+    );
+
+    const trimActions = document.createElement("div");
+    trimActions.className = "generate-audio-trim-actions";
+    const useWholeButton = document.createElement("button");
+    useWholeButton.type = "button";
+    useWholeButton.className = "generate-audio-trim-whole";
+    useWholeButton.textContent = "Gunakan video utuh";
+    const trimButton = document.createElement("button");
+    trimButton.type = "button";
+    trimButton.className = "generate-audio-trim-submit";
+    trimButton.textContent = "Potong & gunakan klip";
+    trimActions.append(useWholeButton, trimButton);
+
+    const trimStatus = document.createElement("p");
+    trimStatus.className = "generate-audio-trim-status";
+    trimStatus.setAttribute("role", "status");
+    trimStatus.setAttribute("aria-live", "polite");
+
+    trimPanel.append(
+        trimHeading,
+        trimDescription,
+        trimControls,
+        trimActions,
+        trimStatus
+    );
+    preview.appendChild(trimPanel);
+
 
     function renderPreview(
         file
@@ -3419,6 +3638,34 @@ export function createVideoField(
         video.dataset.objectUrl =
             objectUrl;
 
+        video.onloadedmetadata = () => {
+            if (file !== sourceVideoFile) return;
+            if (!Number.isFinite(video.duration) || video.duration <= 0) {
+                trimStatus.textContent =
+                    "Durasi video tidak dapat dibaca. Coba file MP4 atau WebM lain.";
+                trimButton.disabled = true;
+                return;
+            }
+
+            sourceVideoDuration = video.duration;
+            for (const input of [
+                startRangeControl.input,
+                endRangeControl.input,
+                startNumberControl.input,
+                endNumberControl.input
+            ]) {
+                input.min = "0";
+                input.max = String(sourceVideoDuration);
+            }
+            startRangeControl.input.value = "0";
+            startNumberControl.input.value = "0";
+            endRangeControl.input.value = String(sourceVideoDuration);
+            endNumberControl.input.value = sourceVideoDuration.toFixed(2);
+            trimStatus.textContent =
+                `Durasi sumber ${sourceVideoDuration.toFixed(2)} detik.`;
+            trimButton.disabled = sourceVideoDuration < 0.1;
+            useWholeButton.disabled = false;
+        };
 
         preview.style.display =
             "block";
@@ -3426,7 +3673,9 @@ export function createVideoField(
     }
 
 
-    function clearPreview() {
+    function clearPreview(
+        preserveEditor = false
+    ) {
 
         const objectUrl =
             video.dataset.objectUrl;
@@ -3462,7 +3711,185 @@ export function createVideoField(
         preview.style.display =
             "none";
 
+        if (!preserveEditor) {
+            trimPanel.hidden = true;
+            sourceVideoFile = null;
+            sourceVideoDuration = 0;
+            wrapper._videoSelectionPending = false;
+            wrapper._videoSelectedFile = null;
+            delete wrapper._genzaiUploadedUrls;
+        }
+
     }
+
+    async function uploadSelectedVideo(
+        file,
+        clipDuration = null
+    ) {
+        validateVideo(file);
+
+        const myToken = ++uploadToken;
+        wrapper._videoSelectionPending = false;
+        wrapper._videoSelectedFile = file;
+        delete wrapper._genzaiUploadedUrls;
+        delete wrapper.dataset.uploadedUrl;
+        clearUploadError(wrapper);
+        renderPreview(file);
+        trimPanel.hidden = false;
+        trimStatus.textContent = clipDuration === null
+            ? "Mengunggah video utuh..."
+            : `Klip ${clipDuration.toFixed(2)} detik siap. Mengunggah klip pilihan...`;
+        useWholeButton.disabled = true;
+        trimButton.disabled = true;
+        setUploadState(wrapper, "uploading", "Mengunggah video pilihan...");
+
+        wrapper._videoUploadPromise = (async () => {
+            try {
+                const uploaded = await uploadVideo(file);
+                const uploadedUrl = extractUploadUrl(uploaded);
+                if (!uploadedUrl) {
+                    throw new Error(
+                        "Upload video berhasil tetapi URL video tidak tersedia."
+                    );
+                }
+                if (myToken !== uploadToken) return "";
+
+                wrapper.dataset.uploadedUrl = uploadedUrl;
+                wrapper.dataset.uploadState = "done";
+                setUploadState(
+                    wrapper,
+                    "done",
+                    clipDuration === null
+                        ? "✓ Video utuh berhasil diunggah"
+                        : "✓ Klip video berhasil diunggah dan siap digunakan"
+                );
+                if (clipDuration !== null) {
+                    showVideoClipNotice(file, clipDuration);
+                }
+                return uploadedUrl;
+            } catch (error) {
+                if (myToken === uploadToken) {
+                    console.error(
+                        "[GEN-Z.AI][Generate Form] Upload video gagal:",
+                        error
+                    );
+                    delete wrapper.dataset.uploadedUrl;
+                    wrapper.dataset.uploadError =
+                        String(error?.message || "Gagal mengupload video.");
+                    showUploadError(wrapper, wrapper.dataset.uploadError);
+                    setUploadState(wrapper, "failed", "✗ Gagal mengunggah video");
+                    trimStatus.textContent = wrapper.dataset.uploadError;
+                }
+                return "";
+            } finally {
+                if (myToken === uploadToken) {
+                    useWholeButton.disabled = false;
+                    trimButton.disabled = sourceVideoDuration < 0.1;
+                    wrapper._videoUploadPromise = null;
+                }
+            }
+        })();
+
+        return await wrapper._videoUploadPromise;
+    }
+
+
+    function syncTrimInputs(source) {
+        const start = source === "start-range"
+            ? Number(startRangeControl.input.value)
+            : Number(startNumberControl.input.value);
+        const end = source === "end-range"
+            ? Number(endRangeControl.input.value)
+            : Number(endNumberControl.input.value);
+        if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+
+        if (source === "start-range" || source === "start-number") {
+            const nextStart = Math.max(
+                0,
+                Math.min(start, sourceVideoDuration - 0.1)
+            );
+            startNumberControl.input.value = nextStart.toFixed(2);
+            startRangeControl.input.value = String(nextStart);
+            if (end - nextStart < 0.1) {
+                const nextEnd = Math.min(
+                    sourceVideoDuration,
+                    nextStart + 0.1
+                );
+                endNumberControl.input.value = nextEnd.toFixed(2);
+                endRangeControl.input.value = String(nextEnd);
+            }
+        } else {
+            const nextEnd = Math.max(
+                0.1,
+                Math.min(end, sourceVideoDuration)
+            );
+            endNumberControl.input.value = nextEnd.toFixed(2);
+            endRangeControl.input.value = String(nextEnd);
+            if (nextEnd - start < 0.1) {
+                const nextStart = Math.max(0, nextEnd - 0.1);
+                startNumberControl.input.value = nextStart.toFixed(2);
+                startRangeControl.input.value = String(nextStart);
+            }
+        }
+
+        const selectedDuration =
+            Number(endNumberControl.input.value) -
+            Number(startNumberControl.input.value);
+        trimStatus.textContent =
+            `Klip terpilih ${selectedDuration.toFixed(2)} detik dari ${sourceVideoDuration.toFixed(2)} detik.`;
+    }
+
+
+    for (const [control, source] of [
+        [startRangeControl.input, "start-range"],
+        [startNumberControl.input, "start-number"],
+        [endRangeControl.input, "end-range"],
+        [endNumberControl.input, "end-number"]
+    ]) {
+        control.addEventListener("input", () => syncTrimInputs(source));
+    }
+
+    useWholeButton.addEventListener("click", async () => {
+        if (!sourceVideoFile) return;
+        await uploadSelectedVideo(sourceVideoFile);
+    });
+
+    trimButton.addEventListener("click", async () => {
+        if (!sourceVideoFile || !sourceVideoDuration) return;
+
+        const sourceFile = sourceVideoFile;
+        const selectionToken = uploadToken;
+        const start = Number(startNumberControl.input.value);
+        const end = Number(endNumberControl.input.value);
+        useWholeButton.disabled = true;
+        trimButton.disabled = true;
+        trimStatus.textContent = "Memotong video. Proses dapat memerlukan waktu...";
+
+        try {
+            const clip = await createVideoClip(sourceFile, start, end);
+            if (
+                selectionToken !== uploadToken ||
+                sourceVideoFile !== sourceFile
+            ) {
+                return;
+            }
+            await uploadSelectedVideo(clip, end - start);
+        } catch (error) {
+            if (
+                selectionToken === uploadToken &&
+                sourceVideoFile === sourceFile
+            ) {
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Pemotongan video gagal:",
+                    error
+                );
+                trimStatus.textContent =
+                    error?.message || "Klip video gagal dipotong.";
+                useWholeButton.disabled = false;
+                trimButton.disabled = false;
+            }
+        }
+    });
 
 
     /* =====================================================
@@ -3513,9 +3940,13 @@ export function createVideoField(
                 fileInput.files.length
             ) {
 
+                sourceVideoFile =
+                    wrapper._videoSelectedFile ||
+                    fileInput.files[0];
                 renderPreview(
-                    fileInput.files[0]
+                    sourceVideoFile
                 );
+                trimPanel.hidden = false;
 
             }
 
@@ -3528,7 +3959,7 @@ export function createVideoField(
                 "none";
 
 
-            clearPreview();
+            clearPreview(true);
 
 
             uploadButton.classList.remove(
@@ -3631,6 +4062,13 @@ export function createVideoField(
                 wrapper._videoUploadPromise =
                     null;
 
+                wrapper._videoSelectionPending = false;
+                wrapper._videoSelectedFile = null;
+                sourceVideoFile = null;
+                sourceVideoDuration = 0;
+                uploadToken += 1;
+                delete wrapper._genzaiUploadedUrls;
+
                 setUploadState(
                     wrapper,
                     ""
@@ -3653,101 +4091,24 @@ export function createVideoField(
                     file
                 );
 
-
+                uploadToken += 1;
+                sourceVideoFile = file;
+                sourceVideoDuration = 0;
+                wrapper._videoSelectionPending = true;
+                wrapper._videoSelectedFile = null;
+                wrapper._videoUploadPromise = null;
+                delete wrapper._genzaiUploadedUrls;
+                delete wrapper.dataset.uploadedUrl;
                 renderPreview(
                     file
                 );
+                trimPanel.hidden = false;
+                trimButton.disabled = true;
+                useWholeButton.disabled = true;
+                trimStatus.textContent =
+                    "Pilih video utuh atau potong bagian yang ingin digunakan.";
+                setUploadState(wrapper, "");
 
-
-                delete wrapper.dataset.uploadedUrl;
-
-
-                /* =========================================
-                   RACE TOKEN
-                ========================================= */
-
-                const myToken =
-                    ++uploadToken;
-
-
-                setUploadState(
-                    wrapper,
-                    "uploading",
-                    "Mengunggah video..."
-                );
-
-
-                wrapper._videoUploadPromise =
-                    (async () => {
-
-                        const uploaded =
-                            await uploadVideo(
-                                file
-                            );
-
-
-                        const uploadedUrl =
-                            extractUploadUrl(
-                                uploaded
-                            );
-
-
-                        if (
-                            myToken !==
-                            uploadToken
-                        ) {
-
-                            debugLog(
-                                "[GEN-Z.AI][Generate Form] Upload video stale diabaikan (race condition)."
-                            );
-
-
-                            return uploadedUrl;
-
-                        }
-
-
-                        if (
-                            !uploadedUrl
-                        ) {
-
-                            throw new Error(
-                                "Upload video berhasil tetapi URL video tidak tersedia."
-                            );
-
-                        }
-
-
-                        wrapper.dataset.uploadedUrl =
-                            uploadedUrl;
-
-
-                        debugLog(
-                            "[GEN-Z.AI][Generate Form] Video upload ready:",
-                            uploadedUrl
-                        );
-
-
-                        return uploadedUrl;
-
-                    })();
-
-
-                await wrapper._videoUploadPromise;
-
-
-                if (
-                    myToken ===
-                    uploadToken
-                ) {
-
-                    setUploadState(
-                        wrapper,
-                        "done",
-                        "✓ Video berhasil diunggah"
-                    );
-
-                }
 
             } catch (
                 error
@@ -3935,6 +4296,8 @@ export function createVideoField(
 
             wrapper._videoUploadPromise =
                 null;
+
+            delete wrapper._genzaiUploadedUrls;
 
 
             /* Invalidate stale uploads */
