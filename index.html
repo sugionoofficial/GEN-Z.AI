@@ -2023,11 +2023,10 @@
 
                     <video
                         class="landing-video hero-video"
-                        autoplay
                         muted
                         loop
                         playsinline
-                        preload="auto"
+                        preload="none"
                         poster=""
                         aria-label="GEN-Z.AI showcase video"
                         controlslist="nodownload noplaybackrate noremoteplayback"
@@ -2511,11 +2510,10 @@
 
                             <video
                                 class="landing-video showcase-video"
-                                autoplay
                                 muted
                                 loop
                                 playsinline
-                                preload="auto"
+                                preload="none"
                                 aria-label="GEN-Z.AI showcase 01"
                                 controlslist="nodownload noplaybackrate noremoteplayback"
                                 disablepictureinpicture
@@ -2637,11 +2635,10 @@
 
                             <video
                                 class="landing-video showcase-video"
-                                autoplay
                                 muted
                                 loop
                                 playsinline
-                                preload="auto"
+                                preload="none"
                                 aria-label="GEN-Z.AI showcase 02"
                                 controlslist="nodownload noplaybackrate noremoteplayback"
                                 disablepictureinpicture
@@ -2763,11 +2760,10 @@
 
                             <video
                                 class="landing-video showcase-video"
-                                autoplay
                                 muted
                                 loop
                                 playsinline
-                                preload="auto"
+                                preload="none"
                                 aria-label="GEN-Z.AI showcase 03"
                                 controlslist="nodownload noplaybackrate noremoteplayback"
                                 disablepictureinpicture
@@ -3459,20 +3455,6 @@
 
 
             /* =====================================================
-               DEVICE
-            ===================================================== */
-
-            function isMobileLike() {
-
-                return (
-                    window.matchMedia &&
-                    window.matchMedia(MOBILE_QUERY).matches
-                );
-
-            }
-
-
-            /* =====================================================
                GET STATE
             ===================================================== */
 
@@ -3736,14 +3718,8 @@
 
                 try {
 
-                    video.autoplay = true;
                     video.loop = true;
                     video.playsInline = true;
-
-                    video.setAttribute(
-                        "autoplay",
-                        ""
-                    );
 
                     video.setAttribute(
                         "playsinline",
@@ -4000,18 +3976,15 @@
                     getState(video);
 
 
-                video.autoplay = true;
+                video.autoplay = false;
                 video.muted = true;
                 video.defaultMuted = true;
                 video.loop = true;
                 video.playsInline = true;
-                video.preload = "auto";
+                video.preload = "none";
 
 
-                video.setAttribute(
-                    "autoplay",
-                    ""
-                );
+                video.removeAttribute("autoplay");
 
                 video.setAttribute(
                     "muted",
@@ -4030,7 +4003,7 @@
 
                 video.setAttribute(
                     "preload",
-                    "auto"
+                    "none"
                 );
 
 
@@ -4241,10 +4214,10 @@
 
 
             /* =====================================================
-               MOBILE VISIBILITY
+               VIEWPORT VISIBILITY
             ===================================================== */
 
-            function setupMobileVisibility(
+            function setupViewportVisibility(
                 videos
             ) {
 
@@ -4258,14 +4231,16 @@
                             const state =
                                 getState(video);
 
-                            state.visible = true;
+                            const rect = video.getBoundingClientRect();
+                            state.visible =
+                                rect.bottom > 0 &&
+                                rect.top < window.innerHeight;
 
-                            playVideo(
-                                video,
-                                {
-                                    auto: true
-                                }
-                            );
+                            if (state.visible) {
+                                playVideo(video, { auto: true });
+                            } else {
+                                pauseVideo(video);
+                            }
 
                         }
                     );
@@ -4369,26 +4344,12 @@
                                 }
 
 
-                                if (
-                                    isMobileLike()
-                                ) {
+                                const rect = video.getBoundingClientRect();
+                                state.visible =
+                                    rect.bottom > 0 &&
+                                    rect.top < window.innerHeight;
 
-                                    if (
-                                        state.visible ||
-                                        video.getBoundingClientRect().top <
-                                        window.innerHeight
-                                    ) {
-
-                                        playVideo(
-                                            video,
-                                            {
-                                                auto: true
-                                            }
-                                        );
-
-                                    }
-
-                                } else {
+                                if (state.visible) {
 
                                     playVideo(
                                         video,
@@ -4397,6 +4358,8 @@
                                         }
                                     );
 
+                                } else {
+                                    pauseVideo(video);
                                 }
 
                             }
@@ -4487,32 +4450,15 @@
                                         }
 
 
-                                        if (
-                                            isMobileLike()
-                                        ) {
-
-                                            if (
-                                                state.visible
-                                            ) {
-
-                                                playVideo(
-                                                    video,
-                                                    {
-                                                        auto: true
-                                                    }
-                                                );
-
-                                            }
-
-                                        } else {
-
+                                        if (state.visible) {
                                             playVideo(
                                                 video,
                                                 {
                                                     auto: true
                                                 }
                                             );
-
+                                        } else {
+                                            pauseVideo(video);
                                         }
 
                                     }
@@ -4585,7 +4531,7 @@
                 );
 
 
-                setupMobileVisibility(
+                setupViewportVisibility(
                     videos
                 );
 
@@ -4637,43 +4583,39 @@
                             setTimeout(
                                 () => {
 
-                                    if (
-                                        isMobileLike()
-                                    ) {
+                                    videos.forEach(
+                                        video => {
 
-                                        videos.forEach(
-                                            video => {
+                                            const rect =
+                                                video.getBoundingClientRect();
 
-                                                const rect =
-                                                    video.getBoundingClientRect();
+                                            const state =
+                                                getState(video);
 
-                                                const state =
-                                                    getState(video);
-
-                                                state.visible =
-                                                    rect.bottom > 0 &&
-                                                    rect.top <
-                                                    window.innerHeight;
+                                            state.visible =
+                                                rect.bottom > 0 &&
+                                                rect.top <
+                                                window.innerHeight;
 
 
-                                                if (
-                                                    state.visible &&
-                                                    !state.userPaused
-                                                ) {
+                                            if (
+                                                state.visible &&
+                                                !state.userPaused
+                                            ) {
 
-                                                    playVideo(
-                                                        video,
-                                                        {
-                                                            auto: true
-                                                        }
-                                                    );
+                                                playVideo(
+                                                    video,
+                                                    {
+                                                        auto: true
+                                                    }
+                                                );
 
-                                                }
-
+                                            } else {
+                                                pauseVideo(video);
                                             }
-                                        );
 
-                                    }
+                                        }
+                                    );
 
                                 },
                                 180
