@@ -1,0 +1,67 @@
+# =========================================================
+# GEN-Z.AI
+# GITLEAKS CONFIGURATION
+# ---------------------------------------------------------
+# File: .gitleaks.toml
+# ---------------------------------------------------------
+#
+# Konfigurasi ini dipakai workflow "Secret Scan" untuk
+# memindai history git dan working tree setiap push dan pull
+# request.
+#
+# Allowlist di bawah BUKAN cara menutupi kebocoran. Semua
+# entri di sini sudah diverifikasi manual: nilai yang
+# di-allowlist terbukti aman untuk dipublikasikan.
+#
+# =========================================================
+
+title = "GEN-Z.AI gitleaks configuration"
+
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------
+# SUPABASE PUBLISHABLE KEY
+# ---------------------------------------------------------
+#
+# Format kunci baru Supabase (sb_publishable_...) memang
+# dirancang untuk dipakai di browser: kode frontend di assets/js/
+# harus punya akses ke data publik.
+#
+# Yang TIDAK boleh masuk repo adalah kunci service role
+# (sb_secret_... atau JWT dengan role "service_role"), dan itu
+# tidak di-allowlist di sini.
+#
+# ---------------------------------------------------------
+
+[[allowlists]]
+description = "Supabase publishable key - dirancang untuk dipublikasikan di browser"
+regexes = [
+    '''sb_publishable_[A-Za-z0-9_\-]+''',
+]
+
+# ---------------------------------------------------------
+# SUPABASE ANON KEY (JWT role=anon) DI FIXTURE LAMA
+# ---------------------------------------------------------
+#
+# Dua commit berikut pernah memuat anon key Supabase
+# (JWT dengan claim role "anon") di file test yang kemudian
+# sudah dihapus dari repository.
+#
+# Payload JWT-nya sudah diperiksa: role = "anon",
+# iss = "supabase". Kunci anon memang diperuntukkan untuk
+# sisi client, jadi aman dipublikasikan - tidak ada hak akses
+# service role di dalamnya.
+#
+# Allowlist dikunci ke commit yang spesifik, bukan ke pola
+# global, supaya JWT dengan role lain (service_role) tetap
+# terdeteksi.
+#
+# ---------------------------------------------------------
+
+[[allowlists]]
+description = "Supabase anon key (role=anon) pada fixture test yang sudah dihapus"
+commits = [
+    "b128aab862c23b49d8366a65030ccc2aeb1e5b75",
+    "e57231f2be6b33bf5a7aed8e9b0b3ce7c40378c7",
+]
