@@ -5,6 +5,8 @@
 // File: api/admin-provider-credentials.js
 // ========================================
 
+import crypto from "node:crypto";
+
 const json = (res, status, data) => {
     return res
         .status(status)
@@ -312,13 +314,10 @@ const validateProviderId = (
 // ENCRYPT API KEY
 // ========================================
 
-const encryptApiKey = (
+export const encryptApiKey = (
     apiKey,
     encryptionKey
 ) => {
-
-    const crypto =
-        require("crypto");
 
     const key =
         Buffer.from(
