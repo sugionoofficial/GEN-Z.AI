@@ -53,6 +53,9 @@ const config = {
     providerName:
         "Motiongen-AI",
 
+    logo:
+        "kling.svg",
+
 
     /* =====================================================
        MODEL TYPE

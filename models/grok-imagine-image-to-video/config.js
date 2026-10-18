@@ -7,6 +7,8 @@ const config = {
 
     providerName: "GEN-Z.AI",
 
+    logo: "grok.svg",
+
     type: "image-to-video",
 
     api: {

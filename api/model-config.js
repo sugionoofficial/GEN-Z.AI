@@ -1725,6 +1725,25 @@ function buildModelConfig(
             modelId,
 
 
+        /*
+         * =====================================================
+           LOGO
+           -----------------------------------------------------
+           Nama file logo model, diambil dari registry repo.
+
+           Registry yang jadi sumber kebenaran, supaya frontend
+           tidak perlu menebak logo dari nama model. Nilai ini
+           sudah divalidasi frontend sebelum dipakai sebagai URL.
+         */
+
+        logo:
+            String(
+                config.logo ||
+                ""
+            ).trim() ||
+            null,
+
+
         model_name:
             modelName,
 

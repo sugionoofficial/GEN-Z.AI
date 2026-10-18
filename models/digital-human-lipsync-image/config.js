@@ -85,6 +85,9 @@ const config = {
     providerName:
         "Motiongen-AI",
 
+    logo:
+        "minimax.svg",
+
 
     /*
      * =====================================================

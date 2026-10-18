@@ -4,6 +4,8 @@ const config = {
     name: "Seedance 2.5 (30s)",
     providerId: "motiongen",
     providerName: "Motiongen-AI",
+
+    logo: "seedance.svg",
     type: "text-to-video",
     adminEditor: {
         resolutionOptions: [

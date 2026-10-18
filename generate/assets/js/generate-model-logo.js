@@ -65,6 +65,16 @@ const LOGO_MAP = Object.freeze({
 
 
     /* =====================================================
+       WAN
+       Model: wan-30-ref-s6
+       Logo file: wan.svg
+    ===================================================== */
+
+    wan:
+        "wan.svg",
+
+
+    /* =====================================================
        MOTIONGEN / MINIMAX
        Model: digital-human-lipsync-image
        Logo file: minimax.svg
@@ -163,7 +173,21 @@ function normalizeModel(
                 model.provider_name ||
                 model.providerName ||
                 model.provider?.name
-            )
+            ),
+
+        /*
+         * Nama file logo yang dideklarasikan model.
+         *
+         * Tidak di-lowercase karena nama file bersifat
+         * case sensitive.
+         */
+
+        logo:
+            String(
+                model.logo ||
+                model.config?.logo ||
+                ""
+            ).trim()
 
     };
 
@@ -182,6 +206,28 @@ export function getModelLogoFile(
         normalizeModel(
             model
         );
+
+
+    /*
+     * Logo yang dideklarasikan model (dari registry repo)
+     * selalu menang.
+     *
+     * Ini menggantikan logika tebak-tebakan dari nama model: provider
+     * "motiongen" dipakai bersama oleh model Seedance, Wan,
+     * Kling Motion Control, dan Digital Human, sehingga penamaan
+     * model tidak bisa menentukan logo dengan benar.
+     */
+
+    if (
+        normalized.logo &&
+        LOGO_FILE_PATTERN.test(
+            normalized.logo
+        )
+    ) {
+
+        return normalized.logo;
+
+    }
 
 
     const candidates = [
