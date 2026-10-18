@@ -1,4 +1,4 @@
-// credit/assets/js/credit-app.js?v=credit-usage-20261018
+// credit/assets/js/credit-app.js?v=credit-usage-limit-20261018
 /* =========================================================
    GEN-Z.AI — CREDIT USAGE APP
    ---------------------------------------------------------
@@ -10,7 +10,8 @@
    - Query riwayat pemakaian credit dari generation_history
    - Hitung status: success / failed / proses
    - Render hero saldo, stats, chart 14 hari, tabel transaksi
-   - Filter status + refresh + auto refresh 10 detik
+   - Filter status + filter jumlah tampilan (10 / 50 / 100)
+   - Refresh + auto refresh 10 detik
 
    Tidak bertanggung jawab:
    - Navigasi (navigation.js)
@@ -32,8 +33,18 @@
 
         profilesTable: "profiles",
 
-        /* Batas baris yang diambil. */
-        limit: 200,
+        /*
+         * Batas baris yang diambil dari server.
+         * = opsi filter tampilan terbesar (10/50/100).
+         */
+        limit: 100,
+
+        /*
+         * Opsi filter jumlah baris yang ditampilkan.
+         */
+        rowLimits: [10, 50, 100],
+
+        defaultRowLimit: 50,
 
         /* Panjang grafik harian. */
         chartDays: 14,
@@ -62,6 +73,9 @@
         rows: [],
 
         filter: "all",
+
+        /* Jumlah baris yang ditampilkan (filter 10/50/100). */
+        rowLimit: CONFIG.defaultRowLimit,
 
         autoTimer: null,
 
@@ -116,6 +130,8 @@
         more: byId("cuMore"),
 
         filters: byId("cuFilters"),
+
+        limits: byId("cuLimits"),
 
         refresh: byId("cuRefresh"),
 
@@ -399,6 +415,19 @@
         return (
             role === "ADMIN" ||
             role === "OWNER"
+        );
+    }
+
+
+    /*
+     * Baris yang ditampilkan saat ini:
+     * N transaksi terakhir sesuai filter 10/50/100.
+     */
+    function getVisibleRows() {
+
+        return state.rows.slice(
+            0,
+            state.rowLimit
         );
     }
 
@@ -852,7 +881,7 @@
 
         animateNumber(
             elements.totalRows,
-            summary.totalRows
+            summary.shown
         );
 
 
@@ -865,9 +894,16 @@
 
 
             elements.heroSub.textContent =
-                scopeLabel + " · " +
-                formatNumber(summary.totalRows) +
-                " transaksi tercatat";
+                scopeLabel + " · " + (
+                    summary.shown < summary.fetched
+                        ? "menampilkan " +
+                            formatNumber(summary.shown) +
+                            " terakhir dari " +
+                            formatNumber(summary.fetched) +
+                            " transaksi"
+                        : formatNumber(summary.shown) +
+                            " transaksi tercatat"
+                );
         }
     }
 
@@ -1021,14 +1057,15 @@
     }
 
 
-    function renderRows() {
+    function renderRows(rows) {
 
         if (!elements.rows) {
             return;
         }
 
 
-        const rows = state.rows;
+        const fetched =
+            state.rows.length;
 
 
         if (elements.empty) {
@@ -1042,9 +1079,12 @@
 
         if (elements.more) {
 
-            if (
-                rows.length >= CONFIG.limit
-            ) {
+            if (!rows.length) {
+
+                elements.more.style.display =
+                    "none";
+
+            } else if (rows.length < fetched) {
 
                 elements.more.style.display =
                     "block";
@@ -1052,17 +1092,18 @@
                 elements.more.textContent =
                     "Menampilkan " +
                     formatNumber(rows.length) +
+                    " dari " +
+                    formatNumber(fetched) +
                     " transaksi terakhir";
+
             } else {
 
                 elements.more.style.display =
-                    rows.length
-                        ? "block"
-                        : "none";
+                    "block";
 
                 elements.more.textContent =
                     formatNumber(rows.length) +
-                    " transaksi";
+                    " transaksi terakhir";
             }
         }
 
@@ -1209,8 +1250,17 @@
 
     function renderAll() {
 
+        const visible =
+            getVisibleRows();
+
+
         const summary =
-            aggregate(state.rows);
+            aggregate(visible);
+
+
+        summary.shown = visible.length;
+
+        summary.fetched = state.rows.length;
 
 
         renderHeader(summary);
@@ -1219,7 +1269,50 @@
 
         renderChart(summary.daily);
 
-        renderRows();
+        renderRows(visible);
+    }
+
+
+    /* =========================================================
+       ROW LIMIT FILTER (10 / 50 / 100)
+    ========================================================== */
+
+    function setRowLimit(limit) {
+
+        const value = Number(limit);
+
+
+        if (
+            !Number.isFinite(value) ||
+            !CONFIG.rowLimits.includes(value) ||
+            value === state.rowLimit
+        ) {
+            return;
+        }
+
+
+        state.rowLimit = value;
+
+
+        if (elements.limits) {
+
+            const buttons =
+                elements.limits.querySelectorAll(
+                    ".cu-filter"
+                );
+
+
+            buttons.forEach(button => {
+
+                button.classList.toggle(
+                    "active",
+                    Number(button.dataset.limit) === value
+                );
+            });
+        }
+
+
+        renderAll();
     }
 
 
@@ -1338,6 +1431,30 @@
 
                     applyFilter(
                         button.dataset.filter
+                    );
+                }
+            );
+        }
+
+
+        if (elements.limits) {
+
+            elements.limits.addEventListener(
+                "click",
+
+                event => {
+
+                    const button =
+                        event.target.closest(
+                            ".cu-filter[data-limit]"
+                        );
+
+                    if (!button) {
+                        return;
+                    }
+
+                    setRowLimit(
+                        button.dataset.limit
                     );
                 }
             );
