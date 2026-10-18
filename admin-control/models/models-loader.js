@@ -42,7 +42,7 @@ const FUNCTION_PATH =
             id: "models-data",
             src:
                 BASE_PATH +
-                "models-data.js?v=models-registry-20261011",
+                "models-data.js?v=models-registry-20261018-wan",
             global:
                 "GENZModelsData"
         },

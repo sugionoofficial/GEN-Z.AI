@@ -53,7 +53,7 @@
 ========================================================= */
 
 const MODEL_DATA_VERSION =
-    "2026-10-16-model-editor-metadata-v8";
+    "2026-10-18-wan-registry-v9";
 
 
 /* =========================================================
@@ -89,6 +89,12 @@ import motiongenSeedanceA2VConfig
 
 import motiongenSeedanceA2VParameters
     from "../../models/seedance-a2v-studio-s14/parameters.js?v=models-registry-20261016";
+
+import motiongenWan30RefConfig
+    from "../../models/wan-30-ref-s6/config.js?v=models-registry-20261018";
+
+import motiongenWan30RefParameters
+    from "../../models/wan-30-ref-s6/parameters.js?v=models-registry-20261018";
 
 import klingMotionControlConfig
     from "../../models/kling-motion-control-30-pro/config.js?v=models-registry-editor-20261014";
@@ -165,6 +171,16 @@ const MODEL_REGISTRY = [
 
         parameters:
             motiongenSeedanceA2VParameters
+    },
+    {
+        folder:
+            "models/wan-30-ref-s6",
+
+        config:
+            motiongenWan30RefConfig,
+
+        parameters:
+            motiongenWan30RefParameters
     },
     {
         folder:
