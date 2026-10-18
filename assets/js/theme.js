@@ -732,6 +732,12 @@
                 backdrop-filter: blur(12px);
             }
 
+            @media (max-width: 760px) {
+                .genz-device-mode-toggle {
+                    display: none;
+                }
+            }
+
             @media (max-width: 520px) {
                 .genz-device-mode-toggle {
                     right: 76px;
