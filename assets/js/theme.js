@@ -82,7 +82,10 @@
 
         const isMobile =
             document.documentElement.dataset.genzDeviceMode === "mobile";
-        deviceModeButton.textContent = isMobile ? "Mode desktop" : "Mode HP";
+        const label = isMobile ? "Mode desktop" : "Mode HP";
+        if (deviceModeButton.textContent !== label) {
+            deviceModeButton.textContent = label;
+        }
         deviceModeButton.setAttribute("aria-pressed", String(isMobile));
         deviceModeButton.setAttribute(
             "aria-label",
