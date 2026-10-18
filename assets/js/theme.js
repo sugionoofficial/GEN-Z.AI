@@ -5,18 +5,18 @@
     window.__GENZ_THEME_STARTED = true;
 
     const STORAGE_KEY = "genz-theme";
-    const DEVICE_MODE_STORAGE_KEY = "genz-device-mode";
     const STYLE_ID = "genz-theme-style";
     let toggleButton = null;
     let deviceModeButton = null;
+    let mobilePreviewOverlay = null;
+    let previousBodyOverflow = "";
+    let mobilePreviewKeydownHandler = null;
     let refreshButton = null;
     let appDownloadButton = null;
     let announcementCheckRunning = false;
     let announcementPollTimer = null;
     let announcementBodyOverflow = null;
     let dismissedAnnouncementVersion = null;
-    const viewportMeta = document.querySelector('meta[name="viewport"]');
-    const originalViewportContent = viewportMeta?.content || null;
 
     function isNativeApp() {
         const detected = Boolean(
@@ -69,64 +69,95 @@
         }
     }
 
-    function readDeviceMode() {
-        try {
-            return localStorage.getItem(DEVICE_MODE_STORAGE_KEY) === "mobile";
-        } catch (error) {
-            return false;
-        }
-    }
-
-    function updateDeviceModeButton() {
+    function updateDeviceModeButton(isOpen = false) {
         if (!deviceModeButton) return;
 
-        const isMobile =
-            document.documentElement.dataset.genzDeviceMode === "mobile";
-        const label = isMobile ? "Mode desktop" : "Mode HP";
+        const label = isOpen ? "Tutup preview" : "Mode HP";
         if (deviceModeButton.textContent !== label) {
             deviceModeButton.textContent = label;
         }
-        deviceModeButton.setAttribute("aria-pressed", String(isMobile));
+        deviceModeButton.setAttribute("aria-pressed", String(isOpen));
         deviceModeButton.setAttribute(
             "aria-label",
-            isMobile ? "Kembali ke mode desktop" : "Aktifkan mode HP"
+            isOpen ? "Tutup pratinjau mode HP" : "Buka pratinjau mode HP"
         );
-        deviceModeButton.title = isMobile
-            ? "Kembali ke mode desktop"
-            : "Aktifkan tampilan seperti ponsel";
+        deviceModeButton.title = isOpen
+            ? "Tutup pratinjau mode HP"
+            : "Pratinjau tampilan ponsel";
     }
 
-    function applyDeviceMode(isMobile, persist = false) {
-        if (isMobile) {
-            document.documentElement.dataset.genzDeviceMode = "mobile";
-            let meta = document.querySelector('meta[name="viewport"]');
-            if (!meta) {
-                meta = document.createElement("meta");
-                meta.name = "viewport";
-                document.head.append(meta);
-            }
-            meta.content = "width=390, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
-        } else {
-            delete document.documentElement.dataset.genzDeviceMode;
-            const meta = document.querySelector('meta[name="viewport"]');
-            if (meta && originalViewportContent) {
-                meta.content = originalViewportContent;
-            } else if (meta && !originalViewportContent) {
-                meta.remove();
-            }
-        }
+    function closeMobilePreview() {
+        if (!mobilePreviewOverlay) return;
 
+        mobilePreviewOverlay.remove();
+        mobilePreviewOverlay = null;
+        document.body.style.overflow = previousBodyOverflow;
+        previousBodyOverflow = "";
+        if (mobilePreviewKeydownHandler) {
+            document.removeEventListener("keydown", mobilePreviewKeydownHandler);
+            mobilePreviewKeydownHandler = null;
+        }
         updateDeviceModeButton();
+        deviceModeButton?.focus();
+    }
 
-        if (!persist) return;
-        try {
-            localStorage.setItem(
-                DEVICE_MODE_STORAGE_KEY,
-                isMobile ? "mobile" : "desktop"
-            );
-        } catch (error) {
-            console.error("[GEN-Z.AI] Unable to save device mode preference:", error);
+    function openMobilePreview() {
+        if (mobilePreviewOverlay) {
+            closeMobilePreview();
+            return;
         }
+
+        mobilePreviewOverlay = document.createElement("div");
+        mobilePreviewOverlay.className = "genz-mobile-preview-overlay";
+        mobilePreviewOverlay.setAttribute("role", "dialog");
+        mobilePreviewOverlay.setAttribute("aria-modal", "true");
+        mobilePreviewOverlay.setAttribute(
+            "aria-label",
+            "Pratinjau halaman pada layar ponsel"
+        );
+
+        const frame = document.createElement("div");
+        frame.className = "genz-mobile-preview-frame";
+
+        const toolbar = document.createElement("div");
+        toolbar.className = "genz-mobile-preview-toolbar";
+
+        const title = document.createElement("span");
+        title.className = "genz-mobile-preview-title";
+        title.textContent = "Pratinjau HP · 390 px";
+
+        const closeButton = document.createElement("button");
+        closeButton.type = "button";
+        closeButton.className = "genz-mobile-preview-close";
+        closeButton.textContent = "×";
+        closeButton.setAttribute("aria-label", "Tutup pratinjau mode HP");
+        closeButton.title = "Tutup pratinjau";
+        closeButton.addEventListener("click", closeMobilePreview);
+        toolbar.append(title, closeButton);
+
+        const iframe = document.createElement("iframe");
+        iframe.className = "genz-mobile-preview-iframe";
+        iframe.name = "genz-mobile-preview";
+        iframe.title = "Tampilan GEN-Z.AI pada layar ponsel";
+        iframe.src = window.location.href;
+
+        frame.append(toolbar, iframe);
+        mobilePreviewOverlay.append(frame);
+        mobilePreviewOverlay.addEventListener("click", event => {
+            if (event.target === mobilePreviewOverlay) {
+                closeMobilePreview();
+            }
+        });
+
+        previousBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        document.body.append(mobilePreviewOverlay);
+        mobilePreviewKeydownHandler = event => {
+            if (event.key === "Escape") closeMobilePreview();
+        };
+        document.addEventListener("keydown", mobilePreviewKeydownHandler);
+        updateDeviceModeButton(true);
+        closeButton.focus();
     }
 
     function ensureStyles() {
@@ -713,6 +744,66 @@
                 background: rgba(255, 48, 72, .14);
             }
 
+            .genz-mobile-preview-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 120000;
+                display: grid;
+                place-items: center;
+                padding: 16px;
+                background: rgba(5, 7, 12, .76);
+                backdrop-filter: blur(6px);
+                -webkit-backdrop-filter: blur(6px);
+            }
+
+            .genz-mobile-preview-frame {
+                display: flex;
+                width: min(390px, calc(100vw - 32px));
+                height: min(844px, calc(100dvh - 32px));
+                flex-direction: column;
+                overflow: hidden;
+                border: 1px solid rgba(255, 255, 255, .2);
+                border-radius: 14px;
+                background: #fff;
+                box-shadow: 0 24px 80px rgba(0, 0, 0, .5);
+            }
+
+            .genz-mobile-preview-toolbar {
+                display: flex;
+                min-height: 42px;
+                flex: 0 0 42px;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 10px 0 14px;
+                color: #f5f6fb;
+                background: #11131a;
+                font: 600 12px ui-sans-serif, system-ui, sans-serif;
+            }
+
+            .genz-mobile-preview-close {
+                display: grid;
+                width: 30px;
+                height: 30px;
+                place-items: center;
+                border: 1px solid rgba(255, 255, 255, .16);
+                border-radius: 7px;
+                color: #fff;
+                background: rgba(255, 255, 255, .06);
+                font: inherit;
+                font-size: 20px;
+                line-height: 1;
+                cursor: pointer;
+            }
+
+            .genz-mobile-preview-iframe {
+                display: block;
+                width: 100%;
+                min-height: 0;
+                flex: 1 1 auto;
+                border: 0;
+                background: #fff;
+            }
+
             html[data-genz-theme="light"] .genz-device-mode-toggle {
                 color: #283047;
                 border-color: #aab6c9;
@@ -891,22 +982,22 @@
 
     function mountDeviceModeToggle() {
         if (!document.body) return;
+        if (window.name === "genz-mobile-preview") {
+            deviceModeButton?.remove();
+            return;
+        }
 
         if (!deviceModeButton) {
             deviceModeButton = document.createElement("button");
             deviceModeButton.type = "button";
             deviceModeButton.className = "genz-device-mode-toggle";
-            deviceModeButton.addEventListener("click", () => {
-                const isMobile =
-                    document.documentElement.dataset.genzDeviceMode !== "mobile";
-                applyDeviceMode(isMobile, true);
-            });
+            deviceModeButton.addEventListener("click", openMobilePreview);
         }
 
         if (deviceModeButton.parentElement !== document.body) {
             document.body.append(deviceModeButton);
         }
-        updateDeviceModeButton();
+        updateDeviceModeButton(Boolean(mobilePreviewOverlay));
     }
 
     function mountRefreshButton() {
@@ -1173,7 +1264,6 @@
     }
 
     applyTheme(readTheme());
-    applyDeviceMode(readDeviceMode());
     ensureStyles();
     initializePwaSupport();
 
