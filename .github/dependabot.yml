@@ -1,0 +1,59 @@
+# =========================================================
+# GEN-Z.AI
+# DEPENDABOT CONFIGURATION
+# ---------------------------------------------------------
+# File: .github/dependabot.yml
+# ---------------------------------------------------------
+#
+# Memantau dependensi GitHub Actions dan dependency npm
+# (root project dan mobile app) agar versi yang dipakai
+# selalu punya patch keamanan terbaru.
+#
+# Update dikelompokkan per ecosystem supaya tidak membuka
+# belasan PR kecil sekaligus.
+#
+# =========================================================
+
+version: 2
+
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "npm"
+
+  - package-ecosystem: "npm"
+    directory: "/mobile-app"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "npm"
+    groups:
+      capacitor:
+        patterns:
+          - "@capacitor/*"
