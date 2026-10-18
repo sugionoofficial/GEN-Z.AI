@@ -58,6 +58,9 @@ import seedance25StudioMotiongen
 import seedanceA2VStudioS14
     from "../models/seedance-a2v-studio-s14/index.js";
 
+import wan30RefS6
+    from "../models/wan-30-ref-s6/index.js";
+
 import klingMotionControl30Pro
     from "../models/kling-motion-control-30-pro/index.js";
 
@@ -71,6 +74,7 @@ const MODEL_REGISTRY = [
     digitalHumanLipSyncImage,
     seedance25StudioMotiongen,
     seedanceA2VStudioS14,
+    wan30RefS6,
     klingMotionControl30Pro
 ];
 

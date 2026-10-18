@@ -31,7 +31,7 @@
 - **Database & Auth**: Supabase (Auth, PostgreSQL, RPC)
 - **Providers**:
   - KIE.AI (Grok Imagine, Seedance 2.5)
-  - Motiongen-AI (Digital Human LipSync)
+  - Motiongen-AI (Digital Human LipSync, Seedance, Wan)
 - **Content Safety**: SightEngine
 - **Deployment**: Cloudflare Workers, deployed through GitHub Actions
 
@@ -80,6 +80,7 @@ Credit diambil dari kolom:
 | `bytedance/seedance-2-5` | Seedance 2.5 | text-to-video | KIE.AI |
 | `digital-human-lipsync-image` | Digital Human - LipSync Image | image-to-video | Motiongen-AI |
 | `seedance-25-studio-s14` | Seedance 2.5 (30s) | text-to-video | Motiongen-AI |
+| `wan-30-ref-s6` | Wan 3.0 Reference Video (15s) | image-to-video | Motiongen-AI |
 
 Jalankan `supabase/generation-failure-credit-refund.sql` di Supabase SQL
 Editor agar kegagalan task mengembalikan kredit GEN-Z.AI secara idempoten
@@ -88,6 +89,9 @@ untuk semua model. Migration lama
 Motiongen dan kini digantikan migration tersebut. Untuk mengaktifkan Seedance
 Motiongen, buat/aktifkan model `seedance-25-studio-s14` di Admin Models dengan
 provider `motiongen` dan harga `6` pada ketiga tier kredit.
+Untuk Wan 3.0 Reference Video, buat/aktifkan model `wan-30-ref-s6` dengan
+provider `motiongen` dan harga `4` pada ketiga tier kredit. Model ini wajib
+menerima 1–6 gambar referensi dan dapat memakai satu video referensi opsional.
 
 Setiap model memiliki folder sendiri di `models/` dengan struktur:
 
