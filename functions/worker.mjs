@@ -1,4 +1,4 @@
-import { runVercelHandler } from "./_shared/vercel-adapter.js";
+import { runHandlerAdapter } from "./_shared/handler-adapter.js";
 import adminCredit from "../api/admin-credit.js";
 import featureCredits from "../api/feature-credits.js";
 import announcements from "../api/announcements.js";
@@ -49,7 +49,7 @@ export default {
 
         if (handler) {
             try {
-                return await runVercelHandler(handler, request, context, env);
+                return await runHandlerAdapter(handler, request, context, env);
             } catch (error) {
                 console.error("[Cloudflare Worker] API request failed:", error);
                 return Response.json(
