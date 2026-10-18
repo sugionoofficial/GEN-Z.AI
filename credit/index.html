@@ -323,11 +323,39 @@
         }
 
         .cu-filters,
-        .cu-actions {
+        .cu-actions,
+        .cu-limits {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             flex-wrap: wrap;
+        }
+
+        .cu-limits {
+            gap: 6px;
+        }
+
+        .cu-limit-label {
+            color: rgba(255,255,255,.35);
+            font-size: 8.5px;
+            font-weight: 850;
+            letter-spacing: 1.1px;
+            margin-right: 2px;
+        }
+
+        .cu-limits .cu-filter {
+            min-width: 40px;
+            justify-content: center;
+            padding: 7px 10px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 10.5px;
+        }
+
+        @media (min-width: 641px) {
+            .cu-limits {
+                border-left: 1px solid rgba(255,255,255,.09);
+                padding-left: 14px;
+            }
         }
 
         .cu-filter,
@@ -736,6 +764,25 @@
                             >Proses</button>
                         </div>
 
+                        <div class="cu-limits" id="cuLimits" role="group" aria-label="Jumlah riwayat yang ditampilkan">
+                            <span class="cu-limit-label">TAMPIL</span>
+                            <button
+                                class="cu-filter"
+                                data-limit="10"
+                                type="button"
+                            >10</button>
+                            <button
+                                class="cu-filter active"
+                                data-limit="50"
+                                type="button"
+                            >50</button>
+                            <button
+                                class="cu-filter"
+                                data-limit="100"
+                                type="button"
+                            >100</button>
+                        </div>
+
                         <div class="cu-actions">
                             <button
                                 class="cu-chip"
@@ -815,7 +862,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=android-download-bridge-20261017"></script>
-    <script src="./assets/js/credit-app.js?v=credit-usage-20261018"></script>
+    <script src="./assets/js/credit-app.js?v=credit-usage-limit-20261018"></script>
 
 </body>
 </html>
