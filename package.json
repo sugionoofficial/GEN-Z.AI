@@ -1,0 +1,14 @@
+{
+  "name": "gen-z-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GEN-Z.AI - AI Creative Platform (video, image, digital human, AI vision)",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/",
+    "build": "node scripts/build-cloudflare-pages.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
