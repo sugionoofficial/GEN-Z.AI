@@ -51,7 +51,7 @@
         http-equiv="Content-Security-Policy"
         content="
             default-src 'self';
-            script-src 'self' https://cdn.jsdelivr.net blob:;
+            script-src 'self' https://cdn.jsdelivr.net blob: 'wasm-unsafe-eval';
             style-src 'self' 'unsafe-inline';
             img-src 'self' data: blob: https:;
             media-src 'self' blob: https:;
