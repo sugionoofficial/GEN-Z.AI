@@ -5,14 +5,18 @@
     window.__GENZ_THEME_STARTED = true;
 
     const STORAGE_KEY = "genz-theme";
+    const DEVICE_MODE_STORAGE_KEY = "genz-device-mode";
     const STYLE_ID = "genz-theme-style";
     let toggleButton = null;
+    let deviceModeButton = null;
     let refreshButton = null;
     let appDownloadButton = null;
     let announcementCheckRunning = false;
     let announcementPollTimer = null;
     let announcementBodyOverflow = null;
     let dismissedAnnouncementVersion = null;
+    const viewportMeta = document.querySelector('meta[name="viewport"]');
+    const originalViewportContent = viewportMeta?.content || null;
 
     function isNativeApp() {
         const detected = Boolean(
@@ -62,6 +66,57 @@
             localStorage.setItem(STORAGE_KEY, theme);
         } catch (error) {
             reportStorageError("save", error);
+        }
+    }
+
+    function readDeviceMode() {
+        try {
+            return localStorage.getItem(DEVICE_MODE_STORAGE_KEY) === "mobile";
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function applyDeviceMode(isMobile, persist = false) {
+        if (isMobile) {
+            document.documentElement.dataset.genzDeviceMode = "mobile";
+            let meta = document.querySelector('meta[name="viewport"]');
+            if (!meta) {
+                meta = document.createElement("meta");
+                meta.name = "viewport";
+                document.head.append(meta);
+            }
+            meta.content = "width=390, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
+        } else {
+            delete document.documentElement.dataset.genzDeviceMode;
+            const meta = document.querySelector('meta[name="viewport"]');
+            if (meta && originalViewportContent) {
+                meta.content = originalViewportContent;
+            } else if (meta && !originalViewportContent) {
+                meta.remove();
+            }
+        }
+
+        if (deviceModeButton) {
+            deviceModeButton.textContent = isMobile ? "Mode desktop" : "Mode HP";
+            deviceModeButton.setAttribute("aria-pressed", String(isMobile));
+            deviceModeButton.setAttribute(
+                "aria-label",
+                isMobile ? "Kembali ke mode desktop" : "Aktifkan mode HP"
+            );
+            deviceModeButton.title = isMobile
+                ? "Kembali ke mode desktop"
+                : "Aktifkan tampilan seperti ponsel";
+        }
+
+        if (!persist) return;
+        try {
+            localStorage.setItem(
+                DEVICE_MODE_STORAGE_KEY,
+                isMobile ? "mobile" : "desktop"
+            );
+        } catch (error) {
+            console.error("[GEN-Z.AI] Unable to save device mode preference:", error);
         }
     }
 
@@ -618,6 +673,37 @@
                 box-shadow: 0 4px 18px rgba(0, 0, 0, .25);
             }
 
+            .genz-device-mode-toggle {
+                position: fixed;
+                right: 12px;
+                bottom: max(12px, env(safe-area-inset-bottom));
+                z-index: 10003;
+                min-height: 40px;
+                padding: 8px 12px;
+                border: 1px solid rgba(255, 255, 255, .2);
+                border-radius: 9px;
+                color: #fff;
+                background: rgba(12, 14, 20, .94);
+                box-shadow: 0 4px 18px rgba(0, 0, 0, .28);
+                font: inherit;
+                font-size: 12px;
+                font-weight: 700;
+                cursor: pointer;
+                backdrop-filter: blur(12px);
+            }
+
+            .genz-device-mode-toggle:hover {
+                border-color: rgba(255, 48, 72, .55);
+                background: rgba(255, 48, 72, .14);
+            }
+
+            html[data-genz-theme="light"] .genz-device-mode-toggle {
+                color: #283047;
+                border-color: #aab6c9;
+                background: rgba(255, 255, 255, .96);
+                box-shadow: 0 6px 20px rgba(52, 65, 94, .14);
+            }
+
             html[data-genz-theme="light"] .genz-theme-toggle {
                 color: #283047;
                 border-color: #aab6c9;
@@ -785,6 +871,28 @@
                 parent.append(toggleButton);
             }
         }
+    }
+
+    function mountDeviceModeToggle() {
+        if (!document.body) return;
+
+        if (!deviceModeButton) {
+            deviceModeButton = document.createElement("button");
+            deviceModeButton.type = "button";
+            deviceModeButton.className = "genz-device-mode-toggle";
+            deviceModeButton.addEventListener("click", () => {
+                const isMobile =
+                    document.documentElement.dataset.genzDeviceMode !== "mobile";
+                applyDeviceMode(isMobile, true);
+            });
+        }
+
+        if (deviceModeButton.parentElement !== document.body) {
+            document.body.append(deviceModeButton);
+        }
+        applyDeviceMode(
+            document.documentElement.dataset.genzDeviceMode === "mobile"
+        );
     }
 
     function mountRefreshButton() {
@@ -1035,6 +1143,7 @@
     function initialize() {
         ensureStyles();
         mountToggle();
+        mountDeviceModeToggle();
         mountRefreshButton();
         mountAppDownload();
         loadAnnouncement();
@@ -1042,6 +1151,7 @@
 
         const observer = new MutationObserver(() => {
             mountToggle();
+            mountDeviceModeToggle();
             mountRefreshButton();
             mountAppDownload();
             loadAnnouncement();
@@ -1051,6 +1161,7 @@
     }
 
     applyTheme(readTheme());
+    applyDeviceMode(readDeviceMode());
     ensureStyles();
     initializePwaSupport();
 
