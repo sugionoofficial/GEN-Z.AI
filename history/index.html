@@ -296,6 +296,23 @@ body {
     height: 13px;
     transition: transform .5s var(--ease);
 }
+.credit-usage-link {
+    text-decoration: none;
+    color: #c9b6ff;
+    border-color: rgba(169,112,255,.38);
+    background: rgba(169,112,255,.10);
+    box-shadow: 0 0 16px rgba(169,112,255,.14);
+}
+.credit-usage-link:hover {
+    color: #fff;
+    border-color: var(--violet);
+    background: rgba(169,112,255,.22);
+    box-shadow: 0 0 20px rgba(169,112,255,.30);
+}
+.credit-usage-link:focus-visible {
+    outline: 2px solid var(--violet);
+    outline-offset: 2px;
+}
 .refresh-button:hover svg { transform: rotate(180deg); }
 
 .history-actions {
@@ -1973,6 +1990,22 @@ tbody tr {
             </div>
 
             <div class="history-actions">
+                <a
+                    class="refresh-button credit-usage-link"
+                    id="creditUsageButton"
+                    href="/credit/index.html"
+                    title="Buka halaman progres riwayat pemakaian credit"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M14.8 9.3c-.6-.7-1.6-1.1-2.7-1.1-1.6 0-2.9.9-2.9 2.1 0 1.3 1.1 1.8 2.9 2.2 1.8.4 3 1 3 2.2 0 1.2-1.4 2.1-3 2.1-1.2 0-2.3-.5-2.9-1.3"/>
+                        <path d="M12 6.2V8.2"/>
+                        <path d="M12 15.8v2"/>
+                    </svg>
+                    Credit Usage
+                </a>
+
                 <button
                     class="auto-refresh-toggle"
                     id="autoRefreshToggle"
