@@ -77,6 +77,22 @@
         }
     }
 
+    function updateDeviceModeButton() {
+        if (!deviceModeButton) return;
+
+        const isMobile =
+            document.documentElement.dataset.genzDeviceMode === "mobile";
+        deviceModeButton.textContent = isMobile ? "Mode desktop" : "Mode HP";
+        deviceModeButton.setAttribute("aria-pressed", String(isMobile));
+        deviceModeButton.setAttribute(
+            "aria-label",
+            isMobile ? "Kembali ke mode desktop" : "Aktifkan mode HP"
+        );
+        deviceModeButton.title = isMobile
+            ? "Kembali ke mode desktop"
+            : "Aktifkan tampilan seperti ponsel";
+    }
+
     function applyDeviceMode(isMobile, persist = false) {
         if (isMobile) {
             document.documentElement.dataset.genzDeviceMode = "mobile";
@@ -97,17 +113,7 @@
             }
         }
 
-        if (deviceModeButton) {
-            deviceModeButton.textContent = isMobile ? "Mode desktop" : "Mode HP";
-            deviceModeButton.setAttribute("aria-pressed", String(isMobile));
-            deviceModeButton.setAttribute(
-                "aria-label",
-                isMobile ? "Kembali ke mode desktop" : "Aktifkan mode HP"
-            );
-            deviceModeButton.title = isMobile
-                ? "Kembali ke mode desktop"
-                : "Aktifkan tampilan seperti ponsel";
-        }
+        updateDeviceModeButton();
 
         if (!persist) return;
         try {
@@ -890,9 +896,7 @@
         if (deviceModeButton.parentElement !== document.body) {
             document.body.append(deviceModeButton);
         }
-        applyDeviceMode(
-            document.documentElement.dataset.genzDeviceMode === "mobile"
-        );
+        updateDeviceModeButton();
     }
 
     function mountRefreshButton() {
