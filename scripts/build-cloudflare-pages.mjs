@@ -8,6 +8,7 @@ const staticDirectories = [
     "admin",
     "admin-control",
     "assets",
+    "credit",
     "generate",
     "history",
     "live-chat",
