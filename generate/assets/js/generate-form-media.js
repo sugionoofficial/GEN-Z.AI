@@ -2473,12 +2473,7 @@ export function createAudioField(
     trimButton.type = "button";
     trimButton.className = "generate-audio-trim-submit";
     trimButton.textContent = "Potong & gunakan klip";
-    const trimProgress = document.createElement("progress");
-    trimProgress.className = "generate-video-trim-progress";
-    trimProgress.max = 100;
-    trimProgress.hidden = true;
-    trimProgress.setAttribute("aria-label", "Progres pemotongan video");
-    trimActions.append(useWholeButton, trimButton, trimProgress);
+    trimActions.append(useWholeButton, trimButton);
 
     const trimStatus = document.createElement("p");
     trimStatus.className = "generate-audio-trim-status";
@@ -3585,7 +3580,12 @@ export function createVideoField(
     trimButton.type = "button";
     trimButton.className = "generate-audio-trim-submit";
     trimButton.textContent = "Potong & gunakan klip";
-    trimActions.append(useWholeButton, trimButton);
+    const trimProgress = document.createElement("progress");
+    trimProgress.className = "generate-video-trim-progress";
+    trimProgress.max = 100;
+    trimProgress.hidden = true;
+    trimProgress.setAttribute("aria-label", "Progres pemotongan video");
+    trimActions.append(useWholeButton, trimButton, trimProgress);
 
     const trimStatus = document.createElement("p");
     trimStatus.className = "generate-audio-trim-status";
