@@ -1,3 +1,35 @@
+/*
+ * =========================================================
+ * GEN-Z.AI
+ * HANDLER ADAPTER
+ * ---------------------------------------------------------
+ * File: functions/_shared/handler-adapter.js
+ * ---------------------------------------------------------
+ *
+ * Adapter ini mengubah handler bergaya Vercel/Next
+ *
+ *     export default async function handler(req, res)
+ *
+ * menjadi Web API Request/Response yang dipakai Cloudflare Worker.
+ *
+ * Semua API di api/ ditulis dengan gaya tersebut, sementara runtime
+ * produksi adalah Cloudflare Worker (lihat wrangler.toml). Tanpa
+ * adapter ini, seluruh endpoint /api/* tidak akan berjalan.
+ *
+ * CATATAN NAMA:
+ *
+ * Berkas ini sebelumnya bernama "vercel-adapter.js" dan fungsinya
+ * sebelumnya bernama "runVercelHandler".
+ *
+ * Nama itu menyesatkan: ia ikutan memberi kesan bahwa proyek ini
+ * masih memakai Vercel sebagai platform deployment. Padahal tidak.
+ * Yang diadaptasi adalah GAYA handler, bukan platformnya.
+ * Nama lama sudah tidak akurat, jadi berkas dan fungsinya
+ * dilegasikan menjadi "handler-adapter.js" dan "runHandlerAdapter".
+ *
+ * =========================================================
+ */
+
 const encoder = new TextEncoder();
 
 function getQuery(url) {
@@ -180,7 +212,7 @@ function createResponseAdapter(request) {
     };
 }
 
-export async function runVercelHandler(handler, request, context, env) {
+export async function runHandlerAdapter(handler, request, context, env) {
     let body;
 
     try {
