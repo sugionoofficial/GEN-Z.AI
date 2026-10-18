@@ -1006,7 +1006,8 @@ async function createAudioClip(
 async function createVideoClip(
     file,
     startSeconds,
-    endSeconds
+    endSeconds,
+    onProgress
 ) {
     if (
         !Number.isFinite(startSeconds) ||
@@ -1017,17 +1018,27 @@ async function createVideoClip(
         throw new Error("Pilih rentang video minimal 0,1 detik.");
     }
 
+    onProgress?.({ stage: "prepare" });
     const ffmpeg = await ensureFFmpeg();
     const uniqueId = globalThis.crypto?.randomUUID?.() ||
         `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const sourceName = `generate_video_source_${uniqueId}_${createFFmpegFilename(file)}`;
     const outputName = `generate_video_clip_${uniqueId}.mp4`;
+    const progressListener = ({ progress }) => {
+        if (Number.isFinite(progress)) {
+            onProgress?.({ stage: "encode", progress });
+        }
+    };
+    let progressListenerAttached = false;
 
     try {
         await ffmpeg.writeFile(
             sourceName,
             new Uint8Array(await file.arrayBuffer())
         );
+        onProgress?.({ stage: "encode", progress: 0 });
+        ffmpeg.on("progress", progressListener);
+        progressListenerAttached = true;
         const exitCode = await ffmpeg.exec([
             "-ss",
             String(startSeconds),
@@ -1059,6 +1070,7 @@ async function createVideoClip(
         if (exitCode !== 0) {
             throw new Error(`FFmpeg gagal memotong video (kode ${exitCode}).`);
         }
+        onProgress?.({ stage: "encode", progress: 1 });
 
         const output = await ffmpeg.readFile(outputName);
         if (!output?.length) {
@@ -1079,6 +1091,9 @@ async function createVideoClip(
         validateVideo(clip);
         return clip;
     } finally {
+        if (progressListenerAttached && typeof ffmpeg.off === "function") {
+            ffmpeg.off("progress", progressListener);
+        }
         await Promise.all([
             safeDeleteFFmpegFile(ffmpeg, sourceName),
             safeDeleteFFmpegFile(ffmpeg, outputName)
@@ -2458,7 +2473,12 @@ export function createAudioField(
     trimButton.type = "button";
     trimButton.className = "generate-audio-trim-submit";
     trimButton.textContent = "Potong & gunakan klip";
-    trimActions.append(useWholeButton, trimButton);
+    const trimProgress = document.createElement("progress");
+    trimProgress.className = "generate-video-trim-progress";
+    trimProgress.max = 100;
+    trimProgress.hidden = true;
+    trimProgress.setAttribute("aria-label", "Progres pemotongan video");
+    trimActions.append(useWholeButton, trimButton, trimProgress);
 
     const trimStatus = document.createElement("p");
     trimStatus.className = "generate-audio-trim-status";
@@ -3863,10 +3883,32 @@ export function createVideoField(
         const end = Number(endNumberControl.input.value);
         useWholeButton.disabled = true;
         trimButton.disabled = true;
+        trimProgress.hidden = false;
+        trimProgress.removeAttribute("value");
+        trimButton.textContent = "Menyiapkan FFmpeg…";
         trimStatus.textContent = "Memotong video. Proses dapat memerlukan waktu...";
 
         try {
-            const clip = await createVideoClip(sourceFile, start, end);
+            const clip = await createVideoClip(
+                sourceFile,
+                start,
+                end,
+                ({ stage, progress }) => {
+                    if (stage === "prepare") {
+                        trimProgress.removeAttribute("value");
+                        trimButton.textContent = "Menyiapkan FFmpeg…";
+                        trimStatus.textContent = "Menyiapkan mesin pemotong video...";
+                        return;
+                    }
+
+                    const percentage = Math.round(
+                        Math.max(0, Math.min(1, progress)) * 100
+                    );
+                    trimProgress.value = percentage;
+                    trimButton.textContent = `Memotong ${percentage}%`;
+                    trimStatus.textContent = `Progres pemotongan video ${percentage}%`;
+                }
+            );
             if (
                 selectionToken !== uploadToken ||
                 sourceVideoFile !== sourceFile
@@ -3887,6 +3929,14 @@ export function createVideoField(
                     error?.message || "Klip video gagal dipotong.";
                 useWholeButton.disabled = false;
                 trimButton.disabled = false;
+            }
+        } finally {
+            if (
+                selectionToken === uploadToken &&
+                sourceVideoFile === sourceFile
+            ) {
+                trimProgress.hidden = true;
+                trimButton.textContent = "Potong & gunakan klip";
             }
         }
     });
