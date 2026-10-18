@@ -684,8 +684,8 @@
 
             .genz-device-mode-toggle {
                 position: fixed;
-                right: 12px;
-                bottom: max(12px, env(safe-area-inset-bottom));
+                right: 92px;
+                bottom: max(31px, calc(env(safe-area-inset-bottom) + 19px));
                 z-index: 10003;
                 min-height: 40px;
                 padding: 8px 12px;
@@ -699,6 +699,13 @@
                 font-weight: 700;
                 cursor: pointer;
                 backdrop-filter: blur(12px);
+            }
+
+            @media (max-width: 520px) {
+                .genz-device-mode-toggle {
+                    right: 76px;
+                    bottom: max(21px, calc(env(safe-area-inset-bottom) + 7px));
+                }
             }
 
             .genz-device-mode-toggle:hover {
