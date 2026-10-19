@@ -1,8 +1,8 @@
 # GEN-Z.AI Mobile
 
 Starter aplikasi Android/iOS menggunakan Capacitor WebView. Aplikasi membuka
-situs Cloudflare Workers `https://genzai.genzai-f37.workers.dev`; tidak
-menggunakan Vercel.
+situs GEN-Z.AI yang dilayani Cloudflare Workers:
+`https://genzai.genzai-f37.workers.dev`.
 
 Konten situs dan backend akan mengikuti pembaruan online saat aplikasi dibuka
 kembali. Perubahan identitas aplikasi, izin perangkat, plugin, atau kode native

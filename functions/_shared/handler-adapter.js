@@ -6,26 +6,14 @@
  * File: functions/_shared/handler-adapter.js
  * ---------------------------------------------------------
  *
- * Adapter ini mengubah handler bergaya Vercel/Next
+ * Adapter ini mengubah handler API dengan signature Node.js
  *
  *     export default async function handler(req, res)
  *
  * menjadi Web API Request/Response yang dipakai Cloudflare Worker.
- *
- * Semua API di api/ ditulis dengan gaya tersebut, sementara runtime
- * produksi adalah Cloudflare Worker (lihat wrangler.toml). Tanpa
- * adapter ini, seluruh endpoint /api/* tidak akan berjalan.
- *
- * CATATAN NAMA:
- *
- * Berkas ini sebelumnya bernama "vercel-adapter.js" dan fungsinya
- * sebelumnya bernama "runVercelHandler".
- *
- * Nama itu menyesatkan: ia ikutan memberi kesan bahwa proyek ini
- * masih memakai Vercel sebagai platform deployment. Padahal tidak.
- * Yang diadaptasi adalah GAYA handler, bukan platformnya.
- * Nama lama sudah tidak akurat, jadi berkas dan fungsinya
- * dilegasikan menjadi "handler-adapter.js" dan "runHandlerAdapter".
+ * Semua API di api/ memakai signature tersebut, sementara runtime
+ * produksi adalah Cloudflare Worker (lihat wrangler.toml). Adapter ini
+ * menghubungkan kedua bentuk request/response itu untuk endpoint /api/*.
  *
  * =========================================================
  */
