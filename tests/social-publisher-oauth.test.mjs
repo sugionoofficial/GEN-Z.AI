@@ -2,16 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import socialPublisherHandler from "../api/social-publisher.js";
 
-test("Facebook OAuth requests Meta's valid Pages posting scopes", async () => {
+test("Facebook OAuth invokes the configured Business Login flow without runtime scopes", async () => {
     const originalFetch = globalThis.fetch;
-    const serviceRoleKey = "server-only-test-key";
     const config = {
         SUPABASE_URL: "https://project.example",
-        SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
+        SUPABASE_SERVICE_ROLE_KEY: "server-only-test-key",
         SUPABASE_ANON_KEY: "anon-test-key",
         META_APP_ID: "meta-app-id",
         META_APP_SECRET: "meta-app-secret",
         META_REDIRECT_URI: "https://genzai.genzai-f37.workers.dev/api/facebook-oauth-callback",
+        META_LOGIN_CONFIG_ID: "business-login-config-id",
         SOCIAL_TOKEN_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(9)))
     };
 
@@ -51,11 +51,9 @@ test("Facebook OAuth requests Meta's valid Pages posting scopes", async () => {
 
         assert.equal(response.statusCode, 200);
         const authorizationUrl = new URL(response.body.authorization_url);
-        assert.equal(
-            authorizationUrl.searchParams.get("scope"),
-            "pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_metadata"
-        );
-        assert.doesNotMatch(authorizationUrl.searchParams.get("scope"), /pages_manage_read_engagement/);
+        assert.equal(authorizationUrl.searchParams.get("config_id"), "business-login-config-id");
+        assert.equal(authorizationUrl.searchParams.get("response_type"), "code");
+        assert.equal(authorizationUrl.searchParams.get("scope"), null);
     } finally {
         globalThis.fetch = originalFetch;
     }
