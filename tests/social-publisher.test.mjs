@@ -15,6 +15,13 @@ import {
     makeProfileShareUrl,
     publishFacebookPhoto
 } from "../lib/social-publisher/providers.js";
+import {
+    deleteReferenceObject,
+    downloadReferenceObject,
+    isPrivateReferenceBucket,
+    SOCIAL_REFERENCE_STORAGE_BUCKET,
+    uploadReferenceObject
+} from "../lib/social-publisher/storage.js";
 
 const TEST_KEY = btoa(String.fromCharCode(...new Uint8Array(32).fill(7)));
 
@@ -139,6 +146,53 @@ test("Facebook photo publish uploads image and returns a personal-share URL", as
         assert.equal(calls[0].options.body.get("caption"), "Test caption");
         assert.ok(calls[0].options.body.get("source") instanceof Blob);
         assert.match(makeProfileShareUrl(result.permalinkUrl), /sharer\/sharer\.php/);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("reference storage uses a private Supabase bucket and server-side service-role API", async () => {
+    const originalFetch = globalThis.fetch;
+    const calls = [];
+    const sourceBytes = new Uint8Array([255, 216, 255, 0]);
+    globalThis.fetch = async (url, options = {}) => {
+        calls.push({ url: String(url), options });
+        if (calls.length === 1) return Response.json({ id: SOCIAL_REFERENCE_STORAGE_BUCKET, public: false });
+        if (calls.length === 2 || calls.length === 4) return new Response(null, { status: 200 });
+        return new Response(sourceBytes, { status: 200, headers: { "Content-Type": "image/jpeg" } });
+    };
+    const config = { url: "https://project.example", serviceRoleKey: "server-only-test-key" };
+    const key = "social-reference/user-1/ref-1.jpg";
+    try {
+        assert.equal(await isPrivateReferenceBucket(config), true);
+        await uploadReferenceObject(config, key, sourceBytes, "image/jpeg");
+        const downloaded = await downloadReferenceObject(config, key);
+        await deleteReferenceObject(config, key);
+
+        assert.deepEqual([...downloaded], [...sourceBytes]);
+        assert.match(calls[0].url, /\/storage\/v1\/bucket\/social-character-references$/);
+        assert.match(calls[1].url, /\/storage\/v1\/object\/social-character-references\/social-reference\/user-1\/ref-1\.jpg$/);
+        assert.match(calls[2].url, /\/storage\/v1\/object\/authenticated\/social-character-references\/social-reference\/user-1\/ref-1\.jpg$/);
+        assert.equal(calls[1].options.method, "POST");
+        assert.equal(calls[1].options.headers["Content-Type"], "image/jpeg");
+        assert.equal(calls[1].options.headers["x-upsert"], "false");
+        assert.equal(calls[1].options.headers.Authorization, "Bearer server-only-test-key");
+        assert.deepEqual(JSON.parse(calls[3].options.body), { prefixes: [key] });
+        assert.equal(calls[3].options.method, "DELETE");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("reference storage rejects public buckets and unsafe object paths", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({ id: SOCIAL_REFERENCE_STORAGE_BUCKET, public: true });
+    try {
+        assert.equal(await isPrivateReferenceBucket({ url: "https://project.example", serviceRoleKey: "test" }), false);
+        await assert.rejects(
+            downloadReferenceObject({ url: "https://project.example", serviceRoleKey: "test" }, "../unsafe.jpg"),
+            /Invalid reference object path/
+        );
     } finally {
         globalThis.fetch = originalFetch;
     }

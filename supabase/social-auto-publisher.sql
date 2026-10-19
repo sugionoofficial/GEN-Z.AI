@@ -1,5 +1,5 @@
 -- Social image generation and Facebook Page scheduling.
--- Character references are stored privately in Cloudflare R2; generated images
+-- Character references are stored in private Supabase Storage; generated images
 -- are sent to the configured image provider and uploaded directly to Facebook.
 
 create table if not exists public.social_characters (

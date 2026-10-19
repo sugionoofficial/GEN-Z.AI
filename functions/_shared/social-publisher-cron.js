@@ -1,5 +1,6 @@
 import { buildImagePrompt, createScenePlan, renderCaption } from "../../lib/social-publisher/utils.js";
 import { decryptSecret, generateSocialImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
+import { downloadReferenceObject, isPrivateReferenceBucket } from "../../lib/social-publisher/storage.js";
 
 function value(env, key) {
     const processValue = typeof process !== "undefined" ? process.env?.[key] : "";
@@ -78,11 +79,9 @@ async function processRun(env, config, claimedRun) {
         if (!character) throw new Error("Character reference was not found.");
         if (!page) throw new Error("Facebook Page connection was not found; reconnect the Page.");
         if (page.can_publish === false) throw new Error("Facebook Page connection does not have CREATE_CONTENT permission.");
-        if (!env?.SOCIAL_REFERENCE_BUCKET?.get) throw new Error("R2 reference bucket is not configured.");
+        if (!await isPrivateReferenceBucket(config)) throw new Error("Private Supabase Storage reference bucket is not configured.");
 
-        const referenceObject = await env.SOCIAL_REFERENCE_BUCKET.get(character.reference_object_key);
-        if (!referenceObject) throw new Error("Reference image is missing from private R2 storage.");
-        const referenceBytes = new Uint8Array(await referenceObject.arrayBuffer());
+        const referenceBytes = await downloadReferenceObject(config, character.reference_object_key);
         if (!referenceBytes.length || referenceBytes.length > 8 * 1024 * 1024) throw new Error("Reference image size is invalid.");
 
         const recentSceneKeys = (previousRuns || [])

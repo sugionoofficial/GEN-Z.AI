@@ -4,9 +4,9 @@ The Social Publisher is an admin-only feature for generating one reference-guide
 
 ## How the flow works
 
-1. An admin uploads a character reference. The original reference is stored privately in Cloudflare R2.
+1. An admin uploads a character reference. The original reference is stored in a private Supabase Storage bucket.
 2. At the scheduled time, the Worker selects a scene combination (location, camera angle, outfit, situation, and lighting), avoids recently used combinations, and calls Gemini Nano Banana 2.1 with the reference image.
-3. The generated image bytes are sent directly to the Facebook Page photos endpoint. Generated images are **not archived in R2**.
+3. The generated image bytes are sent directly to the Facebook Page photos endpoint. Generated images are **not stored in Supabase Storage**.
 4. The run record stores the prompt, scene, caption, Facebook post ID, permalink, status, and any error. The personal-profile share button opens Facebook's share flow for a person to confirm manually.
 
 Schedules are saved as UTC timestamps derived from the selected **Asia/Jakarta (WIB)** time. The Worker checks the queue once per minute and posts one generated image for each due schedule.
@@ -15,19 +15,9 @@ Schedules are saved as UTC timestamps derived from the selected **Asia/Jakarta (
 
 ### 1. Apply the Supabase migration
 
-Run `supabase/social-auto-publisher.sql` in the Supabase SQL Editor. The tables are server-only: client roles are revoked and RLS is enabled. The Worker uses the existing Supabase service-role configuration.
+Run `supabase/social-auto-publisher.sql` and `supabase/social-reference-storage.sql` in the Supabase SQL Editor. The first file creates server-only tables with RLS; the second creates a dedicated private Storage bucket named `social-character-references`, limited to JPEG, PNG, and WebP references up to 8 MB. The Worker uses the existing Supabase service-role configuration to read and write these objects server-side. Do not make the bucket public.
 
-### 2. Create the private R2 bucket
-
-Create the bucket named in `wrangler.toml`:
-
-```sh
-npx wrangler@4 r2 bucket create genzai-social-references
-```
-
-The Worker binding is `SOCIAL_REFERENCE_BUCKET`. Keep the bucket private; the application reads reference objects only from server-side Worker code after checking the admin session.
-
-### 3. Configure Google Gemini image generation
+### 2. Configure Google Gemini image generation
 
 Create an API key for the Gemini Developer API and add it as a Worker secret:
 
@@ -37,7 +27,7 @@ npx wrangler@4 secret put GEMINI_API_KEY
 
 The configured model is `gemini-nano-banana-2.1`. The API currently does not include a free image-output tier. At the listed Standard price, a 1K image is about US$0.0336 before input, retry, tax, or pricing changes. One image per day is roughly US$1.01 per 30-day month; four candidate images per day would be roughly US$4.03. This implementation generates **one** image per run to limit spend. See the current [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing).
 
-### 4. Configure the Meta app and OAuth
+### 3. Configure the Meta app and OAuth
 
 Create/configure a Meta app with Facebook Login and the Pages API. In the Meta app settings, add this exact callback URL (replace it if using another production hostname):
 
@@ -64,9 +54,9 @@ openssl rand -base64 32
 
 Page access tokens are encrypted with AES-GCM before being stored in Supabase. If the encryption secret is rotated, reconnect the Facebook Page so the stored token can be encrypted with the new key.
 
-### 5. Confirm Worker bindings and deploy
+### 4. Confirm Worker configuration and deploy
 
-The repository's `wrangler.toml` contains the private R2 binding and one-minute Cron Trigger. Deploy the Worker after the R2 bucket exists and the migration is applied:
+The Worker reads reference images through the existing Supabase service-role configuration; no Cloudflare R2 binding or R2 subscription is required. `wrangler.toml` retains the one-minute Cron Trigger. Deploy the Worker after both Supabase SQL files have been applied:
 
 ```sh
 npm run build

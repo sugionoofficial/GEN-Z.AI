@@ -48,7 +48,7 @@
                 <button id="global-toggle" class="btn danger" type="button" disabled>Aktifkan autopublish</button>
             </div>
             <div id="config-list" class="config-list" aria-live="polite"></div>
-            <p class="help" style="margin-top:12px">Aktifkan hanya setelah Meta OAuth, Gemini API, R2, dan SQL migration siap. Jadwal tetap bisa disiapkan saat autopublish nonaktif.</p>
+            <p class="help" style="margin-top:12px">Aktifkan hanya setelah Meta OAuth, Gemini API, Supabase Storage, dan SQL migration siap. Jadwal tetap bisa disiapkan saat autopublish nonaktif.</p>
         </section>
 
         <div class="grid" style="margin-top:18px">
@@ -61,7 +61,7 @@
             </section>
 
             <section class="card" aria-labelledby="character-title">
-                <div class="card-head"><div><h3 id="character-title">2. Tambah karakter referensi</h3><p class="sub">Foto disimpan privat di R2 dan hanya dibaca server untuk pembuatan gambar.</p></div></div>
+                <div class="card-head"><div><h3 id="character-title">2. Tambah karakter referensi</h3><p class="sub">Foto disimpan di bucket privat Supabase Storage dan hanya dibaca server untuk pembuatan gambar.</p></div></div>
                 <form id="character-form" class="fields">
                     <div class="field"><label for="character-name">Nama karakter</label><input id="character-name" name="display_name" maxlength="80" required placeholder="Contoh: Alya"></div>
                     <div class="field"><label for="character-image">Foto referensi</label><input id="character-image" name="reference" type="file" accept="image/jpeg,image/png,image/webp" required><span class="help">JPEG, PNG, atau WebP · maksimal 8 MB</span></div>
@@ -94,7 +94,7 @@
             </section>
 
             <section class="card wide" aria-labelledby="runs-title">
-                <div class="card-head"><div><h3 id="runs-title">Riwayat pembuatan & posting</h3><p class="sub">Gambar hasil generasi dikirim langsung ke Facebook dan tidak diarsipkan di R2.</p></div><button id="refresh" class="btn small" type="button">Muat ulang</button></div>
+                <div class="card-head"><div><h3 id="runs-title">Riwayat pembuatan & posting</h3><p class="sub">Gambar hasil generasi dikirim langsung ke Facebook dan tidak disimpan ke Supabase Storage.</p></div><button id="refresh" class="btn small" type="button">Muat ulang</button></div>
                 <div id="runs-list" class="list"><div class="empty">Memuat riwayat…</div></div>
             </section>
         </div>

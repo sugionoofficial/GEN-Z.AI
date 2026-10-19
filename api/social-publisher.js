@@ -1,5 +1,11 @@
 import { bytesToBase64, clampIntervalHours, extensionForMime, normalizeMimeType } from "../lib/social-publisher/utils.js";
 import { encryptSecret } from "../lib/social-publisher/providers.js";
+import {
+    deleteReferenceObject,
+    downloadReferenceObject,
+    isPrivateReferenceBucket,
+    uploadReferenceObject
+} from "../lib/social-publisher/storage.js";
 
 const GRAPH_VERSION = "v26.0";
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
@@ -122,7 +128,7 @@ async function verifyAdmin(req, env) {
 }
 
 function migrationError(error) {
-    if (error?.code === "PGRST205" || error?.status === 404 || /social_(characters|post|page|facebook)_/i.test(error?.message || "")) {
+    if (error?.code === "PGRST205" || /social_(characters|post|page|facebook)_/i.test(error?.message || "")) {
         const wrapped = new Error("Skema Social Publisher belum tersedia. Jalankan supabase/social-auto-publisher.sql di Supabase SQL Editor terlebih dahulu.");
         wrapped.status = 503;
         return wrapped;
@@ -288,12 +294,13 @@ async function handleOAuthCallback(req, res, env) {
 }
 
 async function getDashboard(config, userId, env) {
-    const [characters, pages, schedules, runs, publisherConfig] = await Promise.all([
+    const [characters, pages, schedules, runs, publisherConfig, referenceStorageConfigured] = await Promise.all([
         supabaseRequest(config, tablePath("social_characters", `select=id,display_name,reference_filename,reference_mime_type,prompt_notes,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
         supabaseRequest(config, tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,caption_template,created_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_post_runs", `select=id,schedule_id,status,scheduled_for,scene_plan,caption,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=30`)),
-        supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,updated_at&id=eq.true&limit=1"))
+        supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,updated_at&id=eq.true&limit=1")),
+        isPrivateReferenceBucket(config)
     ]);
 
     return {
@@ -307,7 +314,7 @@ async function getDashboard(config, userId, env) {
             metaOAuthConfigured: Boolean(envValue(env, "META_APP_ID") && envValue(env, "META_APP_SECRET") && envValue(env, "META_REDIRECT_URI")),
             imageApiConfigured: Boolean(envValue(env, "GEMINI_API_KEY")),
             tokenEncryptionConfigured: Boolean(envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")),
-            referenceStorageConfigured: Boolean(env?.SOCIAL_REFERENCE_BUCKET)
+            referenceStorageConfigured
         }
     };
 }
@@ -339,10 +346,9 @@ async function startOAuth(config, userId, env) {
     return { authorization_url: url.toString() };
 }
 
-async function uploadReference(req, res, config, userId, env) {
-    const bucket = env?.SOCIAL_REFERENCE_BUCKET;
-    if (!bucket?.put) {
-        const error = new Error("Bucket R2 referensi karakter belum dikonfigurasi.");
+async function uploadReference(req, res, config, userId) {
+    if (!await isPrivateReferenceBucket(config)) {
+        const error = new Error("Bucket privat Supabase Storage untuk foto referensi belum tersedia.");
         error.status = 503;
         throw error;
     }
@@ -367,10 +373,7 @@ async function uploadReference(req, res, config, userId, env) {
 
     const id = crypto.randomUUID();
     const key = `social-reference/${userId}/${id}.${extensionForMime(mime)}`;
-    await bucket.put(key, bytes, {
-        httpMetadata: { contentType: mime, cacheControl: "private, no-store" },
-        customMetadata: { owner_id: userId, character_id: id }
-    });
+    await uploadReferenceObject(config, key, bytes, mime);
 
     try {
         const saved = await supabaseRequest(config, tablePath("social_characters", "select=id,display_name,reference_filename,reference_mime_type,prompt_notes,created_at"), {
@@ -391,7 +394,7 @@ async function uploadReference(req, res, config, userId, env) {
         });
         return json(res, 201, { success: true, character: saved?.[0] || null });
     } catch (error) {
-        await bucket.delete(key).catch(() => {});
+        await deleteReferenceObject(config, key).catch(() => {});
         throw error;
     }
 }
@@ -493,7 +496,7 @@ async function setGlobalEnabled(config, userId, env, enabled) {
         if (!envValue(env, "GEMINI_API_KEY")) missing.push("GEMINI_API_KEY");
         if (!envValue(env, "META_APP_ID") || !envValue(env, "META_APP_SECRET") || !envValue(env, "META_REDIRECT_URI")) missing.push("konfigurasi OAuth Meta");
         if (!envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) missing.push("SOCIAL_TOKEN_ENCRYPTION_KEY");
-        if (!env?.SOCIAL_REFERENCE_BUCKET?.get || !env?.SOCIAL_REFERENCE_BUCKET?.put) missing.push("bucket R2 referensi");
+        if (!await isPrivateReferenceBucket(config)) missing.push("bucket privat Supabase Storage untuk referensi");
         if (missing.length) {
             const error = new Error(`Belum dapat mengaktifkan autopost. Lengkapi: ${missing.join(", ")}.`);
             error.status = 409;
@@ -510,7 +513,7 @@ async function setGlobalEnabled(config, userId, env, enabled) {
 }
 
 async function handlePost(req, res, config, userId, env, action) {
-    if (action === "upload-reference") return uploadReference(req, res, config, userId, env);
+    if (action === "upload-reference") return uploadReference(req, res, config, userId);
     const body = req.body && typeof req.body === "object" ? req.body : {};
 
     if (action === "set-global-enabled") {
@@ -559,13 +562,21 @@ async function handleGet(req, res, config, userId, env, action) {
         const rows = await supabaseRequest(config, tablePath("social_characters", `select=reference_object_key,reference_mime_type&id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`));
         const character = rows?.[0];
         if (!character) return json(res, 404, { success: false, error: "Karakter tidak ditemukan." });
-        const object = await env?.SOCIAL_REFERENCE_BUCKET?.get?.(character.reference_object_key);
-        if (!object) return json(res, 404, { success: false, error: "File referensi tidak tersedia di R2." });
+        if (!await isPrivateReferenceBucket(config)) {
+            return json(res, 503, { success: false, error: "Bucket privat Supabase Storage belum tersedia." });
+        }
+        let bytes;
+        try {
+            bytes = await downloadReferenceObject(config, character.reference_object_key);
+        } catch (error) {
+            if (error?.status === 404) return json(res, 404, { success: false, error: "File referensi tidak tersedia di Supabase Storage." });
+            throw error;
+        }
         res.setHeader("Content-Type", character.reference_mime_type || "application/octet-stream");
-        res.setHeader("Content-Length", String(object.size || 0));
+        res.setHeader("Content-Length", String(bytes.length));
         res.setHeader("X-Content-Type-Options", "nosniff");
         res.setHeader("Cache-Control", "private, no-store");
-        return res.status(200).end(new Uint8Array(await object.arrayBuffer()));
+        return res.status(200).end(bytes);
     }
     return json(res, 404, { success: false, error: "Action tidak dikenal." });
 }

@@ -135,7 +135,7 @@
             ["Meta OAuth", config.metaOAuthConfigured],
             ["Gemini Image API", config.imageApiConfigured],
             ["Token encryption", config.tokenEncryptionConfigured],
-            ["Private R2 bucket", config.referenceStorageConfigured]
+            ["Private Supabase Storage", config.referenceStorageConfigured]
         ];
         configList.replaceChildren();
         for (const [label, ok] of items) {
@@ -155,7 +155,7 @@
         const allReady = items.every(([, ok]) => ok === true);
         globalToggle.disabled = !allReady && !state.data?.globalEnabled;
         if (!allReady && !state.data?.globalEnabled) {
-            showNotice(configMessage, "Autopublish belum dapat diaktifkan. Lengkapi secrets Cloudflare, buat bucket R2, dan pastikan SQL migration sudah dijalankan.", "warn");
+            showNotice(configMessage, "Autopublish belum dapat diaktifkan. Lengkapi secrets Cloudflare, buat bucket privat Supabase Storage, dan pastikan SQL migration sudah dijalankan.", "warn");
         } else {
             configMessage.hidden = true;
         }
@@ -444,8 +444,8 @@
             status(characterStatus, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
             return;
         }
-        setButtonBusy(uploadButton, true, "Mengunggah ke R2…");
-        status(characterStatus, "Mengunggah foto referensi ke penyimpanan privat R2…");
+        setButtonBusy(uploadButton, true, "Mengunggah…");
+        status(characterStatus, "Mengunggah foto referensi ke Supabase Storage privat…");
         try {
             const uploaded = await api("upload-reference", {
                 method: "POST",
@@ -466,7 +466,7 @@
                 await api("save-character", { method: "POST", body: { id: data.character.id, display_name: name, prompt_notes: notes } });
             }
             $("character-form").reset();
-            status(characterStatus, "Karakter tersimpan. Foto referensi disimpan privat di R2.", "good");
+            status(characterStatus, "Karakter tersimpan. Foto referensi disimpan privat di Supabase Storage.", "good");
             await loadDashboard();
         } catch (error) {
             status(characterStatus, error.message, "error");
