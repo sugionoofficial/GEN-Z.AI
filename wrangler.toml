@@ -8,3 +8,10 @@ compatibility_flags = ["nodejs_compat"]
 directory = "./dist"
 binding = "ASSETS"
 run_worker_first = ["/api/*"]
+
+[[r2_buckets]]
+binding = "SOCIAL_REFERENCE_BUCKET"
+bucket_name = "genzai-social-references"
+
+[triggers]
+crons = ["* * * * *"]
