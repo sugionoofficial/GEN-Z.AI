@@ -75,6 +75,10 @@ npx wrangler@4 deploy
 
 Existing `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` Worker configuration is required. The global autopublish switch starts **off**. The queue will not publish until an admin connects a Page, creates an enabled schedule, and turns on autopublish.
 
+### Cloudflare Workers Builds preview command
+
+The `dist/` directory is generated, not committed. For Workers Builds, keep Production configured with build command `node scripts/build-cloudflare-pages.mjs` and deploy command `npx wrangler deploy`. In **Previews Base**, use `npm run preview` as the Preview command; that script builds `dist/` before running `npx wrangler preview`. To avoid building twice, the Previews Base Build command can be left empty. This affects branch previews only, not the Production deploy command.
+
 ## Admin use
 
 Open **Admin Control → Social Auto Publisher**:
