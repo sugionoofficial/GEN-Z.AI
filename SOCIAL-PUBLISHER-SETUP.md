@@ -29,29 +29,34 @@ The configured model is `gemini-nano-banana-2.1`. The API currently does not inc
 
 ### 3. Configure the Meta app and OAuth
 
-Create/configure a Meta app with Facebook Login and the Pages API. In the Meta app settings, add this exact callback URL (replace it if using another production hostname):
+Create a Meta app with the **Manage everything on your Page** use case. Do not use an app whose only use case is **Authenticate and request data from users with Facebook Login**: Meta marks those use cases incompatible, so Page permissions cannot be enabled on that app. Keep the old app until the replacement is verified.
+
+In **Manage everything on your Page → Permissions and features**, keep the required `business_management` and `pages_show_list` permissions, and add `pages_read_engagement` and `pages_manage_posts`. Remove `pages_manage_metadata` and `pages_manage_engagement` if they are preselected: this publisher creates posts but does not manage Page settings, webhooks, or comments. The authorizing person must be able to perform the Page's `CREATE_CONTENT` task. Meta may require App Review / advanced access before the app can serve users beyond its own app roles.
+
+This use case may add **Facebook Login for Business** automatically. Create a login configuration using a **User access token** (not a Business Integration System User token), select the Page assets and permissions the publisher needs, and copy its Configuration ID. The Worker uses that configuration to start OAuth without a runtime scope list. In **Facebook Login for Business → Settings**, add this exact redirect URI and validate it (replace it only if the production hostname changes):
 
 ```text
 https://genzai.genzai-f37.workers.dev/api/facebook-oauth-callback
 ```
 
-Add the necessary permissions for the managed Page, including `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, and `pages_manage_metadata`. Meta may require App Review / advanced access before the app can serve users beyond its own app roles. The authorizing person must be able to perform the Page's `CREATE_CONTENT` task.
-
-Keep `META_REDIRECT_URI` as a non-secret Worker variable in `wrangler.toml`. Store the Meta app credentials and encryption key as Worker secrets; do not place secret values in browser code, source control, or chat:
+Keep `META_REDIRECT_URI` as a non-secret Worker variable in `wrangler.toml`. Store the replacement app credentials and login Configuration ID as Worker secrets; do not put secret values in browser code, source control, or chat:
 
 ```sh
 npx wrangler@4 secret put META_APP_ID
 npx wrangler@4 secret put META_APP_SECRET
+npx wrangler@4 secret put META_LOGIN_CONFIG_ID
 npx wrangler@4 secret put SOCIAL_TOKEN_ENCRYPTION_KEY
 ```
 
-Set `META_REDIRECT_URI` to the exact callback URL above. Generate a fresh 32-byte key encoded as Base64 for `SOCIAL_TOKEN_ENCRYPTION_KEY`, for example:
+When switching to the replacement app, update `META_APP_ID` and `META_APP_SECRET` and set `META_LOGIN_CONFIG_ID` in the `genzai` Production environment. Keep the existing `SOCIAL_TOKEN_ENCRYPTION_KEY`; do not rotate it. `META_REDIRECT_URI` must exactly match the callback above.
+
+Only if `SOCIAL_TOKEN_ENCRYPTION_KEY` has never been configured, generate a 32-byte key encoded as Base64, for example:
 
 ```sh
 openssl rand -base64 32
 ```
 
-Page access tokens are encrypted with AES-GCM before being stored in Supabase. If the encryption secret is rotated, reconnect the Facebook Page so the stored token can be encrypted with the new key.
+Do not rotate the existing key while switching Meta apps. Page access tokens are encrypted with AES-GCM before being stored in Supabase; rotating the key makes previously stored tokens unreadable and requires reconnecting each Page.
 
 ### 4. Confirm Worker configuration and deploy
 

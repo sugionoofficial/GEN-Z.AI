@@ -311,7 +311,7 @@ async function getDashboard(config, userId, env) {
         runs: runs || [],
         globalEnabled: publisherConfig?.[0]?.global_enabled === true,
         config: {
-            metaOAuthConfigured: Boolean(envValue(env, "META_APP_ID") && envValue(env, "META_APP_SECRET") && envValue(env, "META_REDIRECT_URI")),
+            metaOAuthConfigured: Boolean(envValue(env, "META_APP_ID") && envValue(env, "META_APP_SECRET") && envValue(env, "META_REDIRECT_URI") && envValue(env, "META_LOGIN_CONFIG_ID")),
             imageApiConfigured: Boolean(envValue(env, "GEMINI_API_KEY")),
             tokenEncryptionConfigured: Boolean(envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")),
             referenceStorageConfigured
@@ -322,8 +322,9 @@ async function getDashboard(config, userId, env) {
 async function startOAuth(config, userId, env) {
     const appId = envValue(env, "META_APP_ID");
     const redirectUri = envValue(env, "META_REDIRECT_URI");
-    if (!appId || !redirectUri || !envValue(env, "META_APP_SECRET") || !envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) {
-        const error = new Error("Konfigurasi OAuth Meta belum lengkap. Minta admin menyiapkan app ID, app secret, redirect URI, dan kunci enkripsi di Cloudflare.");
+    const loginConfigId = envValue(env, "META_LOGIN_CONFIG_ID");
+    if (!appId || !redirectUri || !loginConfigId || !envValue(env, "META_APP_SECRET") || !envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) {
+        const error = new Error("Konfigurasi OAuth Meta belum lengkap. Minta admin menyiapkan App ID, App Secret, redirect URI, ID konfigurasi Facebook Login for Business, dan kunci enkripsi di Cloudflare.");
         error.status = 503;
         throw error;
     }
@@ -342,7 +343,7 @@ async function startOAuth(config, userId, env) {
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("state", randomState);
     url.searchParams.set("response_type", "code");
-    url.searchParams.set("scope", "pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_metadata");
+    url.searchParams.set("config_id", envValue(env, "META_LOGIN_CONFIG_ID"));
     return { authorization_url: url.toString() };
 }
 
@@ -494,7 +495,7 @@ async function setGlobalEnabled(config, userId, env, enabled) {
     if (enabled) {
         const missing = [];
         if (!envValue(env, "GEMINI_API_KEY")) missing.push("GEMINI_API_KEY");
-        if (!envValue(env, "META_APP_ID") || !envValue(env, "META_APP_SECRET") || !envValue(env, "META_REDIRECT_URI")) missing.push("konfigurasi OAuth Meta");
+        if (!envValue(env, "META_APP_ID") || !envValue(env, "META_APP_SECRET") || !envValue(env, "META_REDIRECT_URI") || !envValue(env, "META_LOGIN_CONFIG_ID")) missing.push("konfigurasi OAuth Meta (termasuk ID Facebook Login for Business)");
         if (!envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) missing.push("SOCIAL_TOKEN_ENCRYPTION_KEY");
         if (!await isPrivateReferenceBucket(config)) missing.push("bucket privat Supabase Storage untuk referensi");
         if (missing.length) {
