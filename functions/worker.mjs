@@ -31,6 +31,7 @@ const handlers = new Map([
     ["/api/openkey-chat", openkeyChat],
     ["/api/sightengine-detect", sightengineDetect],
     ["/api/social-publisher", socialPublisher],
+    ["/api/facebook-oauth-callback", socialPublisher],
     ["/api/viddra/account", viddraAccount],
     ["/api/viddra/generate", viddraGenerate]
 ]);

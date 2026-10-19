@@ -582,7 +582,8 @@ export default async function handler(req, res) {
         return res.end();
     }
 
-    const action = getQuery(req, "action") || "dashboard";
+    const requestPath = new URL(String(req.url || "/"), "https://social-publisher.invalid").pathname;
+    const action = getQuery(req, "action") || (requestPath === "/api/facebook-oauth-callback" ? "oauth-callback" : "dashboard");
     const env = req.env || {};
 
     if (req.method === "GET" && action === "oauth-callback") {

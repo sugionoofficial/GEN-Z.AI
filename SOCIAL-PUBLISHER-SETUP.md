@@ -42,7 +42,7 @@ The configured model is `gemini-nano-banana-2.1`. The API currently does not inc
 Create/configure a Meta app with Facebook Login and the Pages API. In the Meta app settings, add this exact callback URL (replace it if using another production hostname):
 
 ```text
-https://genzai.genzai-f37.workers.dev/api/social-publisher?action=oauth-callback
+https://genzai.genzai-f37.workers.dev/api/facebook-oauth-callback
 ```
 
 Add the necessary permissions for the managed Page, including `pages_show_list`, `pages_manage_read_engagement`, `pages_manage_posts`, and `pages_manage_metadata`. Meta may require App Review / advanced access before the app can serve users beyond its own app roles. The authorizing person must be able to perform the Page's `CREATE_CONTENT` task.
