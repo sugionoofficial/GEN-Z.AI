@@ -16,11 +16,12 @@
         .config-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.config-item{border:1px solid var(--border);border-radius:11px;background:#0b1421;padding:12px}.config-item span{display:block;font-size:10px;color:var(--muted);margin-bottom:6px}.config-item strong{display:flex;align-items:center;gap:7px;font-size:12px}.dot{width:8px;height:8px;border-radius:50%;background:#e18869;display:inline-block}.dot.ok{background:#43dda9;box-shadow:0 0 10px #43dda966}
         .list{display:grid;gap:10px}.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;background:#0b1421;border:1px solid #29384d;border-radius:12px;padding:12px}.thumb{width:54px;height:66px;border-radius:9px;object-fit:cover;background:#1b2737;border:1px solid #35445a}.item-title{font-size:13px;font-weight:750;margin:0 0 4px;overflow-wrap:anywhere}.item-meta{font-size:11px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}.empty{border:1px dashed #394961;border-radius:12px;padding:18px;color:#91a1b8;text-align:center;font-size:12px}.badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border:1px solid #45536a;color:#bfcbdb}.badge.posted{border-color:#286b58;color:#84efc5;background:#10332c}.badge.failed{border-color:#74414b;color:#ffb1bd;background:#351d27}.badge.generating,.badge.queued{border-color:#766340;color:#f2d394;background:#342b1b}.share-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}.schedule-grid{display:grid;gap:10px}.note-cost{border-left:3px solid var(--amber);padding:8px 10px;background:#282215;color:#e9d69f;font-size:11px;line-height:1.5;border-radius:0 8px 8px 0}
         .footer{text-align:center;color:#6f7e93;font-size:11px;margin:24px 0 0}.spinner{width:14px;height:14px;border:2px solid #ffffff55;border-top-color:white;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-        @media(max-width:760px){.wrap{padding:17px 13px 40px}.hero{padding:21px;align-items:flex-start;flex-direction:column}.hero h2{font-size:24px}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.config-list{grid-template-columns:repeat(2,minmax(0,1fr))}.top{align-items:flex-start}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.item{grid-template-columns:auto minmax(0,1fr)}.item>.item-actions{grid-column:1/-1;display:flex;justify-content:flex-end}.back{font-size:11px;padding:9px}}
+        @media(max-width:768px){.wrap{padding:70px 13px 40px}.hero{padding:21px;align-items:flex-start;flex-direction:column}.hero h2{font-size:24px}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.config-list{grid-template-columns:repeat(2,minmax(0,1fr))}.top{align-items:flex-start}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.item{grid-template-columns:auto minmax(0,1fr)}.item>.item-actions{grid-column:1/-1;display:flex;justify-content:flex-end}.back{font-size:11px;padding:9px}}
         @media(max-width:380px){.config-list{grid-template-columns:1fr}.card{padding:16px}.hero{padding:18px}.brand p{display:none}}
     </style>
 </head>
 <body>
+    <div id="navigation"></div>
     <main class="wrap">
         <header class="top">
             <div class="brand">
@@ -102,6 +103,7 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
+    <script src="/navigation/navigation.js?v=android-download-bridge-20261017"></script>
     <script src="./social-publisher.js" defer></script>
 </body>
 </html>
