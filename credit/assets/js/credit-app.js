@@ -1,4 +1,10 @@
-// credit/assets/js/credit-app.js?v=credit-usage-limit-20261018
+// credit/assets/js/credit-app.js?v=credit-refund-balance-20261019
+import {
+    getCreditCost,
+    getNetCreditCost,
+    getRefundAmount
+} from "./credit-utils.js";
+
 /* =========================================================
    GEN-Z.AI — CREDIT USAGE APP
    ---------------------------------------------------------
@@ -7,9 +13,9 @@
 
    Fungsi:
    - Autentikasi (pola sama dengan history page)
-   - Query riwayat pemakaian credit dari generation_history
+   - Query pemakaian dan refund credit dari generation_history
    - Hitung status: success / failed / proses
-   - Render hero saldo, stats, chart 14 hari, tabel transaksi
+   - Render saldo akhir, refund, stats, chart 14 hari, tabel transaksi
    - Filter status + filter jumlah tampilan (10 / 50 / 100)
    - Refresh + auto refresh 10 detik
 
@@ -70,6 +76,8 @@
 
         profile: null,
 
+        profileUpdatedAt: null,
+
         rows: [],
 
         filter: "all",
@@ -99,9 +107,13 @@
 
         balance: byId("cuBalance"),
 
+        balanceUpdated: byId("cuBalanceUpdated"),
+
         heroSub: byId("cuHeroSub"),
 
         totalUsed: byId("cuTotalUsed"),
+
+        totalRefunded: byId("cuTotalRefunded"),
 
         totalRows: byId("cuTotalRows"),
 
@@ -112,6 +124,8 @@
         failedCount: byId("cuFailedCount"),
 
         failedCredits: byId("cuFailedCredits"),
+
+        failedRefunds: byId("cuFailedRefunds"),
 
         prosesCount: byId("cuProsesCount"),
 
@@ -554,6 +568,8 @@
 
         state.profile = profile;
 
+        state.profileUpdatedAt = new Date();
+
         return profile;
     }
 
@@ -632,30 +648,6 @@
         processing: "gz-badge gz-badge-yellow cu-badge"
 
     };
-
-
-    /*
-     * Sumber biaya credit per baris.
-     * Pola sama dengan history-data.js.
-     */
-    function getCreditCost(item) {
-
-        if (!item) {
-            return 0;
-        }
-
-        const value =
-            item.credit_cost ??
-            item.credits_used ??
-            item.cost ??
-            0;
-
-        const number = Number(value);
-
-        return Number.isFinite(number)
-            ? number
-            : 0;
-    }
 
 
     /* =========================================================
@@ -771,11 +763,14 @@
                 String(date.getDate()).padStart(2, "0");
 
 
-            byDay.set(
-                key,
-                (byDay.get(key) || 0) +
-                    getCreditCost(item)
-            );
+            const dayTotals = byDay.get(key) || {
+                credits: 0,
+                refunded: 0
+            };
+
+            dayTotals.credits += getNetCreditCost(item);
+            dayTotals.refunded += getRefundAmount(item);
+            byDay.set(key, dayTotals);
         });
 
 
@@ -793,6 +788,11 @@
                 String(day.getDate()).padStart(2, "0");
 
 
+            const dayTotals = byDay.get(key) || {
+                credits: 0,
+                refunded: 0
+            };
+
             days.push({
 
                 key,
@@ -804,7 +804,10 @@
                     day.getMonth() + 1,
 
                 credits:
-                    byDay.get(key) || 0
+                    dayTotals.credits,
+
+                refunded:
+                    dayTotals.refunded
 
             });
         }
@@ -818,16 +821,18 @@
 
         const buckets = {
 
-            success: { count: 0, credits: 0 },
+            success: { count: 0, credits: 0, refunded: 0 },
 
-            failed: { count: 0, credits: 0 },
+            failed: { count: 0, credits: 0, refunded: 0 },
 
-            processing: { count: 0, credits: 0 }
+            processing: { count: 0, credits: 0, refunded: 0 }
 
         };
 
 
         let totalUsed = 0;
+
+        let totalRefunded = 0;
 
 
         rows.forEach(item => {
@@ -835,15 +840,22 @@
             const bucket =
                 getStatusBucket(item.status);
 
-            const cost =
-                getCreditCost(item);
+            const netCost =
+                getNetCreditCost(item);
+
+            const refunded =
+                getRefundAmount(item);
 
 
             buckets[bucket].count += 1;
 
-            buckets[bucket].credits += cost;
+            buckets[bucket].credits += netCost;
 
-            totalUsed += cost;
+            buckets[bucket].refunded += refunded;
+
+            totalUsed += netCost;
+
+            totalRefunded += refunded;
         });
 
 
@@ -852,6 +864,8 @@
             buckets,
 
             totalUsed,
+
+            totalRefunded,
 
             totalRows: rows.length,
 
@@ -880,9 +894,27 @@
         );
 
         animateNumber(
+            elements.totalRefunded,
+            summary.totalRefunded
+        );
+
+        animateNumber(
             elements.totalRows,
             summary.shown
         );
+
+
+        if (elements.balanceUpdated) {
+
+            elements.balanceUpdated.textContent =
+                "Saldo akhir termasuk refund berhasil" +
+                (state.profileUpdatedAt
+                    ? " · diperbarui " +
+                        formatDate(state.profileUpdatedAt) +
+                        " " +
+                        formatTime(state.profileUpdatedAt)
+                    : "");
+        }
 
 
         if (elements.heroSub) {
@@ -931,6 +963,11 @@
         );
 
         animateNumber(
+            elements.failedRefunds,
+            summary.buckets.failed.refunded
+        );
+
+        animateNumber(
             elements.prosesCount,
             summary.buckets.processing.count
         );
@@ -964,12 +1001,21 @@
                 0
             );
 
+        const totalRefunded =
+            daily.reduce(
+                (sum, day) =>
+                    sum + day.refunded,
+                0
+            );
+
 
         if (elements.chartSub) {
 
             elements.chartSub.textContent =
                 formatNumber(total) +
-                " credit terpakai dalam " +
+                " credit terpakai bersih · " +
+                formatNumber(totalRefunded) +
+                " credit direfund dalam " +
                 CONFIG.chartDays +
                 " hari terakhir";
         }
@@ -978,7 +1024,7 @@
         if (elements.chartPeak) {
 
             elements.chartPeak.textContent =
-                "Puncak " +
+                "Puncak bersih " +
                 formatNumber(peak) +
                 " credit";
         }
@@ -1007,7 +1053,9 @@
                     String(day.month).padStart(2, "0") +
                     ": " +
                     formatNumber(day.credits) +
-                    " credit";
+                    " credit bersih · " +
+                    formatNumber(day.refunded) +
+                    " credit refund";
 
 
                 return (
@@ -1117,6 +1165,9 @@
                 const cost =
                     getCreditCost(item);
 
+                const refund =
+                    getRefundAmount(item);
+
                 const modelName =
                     String(
                         item.model_name ||
@@ -1138,6 +1189,15 @@
                             "-" + formatNumber(cost) +
                         '</span>'
                         : '<span class="cu-credit is-free">0</span>';
+
+                const refundHtml =
+                    refund > 0
+                        ? '<span class="cu-refund is-refunded">+' +
+                            formatNumber(refund) +
+                            '<small>Dikembalikan</small></span>'
+                        : bucket === "failed" && cost > 0
+                            ? '<span class="cu-refund is-pending" title="Refund belum terkonfirmasi di riwayat">Belum terkonfirmasi</span>'
+                            : '<span class="cu-refund is-none">—</span>';
 
 
                 return (
@@ -1170,6 +1230,9 @@
                         '</td>' +
                         '<td>' +
                             creditHtml +
+                        '</td>' +
+                        '<td>' +
+                            refundHtml +
                         '</td>' +
                     '</tr>'
                 );
@@ -1324,9 +1387,33 @@
 
         try {
 
-            await loadUsage();
+            const [profileResult, usageResult] =
+                await Promise.allSettled([
+                    loadProfile(),
+                    loadUsage()
+                ]);
+
+            if (usageResult.status === "rejected") {
+                throw usageResult.reason;
+            }
 
             renderAll();
+
+            if (profileResult.status === "rejected") {
+                console.warn(
+                    "[credit] Profile refresh error:",
+                    profileResult.reason
+                );
+
+                if (showErrors !== false) {
+                    showMessage(
+                        "Riwayat dimuat, tetapi saldo belum berhasil diperbarui.",
+                        true
+                    );
+                }
+
+                return;
+            }
 
             showMessage("", false);
 
@@ -1511,6 +1598,8 @@
             renderAll();
 
             bindEvents();
+
+            setAutoRefresh(true);
 
             hideLoading();
 
