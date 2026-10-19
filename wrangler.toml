@@ -4,6 +4,9 @@ main = "functions/worker.mjs"
 compatibility_date = "2026-10-10"
 compatibility_flags = ["nodejs_compat"]
 
+[vars]
+META_REDIRECT_URI = "https://genzai.genzai-f37.workers.dev/api/facebook-oauth-callback"
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"
