@@ -150,6 +150,12 @@
             font-size: 12px;
         }
 
+        .cu-balance-updated {
+            margin-top: 5px;
+            color: rgba(255,255,255,.38);
+            font-size: 10px;
+        }
+
         .cu-hero-side {
             position: relative;
             z-index: 1;
@@ -406,9 +412,8 @@
         /* ---------- table ---------- */
 
         /*
-         * Kolom rapat: tanggal, model, status, credit
-         * hanya berjarak sedikit — tidak teregang
-         * selebar kartu (width auto + padding kecil).
+         * Kolom rapat: tanggal, model, status, kredit terpakai,
+         * dan refund (width auto + padding kecil).
          */
         .cu-table-wrap {
             width: fit-content;
@@ -510,6 +515,35 @@
         .cu-credit.is-free {
             color: rgba(255,255,255,.35);
             font-weight: 600;
+        }
+
+        .cu-refund {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 2px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .cu-refund.is-refunded {
+            color: #7ef0b4;
+        }
+
+        .cu-refund.is-refunded small {
+            color: rgba(126,240,180,.65);
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        .cu-refund.is-pending {
+            color: #ffd28a;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .cu-refund.is-none {
+            color: rgba(255,255,255,.30);
+            font-weight: 500;
         }
 
         /* ---------- misc ---------- */
@@ -630,9 +664,8 @@
                         </h1>
 
                         <p class="gz-page-subtitle">
-                            Progres pemakaian credit tiap generate — lengkap dengan
-                            status <strong>success</strong>, <strong>failed</strong>,
-                            dan <strong>proses</strong>.
+                            Progres pemakaian credit tiap generate — termasuk refund
+                            saat generate gagal dan saldo akhir setelah refund berhasil.
                         </p>
                     </div>
 
@@ -649,7 +682,7 @@
                     <div class="cu-hero-info">
                         <span class="cu-hero-label">
                             <span class="credit-icon">&#9673;</span>
-                            SALDO CREDIT
+                            SALDO AKHIR SAAT INI
                         </span>
 
                         <div class="cu-hero-balance gz-money">
@@ -660,12 +693,21 @@
                         <div class="cu-hero-sub" id="cuHeroSub">
                             Memuat data credit...
                         </div>
+
+                        <div class="cu-balance-updated" id="cuBalanceUpdated">
+                            Saldo mencakup refund yang berhasil diproses.
+                        </div>
                     </div>
 
                     <div class="cu-hero-side">
                         <div class="cu-hero-mini">
-                            <span class="cu-mini-label">TOTAL TERPAKAI</span>
+                            <span class="cu-mini-label">NET TERPAKAI</span>
                             <span class="cu-mini-value gz-money" id="cuTotalUsed">0</span>
+                        </div>
+
+                        <div class="cu-hero-mini">
+                            <span class="cu-mini-label">REFUND (DITAMPILKAN)</span>
+                            <span class="cu-mini-value gz-money" id="cuTotalRefunded">0</span>
                         </div>
 
                         <div class="cu-hero-mini">
@@ -705,7 +747,9 @@
                         <div class="gz-stat-value" id="cuFailedCount">0</div>
                         <div class="cu-stat-sub">
                             <span class="gz-money" id="cuFailedCredits">0</span>
-                            credit terpakai
+                            credit terpakai bersih ·
+                            <span class="gz-money" id="cuFailedRefunds">0</span>
+                            credit direfund
                         </div>
                     </div>
 
@@ -730,7 +774,7 @@
                     <div class="cu-chart-head">
                         <div>
                             <h3 class="cu-card-title">
-                                Progres pemakaian 14 hari terakhir
+                                Pemakaian bersih 14 hari terakhir
                             </h3>
                             <p class="cu-card-sub" id="cuChartSub">
                                 Memuat grafik...
@@ -746,7 +790,7 @@
                         class="cu-chart"
                         id="cuChart"
                         role="img"
-                        aria-label="Grafik pemakaian credit harian 14 hari terakhir"
+                        aria-label="Grafik pemakaian credit bersih dan refund harian 14 hari terakhir"
                     ></div>
                 </div>
             </section>
@@ -803,15 +847,15 @@
                                 class="cu-chip"
                                 id="cuAutoToggle"
                                 type="button"
-                                aria-pressed="false"
-                                title="Auto refresh setiap 10 detik: mati"
-                            >Auto 10s OFF</button>
+                                aria-pressed="true"
+                                title="Auto refresh setiap 10 detik: aktif"
+                            >Auto 10s ON</button>
 
                             <button
                                 class="cu-chip"
                                 id="cuRefresh"
                                 type="button"
-                                title="Muat ulang riwayat credit"
+                                title="Muat ulang riwayat dan saldo credit"
                             >
                                 <svg
                                     viewBox="0 0 24 24"
@@ -841,7 +885,8 @@
                                     <th>TANGGAL</th>
                                     <th>MODEL / LAYANAN</th>
                                     <th>STATUS</th>
-                                    <th>CREDIT</th>
+                                    <th>DIPAKAI</th>
+                                    <th>REFUND</th>
                                 </tr>
                             </thead>
                             <tbody id="cuRows">
@@ -877,7 +922,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=android-download-bridge-20261017"></script>
-    <script src="./assets/js/credit-app.js?v=credit-usage-limit-20261018"></script>
+    <script type="module" src="./assets/js/credit-app.js?v=credit-refund-balance-20261019"></script>
 
 </body>
 </html>
