@@ -37,12 +37,11 @@ https://genzai.genzai-f37.workers.dev/api/facebook-oauth-callback
 
 Add the necessary permissions for the managed Page, including `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, and `pages_manage_metadata`. Meta may require App Review / advanced access before the app can serve users beyond its own app roles. The authorizing person must be able to perform the Page's `CREATE_CONTENT` task.
 
-Store credentials as Worker secrets; do not place them in browser code or send them in chat:
+Keep `META_REDIRECT_URI` as a non-secret Worker variable in `wrangler.toml`. Store the Meta app credentials and encryption key as Worker secrets; do not place secret values in browser code, source control, or chat:
 
 ```sh
 npx wrangler@4 secret put META_APP_ID
 npx wrangler@4 secret put META_APP_SECRET
-npx wrangler@4 secret put META_REDIRECT_URI
 npx wrangler@4 secret put SOCIAL_TOKEN_ENCRYPTION_KEY
 ```
 
