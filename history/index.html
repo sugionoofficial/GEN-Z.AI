@@ -363,6 +363,25 @@ body {
     outline-offset: 3px;
 }
 
+/* Keep the three history actions aligned to one shared control size. */
+.history-actions > .credit-usage-link,
+.history-actions > .auto-refresh-toggle,
+.history-actions > .refresh-button {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 140px;
+    min-width: 140px;
+    height: 40px;
+    min-height: 40px;
+    flex: 0 0 140px;
+    gap: 8px;
+    padding: 0 10px;
+    font-size: 11px;
+    line-height: 1;
+}
+
 @keyframes auto-refresh-pulse {
     50% {
         opacity: .28;
@@ -1874,6 +1893,24 @@ tbody tr {
 
     .section-head {
         align-items: stretch;
+    }
+
+    .history-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
+        width: 100%;
+        gap: 8px;
+    }
+
+    .history-actions > .credit-usage-link,
+    .history-actions > .auto-refresh-toggle,
+    .history-actions > .refresh-button {
+        width: 100%;
+        min-width: 0;
+        height: 40px;
+        min-height: 40px;
+        flex: none;
     }
 
     .refresh-button {
