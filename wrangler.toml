@@ -15,3 +15,8 @@ bucket_name = "genzai-social-references"
 
 [triggers]
 crons = ["* * * * *"]
+
+# Cloudflare Workers Builds calls `wrangler preview`; keep this block present
+# so preview deployments can be created. Preview-specific bindings should use
+# dedicated non-production resources when they are provisioned.
+[previews]
