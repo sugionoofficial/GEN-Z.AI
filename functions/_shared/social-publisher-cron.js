@@ -1,0 +1,165 @@
+import { buildImagePrompt, createScenePlan, renderCaption } from "../../lib/social-publisher/utils.js";
+import { decryptSecret, generateSocialImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
+import { downloadReferenceObject, isPrivateReferenceBucket } from "../../lib/social-publisher/storage.js";
+
+function value(env, key) {
+    const processValue = typeof process !== "undefined" ? process.env?.[key] : "";
+    return String(env?.[key] || processValue || "").trim();
+}
+
+function getConfig(env) {
+    return {
+        url: value(env, "SUPABASE_URL").replace(/\/+$/, ""),
+        serviceRoleKey: value(env, "SUPABASE_SERVICE_ROLE_KEY")
+    };
+}
+
+async function dbRequest(config, path, options = {}) {
+    if (!config.url || !config.serviceRoleKey) throw new Error("Supabase server configuration is missing.");
+    const response = await fetch(`${config.url}${path}`, {
+        ...options,
+        headers: {
+            apikey: config.serviceRoleKey,
+            Authorization: `Bearer ${config.serviceRoleKey}`,
+            "Content-Type": "application/json",
+            ...(options.headers || {})
+        }
+    });
+    const text = await response.text();
+    let data = null;
+    if (text) {
+        try { data = JSON.parse(text); } catch { data = { message: text }; }
+    }
+    if (!response.ok) {
+        throw new Error(String(data?.message || data?.error_description || `Supabase HTTP ${response.status}`).slice(0, 500));
+    }
+    return data;
+}
+
+function table(tableName, query = "") {
+    return `/rest/v1/${tableName}${query ? `?${query}` : ""}`;
+}
+
+async function updateRun(config, runId, values) {
+    await dbRequest(config, table("social_post_runs", `id=eq.${encodeURIComponent(runId)}`), {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify(values)
+    });
+}
+
+function cleanError(error) {
+    const message = String(error?.message || "Unknown social publishing error");
+    return message
+        .replace(/(access_token|api[_-]?key)=?[^&\s]+/gi, "$1=[redacted]")
+        .slice(0, 1000);
+}
+
+async function processRun(env, config, claimedRun) {
+    const runId = claimedRun.run_id;
+    const scheduleId = claimedRun.schedule_id;
+    const now = new Date().toISOString();
+
+    try {
+        await updateRun(config, runId, { status: "generating", started_at: now });
+        const schedules = await dbRequest(config, table(
+            "social_post_schedules",
+            `select=id,owner_id,character_id,page_connection_id,enabled,interval_hours,caption_template,timezone&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+        ));
+        const schedule = schedules?.[0];
+        if (!schedule) throw new Error("Schedule was removed or disabled before processing.");
+
+        const [characters, pageConnections, previousRuns] = await Promise.all([
+            dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
+            dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
+            dbRequest(config, table("social_post_runs", `select=scene_plan&schedule_id=eq.${encodeURIComponent(schedule.id)}&status=eq.posted&order=created_at.desc&limit=12`))
+        ]);
+        const character = characters?.[0];
+        const page = pageConnections?.[0];
+        if (!character) throw new Error("Character reference was not found.");
+        if (!page) throw new Error("Facebook Page connection was not found; reconnect the Page.");
+        if (page.can_publish === false) throw new Error("Facebook Page connection does not have CREATE_CONTENT permission.");
+        if (!await isPrivateReferenceBucket(config)) throw new Error("Private Supabase Storage reference bucket is not configured.");
+
+        const referenceBytes = await downloadReferenceObject(config, character.reference_object_key);
+        if (!referenceBytes.length || referenceBytes.length > 8 * 1024 * 1024) throw new Error("Reference image size is invalid.");
+
+        const recentSceneKeys = (previousRuns || [])
+            .map(item => item.scene_plan?.key)
+            .filter(Boolean);
+        const scene = createScenePlan(recentSceneKeys);
+        const prompt = buildImagePrompt({
+            characterName: character.display_name,
+            characterNotes: character.prompt_notes,
+            scene
+        });
+        const caption = renderCaption(schedule.caption_template, scene, character.display_name);
+        const generated = await generateSocialImage({
+            env,
+            prompt,
+            referenceBytes,
+            referenceMimeType: character.reference_mime_type
+        });
+        if (!generated?.bytes?.length) throw new Error("Image provider returned an empty image.");
+
+        const encryptionKey = value(env, "SOCIAL_TOKEN_ENCRYPTION_KEY");
+        if (!encryptionKey) throw new Error("SOCIAL_TOKEN_ENCRYPTION_KEY is not configured.");
+        const pageAccessToken = await decryptSecret(
+            page.page_token_ciphertext,
+            page.page_token_iv,
+            encryptionKey
+        );
+        const published = await publishFacebookPhoto({
+            env,
+            pageId: page.page_id,
+            pageAccessToken,
+            caption,
+            imageBytes: generated.bytes,
+            imageMimeType: generated.mimeType
+        });
+        const profileShareUrl = makeProfileShareUrl(published.permalinkUrl);
+
+        await updateRun(config, runId, {
+            status: "posted",
+            scene_plan: scene,
+            generated_prompt: prompt,
+            caption,
+            image_model: generated.model,
+            facebook_photo_id: published.photoId || null,
+            facebook_post_id: published.postId || null,
+            permalink_url: published.permalinkUrl || null,
+            profile_share_url: profileShareUrl || null,
+            finished_at: new Date().toISOString(),
+            error_message: null
+        });
+        console.log(`[Social Publisher] Posted run ${runId} to Page ${page.page_id}.`);
+    } catch (error) {
+        const safeMessage = cleanError(error);
+        console.error(`[Social Publisher] Run ${runId} failed: ${safeMessage}`);
+        await updateRun(config, runId, {
+            status: "failed",
+            error_message: safeMessage,
+            finished_at: new Date().toISOString()
+        }).catch(updateError => {
+            console.error(`[Social Publisher] Could not record failure for run ${runId}: ${updateError?.message || "unknown error"}`);
+        });
+    }
+}
+
+export async function runSocialPublisherCron(env, scheduledTime = new Date()) {
+    const config = getConfig(env);
+    if (!config.url || !config.serviceRoleKey) {
+        console.warn("[Social Publisher] Cron skipped: Supabase credentials are not configured.");
+        return { claimed: 0, skipped: true };
+    }
+
+    const claims = await dbRequest(config, "/rest/v1/rpc/claim_due_social_post_schedules", {
+        method: "POST",
+        body: JSON.stringify({ p_now: new Date(scheduledTime).toISOString(), p_limit: 2 })
+    });
+    const jobs = Array.isArray(claims) ? claims : [];
+    for (const job of jobs) {
+        await processRun(env, config, job);
+    }
+    return { claimed: jobs.length, skipped: false };
+}

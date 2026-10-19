@@ -427,7 +427,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
-.vercel
 .env*
 /dist/
 .wrangler/

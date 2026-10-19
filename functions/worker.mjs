@@ -11,6 +11,8 @@ import kieConfig from "../api/kie-config.js";
 import modelConfig from "../api/model-config.js";
 import openkeyChat from "../api/openkey-chat.js";
 import sightengineDetect from "../api/sightengine-detect.js";
+import socialPublisher from "../api/social-publisher.js";
+import { runSocialPublisherCron } from "./_shared/social-publisher-cron.js";
 import viddraAccount from "../api/viddra/account.js";
 import viddraGenerate from "../api/viddra/generate.js";
 import handleTempmail from "./_shared/tempmail-handler.js";
@@ -28,6 +30,8 @@ const handlers = new Map([
     ["/api/model-config", modelConfig],
     ["/api/openkey-chat", openkeyChat],
     ["/api/sightengine-detect", sightengineDetect],
+    ["/api/social-publisher", socialPublisher],
+    ["/api/facebook-oauth-callback", socialPublisher],
     ["/api/viddra/account", viddraAccount],
     ["/api/viddra/generate", viddraGenerate]
 ]);
@@ -43,6 +47,20 @@ export default {
         // Route khusus Tempmail
         if (pathname === "/api/tempmail") {
             return handleTempmail(request, env);
+        }
+
+        if (
+            pathname === "/api/social-publisher" &&
+            request.method === "POST" &&
+            url.searchParams.get("action") === "upload-reference"
+        ) {
+            const contentLength = Number(request.headers.get("content-length") || 0);
+            if (contentLength > 8 * 1024 * 1024) {
+                return Response.json(
+                    { success: false, error: "File referensi maksimal 8 MB." },
+                    { status: 413, headers: { "Cache-Control": "no-store" } }
+                );
+            }
         }
 
         const handler = handlers.get(pathname);
@@ -64,5 +82,14 @@ export default {
         }
 
         return env.ASSETS.fetch(request);
+    },
+
+    async scheduled(controller, env, context) {
+        const task = runSocialPublisherCron(env, controller?.scheduledTime || new Date())
+            .catch(error => {
+                console.error("[Cloudflare Worker] Social Publisher cron failed:", error?.message || "unknown error");
+            });
+        if (context?.waitUntil) context.waitUntil(task);
+        else await task;
     }
 };

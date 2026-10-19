@@ -8,3 +8,11 @@ compatibility_flags = ["nodejs_compat"]
 directory = "./dist"
 binding = "ASSETS"
 run_worker_first = ["/api/*"]
+
+[triggers]
+crons = ["* * * * *"]
+
+# Cloudflare Workers Builds calls `wrangler preview`; keep this block present
+# so preview deployments can be created. Preview-specific bindings should use
+# dedicated non-production resources when they are provisioned.
+[previews]

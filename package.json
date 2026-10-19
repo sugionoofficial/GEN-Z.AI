@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/",
-    "build": "node scripts/build-cloudflare-pages.mjs"
+    "build": "node scripts/build-cloudflare-pages.mjs",
+    "preview": "node scripts/build-cloudflare-pages.mjs && npx wrangler preview",
+    "postinstall": "node scripts/cloudflare-ci-postinstall.mjs"
   },
   "engines": {
     "node": ">=20"
