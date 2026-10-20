@@ -373,6 +373,70 @@ test("Studio Medsos price save rejects non-admin users", async () => {
     }
 });
 
+test("Studio Medsos admin can select Cloudflare image generation", async () => {
+    const restoreFetch = mockAuthAndFetch(
+        { id: "admin-user", role: "ADMIN", status: "active" },
+        async (url, options = {}) => {
+            assert.match(url, /\/rest\/v1\/social_publisher_config\?on_conflict=id/);
+            assert.equal(options.method, "POST");
+            const payload = JSON.parse(options.body);
+            assert.equal(payload.image_provider, "cloudflare");
+            assert.equal(payload.updated_by, "admin-user");
+            assert.equal(Object.hasOwn(payload, "global_enabled"), false);
+            return Response.json([{
+                id: true,
+                image_provider: payload.image_provider,
+                updated_at: payload.updated_at
+            }], { status: 201 });
+        }
+    );
+    const response = makeResponse();
+    try {
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=studio-admin-image-provider",
+            query: { action: "studio-admin-image-provider" },
+            headers: { authorization: "Bearer test-token" },
+            body: { image_provider: "cloudflare" },
+            env: {
+                ...env,
+                GEMINI_API_KEY: "caption-api-key",
+                AI: { run: async () => new Uint8Array([1]) }
+            }
+        }, response);
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.body.settings.image_provider, "cloudflare");
+        assert.equal(response.body.settings.cloudflare_configured, true);
+    } finally {
+        restoreFetch();
+    }
+});
+
+test("Studio Medsos image provider settings reject non-admin users", async () => {
+    let requested = false;
+    const restoreFetch = mockAuthAndFetch(
+        { id: "user-id", role: "USER", status: "active" },
+        async () => {
+            requested = true;
+            throw new Error("Image provider settings must not be queried for non-admins.");
+        }
+    );
+    const response = makeResponse();
+    try {
+        await socialPublisherHandler({
+            method: "GET",
+            url: "/api/social-publisher?action=studio-admin-image-provider",
+            query: { action: "studio-admin-image-provider" },
+            headers: { authorization: "Bearer test-token" },
+            env
+        }, response);
+        assert.equal(response.statusCode, 403);
+        assert.equal(requested, false);
+    } finally {
+        restoreFetch();
+    }
+});
+
 test("Studio Medsos status endpoint returns the current user's active subscription", async () => {
     const startedAt = new Date(Date.now() - 60_000).toISOString();
     const expiresAt = new Date(Date.now() + 86_400_000).toISOString();
@@ -550,7 +614,7 @@ test("Legacy manual immediate-publish action is not exposed", async () => {
     }
 });
 
-test("Manual Social Publisher returns a clean preview and caption without posting", async () => {
+test("Manual Social Publisher uses the selected Cloudflare provider and returns a preview", async () => {
     const originalFetch = globalThis.fetch;
     const pngBytes = new Uint8Array([
         137, 80, 78, 71, 13, 10, 26, 10,
@@ -590,6 +654,9 @@ test("Manual Social Publisher returns a clean preview and caption without postin
         if (url.includes("/rest/v1/social_page_connections?")) {
             return Response.json([{ id: "connection-1", page_name: "GEN-Z Page", can_publish: true }]);
         }
+        if (url.includes("/rest/v1/social_publisher_config?select=image_provider")) {
+            return Response.json([{ image_provider: "cloudflare" }]);
+        }
         if (url.includes("/rest/v1/social_publisher_user_settings?")) {
             return Response.json([{ caption_template: "Cerita hari ini #GENZAI", external_link: "https://example.com" }]);
         }
@@ -601,16 +668,10 @@ test("Manual Social Publisher returns a clean preview and caption without postin
             return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
         }
         if (url.includes("generativelanguage.googleapis.com/v1beta/interactions")) {
-            imageRequests += 1;
-            const request = JSON.parse(options.body);
-            assert.equal(request.response_format.aspect_ratio, "16:9");
-            return Response.json({
-                steps: [{
-                    content: [{ type: "image", mime_type: "image/png", data: btoa(String.fromCharCode(...pngBytes)) }]
-                }]
-            });
+            assert.fail("Image generation should use the selected Cloudflare provider.");
         }
         if (url.includes("gemini-2.5-flash:generateContent")) {
+            imageRequests += 1;
             return Response.json({
                 candidates: [{ content: { parts: [{ text: "Hai guys, lagi menikmati suasana sore." }] } }]
             });
@@ -642,7 +703,15 @@ test("Manual Social Publisher returns a clean preview and caption without postin
             env: {
                 ...env,
                 GEMINI_API_KEY: "gemini-test-key",
-                SOCIAL_TOKEN_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7)))
+                SOCIAL_TOKEN_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7))),
+                AI: {
+                    async run(model, input) {
+                        assert.equal(model, "@cf/bytedance/stable-diffusion-xl-lightning");
+                        assert.equal(input.width, 1365);
+                        assert.equal(input.height, 768);
+                        return { image: pngBytes };
+                    }
+                }
             }
         }, response);
 

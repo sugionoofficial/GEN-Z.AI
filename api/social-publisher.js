@@ -514,11 +514,12 @@ async function getDashboard(config, userId, env) {
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
         supabaseRequest(config, tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_post_runs", `select=id,schedule_id,status,scheduled_for,scene_plan,caption,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=30`)),
-        supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,updated_at&id=eq.true&limit=1")),
+        supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,updated_at&id=eq.true&limit=1")),
         supabaseRequest(config, tablePath("social_publisher_user_settings", `select=caption_template,external_link,updated_at&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
         isPrivateReferenceBucket(config)
     ]);
 
+    const imageProvider = publisherConfig?.[0]?.image_provider === "cloudflare" ? "cloudflare" : "gemini";
     return {
         success: true,
         characters: characters || [],
@@ -529,10 +530,66 @@ async function getDashboard(config, userId, env) {
         postingSettings: userSettings?.[0] || { caption_template: "Cerita hari ini ✨", external_link: "" },
         config: {
             metaOAuthConfigured: Boolean(envValue(env, "META_APP_ID") && envValue(env, "META_APP_SECRET") && envValue(env, "META_REDIRECT_URI") && envValue(env, "META_LOGIN_CONFIG_ID")),
-            imageApiConfigured: Boolean(envValue(env, "GEMINI_API_KEY")),
+            imageProvider,
+            imageApiConfigured: imageProvider === "cloudflare"
+                ? typeof env?.AI?.run === "function"
+                : Boolean(envValue(env, "GEMINI_API_KEY")),
+            captionApiConfigured: Boolean(envValue(env, "GEMINI_API_KEY")),
+            cloudflareAiConfigured: typeof env?.AI?.run === "function",
             tokenEncryptionConfigured: Boolean(envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")),
             referenceStorageConfigured
         }
+    };
+}
+
+async function getSocialImageProvider(config) {
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_publisher_config", "select=image_provider&id=eq.true&limit=1")
+    );
+    return rows?.[0]?.image_provider === "cloudflare" ? "cloudflare" : "gemini";
+}
+
+async function saveSocialImageProvider(config, adminId, body, env) {
+    const imageProvider = String(body?.image_provider || "").trim();
+    if (!["gemini", "cloudflare"].includes(imageProvider)) {
+        const error = new Error("Pilih Gemini atau Cloudflare sebagai penyedia gambar.");
+        error.status = 400;
+        throw error;
+    }
+    if (!envValue(env, "GEMINI_API_KEY")) {
+        const error = new Error("GEMINI_API_KEY tetap diperlukan untuk membuat caption kontekstual.");
+        error.status = 409;
+        throw error;
+    }
+    if (imageProvider === "cloudflare" && typeof env?.AI?.run !== "function") {
+        const error = new Error("Binding Cloudflare Workers AI belum tersedia. Tambahkan binding AI dan deploy Worker terlebih dahulu.");
+        error.status = 409;
+        throw error;
+    }
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_publisher_config", "on_conflict=id&select=id,image_provider,updated_at"),
+        {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify({
+                id: true,
+                image_provider: imageProvider,
+                updated_by: adminId,
+                updated_at: new Date().toISOString()
+            })
+        }
+    );
+    if (!rows?.length) {
+        const error = new Error("Pilihan penyedia gambar tidak berhasil disimpan.");
+        error.status = 500;
+        throw error;
+    }
+    return {
+        image_provider: rows[0].image_provider,
+        gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
+        cloudflare_configured: typeof env?.AI?.run === "function"
     };
 }
 
@@ -774,8 +831,14 @@ async function generateManualPost(config, userId, env, body = {}) {
         error.status = 400;
         throw error;
     }
+    const imageProvider = await getSocialImageProvider(config);
     if (!envValue(env, "GEMINI_API_KEY") || !envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) {
-        const error = new Error("GEMINI_API_KEY dan SOCIAL_TOKEN_ENCRYPTION_KEY harus dikonfigurasi untuk posting manual.");
+        const error = new Error("GEMINI_API_KEY diperlukan untuk caption AI dan SOCIAL_TOKEN_ENCRYPTION_KEY untuk posting manual.");
+        error.status = 503;
+        throw error;
+    }
+    if (imageProvider === "cloudflare" && typeof env?.AI?.run !== "function") {
+        const error = new Error("Binding Cloudflare Workers AI belum tersedia pada Worker.");
         error.status = 503;
         throw error;
     }
@@ -875,7 +938,8 @@ async function generateManualPost(config, userId, env, body = {}) {
             prompt,
             referenceBytes,
             referenceMimeType: character.reference_mime_type,
-            aspectRatio
+            aspectRatio,
+            imageProvider
         });
         if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar.");
         const cleanedBlob = await stripImageMetadata(
@@ -1082,6 +1146,8 @@ async function setGlobalEnabled(config, userId, env, enabled) {
     if (enabled) {
         const missing = [];
         if (!envValue(env, "GEMINI_API_KEY")) missing.push("GEMINI_API_KEY");
+        const imageProvider = await getSocialImageProvider(config);
+        if (imageProvider === "cloudflare" && typeof env?.AI?.run !== "function") missing.push("binding Cloudflare Workers AI (AI)");
         if (!envValue(env, "META_APP_ID") || !envValue(env, "META_APP_SECRET") || !envValue(env, "META_REDIRECT_URI") || !envValue(env, "META_LOGIN_CONFIG_ID")) missing.push("konfigurasi OAuth Meta (termasuk ID Facebook Login for Business)");
         if (!envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) missing.push("SOCIAL_TOKEN_ENCRYPTION_KEY");
         if (!await isPrivateReferenceBucket(config)) missing.push("bucket privat Supabase Storage untuk referensi");
@@ -1101,7 +1167,7 @@ async function setGlobalEnabled(config, userId, env, enabled) {
 }
 
 async function handlePost(req, res, config, userId, env, action) {
-    if (action !== "studio-access-status" && action !== "studio-admin-save" && action !== "studio-admin-save-price") {
+    if (action !== "studio-access-status" && action !== "studio-admin-save" && action !== "studio-admin-save-price" && action !== "studio-admin-image-provider") {
         await ensureStudioAccess(config, userId);
     }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
@@ -1127,6 +1193,10 @@ async function handlePost(req, res, config, userId, env, action) {
     if (action === "studio-admin-save-price") {
         const pricing = await saveStudioPricing(config, userId, body);
         return json(res, 200, { success: true, pricing });
+    }
+    if (action === "studio-admin-image-provider") {
+        const settings = await saveSocialImageProvider(config, userId, body, env);
+        return json(res, 200, { success: true, settings });
     }
     if (action === "set-global-enabled") {
         if (typeof body.enabled !== "boolean") return json(res, 400, { success: false, error: "Nilai enabled harus boolean." });
@@ -1171,6 +1241,17 @@ async function handleGet(req, res, config, userId, env, action) {
     }
     if (action === "studio-admin-users") {
         return json(res, 200, { success: true, users: await listStudioUsers(config) });
+    }
+    if (action === "studio-admin-image-provider") {
+        const imageProvider = await getSocialImageProvider(config);
+        return json(res, 200, {
+            success: true,
+            settings: {
+                image_provider: imageProvider,
+                gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
+                cloudflare_configured: typeof env?.AI?.run === "function"
+            }
+        });
     }
     if (action !== "oauth-start" && action !== "studio-pricing") {
         await ensureStudioAccess(config, userId);

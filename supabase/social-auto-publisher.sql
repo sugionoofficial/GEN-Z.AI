@@ -118,9 +118,15 @@ create index if not exists social_post_runs_schedule_created_idx
 create table if not exists public.social_publisher_config (
     id boolean primary key default true check (id),
     global_enabled boolean not null default false,
+    image_provider text not null default 'gemini'
+        check (image_provider in ('gemini', 'cloudflare')),
     updated_by uuid references public.profiles(id) on delete set null,
     updated_at timestamptz not null default now()
 );
+
+alter table public.social_publisher_config
+    add column if not exists image_provider text not null default 'gemini'
+        check (image_provider in ('gemini', 'cloudflare'));
 
 create table if not exists public.social_publisher_user_settings (
     owner_id uuid primary key references public.profiles(id) on delete cascade,

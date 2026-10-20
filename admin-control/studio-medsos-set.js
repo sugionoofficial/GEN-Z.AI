@@ -57,6 +57,13 @@
         node.textContent = message;
     }
 
+    function setImageProviderStatus(message, type = "") {
+        const node = document.getElementById("image-provider-status");
+        if (!node) return;
+        node.className = `status-box price-settings-status ${type}`.trim();
+        node.textContent = message;
+    }
+
     function formatPrice(priceIdr) {
         return new Intl.NumberFormat("id-ID", {
             style: "currency",
@@ -272,6 +279,42 @@
         renderPricingStatus(result.pricing || {});
     }
 
+    async function loadImageProvider() {
+        const result = await api("studio-admin-image-provider");
+        const settings = result.settings || {};
+        const selected = settings.image_provider === "cloudflare" ? "cloudflare" : "gemini";
+        document.querySelector(`input[name="image-provider"][value="${selected}"]`).checked = true;
+        const geminiStatus = settings.gemini_configured ? "GEMINI_API_KEY siap" : "GEMINI_API_KEY belum tersedia (caption AI memerlukan key)";
+        const providerStatus = selected === "cloudflare"
+            ? settings.cloudflare_configured ? "Cloudflare Workers AI binding siap" : "Cloudflare Workers AI binding belum tersedia"
+            : settings.gemini_configured ? "Gemini API key tersedia" : "Gemini API key belum tersedia";
+        setImageProviderStatus(`Provider aktif: ${selected === "cloudflare" ? "Cloudflare Workers AI" : "Google Gemini"} · ${providerStatus} · ${geminiStatus}.`);
+    }
+
+    async function saveImageProvider() {
+        const selected = document.querySelector('input[name="image-provider"]:checked')?.value;
+        if (!selected) {
+            setImageProviderStatus("Pilih Google Gemini atau Cloudflare Workers AI.", "error");
+            return;
+        }
+        const button = document.getElementById("save-image-provider");
+        button.disabled = true;
+        setImageProviderStatus("Menyimpan provider untuk posting manual dan autopost…");
+        try {
+            const result = await api("studio-admin-image-provider", {
+                method: "POST",
+                body: { image_provider: selected }
+            });
+            const providerName = result.settings.image_provider === "cloudflare" ? "Cloudflare Workers AI" : "Google Gemini";
+            setImageProviderStatus(`${providerName} disimpan dan akan digunakan pada pembuatan gambar manual maupun autopost.`, "success");
+        } catch (error) {
+            console.error(error);
+            setImageProviderStatus(error.message || "Gagal menyimpan provider gambar.", "error");
+        } finally {
+            button.disabled = false;
+        }
+    }
+
     function renderPricingStatus(pricing, prefix = "Harga saat ini", type = "") {
         const values = PRICE_PERIODS.map(({ key, label }) => {
             const price = pricing[`price_${key}_idr`];
@@ -373,6 +416,7 @@
         const saveButton = document.getElementById("save-config");
         const deactivateButton = document.getElementById("reset-config");
         const savePriceButton = document.getElementById("save-studio-price");
+        const saveImageProviderButton = document.getElementById("save-image-provider");
         setFormEnabled(false);
 
         userSelect.addEventListener("change", () => {
@@ -385,6 +429,7 @@
         saveButton.addEventListener("click", () => saveSelectedAccess(document.getElementById("access-status").checked));
         deactivateButton.addEventListener("click", () => saveSelectedAccess(false));
         savePriceButton.addEventListener("click", savePricing);
+        saveImageProviderButton.addEventListener("click", saveImageProvider);
 
         loadUsers().catch(error => {
             console.error(error);
@@ -393,6 +438,10 @@
         loadPricing().catch(error => {
             console.error(error);
             setPricingStatus(error.message || "Gagal memuat harga langganan.", "error");
+        });
+        loadImageProvider().catch(error => {
+            console.error(error);
+            setImageProviderStatus(error.message || "Gagal memuat provider gambar.", "error");
         });
         countdownTimer = window.setInterval(() => {
             const user = users.find(item => item.id === userSelect.value);

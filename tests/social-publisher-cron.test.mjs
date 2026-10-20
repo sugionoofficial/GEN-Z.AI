@@ -80,6 +80,9 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
                 external_link: "https://example.com/promo"
             }]);
         }
+        if (url.includes("/rest/v1/social_publisher_config?select=image_provider")) {
+            return Response.json([{ image_provider: "cloudflare" }]);
+        }
         if (url.endsWith("/storage/v1/bucket/social-character-references")) {
             return Response.json({ id: "social-character-references", public: false });
         }
@@ -87,13 +90,7 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
             return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
         }
         if (url.includes("generativelanguage.googleapis.com/v1beta/interactions")) {
-            const request = JSON.parse(options.body);
-            assert.equal(request.response_format.aspect_ratio, "16:9");
-            return Response.json({
-                steps: [{
-                    content: [{ type: "image", mime_type: "image/png", data: btoa(String.fromCharCode(...generatedPng)) }]
-                }]
-            });
+            assert.fail("Cron should use the selected Cloudflare image provider.");
         }
         if (url.includes("gemini-2.5-flash:generateContent")) {
             return Response.json({
@@ -120,7 +117,15 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
             SUPABASE_URL: "https://project.example",
             SUPABASE_SERVICE_ROLE_KEY: "server-only-test-key",
             GEMINI_API_KEY: "gemini-test-key",
-            SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey
+            SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey,
+            AI: {
+                async run(model, input) {
+                    assert.equal(model, "@cf/bytedance/stable-diffusion-xl-lightning");
+                    assert.equal(input.width, 1365);
+                    assert.equal(input.height, 768);
+                    return { image: generatedPng };
+                }
+            }
         });
 
         assert.deepEqual(result, { claimed: 1, skipped: false });

@@ -206,6 +206,59 @@ test("Gemini image generation preserves quota HTTP 429 and explains zero free-ti
     }
 });
 
+test("Cloudflare Workers AI uses reference image-to-image and returns PNG output", async () => {
+    const referenceBytes = new Uint8Array([1, 2, 3, 4]);
+    const outputBytes = new Uint8Array([137, 80, 78, 71]);
+    let model;
+    let input;
+    const result = await generateSocialImage({
+        env: {
+            AI: {
+                async run(modelId, parameters) {
+                    model = modelId;
+                    input = parameters;
+                    return { image: outputBytes };
+                }
+            }
+        },
+        prompt: "Keep the same character in a city cafe.",
+        referenceBytes,
+        aspectRatio: "16:9",
+        imageProvider: "cloudflare"
+    });
+
+    assert.equal(model, "@cf/bytedance/stable-diffusion-xl-lightning");
+    assert.equal(input.image_b64, btoa(String.fromCharCode(...referenceBytes)));
+    assert.equal(input.strength, 0.65);
+    assert.equal(input.width, 1365);
+    assert.equal(input.height, 768);
+    assert.deepEqual([...result.bytes], [...outputBytes]);
+    assert.equal(result.mimeType, "image/png");
+    assert.equal(result.model, model);
+});
+
+test("Cloudflare Workers AI supports streamed image output", async () => {
+    const result = await generateSocialImage({
+        env: {
+            AI: {
+                async run() {
+                    return new ReadableStream({
+                        start(controller) {
+                            controller.enqueue(new Uint8Array([137, 80]));
+                            controller.enqueue(new Uint8Array([78, 71]));
+                            controller.close();
+                        }
+                    });
+                }
+            }
+        },
+        prompt: "image-to-image test",
+        referenceBytes: new Uint8Array([1]),
+        imageProvider: "cloudflare"
+    });
+    assert.deepEqual([...result.bytes], [137, 80, 78, 71]);
+});
+
 test("Gemini context caption provider requests one concise Indonesian sentence", async () => {
     const originalFetch = globalThis.fetch;
     let requestBody;

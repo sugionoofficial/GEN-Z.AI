@@ -114,9 +114,12 @@ Social Publisher juga memerlukan `GEMINI_API_KEY` untuk membuat gambar dan
 caption kontekstual, serta `SOCIAL_TOKEN_ENCRYPTION_KEY` untuk melindungi token
 Facebook. Integrasi gambar menggunakan Nano Banana 2 Lite
 (`gemini-3.1-flash-lite-image`), sedangkan caption menggunakan
-`gemini-2.5-flash`. Kuota dan biaya mengikuti model, tier, serta API key Google
-yang dikonfigurasi; pastikan ketersediaannya di Google AI Studio. Service role
-key hanya digunakan server dan tidak boleh dikirim ke browser.
+`gemini-2.5-flash`. Admin dapat memilih Google Gemini atau Cloudflare Workers AI
+sebagai provider gambar di **Admin Panel → SET Studio Medsos**. Pilihan
+Cloudflare memakai binding `AI` dengan model SDXL-Lightning image-to-image;
+caption kontekstual tetap memerlukan `GEMINI_API_KEY`. Kuota dan biaya
+bergantung pada tier akun provider masing-masing. Service role key hanya
+digunakan server dan tidak boleh dikirim ke browser.
 
 ---
 

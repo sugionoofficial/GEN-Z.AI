@@ -25,7 +25,11 @@ Create an API key for the Gemini Developer API and add it as a Worker secret:
 npx wrangler@4 secret put GEMINI_API_KEY
 ```
 
-The configured image model is `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite); contextual captions use `gemini-2.5-flash`. Model access, free-tier quotas, and prices vary by Google account and API key. Check the current [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing) and the project's quota in Google AI Studio before enabling autopublish. A model reporting a zero-token quota is unavailable to that key's current tier; retries will not resolve that restriction. This implementation generates **one** image per run to limit usage.
+The default image model is `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite); contextual captions use `gemini-2.5-flash`. Admins can choose Gemini or Cloudflare Workers AI in **Admin Panel → SET Studio Medsos**. The Cloudflare option uses the `AI` binding and `@cf/bytedance/stable-diffusion-xl-lightning` for image-to-image generation. The binding is configured in `wrangler.toml`; apply the updated `supabase/social-auto-publisher.sql` migration to add the provider setting.
+
+Cloudflare Workers AI currently documents a free daily allocation of 10,000 Neurons, shared across AI usage on the account; requests above it require a Workers Paid plan and incur usage charges. Model access, allocations, and prices can change. Check the current [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/) and [SDXL-Lightning model details](https://developers.cloudflare.com/workers-ai/models/stable-diffusion-xl-lightning/). Gemini access and quotas depend on the configured Google API key; see [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing). A provider reporting a zero quota is unavailable to that account's current tier; retries will not resolve that restriction.
+
+`GEMINI_API_KEY` is still required for contextual caption generation, including when Cloudflare is selected for images. This implementation generates **one** image per run to limit usage.
 
 ### 3. Configure the Meta app and OAuth
 
