@@ -85,6 +85,11 @@ Caption dasar dan link HTTPS dapat disimpan sekali untuk digunakan pada semua
 post; hashtag ditempatkan setelah link, bersama satu kalimat singkat yang dibuat
 AI sesuai gambar. Jadwal autopost memakai rasio tersimpan dan menjalankan
 generasi caption serta pembersihan metadata sebelum mengirim gambar ke Facebook.
+Sebelum setiap unggahan, server memeriksa ulang token dan izin Page sehingga
+kegagalan seperti `(#200) Permissions error` dilaporkan dengan langkah
+perbaikan sebelum ada foto terkirim; tombol **Periksa izin** pada daftar Page
+menampilkan status terbaru langsung dari Facebook. Detail troubleshooting ada di
+`SOCIAL-PUBLISHER-SETUP.md`.
 Akses fitur diverifikasi di server berdasarkan
 langganan user yang aktif dan masa berlakunya; mengubah tampilan browser tidak
 dapat melewati pemeriksaan akses API.

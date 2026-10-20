@@ -10,10 +10,12 @@ import {
     renderCaption
 } from "../lib/social-publisher/utils.js";
 import {
+    checkFacebookPageAccess,
     decryptSecret,
     encryptSecret,
     generateSocialContextCaption,
     generateSocialImage,
+    inspectFacebookPageToken,
     makeProfileShareUrl,
     publishFacebookPhoto
 } from "../lib/social-publisher/providers.js";
@@ -408,6 +410,40 @@ function callbackLocation(query = "") {
     return `/admin-control/social-publisher.html${safe ? `?${safe}` : ""}`;
 }
 
+/**
+ * Reads the permissions actually granted to the long-lived user token, per
+ * Page when Meta returns them. This catches the "(#200) Permissions error"
+ * case where the Page role exists but `pages_manage_posts` was never granted.
+ */
+async function readFacebookGrantedPermissions({ appId, appSecret, userToken, graphVersion }) {
+    const url = new URL(`https://graph.facebook.com/${graphVersion}/debug_token`);
+    url.searchParams.set("input_token", userToken);
+    url.searchParams.set("access_token", `${appId}|${appSecret}`);
+    try {
+        const response = await fetch(url.toString());
+        const data = await response.json().catch(() => null);
+        if (!response.ok || data?.error || data?.data?.is_valid === false) return null;
+        const token = data?.data || {};
+        return {
+            scopes: Array.isArray(token.scopes) ? token.scopes.map(String) : [],
+            granularScopes: Array.isArray(token.granular_scopes) ? token.granular_scopes : []
+        };
+    } catch {
+        return null;
+    }
+}
+
+function pageScopeGranted(permissions, scope, pageId) {
+    if (!permissions) return null;
+    const entry = permissions.granularScopes.find(item => item?.scope === scope);
+    if (entry) {
+        const targets = Array.isArray(entry.target_ids) ? entry.target_ids.map(String) : [];
+        return targets.includes(String(pageId));
+    }
+    if (permissions.scopes.length) return permissions.scopes.includes(scope);
+    return null;
+}
+
 async function handleOAuthCallback(req, res, env) {
     const code = getQuery(req, "code");
     const state = getQuery(req, "state");
@@ -484,17 +520,28 @@ async function handleOAuthCallback(req, res, env) {
             return redirect(res, callbackLocation("oauth_error=no_pages"));
         }
 
+        const permissions = await readFacebookGrantedPermissions({
+            appId,
+            appSecret,
+            userToken,
+            graphVersion: GRAPH_VERSION
+        });
+
         const connections = [];
+        let pagesNeedingPermission = 0;
         for (const page of eligiblePages) {
             const encrypted = await encryptSecret(page.access_token, encryptionKey);
-            const tasks = Array.isArray(page.tasks) ? page.tasks : [];
+            const tasks = Array.isArray(page.tasks) ? page.tasks.map(String) : [];
+            const managePostsGranted = pageScopeGranted(permissions, "pages_manage_posts", page.id);
+            const canPublish = tasks.includes("CREATE_CONTENT") && managePostsGranted !== false;
+            if (!canPublish) pagesNeedingPermission += 1;
             connections.push({
                 owner_id: oauthState.user_id,
                 page_id: String(page.id),
                 page_name: cleanText(page.name, 160) || `Facebook Page ${page.id}`,
                 page_token_ciphertext: encrypted.ciphertext,
                 page_token_iv: encrypted.iv,
-                can_publish: tasks.includes("CREATE_CONTENT"),
+                can_publish: canPublish,
                 page_tasks: tasks,
                 token_checked_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
@@ -510,7 +557,9 @@ async function handleOAuthCallback(req, res, env) {
                 body: JSON.stringify(connections)
             }
         );
-        return redirect(res, callbackLocation(`facebook_connected=1&pages=${eligiblePages.length}`));
+        return redirect(res, callbackLocation(
+            `facebook_connected=1&pages=${eligiblePages.length}${pagesNeedingPermission ? `&need_permission=${pagesNeedingPermission}` : ""}`
+        ));
     } catch (error) {
         console.error("Facebook OAuth callback failed:", error?.message || "unknown error");
         const status = error?.code === "PGRST205" ? "migration" : "callback";
@@ -1288,8 +1337,107 @@ async function publishManualPost(req, res, config, userId, env) {
         });
         const failure = new Error(safeMessage);
         failure.status = Number(error?.status) || 502;
+        failure.code = String(error?.code || "");
+        failure.retrySafe = error?.retrySafe !== false;
+        failure.needsReconnect = error?.needsReconnect === true;
         throw failure;
     }
+}
+
+async function checkPageConnection(config, userId, env, body = {}) {
+    const id = cleanText(body.id, 80);
+    if (!id) {
+        const error = new Error("ID koneksi Page wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+    );
+    const page = rows?.[0];
+    if (!page) {
+        const error = new Error("Koneksi Facebook Page tidak ditemukan.");
+        error.status = 404;
+        throw error;
+    }
+
+    const pageAccessToken = await decryptSecret(
+        page.page_token_ciphertext,
+        page.page_token_iv,
+        envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")
+    );
+
+    let access = null;
+    let failure = null;
+    try {
+        access = await checkFacebookPageAccess({ env, pageId: page.page_id, pageAccessToken });
+    } catch (error) {
+        failure = error;
+    }
+
+    const tasksRead = Boolean(access?.tasksRead !== false);
+    const canPublish = failure ? false : access.canPublish;
+    const tasks = failure || !tasksRead ? (Array.isArray(page.page_tasks) ? page.page_tasks : []) : access.tasks;
+    const checkedAt = new Date().toISOString();
+    const definitiveFailure = failure && !["facebook_unreachable", "facebook_unavailable"].includes(failure?.code);
+    if (!failure || definitiveFailure) {
+        await supabaseRequest(
+            config,
+            tablePath("social_page_connections", `id=eq.${encodeURIComponent(page.id)}&owner_id=eq.${encodeURIComponent(userId)}`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify({
+                    can_publish: canPublish,
+                    page_tasks: tasks,
+                    token_checked_at: checkedAt,
+                    updated_at: checkedAt
+                })
+            }
+        );
+    }
+
+    const token = failure ? null : await inspectFacebookPageToken({ env, pageAccessToken });
+    let message;
+    if (failure) {
+        message = failure.message;
+    } else if (!canPublish) {
+        message = `Page "${access.pageName || page.page_name}" terhubung, tetapi akun Facebook yang dipakai belum punya tugas CREATE_CONTENT. Beri akses konten pada Page lalu hubungkan ulang.`;
+    } else if (!tasksRead) {
+        message = `Page "${access.pageName || page.page_name}" dapat diakses dan token masih dipakai, tetapi daftar tugas Page tidak dapat dibaca sehingga peran CREATE_CONTENT belum dapat dipastikan. Penerbitan tetap dicoba; bila gagal dengan #200, periksa izin aplikasi Meta.`;
+    } else {
+        message = `Izin posting Page "${access.pageName || page.page_name}" siap (CREATE_CONTENT terdeteksi).`;
+    }
+
+    return {
+        connection: {
+            id: page.id,
+            page_id: page.page_id,
+            page_name: access?.pageName || page.page_name,
+            can_publish: canPublish,
+            page_tasks: tasks,
+            token_checked_at: (!failure || definitiveFailure) ? checkedAt : page.token_checked_at || null
+        },
+        can_publish: canPublish,
+        tasks_read: failure ? false : tasksRead,
+        warning: access?.warning || "",
+        token: token
+            ? {
+                valid: token.valid,
+                type: token.type,
+                expires_at: token.expiresAt,
+                data_access_expires_at: token.dataAccessExpiresAt,
+                app_id: token.appId,
+                scopes: token.scopes
+            }
+            : null,
+        code: failure?.code || "",
+        needs_reconnect: failure?.needsReconnect === true,
+        retry_safe: failure ? failure.retrySafe !== false : true,
+        message
+    };
 }
 
 async function discardManualPost(config, userId, body) {
@@ -1351,6 +1499,9 @@ async function handlePost(req, res, config, userId, env, action) {
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
     if (action === "upload-garment") return uploadGarmentReference(req, res, config, userId);
     if (action === "manual-publish") return await publishManualPost(req, res, config, userId, env);
+    if (action === "check-page") {
+        return json(res, 200, { success: true, ...(await checkPageConnection(config, userId, env, req.body && typeof req.body === "object" ? req.body : {})) });
+    }
     const body = req.body && typeof req.body === "object" ? req.body : {};
 
     if (action === "manual-generate") {
@@ -1538,11 +1689,18 @@ export default async function handler(req, res) {
         return await handlePost(req, res, config, userId, env, action);
     } catch (rawError) {
         const error = migrationError(rawError);
+        const payload = { success: false, error: error.message };
+        if (error?.code) payload.code = String(error.code);
+        if (error?.retrySafe === false) payload.retry_safe = false;
+        if (error?.needsReconnect === true) payload.needs_reconnect = true;
         if (error.status && error.status < 500) {
-            return json(res, error.status, { success: false, error: error.message });
+            return json(res, error.status, payload);
         }
         console.error("Social Publisher API error:", error?.message || "unknown error");
         const status = Number(error?.status) || 500;
-        return json(res, status, { success: false, error: status === 500 ? error.message || "Terjadi kesalahan internal." : error.message });
+        return json(res, status, {
+            ...payload,
+            error: status === 500 ? error.message || "Terjadi kesalahan internal." : error.message
+        });
     }
 }

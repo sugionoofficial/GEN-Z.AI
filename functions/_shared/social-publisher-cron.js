@@ -188,7 +188,7 @@ async function processRun(env, config, claimedRun) {
         console.log(`[Social Publisher] Posted run ${runId} to Page ${page.page_id}.`);
     } catch (error) {
         const safeMessage = cleanError(error);
-        console.error(`[Social Publisher] Run ${runId} failed: ${safeMessage}`);
+        console.error(`[Social Publisher] Run ${runId} failed (${error?.code || "error"}): ${safeMessage}`);
         if (imageProvider === "qwencloud" && (error?.quotaExhausted === true || error?.status === 429)) {
             recordModelUsage(config, imageModel, { quotaError: true, message: safeMessage }).catch(recordError => {
                 console.error("Could not record QwenCloud quota failure:", recordError?.message || "unknown error");

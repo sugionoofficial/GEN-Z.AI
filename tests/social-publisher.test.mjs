@@ -350,12 +350,18 @@ test("Gemini context caption provider requests one concise Indonesian sentence",
     }
 });
 
-test("Facebook photo publish uploads image and returns a personal-share URL", async () => {
+test("Facebook photo publish checks Page permissions before uploading and returns a share URL", async () => {
     const originalFetch = globalThis.fetch;
     const calls = [];
     globalThis.fetch = async (url, options = {}) => {
-        calls.push({ url: String(url), options });
-        if (calls.length === 1) return Response.json({ id: "photo-1", post_id: "page-1_post-1" });
+        const target = String(url);
+        calls.push({ url: target, options });
+        if (target.includes("/123456?") && target.includes("fields=id%2Cname%2Ctasks")) {
+            return Response.json({ id: "123456", name: "GEN-Z Page", tasks: ["CREATE_CONTENT", "MODERATE"] });
+        }
+        if (target.endsWith("/123456/photos")) {
+            return Response.json({ id: "photo-1", post_id: "page-1_post-1" });
+        }
         return Response.json({ permalink_url: "https://www.facebook.com/page-1/posts/post-1" });
     };
     try {
@@ -370,10 +376,112 @@ test("Facebook photo publish uploads image and returns a personal-share URL", as
         assert.equal(result.photoId, "photo-1");
         assert.equal(result.postId, "page-1_post-1");
         assert.equal(result.permalinkUrl, "https://www.facebook.com/page-1/posts/post-1");
-        assert.match(calls[0].url, /123456\/photos$/);
-        assert.equal(calls[0].options.body.get("caption"), "Test caption");
-        assert.ok(calls[0].options.body.get("source") instanceof Blob);
+        assert.match(calls[0].url, /123456\?fields=id%2Cname%2Ctasks/);
+        assert.match(calls[0].url, /access_token=secret-token/);
+        const upload = calls.find(call => call.url.endsWith("/123456/photos"));
+        assert.ok(upload, "photo upload must happen after the permission check");
+        assert.equal(upload.options.body.get("caption"), "Test caption");
+        assert.ok(upload.options.body.get("source") instanceof Blob);
         assert.match(makeProfileShareUrl(result.permalinkUrl), /sharer\/sharer\.php/);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("Facebook photo publish stops before uploading when the Page lacks CREATE_CONTENT", async () => {
+    const originalFetch = globalThis.fetch;
+    const calls = [];
+    globalThis.fetch = async (url) => {
+        calls.push(String(url));
+        return Response.json({ id: "123456", name: "GEN-Z Page", tasks: ["MODERATE"] });
+    };
+    try {
+        await assert.rejects(
+            () => publishFacebookPhoto({
+                env: { META_GRAPH_VERSION: "v26.0" },
+                pageId: "123456",
+                pageAccessToken: "secret-token",
+                caption: "Test caption",
+                imageBytes: new Uint8Array([1, 2, 3]),
+                imageMimeType: "image/png"
+            }),
+            error => {
+                assert.equal(error.code, "missing_page_role");
+                assert.equal(error.needsReconnect, true);
+                assert.match(error.message, /CREATE_CONTENT/);
+                return true;
+            }
+        );
+        assert.equal(calls.filter(url => url.endsWith("/photos")).length, 0);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("Facebook photo publish explains a #200 permission error instead of failing generically", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+        const target = String(url);
+        if (target.includes("fields=id%2Cname%2Ctasks")) {
+            return Response.json({ id: "123456", name: "GEN-Z Page", tasks: ["CREATE_CONTENT"] });
+        }
+        return Response.json(
+            { error: { message: "(#200) Permissions error", type: "OAuthException", code: 200 } },
+            { status: 403 }
+        );
+    };
+    try {
+        await assert.rejects(
+            () => publishFacebookPhoto({
+                env: { META_GRAPH_VERSION: "v26.0" },
+                pageId: "123456",
+                pageAccessToken: "secret-token",
+                caption: "Test caption",
+                imageBytes: new Uint8Array([1, 2, 3]),
+                imageMimeType: "image/png"
+            }),
+            error => {
+                assert.equal(error.code, "permission_denied");
+                assert.equal(error.status, 403);
+                assert.equal(error.graphCode, 200);
+                assert.equal(error.needsReconnect, true);
+                assert.equal(error.retrySafe, true);
+                assert.match(error.message, /pages_manage_posts/);
+                assert.match(error.message, /Permissions error/);
+                return true;
+            }
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("Facebook photo publish marks ambiguous failures as unsafe to retry", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+        const target = String(url);
+        if (target.includes("fields=id%2Cname%2Ctasks")) {
+            return Response.json({ id: "123456", name: "GEN-Z Page", tasks: ["CREATE_CONTENT"] });
+        }
+        return new Response("upstream error", { status: 503 });
+    };
+    try {
+        await assert.rejects(
+            () => publishFacebookPhoto({
+                env: { META_GRAPH_VERSION: "v26.0" },
+                pageId: "123456",
+                pageAccessToken: "secret-token",
+                caption: "Test caption",
+                imageBytes: new Uint8Array([1, 2, 3]),
+                imageMimeType: "image/png"
+            }),
+            error => {
+                assert.equal(error.code, "facebook_unavailable");
+                assert.equal(error.retrySafe, false);
+                assert.match(error.message, /post ganda/);
+                return true;
+            }
+        );
     } finally {
         globalThis.fetch = originalFetch;
     }

@@ -96,6 +96,9 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
                 : "social-reference/owner-1/reference.jpg";
             return Response.json({ signedURL: `/object/sign/social-character-references/${objectKey}?token=short-lived` });
         }
+        if (url.includes("graph.facebook.com/v26.0/page-123?fields=id%2Cname%2Ctasks")) {
+            return Response.json({ id: "page-123", name: "GEN-Z Page", tasks: ["CREATE_CONTENT"] });
+        }
         if (url.includes("graph.facebook.com/v26.0/page-123/photos")) {
             postedCaption = options.body.get("caption");
             postedImageText = await options.body.get("source").text();

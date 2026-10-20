@@ -62,7 +62,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (responseRaw && response.ok) return response;
         const data = await response.json().catch(() => ({}));
         if (!response.ok || data.success !== true) {
-            throw new Error(data.error || `Permintaan gagal (HTTP ${response.status}).`);
+            const error = new Error(data.error || `Permintaan gagal (HTTP ${response.status}).`);
+            error.code = data.code || "";
+            error.status = response.status;
+            error.retrySafe = data.retry_safe !== false;
+            error.needsReconnect = data.needs_reconnect === true;
+            throw error;
         }
         return data;
     }
@@ -218,16 +223,24 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             title.textContent = page.page_name || "Facebook Page";
             const detail = document.createElement("div");
             detail.className = "item-meta";
-            detail.textContent = page.can_publish ? `ID ${page.page_id} · izin posting siap` : `ID ${page.page_id} · izin CREATE_CONTENT belum terdeteksi`;
+            const checked = page.token_checked_at ? ` · diperiksa ${formatDate(page.token_checked_at)}` : "";
+            detail.textContent = page.can_publish
+                ? `ID ${page.page_id} · izin posting siap${checked}`
+                : `ID ${page.page_id} · izin CREATE_CONTENT belum terdeteksi${checked}`;
             content.append(title, detail);
             const actions = document.createElement("div");
             actions.className = "item-actions";
+            const check = document.createElement("button");
+            check.className = "btn small";
+            check.type = "button";
+            check.textContent = "Periksa izin";
+            check.addEventListener("click", () => checkPagePermission(page.id, check));
             const disconnect = document.createElement("button");
             disconnect.className = "btn small danger";
             disconnect.type = "button";
             disconnect.textContent = "Putuskan";
             disconnect.addEventListener("click", () => disconnectPage(page.id));
-            actions.append(disconnect);
+            actions.append(check, disconnect);
             item.append(icon, content, actions);
             container.append(item);
         }
@@ -448,6 +461,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (!window.confirm(`Terbitkan gambar dan caption pratinjau ini ke "${state.manualPreview.pageName}"? Post akan langsung terlihat oleh audiens Page.`)) return;
 
         const button = $("manual-publish-button");
+        const pageConnectionId = $("manual-page").value;
         setButtonBusy(button, true, "Menerbitkan…");
         status($("manual-post-status"), "Mengirim gambar yang sudah dibersihkan ke Facebook Page…");
         try {
@@ -472,9 +486,20 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             await loadDashboard();
         } catch (error) {
             clearManualPreview();
-            status($("manual-post-status"), `${error.message || "Posting manual gagal."} Periksa Page sebelum mencoba ulang untuk menghindari post ganda.`, "error");
-            showNotice(pageMessage, error.message || "Posting manual gagal.", "error");
-            await loadDashboard();
+            const permissionProblem = ["permission_denied", "missing_page_role", "token_invalid", "missing_page_token"].includes(error.code);
+            const guidance = permissionProblem
+                ? " Posting tidak terkirim, jadi aman dicoba lagi setelah izin diperbaiki: klik \"Periksa izin\" pada Page atau hubungkan ulang Facebook."
+                : error.retrySafe === false
+                    ? " Posting mungkin sudah masuk ke Page — periksa Page di Facebook sebelum mencoba ulang untuk menghindari post ganda."
+                    : " Posting tidak terkirim; periksa Page sebelum mencoba ulang untuk menghindari post ganda.";
+            const message = `${error.message || "Posting manual gagal."}${guidance}`;
+            status($("manual-post-status"), message, "error");
+            showNotice(pageMessage, message, "error");
+            if (permissionProblem && pageConnectionId) {
+                await checkPagePermission(pageConnectionId);
+            } else {
+                await loadDashboard();
+            }
         } finally {
             setButtonBusy(button, false);
         }
@@ -686,7 +711,11 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         $("external-post-link").value = data.postingSettings?.external_link || "";
         const pagesWithoutPublish = (data.pages || []).filter(page => page.can_publish === false).length;
         if (pagesWithoutPublish) {
-            showNotice(pageMessage, "Koneksi berhasil, tetapi satu atau beberapa Page belum memberi izin CREATE_CONTENT. Periksa izin aplikasi Meta dan peran Anda pada Page.", "warn");
+            showNotice(
+                pageMessage,
+                `${pagesWithoutPublish} Page belum siap menerbitkan. Klik "Periksa izin" pada Page tersebut. Pastikan aplikasi Meta memakai use case "Manage everything on your Page" dengan izin pages_show_list, pages_read_engagement, dan pages_manage_posts serta akun Anda punya tugas CREATE_CONTENT, lalu hubungkan ulang Page.`,
+                "warn"
+            );
         }
     }
 
@@ -719,6 +748,33 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         } catch (error) {
             status(connectStatus, error.message, "error");
             setButtonBusy(connectButton, false);
+        }
+    }
+
+    async function checkPagePermission(id, button = null) {
+        if (button) setButtonBusy(button, true, "Memeriksa…");
+        status(connectStatus, "Memeriksa token dan izin Page langsung ke Facebook…");
+        try {
+            const result = await api("check-page", { method: "POST", body: { id } });
+            const tokenNote = result.token?.expires_at
+                ? ` Token berlaku sampai ${formatDate(result.token.expires_at)}.`
+                : result.token?.valid === true
+                    ? " Token Page masih berlaku."
+                    : "";
+            status(
+                connectStatus,
+                `${result.message || "Pemeriksaan selesai."}${tokenNote}`,
+                result.can_publish ? "good" : "error"
+            );
+            showNotice(pageMessage, result.message || "Pemeriksaan izin Page selesai.", result.can_publish ? "success" : "warn");
+            await loadDashboard();
+            return result;
+        } catch (error) {
+            status(connectStatus, error.message || "Gagal memeriksa izin Page.", "error");
+            showNotice(pageMessage, error.message || "Gagal memeriksa izin Page.", "error");
+            return null;
+        } finally {
+            if (button) setButtonBusy(button, false);
         }
     }
 
@@ -935,7 +991,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     function showOAuthResult() {
         const params = new URLSearchParams(location.search);
         if (params.get("facebook_connected") === "1") {
-            showNotice(pageMessage, `Facebook berhasil dihubungkan. ${params.get("pages") || ""} Page ditemukan.`, "success");
+            showNotice(
+                pageMessage,
+                `Facebook berhasil dihubungkan. ${params.get("pages") || ""} Page ditemukan.${params.get("need_permission")
+                    ? ` ${params.get("need_permission")} Page belum memiliki izin pages_manage_posts/CREATE_CONTENT — klik "Periksa izin" lalu hubungkan ulang setelah izin diperbaiki.`
+                    : ""}`,
+                params.get("need_permission") ? "warn" : "success"
+            );
         } else if (params.has("oauth_error")) {
             const code = params.get("oauth_error");
             const messages = {

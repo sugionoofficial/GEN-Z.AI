@@ -100,3 +100,15 @@ Open **Admin Control → Social Auto Publisher**:
 5. Review run status and use **Bagikan ke profil pribadi** to confirm sharing manually when desired.
 
 A revoked/expired token, missing Meta permission, provider outage, or API error is recorded as a failed run. Reconnect the Page or fix the configuration before expecting later runs to succeed. Generated identity resemblance is not exact; use only images you have the rights and consent to use, and periodically check the posted content.
+
+### Page permission check and "(#200) Permissions error"
+
+Every publish first calls the Graph API to confirm that the stored Page token can still read the Page and that the authorizing account holds the `CREATE_CONTENT` task. The photo is only uploaded when that check passes, so a missing permission no longer fails mid-upload and cannot produce a duplicate post. A failing check records a specific message on the run instead of a generic HTTP error:
+
+- `token_invalid` (code 190): the Page token was revoked or expired. Click **Hubungkan Facebook** again.
+- `permission_denied` (code 200/10): the Meta app was not granted `pages_manage_posts` (or `pages_read_engagement`/`pages_show_list`) for that Page. Fix the app's use case, permissions and App Review access, then reconnect the Page.
+- `missing_page_role`: the signed-in person lacks `CREATE_CONTENT` on the Page. Ask the Page admin to grant content access, then reconnect.
+
+Use **Periksa izin** on a connected Page in **Admin Control → Social Auto Publisher** to re-read this state directly from Facebook at any time. The dashboard shows the last check time and marks Pages that are not ready. The OAuth callback also inspects the granted permissions per Page (`debug_token` → `granular_scopes`) so a Page is flagged as needing permission right after connecting instead of after the first failed post.
+
+When Facebook returns a 5xx response or the connection drops after the upload request was sent, the run is reported as unsafe to retry: check the Page on Facebook first, because the post may already exist. In that case the panel message says the post may already be published, and the **Bagikan ke profil pribadi** link will only appear for runs recorded as posted.
