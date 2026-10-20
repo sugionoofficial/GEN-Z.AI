@@ -15,6 +15,9 @@
     const uploadButton = $("upload-character");
     const saveScheduleButton = $("save-schedule");
     const connectButton = $("connect-page");
+    let studioAccessState = null;
+    let studioAccessError = null;
+    let studioGateDismissed = false;
 
     function client() {
         if (window.GENZ_SUPABASE) return window.GENZ_SUPABASE;
@@ -630,6 +633,26 @@
         state.objectUrls.clear();
     }
 
+    async function refreshStudioPricing() {
+        const priceDisplays = [$("studio-price-value"), $("studio-gate-price-value")].filter(Boolean);
+        if (!priceDisplays.length) return;
+        const updateDisplays = text => priceDisplays.forEach(node => { node.textContent = text; });
+        try {
+            const result = await api("studio-pricing");
+            const amount = result.pricing?.price_idr;
+            updateDisplays(Number.isSafeInteger(amount) && amount >= 0
+                ? new Intl.NumberFormat("id-ID", {
+                    style: "currency",
+                    currency: "IDR",
+                    maximumFractionDigits: 0
+                }).format(amount)
+                : "Belum ditentukan");
+        } catch (error) {
+            console.error("Studio Medsos pricing load failed:", error);
+            updateDisplays("Tidak dapat dimuat");
+        }
+    }
+
     $("connect-page").addEventListener("click", connectFacebook);
     $("character-form").addEventListener("submit", uploadCharacter);
     $("schedule-form").addEventListener("submit", submitSchedule);
@@ -646,9 +669,9 @@
     }
 
     function parseStudioAccess(record) {
-        const startedAt = record?.started_at ? new Date(record.started_at).getTime() : Date.now();
+        const startedAt = record?.started_at ? Date.parse(record.started_at) : Number.NaN;
         const durationDays = clampDuration(record?.duration_days ?? 30);
-        const expiryAt = record?.expires_at ? new Date(record.expires_at).getTime() : startedAt + durationDays * 24 * 60 * 60 * 1000;
+        const expiryAt = record?.expires_at ? Date.parse(record.expires_at) : Number.NaN;
 
         return {
             active: Boolean(record?.is_active),
@@ -660,41 +683,11 @@
     }
 
     async function getStudioSubscriptionState() {
-        try {
-            const supabase = client();
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
-            if (userError || !user) {
-                return {
-                    active: false,
-                    durationDays: 30,
-                    startedAt: Date.now(),
-                    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
-                };
-            }
-
-            const { data, error } = await supabase
-                .from("studio_medsos_access")
-                .select("user_id, is_active, duration_days, started_at, expires_at")
-                .eq("user_id", user.id)
-                .maybeSingle();
-
-            if (error && error.code !== "PGRST116") {
-                throw error;
-            }
-
-            return parseStudioAccess(data);
-        } catch (error) {
-            console.warn("Studio Medsos access lookup failed:", error);
-            return {
-                active: false,
-                durationDays: 30,
-                startedAt: Date.now(),
-                expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
-            };
-        }
+        const { access } = await api("studio-access-status");
+        return parseStudioAccess(access);
     }
 
-    async function updateStudioGate() {
+    function updateStudioGate() {
         const gate = document.getElementById("studio-access-gate");
         const badge = document.getElementById("studio-gate-badge");
         const title = document.getElementById("studio-gate-title");
@@ -706,7 +699,20 @@
 
         if (!gate || !badge || !title || !message || !value || !countdown || !okButton || !mainWrap) return;
 
-        const state = await getStudioSubscriptionState();
+        if (studioAccessError || !studioAccessState) {
+            gate.hidden = false;
+            badge.textContent = "STATUS TIDAK TERSEDIA";
+            badge.className = "studio-gate-badge inactive";
+            title.textContent = "Status langganan belum dapat diverifikasi";
+            message.textContent = studioAccessError?.message || "Tidak dapat memuat status langganan dari server.";
+            value.textContent = "Akses ditahan";
+            countdown.textContent = "Coba muat ulang halaman. Jika masalah berlanjut, hubungi admin.";
+            okButton.disabled = true;
+            mainWrap.classList.add("studio-locked");
+            return;
+        }
+
+        const state = studioAccessState;
         const expiryAt = Number(state.expiresAt || state.startedAt + state.durationDays * 24 * 60 * 60 * 1000);
         const active = Boolean(state.active) &&
             Number.isFinite(state.startedAt) && state.startedAt <= Date.now() &&
@@ -745,8 +751,20 @@
         value.textContent = `${state.durationDays} hari`;
         countdown.textContent = `${days} hari ${String(hours).padStart(2, "0")} jam ${String(minutes).padStart(2, "0")} menit ${String(seconds).padStart(2, "0")} detik`;
         okButton.disabled = false;
-        gate.hidden = false;
-        mainWrap.classList.add("studio-locked");
+        gate.hidden = studioGateDismissed;
+        mainWrap.classList.toggle("studio-locked", !studioGateDismissed);
+    }
+
+    async function refreshStudioGate() {
+        try {
+            studioAccessState = await getStudioSubscriptionState();
+            studioAccessError = null;
+        } catch (error) {
+            studioAccessState = null;
+            studioAccessError = error;
+            console.error("Studio Medsos access verification failed:", error);
+        }
+        updateStudioGate();
     }
 
     function attachStudioGateEvents() {
@@ -755,23 +773,21 @@
         if (!gate || !okButton) return;
 
         okButton.addEventListener("click", () => {
+            studioGateDismissed = true;
             gate.hidden = true;
             const mainWrap = document.querySelector("main.wrap");
             if (mainWrap) mainWrap.classList.remove("studio-locked");
         });
 
-        const tick = () => {
-            updateStudioGate().catch((error) => {
-                console.warn("Studio gate refresh failed:", error);
-            });
-        };
-        tick();
-        setInterval(tick, 1000);
+        refreshStudioGate();
+        refreshStudioPricing();
+        window.setInterval(updateStudioGate, 1000);
+        window.setInterval(refreshStudioGate, 60000);
+        window.addEventListener("focus", refreshStudioGate);
     }
     showOAuthResult();
     setDefaultStartTime();
     updateCostEstimate();
-    updateStudioGate();
     attachStudioGateEvents();
     loadDashboard();
 })();

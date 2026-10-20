@@ -164,6 +164,7 @@ async function getStudioAccessStatus(config, userId) {
 
         return {
             active,
+            user_id: access?.user_id || userId,
             is_active: Boolean(access?.is_active),
             duration_days: Number(access?.duration_days ?? 0),
             started_at: access?.started_at || null,
@@ -173,7 +174,7 @@ async function getStudioAccessStatus(config, userId) {
         };
     } catch (error) {
         if (error?.status === 404 || error?.code === "PGRST205" || /studio_medsos_access|does not exist|relation .*studio_medsos_access/i.test(String(error?.message || ""))) {
-            return { active: false, is_active: false, duration_days: 0, started_at: null, expires_at: null, expired: true };
+            return { active: false, user_id: userId, is_active: false, duration_days: 0, started_at: null, expires_at: null, expired: false, pending: false };
         }
         throw error;
     }
@@ -260,7 +261,57 @@ async function saveStudioAccess(config, adminId, body = {}) {
     return rows[0];
 }
 
+async function getStudioPricing(config) {
+    const rows = await supabaseRequest(
+        config,
+        tablePath("studio_medsos_pricing", "select=price_idr,updated_at&id=eq.true&limit=1")
+    );
+    const pricing = rows?.[0] || null;
+    return {
+        price_idr: pricing ? Number(pricing.price_idr) : null,
+        updated_at: pricing?.updated_at || null
+    };
+}
+
+async function saveStudioPricing(config, adminId, body = {}) {
+    const priceIdr = body.price_idr;
+    if (typeof priceIdr !== "number" || !Number.isSafeInteger(priceIdr) || priceIdr < 0) {
+        const error = new Error("Harga langganan harus berupa bilangan bulat Rupiah yang tidak negatif.");
+        error.status = 400;
+        throw error;
+    }
+
+    const rows = await supabaseRequest(
+        config,
+        tablePath("studio_medsos_pricing", "on_conflict=id&select=price_idr,updated_at"),
+        {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify({
+                id: true,
+                price_idr: priceIdr,
+                updated_at: new Date().toISOString(),
+                updated_by: adminId
+            })
+        }
+    );
+    if (!rows?.length) {
+        const error = new Error("Harga langganan tidak berhasil disimpan.");
+        error.status = 500;
+        throw error;
+    }
+    return {
+        price_idr: Number(rows[0].price_idr),
+        updated_at: rows[0].updated_at || null
+    };
+}
+
 function migrationError(error) {
+    if (/studio_medsos_pricing/i.test(error?.message || "")) {
+        const wrapped = new Error("Tabel harga Studio Medsos belum tersedia. Jalankan supabase/studio-medsos-pricing.sql di Supabase SQL Editor terlebih dahulu.");
+        wrapped.status = 503;
+        return wrapped;
+    }
     if (error?.code === "PGRST205" || /social_(characters|post|page|facebook)_/i.test(error?.message || "")) {
         const wrapped = new Error("Skema Social Publisher belum tersedia. Jalankan supabase/social-auto-publisher.sql di Supabase SQL Editor terlebih dahulu.");
         wrapped.status = 503;
@@ -651,7 +702,7 @@ async function setGlobalEnabled(config, userId, env, enabled) {
 }
 
 async function handlePost(req, res, config, userId, env, action) {
-    if (action !== "studio-access-status" && action !== "studio-admin-save") {
+    if (action !== "studio-access-status" && action !== "studio-admin-save" && action !== "studio-admin-save-price") {
         await ensureStudioAccess(config, userId);
     }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
@@ -660,6 +711,10 @@ async function handlePost(req, res, config, userId, env, action) {
     if (action === "studio-admin-save") {
         const access = await saveStudioAccess(config, userId, body);
         return json(res, 200, { success: true, access });
+    }
+    if (action === "studio-admin-save-price") {
+        const pricing = await saveStudioPricing(config, userId, body);
+        return json(res, 200, { success: true, pricing });
     }
     if (action === "set-global-enabled") {
         if (typeof body.enabled !== "boolean") return json(res, 400, { success: false, error: "Nilai enabled harus boolean." });
@@ -699,10 +754,13 @@ async function handleGet(req, res, config, userId, env, action) {
         const access = await getStudioAccessStatus(config, userId);
         return json(res, 200, { success: true, access });
     }
+    if (action === "studio-pricing") {
+        return json(res, 200, { success: true, pricing: await getStudioPricing(config) });
+    }
     if (action === "studio-admin-users") {
         return json(res, 200, { success: true, users: await listStudioUsers(config) });
     }
-    if (action !== "oauth-start") {
+    if (action !== "oauth-start" && action !== "studio-pricing") {
         await ensureStudioAccess(config, userId);
     }
     if (action === "dashboard") {

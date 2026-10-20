@@ -44,6 +44,21 @@
         node.textContent = message;
     }
 
+    function setPricingStatus(message, type = "") {
+        const node = document.getElementById("studio-price-status");
+        if (!node) return;
+        node.className = `status-box price-settings-status ${type}`.trim();
+        node.textContent = message;
+    }
+
+    function formatPrice(priceIdr) {
+        return new Intl.NumberFormat("id-ID", {
+            style: "currency",
+            currency: "IDR",
+            maximumFractionDigits: 0
+        }).format(priceIdr);
+    }
+
     function getActiveSubscription(user, now = Date.now()) {
         const access = user.studio_access;
         const startedAt = Date.parse(access?.started_at || "");
@@ -237,6 +252,43 @@
         setStatusMessage("Daftar user dan status langganan berhasil dimuat.", "success");
     }
 
+    async function loadPricing() {
+        const result = await api("studio-pricing");
+        const price = result.pricing?.price_idr;
+        document.getElementById("studio-price").value = Number.isSafeInteger(price) && price >= 0 ? String(price) : "";
+        setPricingStatus(
+            Number.isSafeInteger(price) && price >= 0
+                ? `Harga saat ini: ${formatPrice(price)}`
+                : "Harga belum ditentukan. Isi harga lalu simpan untuk menampilkannya kepada user."
+        );
+    }
+
+    async function savePricing() {
+        const input = document.getElementById("studio-price");
+        const rawPrice = input.value.trim();
+        const priceIdr = Number(rawPrice);
+        if (!rawPrice || !Number.isSafeInteger(priceIdr) || priceIdr < 0) {
+            setPricingStatus("Masukkan harga Rupiah berupa bilangan bulat nol atau lebih.", "error");
+            return;
+        }
+
+        const button = document.getElementById("save-studio-price");
+        button.disabled = true;
+        try {
+            const result = await api("studio-admin-save-price", {
+                method: "POST",
+                body: { price_idr: priceIdr }
+            });
+            input.value = String(result.pricing.price_idr);
+            setPricingStatus(`Harga berhasil disimpan: ${formatPrice(result.pricing.price_idr)}`, "success");
+        } catch (error) {
+            console.error(error);
+            setPricingStatus(error.message || "Gagal menyimpan harga langganan.", "error");
+        } finally {
+            button.disabled = false;
+        }
+    }
+
     async function saveSelectedAccess(active) {
         const userId = document.getElementById("user-select").value;
         if (!userId) {
@@ -292,6 +344,7 @@
         const durationInput = document.getElementById("duration-days");
         const saveButton = document.getElementById("save-config");
         const deactivateButton = document.getElementById("reset-config");
+        const savePriceButton = document.getElementById("save-studio-price");
         setFormEnabled(false);
 
         userSelect.addEventListener("change", () => {
@@ -303,10 +356,15 @@
         });
         saveButton.addEventListener("click", () => saveSelectedAccess(document.getElementById("access-status").checked));
         deactivateButton.addEventListener("click", () => saveSelectedAccess(false));
+        savePriceButton.addEventListener("click", savePricing);
 
         loadUsers().catch(error => {
             console.error(error);
             setStatusMessage(error.message || "Gagal memuat user dari Supabase.", "error");
+        });
+        loadPricing().catch(error => {
+            console.error(error);
+            setPricingStatus(error.message || "Gagal memuat harga langganan.", "error");
         });
         countdownTimer = window.setInterval(() => {
             const user = users.find(item => item.id === userSelect.value);
