@@ -1,6 +1,6 @@
 import { buildImagePrompt, composeSocialCaption, createScenePlan, renderCaption } from "../../lib/social-publisher/utils.js";
 import { decryptSecret, generateSocialContextCaption, generateSocialImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
-import { downloadReferenceObject, isPrivateReferenceBucket } from "../../lib/social-publisher/storage.js";
+import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket } from "../../lib/social-publisher/storage.js";
 import { stripImageMetadata } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
 function value(env, key) {
@@ -71,7 +71,7 @@ async function processRun(env, config, claimedRun) {
         if (!schedule) throw new Error("Schedule was removed or disabled before processing.");
 
         const [characters, pageConnections, previousRuns, settingsRows, publisherConfigs] = await Promise.all([
-            dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
+            dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,garment_object_key,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_post_runs", `select=scene_plan&schedule_id=eq.${encodeURIComponent(schedule.id)}&status=eq.posted&order=created_at.desc&limit=12`)),
             dbRequest(config, table("social_publisher_user_settings", `select=caption_template,external_link&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
@@ -105,7 +105,13 @@ async function processRun(env, config, claimedRun) {
             referenceBytes,
             referenceMimeType: character.reference_mime_type,
             aspectRatio,
-            imageProvider
+            imageProvider,
+            ...(imageProvider === "cloudflare" ? {
+                personImageUrl: await createSignedReferenceUrl(config, character.reference_object_key),
+                garmentImageUrls: character.garment_object_key
+                    ? [await createSignedReferenceUrl(config, character.garment_object_key)]
+                    : []
+            } : {})
         });
         if (!generated?.bytes?.length) throw new Error("Image provider returned an empty image.");
 

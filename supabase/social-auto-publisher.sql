@@ -10,6 +10,10 @@ create table if not exists public.social_characters (
     reference_filename text not null default 'reference-image',
     reference_mime_type text not null check (reference_mime_type in ('image/jpeg', 'image/png', 'image/webp')),
     reference_size_bytes integer not null check (reference_size_bytes between 1 and 8388608),
+    garment_object_key text,
+    garment_filename text,
+    garment_mime_type text check (garment_mime_type in ('image/jpeg', 'image/png', 'image/webp')),
+    garment_size_bytes integer check (garment_size_bytes between 1 and 8388608),
     prompt_notes text not null default '' check (char_length(prompt_notes) <= 1200),
     confirmed_rights boolean not null default false,
     confirmed_adult_subject boolean not null default false,
@@ -17,6 +21,18 @@ create table if not exists public.social_characters (
     updated_at timestamptz not null default now(),
     unique (id, owner_id)
 );
+
+alter table public.social_characters
+    add column if not exists garment_object_key text,
+    add column if not exists garment_filename text,
+    add column if not exists garment_mime_type text
+        check (garment_mime_type in ('image/jpeg', 'image/png', 'image/webp')),
+    add column if not exists garment_size_bytes integer
+        check (garment_size_bytes between 1 and 8388608);
+
+create unique index if not exists social_characters_garment_object_key_uidx
+    on public.social_characters (garment_object_key)
+    where garment_object_key is not null;
 
 create table if not exists public.social_page_connections (
     id uuid primary key default gen_random_uuid(),

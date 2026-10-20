@@ -19,6 +19,7 @@ import {
     publishFacebookPhoto
 } from "../lib/social-publisher/providers.js";
 import {
+    createSignedReferenceUrl,
     deleteReferenceObject,
     downloadReferenceObject,
     isPrivateReferenceBucket,
@@ -206,8 +207,7 @@ test("Gemini image generation preserves quota HTTP 429 and explains zero free-ti
     }
 });
 
-test("Cloudflare Workers AI uses reference image-to-image and returns PNG output", async () => {
-    const referenceBytes = new Uint8Array([1, 2, 3, 4]);
+test("Cloudflare Workers AI sends private person and garment URLs to P-Image Try-On", async () => {
     const outputBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
     let model;
     let input;
@@ -222,32 +222,30 @@ test("Cloudflare Workers AI uses reference image-to-image and returns PNG output
             }
         },
         prompt: "Keep the same character in a city cafe.",
-        referenceBytes,
-        referenceMimeType: "image/jpeg",
+        personImageUrl: "https://storage.example/person?token=person-token",
+        garmentImageUrls: ["https://storage.example/garment?token=garment-token"],
         aspectRatio: "16:9",
         imageProvider: "cloudflare"
     });
 
-    assert.equal(model, "@cf/black-forest-labs/flux-2-klein-4b");
-    assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
-    assert.ok(input.multipart.body instanceof ReadableStream);
-    const multipartRequest = new Request("https://workers-ai.invalid", {
-        method: "POST",
-        body: input.multipart.body,
-        duplex: "half",
-        headers: { "Content-Type": input.multipart.contentType }
-    });
-    const formData = await multipartRequest.formData();
-    assert.match(formData.get("prompt"), /horizontal landscape \(16:9\)/);
-    assert.equal(formData.get("width"), "1365");
-    assert.equal(formData.get("height"), "768");
-    const referenceImage = formData.get("input_image_0");
-    assert.ok(referenceImage instanceof File);
-    assert.equal(referenceImage.type, "image/jpeg");
-    assert.deepEqual([...new Uint8Array(await referenceImage.arrayBuffer())], [...referenceBytes]);
+    assert.equal(model, "pruna/p-image-try-on");
+    assert.equal(input.person_image, "https://storage.example/person?token=person-token");
+    assert.deepEqual(input.garment_images, ["https://storage.example/garment?token=garment-token"]);
     assert.deepEqual([...result.bytes], [...outputBytes]);
     assert.equal(result.mimeType, "image/png");
     assert.equal(result.model, model);
+});
+
+test("Cloudflare P-Image Try-On rejects missing garment references", async () => {
+    await assert.rejects(
+        generateSocialImage({
+            env: { AI: { async run() { throw new Error("must not run"); } } },
+            imageProvider: "cloudflare",
+            personImageUrl: "https://storage.example/person?token=person-token",
+            garmentImageUrls: []
+        }),
+        /memerlukan foto karakter dan minimal satu foto pakaian/
+    );
 });
 
 test("Cloudflare Workers AI supports streamed image output", async () => {
@@ -266,8 +264,10 @@ test("Cloudflare Workers AI supports streamed image output", async () => {
                 }
             }
         },
-        prompt: "image-to-image test",
+        prompt: "try-on test",
         referenceBytes: new Uint8Array([1]),
+        personImageUrl: "https://storage.example/person?token=person-token",
+        garmentImageUrls: ["https://storage.example/garment?token=garment-token"],
         imageProvider: "cloudflare"
     });
     assert.deepEqual([...result.bytes], [...outputBytes]);
@@ -284,8 +284,10 @@ test("Cloudflare Workers AI decodes base64 image output", async () => {
                 }
             }
         },
-        prompt: "image edit",
+        prompt: "try-on",
         referenceBytes: new Uint8Array([1]),
+        personImageUrl: "https://storage.example/person?token=person-token",
+        garmentImageUrls: ["https://storage.example/garment?token=garment-token"],
         imageProvider: "cloudflare"
     });
     assert.deepEqual([...result.bytes], [...jpegBytes]);
@@ -384,8 +386,10 @@ test("reference storage uses a private Supabase bucket and server-side service-r
     globalThis.fetch = async (url, options = {}) => {
         calls.push({ url: String(url), options });
         if (calls.length === 1) return Response.json({ id: SOCIAL_REFERENCE_STORAGE_BUCKET, public: false });
-        if (calls.length === 2 || calls.length === 4) return new Response(null, { status: 200 });
-        return new Response(sourceBytes, { status: 200, headers: { "Content-Type": "image/jpeg" } });
+        if (calls.length === 2 || calls.length === 5) return new Response(null, { status: 200 });
+        if (calls.length === 3) return new Response(sourceBytes, { status: 200, headers: { "Content-Type": "image/jpeg" } });
+        if (calls.length === 4) return Response.json({ signedURL: "/object/sign/social-character-references/social-reference/user-1/ref-1.jpg?token=short-lived" });
+        return new Response(null, { status: 200 });
     };
     const config = { url: "https://project.example", serviceRoleKey: "server-only-test-key" };
     const key = "social-reference/user-1/ref-1.jpg";
@@ -393,9 +397,11 @@ test("reference storage uses a private Supabase bucket and server-side service-r
         assert.equal(await isPrivateReferenceBucket(config), true);
         await uploadReferenceObject(config, key, sourceBytes, "image/jpeg");
         const downloaded = await downloadReferenceObject(config, key);
+        const signedUrl = await createSignedReferenceUrl(config, key);
         await deleteReferenceObject(config, key);
 
         assert.deepEqual([...downloaded], [...sourceBytes]);
+        assert.equal(signedUrl, "https://project.example/storage/v1/object/sign/social-character-references/social-reference/user-1/ref-1.jpg?token=short-lived");
         assert.match(calls[0].url, /\/storage\/v1\/bucket\/social-character-references$/);
         assert.match(calls[1].url, /\/storage\/v1\/object\/social-character-references\/social-reference\/user-1\/ref-1\.jpg$/);
         assert.match(calls[2].url, /\/storage\/v1\/object\/authenticated\/social-character-references\/social-reference\/user-1\/ref-1\.jpg$/);
@@ -403,8 +409,10 @@ test("reference storage uses a private Supabase bucket and server-side service-r
         assert.equal(calls[1].options.headers["Content-Type"], "image/jpeg");
         assert.equal(calls[1].options.headers["x-upsert"], "false");
         assert.equal(calls[1].options.headers.Authorization, "Bearer server-only-test-key");
-        assert.deepEqual(JSON.parse(calls[3].options.body), { prefixes: [key] });
-        assert.equal(calls[3].options.method, "DELETE");
+        assert.deepEqual(JSON.parse(calls[4].options.body), { prefixes: [key] });
+        assert.equal(calls[4].options.method, "DELETE");
+        assert.match(calls[3].url, /\/storage\/v1\/object\/sign\/social-character-references\/social-reference\/user-1\/ref-1\.jpg$/);
+        assert.deepEqual(JSON.parse(calls[3].options.body), { expiresIn: 600 });
     } finally {
         globalThis.fetch = originalFetch;
     }

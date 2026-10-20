@@ -536,6 +536,7 @@ test("Legacy manual immediate-publish action is not exposed", async () => {
                 display_name: "Alya",
                 reference_object_key: "social-reference/admin-user/reference.jpg",
                 reference_mime_type: "image/jpeg",
+                garment_object_key: "social-garment/admin-user/garment.png",
                 prompt_notes: "Rambut bob"
             }]);
         }
@@ -558,6 +559,12 @@ test("Legacy manual immediate-publish action is not exposed", async () => {
         }
         if (url.includes("/storage/v1/object/authenticated/social-character-references/")) {
             return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
+        }
+        if (url.includes("/storage/v1/object/sign/social-character-references/")) {
+            const objectKey = url.includes("social-garment")
+                ? "social-garment/admin-user/garment.png"
+                : "social-reference/admin-user/reference.jpg";
+            return Response.json({ signedURL: `/object/sign/social-character-references/${objectKey}?token=short-lived` });
         }
         if (url.includes("generativelanguage.googleapis.com/v1beta/interactions")) {
             assert.equal(options.method, "POST");
@@ -647,6 +654,7 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
                 display_name: "Alya",
                 reference_object_key: "social-reference/admin-user/reference.jpg",
                 reference_mime_type: "image/jpeg",
+                garment_object_key: "social-garment/admin-user/garment.png",
                 prompt_notes: "Rambut bob"
             }]);
         }
@@ -665,6 +673,12 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
         }
         if (url.includes("/storage/v1/object/authenticated/social-character-references/")) {
             return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
+        }
+        if (url.includes("/storage/v1/object/sign/social-character-references/")) {
+            const objectKey = url.includes("social-garment")
+                ? "social-garment/admin-user/garment.png"
+                : "social-reference/admin-user/reference.jpg";
+            return Response.json({ signedURL: `/object/sign/social-character-references/${objectKey}?token=short-lived` });
         }
         if (url.includes("/rest/v1/social_post_runs?id=eq.manual-run-1")) {
             const update = JSON.parse(options.body);
@@ -695,10 +709,12 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
                 SOCIAL_TOKEN_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7))),
                 AI: {
                     async run(model, input) {
-                        if (model === "@cf/black-forest-labs/flux-2-klein-4b") {
+                        if (model === "pruna/p-image-try-on") {
                             imageRequests += 1;
-                            assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
-                            assert.ok(input.multipart.body instanceof ReadableStream);
+                            assert.match(input.person_image, /\/social-reference\/admin-user\/reference\.jpg\?token=short-lived$/);
+                            assert.deepEqual(input.garment_images, [
+                                "https://project.example/storage/v1/object/sign/social-character-references/social-garment/admin-user/garment.png?token=short-lived"
+                            ]);
                             return { image: pngBytes };
                         }
                         assert.equal(model, "@cf/meta/llama-3.2-11b-vision-instruct");

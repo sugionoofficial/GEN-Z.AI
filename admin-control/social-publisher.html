@@ -107,8 +107,9 @@
                 <form id="character-form" class="fields">
                     <div class="field"><label for="character-name">Nama karakter</label><input id="character-name" name="display_name" maxlength="80" required placeholder="Contoh: Alya"></div>
                     <div class="field"><label for="character-image">Foto referensi</label><input id="character-image" name="reference" type="file" accept="image/jpeg,image/png,image/webp" required><span class="help">JPEG, PNG, atau WebP · maksimal 8 MB</span></div>
+                    <div class="field full"><label for="character-garment">Foto pakaian untuk Cloudflare Try-On (opsional)</label><input id="character-garment" name="garment" type="file" accept="image/jpeg,image/png,image/webp"><span class="help">JPEG, PNG, atau WebP · maksimal 8 MB. Cloudflare P-Image Try-On memerlukan foto pakaian.</span></div>
                     <div class="field full"><label for="character-notes">Ciri yang perlu dijaga (opsional)</label><textarea id="character-notes" name="prompt_notes" maxlength="1200" placeholder="Contoh: rambut bob hitam, kacamata bundar, gaya editorial natural."></textarea></div>
-                    <div class="field full"><label class="inline-check"><input id="character-consent" type="checkbox" required><span>Saya berhak menggunakan foto ini dan karakter yang digambarkan adalah orang dewasa (18+) atau karakter fiksi non-anak. Saya memahami gambar akan dibuat dan dijadwalkan otomatis setelah autopublish diaktifkan.</span></label></div>
+                    <div class="field full"><label class="inline-check"><input id="character-consent" type="checkbox" required><span>Saya berhak menggunakan foto karakter dan pakaian yang diunggah. Karakter yang digambarkan adalah orang dewasa (18+) atau karakter fiksi non-anak. Jika memilih Cloudflare, foto akan diproses oleh Workers AI/Pruna untuk pembuatan gambar.</span></label></div>
                     <div class="field full"><button id="upload-character" class="btn primary" type="submit">Simpan karakter</button><p class="status" id="character-status"></p></div>
                 </form>
             </section>

@@ -246,16 +246,21 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             title.textContent = character.display_name;
             const detail = document.createElement("div");
             detail.className = "item-meta";
-            detail.textContent = `${character.reference_filename || "referensi"} · ${character.prompt_notes || "Tanpa catatan tambahan"}`;
+            detail.textContent = `${character.reference_filename || "referensi"} · ${character.garment_filename ? `Pakaian: ${character.garment_filename}` : "Foto pakaian belum diatur"} · ${character.prompt_notes || "Tanpa catatan tambahan"}`;
             content.append(title, detail);
             const action = document.createElement("button");
             action.className = "btn small";
             action.type = "button";
-            action.textContent = "Edit catatan";
-            action.addEventListener("click", () => editCharacter(character));
+            action.textContent = character.garment_filename ? "Ganti pakaian" : "Atur pakaian";
+            action.addEventListener("click", () => uploadGarment(character));
+            const notesAction = document.createElement("button");
+            notesAction.className = "btn small";
+            notesAction.type = "button";
+            notesAction.textContent = "Edit catatan";
+            notesAction.addEventListener("click", () => editCharacter(character));
             const actions = document.createElement("div");
             actions.className = "item-actions";
-            actions.append(action);
+            actions.append(action, notesAction);
             item.append(img, content, actions);
             container.append(item);
         }
@@ -463,6 +468,38 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         } catch (error) {
             showNotice(pageMessage, error.message, "error");
         }
+
+        async function uploadGarment(character) {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/jpeg,image/png,image/webp";
+            input.addEventListener("change", async () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 8 * 1024 * 1024) {
+                    showNotice(pageMessage, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
+                    return;
+                }
+                if (!window.confirm("Pastikan Anda berhak menggunakan foto pakaian ini. Saat Cloudflare dipilih, foto akan diproses oleh Workers AI/Pruna. Lanjutkan unggah?")) return;
+                try {
+                    await api(`upload-garment&character_id=${encodeURIComponent(character.id)}`, {
+                        method: "POST",
+                        body: file,
+                        raw: true,
+                        headers: {
+                            "Content-Type": file.type,
+                            "X-File-Name": encodeURIComponent(file.name),
+                            "X-Garment-Rights": "1"
+                        }
+                    });
+                    showNotice(pageMessage, "Foto pakaian tersimpan. Cloudflare P-Image Try-On akan memakainya untuk gambar berikutnya.", "success");
+                    await loadDashboard();
+                } catch (error) {
+                    showNotice(pageMessage, error.message, "error");
+                }
+            }, { once: true });
+            input.click();
+        }
     }
 
     function pageName(id) {
@@ -630,6 +667,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         event.preventDefault();
         const name = $("character-name").value.trim();
         const file = $("character-image").files?.[0];
+        const garmentFile = $("character-garment").files?.[0];
         if (!name || !file || !$("character-consent").checked) {
             status(characterStatus, "Isi nama, pilih foto, dan centang konfirmasi hak penggunaan serta subjek dewasa.", "error");
             return;
@@ -638,8 +676,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             status(characterStatus, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
             return;
         }
+        if (garmentFile && (!/^image\/(jpeg|png|webp)$/.test(garmentFile.type) || garmentFile.size > 8 * 1024 * 1024)) {
+            status(characterStatus, "Foto pakaian harus JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
+            return;
+        }
         setButtonBusy(uploadButton, true, "Mengunggah…");
-        status(characterStatus, "Mengunggah foto referensi ke Supabase Storage privat…");
+        status(characterStatus, "Mengunggah foto karakter ke Supabase Storage privat…");
+        let characterCreated = false;
         try {
             const uploaded = await api("upload-reference", {
                 method: "POST",
@@ -655,15 +698,33 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             });
             const data = await uploaded.json().catch(() => ({}));
             if (!uploaded.ok || data.success !== true || !data.character?.id) throw new Error(data.error || "Upload referensi gagal.");
+            characterCreated = true;
+            if (garmentFile) {
+                await api(`upload-garment&character_id=${encodeURIComponent(data.character.id)}`, {
+                    method: "POST",
+                    body: garmentFile,
+                    raw: true,
+                    headers: {
+                        "Content-Type": garmentFile.type,
+                        "X-File-Name": encodeURIComponent(garmentFile.name),
+                        "X-Garment-Rights": "1"
+                    }
+                });
+            }
             const notes = $("character-notes").value.trim();
             if (notes) {
                 await api("save-character", { method: "POST", body: { id: data.character.id, display_name: name, prompt_notes: notes } });
             }
             $("character-form").reset();
-            status(characterStatus, "Karakter tersimpan. Foto referensi disimpan privat di Supabase Storage.", "good");
+            status(characterStatus, garmentFile
+                ? "Karakter dan foto pakaian tersimpan di Supabase Storage privat."
+                : "Karakter tersimpan. Tambahkan foto pakaian sebelum memakai Cloudflare P-Image Try-On.", "good");
             await loadDashboard();
         } catch (error) {
-            status(characterStatus, error.message, "error");
+            status(characterStatus, characterCreated
+                ? `Karakter sudah tersimpan, tetapi foto pakaian/catatan gagal disimpan: ${error.message}`
+                : error.message, "error");
+            if (characterCreated) await loadDashboard();
         } finally {
             setButtonBusy(uploadButton, false);
         }

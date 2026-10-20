@@ -60,6 +60,7 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
                 display_name: "Alya",
                 reference_object_key: "social-reference/owner-1/reference.jpg",
                 reference_mime_type: "image/jpeg",
+                garment_object_key: "social-garment/owner-1/garment.png",
                 prompt_notes: "Rambut bob"
             }]);
         }
@@ -89,6 +90,12 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
         if (url.includes("/storage/v1/object/authenticated/social-character-references/")) {
             return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
         }
+        if (url.includes("/storage/v1/object/sign/social-character-references/")) {
+            const objectKey = url.includes("social-garment")
+                ? "social-garment/owner-1/garment.png"
+                : "social-reference/owner-1/reference.jpg";
+            return Response.json({ signedURL: `/object/sign/social-character-references/${objectKey}?token=short-lived` });
+        }
         if (url.includes("graph.facebook.com/v26.0/page-123/photos")) {
             postedCaption = options.body.get("caption");
             postedImageText = await options.body.get("source").text();
@@ -111,9 +118,11 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
             SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey,
             AI: {
                 async run(model, input) {
-                    if (model === "@cf/black-forest-labs/flux-2-klein-4b") {
-                        assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
-                        assert.ok(input.multipart.body instanceof ReadableStream);
+                    if (model === "pruna/p-image-try-on") {
+                        assert.match(input.person_image, /\/social-reference\/owner-1\/reference\.jpg\?token=short-lived$/);
+                        assert.deepEqual(input.garment_images, [
+                            "https://project.example/storage/v1/object/sign/social-character-references/social-garment/owner-1/garment.png?token=short-lived"
+                        ]);
                         return { image: btoa(String.fromCharCode(...generatedPng)) };
                     }
                     assert.equal(model, "@cf/meta/llama-3.2-11b-vision-instruct");

@@ -18,6 +18,7 @@ import {
     publishFacebookPhoto
 } from "../lib/social-publisher/providers.js";
 import {
+    createSignedReferenceUrl,
     deleteReferenceObject,
     downloadReferenceObject,
     isPrivateReferenceBucket,
@@ -510,7 +511,7 @@ async function handleOAuthCallback(req, res, env) {
 
 async function getDashboard(config, userId, env) {
     const [characters, pages, schedules, runs, publisherConfig, userSettings, referenceStorageConfigured] = await Promise.all([
-        supabaseRequest(config, tablePath("social_characters", `select=id,display_name,reference_filename,reference_mime_type,prompt_notes,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
+        supabaseRequest(config, tablePath("social_characters", `select=id,display_name,reference_filename,reference_mime_type,garment_filename,prompt_notes,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
         supabaseRequest(config, tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_post_runs", `select=id,schedule_id,status,scheduled_for,scene_plan,caption,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=30`)),
@@ -675,6 +676,81 @@ async function uploadReference(req, res, config, userId) {
             })
         });
         return json(res, 201, { success: true, character: saved?.[0] || null });
+    } catch (error) {
+        await deleteReferenceObject(config, key).catch(() => {});
+        throw error;
+    }
+}
+
+async function uploadGarmentReference(req, res, config, userId) {
+    const characterId = cleanText(getQuery(req, "character_id"), 80);
+    if (!characterId) {
+        const error = new Error("ID karakter wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+    if (String(getHeader(req, "x-garment-rights") || "") !== "1") {
+        const error = new Error("Konfirmasi hak penggunaan foto pakaian diperlukan.");
+        error.status = 400;
+        throw error;
+    }
+    if (!await isPrivateReferenceBucket(config)) {
+        const error = new Error("Bucket privat Supabase Storage untuk foto pakaian belum tersedia.");
+        error.status = 503;
+        throw error;
+    }
+
+    const characters = await supabaseRequest(
+        config,
+        tablePath("social_characters", `select=id,garment_object_key&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+    );
+    const character = characters?.[0];
+    if (!character) {
+        const error = new Error("Karakter tidak ditemukan untuk akun ini.");
+        error.status = 404;
+        throw error;
+    }
+
+    const mime = normalizeMimeType(getHeader(req, "content-type"));
+    const bytes = bytesFromBody(req.body);
+    const filename = cleanText(decodeHeader(getHeader(req, "x-file-name")), 180)
+        || `garment.${extensionForMime(mime)}`;
+    if (!mime || !bytes.length || bytes.length > MAX_REFERENCE_BYTES || !hasValidImageSignature(bytes, mime)) {
+        const error = new Error("File pakaian harus berupa JPEG, PNG, atau WebP yang valid dan berukuran maksimal 8 MB.");
+        error.status = 400;
+        throw error;
+    }
+
+    const key = `social-garment/${userId}/${crypto.randomUUID()}.${extensionForMime(mime)}`;
+    await uploadReferenceObject(config, key, bytes, mime);
+    try {
+        const updated = await supabaseRequest(
+            config,
+            tablePath("social_characters", `id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&select=id,garment_filename`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify({
+                    garment_object_key: key,
+                    garment_filename: filename.replace(/[\\/\0]/g, "").slice(0, 180),
+                    garment_mime_type: mime,
+                    garment_size_bytes: bytes.length
+                })
+            }
+        );
+        if (!updated?.length) {
+            const error = new Error("Foto pakaian tidak berhasil disimpan pada karakter.");
+            error.status = 500;
+            throw error;
+        }
+        if (character.garment_object_key) {
+            try {
+                await deleteReferenceObject(config, character.garment_object_key);
+            } catch (error) {
+                console.error("Old garment reference cleanup failed:", error?.message || "unknown error");
+            }
+        }
+        return json(res, 200, { success: true, garment_filename: updated[0].garment_filename });
     } catch (error) {
         await deleteReferenceObject(config, key).catch(() => {});
         throw error;
@@ -856,7 +932,7 @@ async function generateManualPost(config, userId, env, body = {}) {
     const [characters, pages] = await Promise.all([
         supabaseRequest(
             config,
-            tablePath("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+            tablePath("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,garment_object_key,prompt_notes&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
         ),
         supabaseRequest(
             config,
@@ -944,7 +1020,13 @@ async function generateManualPost(config, userId, env, body = {}) {
             referenceBytes,
             referenceMimeType: character.reference_mime_type,
             aspectRatio,
-            imageProvider
+            imageProvider,
+            ...(imageProvider === "cloudflare" ? {
+                personImageUrl: await createSignedReferenceUrl(config, character.reference_object_key),
+                garmentImageUrls: character.garment_object_key
+                    ? [await createSignedReferenceUrl(config, character.garment_object_key)]
+                    : []
+            } : {})
         });
         if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar.");
         const cleanedBlob = await stripImageMetadata(
@@ -1177,6 +1259,7 @@ async function handlePost(req, res, config, userId, env, action) {
         await ensureStudioAccess(config, userId);
     }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
+    if (action === "upload-garment") return uploadGarmentReference(req, res, config, userId);
     if (action === "manual-publish") return await publishManualPost(req, res, config, userId, env);
     const body = req.body && typeof req.body === "object" ? req.body : {};
 
