@@ -264,32 +264,42 @@ async function saveStudioAccess(config, adminId, body = {}) {
 async function getStudioPricing(config) {
     const rows = await supabaseRequest(
         config,
-        tablePath("studio_medsos_pricing", "select=price_idr,updated_at&id=eq.true&limit=1")
+        tablePath("studio_medsos_pricing", "select=price_daily_idr,price_weekly_idr,price_monthly_idr,price_yearly_idr,updated_at&id=eq.true&limit=1")
     );
     const pricing = rows?.[0] || null;
     return {
-        price_idr: pricing ? Number(pricing.price_idr) : null,
+        price_daily_idr: pricing?.price_daily_idr == null ? null : Number(pricing.price_daily_idr),
+        price_weekly_idr: pricing?.price_weekly_idr == null ? null : Number(pricing.price_weekly_idr),
+        price_monthly_idr: pricing?.price_monthly_idr == null ? null : Number(pricing.price_monthly_idr),
+        price_yearly_idr: pricing?.price_yearly_idr == null ? null : Number(pricing.price_yearly_idr),
         updated_at: pricing?.updated_at || null
     };
 }
 
 async function saveStudioPricing(config, adminId, body = {}) {
-    const priceIdr = body.price_idr;
-    if (typeof priceIdr !== "number" || !Number.isSafeInteger(priceIdr) || priceIdr < 0) {
-        const error = new Error("Harga langganan harus berupa bilangan bulat Rupiah yang tidak negatif.");
-        error.status = 400;
-        throw error;
+    const periods = ["daily", "weekly", "monthly", "yearly"];
+    const prices = {};
+    for (const period of periods) {
+        const key = `price_${period}_idr`;
+        const price = body[key];
+        if (price !== null && (typeof price !== "number" || !Number.isSafeInteger(price) || price < 0)) {
+            const error = new Error(`Harga ${period} harus berupa bilangan bulat Rupiah nol atau lebih, atau dikosongkan.`);
+            error.status = 400;
+            throw error;
+        }
+        prices[key] = price ?? null;
     }
 
     const rows = await supabaseRequest(
         config,
-        tablePath("studio_medsos_pricing", "on_conflict=id&select=price_idr,updated_at"),
+        tablePath("studio_medsos_pricing", "on_conflict=id&select=price_daily_idr,price_weekly_idr,price_monthly_idr,price_yearly_idr,updated_at"),
         {
             method: "POST",
             headers: { Prefer: "resolution=merge-duplicates,return=representation" },
             body: JSON.stringify({
                 id: true,
-                price_idr: priceIdr,
+                ...prices,
+                price_idr: prices.price_monthly_idr ?? 0,
                 updated_at: new Date().toISOString(),
                 updated_by: adminId
             })
@@ -301,7 +311,10 @@ async function saveStudioPricing(config, adminId, body = {}) {
         throw error;
     }
     return {
-        price_idr: Number(rows[0].price_idr),
+        price_daily_idr: rows[0].price_daily_idr == null ? null : Number(rows[0].price_daily_idr),
+        price_weekly_idr: rows[0].price_weekly_idr == null ? null : Number(rows[0].price_weekly_idr),
+        price_monthly_idr: rows[0].price_monthly_idr == null ? null : Number(rows[0].price_monthly_idr),
+        price_yearly_idr: rows[0].price_yearly_idr == null ? null : Number(rows[0].price_yearly_idr),
         updated_at: rows[0].updated_at || null
     };
 }

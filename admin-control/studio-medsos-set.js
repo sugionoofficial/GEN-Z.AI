@@ -4,6 +4,12 @@
     const API_ENDPOINT = "/api/social-publisher";
     const MAX_DAYS = 365;
     const MIN_DAYS = 1;
+    const PRICE_PERIODS = [
+        { key: "daily", label: "per hari" },
+        { key: "weekly", label: "per minggu" },
+        { key: "monthly", label: "per bulan" },
+        { key: "yearly", label: "per tahun" }
+    ];
     let users = [];
     let countdownTimer;
 
@@ -254,22 +260,36 @@
 
     async function loadPricing() {
         const result = await api("studio-pricing");
-        const price = result.pricing?.price_idr;
-        document.getElementById("studio-price").value = Number.isSafeInteger(price) && price >= 0 ? String(price) : "";
-        setPricingStatus(
-            Number.isSafeInteger(price) && price >= 0
-                ? `Harga saat ini: ${formatPrice(price)}`
-                : "Harga belum ditentukan. Isi harga lalu simpan untuk menampilkannya kepada user."
-        );
+        for (const { key } of PRICE_PERIODS) {
+            const price = result.pricing?.[`price_${key}_idr`];
+            document.getElementById(`studio-price-${key}`).value =
+                Number.isSafeInteger(price) && price >= 0 ? String(price) : "";
+        }
+        renderPricingStatus(result.pricing || {});
+    }
+
+    function renderPricingStatus(pricing, prefix = "Harga saat ini", type = "") {
+        const values = PRICE_PERIODS.map(({ key, label }) => {
+            const price = pricing[`price_${key}_idr`];
+            return `${label}: ${Number.isSafeInteger(price) && price >= 0 ? formatPrice(price) : "belum ditentukan"}`;
+        });
+        setPricingStatus(`${prefix} — ${values.join(" · ")}`, type);
     }
 
     async function savePricing() {
-        const input = document.getElementById("studio-price");
-        const rawPrice = input.value.trim();
-        const priceIdr = Number(rawPrice);
-        if (!rawPrice || !Number.isSafeInteger(priceIdr) || priceIdr < 0) {
-            setPricingStatus("Masukkan harga Rupiah berupa bilangan bulat nol atau lebih.", "error");
-            return;
+        const pricing = {};
+        for (const { key, label } of PRICE_PERIODS) {
+            const rawPrice = document.getElementById(`studio-price-${key}`).value.trim();
+            if (!rawPrice) {
+                pricing[`price_${key}_idr`] = null;
+                continue;
+            }
+            const priceIdr = Number(rawPrice);
+            if (!Number.isSafeInteger(priceIdr) || priceIdr < 0) {
+                setPricingStatus(`Harga ${label} harus berupa bilangan bulat Rupiah nol atau lebih, atau dikosongkan.`, "error");
+                return;
+            }
+            pricing[`price_${key}_idr`] = priceIdr;
         }
 
         const button = document.getElementById("save-studio-price");
@@ -277,10 +297,14 @@
         try {
             const result = await api("studio-admin-save-price", {
                 method: "POST",
-                body: { price_idr: priceIdr }
+                body: pricing
             });
-            input.value = String(result.pricing.price_idr);
-            setPricingStatus(`Harga berhasil disimpan: ${formatPrice(result.pricing.price_idr)}`, "success");
+            for (const { key } of PRICE_PERIODS) {
+                const price = result.pricing[`price_${key}_idr`];
+                document.getElementById(`studio-price-${key}`).value =
+                    Number.isSafeInteger(price) && price >= 0 ? String(price) : "";
+            }
+            renderPricingStatus(result.pricing, "Harga berhasil disimpan", "success");
         } catch (error) {
             console.error(error);
             setPricingStatus(error.message || "Gagal menyimpan harga langganan.", "error");

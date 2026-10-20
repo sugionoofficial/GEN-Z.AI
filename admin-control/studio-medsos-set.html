@@ -11,9 +11,10 @@
         *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 0%,rgba(141,125,255,.14),transparent 25%),radial-gradient(circle at 92% 12%,rgba(85,217,242,.12),transparent 30%),linear-gradient(135deg,#060b13,#101822 35%,#08111d);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{max-width:980px;margin:0 auto;padding:32px 18px 60px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px}.mark{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#8d7dff,#55d9f2);font-weight:900;color:#fff}.title{margin:0;font-size:20px}.subtitle{margin:4px 0 0;color:var(--muted);font-size:12px}.back{color:#d7def0;text-decoration:none;border:1px solid var(--border);padding:10px 13px;border-radius:10px;background:rgba(9,17,26,.5)}.back:hover{border-color:#8394af}.card{background:linear-gradient(160deg,rgba(17,25,36,.98),rgba(11,17,27,.98));border:1px solid var(--border);border-radius:18px;padding:20px;box-shadow:0 18px 40px var(--shadow)}.panel-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}.field{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}.label{font-size:12px;font-weight:700;color:#dfe9fd}        .input,.select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #364761;background:#08131e;color:var(--text);font:inherit}.input:focus,.select:focus{outline:none;border-color:var(--premium);box-shadow:0 0 0 3px rgba(141,125,255,.18)}.inline{display:grid;grid-template-columns:1fr 130px;gap:10px}.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:#0d1725}.switch{position:relative;width:54px;height:30px;border-radius:999px;background:#2b3649}.switch input{display:none}.switch .slider{position:absolute;inset:0;border-radius:999px;background:#2d3c53;transition:.2s}.switch .slider::before{content:"";position:absolute;width:22px;height:22px;border-radius:50%;left:4px;top:4px;background:#fff;transition:.2s}.switch input:checked + .slider{background:linear-gradient(135deg,#8d7dff,#49d5c0)}.switch input:checked + .slider::before{transform:translateX(24px)}.badge{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border:1px solid currentColor}.badge.active{color:#8af0c6;background:rgba(64,211,157,.1);border-color:rgba(64,211,157,.5)}.badge.inactive{color:#ffc3cc;background:rgba(255,109,127,.1);border-color:rgba(255,109,127,.5)}.premium-box{padding:18px;border-radius:16px;background:linear-gradient(160deg,rgba(141,125,255,.12),rgba(13,18,26,.9));border:1px solid rgba(141,125,255,.4)}.premium-box h3{margin:0 0 8px;font-size:16px}.value{font-size:28px;font-weight:900;letter-spacing:-.05em}.muted{color:var(--muted)}.btn{appearance:none;border:1px solid #4e5d7a;background:#162638;color:var(--text);padding:10px 14px;border-radius:10px;font:inherit;font-weight:800;cursor:pointer}.btn.primary{background:linear-gradient(135deg,#8d7dff,#5d5fe1);border-color:rgba(141,125,255,.6)}.btn:hover{filter:brightness(1.03)}.btn:disabled,.input:disabled,.select:disabled{opacity:.5;cursor:not-allowed}.status-box{padding:12px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.6}.small{font-size:11px}.footer-note{margin-top:12px;color:var(--muted);font-size:11px;line-height:1.6}.subscription-list{display:grid;gap:10px;margin-top:16px}.subscription-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px;border:1px solid var(--border);border-radius:12px;background:rgba(8,19,30,.7)}.subscription-user{font-size:13px;font-weight:750;overflow-wrap:anywhere}.subscription-meta{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:6px;color:var(--muted);font-size:11px}.subscription-countdown{color:#8af0c6;font-size:11px;font-weight:700;text-align:right}.empty-list{padding:18px;border:1px dashed var(--border);border-radius:12px;color:var(--muted);text-align:center;font-size:12px}@media (max-width:760px){.panel-grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.inline{grid-template-columns:1fr}.subscription-item{grid-template-columns:1fr}.subscription-countdown{text-align:left}}</style>
     <style>
         .price-settings{margin-top:18px}
-        .price-settings-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
+        .price-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+        .price-settings-row{display:flex;justify-content:flex-end;margin-top:12px}
         .price-settings-status{margin-top:12px}
-        @media (max-width:600px){.price-settings-row{grid-template-columns:1fr}}
+        @media (max-width:600px){.price-grid{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
@@ -88,11 +89,25 @@
         <section class="card price-settings" aria-labelledby="studio-price-title">
             <h2 id="studio-price-title" style="margin:0;font-size:17px">Harga langganan Studio Medsos</h2>
             <p class="small muted" style="margin:6px 0 16px">Harga ini akan ditampilkan pada blok informasi saat user membuka halaman Studio Medsos.</p>
-            <div class="price-settings-row">
+            <div class="price-grid">
                 <div class="field" style="margin:0">
-                    <label class="label" for="studio-price">Harga (Rupiah)</label>
-                    <input class="input" id="studio-price" type="number" min="0" step="1" inputmode="numeric" placeholder="Contoh: 50000">
+                    <label class="label" for="studio-price-daily">Harga per hari (Rupiah)</label>
+                    <input class="input" id="studio-price-daily" type="number" min="0" step="1" inputmode="numeric" placeholder="Belum ditentukan">
                 </div>
+                <div class="field" style="margin:0">
+                    <label class="label" for="studio-price-weekly">Harga per minggu (Rupiah)</label>
+                    <input class="input" id="studio-price-weekly" type="number" min="0" step="1" inputmode="numeric" placeholder="Belum ditentukan">
+                </div>
+                <div class="field" style="margin:0">
+                    <label class="label" for="studio-price-monthly">Harga per bulan (Rupiah)</label>
+                    <input class="input" id="studio-price-monthly" type="number" min="0" step="1" inputmode="numeric" placeholder="Belum ditentukan">
+                </div>
+                <div class="field" style="margin:0">
+                    <label class="label" for="studio-price-yearly">Harga per tahun (Rupiah)</label>
+                    <input class="input" id="studio-price-yearly" type="number" min="0" step="1" inputmode="numeric" placeholder="Belum ditentukan">
+                </div>
+            </div>
+            <div class="price-settings-row">
                 <button id="save-studio-price" class="btn primary" type="button">Simpan Harga</button>
             </div>
             <div id="studio-price-status" class="status-box price-settings-status" role="status" aria-live="polite">Memuat harga langganan…</div>

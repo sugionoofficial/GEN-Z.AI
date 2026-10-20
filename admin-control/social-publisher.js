@@ -634,22 +634,27 @@
     }
 
     async function refreshStudioPricing() {
-        const priceDisplays = [$("studio-price-value"), $("studio-gate-price-value")].filter(Boolean);
+        const periods = ["daily", "weekly", "monthly", "yearly"];
+        const priceDisplays = periods.flatMap(period => [
+            [$(`studio-price-${period}`), `price_${period}_idr`],
+            [$(`studio-gate-price-${period}`), `price_${period}_idr`]
+        ]).filter(([node]) => node);
         if (!priceDisplays.length) return;
-        const updateDisplays = text => priceDisplays.forEach(node => { node.textContent = text; });
+        const formatPrice = amount => Number.isSafeInteger(amount) && amount >= 0
+            ? new Intl.NumberFormat("id-ID", {
+                style: "currency",
+                currency: "IDR",
+                maximumFractionDigits: 0
+            }).format(amount)
+            : "Belum ditentukan";
         try {
             const result = await api("studio-pricing");
-            const amount = result.pricing?.price_idr;
-            updateDisplays(Number.isSafeInteger(amount) && amount >= 0
-                ? new Intl.NumberFormat("id-ID", {
-                    style: "currency",
-                    currency: "IDR",
-                    maximumFractionDigits: 0
-                }).format(amount)
-                : "Belum ditentukan");
+            for (const [node, key] of priceDisplays) {
+                node.textContent = formatPrice(result.pricing?.[key]);
+            }
         } catch (error) {
             console.error("Studio Medsos pricing load failed:", error);
-            updateDisplays("Tidak dapat dimuat");
+            for (const [node] of priceDisplays) node.textContent = "Tidak dapat dimuat";
         }
     }
 
@@ -671,7 +676,7 @@
     function parseStudioAccess(record) {
         const startedAt = record?.started_at ? Date.parse(record.started_at) : Number.NaN;
         const durationDays = clampDuration(record?.duration_days ?? 30);
-        const expiryAt = record?.expires_at ? Date.parse(record.expires_at) : Number.NaN;
+        const expiresAt = record?.expires_at ? Date.parse(record.expires_at) : Number.NaN;
 
         return {
             active: Boolean(record?.is_active),

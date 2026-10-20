@@ -183,7 +183,13 @@ test("Studio Medsos pricing is available to an authenticated user without an act
         { id: "admin-user", role: "USER", status: "active" },
         async url => {
             assert.match(url, /\/rest\/v1\/studio_medsos_pricing\?/);
-            return Response.json([{ price_idr: 50000, updated_at: "2026-10-20T00:00:00.000Z" }]);
+            return Response.json([{
+                price_daily_idr: 5000,
+                price_weekly_idr: 25000,
+                price_monthly_idr: 50000,
+                price_yearly_idr: 500000,
+                updated_at: "2026-10-20T00:00:00.000Z"
+            }]);
         }
     );
     const response = makeResponse();
@@ -197,7 +203,15 @@ test("Studio Medsos pricing is available to an authenticated user without an act
         }, response);
 
         assert.equal(response.statusCode, 200);
-        assert.equal(response.body.pricing.price_idr, 50000);
+        assert.deepEqual(
+            [
+                response.body.pricing.price_daily_idr,
+                response.body.pricing.price_weekly_idr,
+                response.body.pricing.price_monthly_idr,
+                response.body.pricing.price_yearly_idr
+            ],
+            [5000, 25000, 50000, 500000]
+        );
     } finally {
         restoreFetch();
     }
@@ -211,9 +225,19 @@ test("Studio Medsos admin can save the public subscription price", async () => {
             assert.equal(options.method, "POST");
             const payload = JSON.parse(options.body);
             assert.equal(payload.id, true);
+            assert.equal(payload.price_daily_idr, 5000);
+            assert.equal(payload.price_weekly_idr, 25000);
+            assert.equal(payload.price_monthly_idr, 50000);
+            assert.equal(payload.price_yearly_idr, 500000);
             assert.equal(payload.price_idr, 50000);
             assert.equal(payload.updated_by, "admin-user");
-            return Response.json([{ price_idr: payload.price_idr, updated_at: payload.updated_at }], { status: 201 });
+            return Response.json([{
+                price_daily_idr: payload.price_daily_idr,
+                price_weekly_idr: payload.price_weekly_idr,
+                price_monthly_idr: payload.price_monthly_idr,
+                price_yearly_idr: payload.price_yearly_idr,
+                updated_at: payload.updated_at
+            }], { status: 201 });
         }
     );
     const response = makeResponse();
@@ -223,12 +247,18 @@ test("Studio Medsos admin can save the public subscription price", async () => {
             url: "/api/social-publisher?action=studio-admin-save-price",
             query: { action: "studio-admin-save-price" },
             headers: { authorization: "Bearer test-token" },
-            body: { price_idr: 50000 },
+            body: {
+                price_daily_idr: 5000,
+                price_weekly_idr: 25000,
+                price_monthly_idr: 50000,
+                price_yearly_idr: 500000
+            },
             env
         }, response);
 
         assert.equal(response.statusCode, 200);
-        assert.equal(response.body.pricing.price_idr, 50000);
+        assert.equal(response.body.pricing.price_monthly_idr, 50000);
+        assert.equal(response.body.pricing.price_yearly_idr, 500000);
     } finally {
         restoreFetch();
     }
@@ -250,13 +280,61 @@ test("Studio Medsos admin price save rejects negative amounts before writing", a
             url: "/api/social-publisher?action=studio-admin-save-price",
             query: { action: "studio-admin-save-price" },
             headers: { authorization: "Bearer test-token" },
-            body: { price_idr: -1 },
+            body: {
+                price_daily_idr: -1,
+                price_weekly_idr: null,
+                price_monthly_idr: null,
+                price_yearly_idr: null
+            },
             env
         }, response);
 
         assert.equal(response.statusCode, 400);
         assert.match(response.body.error, /bilangan bulat Rupiah/);
         assert.equal(wrote, false);
+    } finally {
+        restoreFetch();
+    }
+});
+
+test("Studio Medsos admin can leave individual subscription periods unset", async () => {
+    const restoreFetch = mockAuthAndFetch(
+        { id: "admin-user", role: "ADMIN", status: "active" },
+        async (url, options) => {
+            assert.match(url, /\/rest\/v1\/studio_medsos_pricing\?/);
+            const payload = JSON.parse(options.body);
+            assert.equal(payload.price_daily_idr, null);
+            assert.equal(payload.price_weekly_idr, null);
+            assert.equal(payload.price_monthly_idr, 50000);
+            assert.equal(payload.price_yearly_idr, null);
+            return Response.json([{
+                price_daily_idr: null,
+                price_weekly_idr: null,
+                price_monthly_idr: 50000,
+                price_yearly_idr: null,
+                updated_at: payload.updated_at
+            }], { status: 201 });
+        }
+    );
+    const response = makeResponse();
+    try {
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=studio-admin-save-price",
+            query: { action: "studio-admin-save-price" },
+            headers: { authorization: "Bearer test-token" },
+            body: {
+                price_daily_idr: null,
+                price_weekly_idr: null,
+                price_monthly_idr: 50000,
+                price_yearly_idr: null
+            },
+            env
+        }, response);
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.body.pricing.price_daily_idr, null);
+        assert.equal(response.body.pricing.price_monthly_idr, 50000);
     } finally {
         restoreFetch();
     }
@@ -278,7 +356,12 @@ test("Studio Medsos price save rejects non-admin users", async () => {
             url: "/api/social-publisher?action=studio-admin-save-price",
             query: { action: "studio-admin-save-price" },
             headers: { authorization: "Bearer test-token" },
-            body: { price_idr: 50000 },
+            body: {
+                price_daily_idr: 5000,
+                price_weekly_idr: 25000,
+                price_monthly_idr: 50000,
+                price_yearly_idr: 500000
+            },
             env
         }, response);
 
