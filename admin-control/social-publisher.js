@@ -136,8 +136,14 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     }
 
     function renderConfig(config = {}) {
-        const imageProviderLabel = config.imageProvider === "cloudflare" ? "Cloudflare Workers AI" : "Gemini Image API";
-        const captionProviderLabel = config.captionProvider === "cloudflare" ? "Cloudflare Vision Caption" : "Gemini Caption API";
+        const imageProviderLabel = config.imageProvider === "cloudflare"
+            ? "Cloudflare Workers AI"
+            : config.imageProvider === "qwencloud"
+                ? `QwenCloud (${config.imageModel || "qwen-image-3.0-pro"})`
+                : "Gemini Image API";
+        const captionProviderLabel = config.captionProvider === "cloudflare"
+            ? "Cloudflare Vision Caption"
+            : config.captionProvider === "qwencloud" ? "QwenCloud Vision Caption" : "Gemini Caption API";
         const garmentLabel = document.querySelector("label[for='character-garment']");
         if (garmentLabel) {
             garmentLabel.textContent = config.imageProvider === "cloudflare"

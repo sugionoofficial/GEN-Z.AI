@@ -19,6 +19,21 @@
         .provider-option input{margin-top:3px;accent-color:var(--premium)}
         .provider-option strong{display:block;font-size:13px}
         .provider-option small{display:block;margin-top:4px;color:var(--muted);font-size:11px;line-height:1.5}
+        .qwencloud-options{margin-top:14px;display:grid;gap:12px;padding:14px;border:1px dashed var(--border);border-radius:12px;background:rgba(8,19,30,.6)}
+        .qwencloud-options .provider-field{display:grid;gap:6px}
+        .qwencloud-options select,.qwencloud-options input[type="number"]{padding:10px 12px;border-radius:10px;border:1px solid #364761;background:#08131e;color:var(--text);font:inherit}
+        .qwencloud-options .price-settings-row{justify-content:flex-start;align-items:center;gap:10px;margin-top:0;flex-wrap:wrap}
+        .quota-limit-field{font-size:12px;font-weight:700;color:#dfe9fd}
+        #qwencloud-quota-limit{width:130px}
+        .quota-panel{display:grid;gap:8px;border:1px solid var(--border);border-radius:12px;padding:12px;background:#0d1725}
+        .quota-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted)}
+        .quota-row strong{color:var(--text)}
+        .quota-bar{height:8px;border-radius:999px;background:#1b2737;overflow:hidden;border:1px solid #29384d}
+        .quota-bar i{display:block;height:100%;background:linear-gradient(90deg,#49d5c0,#8d7dff)}
+        .quota-bar.low i{background:linear-gradient(90deg,#f2d394,#c98a2d)}
+        .quota-bar.empty i{background:linear-gradient(90deg,#ff6d7f,#a1263a)}
+        .quota-badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor}
+        .quota-badge.ok{color:#8af0c6}.quota-badge.low{color:#f2d394}.quota-badge.empty{color:#ffc3cc}.quota-badge.unknown{color:#91a1b8}
         @media (max-width:600px){.price-grid{grid-template-columns:1fr}}
     </style>
     <style>
@@ -141,8 +156,30 @@
                         <small>Virtual try-on memakai Pruna P-Image Try-On melalui binding AI. Setiap karakter perlu memiliki foto pakaian; foto referensi dikirim lewat URL privat berumur pendek untuk diproses model.</small>
                     </span>
                 </label>
+                <label class="provider-option">
+                    <input type="radio" name="image-provider" value="qwencloud">
+                    <span>
+                        <strong>QwenCloud (Qwen Image)</strong>
+                        <small>Edited image memakai qwen-image-3.0-pro dan caption vision memakai qwen3-vl-plus melalui secret QWENCLOUD_API_KEY. Foto referensi karakter (plus foto pakaian bila ada) dikirim sebagai base64; pakaian bersifat opsional.</small>
+                    </span>
+                </label>
             </div>
-            <p class="footer-note">Provider yang dipilih digunakan untuk gambar dan caption kontekstual: Cloudflare memakai Workers AI (termasuk model vision untuk caption), sedangkan Gemini memakai GEMINI_API_KEY.</p>
+            <div id="qwencloud-options" class="qwencloud-options" hidden>
+                <div class="provider-field">
+                    <label for="qwencloud-image-model">Model gambar QwenCloud</label>
+                    <select id="qwencloud-image-model"></select>
+                    <small class="muted">Model yang mendukung pembuatan image; persentase tier tersedia ditampilkan di samping nama model. Caption tetap memakai qwen3-vl-plus.</small>
+                </div>
+                <div id="qwencloud-quota-panel" class="quota-panel" aria-live="polite"></div>
+                <div class="price-settings-row">
+                    <label class="quota-limit-field" for="qwencloud-quota-limit">Batas tier (request)</label>
+                    <input id="qwencloud-quota-limit" type="number" min="0" step="1" placeholder="contoh: 1000">
+                    <button id="save-qwencloud-quota" class="btn" type="button">Simpan batas tier</button>
+                    <button id="reset-qwencloud-quota" class="btn" type="button">Reset penghitung</button>
+                </div>
+                <small class="muted">QwenCloud tidak membuka API sisa kuota, jadi persentase dihitung dari ledger pemakaian aplikasi terhadap batas tier yang Anda isi. Status otomatis berubah menjadi "Tier habis" bila QwenCloud menolak dengan error kuota (429 / AllocationQuota.FreeTierOnly).</small>
+            </div>
+            <p class="footer-note">Provider yang dipilih digunakan untuk gambar dan caption kontekstual: Cloudflare memakai Workers AI (termasuk model vision untuk caption), Gemini memakai GEMINI_API_KEY, dan QwenCloud memakai QWENCLOUD_API_KEY.</p>
             <div class="price-settings-row">
                 <button id="save-image-provider" class="btn primary" type="button">Simpan Provider Gambar</button>
             </div>
