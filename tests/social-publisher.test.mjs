@@ -208,7 +208,7 @@ test("Gemini image generation preserves quota HTTP 429 and explains zero free-ti
 
 test("Cloudflare Workers AI uses reference image-to-image and returns PNG output", async () => {
     const referenceBytes = new Uint8Array([1, 2, 3, 4]);
-    const outputBytes = new Uint8Array([137, 80, 78, 71]);
+    const outputBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
     let model;
     let input;
     const result = await generateSocialImage({
@@ -223,31 +223,31 @@ test("Cloudflare Workers AI uses reference image-to-image and returns PNG output
         },
         prompt: "Keep the same character in a city cafe.",
         referenceBytes,
+        referenceMimeType: "image/jpeg",
         aspectRatio: "16:9",
         imageProvider: "cloudflare"
     });
 
-    assert.equal(model, "@cf/stabilityai/stable-diffusion-xl-base-1.0");
-    assert.equal(input.image_b64, btoa(String.fromCharCode(...referenceBytes)));
-    assert.equal("image" in input, false);
-    assert.equal(input.strength, 0.65);
-    assert.equal(input.num_steps, 20);
-    assert.equal(input.width, 1365);
-    assert.equal(input.height, 768);
+    assert.equal(model, "@cf/black-forest-labs/flux-2-klein-4b");
+    assert.match(input.multipart.contentType, /multipart\/form-data/);
+    assert.match(input.multipart.body.prompt, /horizontal landscape \(16:9\)/);
+    assert.equal(input.multipart.body.image.type, "image/jpeg");
+    assert.deepEqual([...new Uint8Array(await input.multipart.body.image.arrayBuffer())], [...referenceBytes]);
     assert.deepEqual([...result.bytes], [...outputBytes]);
     assert.equal(result.mimeType, "image/png");
     assert.equal(result.model, model);
 });
 
 test("Cloudflare Workers AI supports streamed image output", async () => {
+    const outputBytes = new Uint8Array([255, 216, 255, 0]);
     const result = await generateSocialImage({
         env: {
             AI: {
                 async run() {
                     return new ReadableStream({
                         start(controller) {
-                            controller.enqueue(new Uint8Array([137, 80]));
-                            controller.enqueue(new Uint8Array([78, 71]));
+                            controller.enqueue(outputBytes.subarray(0, 2));
+                            controller.enqueue(outputBytes.subarray(2));
                             controller.close();
                         }
                     });
@@ -258,7 +258,26 @@ test("Cloudflare Workers AI supports streamed image output", async () => {
         referenceBytes: new Uint8Array([1]),
         imageProvider: "cloudflare"
     });
-    assert.deepEqual([...result.bytes], [137, 80, 78, 71]);
+    assert.deepEqual([...result.bytes], [...outputBytes]);
+    assert.equal(result.mimeType, "image/jpeg");
+});
+
+test("Cloudflare Workers AI decodes base64 image output", async () => {
+    const jpegBytes = new Uint8Array([255, 216, 255, 1]);
+    const result = await generateSocialImage({
+        env: {
+            AI: {
+                async run() {
+                    return { image: btoa(String.fromCharCode(...jpegBytes)) };
+                }
+            }
+        },
+        prompt: "image edit",
+        referenceBytes: new Uint8Array([1]),
+        imageProvider: "cloudflare"
+    });
+    assert.deepEqual([...result.bytes], [...jpegBytes]);
+    assert.equal(result.mimeType, "image/jpeg");
 });
 
 test("Gemini context caption provider requests one concise Indonesian sentence", async () => {

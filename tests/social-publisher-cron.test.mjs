@@ -120,10 +120,10 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
             SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey,
             AI: {
                 async run(model, input) {
-                    assert.equal(model, "@cf/stabilityai/stable-diffusion-xl-base-1.0");
-                    assert.equal(input.width, 1365);
-                    assert.equal(input.height, 768);
-                    return { image: generatedPng };
+                    assert.equal(model, "@cf/black-forest-labs/flux-2-klein-4b");
+                    assert.match(input.multipart.contentType, /multipart\/form-data/);
+                    assert.match(input.multipart.body.prompt, /horizontal landscape \(16:9\)/);
+                    return { image: btoa(String.fromCharCode(...generatedPng)) };
                 }
             }
         });

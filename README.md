@@ -116,9 +116,10 @@ Facebook. Integrasi gambar menggunakan Nano Banana 2 Lite
 (`gemini-3.1-flash-lite-image`), sedangkan caption menggunakan
 `gemini-2.5-flash`. Admin dapat memilih Google Gemini atau Cloudflare Workers AI
 sebagai provider gambar di **Admin Panel → SET Studio Medsos**. Pilihan
-Cloudflare memakai binding `AI` dengan model SDXL-Lightning image-to-image;
+Cloudflare memakai binding `AI` dengan model FLUX.2 Klein 4B untuk image editing;
 caption kontekstual tetap memerlukan `GEMINI_API_KEY`. Kuota dan biaya
-bergantung pada tier akun provider masing-masing. Service role key hanya
+bergantung pada tier dan ketersediaan model partner di akun provider masing-masing.
+Periksa harga FLUX.2 Klein 4B pada Cloudflare sebelum menggunakannya. Service role key hanya
 digunakan server dan tidak boleh dikirim ke browser.
 
 ---
