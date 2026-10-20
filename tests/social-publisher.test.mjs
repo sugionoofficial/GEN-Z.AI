@@ -557,10 +557,10 @@ test("QwenCloud honors the configured image model from the dropdown", async () =
             referenceBytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]),
             referenceMimeType: "image/png",
             imageProvider: "qwencloud",
-            imageModel: "wan2.7-image-pro"
+            imageModel: "qwen-image-2.1-pro"
         });
-        assert.equal(body.model, "wan2.7-image-pro");
-        assert.equal(result.model, "wan2.7-image-pro");
+        assert.equal(body.model, "qwen-image-2.1-pro");
+        assert.equal(result.model, "qwen-image-2.1-pro");
     } finally {
         globalThis.fetch = originalFetch;
     }
@@ -584,6 +584,110 @@ test("QwenCloud quota exhaustion is surfaced as 429 with guidance", async () => 
                 assert.match(error.message, /Kuota tier model ini habis/);
                 return true;
             }
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("QwenCloud falls back to the async image-generation protocol on url error", async () => {
+    const calls = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        calls.push({ url, options });
+        if (url.endsWith("/services/aigc/multimodal-generation/generation")) {
+            return Response.json({ code: "InvalidParameter", message: "url error, please check url!" }, { status: 400 });
+        }
+        if (url.endsWith("/services/aigc/image-generation/generation")) {
+            return Response.json({ output: { task_id: "task-123", task_status: "PENDING" } });
+        }
+        if (url.endsWith("/tasks/task-123")) {
+            return Response.json({
+                output: {
+                    task_status: "SUCCEEDED",
+                    choices: [{ message: { content: [{ image: "https://result.example/async.png" }] } }]
+                }
+            });
+        }
+        if (url === "https://result.example/async.png") return new Response(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]));
+        throw new Error(`Unexpected fetch: ${url}`);
+    };
+    try {
+        const result = await generateSocialImage({
+            env: { QWENCLOUD_API_KEY: "sk-test" },
+            prompt: "p",
+            referenceBytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]),
+            referenceMimeType: "image/png",
+            imageProvider: "qwencloud",
+            imageModel: "qwen-image-3.0-pro"
+        });
+        assert.match(calls[0].url, /multimodal-generation\/generation$/);
+        assert.match(calls[1].url, /image-generation\/generation$/);
+        assert.equal(calls[1].options.headers["X-DashScope-Async"], "enable");
+        assert.match(calls[2].url, /\/tasks\/task-123$/);
+        assert.equal(result.model, "qwen-image-3.0-pro");
+        assert.equal(result.mimeType, "image/png");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("QwenCloud wan and third-party image models start with the async protocol", async () => {
+    const calls = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        calls.push({ url, options });
+        if (url.endsWith("/services/aigc/image-generation/generation")) {
+            return Response.json({ output: { task_id: "task-wan", task_status: "PENDING" } });
+        }
+        if (url.endsWith("/tasks/task-wan")) {
+            return Response.json({ output: { task_status: "SUCCEEDED", results: [{ url: "https://result.example/wan.png" }] } });
+        }
+        if (url === "https://result.example/wan.png") return new Response(new Uint8Array([255, 216, 255, 0]));
+        throw new Error(`Unexpected fetch: ${url}`);
+    };
+    try {
+        const result = await generateSocialImage({
+            env: { QWENCLOUD_API_KEY: "sk-test" },
+            prompt: "p",
+            referenceBytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]),
+            referenceMimeType: "image/png",
+            imageProvider: "qwencloud",
+            imageModel: "wan2.7-image-pro"
+        });
+        assert.match(calls[0].url, /image-generation\/generation$/);
+        assert.equal(calls.some(call => /multimodal-generation/.test(call.url)), false);
+        assert.equal(result.mimeType, "image/jpeg");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("QwenCloud async task failure surfaces the task message", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async input => {
+        const url = String(input);
+        if (url.endsWith("/services/aigc/image-generation/generation")) {
+            return Response.json({ output: { task_id: "task-fail", task_status: "PENDING" } });
+        }
+        if (url.endsWith("/tasks/task-fail")) {
+            return Response.json({ output: { task_status: "FAILED", message: "Model inference error" } });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    };
+    try {
+        await assert.rejects(
+            generateSocialImage({
+                env: { QWENCLOUD_API_KEY: "sk-test" },
+                prompt: "p",
+                referenceBytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]),
+                referenceMimeType: "image/png",
+                imageProvider: "qwencloud",
+                imageModel: "wan2.7-image-pro"
+            }),
+            /Model inference error/
         );
     } finally {
         globalThis.fetch = originalFetch;
