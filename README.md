@@ -19,6 +19,7 @@
 | **AI Vision** | Analisis gambar untuk mendukung proses creative |
 | **Live Chat AI** | Percakapan OpenKey, konteks URL publik, analisis video per detik, dan prompt final video/gambar yang dapat disalin terpisah |
 | **Credit System** | Sistem kredit berbasis resolusi (480p / 720p / 1080p) + discount |
+| **Studio Medsos** | Social Publisher dengan akses langganan, pengaturan harga, dan autopost Facebook Page |
 | **NSFW Filter** | Server-side content moderation (SightEngine) |
 | **Admin Panel** | Kelola user, model, kredit, dan provider credentials |
 
@@ -69,6 +70,35 @@ Credit diambil dari kolom:
 - `credit_480p`
 - `credit_720p`
 - `credit_1080p`
+
+---
+
+## Studio Medsos
+
+Studio Medsos menyediakan Social Publisher untuk mengelola karakter, Facebook
+Page, dan jadwal autopost. Akses fitur diverifikasi di server berdasarkan
+langganan user yang aktif dan masa berlakunya; mengubah tampilan browser tidak
+dapat melewati pemeriksaan akses API.
+
+Sebelum mengaktifkan fitur, jalankan skrip berikut di Supabase SQL Editor:
+
+1. `supabase/studio-medsos-access.sql` untuk tabel akses berlangganan dan
+   kebijakan akses.
+2. `supabase/studio-medsos-pricing.sql` untuk pengaturan harga langganan.
+   Skrip harga aman dijalankan ulang pada tabel yang sudah ada untuk
+   menambahkan kolom harga per periode.
+
+Admin dan owner dapat membuka **Admin Panel → SET Studio Medsos** untuk
+mengaktifkan langganan user, mengatur durasi dan waktu mulai, serta menetapkan
+harga **per hari, per minggu, per bulan, dan per tahun**. Harga dikonfigurasi
+secara manual dalam Rupiah; kolom harga yang dibiarkan kosong akan ditampilkan
+sebagai “Belum ditentukan” di blok harga halaman Studio Medsos dan pengingat
+akses langganan. Daftar user dengan langganan aktif juga tersedia pada halaman
+pengaturan tersebut.
+
+API Studio Medsos menggunakan `SUPABASE_URL`, `SUPABASE_ANON_KEY` (atau
+`SUPABASE_KEY`), dan `SUPABASE_SERVICE_ROLE_KEY` dari environment server.
+Service role key hanya digunakan server dan tidak boleh dikirim ke browser.
 
 ---
 
