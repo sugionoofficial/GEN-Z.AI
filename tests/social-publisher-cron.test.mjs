@@ -122,7 +122,7 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
                 async run(model, input) {
                     assert.equal(model, "@cf/black-forest-labs/flux-2-klein-4b");
                     assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
-                    assert.match(input.multipart.body.get("prompt"), /horizontal landscape \(16:9\)/);
+                    assert.match(new TextDecoder().decode(input.multipart.body), /horizontal landscape \(16:9\)/);
                     return { image: btoa(String.fromCharCode(...generatedPng)) };
                 }
             }
