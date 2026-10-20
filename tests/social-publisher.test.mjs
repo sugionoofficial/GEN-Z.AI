@@ -228,7 +228,7 @@ test("Cloudflare Workers AI uses reference image-to-image and returns PNG output
     });
 
     assert.equal(model, "@cf/bytedance/stable-diffusion-xl-lightning");
-    assert.equal(input.image_b64, btoa(String.fromCharCode(...referenceBytes)));
+    assert.deepEqual(input.image, [...referenceBytes]);
     assert.equal(input.strength, 0.65);
     assert.equal(input.width, 1365);
     assert.equal(input.height, 768);
