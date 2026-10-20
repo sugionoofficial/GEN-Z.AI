@@ -44,6 +44,18 @@
         node.textContent = message;
     }
 
+    function getActiveSubscription(user, now = Date.now()) {
+        const access = user.studio_access;
+        const startedAt = Date.parse(access?.started_at || "");
+        const expiresAt = Date.parse(access?.expires_at || "");
+        const profileIsActive = String(user.status || "").toLowerCase() === "active";
+        if (!profileIsActive || !access?.is_active || !Number.isFinite(startedAt) || !Number.isFinite(expiresAt)) {
+            return null;
+        }
+        if (startedAt > now || expiresAt <= now) return null;
+        return { access, startedAt, expiresAt };
+    }
+
     async function sessionToken() {
         const { data, error } = await getSupabaseClient().auth.getSession();
         if (error) throw error;
@@ -78,6 +90,82 @@
             option.disabled = String(user.status || "").toLowerCase() !== "active";
             select.add(option);
         }
+    }
+
+    function renderActiveSubscriptions(now = Date.now()) {
+        const list = document.getElementById("active-subscribers-list");
+        const summary = document.getElementById("active-subscribers-summary");
+        const count = document.getElementById("active-subscribers-count");
+        const activeUsers = users
+            .map(user => ({ user, subscription: getActiveSubscription(user, now) }))
+            .filter(item => item.subscription)
+            .sort((a, b) => a.subscription.expiresAt - b.subscription.expiresAt);
+
+        count.textContent = `${activeUsers.length} AKUN`;
+        summary.textContent = activeUsers.length
+            ? "Akun aktif dengan langganan Studio Medsos yang masih berlaku."
+            : "Saat ini belum ada akun dengan langganan aktif.";
+        list.replaceChildren();
+
+        if (!activeUsers.length) {
+            const empty = document.createElement("div");
+            empty.className = "empty-list";
+            empty.textContent = "Belum ada user yang memiliki langganan aktif.";
+            list.append(empty);
+            return;
+        }
+
+        for (const { user, subscription } of activeUsers) {
+            const item = document.createElement("article");
+            item.className = "subscription-item";
+
+            const details = document.createElement("div");
+            const email = document.createElement("div");
+            email.className = "subscription-user";
+            email.textContent = user.email || user.name || user.id;
+
+            const meta = document.createElement("div");
+            meta.className = "subscription-meta";
+            const role = document.createElement("span");
+            role.textContent = user.role || "user";
+            const duration = document.createElement("span");
+            duration.textContent = `${subscription.access.duration_days} hari`;
+            const expiry = document.createElement("span");
+            expiry.textContent = `Berakhir ${formatDateTime(subscription.expiresAt)}`;
+            meta.append(role, duration, expiry);
+            details.append(email, meta);
+
+            const countdown = document.createElement("div");
+            countdown.className = "subscription-countdown";
+            countdown.dataset.expiresAt = String(subscription.expiresAt);
+            const remainingSeconds = Math.max(0, Math.floor((subscription.expiresAt - now) / 1000));
+            countdown.textContent = formatCountdown(remainingSeconds);
+
+            item.append(details, countdown);
+            list.append(item);
+        }
+    }
+
+    function formatCountdown(totalSeconds) {
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `Sisa ${days} hari ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function updateActiveSubscriptionCountdowns(now = Date.now()) {
+        let expired = false;
+        for (const countdown of document.querySelectorAll(".subscription-countdown")) {
+            const expiresAt = Number(countdown.dataset.expiresAt);
+            const remainingSeconds = Math.floor((expiresAt - now) / 1000);
+            if (remainingSeconds <= 0) {
+                expired = true;
+                break;
+            }
+            countdown.textContent = formatCountdown(remainingSeconds);
+        }
+        if (expired) renderActiveSubscriptions(now);
     }
 
     function renderPreview(access) {
@@ -140,6 +228,7 @@
         const result = await api("studio-admin-users");
         users = result.users || [];
         populateUserSelect();
+        renderActiveSubscriptions();
         document.getElementById("user-count").textContent = `${users.length} akun`;
         if (!users.length) {
             setStatusMessage("Belum ada profil user yang dapat dikelola.", "warn");
@@ -184,6 +273,7 @@
             if (user) user.studio_access = result.access;
             document.getElementById("access-status").checked = Boolean(result.access.is_active);
             renderPreview(result.access);
+            renderActiveSubscriptions();
             setStatusMessage(
                 active ? "Langganan user berhasil disimpan ke Supabase." : "Langganan user berhasil dinonaktifkan.",
                 "success"
@@ -221,6 +311,7 @@
         countdownTimer = window.setInterval(() => {
             const user = users.find(item => item.id === userSelect.value);
             renderPreview(user?.studio_access || null);
+            updateActiveSubscriptionCountdowns();
         }, 1000);
         window.addEventListener("beforeunload", () => window.clearInterval(countdownTimer), { once: true });
     });

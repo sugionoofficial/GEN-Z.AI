@@ -568,7 +568,6 @@
             { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
             { label: "History", href: "/history/index.html", icon: ICONS.history },
             { label: "Studio Medsos", href: "/admin-control/social-publisher.html", icon: ICONS.socialStudio },
-            { label: "SET Studio Medsos", href: "/admin-control/studio-medsos-set.html", icon: ICONS.socialStudio },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
             { label: "TempMail", href: "/email.html", icon: ICONS.chinaapi },
             { label: "Admin Panel", href: "/admin-control/admin-panel.html", icon: ICONS.adminPanel },
