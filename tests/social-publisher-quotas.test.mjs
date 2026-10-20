@@ -150,3 +150,14 @@ test("recordModelUsage seeds the tier limit from the model free quota", async ()
         restore();
     }
 });
+
+test("qwenCloudProtocolFor maps model families to their wire protocol", async () => {
+    const { qwenCloudProtocolFor } = await import("../lib/social-publisher/quotas.js");
+    assert.equal(qwenCloudProtocolFor("qwen-image-3.0-pro"), "sync");
+    assert.equal(qwenCloudProtocolFor("qwen-image-2.1-pro"), "sync");
+    assert.equal(qwenCloudProtocolFor("wan2.7-image-pro"), "async");
+    assert.equal(qwenCloudProtocolFor("wan2.2-t2i-flash"), "async");
+    assert.equal(qwenCloudProtocolFor("z-image-turbo"), "async");
+    assert.equal(qwenCloudProtocolFor("vidu/vidu-image_reference2image"), "async");
+    assert.equal(qwenCloudProtocolFor("tidak-ada"), "sync");
+});
