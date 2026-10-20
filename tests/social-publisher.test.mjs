@@ -229,7 +229,7 @@ test("Cloudflare Workers AI uses reference image-to-image and returns PNG output
     });
 
     assert.equal(model, "@cf/black-forest-labs/flux-2-klein-4b");
-    assert.match(input.multipart.contentType, /multipart\/form-data/);
+    assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
     assert.ok(input.multipart.body instanceof FormData);
     assert.match(input.multipart.body.get("prompt"), /horizontal landscape \(16:9\)/);
     const referenceImage = input.multipart.body.get("image");
